@@ -194,6 +194,16 @@ class AppState(AppStateBase):
     # create one.
     # Use this file to override the config manager.
     def config_manager_at_file(self, path: str) -> MarimoConfigManager:
+        # The file key can be relative to the workspace directory, so resolve
+        # it to an absolute path before reading inline script metadata —
+        # otherwise ScriptConfigManager looks relative to the server's cwd.
+        resolved_path = path
+        try:
+            resolved = self.session_manager.workspace.resolve(path)
+            if resolved is not None:
+                resolved_path = resolved
+        except Exception:
+            pass  # new/unsaved file: fall back to the raw key
         return super().config_manager.with_overrides(
-            ScriptConfigManager(path).get_config()
+            ScriptConfigManager(resolved_path).get_config()
         )

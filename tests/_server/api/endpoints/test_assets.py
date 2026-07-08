@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
@@ -237,6 +238,48 @@ def test_index_with_directory_run_mode(
         assert "<marimo-filename" in content
         assert '"mode": "gallery"' in content
         assert "<title>marimo</title>" in content
+
+
+def test_index_with_directory_respects_inline_theme(
+    client: TestClient, tmp_path: Path
+) -> None:
+    # Regression test for #10056: a directory workspace sends a relative file
+    # key, and its inline theme must still be applied.
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # [tool.marimo.display]
+            # theme = "dark"
+            # ///
+
+            import marimo
+
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                import marimo as mo
+                return
+
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        ).lstrip()
+    )
+
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
+    ):
+        response = client.get("/?file=notebook.py", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert '"theme": "dark"' in response.text
 
 
 def test_favicon(client: TestClient) -> None:
