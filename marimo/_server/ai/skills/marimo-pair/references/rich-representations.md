@@ -1,7 +1,6 @@
 # Rich Representations
 
 Loaded on demand via the `rich-representations` capability (`load_capability`).
-Do not read this file from disk.
 
 Custom visual encodings for data that go beyond standard charts and tables.
 
