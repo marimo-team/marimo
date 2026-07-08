@@ -102,14 +102,18 @@ class TestDelete:
         )
         assert sanitized == ()
 
-    def test_delete_then_recreate_resolves_in_batch_order(self) -> None:
+    def test_recreate_of_deleted_existing_id_is_dropped(self) -> None:
         doc = _doc("a")
-        changes = (
-            DeleteCell(cell_id=CellId_t("a")),
-            _create("a"),
-        )
-        sanitized = reconcile_transaction(changes, doc)
-        assert sanitized == changes
+        delete = DeleteCell(cell_id=CellId_t("a"))
+        sanitized = reconcile_transaction((delete, _create("a")), doc)
+        assert sanitized == (delete,)
+
+    def test_recreate_of_batch_created_id_is_dropped(self) -> None:
+        doc = _doc("a")
+        create = _create("x", after="a")
+        delete = DeleteCell(cell_id=CellId_t("x"))
+        sanitized = reconcile_transaction((create, delete, _create("x")), doc)
+        assert sanitized == (create, delete)
 
 
 class TestSetProperties:
@@ -169,6 +173,20 @@ class TestMove:
         change = MoveCell(cell_id=CellId_t("a"), after=CellId_t("b"))
         sanitized = reconcile_transaction((change,), doc)
         assert sanitized == (change,)
+
+    def test_move_with_no_anchor_is_dropped(self) -> None:
+        doc = _doc("a", "b")
+        sanitized = reconcile_transaction(
+            (MoveCell(cell_id=CellId_t("a"), after=None, before=None),), doc
+        )
+        assert sanitized == ()
+
+    def test_move_anchored_to_itself_is_dropped(self) -> None:
+        doc = _doc("a", "b")
+        sanitized = reconcile_transaction(
+            (MoveCell(cell_id=CellId_t("a"), after=CellId_t("a")),), doc
+        )
+        assert sanitized == ()
 
 
 class TestReorder:

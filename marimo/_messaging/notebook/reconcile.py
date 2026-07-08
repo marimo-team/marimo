@@ -31,21 +31,25 @@ def reconcile_transaction(
 
     Resolves references in batch order against a shadow id-set seeded from
     the document and mutated per change, so a cell created earlier in the
-    same batch satisfies a later anchor. Unresolvable create/move anchors
-    are stripped (the cell is appended); changes targeting a missing cell,
-    and creates of an id already present, are dropped.
+    same batch satisfies a later anchor. A create with an unresolvable anchor
+    is appended (its anchor stripped); a create whose id is already taken is
+    dropped. Property updates targeting a missing cell, and moves that target
+    a missing cell or lack a single resolvable anchor, are dropped.
     """
     # current cells in the document model
     live: set[CellId_t] = set(document.cell_ids)
+    # ids a create can't reuse; grows but never shrinks, mirroring
+    # `_validate` which never frees an id within a transaction
+    claimed: set[CellId_t] = set(document.cell_ids)
     out: list[DocumentChange] = []
 
-    # anchor should be a live cell Or None (for last cell)
+    # an anchor resolves when it is a live cell, or None (meaning no anchor)
     def resolve_anchor(anchor: CellId_t | None) -> bool:
         return anchor is None or anchor in live
 
     for change in changes:
         if isinstance(change, CreateCell):
-            if change.cell_id in live:
+            if change.cell_id in claimed:
                 continue
             # if no anchor cell exists, just append the new cell
             if not resolve_anchor(change.after) or not resolve_anchor(
@@ -53,6 +57,7 @@ def reconcile_transaction(
             ):
                 change = structs_replace(change, after=None, before=None)
             live.add(change.cell_id)
+            claimed.add(change.cell_id)
             out.append(change)
         elif isinstance(change, DeleteCell):
             if change.cell_id not in live:
@@ -63,7 +68,11 @@ def reconcile_transaction(
         elif isinstance(change, MoveCell):
             if change.cell_id not in live:
                 continue
-            # a move needs a live anchor to have anywhere to go; else skip
+            # no anchor, or a self-anchor, has no valid destination
+            if change.after is None and change.before is None:
+                continue
+            if change.cell_id in (change.after, change.before):
+                continue
             if not resolve_anchor(change.after) or not resolve_anchor(
                 change.before
             ):
