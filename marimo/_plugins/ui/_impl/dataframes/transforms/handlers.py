@@ -503,23 +503,34 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
         # Keep pandas handling fully pandas-native so mixed/object columns in
         # unrelated fields do not trigger Arrow coercion errors.
         if nw.dependencies.is_pandas_dataframe(native_df):
-            import math
-
             import pandas as pd
 
             result_df = native_df.copy()
+            columns = list(result_df.columns)
+            column_index = columns.index(transform.column_id)
+
+            def is_na_like(value: Any) -> bool:
+                # is_scalar guards pd.isna, which returns an array for dicts.
+                return pd.api.types.is_scalar(value) and bool(pd.isna(value))
 
             def normalise_empty_dict(value: Any) -> Any:
-                if value is None:
-                    return {}
-                if isinstance(value, float) and math.isnan(value):
-                    return {}
-                return value
+                return {} if is_na_like(value) else value
+
+            column = result_df.pop(transform.column_id)
+            if not all(
+                isinstance(value, dict) or is_na_like(value)
+                for value in column
+            ):
+                raise nw.exceptions.InvalidOperationError(
+                    "Expand dict requires a struct-like column with named "
+                    f"fields on this backend; got column "
+                    f"'{transform.column_id}' with dtype {column.dtype!r}."
+                )
 
             # Keep expansion shallow and replace top-level null/nan entries so
             # pandas and other backends agree on expand-dict behaviour.
             expanded = pd.json_normalize(
-                result_df.pop(transform.column_id).map(normalise_empty_dict),  # type: ignore[arg-type]
+                column.map(normalise_empty_dict),  # type: ignore[arg-type]
                 max_level=0,
             )
             duplicate_columns = sorted(
@@ -531,7 +542,13 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
                     f"columns: {duplicate_columns}"
                 )
             expanded.index = result_df.index
-            return undo(nw.from_native(result_df.join(expanded)))
+            field_names = list(expanded.columns)
+            new_order = (
+                columns[:column_index]
+                + field_names
+                + columns[column_index + 1 :]
+            )
+            return undo(nw.from_native(result_df.join(expanded)[new_order]))
 
         schema = collected_df.collect_schema()
         dtype = schema.get(transform.column_id)
