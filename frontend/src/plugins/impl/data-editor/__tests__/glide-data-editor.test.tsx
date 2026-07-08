@@ -145,4 +145,43 @@ describe("GlideDataEditor portal", () => {
 
     fullscreenContainer.remove();
   });
+
+  it("unmounts cleanly while fullscreen is active", async () => {
+    const fullscreenContainer = document.createElement("div");
+    document.body.appendChild(fullscreenContainer);
+
+    const { unmount } = render(
+      <TooltipProvider>
+        <GlideDataEditor {...editorProps} />
+      </TooltipProvider>,
+    );
+
+    act(() => {
+      fullscreenElement = fullscreenContainer;
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+
+    await waitFor(() => {
+      expect(
+        fullscreenContainer.querySelector(
+          "[data-testid='glide-data-editor-portal']",
+        ),
+      ).not.toBeNull();
+    });
+
+    expect(() => {
+      act(() => unmount());
+    }).not.toThrow();
+
+    expect(
+      fullscreenContainer.querySelector(
+        "[data-testid='glide-data-editor-portal']",
+      ),
+    ).toBeNull();
+    expect(
+      document.body.querySelector("[data-testid='glide-data-editor-portal']"),
+    ).toBeNull();
+
+    fullscreenContainer.remove();
+  });
 });
