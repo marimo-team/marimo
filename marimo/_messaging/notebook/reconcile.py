@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from msgspec.structs import replace as structs_replace
 
+from marimo import _loggers
 from marimo._messaging.notebook.changes import (
     CreateCell,
     DeleteCell,
@@ -16,6 +17,8 @@ from marimo._messaging.notebook.changes import (
     SetName,
 )
 from marimo._utils.assert_never import assert_never
+
+LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
     from marimo._messaging.notebook.changes import DocumentChange
@@ -50,37 +53,69 @@ def reconcile_transaction(
     for change in changes:
         if isinstance(change, CreateCell):
             if change.cell_id in claimed:
+                LOGGER.debug(
+                    "CreateCell: cannot create %s, id already exists",
+                    change.cell_id,
+                )
                 continue
             # if no anchor cell exists, just append the new cell
             if not resolve_anchor(change.after) or not resolve_anchor(
                 change.before
             ):
+                LOGGER.debug(
+                    "CreateCell: remove unresolvable anchor from create %s",
+                    change.cell_id,
+                )
                 change = structs_replace(change, after=None, before=None)
             live.add(change.cell_id)
             claimed.add(change.cell_id)
             out.append(change)
         elif isinstance(change, DeleteCell):
             if change.cell_id not in live:
+                LOGGER.debug(
+                    "DeleteCell: missing cell %s",
+                    change.cell_id,
+                )
                 continue
             # track removal
             live.discard(change.cell_id)
             out.append(change)
         elif isinstance(change, MoveCell):
             if change.cell_id not in live:
+                LOGGER.debug(
+                    "MoveCell: cannot move missing cell %s",
+                    change.cell_id,
+                )
                 continue
             # no anchor, or a self-anchor, has no valid destination
             if change.after is None and change.before is None:
+                LOGGER.debug(
+                    "MoveCell: cannot move cell %s with no anchor",
+                    change.cell_id,
+                )
                 continue
             if change.cell_id in (change.after, change.before):
+                LOGGER.debug(
+                    "MoveCell: cannot move cell %s that is anchored to itself",
+                    change.cell_id,
+                )
                 continue
             if not resolve_anchor(change.after) or not resolve_anchor(
                 change.before
             ):
+                LOGGER.debug(
+                    "MoveCell: unresolvable anchor for %s",
+                    change.cell_id,
+                )
                 continue
             out.append(change)
         elif isinstance(change, (SetCode, SetName, SetConfig)):
-            # if cell is missing, skip
             if change.cell_id not in live:
+                LOGGER.debug(
+                    "%s: cannot update missing cell %s",
+                    type(change).__name__,
+                    change.cell_id,
+                )
                 continue
             out.append(change)
         elif isinstance(change, ReorderCells):
