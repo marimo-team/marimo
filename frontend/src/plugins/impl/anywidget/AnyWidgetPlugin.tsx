@@ -202,6 +202,10 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
 }
 
 const warnedLegacyNamedExportUrls = new Set<string>();
+// Cache the synthesized widget per module namespace so its identity stays
+// stable across re-renders (like a default export), avoiding needless
+// WidgetBinding re-initialization.
+const legacyWidgetCache = new WeakMap<object, AnyWidget>();
 
 /**
  * Resolve the AnyWidget from a loaded module: prefer the AFM-spec default
@@ -213,26 +217,37 @@ function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
     return mod.default;
   }
 
-  // Legacy (pre-AFM): top-level named `render`/`initialize` exports.
-  const hasNamedRender = typeof mod?.render === "function";
-  const hasNamedInitialize = typeof mod?.initialize === "function";
-  if (hasNamedRender || hasNamedInitialize) {
-    if (!warnedLegacyNamedExportUrls.has(jsUrl)) {
-      warnedLegacyNamedExportUrls.add(jsUrl);
-      Logger.warn(
-        `Anywidget module at ${jsUrl} uses deprecated top-level named ` +
-          "exports (`render`/`initialize`). Per the AFM spec, use a default " +
-          "export instead: `export default { render }`. " +
-          "See https://anywidget.dev/en/afm/",
-      );
-    }
-    return {
-      render: mod.render,
-      initialize: mod.initialize,
-    };
+  // Only fall back to legacy (pre-AFM) named exports when there is no default
+  // export at all; a present-but-invalid default should surface an error
+  // rather than be masked.
+  if (mod?.default != null) {
+    return null;
   }
 
-  return null;
+  const hasNamedRender = typeof mod?.render === "function";
+  const hasNamedInitialize = typeof mod?.initialize === "function";
+  if (!hasNamedRender && !hasNamedInitialize) {
+    return null;
+  }
+
+  const cached = legacyWidgetCache.get(mod);
+  if (cached) {
+    return cached;
+  }
+
+  if (!warnedLegacyNamedExportUrls.has(jsUrl)) {
+    warnedLegacyNamedExportUrls.add(jsUrl);
+    Logger.warn(
+      `Anywidget module at ${jsUrl} uses deprecated top-level named ` +
+        "exports (`render`/`initialize`). Per the AFM spec, use a default " +
+        "export instead: `export default { render }`. " +
+        "See https://anywidget.dev/en/afm/",
+    );
+  }
+
+  const widget: AnyWidget = { render: mod.render, initialize: mod.initialize };
+  legacyWidgetCache.set(mod, widget);
+  return widget;
 }
 
 function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {

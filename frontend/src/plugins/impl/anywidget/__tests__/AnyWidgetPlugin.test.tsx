@@ -206,6 +206,16 @@ describe("resolveAnyWidget", () => {
     expect(resolveAnyWidget({ default: {} }, jsUrl)).toBeNull();
     expect(resolveAnyWidget({ render: "not a function" }, jsUrl)).toBeNull();
   });
+
+  it("should return a stable widget identity across calls for one module", () => {
+    const mod = { render: vi.fn() };
+    expect(resolveAnyWidget(mod, jsUrl)).toBe(resolveAnyWidget(mod, jsUrl));
+  });
+
+  it("should not fall back to named exports when a default export is present", () => {
+    // A present-but-invalid default should surface an error, not be masked.
+    expect(resolveAnyWidget({ default: {}, render: vi.fn() }, jsUrl)).toBeNull();
+  });
 });
 
 describe("getInvalidAnyWidgetModuleError", () => {
