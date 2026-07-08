@@ -30,7 +30,7 @@ export function generateAltairChart(
       if (typeof spec.mark === "object" && "type" in spec.mark) {
         markProps = Object.fromEntries(
           Object.entries(spec.mark)
-            .filter(([key]) => key !== "type")
+            .filter(([key, value]) => key !== "type" && (value !== undefined && value !== null))
             .map(([key, value]) => [key, new Literal(value)]),
         );
       }
