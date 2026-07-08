@@ -11,6 +11,7 @@ from marimo._server.session_manager import SessionManager
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._types.ids import SessionId
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from starlette.applications import Starlette
@@ -194,6 +195,20 @@ class AppState(AppStateBase):
     # create one.
     # Use this file to override the config manager.
     def config_manager_at_file(self, path: str) -> MarimoConfigManager:
-        return super().config_manager.with_overrides(
-            ScriptConfigManager(path).get_config()
+        config_manager = super().config_manager
+        # The file key can be relative to the workspace directory, so resolve
+        # it to a validated absolute path before reading inline script
+        # metadata — otherwise ScriptConfigManager would read relative to the
+        # server's cwd. New/unsaved or missing files have no inline config to
+        # apply; let other rejections (e.g. path traversal) propagate.
+        try:
+            resolved = self.session_manager.workspace.resolve(path)
+        except HTTPException as e:
+            if e.status_code == HTTPStatus.NOT_FOUND:
+                return config_manager
+            raise
+        if resolved is None:
+            return config_manager
+        return config_manager.with_overrides(
+            ScriptConfigManager(resolved).get_config()
         )
