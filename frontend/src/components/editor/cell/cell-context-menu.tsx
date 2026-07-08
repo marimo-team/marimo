@@ -23,7 +23,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
-import { goToDefinitionAtCursorPosition } from "@/core/codemirror/go-to-definition/utils";
+import { goToDefinitionWithLspFallback } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
 import { getImageExtension } from "@/utils/filenames";
@@ -170,7 +170,7 @@ export const CellActionsContextMenu = ({
           // Only suppress focus restoration when we actually navigated;
           // otherwise let Radix return focus to the trigger cell.
           suppressCloseAutoFocus.current =
-            goToDefinitionAtCursorPosition(editorView);
+            goToDefinitionWithLspFallback(editorView);
         }
       },
     },

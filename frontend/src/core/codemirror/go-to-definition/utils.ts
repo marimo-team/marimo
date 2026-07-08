@@ -2,8 +2,13 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
-import { closeHoverTooltips, type EditorView } from "@codemirror/view";
+import {
+  closeHoverTooltips,
+  type EditorView,
+  runScopeHandlers,
+} from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
+import { hotkeysAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
@@ -66,6 +71,33 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
   view.dispatch({ effects: closeHoverTooltips });
 
   return goToDefinition(view, word, position);
+}
+
+/**
+ * Trigger the editor's LSP go-to-definition keybinding at the current
+ * selection. Returns true when a keymap handler consumed the shortcut.
+ */
+export function requestLspGoToDefinition(
+  view: EditorView,
+  hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
+): boolean {
+  const event = new KeyboardEvent("keydown", {
+    key: hotkey,
+    bubbles: true,
+    cancelable: true,
+  });
+  return runScopeHandlers(view, event, "editor");
+}
+
+/**
+ * Go to the definition under the cursor, falling back to the language server
+ * when marimo cannot resolve the symbol (e.g. external library code).
+ */
+export function goToDefinitionWithLspFallback(view: EditorView): boolean {
+  if (goToDefinitionAtCursorPosition(view)) {
+    return true;
+  }
+  return requestLspGoToDefinition(view);
 }
 
 /**
