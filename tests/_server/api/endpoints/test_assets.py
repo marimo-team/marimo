@@ -282,6 +282,24 @@ def test_index_with_directory_respects_inline_theme(
         assert '"theme": "dark"' in response.text
 
 
+def test_index_with_directory_rejects_traversal_file_key(
+    client: TestClient, tmp_path: Path
+) -> None:
+    # Resolving the file key must not silently swallow the workspace's path
+    # validation: a key pointing outside the workspace should be rejected,
+    # not fall back to reading inline metadata from an unvalidated path.
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
+    ):
+        response = client.get(
+            "/?file=../../../../etc/passwd", headers=token_header()
+        )
+        assert response.status_code != 200, response.text
+
+
 def test_favicon(client: TestClient) -> None:
     response = client.get("/favicon.ico")
     assert response.status_code == 200, response.text
