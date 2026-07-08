@@ -138,3 +138,17 @@
   display: inline-block;
   padding: 2px;
 }
+
+/* Rename symbol popup (F2). The upstream popup hardcodes white inline styles;
+  override with theme tokens. */
+.cm-rename-popup {
+  background: var(--popover) !important;
+  border-color: var(--border) !important;
+  color: var(--popover-foreground) !important;
+}
+
+.cm-rename-popup input {
+  background: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
