@@ -9,9 +9,8 @@ import {
   keymap,
 } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
-import { hotkeysAtom } from "../../config/config";
+import { hotkeysAtom, platformAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
-import { resolvePlatform } from "../../hotkeys/shortcuts";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
@@ -22,7 +21,7 @@ function keymapBindingMatchesHotkey(
   binding: KeyBinding,
   hotkey: string,
 ): boolean {
-  const platform = resolvePlatform();
+  const platform = store.get(platformAtom);
   const bindingKey =
     platform === "mac"
       ? (binding.mac ?? binding.key)
