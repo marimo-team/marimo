@@ -587,6 +587,43 @@ class TestPandasTableManager(unittest.TestCase):
         out = _flatten_non_trivial_index(df)
         assert list(out.columns) == ["Index0_index", "Index0"]
 
+    def test_flatten_non_trivial_index_named_level_collides_with_generated(
+        self,
+    ) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # A named level "Index0" alongside an unnamed level, whose generated
+        # name would also be "Index0", must be disambiguated instead of
+        # producing two identical columns.
+        index = pd.MultiIndex.from_tuples(
+            [("a", 1), ("b", 2)], names=["Index0", None]
+        )
+        df = pd.DataFrame({"v": [10, 20]}, index=index)
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["Index0", "Index0_index", "v"]
+
+    def test_flatten_non_trivial_index_conflict_and_fallback_both_exist(
+        self,
+    ) -> None:
+        import pandas as pd
+
+        from marimo._plugins.ui._impl.tables.pandas_table import (
+            _flatten_non_trivial_index,
+        )
+
+        # Both the colliding column "x" and its "_index" fallback already
+        # exist, so disambiguation must keep appending until unique.
+        df = pd.DataFrame(
+            {"x": [1, 2], "x_index": [3, 4]},
+            index=pd.Index(["a", "b"], name="x"),
+        )
+        out = _flatten_non_trivial_index(df)
+        assert list(out.columns) == ["x_index_index", "x", "x_index"]
+
     def test_with_index_as_columns_pandas_named_index(self) -> None:
         import pandas as pd
 

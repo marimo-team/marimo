@@ -62,33 +62,42 @@ def _flatten_non_trivial_index(df: pd.DataFrame) -> pd.DataFrame:
         return df
 
     names = _index_level_names(df.index, set(df.columns))
-    return df.reset_index(names=names)
+    return df.rename_axis(names).reset_index()
 
 
-def _resolve_index_name(name: object, columns: set[str]) -> str:
-    """Return a non-conflicting index name by appending '_index' if needed."""
-    return f"{name}_index" if name in columns else str(name)
+def _rename_index_levels(index: pd.Index, names: list[str]) -> pd.Index:
+    """Return `index` with its levels renamed to `names`, in level order."""
+    import pandas as pd
+
+    if isinstance(index, pd.MultiIndex):
+        return index.set_names(names)
+    return index.rename(names[0])
+
+
+def _resolve_index_name(name: object, used: set[str]) -> str:
+    """Return a name absent from `used`, appending '_index' until unique."""
+    resolved = str(name)
+    while resolved in used:
+        resolved = f"{resolved}_index"
+    return resolved
 
 
 def _index_level_names(index: pd.Index, columns: set[str]) -> list[str]:
-    """Final column name for each index level, in level order.
+    """Column name for each index level, in level order.
 
-    Named levels keep their name; unnamed levels are numbered `Index0`,
-    `Index1`, ... in level order, so a single unnamed index is `Index0`. Every
-    resulting name is resolved against `columns`, so a name that collides with
-    an existing column (e.g. a real `Index0`) is disambiguated to `Index0_index`.
-
-    Both the chart-data path (`_flatten_non_trivial_index`) and the row-header
-    path (`_get_row_headers_for_index`) use this, so the flattened columns and
-    the offered chart fields stay identical.
+    Unnamed levels are numbered `Index0`, `Index1`, ... Names colliding with
+    `columns` or with an earlier level get an `_index` suffix until unique.
     """
     unnamed_count = 0
+    used = set(columns)
     names: list[str] = []
     for name in index.names:
         if name is None:
             name = f"Index{unnamed_count}"
             unnamed_count += 1
-        names.append(_resolve_index_name(name, columns))
+        resolved = _resolve_index_name(name, used)
+        used.add(resolved)
+        names.append(resolved)
     return names
 
 
@@ -98,8 +107,6 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     Avoids 'ValueError: cannot insert x, already exists' on reset_index().
     Modifies the DataFrame in-place and returns it.
     """
-    import pandas as pd
-
     index_names = df.index.names
     conflicting_names = set(index_names) & set(df.columns)
     if not conflicting_names:
@@ -108,11 +115,7 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     columns = set(df.columns)
     new_names = [_resolve_index_name(name, columns) for name in index_names]
 
-    if isinstance(df.index, pd.MultiIndex):
-        df.index = df.index.set_names(new_names)
-    else:
-        df.index = df.index.rename(new_names[0])
-
+    df.index = _rename_index_levels(df.index, new_names)
     return df
 
 
