@@ -27,6 +27,7 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
+import { uniqueBy } from "@/utils/arrays";
 import { inferFieldTypes } from "../columns";
 import {
   type FieldTypesWithExternalType,
@@ -67,9 +68,7 @@ export function mergeIndexFields(
   if (!rowHeaders || rowHeaders.length === 0) {
     return base;
   }
-  const seen = new Set(base.map(([name]) => name));
-  const indexFields = rowHeaders.filter(([name]) => !seen.has(name));
-  return [...base, ...indexFields];
+  return uniqueBy([...base, ...rowHeaders], (f) => f[0]);
 }
 
 export interface TablePanelProps {
