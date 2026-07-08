@@ -140,7 +140,7 @@
 }
 
 /* Rename symbol popup (F2). The upstream popup hardcodes white inline styles;
-  override with theme tokens (!important beats inline styles). */
+  override with theme tokens. */
 .cm-rename-popup {
   background: var(--popover) !important;
   border-color: var(--border) !important;
