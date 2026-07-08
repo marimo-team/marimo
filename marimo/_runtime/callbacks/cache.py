@@ -23,6 +23,13 @@ class CacheCallbacks:
         router.register(ClearCacheCommand, self.clear_cache)
         router.register(GetCacheInfoCommand, self.get_cache_info)
 
+    def teardown(self) -> None:
+        """Flush pending cache writes so blobs are durable before teardown."""
+        from marimo._save.loaders import flush_active_caches
+
+        # NB. loaders dispatch blob writes to background threads; join them.
+        flush_active_caches()
+
     async def clear_cache(self, request: ClearCacheCommand) -> None:
         del request
         from marimo._save.cache import CacheContext

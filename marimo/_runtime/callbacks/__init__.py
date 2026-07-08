@@ -7,7 +7,10 @@ from marimo._runtime.callbacks.external_storage import (
     ExternalStorageCallbacks,
 )
 from marimo._runtime.callbacks.packages import PackagesCallbacks
-from marimo._runtime.callbacks.protocol import KernelCallback
+from marimo._runtime.callbacks.protocol import (
+    KernelCallback,
+    SupportsTeardown,
+)
 from marimo._runtime.callbacks.secrets import SecretsCallbacks
 from marimo._runtime.callbacks.sql import SqlCallbacks
 
@@ -19,4 +22,5 @@ __all__ = [
     "PackagesCallbacks",
     "SecretsCallbacks",
     "SqlCallbacks",
+    "SupportsTeardown",
 ]

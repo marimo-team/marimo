@@ -96,6 +96,7 @@ from marimo._runtime.callbacks import (
     PackagesCallbacks,
     SecretsCallbacks,
     SqlCallbacks,
+    SupportsTeardown,
 )
 from marimo._runtime.commands import (
     AppMetadata,
@@ -619,6 +620,15 @@ class Kernel:
     @property
     def stdin(self) -> Stdin | None:
         return self._streams.stdin
+
+    def teardown_callbacks(self) -> None:
+        """Run callback teardown while the runtime context is still alive."""
+        for cb in self._callbacks:
+            if isinstance(cb, SupportsTeardown):
+                try:
+                    cb.teardown()
+                except Exception:
+                    LOGGER.warning("Callback teardown failed", exc_info=True)
 
     def teardown(self) -> None:
         """Teardown resources owned by the kernel."""
