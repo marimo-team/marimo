@@ -3932,13 +3932,16 @@ export interface components {
      * @description Per-consumer access capabilities for a session connection.
      *
      *         - editor: `{edit: True, interact: True}`
-     *         - viewer: `{edit: False, interact: False}`
+     *         - interactor: `{edit: False, interact: True}` (default for a secondary
+     *           connection: drives UI state but cannot edit the notebook)
+     *         - read-only viewer: `{edit: False, interact: False}` (opt-in, set by a
+     *           deployment's capability provider)
      *
-     *         These gate the frontend UI; they are not the server's authority boundary.
-     *         Scopes are granted per session mode (see `@requires`), so in an edit session
-     *         every connection (viewers included) carries the `edit` scope and can issue
-     *         edit requests. A viewer's read-only status is enforced by the client hiding
-     *         edit affordances, not by the server rejecting the request.
+     *         The server enforces these: control requests are gated against the issuing
+     *         consumer's stored capabilities at the control-request chokepoint (the
+     *         authority) and mirrored as an advisory HTTP 403 at the request handlers.
+     *         Commands classified as `read` in `marimo._session.capabilities` (such as
+     *         completions and previews) are always permitted.
      */
     ConsumerCapabilities: {
       edit: boolean;

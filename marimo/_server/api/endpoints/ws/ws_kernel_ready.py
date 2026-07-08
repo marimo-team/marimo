@@ -86,8 +86,10 @@ def build_kernel_ready(
         last_execution_time=last_execution_time,
         app_config=session.app_file_manager.app.config,
         kiosk=kiosk,
-        consumer_capabilities=ConsumerCapabilities(
-            edit=not kiosk, interact=not kiosk
+        consumer_capabilities=(
+            ConsumerCapabilities.INTERACTOR
+            if kiosk
+            else ConsumerCapabilities.EDITOR
         ),
         capabilities=KernelCapabilitiesNotification(),
         auto_instantiated=auto_instantiated,
