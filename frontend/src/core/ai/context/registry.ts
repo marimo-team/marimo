@@ -9,10 +9,18 @@ import { MultiMap } from "@/utils/multi-map";
 import type { TypedString } from "@/utils/typed";
 
 /**
- * Unique identifier for a context item in the format "type:id"
+ * Unique identifier for a context item in the format "type://id"
  * e.g., "variable://my_var", "data://users", "file://config.py"
  */
 export type ContextLocatorId = TypedString<"ContextLocatorId">;
+
+function parseContextType(uri: ContextLocatorId): string | undefined {
+  const separator = uri.indexOf("://");
+  if (separator === -1) {
+    return undefined;
+  }
+  return uri.slice(0, separator);
+}
 
 /**
  * Base interface for context items that can be mentioned in AI prompts
@@ -142,40 +150,80 @@ export class AIContextRegistry<T extends AIContextItem> {
     );
   }
 
+  private findProviderForUri(
+    uri: ContextLocatorId,
+  ): AIContextProvider | undefined {
+    const type = parseContextType(uri);
+    if (!type) {
+      return undefined;
+    }
+    return [...this.providers].find(
+      (provider) =>
+        provider.contextType === type &&
+        provider.getItems().some((item) => item.uri === uri),
+    );
+  }
+
+  /**
+   * Resolve only the requested context items, querying each matching provider
+   */
+  resolveItems(contextIds: ContextLocatorId[]): T[] {
+    if (contextIds.length === 0) {
+      return [];
+    }
+
+    const idsByType = new MultiMap<string, ContextLocatorId>();
+    for (const contextId of contextIds) {
+      const type = parseContextType(contextId);
+      if (type) {
+        idsByType.add(type, contextId);
+      }
+    }
+
+    const itemsById = new Map<ContextLocatorId, T>();
+    for (const [type, ids] of idsByType.entries()) {
+      const providers = [...this.providers].filter(
+        (provider) => provider.contextType === type,
+      );
+      for (const provider of providers) {
+        const itemsByUri = new Map<ContextLocatorId, T>(
+          provider
+            .getItems()
+            .map((item) => [item.uri as ContextLocatorId, item as T]),
+        );
+        for (const id of ids) {
+          const item = itemsByUri.get(id);
+          if (item) {
+            itemsById.set(id, item);
+          }
+        }
+      }
+    }
+
+    // Preserve the order in which the ids were requested, so formatted context
+    // matches the order the user mentioned them in the prompt.
+    const results: T[] = [];
+    for (const contextId of contextIds) {
+      const item = itemsById.get(contextId);
+      if (item) {
+        results.push(item);
+      }
+    }
+    return results;
+  }
+
   /**
    * Get context information for mentioned items
    */
   getContextInfo(contextIds: ContextLocatorId[]): T[] {
-    const contextInfo: T[] = [];
-    const allItems = new Map<ContextLocatorId, T>(
-      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
-    );
-
-    for (const contextId of contextIds) {
-      const item = allItems.get(contextId);
-      if (item) {
-        contextInfo.push(item);
-      }
-    }
-
-    return contextInfo;
+    return this.resolveItems(contextIds);
   }
 
   /**
    * Format context for AI prompt inclusion
    */
   formatContextForAI(contextIds: ContextLocatorId[]): string {
-    const allItems = new Map<ContextLocatorId, T>(
-      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
-    );
-
-    const contextInfo: T[] = [];
-    for (const contextId of contextIds) {
-      const item = allItems.get(contextId);
-      if (item) {
-        contextInfo.push(item);
-      }
-    }
+    const contextInfo = this.resolveItems(contextIds);
 
     if (contextInfo.length === 0) {
       return "";
@@ -183,7 +231,7 @@ export class AIContextRegistry<T extends AIContextItem> {
 
     return contextInfo
       .map((item) => {
-        const provider = this.getProvider(item.type);
+        const provider = this.findProviderForUri(item.uri as ContextLocatorId);
         return provider?.formatContext(item) || "";
       })
       .join("\n\n");
@@ -195,36 +243,22 @@ export class AIContextRegistry<T extends AIContextItem> {
   async getAttachmentsForContext(
     contextIds: ContextLocatorId[],
   ): Promise<FileUIPart[]> {
-    const allItems = new Map<ContextLocatorId, T>(
-      this.getAllItems().map((item) => [item.uri as ContextLocatorId, item]),
-    );
-
-    const contextInfo: T[] = [];
-    for (const contextId of contextIds) {
-      const item = allItems.get(contextId);
-      if (item) {
-        contextInfo.push(item);
-      }
-    }
+    const contextInfo = this.resolveItems(contextIds);
 
     if (contextInfo.length === 0) {
       return [];
     }
 
-    // Group items by provider type to batch attachment requests
-    const itemsByProvider = new MultiMap<string, T>();
+    const itemsByProvider = new MultiMap<AIContextProvider, T>();
     for (const item of contextInfo) {
-      const providerType = item.type;
-      itemsByProvider.add(providerType, item);
+      const provider = this.findProviderForUri(item.uri as ContextLocatorId);
+      if (provider) {
+        itemsByProvider.add(provider, item);
+      }
     }
 
-    // Collect attachments from all providers
     const attachmentPromises = [...itemsByProvider.entries()].map(
-      async ([providerType, items]) => {
-        const provider = this.getProvider(providerType);
-        if (!provider) {
-          return [];
-        }
+      async ([provider, items]) => {
         try {
           return await provider.getAttachments(items);
         } catch (error) {

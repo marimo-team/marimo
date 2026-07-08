@@ -21,44 +21,24 @@ import { aiCompletionCellAtom } from "@/core/ai/state";
 import { notebookAtom, useCellActions } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { aiFeaturesEnabledAtom } from "@/core/config/config";
-import { getDatasourceContext } from "@/core/ai/context/providers/datasource";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { type FixMode, useFixMode } from "./fix-mode";
 
-export function buildFixPromptFromText(
-  errorText: string,
-  cellId?: CellId,
-  {
-    includeDatasourceContext = false,
-  }: { includeDatasourceContext?: boolean } = {},
+export function buildFixInChatPrompt(
+  cellId: CellId | undefined,
+  fallbackErrorText?: string,
 ): string {
-  const header =
-    cellId != null
-      ? `My cell (id: ${cellId}) produced the following error. Please fix it:`
-      : "My code gives the following error. Please fix it:";
-  let prompt = `${header}\n\n${errorText}`;
-  if (cellId != null && includeDatasourceContext) {
-    const datasourceContext = getDatasourceContext(cellId);
-    if (datasourceContext) {
-      prompt += `\n\nDatabase schema: ${datasourceContext}`;
-    }
+  if (cellId != null) {
+    return `@error://${cellId}\n\nPlease fix this error.`;
   }
-  return prompt;
-}
-
-export function buildFixPrompt(errors: MarimoError[], cellId: CellId): string {
-  const errorText = errors
-    .map((error) => ("msg" in error && error.msg ? error.msg : error.type))
-    .join("\n");
-  const includeDatasourceContext = errors.some(
-    (error) => error.type === "sql-error",
-  );
-  return buildFixPromptFromText(errorText, cellId, {
-    includeDatasourceContext,
-  });
+  const errorText = fallbackErrorText?.trim();
+  if (errorText) {
+    return `My code gives the following error. Please fix it:\n\n${errorText}`;
+  }
+  return "Please fix this error.";
 }
 
 export const AutoFixButton = ({
@@ -112,7 +92,7 @@ export const AutoFixButton = ({
 
   const openAISidebar = () => {
     openAiAssistant({
-      prompt: buildFixPrompt(errors, cellId),
+      prompt: buildFixInChatPrompt(cellId),
     });
   };
 
