@@ -214,7 +214,9 @@ describe("resolveAnyWidget", () => {
 
   it("should not fall back to named exports when a default export is present", () => {
     // A present-but-invalid default should surface an error, not be masked.
-    expect(resolveAnyWidget({ default: {}, render: vi.fn() }, jsUrl)).toBeNull();
+    expect(
+      resolveAnyWidget({ default: {}, render: vi.fn() }, jsUrl),
+    ).toBeNull();
   });
 });
 
