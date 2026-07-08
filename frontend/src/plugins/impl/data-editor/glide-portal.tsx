@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 /**
@@ -17,49 +17,45 @@ export function dismissGlideOverlay() {
   }
 }
 
-function useGlidePortalFullscreen(
-  portalRef: React.RefObject<HTMLDivElement | null>,
-) {
+function getGlidePortalContainer(): Element {
+  return document.fullscreenElement ?? document.body;
+}
+
+function useGlidePortalContainer(): Element {
+  const [container, setContainer] = useState<Element>(getGlidePortalContainer);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
-      const portal = portalRef.current;
-      if (!portal) {
-        return;
-      }
-
-      const fullscreenElement = document.fullscreenElement;
-      if (fullscreenElement) {
-        fullscreenElement.appendChild(portal);
+      if (document.fullscreenElement) {
+        setContainer(document.fullscreenElement);
       } else {
         dismissGlideOverlay();
-        document.body.appendChild(portal);
+        setContainer(document.body);
       }
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
+    // Sync on mount in case fullscreen became active before this editor mounted.
     handleFullscreenChange();
-
-    const portal = portalRef.current;
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
-      if (portal && portal.parentElement !== document.body) {
-        document.body.appendChild(portal);
-      }
     };
-  }, [portalRef]);
+  }, []);
+
+  return container;
 }
 
 /**
  * Per-instance Glide Data Grid overlay portal on document.body.
- * Reparents into the active fullscreen element so edit overlays stay visible.
+ * Moves into the active fullscreen element via createPortal so edit overlays stay visible
  */
 export function GlideDataEditorPortal({
   portalRef,
 }: {
   portalRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  useGlidePortalFullscreen(portalRef);
+  const container = useGlidePortalContainer();
 
   return createPortal(
     <div
@@ -72,6 +68,6 @@ export function GlideDataEditorPortal({
         zIndex: 9999,
       }}
     />,
-    document.body,
+    container,
   );
 }

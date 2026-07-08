@@ -85,6 +85,26 @@ describe("GlideDataEditor portal", () => {
     });
   });
 
+  it("mounts into the fullscreen element when fullscreen is already active", () => {
+    const fullscreenContainer = document.createElement("div");
+    document.body.appendChild(fullscreenContainer);
+    fullscreenElement = fullscreenContainer;
+
+    render(
+      <TooltipProvider>
+        <GlideDataEditor {...editorProps} />
+      </TooltipProvider>,
+    );
+
+    const portal = fullscreenContainer.querySelector(
+      "[data-testid='glide-data-editor-portal']",
+    );
+    expect(portal).not.toBeNull();
+    expect(portal?.parentElement).toBe(fullscreenContainer);
+
+    fullscreenContainer.remove();
+  });
+
   it("moves the portal into the fullscreen element while fullscreen is active", async () => {
     render(
       <TooltipProvider>
@@ -92,21 +112,37 @@ describe("GlideDataEditor portal", () => {
       </TooltipProvider>,
     );
 
-    const portal = screen.getByTestId("glide-data-editor-portal");
+    expect(
+      document.body.querySelector("[data-testid='glide-data-editor-portal']"),
+    ).not.toBeNull();
+
     const fullscreenContainer = document.createElement("div");
+    document.body.appendChild(fullscreenContainer);
 
     act(() => {
       fullscreenElement = fullscreenContainer;
       document.dispatchEvent(new Event("fullscreenchange"));
     });
 
-    expect(portal.parentElement).toBe(fullscreenContainer);
+    await waitFor(() => {
+      const portal = fullscreenContainer.querySelector(
+        "[data-testid='glide-data-editor-portal']",
+      );
+      expect(portal?.parentElement).toBe(fullscreenContainer);
+    });
 
     act(() => {
       fullscreenElement = null;
       document.dispatchEvent(new Event("fullscreenchange"));
     });
 
-    expect(portal.parentElement).toBe(document.body);
+    await waitFor(() => {
+      const portal = document.body.querySelector(
+        "[data-testid='glide-data-editor-portal']",
+      );
+      expect(portal?.parentElement).toBe(document.body);
+    });
+
+    fullscreenContainer.remove();
   });
 });
