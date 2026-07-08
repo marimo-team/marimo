@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._runtime.callbacks.cache import CacheCallbacks
+from marimo._runtime.callbacks.cache import (
+    CacheCallbacks,
+    cache_cells_enabled,
+)
 from marimo._runtime.callbacks.datasets import DatasetCallbacks
 from marimo._runtime.callbacks.external_storage import (
     ExternalStorageCallbacks,
@@ -23,4 +26,5 @@ __all__ = [
     "SecretsCallbacks",
     "SqlCallbacks",
     "SupportsTeardown",
+    "cache_cells_enabled",
 ]
