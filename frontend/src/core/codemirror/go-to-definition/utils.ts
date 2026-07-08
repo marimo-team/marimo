@@ -2,18 +2,13 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
-import {
-  closeHoverTooltips,
-  type EditorView,
-  runScopeHandlers,
-} from "@codemirror/view";
+import { closeHoverTooltips, type EditorView, keymap } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
 import { hotkeysAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
-import { createKeyboardEventFromShortcut } from "../../hotkeys/shortcuts";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { goToLine, goToVariableDefinition } from "./commands";
 
@@ -82,11 +77,12 @@ export function requestLspGoToDefinition(
   view: EditorView,
   hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
 ): boolean {
-  return runScopeHandlers(
-    view,
-    createKeyboardEventFromShortcut(hotkey),
-    "editor",
-  );
+  for (const binding of view.state.facet(keymap).flat()) {
+    if (binding.key === hotkey && binding.run?.(view)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

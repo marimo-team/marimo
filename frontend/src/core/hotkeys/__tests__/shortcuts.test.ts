@@ -1,10 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it, vi } from "vitest";
-import {
-  createKeyboardEventFromShortcut,
-  duplicateWithCtrlModifier,
-  parseShortcut,
-} from "../shortcuts";
+import { duplicateWithCtrlModifier, parseShortcut } from "../shortcuts";
 
 describe("parseShortcut", () => {
   it("should recognize single key shortcuts", () => {
@@ -170,15 +166,6 @@ describe("parseShortcut", () => {
 
     expect(parseShortcut("Ctrl+Shift+a")(event)).toBe(true);
     expect(parseShortcut("Ctrl+A")(event)).toBe(false);
-  });
-});
-
-describe("createKeyboardEventFromShortcut", () => {
-  it("creates events recognized by parseShortcut", () => {
-    for (const shortcut of ["F12", "Ctrl-F12", "Mod-Enter", "Shift-Enter"]) {
-      const event = createKeyboardEventFromShortcut(shortcut);
-      expect(parseShortcut(shortcut)(event)).toBe(true);
-    }
   });
 });
 
