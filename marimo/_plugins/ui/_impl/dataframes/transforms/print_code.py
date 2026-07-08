@@ -223,9 +223,10 @@ def python_print_pandas(
     elif transform.type == TransformType.EXPAND_DICT:
         column_id = _as_literal(transform.column_id)
         return (
-            f"{df_name}.join("
-            f"pd.json_normalize({df_name}.pop({column_id}).map(lambda value: {{}} if value is None or (isinstance(value, float) and value != value) else value), max_level=0).set_axis({df_name}.index, axis=0)"
-            f")"
+            f"{df_name}\n"
+            f"_dict_index = {df_name}.columns.get_loc({column_id})\n"
+            f"_expanded = pd.json_normalize({df_name}.pop({column_id}).map(lambda value: {{}} if value is None or (isinstance(value, float) and value != value) else value), max_level=0).set_axis({df_name}.index, axis=0)\n"
+            f"{df_name} = pd.concat([{df_name}.iloc[:, :_dict_index], _expanded, {df_name}.iloc[:, _dict_index:]], axis=1)"
         )
 
     elif transform.type == TransformType.UNIQUE:
