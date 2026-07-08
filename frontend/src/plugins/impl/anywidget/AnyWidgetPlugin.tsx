@@ -140,7 +140,8 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     return null;
   }
 
-  if (!isAnyWidgetModule(jsModule)) {
+  const widget = resolveAnyWidget(jsModule, jsUrl);
+  if (!widget) {
     return (
       <ErrorBanner error={getInvalidAnyWidgetModuleError(jsModule, jsUrl)} />
     );
@@ -150,7 +151,7 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
     <LoadedSlot
       // Force remount when the widget module or model changes (cell re-run).
       key={`${jsHash}:${modelId}`}
-      widget={jsModule.default}
+      widget={widget}
       modelId={modelId}
       host={host}
     />
@@ -198,6 +199,55 @@ function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
     typeof mod.default?.render === "function" ||
     typeof mod.default?.initialize === "function"
   );
+}
+
+const warnedLegacyNamedExportUrls = new Set<string>();
+// Cache the synthesized widget per module namespace so its identity stays
+// stable across re-renders (like a default export), avoiding needless
+// WidgetBinding re-initialization.
+const legacyWidgetCache = new WeakMap<object, AnyWidget>();
+
+/**
+ * Resolve the AnyWidget from a loaded module: prefer the AFM-spec default
+ * export, otherwise synthesize one from legacy named `render`/`initialize`
+ * exports. Returns null if neither is present.
+ */
+function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
+  if (isAnyWidgetModule(mod)) {
+    return mod.default;
+  }
+
+  // Only fall back to legacy (pre-AFM) named exports when there is no default
+  // export at all; a present-but-invalid default should surface an error
+  // rather than be masked.
+  if (mod?.default != null) {
+    return null;
+  }
+
+  const hasNamedRender = typeof mod?.render === "function";
+  const hasNamedInitialize = typeof mod?.initialize === "function";
+  if (!hasNamedRender && !hasNamedInitialize) {
+    return null;
+  }
+
+  const cached = legacyWidgetCache.get(mod);
+  if (cached) {
+    return cached;
+  }
+
+  if (!warnedLegacyNamedExportUrls.has(jsUrl)) {
+    warnedLegacyNamedExportUrls.add(jsUrl);
+    Logger.warn(
+      `Anywidget module at ${jsUrl} uses deprecated top-level named ` +
+        "exports (`render`/`initialize`). Per the AFM spec, use a default " +
+        "export instead: `export default { render }`. " +
+        "See https://anywidget.dev/en/afm/",
+    );
+  }
+
+  const widget: AnyWidget = { render: mod.render, initialize: mod.initialize };
+  legacyWidgetCache.set(mod, widget);
+  return widget;
 }
 
 function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
@@ -296,5 +346,6 @@ export const visibleForTesting = {
   LoadedSlot,
   runAnyWidgetModule,
   isAnyWidgetModule,
+  resolveAnyWidget,
   getInvalidAnyWidgetModuleError,
 };
