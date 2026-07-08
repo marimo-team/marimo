@@ -106,11 +106,8 @@ function cellKeymaps({
     keybindings.push(
       {
         key: hotkeys.getHotkey("cell.goToDefinition").key,
-        preventDefault: true,
-        stopPropagation: true,
         run: (ev) => {
-          goToDefinitionAtCursorPosition(ev);
-          return true;
+          return goToDefinitionAtCursorPosition(ev);
         },
       },
       {
