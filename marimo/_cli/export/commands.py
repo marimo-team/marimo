@@ -5,6 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -65,8 +66,15 @@ from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Protocol
 
     from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+
+    class _ExportWithCodeTransform(Protocol):
+        def __call__(
+            self, *, code_transform: Callable[[str], str]
+        ) -> ExportResult: ...
+
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
@@ -998,7 +1006,7 @@ def html_wasm(
 
     def export_with_local_wheels(
         file_path: MarimoPath,
-        export_callback: Callable[[Callable[[str], str]], ExportResult],
+        export_callback: _ExportWithCodeTransform,
     ) -> ExportResult:
         """Export with notebook-local wheels injected into PEP 723 metadata."""
         metadata_wheels = resolve_metadata_wheel_dependencies(file_path)
@@ -1016,8 +1024,9 @@ def html_wasm(
                     *auto_wheel_dependencies(local_wheels),
                 )
                 result = export_callback(
-                    lambda code: with_wheel_dependencies(
-                        code, wheel_dependencies
+                    code_transform=partial(
+                        with_wheel_dependencies,
+                        wheel_dependencies=wheel_dependencies,
                     )
                 )
                 copy_local_wheels(
@@ -1044,20 +1053,27 @@ def html_wasm(
             pipe=lambda msg: echo(msg, err=True),
         )
 
+        def export_executed_wasm(
+            file_path: MarimoPath,
+            *,
+            code_transform: Callable[[str], str],
+        ) -> ExportResult:
+            return asyncio_run(
+                run_app_then_export_as_wasm(
+                    file_path,
+                    mode=mode,
+                    show_code=show_code,
+                    cli_args=cli_args,
+                    argv=list(args),
+                    cache_export_dir=out_dir,
+                    code_transform=code_transform,
+                )
+            )
+
         def export_callback(file_path: MarimoPath) -> ExportResult:
             return export_with_local_wheels(
                 file_path,
-                lambda code_transform: asyncio_run(
-                    run_app_then_export_as_wasm(
-                        file_path,
-                        mode=mode,
-                        show_code=show_code,
-                        cli_args=cli_args,
-                        argv=list(args),
-                        cache_export_dir=out_dir,
-                        code_transform=code_transform,
-                    )
-                ),
+                partial(export_executed_wasm, file_path),
             )
 
         echo("Executing notebook...")
@@ -1066,11 +1082,11 @@ def html_wasm(
         def export_callback(file_path: MarimoPath) -> ExportResult:
             return export_with_local_wheels(
                 file_path,
-                lambda code_transform: export_as_wasm(
+                partial(
+                    export_as_wasm,
                     file_path,
                     mode,
                     show_code=show_code,
-                    code_transform=code_transform,
                 ),
             )
 

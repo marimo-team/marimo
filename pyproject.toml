@@ -94,7 +94,7 @@ sql = [
 # For per-notebook sandboxed kernels
 sandbox = [
     "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
-    "uv>=0.9.21",              # for sandbox management
+    "uv>=0.9.21",              # for sandbox management and local html-wasm exports
 ]
 
 # List of deps that are recommended for most users

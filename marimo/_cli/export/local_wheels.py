@@ -23,7 +23,6 @@ import hashlib
 import io
 import re
 import shutil
-import sys
 import tempfile
 import zipfile
 from contextlib import contextmanager
@@ -36,11 +35,7 @@ from urllib.request import url2pathname
 from marimo._cli.export.local_modules import (
     LocalModule,
     LocalWheelError,
-    import_namespaces,
     module_python_files,
-)
-from marimo._runtime.packages.module_name_to_pypi_name import (
-    module_name_to_pypi_name,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.scripts import (
@@ -204,18 +199,14 @@ def build_local_module_wheels(
 
     with tempfile.TemporaryDirectory(prefix="marimo-html-wasm-wheels-") as tmp:
         wheel_dir = Path(tmp)
-        local_names = {module.name for module in modules}
         yield tuple(
-            write_pure_python_wheel(module, wheel_dir, local_names=local_names)
-            for module in modules
+            write_pure_python_wheel(module, wheel_dir) for module in modules
         )
 
 
 def write_pure_python_wheel(
     module: LocalModule,
     wheel_dir: Path,
-    *,
-    local_names: set[str] | None = None,
 ) -> Path:
     """Write a pure Python wheel preserving the resolved module layout."""
     files = _wheel_files(module)
@@ -232,7 +223,7 @@ def write_pure_python_wheel(
     payloads[f"{dist_info}/METADATA"] = _metadata(
         name=metadata_name,
         version=version,
-        dependencies=_dependencies(files, local_names or {module.name}),
+        dependencies=_dependencies(files),
     )
     payloads[f"{dist_info}/WHEEL"] = _wheel_metadata()
     payloads[f"{dist_info}/RECORD"] = _record(payloads, dist_info)
@@ -412,46 +403,14 @@ def _content_hash(files: Sequence[tuple[str, Path]]) -> str:
     return digest.hexdigest()[:12]
 
 
-def _dependencies(
-    files: Sequence[tuple[str, Path]], local_names: set[str]
-) -> tuple[str, ...]:
+def _dependencies(files: Sequence[tuple[str, Path]]) -> tuple[str, ...]:
     dependencies: set[str] = set()
     for _, path in files:
         project = PyProjectReader.from_script(path.read_text(encoding="utf-8"))
         dependencies.update(
             str(dependency) for dependency in project.dependencies
         )
-    package_names = {
-        _dependency_name(dependency) for dependency in dependencies
-    }
-    package_names.discard(None)
-    mapping = module_name_to_pypi_name()
-    for _, path in files:
-        for namespace in import_namespaces(path):
-            if (
-                namespace in local_names
-                or namespace in sys.stdlib_module_names
-                or namespace == "marimo"
-            ):
-                continue
-            package = mapping.get(namespace, namespace.replace("_", "-"))
-            if _metadata_name(package) not in package_names:
-                dependencies.add(package)
     return tuple(sorted(dependencies))
-
-
-def _dependency_name(dependency: str) -> str | None:
-    from packaging.requirements import InvalidRequirement, Requirement
-
-    try:
-        requirement = Requirement(dependency)
-    except InvalidRequirement:
-        match = re.match(
-            r"\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)",
-            dependency,
-        )
-        return _metadata_name(match.group("name")) if match else None
-    return _metadata_name(requirement.name)
 
 
 def _metadata(

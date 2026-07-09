@@ -1,14 +1,15 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""Resolve notebook-local Python imports for html-wasm wheel packaging.
+"""Resolve notebook-local Python imports from Ruff's import graph.
 
-The resolver starts at the notebook path and checks the notebook directory plus
-configured import roots for files that match normal Python import shapes:
+Ruff reports file-to-file dependencies for the notebook directory plus
+configured import roots. marimo keeps the html-wasm specific step: filter those
+dependencies to local Python files and group them into wheel-shaped modules:
 
     import foo          -> foo.py or foo/__init__.py
     from foo import bar -> foo.py or package files under foo/
 
-Each resolved local file is scanned as well. If notebook.py imports foo.py and
-foo.py imports bar.py from the same root, both files are returned for export.
+If notebook.py imports foo.py and foo.py imports bar.py from the same root, the
+Ruff graph links both files and both are returned for export.
 
 `LocalModuleKind` records the source layout the wheel builder must preserve. A
 `module` is a single-file import such as `foo.py`, which becomes top-level
@@ -18,18 +19,25 @@ foo.py imports bar.py from the same root, both files are returned for export.
 
 from __future__ import annotations
 
-import ast
+import json
 import re
+import subprocess
+import sys
 from dataclasses import dataclass
+from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from marimo._ast.parse import ast_parse
+from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.uv import find_uv_bin
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Sequence
+    from collections.abc import Collection, Mapping, Sequence
 
 LocalModuleKind = Literal["module", "package"]
+_RUFF_REQUIREMENT = "ruff==0.15.18"
+_RUFF_GRAPH_TIMEOUT_SECONDS = 120
 
 
 class LocalWheelError(Exception):
@@ -43,26 +51,6 @@ class LocalModule:
     kind: LocalModuleKind
     root: Path | None = None
     files: tuple[Path, ...] = ()
-
-
-@dataclass(frozen=True)
-class _Import:
-    module: str | None
-    names: tuple[str, ...]
-    level: int
-
-
-@dataclass(frozen=True)
-class _ScanFile:
-    path: Path
-    package_root: Path | None = None
-    package_parts: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
-class _Resolved:
-    module: LocalModule
-    files: tuple[_ScanFile, ...]
 
 
 def resolve_local_modules(
@@ -79,35 +67,36 @@ def resolve_local_modules(
     notebook_path = notebook.absolute().resolve()
     import_roots = _import_roots(notebook_path, roots)
     excluded_names = {_canonical_name(name) for name in exclude_names or ()}
-    pending = [_ScanFile(notebook_path)]
+    graph = _ruff_import_graph(
+        (notebook_path, *import_roots), import_roots, notebook_path
+    )
+    pending = [notebook_path]
     scanned: set[Path] = set()
     modules: dict[tuple[str, Path], LocalModule] = {}
     module_files: dict[tuple[str, Path], set[Path]] = {}
 
     while pending:
-        scan = pending.pop()
-        path = scan.path.resolve()
+        path = pending.pop().resolve()
         if path in scanned:
             continue
         scanned.add(path)
 
-        for request in _read_imports(path):
-            if _is_excluded_import(request, excluded_names):
+        for dependency in graph.get(path, ()):
+            module = _local_module_from_path(dependency, import_roots)
+            if module is None:
                 continue
-            resolved = _resolve_import(request, scan, import_roots)
-            if resolved is None:
-                continue
-            module = resolved.module
-            if module.path == notebook_path:
+            if (
+                module.path == notebook_path
+                or _canonical_name(module.name) in excluded_names
+            ):
                 continue
             key = (module.name, module.path)
             modules.setdefault(key, module)
             module_files.setdefault(key, set()).update(
-                file.path.resolve() for file in resolved.files
+                _module_files_for_dependency(module, dependency)
             )
-            pending.extend(
-                file for file in resolved.files if file.path not in scanned
-            )
+            if dependency not in scanned:
+                pending.append(dependency)
 
     return tuple(
         sorted(
@@ -121,7 +110,7 @@ def resolve_local_modules(
                 )
                 for key, module in modules.items()
             ),
-            key=lambda module: (module.name, module.path),
+            key=attrgetter("name", "path"),
         )
     )
 
@@ -147,23 +136,6 @@ def resolve_notebook_local_modules(
     )
 
 
-def import_namespaces(path: Path) -> tuple[str, ...]:
-    """Return top-level absolute import namespaces used by a file.
-
-    For example, `import numpy as np` and `from foo.bar import baz` return
-    `("foo", "numpy")`.
-    """
-    return tuple(
-        sorted(
-            {
-                request.module.split(".", 1)[0]
-                for request in _read_imports(path)
-                if request.level == 0 and request.module is not None
-            }
-        )
-    )
-
-
 def module_python_files(module: LocalModule) -> tuple[Path, ...]:
     """Return the Python files that should be written into a local wheel."""
     if module.kind == "module":
@@ -176,16 +148,6 @@ def module_python_files(module: LocalModule) -> tuple[Path, ...]:
 
 def _canonical_name(name: str) -> str:
     return re.sub(r"[-_.]+", "-", name).lower()
-
-
-def _is_excluded_import(request: _Import, excluded_names: set[str]) -> bool:
-    if not excluded_names or request.level:
-        return False
-    if request.module is None:
-        return any(
-            _canonical_name(name) in excluded_names for name in request.names
-        )
-    return _canonical_name(request.module.split(".", 1)[0]) in excluded_names
 
 
 def _import_roots(
@@ -202,210 +164,154 @@ def _import_roots(
     return tuple(import_roots)
 
 
-def _read_imports(path: Path) -> tuple[_Import, ...]:
-    """Parse imports from a Python file into resolver requests.
+def _ruff_import_graph(
+    files: Sequence[Path], roots: Sequence[Path], notebook: Path
+) -> Mapping[Path, tuple[Path, ...]]:
+    """Return Ruff's direct import graph for the files being scanned."""
+    if not files:
+        return {}
 
-    For example, `from foo import bar` becomes `module="foo"`,
-    `names=("bar",)`, and `level=0`.
-    """
+    command = _ruff_graph_command(files, roots)
     try:
-        tree = ast_parse(path.read_text(encoding="utf-8"), filename=str(path))
-    except SyntaxError as error:
+        result = subprocess.run(
+            command,
+            cwd=notebook.parent,
+            capture_output=True,
+            text=True,
+            timeout=_RUFF_GRAPH_TIMEOUT_SECONDS,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
         raise LocalWheelError(
-            f"Failed to parse local import {path}: {error.msg}"
+            "Failed to run uv while resolving local imports for "
+            "html-wasm export."
         ) from error
 
-    class Visitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.imports: list[_Import] = []
+    if result.returncode != 0 or result.stderr.strip():
+        detail = result.stderr.strip() or result.stdout.strip()
+        raise LocalWheelError(
+            "Failed to analyze local imports with Ruff"
+            + (f": {detail}" if detail else ".")
+        )
 
-        def visit_Import(self, node: ast.Import) -> None:
-            self.imports.extend(
-                _Import(alias.name, (), 0) for alias in node.names
-            )
+    try:
+        raw_graph = json.loads(result.stdout or "{}")
+    except json.JSONDecodeError as error:
+        raise LocalWheelError(
+            "Ruff returned invalid import graph output."
+        ) from error
+    if not isinstance(raw_graph, dict):
+        raise LocalWheelError("Ruff returned invalid import graph output.")
 
-        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-            self.imports.append(
-                _Import(
-                    node.module,
-                    tuple(
-                        alias.name for alias in node.names if alias.name != "*"
-                    ),
-                    node.level,
-                )
-            )
-
-    visitor = Visitor()
-    visitor.visit(tree)
-    return tuple(visitor.imports)
+    graph: dict[Path, tuple[Path, ...]] = {}
+    for source, dependencies in raw_graph.items():
+        if not isinstance(source, str) or not isinstance(dependencies, list):
+            raise LocalWheelError("Ruff returned invalid import graph output.")
+        graph[_graph_path(source, notebook)] = tuple(
+            _graph_path(dependency, notebook)
+            for dependency in dependencies
+            if isinstance(dependency, str)
+        )
+    return graph
 
 
-def _resolve_import(
-    request: _Import, scan: _ScanFile, roots: Sequence[Path]
-) -> _Resolved | None:
-    """Resolve one import request from the file currently being scanned.
+def _ruff_graph_command(
+    files: Sequence[Path], roots: Sequence[Path]
+) -> tuple[str, ...]:
+    return (
+        _uv_bin(),
+        "--quiet",
+        "--no-progress",
+        "tool",
+        "run",
+        "--from",
+        _RUFF_REQUIREMENT,
+        "--python",
+        sys.executable,
+        "--no-python-downloads",
+        "ruff",
+        "analyze",
+        "graph",
+        "--preview",
+        "--isolated",
+        "--config",
+        _ruff_src_config(roots),
+        *(str(path) for path in files),
+    )
 
-    Absolute imports search every import root. Relative imports use the package
-    root captured when a package file was added to the scan.
-    """
-    if request.level:
-        if scan.package_root is None:
-            raise LocalWheelError(
-                "Notebook relative imports cannot be packaged for html-wasm "
-                f"local wheels: {scan.path}"
-            )
-        parts = _relative_parts(request, scan)
-        return _resolve_from_parts(parts, request.names, (scan.package_root,))
 
-    if request.module is None:
+def _uv_bin() -> str:
+    uv_bin = find_uv_bin()
+    if uv_bin == "uv" and not DependencyManager.which("uv"):
+        raise MarimoCLIMissingDependencyError(
+            "uv must be installed to resolve local imports for "
+            "html-wasm export.",
+            "uv",
+            additional_tip="Install uv from https://github.com/astral-sh/uv",
+        )
+    return uv_bin
+
+
+def _ruff_src_config(roots: Sequence[Path]) -> str:
+    return "src = [" + ", ".join(json.dumps(str(root)) for root in roots) + "]"
+
+
+def _graph_path(path: str, notebook: Path) -> Path:
+    graph_path = Path(path)
+    if not graph_path.is_absolute():
+        graph_path = notebook.parent / graph_path
+    return graph_path.resolve()
+
+
+def _local_module_from_path(
+    path: Path, roots: Sequence[Path]
+) -> LocalModule | None:
+    if path.suffix != ".py":
         return None
-    return _resolve_from_parts(request.module.split("."), request.names, roots)
-
-
-def _relative_parts(request: _Import, scan: _ScanFile) -> list[str]:
-    """Convert a relative import into absolute package parts.
-
-    For example, inside pkg/sub/mod.py, `from ..foo import bar` becomes
-    `["pkg", "foo"]`.
-    """
-    package_parts = list(scan.package_parts)
-    if request.level > 1:
-        package_parts = package_parts[: -(request.level - 1)]
-    if request.module:
-        package_parts.extend(request.module.split("."))
-    return package_parts
-
-
-def _resolve_from_parts(
-    parts: list[str], names: Sequence[str], roots: Sequence[Path]
-) -> _Resolved | None:
-    """Resolve an import path, then try from-import children.
-
-    For `from foo import bar`, this first resolves `foo`, then adds `bar` when
-    it is a local child such as `foo/bar.py`.
-    """
-    resolved = _resolve_parts(parts, roots)
-    if resolved is not None:
-        return _with_from_import_files(resolved, parts, names, roots)
-
-    module: LocalModule | None = None
-    files: list[_ScanFile] = []
-    for name in names:
-        resolved = _resolve_parts([*parts, name], roots)
-        if resolved is None:
-            continue
-        if module is None:
-            module = resolved.module
-        if resolved.module.path != module.path:
-            continue
-        files.extend(resolved.files)
-    return None if module is None else _Resolved(module, tuple(files))
-
-
-def _resolve_parts(
-    parts: list[str], roots: Sequence[Path]
-) -> _Resolved | None:
-    """Resolve import parts against Python module and package layouts.
-
-    `["foo"]` can resolve to foo.py or foo/__init__.py. `["foo", "bar"]`
-    resolves through package files under foo/.
-    """
-    if not parts:
-        return None
-
+    path = path.resolve()
     for root in roots:
-        module_file = root / f"{parts[0]}.py"
-        if len(parts) == 1 and module_file.is_file():
-            module = LocalModule(
-                parts[0], module_file.resolve(), "module", root
-            )
-            return _Resolved(module, (_ScanFile(module.path),))
-
-        package_dir = root / parts[0]
-        if not package_dir.is_dir():
+        try:
+            relative = path.relative_to(root)
+        except ValueError:
             continue
-        if len(parts) == 1 and (package_dir / "__init__.py").is_file():
-            module = LocalModule(
-                parts[0], package_dir.resolve(), "package", root
-            )
-            return _Resolved(module, _package_scan_files(module, parts))
-        if len(parts) > 1:
-            files = _package_files_for_parts(root, package_dir, parts)
-            if files:
-                module = LocalModule(
-                    parts[0], package_dir.resolve(), "package", root
-                )
-                return _Resolved(module, files)
-
+        if not relative.parts:
+            continue
+        if len(relative.parts) == 1:
+            return LocalModule(relative.stem, path, "module", root)
+        package_dir = (root / relative.parts[0]).resolve()
+        if package_dir.is_dir():
+            return LocalModule(relative.parts[0], package_dir, "package", root)
     return None
 
 
-def _with_from_import_files(
-    resolved: _Resolved,
-    parts: list[str],
-    names: Sequence[str],
-    roots: Sequence[Path],
-) -> _Resolved:
-    """Add local package children named by a from-import statement.
+def _module_files_for_dependency(
+    module: LocalModule, dependency: Path
+) -> tuple[Path, ...]:
+    if module.kind == "module":
+        return (module.path,)
 
-    For `from foo import bar`, a resolved package foo includes foo/bar.py when
-    that child exists in the same package.
-    """
-    if resolved.module.kind != "package":
-        return resolved
+    files: list[Path] = []
+    seen: set[Path] = set()
 
-    files = list(resolved.files)
-    seen = {file.path for file in files}
-    for name in names:
-        child = _resolve_parts([*parts, name], roots)
-        if child is None or child.module.path != resolved.module.path:
-            continue
-        for file in child.files:
-            if file.path not in seen:
-                seen.add(file.path)
-                files.append(file)
-    return _Resolved(resolved.module, tuple(files))
+    def add(path: Path) -> None:
+        resolved = path.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            files.append(resolved)
 
-
-def _package_files_for_parts(
-    root: Path, package_dir: Path, parts: list[str]
-) -> tuple[_ScanFile, ...]:
-    """Return package files needed to scan a package import path.
-
-    For `foo.bar`, this returns foo/__init__.py plus foo/bar.py or package
-    __init__.py files along the foo/bar path.
-    """
-    files: list[_ScanFile] = []
-    package_parts = [parts[0]]
-    current = package_dir
+    current = module.path
     init = current / "__init__.py"
     if init.is_file():
-        files.append(_ScanFile(init.resolve(), root, tuple(package_parts)))
-
-    for index, part in enumerate(parts[1:], start=1):
-        module_file = current / f"{part}.py"
-        if index == len(parts) - 1 and module_file.is_file():
-            files.append(
-                _ScanFile(module_file.resolve(), root, tuple(package_parts))
-            )
-            return tuple(files)
-
+        add(init)
+    try:
+        relative = dependency.resolve().relative_to(module.path)
+    except ValueError:
+        return tuple(files)
+    for part in relative.parts[:-1]:
         current = current / part
-        if not current.is_dir():
-            return ()
-        package_parts.append(part)
         init = current / "__init__.py"
         if init.is_file():
-            files.append(_ScanFile(init.resolve(), root, tuple(package_parts)))
-
+            add(init)
+    if dependency.is_file():
+        add(dependency)
     return tuple(files)
-
-
-def _package_scan_files(
-    module: LocalModule, parts: list[str]
-) -> tuple[_ScanFile, ...]:
-    init = module.path / "__init__.py"
-    if not init.is_file():
-        return ()
-    root = module.root or module.path.parent
-    return (_ScanFile(init.resolve(), root, tuple(parts[:1])),)
