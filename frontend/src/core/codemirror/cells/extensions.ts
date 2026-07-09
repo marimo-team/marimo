@@ -442,9 +442,8 @@ export function cellBundle({
       createObservable(createTracebackInfoAtom(cellId), store),
     ),
     // Experimental live debugger and line-timing highlight. Gated so there is
-    // no gutter/overhead when disabled. Both track the same active line, so
-    // the timing highlighter (green + timer) replaces the debugger's amber
-    // highlight when both flags are on; the breakpoint gutter is independent.
+    // no gutter/overhead when disabled. Both track the same active line; when
+    // both flags are on, the green timing highlight replaces the amber one.
     debuggerOn
       ? breakpointGutter(
           cellId,

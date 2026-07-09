@@ -247,7 +247,6 @@ class TestFrameWatcherWithoutDebugger:
         glbls: dict[str, Any] = {}
         watcher.install()
         try:
-            # Every line runs; there is no debugger to stop in.
             exec(code, glbls)
         finally:
             watcher.uninstall()
@@ -282,7 +281,6 @@ class TestFrameWatcherWithoutDebugger:
         assert isinstance(ops[0], ActiveLineNotification)
         assert ops[0].cell_id == "abc"
         assert ops[0].line == 5
-        # Flushed once (on change), not once per beat.
         assert watcher._flushed == ("abc", 5)
 
     @staticmethod

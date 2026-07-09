@@ -62,10 +62,7 @@ export function createDebuggerLineAtom(cellId: CellId) {
   });
 }
 
-/**
- * Per-cell derived atom: the active line and its start time for `cellId`,
- * or `null`. Powers the line-timing highlight.
- */
+/** Per-cell derived atom: the active line + start time for `cellId`, or `null`. */
 export function createActiveLineInfoAtom(cellId: CellId) {
   return atom((get) => {
     const current = get(activeLineAtom);

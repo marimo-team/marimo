@@ -601,9 +601,7 @@ class ExperimentalConfig(TypedDict, total=False):
     rtc_v2: bool
     isolate_apps: bool
     debugger: bool  # Live frame-watching debugger (gutter breakpoints + pdb)
-    # Green active-line highlight + per-line elapsed timer while a cell runs
-    # (adds sys.settrace overhead to every run while enabled)
-    line_timing: bool
+    line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
     cache: CacheConfig

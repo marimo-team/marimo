@@ -38,13 +38,12 @@ def _():
 
 @app.cell
 def _():
-    # Staged "pipeline": watch the green highlight step through and the
-    # timer appear only on the slow steps.
-    extracted = time.sleep(0.2)  # fast: no timer
-    transformed = time.sleep(0.8)  # timer appears at ~500ms
-    validated = time.sleep(2)  # timer counts to ~2s
-    loaded = time.sleep(5)  # timer counts to ~5s
-    (extracted, transformed, validated, loaded)
+    # Staged pipeline: the highlight steps through; the timer appears
+    # only on the slow steps.
+    time.sleep(0.2)  # fast: no timer
+    time.sleep(0.8)  # timer appears at ~500ms
+    time.sleep(2)  # counts to ~2s
+    time.sleep(5)  # counts to ~5s
     return
 
 

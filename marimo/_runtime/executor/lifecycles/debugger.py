@@ -1,9 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 """DebuggerLifecycle frame-watches each cell body.
 
-Powers both the experimental live debugger (`debugger` flag) and the
-experimental line-timing highlight (`line_timing` flag), which reuses the
-active-line stream without a debugger.
+Powers the experimental live debugger and line-timing highlight.
 """
 
 from __future__ import annotations
@@ -225,9 +223,7 @@ class DebuggerLifecycle:
     `setup` installs the watcher (`sys.settrace` + heartbeat) before the body
     runs; `teardown` removes it. The lifecycle only toggles the watcher per
     cell so debug mode can be turned on and off. Gated by the `debugger` and
-    `line_timing` experimental flags (see `Runner.__init__`); with
-    `debugger=None` it only streams the active line for the line-timing
-    highlight.
+    `line_timing` experimental flags (see `Runner.__init__`).
     """
 
     name = "debugger"
