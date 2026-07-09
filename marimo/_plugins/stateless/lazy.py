@@ -2,18 +2,23 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from marimo import _loggers
+from marimo._messaging.types import NoopStream
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.cell_output_list import CellOutputList
+from marimo._runtime.context import get_context
+from marimo._runtime.context.types import ContextNotInitializedError
 from marimo._runtime.functions import EmptyArgs, Function
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
+    from collections.abc import Callable, Coroutine, Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -123,12 +128,59 @@ class lazy(UIElement[bool, bool]):
 
     async def _load(self, _args: EmptyArgs) -> LoadResponse:
         if _is_lazy_callable(self._element):
-            el = self._element()  # type: ignore[operator]
+            # Run the deferred callable with its imperative output isolated
+            # so that `mo.output.append`/`replace` calls inside it render
+            # within the lazy widget instead of overwriting the owning cell.
+            with _isolated_imperative_output() as accumulated:
+                el = self._element()  # type: ignore[operator]
+                if asyncio.iscoroutine(el):
+                    el = await el
+            # The returned value takes precedence over imperative output,
+            # mirroring how a cell reconciles its last expression with any
+            # `mo.output` calls. Fall back to the imperative output only when
+            # the callable returns nothing.
+            if el is None and accumulated is not None:
+                el = accumulated.stack()
         else:
             el = self._element
-        if asyncio.iscoroutine(el):
-            el = await el
+            if asyncio.iscoroutine(el):
+                el = await el
         return LoadResponse(html=as_html(el).text)
+
+
+@contextmanager
+def _isolated_imperative_output() -> Iterator[CellOutputList | None]:
+    """Isolate imperative `mo.output` writes made during a deferred render.
+
+    `mo.lazy`'s load function runs under the owning cell's execution context,
+    so imperative `mo.output.append`/`replace` calls inside it would otherwise
+    broadcast to and overwrite that cell's output, hiding the lazy widget.
+    While this context is active, such calls accumulate into a throwaway
+    `CellOutputList` and their broadcasts are dropped, letting the caller fold
+    the imperative output into the widget instead. Yields the accumulator, or
+    `None` when no interactive execution context is available.
+    """
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        yield None
+        return
+
+    exec_ctx = ctx.execution_context
+    if exec_ctx is None:
+        yield None
+        return
+
+    original_output = exec_ctx.output
+    original_stream = ctx.stream
+    isolated = CellOutputList()
+    exec_ctx.output = isolated
+    ctx.stream = NoopStream()
+    try:
+        yield isolated
+    finally:
+        exec_ctx.output = original_output
+        ctx.stream = original_stream
 
 
 def _resolve_eagerly(element: object) -> Html | None:
