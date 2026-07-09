@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { EditorView } from "@codemirror/view";
 import { createUnderlinePlugin, underlineField } from "./underline";
-import { goToDefinition } from "./utils";
+import { goToDefinitionWithLspFallback } from "./utils";
 
 /**
  * Create a go-to-definition extension.
@@ -9,8 +9,8 @@ import { goToDefinition } from "./utils";
 export function goToDefinitionBundle() {
   return [
     underlineField,
-    createUnderlinePlugin((view, variableName) => {
-      goToDefinition(view, variableName);
+    createUnderlinePlugin((view) => {
+      goToDefinitionWithLspFallback(view);
     }),
     EditorView.baseTheme({
       ".underline": {
