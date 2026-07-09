@@ -181,6 +181,22 @@ describe("RuntimeManager", () => {
       expect(url.searchParams.get("access_token")).toBeNull();
       expect(url.toString()).not.toContain("my-secret-token");
     });
+
+    it("should strip an access_token forwarded from the page URL", () => {
+      // The page URL can briefly carry access_token before auth cleanup
+      // removes it; it must not be forwarded to /sse.
+      const original = window.location.href;
+      window.history.pushState({}, "", "/?access_token=page-token&foo=bar");
+      try {
+        const runtime = new RuntimeManager(mockConfig);
+        const url = runtime.getSseURL("s_123" as SessionId);
+
+        expect(url.searchParams.get("access_token")).toBeNull();
+        expect(url.searchParams.get("foo")).toBe("bar");
+      } finally {
+        window.history.pushState({}, "", original);
+      }
+    });
   });
 
   describe("getWsSyncURL", () => {

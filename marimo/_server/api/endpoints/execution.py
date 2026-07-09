@@ -384,6 +384,12 @@ async def execute_code(
                         yield event
 
                 yield build_done_event(session, listener)
+        except asyncio.CancelledError:
+            # On ASGI spec < 2.4, Starlette consumes http.disconnect
+            # itself and cancels this generator before _watch_disconnect
+            # observes it; still interrupt the kernel on the way out.
+            session.try_interrupt()
+            raise
         finally:
             await cancel_and_wait(disconnect_task)
 

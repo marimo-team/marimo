@@ -374,7 +374,12 @@ class SessionHandler(SessionConsumer, abc.ABC):
         ):
             return
 
+        loop = asyncio.get_running_loop()
+
         def on_update(current_version: str, state: MarimoCLIState) -> None:
+            # Runs on the worker thread; hop back to the event loop to
+            # notify (the message queue is not thread-safe).
+
             # Let's only toast once per marimo server
             # so we can just store this in memory.
             # We still want to check for updates (which are debounced 24 hours)
@@ -400,11 +405,21 @@ class SessionHandler(SessionConsumer, abc.ABC):
                 )
                 description += notices_text
 
-            self._serialize_and_notify(
-                AlertNotification(title=title, description=description)
+            loop.call_soon_threadsafe(
+                self._serialize_and_notify,
+                AlertNotification(title=title, description=description),
             )
 
-        check_for_updates(on_update)
+        # check_for_updates does synchronous network I/O; run it off the
+        # event loop so it never delays kernel messages.
+        task = asyncio.create_task(
+            asyncio.to_thread(check_for_updates, on_update)
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
 
 has_toasted = False
+
+# Strong refs so fire-and-forget tasks aren't GC'd mid-flight.
+_background_tasks: set[asyncio.Task[None]] = set()

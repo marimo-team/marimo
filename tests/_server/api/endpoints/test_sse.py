@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import threading
 from functools import partial
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, patch
@@ -454,6 +455,38 @@ async def test_stream_ends_on_client_disconnect() -> None:
     events = [event async for event in handler.stream()]
     assert events == []
     assert handler.connection_state() == ConnectionState.CLOSED
+
+
+async def test_check_status_update_runs_off_the_event_loop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The synchronous update check must not block kernel messages."""
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.api.endpoints.ws import session_handler
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "CHECK_STATUS_UPDATE", True)
+    monkeypatch.setattr(session_handler, "has_toasted", False)
+
+    started = threading.Event()
+    release = threading.Event()
+
+    def slow_check(on_update: Any) -> None:
+        started.set()
+        assert release.wait(timeout=10)
+        on_update("0.0.1", MagicMock(latest_version="9.9.9", notices=[]))
+
+    monkeypatch.setattr(session_handler, "check_for_updates", slow_check)
+
+    handler = _make_handler(MagicMock(), mode=SessionMode.EDIT)
+    # Returns immediately, while the check is still running on a thread
+    handler._check_status_update()
+    assert await asyncio.wait_for(asyncio.to_thread(started.wait, 10), 20)
+    assert handler.message_queue.empty()
+
+    # Once the check completes, the alert is delivered onto the queue
+    release.set()
+    message = await asyncio.wait_for(handler.message_queue.get(), timeout=10)
+    assert b"Update available" in bytes(message)
 
 
 async def test_stream_heartbeat_without_messages() -> None:

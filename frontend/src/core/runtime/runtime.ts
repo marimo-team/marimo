@@ -141,11 +141,16 @@ export class RuntimeManager {
    * (see `headers()`) instead of the URL.
    */
   getSseURL(sessionId: SessionId): URL {
-    return this.formatHttpURL({
+    const url = this.formatHttpURL({
       path: "/sse",
       searchParams: this.getSessionSearchParams(sessionId),
       restrictToKnownQueryParams: false,
     });
+    // The page URL can still carry access_token (merged in from the
+    // current page's params, before auth cleanup strips it); never
+    // forward it — a token in the URL leaks into proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
   }
 
   /**
