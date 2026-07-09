@@ -359,16 +359,8 @@ async def execute_code(
         run_id = str(uuid4())
         try:
             listener = ScratchCellListener(run_id=run_id)
-            # Register the listener *inside* the scratchpad lock. Scratch
-            # executions share one `SCRATCH_CELL_ID` and every scoped
-            # listener receives every cell notification; scratch console
-            # output is not tagged with our `run_id` (it rides on
-            # `CellNotification`s whose `run_id` is `None`), so it
-            # can't be filtered per-run. If we scoped the listener before
-            # acquiring the lock, a concurrent execute waiting on the lock
-            # would accumulate this run's console output in its queue and
-            # replay it once it began streaming. Taking the lock first
-            # keeps only the running execute's listener live.
+            # Ensure we take a lock on the scratchpad before scoping the
+            # listener. See #10035.
             async with session.scratchpad_lock:
                 with session.scoped(listener):
                     http_req = HTTPRequest.from_request(request)

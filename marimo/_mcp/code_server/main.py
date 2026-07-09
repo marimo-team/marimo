@@ -130,10 +130,8 @@ def setup_code_mcp_server(
         # Correlation ID: see /api/kernel/execute for rationale.
         run_id = str(uuid4())
         listener = ScratchCellListener(run_id=run_id)
-        # Register the listener *inside* the scratchpad lock. Scratch console
-        # output is not tagged with our `run_id`, so a listener scoped before
-        # the lock would accumulate a concurrent execute's console output
-        # while waiting. See /api/kernel/execute for the full rationale.
+        # Ensure we take a lock on the scratchpad before scoping the
+        # listener. See #10035.
         async with session.scratchpad_lock:
             with session.scoped(listener):
                 notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
