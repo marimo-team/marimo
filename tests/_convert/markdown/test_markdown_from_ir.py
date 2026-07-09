@@ -469,3 +469,31 @@ def test_convert_from_ir_to_markdown_escapes_code_cell_attributes(
 
     assert expected_head in markdown
     assert expected_name in markdown
+
+
+def test_convert_from_ir_to_markdown_mdx_escapes_quoted_options() -> None:
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        NotebookSerializationV1,
+    )
+
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[
+            CellDef(
+                name="a\"b'c\\d",
+                code="x = 1",
+                options={},
+            )
+        ],
+        violations=[],
+        valid=True,
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.mdx", flavor="mdx"
+    )
+
+    assert 'name="a\\"b\'c\\\\d"' in markdown

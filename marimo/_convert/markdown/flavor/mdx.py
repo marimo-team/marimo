@@ -191,4 +191,5 @@ def _mdx_option_value(value: object) -> str:
         return f'"{text}"'
     if "'" not in text:
         return f"'{text}'"
-    return f'"{text.replace(chr(34), "&quot;")}"'
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
