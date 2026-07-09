@@ -25,3 +25,13 @@ export interface WireFormat<T = Record<string, unknown>> {
   bufferPaths: (string | number)[][];
   buffers: Base64String[];
 }
+
+/**
+ * Where a widget's ESM can be imported from, and which version.
+ * Structural mirror of the backend `EsmSpec`; `hash` keys the module
+ * cache and detects code changes (hot reload).
+ */
+export interface EsmSpec {
+  url: string;
+  hash: string;
+}

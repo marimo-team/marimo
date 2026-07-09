@@ -7,13 +7,10 @@ import { parseUserConfig } from "@/core/config/config-schema";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { Model } from "../model";
-import type { ModelState, WidgetModelId } from "../types";
+import type { ModelState } from "../types";
 import { visibleForTesting } from "../widget-binding";
 
-const { WidgetDefRegistry, WidgetBinding, BindingManager } = visibleForTesting;
-
-// Helper to create typed model IDs for tests
-const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
+const { WidgetDefRegistry, WidgetBinding } = visibleForTesting;
 
 function createMockComm() {
   return {
@@ -76,15 +73,6 @@ describe("WidgetDefRegistry", () => {
     promise2.catch(() => undefined);
   });
 
-  it("should invalidate cached modules", () => {
-    const promise1 = registry.getModule("http://localhost/a.js", "hash1");
-    promise1.catch(() => undefined);
-    registry.invalidate("hash1");
-    const promise2 = registry.getModule("http://localhost/a.js", "hash1");
-    promise2.catch(() => undefined);
-    expect(promise1).not.toBe(promise2);
-  });
-
   it("should remove from cache on import failure so retry creates new promise", async () => {
     const promise1 = registry.getModule("http://localhost/a.js", "fail-hash");
     // The URL is rejected by the trusted-URL validator.
@@ -123,172 +111,317 @@ describe("WidgetDefRegistry", () => {
 });
 
 describe("WidgetBinding", () => {
-  let binding: InstanceType<typeof WidgetBinding>;
-  let model: Model<ModelState>;
-
-  beforeEach(() => {
-    binding = new WidgetBinding();
-    model = new Model<ModelState>({ count: 0 }, createMockComm());
-  });
-
-  it("should initialize once and return a render function", async () => {
-    const initCleanup = vi.fn();
-    const renderCleanup = vi.fn();
+  it("should run initialize exactly once and expose exports", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const exports = { setValue: vi.fn() };
     const widgetDef = {
-      initialize: vi.fn().mockResolvedValue(initCleanup),
-      render: vi.fn().mockResolvedValue(renderCleanup),
+      initialize: vi.fn().mockResolvedValue(exports),
+      render: vi.fn(),
     };
 
-    const renderFn = await binding.bind(widgetDef, model);
+    const binding = await WidgetBinding.create(widgetDef, model);
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
-    expect(typeof renderFn).toBe("function");
+    expect(binding.exports).toBe(exports);
 
-    // Render into an element
-    const el = document.createElement("div");
     const controller = new AbortController();
-    await renderFn(el, controller.signal);
-    expect(widgetDef.render).toHaveBeenCalledTimes(1);
-  });
-
-  it("should return cached render for same widget def", async () => {
-    const widgetDef = {
-      initialize: vi.fn(),
-      render: vi.fn(),
-    };
-
-    const render1 = await binding.bind(widgetDef, model);
-    const render2 = await binding.bind(widgetDef, model);
-    expect(render1).toBe(render2);
-    // Initialize should only be called once
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
+    expect(widgetDef.render).toHaveBeenCalledTimes(2);
   });
 
-  it("should re-initialize on hot reload (different widget def)", async () => {
-    const cleanup1 = vi.fn();
-    const widgetDef1 = {
-      initialize: vi.fn().mockResolvedValue(cleanup1),
-      render: vi.fn(),
-    };
+  it("should handle widget def as a factory function", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const render = vi.fn();
+    const factory = vi.fn().mockResolvedValue({ render });
 
-    const widgetDef2 = {
-      initialize: vi.fn(),
-      render: vi.fn(),
-    };
-
-    const render1 = await binding.bind(widgetDef1, model);
-    const render2 = await binding.bind(widgetDef2, model);
-
-    expect(render1).not.toBe(render2);
-    expect(cleanup1).toHaveBeenCalledTimes(1); // Old binding cleaned up
-    expect(widgetDef2.initialize).toHaveBeenCalledTimes(1);
+    const binding = await WidgetBinding.create(factory, model);
+    const controller = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    expect(factory).toHaveBeenCalledTimes(1);
+    expect(render).toHaveBeenCalledTimes(1);
   });
 
-  it("should cleanup render on view signal abort", async () => {
-    const renderCleanup = vi.fn();
-    const widgetDef = {
-      initialize: vi.fn(),
-      render: vi.fn().mockResolvedValue(renderCleanup),
-    };
-
-    const renderFn = await binding.bind(widgetDef, model);
-    const el = document.createElement("div");
-    const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
-
-    // Aborting the view signal should trigger render cleanup
-    viewController.abort();
-    expect(renderCleanup).toHaveBeenCalledTimes(1);
+  it("should handle a widget with no initialize or render", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const binding = await WidgetBinding.create({}, model);
+    expect(binding.exports).toBeUndefined();
+    const controller = new AbortController();
+    // No render — createView is a no-op, not an error.
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
   });
 
-  it("should cleanup everything on destroy", async () => {
+  it("should expose undefined exports for void initialize", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const binding = await WidgetBinding.create(
+      { initialize: vi.fn(), render: vi.fn() },
+      model,
+    );
+    expect(binding.exports).toBeUndefined();
+  });
+
+  it("should run a legacy initialize cleanup on destroy", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     const initCleanup = vi.fn();
-    const renderCleanup = vi.fn();
-    const widgetDef = {
-      initialize: vi.fn().mockResolvedValue(initCleanup),
-      render: vi.fn().mockResolvedValue(renderCleanup),
-    };
-
-    const renderFn = await binding.bind(widgetDef, model);
-    const el = document.createElement("div");
-    const viewController = new AbortController();
-    await renderFn(el, viewController.signal);
-
+    const binding = await WidgetBinding.create(
+      { initialize: vi.fn().mockResolvedValue(initCleanup), render: vi.fn() },
+      model,
+    );
+    expect(binding.exports).toBeUndefined();
+    expect(initCleanup).not.toHaveBeenCalled();
     binding.destroy();
     expect(initCleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("should reject and run cleanup when aborted mid-initialize", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const initCleanup = vi.fn();
+    let resolveInit!: (v: unknown) => void;
+    const widgetDef = {
+      initialize: vi.fn().mockReturnValue(
+        new Promise((r) => {
+          resolveInit = r;
+        }),
+      ),
+      render: vi.fn(),
+    };
+
+    const controller = new AbortController();
+    const pending = WidgetBinding.create(widgetDef, model, controller);
+    pending.catch(() => undefined);
+
+    controller.abort();
+    resolveInit(initCleanup);
+
+    await expect(pending).rejects.toThrow(/binding destroyed/);
+    expect(initCleanup).toHaveBeenCalledTimes(1);
+  });
+
+  it("should pass an AbortSignal to initialize that aborts on destroy", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const widgetDef = { initialize: vi.fn(), render: vi.fn() };
+    const binding = await WidgetBinding.create(widgetDef, model);
+
+    const initSignal = widgetDef.initialize.mock.calls[0][0]
+      .signal as AbortSignal;
+    expect(initSignal.aborted).toBe(false);
+    binding.destroy();
+    expect(initSignal.aborted).toBe(true);
+  });
+
+  it("should abort a view when its own signal aborts", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const renderCleanup = vi.fn();
+    const widgetDef = {
+      render: vi.fn().mockResolvedValue(renderCleanup),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
+
+    const controller = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    const renderSignal = widgetDef.render.mock.calls[0][0]
+      .signal as AbortSignal;
+    expect(renderSignal.aborted).toBe(false);
+
+    controller.abort();
+    expect(renderSignal.aborted).toBe(true);
     expect(renderCleanup).toHaveBeenCalledTimes(1);
   });
 
-  it("should handle widget def as a function", async () => {
-    const widget = {
-      initialize: vi.fn(),
-      render: vi.fn(),
+  it("should abort every view when the binding is destroyed", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const renderCleanup = vi.fn();
+    const widgetDef = {
+      render: vi.fn().mockResolvedValue(renderCleanup),
     };
-    const widgetDefFn = vi.fn().mockResolvedValue(widget);
+    const binding = await WidgetBinding.create(widgetDef, model);
 
-    await binding.bind(widgetDefFn, model);
-    expect(widgetDefFn).toHaveBeenCalledTimes(1);
-    expect(widget.initialize).toHaveBeenCalledTimes(1);
+    const controller = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    const renderSignal = widgetDef.render.mock.calls[0][0]
+      .signal as AbortSignal;
+
+    binding.destroy();
+    expect(renderSignal.aborted).toBe(true);
+    expect(renderCleanup).toHaveBeenCalledTimes(1);
+    // The caller's own signal is untouched — only the combined one.
+    expect(controller.signal.aborted).toBe(false);
   });
 
-  it("should handle widget with no initialize or render", async () => {
-    const widgetDef = {};
-    const renderFn = await binding.bind(widgetDef, model);
-    expect(typeof renderFn).toBe("function");
+  it("should auto-clear render listeners when the view aborts", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const onCount = vi.fn();
+    const widgetDef = {
+      render: vi.fn(({ model }) => {
+        model.on("change:count", onCount);
+      }),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
 
-    // Render should not throw
-    const el = document.createElement("div");
     const controller = new AbortController();
-    await renderFn(el, controller.signal);
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    // Called once by the hydration replay at mount, once by the set.
+    model.set("count", 1);
+    expect(onCount).toHaveBeenCalledTimes(2);
+
+    controller.abort();
+    model.set("count", 2);
+    expect(onCount).toHaveBeenCalledTimes(2);
+  });
+
+  it("should auto-clear initialize listeners on destroy", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const onCount = vi.fn();
+    const widgetDef = {
+      initialize: vi.fn(({ model }) => {
+        model.on("change:count", onCount);
+      }),
+      render: vi.fn(),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
+
+    model.set("count", 1);
+    expect(onCount).toHaveBeenCalledTimes(1);
+
+    binding.destroy();
+    model.set("count", 2);
+    expect(onCount).toHaveBeenCalledTimes(1);
+  });
+
+  it("should track live views and drop them when they abort", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const binding = await WidgetBinding.create({ render: vi.fn() }, model);
+
+    const a = new AbortController();
+    const b = new AbortController();
+    const elA = document.createElement("div");
+    const elB = document.createElement("div");
+    await binding.createView({ el: elA }, { signal: a.signal });
+    await binding.createView({ el: elB }, { signal: b.signal });
+
+    expect(binding.liveViews.map((v) => v.el)).toEqual([elA, elB]);
+
+    a.abort();
+    expect(binding.liveViews.map((v) => v.el)).toEqual([elB]);
   });
 });
 
-describe("BindingManager", () => {
-  let manager: InstanceType<typeof BindingManager>;
-
-  beforeEach(() => {
-    manager = new BindingManager();
-  });
-
-  it("should create bindings on demand", () => {
-    const modelId = asModelId("model-1");
-    expect(manager.has(modelId)).toBe(false);
-
-    const binding = manager.getOrCreate(modelId);
-    expect(binding).toBeDefined();
-    expect(manager.has(modelId)).toBe(true);
-  });
-
-  it("should return the same binding for the same model id", () => {
-    const modelId = asModelId("model-1");
-    const binding1 = manager.getOrCreate(modelId);
-    const binding2 = manager.getOrCreate(modelId);
-    expect(binding1).toBe(binding2);
-  });
-
-  it("should destroy and remove bindings", async () => {
-    const modelId = asModelId("model-1");
-    const binding = manager.getOrCreate(modelId);
-
-    const model = new Model<ModelState>({ count: 0 }, createMockComm());
-    const initCleanup = vi.fn();
+describe("WidgetBinding hydration replay", () => {
+  it("replays current state to render listeners exactly once", async () => {
+    const model = new Model<ModelState>({ count: 8 }, createMockComm());
+    const el = document.createElement("div");
     const widgetDef = {
-      initialize: vi.fn().mockResolvedValue(initCleanup),
+      render: vi.fn(({ model, el }) => {
+        // A widget view that starts with a local default and relies on
+        // change events for hydration.
+        el.textContent = "count is 5";
+        model.on("change:count", () => {
+          el.textContent = `count is ${model.get("count")}`;
+        });
+      }),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
+
+    const controller = new AbortController();
+    await binding.createView({ el }, { signal: controller.signal });
+    expect(el.textContent).toBe("count is 8");
+  });
+
+  it("does not re-fire listeners of already-mounted views", async () => {
+    // Mounting view B must not double-paint view A: the replay is
+    // scoped to the listeners the new render attached.
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const listeners: Array<ReturnType<typeof vi.fn>> = [];
+    const widgetDef = {
+      render: vi.fn(({ model }) => {
+        const listener = vi.fn();
+        listeners.push(listener);
+        model.on("change:count", listener);
+      }),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
+    const controller = new AbortController();
+
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    expect(listeners[0]).toHaveBeenCalledTimes(1);
+
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    // View B's listener hydrated once; view A's was left alone.
+    expect(listeners[1]).toHaveBeenCalledTimes(1);
+    expect(listeners[0]).toHaveBeenCalledTimes(1);
+  });
+
+  it("replays the any-change event to its listeners", async () => {
+    const model = new Model<ModelState>({ count: 1 }, createMockComm());
+    const onAnyChange = vi.fn();
+    const widgetDef = {
+      render: vi.fn(({ model }) => {
+        model.on("change", onAnyChange);
+      }),
+    };
+    const binding = await WidgetBinding.create(widgetDef, model);
+    const controller = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    expect(onAnyChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not replay initialize listeners", async () => {
+    // The guarantee is per-view: initialize listeners existed before
+    // any view, and replaying at them would fire once per mount.
+    const model = new Model<ModelState>({ count: 1 }, createMockComm());
+    const initListener = vi.fn();
+    const widgetDef = {
+      initialize: vi.fn(({ model }) => {
+        model.on("change:count", initListener);
+      }),
       render: vi.fn(),
     };
-    await binding.bind(widgetDef, model);
-
-    manager.destroy(modelId);
-    expect(manager.has(modelId)).toBe(false);
-    expect(initCleanup).toHaveBeenCalledTimes(1);
+    const binding = await WidgetBinding.create(widgetDef, model);
+    const controller = new AbortController();
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    expect(initListener).not.toHaveBeenCalled();
   });
 
-  it("should handle idempotent destroy", () => {
-    const modelId = asModelId("model-1");
-    manager.getOrCreate(modelId);
-
-    // Should not throw
-    manager.destroy(modelId);
-    manager.destroy(modelId);
-    expect(manager.has(modelId)).toBe(false);
+  it("clears the element before rendering into it", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const el = document.createElement("div");
+    el.innerHTML = "<span>stale content</span>";
+    const binding = await WidgetBinding.create({ render: vi.fn() }, model);
+    const controller = new AbortController();
+    await binding.createView({ el }, { signal: controller.signal });
+    expect(el.innerHTML).toBe("");
   });
 });

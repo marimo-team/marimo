@@ -1,8 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
 
-import type { AnyWidget } from "@anywidget/types";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
@@ -10,18 +8,17 @@ import { createPlugin } from "@/plugins/core/builder";
 import type { IPluginProps } from "@/plugins/types";
 import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
-import { hasFunctionProperty, isRecord } from "@/utils/records";
 import { ErrorBanner } from "../common/error-banner";
-import { getMarimoInternal, MODEL_MANAGER, type Model } from "./model";
+import type { Model } from "./model";
+import { WIDGET_REGISTRY } from "./registry";
 import type { ModelState, WidgetModelId } from "./types";
-import { BINDING_MANAGER, WIDGET_DEF_REGISTRY } from "./widget-binding";
+import type { WidgetBinding } from "./widget-binding";
 
 /**
- * AnyWidget asset data
+ * The component's only data attribute; everything else arrives through
+ * the model's comm messages, keyed by this id.
  */
 interface Data {
-  jsUrl: string;
-  jsHash: string;
   modelId: WidgetModelId;
 }
 
@@ -35,41 +32,6 @@ type AnyWidgetState = ModelState;
  */
 interface ModelIdRef {
   model_id?: WidgetModelId;
-}
-
-export function useAnyWidgetModule(opts: { jsUrl: string; jsHash: string }) {
-  const { jsUrl, jsHash } = opts;
-
-  // JS is an ESM file with a render function on it
-  // export function render({ model, el }) {
-  //   ...
-  const {
-    data: jsModule,
-    error,
-    refetch,
-  } = useAsyncData(async () => {
-    return await WIDGET_DEF_REGISTRY.getModule(jsUrl, jsHash);
-    // Re-render on jsHash change (which is a hash of the contents of the file)
-    // instead of a jsUrl change because URLs may change without the contents
-    // actually changing (and we don't want to re-render on every change).
-    // If there is an error loading the URL (e.g. maybe an invalid or old URL),
-    // we also want to re-render.
-  }, [jsHash]);
-
-  // If there is an error and the jsUrl has changed, we want to re-render
-  // because the URL may have changed to a valid URL.
-  const hasError = Boolean(error);
-  useEffect(() => {
-    if (hasError && jsUrl) {
-      WIDGET_DEF_REGISTRY.invalidate(jsHash);
-      refetch();
-    }
-  }, [hasError, jsUrl]);
-
-  return {
-    jsModule,
-    error,
-  };
 }
 
 export function useMountCss(css: string | null | undefined, host: HTMLElement) {
@@ -118,234 +80,93 @@ export function useMountCss(css: string | null | undefined, host: HTMLElement) {
 export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
   .withData(
     z.object({
-      jsUrl: z.string(),
-      jsHash: z.string(),
       modelId: z.string().transform((v) => v as WidgetModelId),
     }),
   )
   .withFunctions({})
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
+/**
+ * The registry resolves the model, imports the widget's code, and runs
+ * `initialize`; this component's job is views — and remounting when
+ * `modelId` changes, which is what a cell re-run produces (#3962).
+ */
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
-  const { jsUrl, jsHash, modelId } = props.data;
+  const { modelId } = props.data;
   const host = props.host as HTMLElementNotDerivedFromRef;
 
-  const { jsModule, error } = useAnyWidgetModule({ jsUrl, jsHash });
+  const { data, error } = useAsyncData(async () => {
+    const widget = await WIDGET_REGISTRY.getWidget(modelId);
+    // Tag the result with the id it was loaded for so the old view
+    // stays mounted until the new widget is ready (useAsyncData exposes
+    // the previous result during a cell re-run transition).
+    return { modelId, ...widget };
+  }, [modelId]);
 
   if (error) {
     return <ErrorBanner error={error} />;
   }
 
-  if (!jsModule) {
+  if (!data) {
     return null;
-  }
-
-  const widget = resolveAnyWidget(jsModule, jsUrl);
-  if (!widget) {
-    return (
-      <ErrorBanner error={getInvalidAnyWidgetModuleError(jsModule, jsUrl)} />
-    );
   }
 
   return (
     <LoadedSlot
-      // Force remount when the widget module or model changes (cell re-run).
-      key={`${jsHash}:${modelId}`}
-      widget={widget}
-      modelId={modelId}
+      // Remount when the model changes (cell re-run: new comm, new id);
+      // value updates leave the key stable.
+      key={data.modelId}
+      model={data.model}
+      binding={data.binding}
       host={host}
     />
   );
 };
 
-/**
- * Run the anywidget module
- *
- * Per AFM spec (anywidget.dev/en/afm):
- * - initialize() is called once per model lifetime
- * - render() is called once per view (can be multiple per model)
- */
-async function runAnyWidgetModule<T extends AnyWidgetState>(
-  widgetDef: AnyWidget<T>,
-  model: Model<T>,
-  modelId: WidgetModelId,
-  el: HTMLElement,
-  signal: AbortSignal,
-): Promise<void> {
-  // Clear the element, in case the widget is re-rendering
-  el.innerHTML = "";
-
-  try {
-    const binding = BINDING_MANAGER.getOrCreate(modelId);
-    const render = await binding.bind(widgetDef, model);
-    await render(el, signal);
-    // Replay current model values so render listeners observe hydrated state
-    // even if backend updates arrived before listeners were attached.
-    getMarimoInternal(model).reemitState();
-  } catch (error) {
-    Logger.error("Error rendering anywidget", error);
-    el.classList.add("text-error");
-    el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
-  }
-}
-
-function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
-  if (!mod.default) {
-    return false;
-  }
-
-  return (
-    typeof mod.default === "function" ||
-    typeof mod.default?.render === "function" ||
-    typeof mod.default?.initialize === "function"
-  );
-}
-
-const warnedLegacyNamedExportUrls = new Set<string>();
-// Cache the synthesized widget per module namespace so its identity stays
-// stable across re-renders (like a default export), avoiding needless
-// WidgetBinding re-initialization.
-const legacyWidgetCache = new WeakMap<object, AnyWidget>();
-
-/**
- * Resolve the AnyWidget from a loaded module: prefer the AFM-spec default
- * export, otherwise synthesize one from legacy named `render`/`initialize`
- * exports. Returns null if neither is present.
- */
-function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
-  if (isAnyWidgetModule(mod)) {
-    return mod.default;
-  }
-
-  // Only fall back to legacy (pre-AFM) named exports when there is no default
-  // export at all; a present-but-invalid default should surface an error
-  // rather than be masked.
-  if (mod?.default != null) {
-    return null;
-  }
-
-  const hasNamedRender = typeof mod?.render === "function";
-  const hasNamedInitialize = typeof mod?.initialize === "function";
-  if (!hasNamedRender && !hasNamedInitialize) {
-    return null;
-  }
-
-  const cached = legacyWidgetCache.get(mod);
-  if (cached) {
-    return cached;
-  }
-
-  if (!warnedLegacyNamedExportUrls.has(jsUrl)) {
-    warnedLegacyNamedExportUrls.add(jsUrl);
-    Logger.warn(
-      `Anywidget module at ${jsUrl} uses deprecated top-level named ` +
-        "exports (`render`/`initialize`). Per the AFM spec, use a default " +
-        "export instead: `export default { render }`. " +
-        "See https://anywidget.dev/en/afm/",
-    );
-  }
-
-  const widget: AnyWidget = { render: mod.render, initialize: mod.initialize };
-  legacyWidgetCache.set(mod, widget);
-  return widget;
-}
-
-function getInvalidAnyWidgetModuleError(mod: unknown, jsUrl: string): Error {
-  const afmDocs = "https://anywidget.dev/en/afm/";
-  const hasNamedRender = isRecord(mod) && hasFunctionProperty(mod, "render");
-  const hasNamedInitialize =
-    isRecord(mod) && hasFunctionProperty(mod, "initialize");
-
-  if (hasNamedRender || hasNamedInitialize) {
-    const namedExports = [
-      hasNamedRender ? "`render`" : null,
-      hasNamedInitialize ? "`initialize`" : null,
-    ]
-      .filter(Boolean)
-      .join(" and ");
-    const lifecycleHooks = [
-      hasNamedRender ? "render" : null,
-      hasNamedInitialize ? "initialize" : null,
-    ].filter((hook): hook is string => hook !== null);
-    const defaultExportExample = `export default { ${lifecycleHooks.join(", ")} }`;
-    const namedExportExample =
-      lifecycleHooks.length === 1
-        ? `export function ${lifecycleHooks[0]}`
-        : "named export function ...";
-    return new Error(
-      `Anywidget module at ${jsUrl} uses named exports (${namedExports}). ` +
-        "Per the AFM spec, use a default export instead: " +
-        `\`${defaultExportExample}\` (not \`${namedExportExample}\`). ` +
-        `See ${afmDocs}`,
-    );
-  }
-
-  if (!isRecord(mod) || mod.default === undefined) {
-    return new Error(
-      `Anywidget module at ${jsUrl} is missing a default export. ` +
-        "Per the AFM spec, use `export default { render }` or " +
-        "`export default async () => ({ render })`. " +
-        `See ${afmDocs}`,
-    );
-  }
-
-  return new Error(
-    `Anywidget module at ${jsUrl} has an invalid default export. ` +
-      "Expected a factory function or an object with `render` or `initialize`. " +
-      `See ${afmDocs}`,
-  );
-}
-
-interface Props<T extends AnyWidgetState> {
-  widget: AnyWidget<T>;
-  modelId: WidgetModelId;
+interface LoadedSlotProps {
+  model: Model<AnyWidgetState>;
+  binding: WidgetBinding<AnyWidgetState>;
   host: HTMLElementNotDerivedFromRef;
 }
 
-const LoadedSlot = <T extends AnyWidgetState>({
-  widget,
-  modelId,
-  host,
-}: Props<T> & { widget: AnyWidget<T> }) => {
+/**
+ * One mounted view of an initialized widget (render runs once per
+ * view; the registry already ran initialize).
+ */
+const LoadedSlot = ({ model, binding, host }: LoadedSlotProps) => {
   const htmlRef = useRef<HTMLDivElement>(null);
 
-  // value is already decoded from wire format, may be null if waiting for open message
-  const model = MODEL_MANAGER.getSync(modelId);
-
-  if (!model) {
-    Logger.error("Model not found for modelId", modelId);
-  }
-
-  const css = model?.get("_css");
+  // CSS is state, not code, so it hot-applies in every mode.
+  const [css, setCss] = useState<string | null | undefined>(() =>
+    model.get("_css"),
+  );
+  useEffect(() => {
+    const controller = new AbortController();
+    model.on("change:_css", (value: string) => setCss(value), {
+      signal: controller.signal,
+    });
+    return () => controller.abort();
+  }, [model]);
   useMountCss(css, host);
 
   useEffect(() => {
-    if (!htmlRef.current || !model) {
+    const el = htmlRef.current;
+    if (!el) {
       return;
     }
     const controller = new AbortController();
-    runAnyWidgetModule(
-      widget,
-      model,
-      modelId,
-      htmlRef.current,
-      controller.signal,
-    );
+    binding.createView({ el }, { signal: controller.signal }).catch((error) => {
+      Logger.error("Error rendering anywidget", error);
+      el.classList.add("text-error");
+      el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
+    });
     return () => controller.abort();
-    // We re-run the widget when the modelId changes, which means the cell
-    // that created the Widget has been re-run.
-    // We need to re-run the widget because it may contain initialization code
-    // that could be reset by the new widget.
-    // See example: https://github.com/marimo-team/marimo/issues/3962#issuecomment-2703184123
-  }, [widget, modelId, model]);
+  }, [binding, model]);
 
   return <div ref={htmlRef} />;
 };
 
 export const visibleForTesting = {
+  AnyWidgetSlot,
   LoadedSlot,
-  runAnyWidgetModule,
-  isAnyWidgetModule,
-  resolveAnyWidget,
-  getInvalidAnyWidgetModuleError,
 };

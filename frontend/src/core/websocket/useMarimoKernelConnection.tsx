@@ -16,8 +16,8 @@ import { useConnectionTransport } from "@/core/websocket/useWebSocket";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
-  MODEL_MANAGER,
-} from "@/plugins/impl/anywidget/model";
+  WIDGET_REGISTRY,
+} from "@/plugins/impl/anywidget/registry";
 import { logNever } from "@/utils/assertNever";
 import { prettyError } from "@/utils/errors";
 import {
@@ -248,7 +248,7 @@ export function useMarimoKernelConnection(opts: {
       }
 
       case "model-lifecycle":
-        handleWidgetMessage(MODEL_MANAGER, msg.data);
+        handleWidgetMessage(WIDGET_REGISTRY, msg.data);
         return;
 
       case "remove-ui-elements":
