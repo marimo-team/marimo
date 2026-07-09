@@ -391,7 +391,8 @@ class IPCKernelManagerImpl(KernelManager):
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self._process.pid, signal.SIGINT)
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        del graceful  # IPC kernels are always force-terminated.
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()

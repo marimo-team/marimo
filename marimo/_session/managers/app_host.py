@@ -213,7 +213,8 @@ class AppHostKernelManager(KernelManager):
         # Run-mode threads can't be interrupted
         pass
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        del graceful  # App-host kernels are always force-terminated.
         self.queue_manager.close_queues()
         self._app_host.stop_kernel(self._session_id)
 

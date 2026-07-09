@@ -105,3 +105,69 @@ def test_close_kernel_calls_try_kill_process_and_group(
 
     assert captured == [fake_task]
     queue_manager.close_queues.assert_called_once()
+
+
+def _make_manager(queue_manager: Mock) -> KernelManagerImpl:
+    return KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=AppMetadata(
+            query_params={},
+            filename="test.py",
+            cli_args={},
+            argv=None,
+            app_config=_AppConfig(),
+        ),
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+
+
+def test_close_kernel_default_does_not_block_on_join(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-graceful close must not join the kernel; the live server closes
+    sessions on the event loop and joining there stalls it."""
+    monkeypatch.setattr(
+        "marimo._session.managers.kernel.try_kill_process_and_group",
+        lambda _task: None,
+    )
+
+    queue_manager = Mock()
+    queue_manager.win32_interrupt_queue = None
+    manager = _make_manager(queue_manager)
+
+    fake_task = Mock(spec=multiprocessing.Process)
+    fake_task.is_alive.return_value = True
+    manager.kernel_task = fake_task
+
+    manager.close_kernel()
+
+    fake_task.join.assert_not_called()
+    queue_manager.put_control_request.assert_not_called()
+
+
+def test_close_kernel_graceful_stops_and_joins(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A graceful close requests a clean stop and joins so the kernel can
+    flush pending work before it's killed."""
+    monkeypatch.setattr(
+        "marimo._session.managers.kernel.try_kill_process_and_group",
+        lambda _task: None,
+    )
+
+    queue_manager = Mock()
+    queue_manager.win32_interrupt_queue = None
+    manager = _make_manager(queue_manager)
+
+    fake_task = Mock(spec=multiprocessing.Process)
+    fake_task.is_alive.return_value = True
+    manager.kernel_task = fake_task
+
+    manager.close_kernel(graceful=True)
+
+    queue_manager.put_control_request.assert_called_once()
+    fake_task.join.assert_called_once()
