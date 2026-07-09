@@ -1,4 +1,20 @@
 # Copyright 2026 Marimo. All rights reserved.
+"""Create hosted wheel dependencies for html-wasm exports.
+
+The export pipeline needs browser-installable requirements. This module turns
+two local inputs into that shape:
+
+* PEP 723 local wheel references, such as `pkg @ ./dist/pkg.whl`.
+* `LocalModule` values resolved from notebook imports.
+
+Referenced wheels are copied into `public/wheels`. Resolved modules are written
+as deterministic pure-Python wheels in a temporary directory. A `module` keeps
+the user's single-file layout as top-level `foo.py`. A `package` keeps its
+package files under `foo/`. The notebook metadata is then rewritten to
+`name @ ../public/wheels/<wheel>.whl` so Pyodide can install the files with
+micropip during worker startup.
+"""
+
 from __future__ import annotations
 
 import base64

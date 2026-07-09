@@ -1,4 +1,21 @@
 # Copyright 2026 Marimo. All rights reserved.
+"""Resolve notebook-local Python imports for html-wasm wheel packaging.
+
+The resolver starts at the notebook path and checks the notebook directory plus
+configured import roots for files that match normal Python import shapes:
+
+    import foo          -> foo.py or foo/__init__.py
+    from foo import bar -> foo.py or package files under foo/
+
+Each resolved local file is scanned as well. If notebook.py imports foo.py and
+foo.py imports bar.py from the same root, both files are returned for export.
+
+`LocalModuleKind` records the source layout the wheel builder must preserve. A
+`module` is a single-file import such as `foo.py`, which becomes top-level
+`foo.py` in the wheel. A `package` is a directory-backed import such as
+`foo/__init__.py` or `foo/bar.py`, which keeps files under `foo/` in the wheel.
+"""
+
 from __future__ import annotations
 
 import ast
@@ -53,10 +70,11 @@ def resolve_local_modules(
     roots: Sequence[Path] | None = None,
     exclude_names: Collection[str] | None = None,
 ) -> tuple[LocalModule, ...]:
-    """Return local modules imported by a notebook and its local modules.
+    """Return local modules reached from the notebook's imports.
 
-    Resolution follows Python's file layout, then keeps scanning resolved local
-    files so transitive local imports are included in the export.
+    For example, if notebook.py imports foo.py and foo.py imports bar.py from
+    the same import root, this returns entries for both foo.py and bar.py so
+    both files can be packaged into the html-wasm export.
     """
     notebook_path = notebook.absolute().resolve()
     import_roots = _import_roots(notebook_path, roots)
@@ -130,6 +148,11 @@ def resolve_notebook_local_modules(
 
 
 def import_namespaces(path: Path) -> tuple[str, ...]:
+    """Return top-level absolute import namespaces used by a file.
+
+    For example, `import numpy as np` and `from foo.bar import baz` return
+    `("foo", "numpy")`.
+    """
     return tuple(
         sorted(
             {
@@ -142,6 +165,7 @@ def import_namespaces(path: Path) -> tuple[str, ...]:
 
 
 def module_python_files(module: LocalModule) -> tuple[Path, ...]:
+    """Return the Python files that should be written into a local wheel."""
     if module.kind == "module":
         return (module.path,)
     if module.files:
@@ -179,6 +203,11 @@ def _import_roots(
 
 
 def _read_imports(path: Path) -> tuple[_Import, ...]:
+    """Parse imports from a Python file into resolver requests.
+
+    For example, `from foo import bar` becomes `module="foo"`,
+    `names=("bar",)`, and `level=0`.
+    """
     try:
         tree = ast_parse(path.read_text(encoding="utf-8"), filename=str(path))
     except SyntaxError as error:
@@ -214,6 +243,11 @@ def _read_imports(path: Path) -> tuple[_Import, ...]:
 def _resolve_import(
     request: _Import, scan: _ScanFile, roots: Sequence[Path]
 ) -> _Resolved | None:
+    """Resolve one import request from the file currently being scanned.
+
+    Absolute imports search every import root. Relative imports use the package
+    root captured when a package file was added to the scan.
+    """
     if request.level:
         if scan.package_root is None:
             raise LocalWheelError(
@@ -229,6 +263,11 @@ def _resolve_import(
 
 
 def _relative_parts(request: _Import, scan: _ScanFile) -> list[str]:
+    """Convert a relative import into absolute package parts.
+
+    For example, inside pkg/sub/mod.py, `from ..foo import bar` becomes
+    `["pkg", "foo"]`.
+    """
     package_parts = list(scan.package_parts)
     if request.level > 1:
         package_parts = package_parts[: -(request.level - 1)]
@@ -240,6 +279,11 @@ def _relative_parts(request: _Import, scan: _ScanFile) -> list[str]:
 def _resolve_from_parts(
     parts: list[str], names: Sequence[str], roots: Sequence[Path]
 ) -> _Resolved | None:
+    """Resolve an import path, then try from-import children.
+
+    For `from foo import bar`, this first resolves `foo`, then adds `bar` when
+    it is a local child such as `foo/bar.py`.
+    """
     resolved = _resolve_parts(parts, roots)
     if resolved is not None:
         return _with_from_import_files(resolved, parts, names, roots)
@@ -261,6 +305,11 @@ def _resolve_from_parts(
 def _resolve_parts(
     parts: list[str], roots: Sequence[Path]
 ) -> _Resolved | None:
+    """Resolve import parts against Python module and package layouts.
+
+    `["foo"]` can resolve to foo.py or foo/__init__.py. `["foo", "bar"]`
+    resolves through package files under foo/.
+    """
     if not parts:
         return None
 
@@ -297,6 +346,11 @@ def _with_from_import_files(
     names: Sequence[str],
     roots: Sequence[Path],
 ) -> _Resolved:
+    """Add local package children named by a from-import statement.
+
+    For `from foo import bar`, a resolved package foo includes foo/bar.py when
+    that child exists in the same package.
+    """
     if resolved.module.kind != "package":
         return resolved
 
@@ -316,6 +370,11 @@ def _with_from_import_files(
 def _package_files_for_parts(
     root: Path, package_dir: Path, parts: list[str]
 ) -> tuple[_ScanFile, ...]:
+    """Return package files needed to scan a package import path.
+
+    For `foo.bar`, this returns foo/__init__.py plus foo/bar.py or package
+    __init__.py files along the foo/bar path.
+    """
     files: list[_ScanFile] = []
     package_parts = [parts[0]]
     current = package_dir
