@@ -257,6 +257,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     throwNotImplemented();
   };
 
+  sendSetBreakpoints: EditRequests["sendSetBreakpoints"] = async () => {
+    throwNotImplemented();
+  };
+
   sendRun: EditRequests["sendRun"] = async (request) => {
     await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
 

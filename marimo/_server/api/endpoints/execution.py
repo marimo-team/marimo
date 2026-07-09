@@ -34,6 +34,7 @@ from marimo._server.models.models import (
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
+    SetBreakpointsRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
 )
@@ -451,6 +452,35 @@ async def run_post_mortem(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DebugCellRequest)
+
+
+@router.post("/pdb/breakpoints")
+@requires("edit")
+async def set_breakpoints(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetBreakpointsRequest"
+    responses:
+        200:
+            description: Set the live debugger's breakpoints for the session.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, SetBreakpointsRequest)
 
 
 @router.post("/restart_session")

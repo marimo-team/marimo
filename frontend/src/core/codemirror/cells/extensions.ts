@@ -17,6 +17,7 @@ import {
 import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
@@ -25,6 +26,14 @@ import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { getEditorCodeAsPython } from "../language/utils";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import {
+  breakpointGutter,
+  debuggerLineHighlighter,
+} from "./debugger-decorations";
+import {
+  createCellBreakpointsAtom,
+  createDebuggerLineAtom,
+} from "./debugger-state";
 import {
   type CodemirrorCellActions,
   cellActionsState,
@@ -428,6 +437,19 @@ export function cellBundle({
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),
     ),
+    // Experimental live debugger: clickable breakpoint gutter + current-line
+    // highlight. Gated so there is no gutter/overhead when disabled.
+    getFeatureFlag("debugger")
+      ? [
+          breakpointGutter(
+            cellId,
+            createObservable(createCellBreakpointsAtom(cellId), store),
+          ),
+          debuggerLineHighlighter(
+            createObservable(createDebuggerLineAtom(cellId), store),
+          ),
+        ]
+      : [],
   ];
 }
 

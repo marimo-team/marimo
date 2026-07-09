@@ -42,7 +42,7 @@ class QueueManager(Protocol):
 
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
-    completion_queue: QueueType[commands.CodeCompletionCommand]
+    completion_queue: QueueType[commands.OutOfBandCommand]
     input_queue: QueueType[str]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None

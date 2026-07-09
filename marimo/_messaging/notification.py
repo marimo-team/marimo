@@ -827,6 +827,23 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class ActiveLineNotification(Notification, tag="active-line"):
+    """Reports the line a cell's frame watcher is currently executing.
+
+    Emitted on a timed heartbeat while a cell runs (only when the line
+    changed), so the editor can highlight the live line. A `None` line
+    clears the highlight (e.g. when the cell finishes).
+
+    Attributes:
+        cell_id: Cell whose frame is being watched.
+        line: 1-based line within the cell, or `None` to clear.
+    """
+
+    name: ClassVar[str] = "active-line"
+    cell_id: CellId_t
+    line: int | None = None
+
+
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     """Available secret keys from secret providers.
 
@@ -932,6 +949,8 @@ NotificationMessage = (
     | CacheInfoNotification
     # Kiosk
     | FocusCellNotification
+    # Debugger
+    | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer

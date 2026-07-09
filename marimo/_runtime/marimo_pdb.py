@@ -77,6 +77,19 @@ class MarimoPdb(Pdb):
         self._last_tracebacks: dict[CellId_t, TracebackType] = {}
         self._last_traceback: TracebackType | None = None
 
+        # Live breakpoints, keyed by cell id -> set of 1-based line numbers.
+        # Session-scoped (not persisted to the notebook file); updated by the
+        # `SetBreakpointsCommand` handler and read by the frame watcher.
+        self.breakpoints: dict[CellId_t, set[int]] = {}
+
+    def disable_sigint(self) -> None:
+        """Stop pdb from installing its own SIGINT handler.
+
+        marimo owns interrupt handling; with pdb's handler installed an
+        interrupt becomes a debugger break instead of interrupting the cell.
+        """
+        self.nosigint = True
+
     def set_trace(
         self, frame: FrameType | None = None, header: str | None = None
     ) -> None:

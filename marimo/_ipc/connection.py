@@ -16,8 +16,8 @@ from marimo._ipc.types import ConnectionInfo
 from marimo._messaging.types import KernelMessage
 from marimo._runtime.commands import (
     BatchableCommand,
-    CodeCompletionCommand,
     CommandMessage,
+    OutOfBandCommand,
 )
 from marimo._session.queue import QueueType
 
@@ -117,7 +117,7 @@ class Connection:
 
     control: Channel[CommandMessage]
     ui_element: Channel[BatchableCommand]
-    completion: Channel[CodeCompletionCommand]
+    completion: Channel[OutOfBandCommand]
     win32_interrupt: Channel[bool] | None
 
     input: Channel[str]
@@ -196,7 +196,7 @@ class Connection:
             context=context,
             control=Channel.Pull(context, msg_type=CommandMessage),
             ui_element=Channel.Pull(context, msg_type=BatchableCommand),
-            completion=Channel.Pull(context, msg_type=CodeCompletionCommand),
+            completion=Channel.Pull(context, msg_type=OutOfBandCommand),
             win32_interrupt=Channel.Pull(context, msg_type=bool)
             if connection_info.win32_interrupt
             else None,

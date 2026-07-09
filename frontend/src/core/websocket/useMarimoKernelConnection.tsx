@@ -32,6 +32,7 @@ import { cacheInfoAtom } from "../cache/requests";
 import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
+import { debuggerCurrentLineAtom } from "../codemirror/cells/debugger-state";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { useSetAppConfig } from "../config/config";
@@ -196,6 +197,7 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const setDebuggerCurrentLine = useSetAtom(debuggerCurrentLineAtom);
   const {
     setNamespaces: setStorageNamespaces,
     filterFromVariables: filterStorageFromVariables,
@@ -391,6 +393,13 @@ export function useMarimoKernelConnection(opts: {
 
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
+        return;
+      case "active-line":
+        setDebuggerCurrentLine(
+          msg.data.line == null
+            ? null
+            : { cellId: msg.data.cell_id, line: msg.data.line },
+        );
         return;
       case "notebook-document-transaction":
         handleDocumentTransaction(msg.data.transaction);

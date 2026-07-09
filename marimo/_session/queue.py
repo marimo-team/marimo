@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Protocol, TypeVar
+from typing import TYPE_CHECKING, Protocol, TypeVar, get_args
 
 if TYPE_CHECKING:
     from marimo._runtime import commands
@@ -34,18 +34,19 @@ class QueueType(Protocol[T]):
 def route_control_request(
     request: commands.CommandMessage,
     control_queue: QueueType[commands.CommandMessage],
-    completion_queue: QueueType[commands.CodeCompletionCommand],
+    completion_queue: QueueType[commands.OutOfBandCommand],
     ui_element_queue: QueueType[commands.BatchableCommand],
 ) -> None:
     """Route a control request to the appropriate queue(s).
 
-    - CodeCompletionCommand → completion_queue only
+    - OutOfBandCommand members → completion_queue only (drained off the main
+      loop so they apply even while a cell is executing)
     - UpdateUIElementCommand / ModelCommand → control_queue + ui_element_queue
     - Everything else → control_queue only
     """
     from marimo._runtime import commands
 
-    if isinstance(request, commands.CodeCompletionCommand):
+    if isinstance(request, get_args(commands.OutOfBandCommand)):
         completion_queue.put(request)
         return
 
