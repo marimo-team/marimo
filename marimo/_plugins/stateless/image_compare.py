@@ -11,7 +11,6 @@ import marimo._output.data.data as mo_data
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import normalize_dimension
-from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.image import ImageLike, _normalize_image
 
@@ -136,8 +135,7 @@ def _process_image_to_url(src: ImageLike) -> str:
             f"Could not load image from {src!r}: it is not an existing file "
             "path or a valid URL."
         )
-    else:
-        result = io_to_data_url(src, fallback_mime_type="image/png")
-        if result is None:
-            raise ValueError(f"Unable to process image: {src!r}")
-        return result
+
+    # `_normalize_image` only ever returns one of the types handled above (or
+    # raises), so this is a defensive guard rather than an expected path.
+    raise ValueError(f"Unsupported image type: {type(src)}")

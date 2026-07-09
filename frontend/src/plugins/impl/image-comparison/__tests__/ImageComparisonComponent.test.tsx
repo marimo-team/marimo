@@ -40,6 +40,22 @@ describe("ImageComparisonComponent", () => {
     expect(error?.textContent).toContain(brokenSrc);
   });
 
+  it("clears the error when the sources change so new images can load", () => {
+    const brokenSrc = "https://example.com/does-not-exist.png";
+    const { getByAltText, queryByText, container, rerender } = render(
+      <ImageComparisonComponent {...baseProps} beforeSrc={brokenSrc} />,
+    );
+
+    fireEvent.error(getByAltText("Before"));
+    expect(queryByText(/Failed to load/)).toBeTruthy();
+
+    // Re-render with a new source (e.g. the user fixed the notebook): the error
+    // should clear and the slider should mount again rather than stay stuck.
+    rerender(<ImageComparisonComponent {...baseProps} beforeSrc="fixed.png" />);
+    expect(queryByText(/Failed to load/)).toBeNull();
+    expect(container.querySelector("img-comparison-slider")).toBeTruthy();
+  });
+
   it("truncates long sources (e.g. data URLs) in the error message", () => {
     const longSrc = `data:image/png;base64,${"A".repeat(200)}`;
     const { getByAltText, queryByText } = render(
