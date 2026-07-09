@@ -43,7 +43,7 @@ ALL_CALLBACKS: list[type] = [
 # Commands that are part of the CommandMessage dispatch surface but are
 # intentionally not handled by the kernel's RequestRouter. These are delivered
 # on the off-main-loop completion queue and processed by
-# start_completion_worker: CodeCompletionCommand (autocomplete) and
+# start_out_of_band_worker: CodeCompletionCommand (autocomplete) and
 # SetBreakpointsCommand (live-debugger breakpoints, so they apply mid-run).
 NOT_ROUTED: set[type] = {CodeCompletionCommand, SetBreakpointsCommand}
 
