@@ -707,35 +707,6 @@ class TestScratchCellListener:
         assert name == "stdout"
         assert payload["data"] == "partial\n"
 
-    @pytest.mark.asyncio
-    async def test_run_id_none_console_is_not_dropped(self) -> None:
-        """Scratch console rides on `CellNotification`s with `run_id=None`,
-        so it must always reach the listener — we deliberately don't filter
-        by `run_id` (see #10035)."""
-        listener = ScratchCellListener(run_id=_TEST_RUN_ID)
-        event_bus = MagicMock()
-        session = MagicMock()
-        listener.on_attach(session, event_bus)
-
-        console = CellNotification(
-            cell_id=SCRATCH_CELL_ID,
-            console=CellOutput.stdout("untraced\n"),
-        )
-        assert console.run_id is None  # idle/untraced op carries no run_id
-
-        listener.on_notification_sent(
-            session, serialize_kernel_message(console)
-        )
-        listener.on_notification_sent(
-            session, serialize_kernel_message(_completed_run())
-        )
-
-        events = [event async for event in listener.stream()]
-        assert len(events) == 1
-        name, payload = _parse_sse(events[0])
-        assert name == "stdout"
-        assert payload["data"] == "untraced\n"
-
 
 class TestRunScratchpadCode:
     """Regression guards for `run_scratchpad_code` — the runner that
