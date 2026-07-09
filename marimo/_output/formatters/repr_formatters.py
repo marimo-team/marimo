@@ -28,7 +28,7 @@ def _maybe_as_anywidget_html(
 
     Converts `application/vnd.jupyter.widget-view+json` mimebundles
     into the same `<marimo-anywidget>` HTML that `mo.ui.anywidget()`
-    produces.  Works for any comm whose open state included `_esm`
+    produces.  Works for any comm whose open minted a def pointer
     (both descriptor-based and ipywidgets-based anywidgets).
 
     Traditional (non-anywidget) jupyter widgets are left untouched so
@@ -41,7 +41,10 @@ def _maybe_as_anywidget_html(
     if not model_id:
         return None
 
-    # Look up the comm and get the _esm that was stashed during open.
+    # Look up the comm; its ESM spec was minted at open. A comm without
+    # one belongs to a traditional jupyter widget — those are left for
+    # the frontend's error banner. The spec itself travels on the open
+    # notification; the component only names the model it displays.
     try:
         from marimo._plugins.ui._impl.anywidget.init import (
             WIDGET_COMM_MANAGER,
@@ -50,25 +53,16 @@ def _maybe_as_anywidget_html(
         return None
 
     comm = WIDGET_COMM_MANAGER.comms.get(model_id)  # type: ignore[arg-type]
-    if comm is None or not comm.esm:
+    if comm is None or comm.esm_spec is None:
         return None
 
-    import marimo._output.data.data as mo_data
     from marimo._plugins.core.web_component import build_ui_plugin
-    from marimo._utils.code import hash_code
-
-    js_url = mo_data.js(comm.esm).url
-    js_hash = hash_code(comm.esm)
 
     inner = build_ui_plugin(
         component_name="marimo-anywidget",
         initial_value={},
         label=None,
-        args={
-            "js-url": js_url,
-            "js-hash": js_hash,
-            "model-id": model_id,
-        },
+        args={"model-id": model_id},
     )
     # Wrap in <marimo-ui-element> so the plugin gets proper lifecycle
     # management (remount on re-run via random-id change).

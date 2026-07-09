@@ -1490,6 +1490,25 @@ components:
       - theme
       title: DisplayConfig
       type: object
+    EsmSpec:
+      description: "Where the frontend imports a widget's ESM from, and which version.\n\
+        \n    Specs travel only on kernel-authored notifications, never in model\n\
+        \    state: state is client-writable and echoed to peers, so executing\n \
+        \   code from it would let one client run code on another.\n\n    Attributes:\n\
+        \        url: URL to import the ESM from. A virtual file for inline\n    \
+        \        source; an external URL when `_esm` is itself a URL.\n        hash:\
+        \ Hash of the `_esm` string. Keys the frontend module cache\n            and\
+        \ signals code changes (hot reload)."
+      properties:
+        hash:
+          type: string
+        url:
+          type: string
+      required:
+      - url
+      - hash
+      title: EsmSpec
+      type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
         \ code. Dependent cells may be\n    re-executed based on the reactive execution\
@@ -3564,7 +3583,14 @@ components:
       title: ModelLifecycleNotification
       type: object
     ModelOpen:
-      description: Initial widget state on creation.
+      description: "Initial widget state on creation.\n\n    For anywidgets, the widget's\
+        \ ESM does not travel in `state`: the\n    comm strips `_esm` and sends an\
+        \ `EsmSpec` instead. `None` for\n    models with no ESM (e.g. traditional\
+        \ ipywidgets).\n\n    Attributes:\n        state: Initial trait values, minus\
+        \ `_esm`.\n        buffer_paths: Paths into `state` whose binary values were\n\
+        \            extracted into `buffers`.\n        buffers: Binary payloads,\
+        \ parallel to `buffer_paths`.\n        esm_spec: Where to import this widget's\
+        \ ESM from."
       properties:
         buffer_paths:
           items:
@@ -3578,6 +3604,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - open
@@ -3616,7 +3647,14 @@ components:
       title: ModelRequest
       type: object
     ModelUpdate:
-      description: State sync - changed traits only.
+      description: "State sync - changed traits only.\n\n    Attributes:\n       \
+        \ state: Changed trait values, minus `_esm` (see `ModelOpen`).\n        buffer_paths:\
+        \ Paths into `state` whose binary values were\n            extracted into\
+        \ `buffers`.\n        buffers: Binary payloads, parallel to `buffer_paths`.\n\
+        \        esm_spec: Present only when the widget's `_esm` changed on a\n  \
+        \          live model (hot reload, edit mode only). A spec whose\n       \
+        \     `hash` differs from the current one tells the frontend the\n       \
+        \     widget's code changed and views must be rebuilt."
       properties:
         buffer_paths:
           items:
@@ -3630,6 +3668,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - update

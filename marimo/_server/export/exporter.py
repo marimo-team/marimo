@@ -33,6 +33,7 @@ from marimo._convert.ipynb.from_ir import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notification import ModelOpen
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -138,9 +139,19 @@ class Exporter:
             request.include_code, app_code, notebook_snapshot, session_snapshot
         )
 
-        # Build fallback virtual_files dict for files not in HTML outputs
+        # Build fallback virtual_files dict for files not in HTML outputs.
+        # Widget ESM referenced only by model notifications (e.g. a
+        # composed child never displayed on its own) appears in no HTML
+        # output, so the inline pass above cannot see it.
+        model_notifications = session_view.get_model_notifications()
+        esm_urls = [
+            self._normalize_virtual_file_url(n.message.esm_spec.url)
+            for n in model_notifications
+            if isinstance(n.message, ModelOpen)
+            and n.message.esm_spec is not None
+        ]
         virtual_files = self._build_virtual_files_dict(
-            request.files,
+            [*request.files, *esm_urls],
             replaced_files,
             max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
         )
@@ -159,7 +170,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
-            model_notifications=session_view.get_model_notifications(),
+            model_notifications=model_notifications,
             asset_url=request.asset_url,
         )
 

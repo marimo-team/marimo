@@ -48,7 +48,12 @@ class TestPatchCommCreate:
                 },
             )
             assert isinstance(c, MarimoComm)
-            assert c.esm == "export default {}"
+            # The comm mints the ESM spec at open (used later by repr
+            # formatters); the raw source itself is not kept.
+            from marimo._utils.code import hash_code
+
+            assert c.esm_spec is not None
+            assert c.esm_spec.hash == hash_code("export default {}")
             c.close()
         finally:
             comm.create_comm = original
