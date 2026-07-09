@@ -639,12 +639,9 @@ def _get_completions(
         if completions:
             return script, completions
     except Exception as e:
-        # jedi's static analysis can raise while inferring some code — for
-        # example, resolving the generic return type of polars' `concat`
-        # crashes with an AttributeError
-        # (https://github.com/davidhalter/jedi/issues/1990). Treat a crash
-        # like "no static completions" so the interpreter-based fallback
-        # below still gets a chance to run.
+        # jedi's static analysis can crash while inferring some code — for
+        # example https://github.com/davidhalter/jedi/issues/1990). 
+        # Fallback to interpreter when it crashes
         LOGGER.debug("Completion with jedi Script failed: %s", str(e))
     return _get_completions_with_interpreter(document, glbls, glbls_lock)
 
