@@ -507,6 +507,119 @@ x = as_marimo_element.count
         assert "_view_name" not in state
 
     @staticmethod
+    async def test_nested_widget_serializes_as_anywidget_ref() -> None:
+        """A widget-valued trait should produce `anywidget:<id>` on the wire.
+
+        Composition (RFC 0001): the parent's frontend `render` calls
+        `host.getWidget(model.get("child"))` which expects this format.
+        """
+
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            value = traitlets.Int(0).tag(sync=True)
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            child = traitlets.Instance(Child, allow_none=True).tag(sync=True)
+
+        child = Child(value=7)
+        parent = Parent(child=child)
+
+        state = get_anywidget_state(parent)
+        assert state["child"] == f"anywidget:{child._model_id}"
+
+    @staticmethod
+    async def test_nested_widget_in_dict_serializes_as_ref() -> None:
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            # Avoid the name `layout` — it's a reserved ipywidgets system
+            # trait that `get_anywidget_state` filters out.
+            slots = traitlets.Dict().tag(sync=True)
+
+        left = Child()
+        right = Child()
+        parent = Parent(slots={"left": left, "right": right, "gap": 8})
+
+        state = get_anywidget_state(parent)
+        assert state["slots"] == {
+            "left": f"anywidget:{left._model_id}",
+            "right": f"anywidget:{right._model_id}",
+            "gap": 8,
+        }
+
+    @staticmethod
+    async def test_nested_widget_in_list_serializes_as_ref() -> None:
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            items = traitlets.List().tag(sync=True)
+
+        c1 = Child()
+        c2 = Child()
+        parent = Parent(items=[c1, "spacer", c2])
+
+        state = get_anywidget_state(parent)
+        assert state["items"] == [
+            f"anywidget:{c1._model_id}",
+            "spacer",
+            f"anywidget:{c2._model_id}",
+        ]
+
+    @staticmethod
+    async def test_state_without_widgets_passes_through() -> None:
+        """Walker should not change values when nothing is a widget."""
+
+        class Plain(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            data = traitlets.Dict().tag(sync=True)
+
+        widget = Plain(data={"a": 1, "b": [2, 3], "c": {"d": "x"}})
+        state = get_anywidget_state(widget)
+        assert state["data"] == {"a": 1, "b": [2, 3], "c": {"d": "x"}}
+
+    @staticmethod
+    async def test_protocol_widget_serializes_as_anywidget_ref() -> None:
+        """RFC 0001 protocol widgets — plain classes with a
+        `MimeBundleDescriptor` for `_repr_mimebundle_` — should be detected
+        and serialized the same way as ipywidgets-derived AnyWidget."""
+        from dataclasses import dataclass
+
+        from anywidget._descriptor import MimeBundleDescriptor
+
+        @dataclass
+        class ProtocolChild:
+            value: int = 0
+            # Dataclass autodetect lets the descriptor expose `value` as
+            # synced state without a manual `_get_anywidget_state` method.
+            _repr_mimebundle_ = MimeBundleDescriptor(_esm="")
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            child = traitlets.Any(allow_none=True).tag(sync=True)
+
+        protocol_child = ProtocolChild(value=7)
+        # Important: do NOT touch `_repr_mimebundle_` first — the walker
+        # must trigger comm creation itself. Otherwise the test isn't
+        # exercising the lazy-init path that protocol widgets rely on.
+        parent = Parent(child=protocol_child)
+        state = get_anywidget_state(parent)
+
+        ref = state["child"]
+        assert isinstance(ref, str)
+        assert ref.startswith("anywidget:")
+        # The id baked into the ref should match the live bundle's id.
+        # `model_id` lands on `ReprMimeBundle` in anywidget>=0.11; older
+        # versions only expose the underlying comm.
+        bundle = protocol_child._repr_mimebundle_
+        expected_id = getattr(bundle, "model_id", None) or bundle._comm.comm_id
+        assert ref == f"anywidget:{expected_id}"
+
+    @staticmethod
     async def test_partial_state_updates() -> None:
         class MultiTraitWidget(_anywidget.AnyWidget):
             _esm = ""
