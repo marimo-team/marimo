@@ -655,7 +655,7 @@ class LazyLoader(BasePersistenceLoader):
         _cache_state().stale_keys.discard(str(self.build_path(cache.key)))
 
         path = Path(self.name) / cache.hash
-        # Copy so per-def digests below don't mutate the cache's meta.
+        # Snapshot: read on the background write thread, so decouple from meta.
         variable_hashes = dict(cache.meta.get("variable_hashes", {}))
         return_item = to_item(
             path, cache.meta.get("return", None), var_name="return"
@@ -677,12 +677,6 @@ class LazyLoader(BasePersistenceLoader):
         ui_defs_list: list[str] = []
 
         for var, obj in cache.defs.items():
-            if var not in variable_hashes:
-                # NB. persist a digest for data primitives so a consumer
-                # reproduces its key without the value.
-                digest = _maybe_content_digest(obj)
-                if digest:
-                    variable_hashes[var] = digest
             loader = maybe_update_lazy_stub(obj)
             item = to_item(
                 path,
@@ -768,6 +762,15 @@ class LazyLoader(BasePersistenceLoader):
         def _serialize_and_write() -> None:
             """Serialize and write all blobs + manifest in background."""
             try:
+                # Persist a digest for data primitives so a consumer
+                # reproduces its key without the value. Serializing the full
+                # value (`data_to_buffer`) is as costly as writing its blob, so
+                # it rides the background write rather than the main thread.
+                for var, obj in cache.defs.items():
+                    if var not in variable_hashes:
+                        digest = _maybe_content_digest(obj)
+                        if digest:
+                            defs_dict[var].hash = digest
                 if return_ref:
                     serialize = BLOB_SERIALIZERS.get(
                         return_loader, pickle.dumps
