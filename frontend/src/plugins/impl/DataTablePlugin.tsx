@@ -24,6 +24,11 @@ import React, {
 import { useLocale } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
+import { mergeFilterGroups } from "@/components/data-table/ai-filter/serialize";
+import {
+  type AiFilterState,
+  useAiFilter,
+} from "@/components/data-table/ai-filter/useAiFilter";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
 import type { CellStyleState } from "@/components/data-table/cell-styling/types";
 import { TablePanel } from "@/components/data-table/charts/charts";
@@ -496,6 +501,7 @@ interface DataTableSearchProps {
   // Searching
   searchQuery: string | undefined;
   setSearchQuery: ((query: string) => void) | undefined;
+  aiFilter?: AiFilterState;
   reloading: boolean;
   // Filters
   filters?: ColumnFiltersState;
@@ -520,6 +526,7 @@ export const LoadingDataTableComponent = memo(
       });
     const [searchQuery, setSearchQuery] = useState<string>("");
     const [filters, setFilters] = useState<ColumnFiltersState>([]);
+    const aiFilter = useAiFilter(props.fieldTypes);
     const [displayHeader, setDisplayHeader] = useState(() => {
       // Show the header if a single chart is configured
       if (!props.showChartBuilder || !cellId) {
@@ -535,7 +542,15 @@ export const LoadingDataTableComponent = memo(
       if (!props.hasStableRowId) {
         setValue([]);
       }
-    }, [setValue, filters, searchQuery, sorting, props.hasStableRowId]);
+    }, [
+      setValue,
+      filters,
+      searchQuery,
+      sorting,
+      aiFilter.filterGroup,
+      aiFilter.query,
+      props.hasStableRowId,
+    ]);
 
     // If pageSize changes, reset pagination state
     useEffect(() => {
@@ -568,13 +583,17 @@ export const LoadingDataTableComponent = memo(
 
       const pageSizeChanged = paginationState.pageSize !== props.pageSize;
 
+      // In AI-filter mode, searchQuery holds the NL prompt, not a literal search.
+      const effectiveQuery = aiFilter.isActive ? aiFilter.query : searchQuery;
+
       // If it is just the first page and no search query,
       // we can show the initial page.
       const canShowInitialPage =
-        searchQuery === "" &&
+        effectiveQuery === "" &&
         paginationState.pageIndex === 0 &&
         filters.length === 0 &&
         sorting.length === 0 &&
+        !aiFilter.isActive &&
         !props.lazy &&
         !pageSizeChanged;
 
@@ -587,10 +606,13 @@ export const LoadingDataTableComponent = memo(
       // If we have sort/search/filter, use the search function
       const searchResultsPromise = search<T>({
         sort: sortArgs,
-        query: searchQuery,
+        query: effectiveQuery,
         page_number: paginationState.pageIndex,
         page_size: paginationState.pageSize,
-        filters: filtersToFilterGroup(filters),
+        filters: mergeFilterGroups(
+          filtersToFilterGroup(filters),
+          aiFilter.filterGroup,
+        ),
       });
 
       if (canShowInitialPage) {
@@ -626,6 +648,9 @@ export const LoadingDataTableComponent = memo(
       search,
       filters,
       searchQuery,
+      aiFilter.isActive,
+      aiFilter.query,
+      aiFilter.filterGroup,
       useDeepCompareMemoize(props.fieldTypes),
       props.data,
       props.totalRows,
@@ -675,8 +700,11 @@ export const LoadingDataTableComponent = memo(
           page_number: rowId,
           page_size: 1,
           sort: sortArgs,
-          query: searchQuery,
-          filters: filtersToFilterGroup(filters),
+          query: aiFilter.isActive ? aiFilter.query : searchQuery,
+          filters: mergeFilterGroups(
+            filtersToFilterGroup(filters),
+            aiFilter.filterGroup,
+          ),
           // Do not clamp number of columns since we are viewing a single row
           max_columns: null,
         });
@@ -685,7 +713,15 @@ export const LoadingDataTableComponent = memo(
           rows: loadedData,
         };
       },
-      [search, sorting, filters, searchQuery],
+      [
+        search,
+        sorting,
+        filters,
+        searchQuery,
+        aiFilter.isActive,
+        aiFilter.query,
+        aiFilter.filterGroup,
+      ],
     );
 
     // If total rows change, reset pageIndex
@@ -769,6 +805,7 @@ export const LoadingDataTableComponent = memo(
         setSorting={setSorting}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
+        aiFilter={aiFilter}
         filters={filters}
         setFilters={setFilters}
         reloading={isFetching && !isPending}
@@ -848,6 +885,7 @@ const DataTableComponent = ({
   showSearch,
   searchQuery,
   setSearchQuery,
+  aiFilter,
   filters,
   setFilters,
   reloading,
@@ -1168,6 +1206,7 @@ const DataTableComponent = ({
             showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
+            aiFilter={aiFilter}
             showFilters={showFilters}
             filters={filters}
             onFiltersChange={setFilters}
