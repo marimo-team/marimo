@@ -72,6 +72,14 @@ export function clearCellBreakpoints(cellId: CellId): void {
   sendBreakpoints(next);
 }
 
+/** Re-push the current breakpoints to a freshly started kernel, whose `MarimoPdb` starts empty. */
+export function resyncBreakpoints(): void {
+  const current = store.get(breakpointsAtom);
+  if (current.size > 0) {
+    sendBreakpoints(current);
+  }
+}
+
 /** Toggle a breakpoint at `(cellId, line)` and sync the full set to the kernel. */
 export function toggleBreakpoint(cellId: CellId, line: number): void {
   const prev = store.get(breakpointsAtom);

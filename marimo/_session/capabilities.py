@@ -67,6 +67,7 @@ _EDIT_COMMANDS: frozenset[type] = frozenset(
         commands.ExecuteScratchpadCommand,
         commands.ExecuteStaleCellsCommand,
         commands.DebugCellCommand,
+        commands.SetBreakpointsCommand,
         commands.DeleteCellCommand,
         commands.SyncGraphCommand,
         commands.UpdateCellConfigCommand,

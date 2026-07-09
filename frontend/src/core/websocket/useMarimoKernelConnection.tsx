@@ -32,7 +32,10 @@ import { cacheInfoAtom } from "../cache/requests";
 import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
-import { debuggerCurrentLineAtom } from "../codemirror/cells/debugger-state";
+import {
+  debuggerCurrentLineAtom,
+  resyncBreakpoints,
+} from "../codemirror/cells/debugger-state";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { useSetAppConfig } from "../config/config";
@@ -223,6 +226,11 @@ export function useMarimoKernelConnection(opts: {
           existingCells,
         });
         setKioskMode(msg.data.kiosk);
+        // A freshly started kernel has no breakpoints of its own; re-push
+        // the client's set so they still apply, and clear the stale
+        // highlighted line from the previous kernel instance.
+        setDebuggerCurrentLine(null);
+        resyncBreakpoints();
         return;
       }
 
