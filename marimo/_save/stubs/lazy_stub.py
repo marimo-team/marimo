@@ -29,10 +29,18 @@ class CacheType(Enum):
     UNKNOWN = "Unknown"
 
 
-class Item(msgspec.Struct):
+class Item(msgspec.Struct, omit_defaults=True):
     """Represents a cached item with different value types.
 
     Only one of the value fields should be set (oneof semantics).
+
+    `omit_defaults` keeps the encoded manifest — and therefore the signature
+    computed over it — stable when a new optional field (default `None`/
+    empty) is added: an entry that doesn't set the field encodes identically
+    before and after the field exists.  Any change that is *not* purely
+    additive-with-an-absent-default (reordering, renaming, changing a default,
+    adding a required field) alters the signable bytes and MUST bump
+    `MARIMO_CACHE_VERSION`.
     """
 
     primitive: Any | None = None
@@ -60,6 +68,11 @@ class Item(msgspec.Struct):
     unserializable_type: str | None = None
     # Pinned version of a `module` def, captured at cache time.
     module_version: str | None = None
+    # Non-finite float token ("nan"/"inf"/"-inf"), stored inline rather than via
+    # `primitive`: msgspec encodes non-finite floats as JSON `null`, which both
+    # corrupts the value and breaks signature verification (the re-encoded
+    # manifest drops the null field).
+    special_float: str | None = None
 
     def __post_init__(self) -> None:
         fields_set = sum(
@@ -72,6 +85,7 @@ class Item(msgspec.Struct):
                 self.function,
                 self.class_def,
                 self.unserializable_type,
+                self.special_float,
             ]
             if field is not None
         )
@@ -79,12 +93,24 @@ class Item(msgspec.Struct):
             raise ValueError("Item can only have one value field set")
 
 
-class Meta(msgspec.Struct):
+class Meta(msgspec.Struct, omit_defaults=True):
     version: int
     return_value: Item | None = None
+    # Maps each blob store-key to its SHA-256 hex digest.  Covered by the
+    # Ed25519 signature (which is computed over the manifest with the
+    # signature field cleared), so blob hashes are implicitly authenticated.
+    blob_hashes: dict[str, str] = msgspec.field(default_factory=dict)
+    # PEM-encoded Ed25519 public key of the signer.  Included in the signed
+    # bytes (NOT stripped by _signable_bytes), so an attacker cannot swap
+    # the claimed key without invalidating the signature.
+    signer_public_key: str | None = None
+    # --- Envelope field (stripped before signing) ---
+    # Base64url-encoded Ed25519 signature over _signable_bytes() of this
+    # manifest (signature=None). None means the entry is unsigned.
+    signature: str | None = None
 
 
-class Cache(msgspec.Struct):
+class Cache(msgspec.Struct, omit_defaults=True):
     hash: str
     cache_type: CacheType
     defs: dict[str, Item]
