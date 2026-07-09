@@ -1,5 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""DebuggerLifecycle frame-watches each cell body for the live debugger."""
+"""DebuggerLifecycle frame-watches each cell body.
+
+Powers both the experimental live debugger (`debugger` flag) and the
+experimental line-timing highlight (`line_timing` flag), which reuses the
+active-line stream without a debugger.
+"""
 
 from __future__ import annotations
 
@@ -22,7 +27,7 @@ if TYPE_CHECKING:
 
 
 class FrameWatcher:
-    """Frame watcher for the experimental live debugger.
+    """Frame watcher powering the live debugger and line-timing highlight.
 
     Installed around a single cell's execution (via `DebuggerLifecycle`):
     `install()` registers a `sys.settrace` hook on the executing thread and
@@ -36,6 +41,10 @@ class FrameWatcher:
     - drops into `MarimoPdb` when a line with a registered breakpoint is hit,
       handing tracing off to pdb for the rest of the cell.
 
+    The debugger is optional: with `debugger=None` (the `line_timing` flag
+    without the `debugger` flag) the watcher only streams the active line and
+    never enters pdb.
+
     `settrace` is per-thread, so only the cell-executing thread is traced. The
     heartbeat runs on its own thread (it must emit even while a synchronous
     cell blocks the kernel thread) using a stream copied for cross-thread use.
@@ -46,7 +55,7 @@ class FrameWatcher:
     # Don't block teardown indefinitely waiting on the heartbeat thread.
     _JOIN_TIMEOUT_S = 1.0
 
-    def __init__(self, debugger: MarimoPdb) -> None:
+    def __init__(self, debugger: MarimoPdb | None) -> None:
         self._debugger = debugger
         self._installed = False
         self._prev_trace: Any = None
@@ -81,7 +90,8 @@ class FrameWatcher:
         # marimo owns interrupt handling. Stop pdb from installing its own
         # SIGINT handler (which would turn an interrupt into a debugger break
         # instead of actually interrupting the cell).
-        self._debugger.disable_sigint()
+        if self._debugger is not None:
+            self._debugger.disable_sigint()
 
         self._installed = True
         self._current = None
@@ -137,8 +147,9 @@ class FrameWatcher:
             self._current = (cell_id, lineno)
             # Stop on a gutter breakpoint, or — once a session is underway —
             # wherever pdb's step/next bookkeeping wants to (`stop_here`).
-            if lineno in self._debugger.breakpoints.get(cell_id, ()) or (
-                self._stepping and self._debugger.stop_here(frame)
+            if self._debugger is not None and (
+                lineno in self._debugger.breakpoints.get(cell_id, ())
+                or (self._stepping and self._debugger.stop_here(frame))
             ):
                 self._enter_debugger(frame)
         return self._trace
@@ -161,6 +172,7 @@ class FrameWatcher:
         `MarimoStopError` (the same path as `mo.stop()`) rather than letting
         execution run on.
         """
+        assert self._debugger is not None
         debugger = self._debugger
         debugger.disable_sigint()
         debugger.reset()
@@ -208,17 +220,19 @@ class FrameWatcher:
 
 
 class DebuggerLifecycle:
-    """Install a frame watcher around a cell body for the live debugger.
+    """Install a frame watcher around a cell body.
 
     `setup` installs the watcher (`sys.settrace` + heartbeat) before the body
     runs; `teardown` removes it. The lifecycle only toggles the watcher per
-    cell so debug mode can be turned on and off. Gated by the `debugger`
-    experimental flag (see `Runner.__init__`).
+    cell so debug mode can be turned on and off. Gated by the `debugger` and
+    `line_timing` experimental flags (see `Runner.__init__`); with
+    `debugger=None` it only streams the active line for the line-timing
+    highlight.
     """
 
     name = "debugger"
 
-    def __init__(self, debugger: MarimoPdb) -> None:
+    def __init__(self, debugger: MarimoPdb | None) -> None:
         self._watcher = FrameWatcher(debugger)
 
     def setup(self, cell: CellImpl, glbls: MutableGlobals) -> Skip | None:

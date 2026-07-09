@@ -31,9 +31,11 @@ import {
   debuggerLineHighlighter,
 } from "./debugger-decorations";
 import {
+  createActiveLineInfoAtom,
   createCellBreakpointsAtom,
   createDebuggerLineAtom,
 } from "./debugger-state";
+import { activeLineTimer } from "./line-timing-decorations";
 import {
   type CodemirrorCellActions,
   cellActionsState,
@@ -429,6 +431,8 @@ export function cellBundle({
   cellActions: CodemirrorCellActions;
   keymapConfig: KeymapConfig;
 }): Extension[] {
+  const debuggerOn = getFeatureFlag("debugger");
+  const lineTimingOn = getFeatureFlag("line_timing");
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
@@ -437,19 +441,25 @@ export function cellBundle({
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),
     ),
-    // Experimental live debugger: clickable breakpoint gutter + current-line
-    // highlight. Gated so there is no gutter/overhead when disabled.
-    getFeatureFlag("debugger")
-      ? [
-          breakpointGutter(
-            cellId,
-            createObservable(createCellBreakpointsAtom(cellId), store),
-          ),
-          debuggerLineHighlighter(
-            createObservable(createDebuggerLineAtom(cellId), store),
-          ),
-        ]
+    // Experimental live debugger and line-timing highlight. Gated so there is
+    // no gutter/overhead when disabled. Both track the same active line, so
+    // the timing highlighter (green + timer) replaces the debugger's amber
+    // highlight when both flags are on; the breakpoint gutter is independent.
+    debuggerOn
+      ? breakpointGutter(
+          cellId,
+          createObservable(createCellBreakpointsAtom(cellId), store),
+        )
       : [],
+    lineTimingOn
+      ? activeLineTimer(
+          createObservable(createActiveLineInfoAtom(cellId), store),
+        )
+      : debuggerOn
+        ? debuggerLineHighlighter(
+            createObservable(createDebuggerLineAtom(cellId), store),
+          )
+        : [],
   ];
 }
 

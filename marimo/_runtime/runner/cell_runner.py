@@ -176,17 +176,24 @@ class Runner:
                     ),
                 )
             )
-        # Live debugger: frame-watch each cell body when the experimental flag
-        # is on. Gated here so there is zero tracing overhead when disabled.
+        # Live debugger and line-timing highlight: frame-watch each cell body
+        # when either experimental flag is on. Gated here so there is zero
+        # tracing overhead when disabled. A single lifecycle serves both flags
+        # (one `sys.settrace` hook); without the debugger flag the watcher
+        # only streams the active line.
         experimental = (
             self.user_config.get("experimental", {})
             if self.user_config is not None
             else {}
         )
-        if self.debugger is not None and bool(
+        debugger_on = self.debugger is not None and bool(
             experimental.get("debugger", False)
-        ):
-            lifecycles.append(DebuggerLifecycle(self.debugger))
+        )
+        line_timing_on = bool(experimental.get("line_timing", False))
+        if debugger_on or line_timing_on:
+            lifecycles.append(
+                DebuggerLifecycle(self.debugger if debugger_on else None)
+            )
         self._evaluator = Evaluator(
             executor=resolve_executor(), lifecycles=lifecycles
         )
