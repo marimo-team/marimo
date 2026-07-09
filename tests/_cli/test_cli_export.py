@@ -725,6 +725,14 @@ class TestExportMarkdown:
         assert "```{marimo .python" in p.output
 
     @staticmethod
+    def test_export_markdown_with_mdx_flavor(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "mdx")
+        _assert_success(p)
+        assert "```python marimo" in p.output
+
+    @staticmethod
     def test_export_markdown_infers_qmd_from_output(
         temp_marimo_file: str, tmp_path: Path
     ) -> None:
@@ -748,6 +756,17 @@ class TestExportMarkdown:
 
         _assert_success(p)
         assert "```{marimo} python" in output.read_text()
+
+    @staticmethod
+    def test_export_markdown_infers_mdx_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.mdx"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        assert "```python marimo" in output.read_text()
 
     @staticmethod
     def test_export_markdown_stdout_uses_default_flavor(

@@ -407,7 +407,7 @@ Watch for changes and regenerate the script on modification:
 )
 @click.option(
     "--flavor",
-    type=click.Choice(["pymdown", "qmd", "mystmd"]),
+    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
     default=None,
     help="Markdown flavor to export.",
 )
