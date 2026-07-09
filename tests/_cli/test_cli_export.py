@@ -19,6 +19,7 @@ from click.testing import CliRunner, Result
 
 from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
+from marimo._cli.export.local_modules import _ruff_import_graph
 from marimo._cli.export.local_wheels import _local_wheel_path
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_decode_component
@@ -103,6 +104,8 @@ def _run_export(
     stdin: str | None = None,
 ) -> Result:
     """Helper to run marimo export commands via CliRunner."""
+    if export_format == "html-wasm" and not HAS_UV:
+        pytest.skip("uv is required for html-wasm export tests")
     return _runner.invoke(
         main,
         ["export", export_format, file, *extra_args],
@@ -173,6 +176,30 @@ def test_local_wheel_path_preserves_file_url_netloc(tmp_path: Path) -> None:
         _local_wheel_path("file://localhost/tmp/pkg.whl", notebook)
         == Path("/tmp/pkg.whl").resolve()
     )
+
+
+def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    module = tmp_path / "module.py"
+    result = subprocess.CompletedProcess(
+        args=(),
+        returncode=0,
+        stdout=json.dumps({str(notebook): [str(module)]}),
+        stderr="warning",
+    )
+    with (
+        mock.patch(
+            "marimo._cli.export.local_modules._ruff_graph_command",
+            return_value=("ruff",),
+        ),
+        mock.patch(
+            "marimo._cli.export.local_modules.subprocess.run",
+            return_value=result,
+        ),
+    ):
+        graph = _ruff_import_graph((notebook,), (tmp_path,), notebook)
+
+    assert graph == {notebook.resolve(): (module.resolve(),)}
 
 
 class TestExportHTML:
@@ -296,8 +323,8 @@ class TestExportHTML:
             f"""
 # /// script
 # dependencies = [
-#     "demo-local",
-#     "direct-wheel @ {direct_wheel.as_uri()}",
+#     "demo-local[extra]",
+#     "direct-wheel @ {direct_wheel.as_uri()} ; python_version >= '3.11'   ",
 # ]
 # [tool.uv.sources]
 # demo-local = {{ path = "dist/demo_local-0.1.0-py3-none-any.whl" }}
@@ -317,6 +344,21 @@ class TestExportHTML:
         wheel_dir = out_dir / "public" / "wheels"
         assert (wheel_dir / uv_wheel.name).read_bytes() == b"wheel"
         assert (wheel_dir / direct_wheel.name).read_bytes() == b"wheel"
+        html = (out_dir / "index.html").read_text()
+        code = html.split('<marimo-code hidden="">', 1)[1].split(
+            "</marimo-code>", 1
+        )[0]
+        dependencies = (
+            read_pyproject_from_script(uri_decode_component(code)) or {}
+        ).get("dependencies", [])
+        assert (
+            f"demo-local[extra] @ ../public/wheels/{uv_wheel.name}"
+            in dependencies
+        )
+        assert (
+            f"direct-wheel @ ../public/wheels/{direct_wheel.name}"
+            " ; python_version >= '3.11'"
+        ) in dependencies
 
     @staticmethod
     def test_cli_export_html_wasm_no_override(temp_marimo_file: str) -> None:
@@ -443,8 +485,8 @@ class TestExportHTML:
 
     @pytest.mark.skipif(
         # if hangs on watchdog, add a dependency check
-        condition=_is_win32(),
-        reason="flaky on Windows",
+        condition=_is_win32() or not HAS_UV,
+        reason="requires uv and is flaky on Windows",
     )
     @staticmethod
     def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:

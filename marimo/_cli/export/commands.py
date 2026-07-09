@@ -1119,6 +1119,8 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
+    # NB. with --execute, the callback also bundles session caches into the
+    # export's public/cache/.
     return watch_and_export(
         MarimoPath(name),
         outfile,

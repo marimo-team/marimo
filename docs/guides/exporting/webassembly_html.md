@@ -85,6 +85,10 @@ wheel as top-level `foo.py`, while a local package such as `helpers/__init__.py`
 stays under `helpers/`. If a local module imports another local module, the
 imported file is included in the export too.
 
+Local module resolution requires [`uv`](https://docs.astral.sh/uv/). Install it
+with `pip install "marimo[sandbox]"` or use the
+[uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
 For local modules outside the notebook directory, configure
 [`pythonpath`](../configuration/runtime_configuration.md#python-path) so marimo
 can resolve the import.

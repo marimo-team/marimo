@@ -187,7 +187,7 @@ def _ruff_import_graph(
             "html-wasm export."
         ) from error
 
-    if result.returncode != 0 or result.stderr.strip():
+    if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip()
         raise LocalWheelError(
             "Failed to analyze local imports with Ruff"

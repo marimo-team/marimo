@@ -273,7 +273,7 @@ def _direct_reference_wheel_dependency(
     match = _DIRECT_REF_RE.match(dependency)
     if match is None:
         return None
-    marker = match.group("marker")
+    marker = (match.group("marker") or "").strip() or None
     wheel_path = _local_wheel_path(match.group("url"), notebook_path)
     if wheel_path is None:
         return None
@@ -287,9 +287,12 @@ def _direct_reference_wheel_dependency(
 def _dependency_metadata(
     dependency: str,
 ) -> tuple[str, str | None] | None:
-    name = _requirement_package_name(dependency)
-    if name is None:
+    match = re.match(
+        r"\s*([A-Za-z0-9][A-Za-z0-9._-]*(?:\[[^\]]+\])?)", dependency
+    )
+    if match is None:
         return None
+    name = match.group(1)
     _, _, marker = dependency.partition(";")
     return name, marker.strip() or None
 
