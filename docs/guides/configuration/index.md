@@ -125,6 +125,7 @@ marimo supports the following environment variables for advanced configuration:
 | `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
 | `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
 | `MARIMO_SESSION_COOKIE_SECURE` | If set to `true`/`1`, marks the session cookie as `Secure` so browsers only send it over HTTPS. Enable when serving marimo behind TLS.        | `false`         |
+| `MARIMO_SERVER_TRANSPORT` | Experimental. The transport for streaming kernel messages to the browser: `websocket` or `sse`. Use `sse` when deploying behind proxies or services that do not support WebSockets. | `websocket`     |
 
 ### Tips
 
