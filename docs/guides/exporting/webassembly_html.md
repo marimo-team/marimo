@@ -58,6 +58,55 @@ exclude native-only dependencies from WASM installs.
     npx wrangler deploy
     ```
 
+## Including local modules and wheels
+
+`marimo export html-wasm` includes Python modules imported by your notebook
+when they resolve to local files. For example, if `notebook.py` imports `foo`
+and `foo.py` lives in the same directory, marimo builds a pure-Python wheel for
+`foo.py`, copies it to `public/wheels` in the export directory, and installs
+the wheel when the notebook starts in the browser.
+
+```text
+notebooks/
+|-- notebook.py
+`-- foo.py
+```
+
+```python title="notebooks/notebook.py"
+import foo
+```
+
+```bash
+marimo export html-wasm notebooks/notebook.py -o output_dir
+```
+
+Package imports keep their package layout. A local `foo.py` is written into the
+wheel as top-level `foo.py`, while a local package such as `helpers/__init__.py`
+stays under `helpers/`. If a local module imports another local module, the
+imported file is included in the export too.
+
+For local modules outside the notebook directory, configure
+[`pythonpath`](../configuration/runtime_configuration.md#python-path) so marimo
+can resolve the import.
+
+If you already build a local wheel, reference it from the notebook's
+[inline script metadata](../package_management/inlining_dependencies.md):
+
+```python
+# /// script
+# dependencies = ["my-package"]
+# [tool.uv.sources]
+# my-package = { path = "dist/my_package-0.1.0-py3-none-any.whl" }
+# ///
+```
+
+During export, marimo copies the referenced wheel to `public/wheels` and
+rewrites the browser metadata to install that hosted wheel URL.
+
+Local modules and wheels run in Pyodide at browser startup. Imported
+third-party packages must be available in Pyodide or installable from a
+WASM-compatible wheel.
+
 ## Testing the export
 
 You can test the export by running the following command in the directory containing your notebook:
