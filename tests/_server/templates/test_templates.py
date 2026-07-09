@@ -1208,27 +1208,6 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert '"showAppCode": false' in result
         assert "<title>notebook</title>" in result
         _assert_no_leftover_replacements(result)
-        assert "            \n        }" not in result
-
-    def test_wasm_notebook_template_with_wheel_urls(self) -> None:
-        result = templates.wasm_notebook_template(
-            html=self.html,
-            version=self.version,
-            filename=str(self.filename),
-            mode=self.mode,
-            user_config=self.user_config,
-            config_overrides=self.config_overrides,
-            app_config=self.app_config,
-            code=self.code,
-            show_code=False,
-            wasm_wheel_urls=["public/wheels/demo_pkg-0.1.0-py3-none-any.whl"],
-        )
-
-        assert (
-            '"wasmWheelUrls": '
-            '["public/wheels/demo_pkg-0.1.0-py3-none-any.whl"]' in result
-        )
-        _assert_no_leftover_replacements(result)
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file

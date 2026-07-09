@@ -51,7 +51,6 @@ import {
 import { maybeRegisterVSCodeBindings } from "./core/vscode/vscode-bindings";
 import type { FileStore } from "./core/wasm/store";
 import { notebookFileStore } from "./core/wasm/store";
-import { wasmWheelUrlsAtom } from "./core/wasm/state";
 import { WebSocketState } from "./core/websocket/types";
 import {
   handleWidgetMessage,
@@ -270,11 +269,6 @@ const mountOptionsSchema = z.object({
     )
     .nullish()
     .transform((val) => val ?? []),
-
-  wasmWheelUrls: z
-    .array(z.string())
-    .nullish()
-    .transform((val) => val ?? []),
 });
 
 function initStore(options: unknown) {
@@ -315,7 +309,6 @@ function initStore(options: unknown) {
   // Meta
   store.set(marimoVersionAtom, parsedOptions.data.version);
   store.set(showCodeInRunModeAtom, parsedOptions.data.view.showAppCode);
-  store.set(wasmWheelUrlsAtom, parsedOptions.data.wasmWheelUrls);
 
   // Check for view-as parameter to start in present mode
   const shouldStartInPresentMode = (() => {

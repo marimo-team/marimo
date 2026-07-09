@@ -38,10 +38,9 @@ import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
-import { wasmInitStateAtom, wasmWheelUrlsAtom } from "./state";
+import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
-import { resolveWasmWheelUrls } from "./wheel-urls";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -114,16 +113,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
-      void this.startSession().catch((error) => {
-        const sessionError =
-          error instanceof Error ? error : new Error(String(error));
-        Logger.error("Failed to start WASM session", error);
-        store.set(wasmInitStateAtom, {
-          kind: "error",
-          message: sessionError.message,
-        });
-        this.initialized.reject(sessionError);
-      });
+      this.startSession();
     });
     this.rpc.addMessageListener("initialized", () => {
       // Wait until the worker is ready to create the save worker
@@ -170,10 +160,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const fallbackCode = await fallbackFileStore.readFile();
     const filename = store.get(filenameAtom) ?? PyodideRouter.getFilename();
     const userConfig = store.get(userConfigAtom);
-    const wheelUrls = resolveWasmWheelUrls(store.get(wasmWheelUrlsAtom), {
-      allowedOrigin: window.location.origin,
-      baseUrl: document.baseURI,
-    });
 
     const queryParameters: Record<string, string | string[]> = {};
     const searchParams = new URLSearchParams(window.location.search);
@@ -186,10 +172,6 @@ export class PyodideBridge implements RunRequests, EditRequests {
       queryParameters: queryParameters,
       code: code || fallbackCode || "",
       filename,
-      // The worker can be served from asset_url, so validate included wheels
-      // against the notebook page origin rather than the worker script origin.
-      allowedWheelOrigin: window.location.origin,
-      wheelUrls,
       userConfig: {
         ...userConfig,
         runtime: {

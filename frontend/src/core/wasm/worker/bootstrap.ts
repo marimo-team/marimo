@@ -10,7 +10,6 @@ import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
 import type { SerializedBridge, WasmController } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
-import { resolveWasmWheelUrls } from "../wheel-urls";
 
 const MAKE_SNAPSHOT = false;
 
@@ -109,20 +108,10 @@ export class DefaultWasmController implements WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    allowedWheelOrigin?: string;
-    wheelUrls?: string[];
     onMessage: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
-    const {
-      code,
-      filename,
-      allowedWheelOrigin = self.location.origin,
-      onMessage,
-      queryParameters,
-      userConfig,
-      wheelUrls = [],
-    } = opts;
+    const { code, filename, onMessage, queryParameters, userConfig } = opts;
     // We pass down a messenger object to the code
     // This is used to have synchronous communication between the JS and Python code
     // Previously, we used a queue, but this would not properly flush the queue
@@ -134,8 +123,6 @@ export class DefaultWasmController implements WasmController {
     };
     self.query_params = queryParameters;
     self.user_config = userConfig;
-
-    await this.installIncludedWheels(wheelUrls, allowedWheelOrigin);
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
@@ -180,31 +167,6 @@ export class DefaultWasmController implements WasmController {
     });
 
     return bridge;
-  }
-
-  private async installIncludedWheels(
-    wheelUrls: string[],
-    allowedWheelOrigin: string,
-  ) {
-    const safeWheelUrls = resolveWasmWheelUrls(wheelUrls, {
-      allowedOrigin: allowedWheelOrigin,
-      baseUrl: self.location.href,
-    });
-
-    if (safeWheelUrls.length === 0) {
-      return;
-    }
-
-    const loadSpan = t.startSpan("micropip.install.wheels");
-    try {
-      await this.requirePyodide.runPythonAsync(`
-        import micropip
-        print("Loading included wheels:", ${JSON.stringify(safeWheelUrls)})
-        await micropip.install(${JSON.stringify(safeWheelUrls)})
-      `);
-    } finally {
-      loadSpan.end();
-    }
   }
 
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
@@ -255,23 +217,9 @@ export class DefaultWasmController implements WasmController {
       await pyodide
         .runPythonAsync(`
         import micropip
-        import importlib.util
         import sys
-        # URL-installed wheels are importable without appearing in
-        # pyodide.loadedPackages. find_spec prevents a second micropip fetch.
-        def needs_micropip_install(requirement):
-          if requirement in sys.modules:
-            return False
-          try:
-            return importlib.util.find_spec(requirement) is None
-          except (ImportError, ModuleNotFoundError, ValueError):
-            return True
-
-        missing = [
-          p
-          for p in ${JSON.stringify(missingPackages)}
-          if needs_micropip_install(p)
-        ]
+        # Filter out builtins
+        missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
         if len(missing) > 0:
           print("Loading from micropip:", missing)
           await micropip.install(missing)

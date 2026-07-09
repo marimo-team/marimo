@@ -11,5 +11,3 @@ export const wasmInitStateAtom = atom<WasmInitState>({
   kind: "loading",
   message: "Initializing...",
 });
-
-export const wasmWheelUrlsAtom = atom<string[]>([]);

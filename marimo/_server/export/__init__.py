@@ -57,7 +57,7 @@ from marimo._utils.marimo_path import MarimoPath
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Callable, Mapping
 
     from marimo._server.export._pdf_raster import PDFRasterizationOptions
     from marimo._server.export._status import PDFExportStatusCallback
@@ -165,7 +165,7 @@ def export_as_wasm(
     mode: Literal["edit", "run"],
     show_code: bool,
     asset_url: str | None = None,
-    wasm_wheel_urls: list[str] | None = None,
+    code_transform: Callable[[str], str] | None = None,
 ) -> ExportResult:
     _app = load_app(path.absolute_name)
     if _app is None:
@@ -182,16 +182,19 @@ def export_as_wasm(
     config = get_default_config_manager(current_path=path.absolute_name)
     resolved = config.get_config()
 
+    code = app.to_py()
+    if code_transform is not None:
+        code = code_transform(code)
+
     result = Exporter().export_as_wasm(
         filename=path.short_name,
         app=app,
         display_config=resolved["display"],
         mode=mode,
-        code=app.to_py(),
+        code=code,
         asset_url=asset_url,
         show_code=show_code,
         sharing_config=resolved.get("sharing"),
-        wasm_wheel_urls=wasm_wheel_urls,
     )
     return ExportResult(
         contents=result[0],
@@ -446,7 +449,7 @@ async def run_app_then_export_as_wasm(
     *,
     asset_url: str | None = None,
     cache_export_dir: Path | None = None,
-    wasm_wheel_urls: list[str] | None = None,
+    code_transform: Callable[[str], str] | None = None,
 ) -> ExportResult:
     """Execute notebook and export as WASM HTML with embedded session.
 
@@ -502,6 +505,8 @@ async def run_app_then_export_as_wasm(
     )
 
     code = pin_pep723_dependencies_for_wasm(file_manager.app.to_py(), path)
+    if code_transform is not None:
+        code = code_transform(code)
 
     html, filename = Exporter().export_as_wasm(
         filename=file_manager.filename,
@@ -514,7 +519,6 @@ async def run_app_then_export_as_wasm(
         session_snapshot=session_snapshot,
         notebook_snapshot=notebook_snapshot,
         sharing_config=resolved.get("sharing"),
-        wasm_wheel_urls=wasm_wheel_urls,
     )
     return ExportResult(
         contents=html,

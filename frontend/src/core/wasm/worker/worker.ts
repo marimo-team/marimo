@@ -86,8 +86,6 @@ const requestHandler = createRPCRequestHandler({
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    allowedWheelOrigin?: string;
-    wheelUrls?: string[];
     userConfig: UserConfig;
   }) => {
     await pyodideReadyPromise; // Make sure loading is done
@@ -120,8 +118,6 @@ const requestHandler = createRPCRequestHandler({
         code: opts.code,
         filename: opts.filename,
         queryParameters: opts.queryParameters,
-        allowedWheelOrigin: opts.allowedWheelOrigin,
-        wheelUrls: opts.wheelUrls,
         userConfig: opts.userConfig,
         onMessage: (msg) => {
           initializeOnce();

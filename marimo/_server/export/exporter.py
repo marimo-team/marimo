@@ -399,7 +399,6 @@ class Exporter:
         session_snapshot: NotebookSessionV1 | None = None,
         notebook_snapshot: NotebookV1 | None = None,
         sharing_config: SharingConfig | None = None,
-        wasm_wheel_urls: list[str] | None = None,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
@@ -422,7 +421,6 @@ class Exporter:
             show_code=show_code,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
-            wasm_wheel_urls=wasm_wheel_urls,
         )
 
         download_filename = get_download_filename(filename, "wasm.html")

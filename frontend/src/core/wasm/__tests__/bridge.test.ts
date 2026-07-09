@@ -2,15 +2,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  mockFallbackReadFile,
-  mockNotebookReadFile,
-  mockStartSession,
-  rpcListeners,
-} = vi.hoisted(() => ({
-  mockFallbackReadFile: vi.fn(),
+const { mockNotebookReadFile, rpcListeners } = vi.hoisted(() => ({
   mockNotebookReadFile: vi.fn(),
-  mockStartSession: vi.fn(),
   rpcListeners: {} as Record<string, () => void>,
 }));
 
@@ -36,7 +29,7 @@ vi.mock("@/core/wasm/rpc", () => ({
     proxy: {
       request: {
         bridge: vi.fn(),
-        startSession: mockStartSession,
+        startSession: vi.fn(),
         readFile: vi.fn(),
         readNotebook: vi.fn(),
         saveNotebook: vi.fn(),
@@ -58,19 +51,14 @@ vi.mock("@/core/wasm/utils", () => ({
 }));
 
 vi.mock("@/core/wasm/store", () => ({
-  fallbackFileStore: { readFile: mockFallbackReadFile, saveFile: vi.fn() },
+  fallbackFileStore: { readFile: vi.fn(), saveFile: vi.fn() },
   notebookFileStore: { readFile: mockNotebookReadFile, saveFile: vi.fn() },
 }));
 
 // Import after all mocks are set up
-import { defaultUserConfig } from "@/core/config/config-schema";
-import { userConfigAtom } from "@/core/config/config";
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
-import { filenameAtom } from "@/core/saving/file-state";
-import { Logger } from "@/utils/Logger";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
-import { wasmWheelUrlsAtom } from "../state";
 
 // Access INSTANCE once at module level so the constructor runs (and
 // addMessageListener populates rpcListeners) before any test executes.
@@ -79,51 +67,10 @@ void PyodideBridge.INSTANCE;
 describe("PyodideBridge.readCode", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFallbackReadFile.mockResolvedValue("");
-    mockNotebookReadFile.mockResolvedValue("");
-    mockStartSession.mockResolvedValue(undefined);
-    store.set(filenameAtom, "notebook.py");
-    store.set(initialModeAtom, "read");
-    store.set(userConfigAtom, defaultUserConfig());
-    store.set(wasmWheelUrlsAtom, []);
   });
 
   afterEach(() => {
-    store.set(filenameAtom, null);
     store.set(initialModeAtom, undefined);
-    store.set(userConfigAtom, defaultUserConfig());
-    store.set(wasmWheelUrlsAtom, []);
-  });
-
-  it("passes same-origin included wheel URLs to the worker", async () => {
-    mockNotebookReadFile.mockResolvedValue("import demo_pkg");
-    store.set(wasmWheelUrlsAtom, [
-      "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
-      "",
-      "http://[::1",
-      "public/wheels/not-a-wheel.txt",
-      "https://cdn.example.com/extra_pkg-0.1.0-py3-none-any.whl",
-    ]);
-    const warn = vi.spyOn(Logger, "warn").mockImplementation(() => undefined);
-
-    rpcListeners.ready();
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(mockStartSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        allowedWheelOrigin: window.location.origin,
-        code: "import demo_pkg",
-        filename: "notebook.py",
-        wheelUrls: [
-          new URL(
-            "public/wheels/demo_pkg-0.1.0-py3-none-any.whl",
-            document.baseURI,
-          ).toString(),
-        ],
-      }),
-    );
-    expect(warn).toHaveBeenCalledTimes(4);
-    warn.mockRestore();
   });
 
   it("reads from notebookFileStore in read mode", async () => {

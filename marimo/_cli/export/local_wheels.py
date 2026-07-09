@@ -1,166 +1,194 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import ast
 import base64
 import csv
 import hashlib
 import io
 import re
+import shutil
+import sys
 import tempfile
 import zipfile
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
+from urllib.parse import quote, unquote, urlparse
+from urllib.request import url2pathname
 
-from marimo._ast.parse import ast_parse
+from marimo._cli.export.local_modules import (
+    LocalModule,
+    LocalWheelError,
+    import_namespaces,
+    module_python_files,
+)
+from marimo._runtime.packages.module_name_to_pypi_name import (
+    module_name_to_pypi_name,
+)
 from marimo._utils.inline_script_metadata import PyProjectReader
+from marimo._utils.scripts import (
+    REGEX,
+    read_pyproject_from_script,
+    write_pyproject_to_script,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Collection, Iterator, Sequence
+    from collections.abc import Iterator, Sequence
 
-LocalModuleKind = Literal["module", "package"]
+    from marimo._utils.marimo_path import MarimoPath
 
+WASM_WHEEL_DIR = "public/wheels"
+WASM_WHEEL_URL_PREFIX = "../public/wheels"
 _DIST_INFO_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
-
-
-class LocalWheelError(Exception):
-    pass
+_AUTO_WHEEL_VERSION_MARKER = "-0.0.0+marimo."
+_DIRECT_REF_RE = re.compile(
+    r"^\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*(?:\[[^\]]+\])?)"
+    r"\s*@\s*(?P<url>.+?)(?:\s*;\s*(?P<marker>.+))?\s*$"
+)
+_VALID_METADATA_NAME_RE = re.compile(r"^[a-z0-9]+(?:[._-][a-z0-9]+)*$")
 
 
 @dataclass(frozen=True)
-class LocalModule:
+class _WheelDependency:
     name: str
     path: Path
-    kind: LocalModuleKind
-    root: Path | None = None
-    files: tuple[Path, ...] = ()
+    marker: str | None = None
 
 
-@dataclass(frozen=True)
-class _ImportRequest:
-    module: str | None
-    names: tuple[str, ...]
-    level: int
+def copy_local_wheels(
+    out_dir: Path,
+    wheel_paths: Sequence[Path],
+) -> None:
+    if not wheel_paths:
+        return
+
+    wheel_dir = out_dir / WASM_WHEEL_DIR
+    wheel_dir.mkdir(parents=True, exist_ok=True)
+    for wheel_path in wheel_paths:
+        target = wheel_dir / wheel_path.name
+        if wheel_path.resolve() != target.resolve():
+            shutil.copyfile(wheel_path, target)
 
 
-@dataclass(frozen=True)
-class _ScanPath:
-    path: Path
-    package_root: Path | None = None
-    package_parts: tuple[str, ...] = ()
+def resolve_metadata_wheel_dependencies(
+    file_path: MarimoPath,
+) -> tuple[_WheelDependency, ...]:
+    """Return local wheels referenced by notebook PEP 723 metadata.
 
-
-@dataclass(frozen=True)
-class _ResolvedImport:
-    module: LocalModule
-    scan_paths: tuple[_ScanPath, ...]
-
-
-def resolve_local_modules(
-    notebook: Path,
-    roots: Sequence[Path] | None = None,
-    excluded_distributions: Collection[str] = (),
-) -> tuple[LocalModule, ...]:
-    notebook_path = notebook.absolute()
-    resolved_notebook = notebook_path.resolve()
-    import_roots = _import_roots(notebook_path, roots)
-    excluded = frozenset(excluded_distributions)
-    pending = [_ScanPath(notebook_path)]
-    scanned: set[tuple[Path, Path | None, tuple[str, ...]]] = set()
-    modules: dict[tuple[str, Path], LocalModule] = {}
-    module_files: dict[tuple[str, Path], set[Path]] = {}
-
-    while pending:
-        scan_path = pending.pop()
-        scan_key = _scan_key(scan_path)
-        if scan_key in scanned:
-            continue
-        scanned.add(scan_key)
-
-        for request in _read_imports(scan_path.path):
-            for resolved in _resolve_import(
-                request,
-                scan_path.path,
-                import_roots,
-                excluded,
-                (scan_path.package_root, scan_path.package_parts)
-                if scan_path.package_root is not None
-                else None,
-            ):
-                module = resolved.module
-                if module.path == resolved_notebook:
-                    continue
-                key = (module.name, module.path)
-                modules.setdefault(key, module)
-                module_files.setdefault(key, set()).update(
-                    _scan_files_for_module(module, resolved.scan_paths)
-                )
-                pending.extend(
-                    scan_path
-                    for scan_path in resolved.scan_paths
-                    if _scan_key(scan_path) not in scanned
-                )
-
-    return tuple(
-        sorted(
-            (
-                LocalModule(
-                    module.name,
-                    module.path,
-                    module.kind,
-                    module.root,
-                    tuple(sorted(module_files.get(key, ()))),
-                )
-                for key, module in modules.items()
-            ),
-            key=lambda module: (module.name, module.path),
-        )
+    Supported entries are direct wheel references and uv source paths. The
+    returned dependency names are later rewritten to hosted wheel URLs.
+    """
+    if not file_path.is_python():
+        return ()
+    project = read_pyproject_from_script(
+        file_path.path.read_text(encoding="utf-8")
+    )
+    return (
+        ()
+        if project is None
+        else _metadata_wheel_dependencies_from_project(project, file_path.path)
     )
 
 
-def _import_roots(
-    notebook: Path, roots: Sequence[Path] | None
-) -> tuple[Path, ...]:
-    candidates = (notebook.parent, *(roots or ()))
-    seen: set[Path] = set()
-    import_roots: list[Path] = []
-    for root in candidates:
-        resolved = root.resolve()
-        if resolved in seen:
+def wheel_dependency_names(
+    dependencies: Sequence[_WheelDependency],
+) -> set[str]:
+    return {
+        _canonical_package_name(dependency.name.split("[", 1)[0])
+        for dependency in dependencies
+    }
+
+
+def auto_wheel_dependencies(
+    wheel_paths: Sequence[Path],
+) -> tuple[_WheelDependency, ...]:
+    return tuple(
+        _WheelDependency(
+            wheel_path.name.split(_AUTO_WHEEL_VERSION_MARKER, 1)[0],
+            wheel_path,
+        )
+        for wheel_path in wheel_paths
+    )
+
+
+def with_wheel_dependencies(
+    code: str, wheel_dependencies: Sequence[_WheelDependency]
+) -> str:
+    """Rewrite notebook PEP 723 dependencies to install hosted wheels."""
+    if not wheel_dependencies:
+        return code
+
+    project = read_pyproject_from_script(code) or {}
+    dependencies = project.get("dependencies")
+    if not isinstance(dependencies, list):
+        dependencies = []
+    dependencies = [str(dependency) for dependency in dependencies]
+    replacements = {
+        _canonical_package_name(dependency.name.split("[", 1)[0]): dependency
+        for dependency in wheel_dependencies
+    }
+    replaced: set[str] = set()
+    rewritten_dependencies: list[str] = []
+    for dependency in dependencies:
+        package_name = _requirement_package_name(dependency)
+        canonical = (
+            _canonical_package_name(package_name)
+            if package_name is not None
+            else None
+        )
+        if canonical in replacements:
+            if canonical not in replaced:
+                rewritten_dependencies.append(
+                    _wheel_requirement(replacements[canonical])
+                )
+                replaced.add(canonical)
             continue
-        seen.add(resolved)
-        import_roots.append(resolved)
-    return tuple(import_roots)
+        rewritten_dependencies.append(dependency)
+
+    for wheel_dependency in wheel_dependencies:
+        dependency = _wheel_requirement(wheel_dependency)
+        if dependency not in rewritten_dependencies:
+            rewritten_dependencies.append(dependency)
+    dependencies = rewritten_dependencies
+    project["dependencies"] = dependencies
+    _remove_uv_sources(project, set(replacements))
+
+    metadata = write_pyproject_to_script(project)
+    if read_pyproject_from_script(code) is None:
+        return f"{metadata}\n\n{code}"
+    return re.sub(REGEX, metadata, code, count=1)
 
 
 @contextmanager
 def build_local_module_wheels(
     modules: Sequence[LocalModule],
 ) -> Iterator[tuple[Path, ...]]:
+    """Build local module wheels and keep their temp directory alive."""
     if not modules:
         yield ()
         return
 
     with tempfile.TemporaryDirectory(prefix="marimo-html-wasm-wheels-") as tmp:
         wheel_dir = Path(tmp)
+        local_names = {module.name for module in modules}
         yield tuple(
-            write_pure_python_wheel(module, wheel_dir) for module in modules
+            write_pure_python_wheel(module, wheel_dir, local_names=local_names)
+            for module in modules
         )
 
 
-def local_module_files(modules: Sequence[LocalModule]) -> tuple[Path, ...]:
-    return tuple(
-        file for module in modules for file in _module_python_files(module)
-    )
-
-
-def write_pure_python_wheel(module: LocalModule, wheel_dir: Path) -> Path:
+def write_pure_python_wheel(
+    module: LocalModule,
+    wheel_dir: Path,
+    *,
+    local_names: set[str] | None = None,
+) -> Path:
+    """Write a pure Python wheel preserving the resolved module layout."""
     files = _wheel_files(module)
     content_hash = _content_hash(files)
-    distribution = _wheel_distribution_name(module.name)
     metadata_name = _metadata_name(module.name)
+    distribution = _wheel_distribution_name(metadata_name)
     version = f"0.0.0+marimo.{content_hash}"
     dist_info = f"{distribution}-{version}.dist-info"
     wheel_path = wheel_dir / f"{distribution}-{version}-py3-none-any.whl"
@@ -171,7 +199,7 @@ def write_pure_python_wheel(module: LocalModule, wheel_dir: Path) -> Path:
     payloads[f"{dist_info}/METADATA"] = _metadata(
         name=metadata_name,
         version=version,
-        dependencies=_dependencies(files),
+        dependencies=_dependencies(files, local_names or {module.name}),
     )
     payloads[f"{dist_info}/WHEEL"] = _wheel_metadata()
     payloads[f"{dist_info}/RECORD"] = _record(payloads, dist_info)
@@ -186,476 +214,145 @@ def write_pure_python_wheel(module: LocalModule, wheel_dir: Path) -> Path:
     return wheel_path
 
 
-def _read_imports(path: Path) -> tuple[_ImportRequest, ...]:
-    try:
-        contents = path.read_text(encoding="utf-8")
-        tree = ast_parse(contents, filename=str(path))
-    except SyntaxError as error:
-        message = f"Failed to parse local import {path}: {error.msg}"
-        raise LocalWheelError(message) from error
-
-    class ImportVisitor(ast.NodeVisitor):
-        def __init__(self) -> None:
-            self.requests: list[_ImportRequest] = []
-
-        def visit_If(self, node: ast.If) -> None:
-            if _is_type_checking_test(node.test):
-                for statement in node.orelse:
-                    self.visit(statement)
-                return
-            self.generic_visit(node)
-
-        def visit_Import(self, node: ast.Import) -> None:
-            self.requests.extend(
-                _ImportRequest(alias.name, (), 0) for alias in node.names
-            )
-
-        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
-            self.requests.append(
-                _ImportRequest(
-                    node.module,
-                    tuple(
-                        alias.name for alias in node.names if alias.name != "*"
-                    ),
-                    node.level,
-                )
-            )
-
-    visitor = ImportVisitor()
-    visitor.visit(tree)
-    return tuple(visitor.requests)
+def _canonical_package_name(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
-def _is_type_checking_test(node: ast.expr) -> bool:
-    if isinstance(node, ast.Name):
-        return node.id == "TYPE_CHECKING"
-    return (
-        isinstance(node, ast.Attribute)
-        and node.attr == "TYPE_CHECKING"
-        and isinstance(node.value, ast.Name)
-        and node.value.id == "typing"
-    )
+def _requirement_package_name(dependency: str) -> str | None:
+    match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", dependency)
+    return match.group(1) if match is not None else None
 
 
-def _resolve_import(
-    request: _ImportRequest,
-    importer: Path,
-    roots: Sequence[Path],
-    excluded_distributions: frozenset[str],
-    package_context: tuple[Path, Sequence[str]] | None = None,
-) -> tuple[_ResolvedImport, ...]:
-    if request.level == 0:
-        if request.module is None:
-            return ()
-        parts = request.module.split(".")
-        if _metadata_name(parts[0]) in excluded_distributions:
-            return ()
-        module = _resolve_module(
-            parts, roots, allow_bare_namespace=bool(request.names)
-        )
-        if module is None:
-            resolved_imports = [
-                _resolved_import(
-                    [*parts, name], _resolve_module([*parts, name], roots)
-                )
-                for name in request.names
-            ]
-            return tuple(item for item in resolved_imports if item is not None)
-        resolved = _resolved_import(parts, module)
-        if resolved is None:
-            return ()
-        return (
-            _with_from_import_scan_paths(
-                resolved, parts, request.names, roots
-            ),
-        )
-
-    package_context = package_context or _package_context(importer, roots)
-    if package_context is None:
-        return ()
-
-    package_root, package_parts_value = package_context
-    package_parts = list(package_parts_value)
-    if request.level > len(package_parts) + 1:
-        return ()
-
-    base_parts = package_parts[: len(package_parts) - request.level + 1]
-    module_parts = request.module.split(".") if request.module else []
-    target = base_parts + module_parts
-    if target and _metadata_name(target[0]) in excluded_distributions:
-        return ()
-    if request.names and request.module is None:
-        resolved_imports = [
-            _resolved_import(parts, _resolve_module(parts, (package_root,)))
-            for parts in ([*target, name] for name in request.names)
-        ]
+def _local_wheel_path(url: str, notebook_path: Path) -> Path | None:
+    raw_url = url.split("#", 1)[0]
+    parsed = urlparse(raw_url)
+    if parsed.scheme == "file":
+        source_path = Path(url2pathname(unquote(parsed.path)))
+    elif parsed.scheme:
+        return None
     else:
-        module = _resolve_module(
-            target,
-            (package_root,),
-            allow_bare_namespace=bool(request.names),
-        )
-        resolved = _resolved_import(
-            target,
-            module,
-        )
-        if resolved is None:
-            resolved_imports = [
-                _resolved_import(
-                    [*target, name],
-                    _resolve_module([*target, name], (package_root,)),
-                )
-                for name in request.names
-            ]
-        else:
-            resolved_imports = [
-                _with_from_import_scan_paths(
-                    resolved, target, request.names, (package_root,)
-                )
-            ]
-    return tuple(item for item in resolved_imports if item is not None)
-
-
-def _resolved_import(
-    parts: list[str], module: LocalModule | None
-) -> _ResolvedImport | None:
-    if module is None:
+        source_path = Path(raw_url)
+    if source_path.suffix != ".whl":
         return None
-    return _ResolvedImport(module, _module_scan_paths(parts, module))
+    if not source_path.is_absolute():
+        source_path = notebook_path.parent / source_path
+    return source_path.resolve()
 
 
-def _with_from_import_scan_paths(
-    resolved: _ResolvedImport,
-    base_parts: list[str],
-    names: Sequence[str],
-    roots: Sequence[Path],
-) -> _ResolvedImport:
-    if not names or resolved.module.kind != "package":
-        return resolved
-
-    paths = [*resolved.scan_paths]
-    for name in names:
-        parts = [*base_parts, name]
-        module = _resolve_module(parts, roots)
-        if module is not None and module.path == resolved.module.path:
-            paths.extend(_module_scan_paths(parts, module))
-    return _ResolvedImport(resolved.module, _dedupe_paths(paths))
-
-
-def _scan_key(
-    scan_path: _ScanPath,
-) -> tuple[Path, Path | None, tuple[str, ...]]:
-    return (
-        scan_path.path.resolve(),
-        scan_path.package_root.resolve()
-        if scan_path.package_root is not None
-        else None,
-        scan_path.package_parts,
+def _direct_reference_wheel_dependency(
+    dependency: str, notebook_path: Path
+) -> _WheelDependency | None:
+    match = _DIRECT_REF_RE.match(dependency)
+    if match is None:
+        return None
+    marker = match.group("marker")
+    wheel_path = _local_wheel_path(match.group("url"), notebook_path)
+    if wheel_path is None:
+        return None
+    return _WheelDependency(
+        match.group("name"),
+        wheel_path,
+        marker,
     )
 
 
-def _scan_files_for_module(
-    module: LocalModule, scan_paths: Sequence[_ScanPath]
-) -> tuple[Path, ...]:
-    if module.kind == "module":
-        return (module.path,)
-    return tuple(
-        scan_path.path.resolve()
-        for scan_path in scan_paths
-        if _is_package_python_file(scan_path.path, module.path)
-    )
-
-
-def _resolve_module(
-    parts: list[str],
-    roots: Sequence[Path],
-    *,
-    allow_bare_namespace: bool = False,
-) -> LocalModule | None:
-    if not parts:
+def _dependency_metadata(
+    dependency: str,
+) -> tuple[str, str | None] | None:
+    name = _requirement_package_name(dependency)
+    if name is None:
         return None
-
-    namespace_packages: list[Path] = []
-    for root in roots:
-        package = root / parts[0]
-        init = package / "__init__.py"
-        if init.is_file():
-            if not _path_in_root(package, root):
-                raise LocalWheelError(
-                    "Local module symlinks outside the import root are not "
-                    f"supported for html-wasm local wheels: {package}"
-                )
-            if init.is_symlink():
-                _raise_package_symlink_alias(init)
-            if not _is_package_python_file(init, package):
-                raise LocalWheelError(
-                    "Package module symlinks outside the package root are "
-                    "not supported for html-wasm local wheels: "
-                    f"{init}"
-                )
-            if len(parts) == 1 or _package_contains(
-                package,
-                parts[1:],
-                allow_bare_namespace=allow_bare_namespace,
-            ):
-                return LocalModule(
-                    parts[0], package.resolve(), "package", root
-                )
-            return None
-
-        module = root / f"{parts[0]}.py"
-        if module.is_file():
-            if not _path_in_root(module, root):
-                raise LocalWheelError(
-                    "Local module symlinks outside the import root are not "
-                    f"supported for html-wasm local wheels: {module}"
-                )
-            if len(parts) == 1:
-                return LocalModule(parts[0], module.resolve(), "module", root)
-            return None
-
-        if package.is_dir():
-            if not _path_in_root(package, root):
-                raise LocalWheelError(
-                    "Local module symlinks outside the import root are not "
-                    f"supported for html-wasm local wheels: {package}"
-                )
-            if _contains_python(package):
-                namespace_packages.append(package)
-            elif len(parts) > 1:
-                _package_contains(
-                    package,
-                    parts[1:],
-                    allow_bare_namespace=allow_bare_namespace,
-                )
-
-    if not namespace_packages:
-        return None
-
-    if len(namespace_packages) > 1:
-        raise LocalWheelError(
-            "Split namespace packages are not supported for html-wasm "
-            f"local wheels: {parts[0]}"
-        )
-
-    package = namespace_packages[0]
-    if len(parts) == 1:
-        if allow_bare_namespace:
-            return None
-        raise LocalWheelError(
-            "Namespace package imports must reference a concrete module for "
-            f"html-wasm local wheels: {parts[0]}"
-        )
-    if _package_contains(
-        package, parts[1:], allow_bare_namespace=allow_bare_namespace
-    ):
-        return LocalModule(
-            parts[0], package.resolve(), "package", package.parent
-        )
-
-    return None
+    _, _, marker = dependency.partition(";")
+    return name, marker.strip() or None
 
 
-def _package_contains(
-    package: Path, parts: list[str], *, allow_bare_namespace: bool = False
-) -> bool:
-    if not parts:
-        return _contains_python(package)
-
-    current = package
-    for index, part in enumerate(parts):
-        last = index == len(parts) - 1
-        if last:
-            module_file = current / f"{part}.py"
-            if module_file.is_file():
-                if module_file.is_symlink():
-                    _raise_package_symlink_alias(module_file)
-                if _is_package_python_file(module_file, package):
-                    return True
-                raise LocalWheelError(
-                    "Package module symlinks outside the package root are "
-                    "not supported for html-wasm local wheels: "
-                    f"{module_file}"
-                )
-
-            child_package = current / part
-            if child_package.is_dir():
-                if child_package.is_symlink():
-                    raise LocalWheelError(
-                        "Package directory symlink aliases cannot be packaged "
-                        "for html-wasm local wheels: "
-                        f"{child_package}"
-                    )
-                if not _path_in_root(child_package, package):
-                    raise LocalWheelError(
-                        "Package module symlinks outside the package root "
-                        "are not supported for html-wasm local wheels: "
-                        f"{child_package}"
-                    )
-                init = child_package / "__init__.py"
-                if init.is_symlink():
-                    _raise_package_symlink_alias(init)
-                if init.is_file() and not _is_package_python_file(
-                    init, package
-                ):
-                    raise LocalWheelError(
-                        "Package module symlinks outside the package root "
-                        "are not supported for html-wasm local wheels: "
-                        f"{init}"
-                    )
-                if not init.is_file():
-                    if allow_bare_namespace:
-                        return False
-                    raise LocalWheelError(
-                        "Namespace package imports must reference a "
-                        "concrete module for html-wasm local wheels: "
-                        f"{child_package}"
-                    )
-                return _contains_python(child_package, root=package)
-
-            return False
-
-        current = current / part
-        if current.is_symlink():
-            raise LocalWheelError(
-                "Package directory symlink aliases cannot be packaged "
-                "for html-wasm local wheels: "
-                f"{current}"
+def _metadata_wheel_dependencies_from_project(
+    project: dict[str, object], notebook_path: Path
+) -> tuple[_WheelDependency, ...]:
+    wheel_dependencies: dict[str, _WheelDependency] = {}
+    dependencies = project.get("dependencies")
+    dependency_metadata: dict[str, tuple[str, str | None]] = {}
+    if isinstance(dependencies, list):
+        for dependency in (str(dependency) for dependency in dependencies):
+            metadata = _dependency_metadata(dependency)
+            if metadata is None:
+                continue
+            name, _ = metadata
+            dependency_metadata[
+                _canonical_package_name(name.split("[", 1)[0])
+            ] = metadata
+            wheel_dependency = _direct_reference_wheel_dependency(
+                dependency, notebook_path
             )
-        if not current.is_dir():
-            return False
-        init = current / "__init__.py"
-        if init.is_symlink():
-            _raise_package_symlink_alias(init)
-        if init.is_file() and not _is_package_python_file(init, package):
-            raise LocalWheelError(
-                "Package module symlinks outside the package root are "
-                "not supported for html-wasm local wheels: "
-                f"{init}"
-            )
+            if wheel_dependency is not None:
+                canonical = _canonical_package_name(
+                    wheel_dependency.name.split("[", 1)[0]
+                )
+                wheel_dependencies[canonical] = wheel_dependency
 
-    return False
-
-
-def _contains_python(path: Path, *, root: Path | None = None) -> bool:
-    package_root = root or path
-    return any(
-        _is_package_python_file(child, package_root)
-        for child in path.rglob("*.py")
-    )
-
-
-def _package_context(
-    path: Path, roots: Sequence[Path]
-) -> tuple[Path, list[str]] | None:
-    directory = path.absolute().parent
-    if (directory / "__init__.py").is_file():
-        top = directory
-        while (top.parent / "__init__.py").is_file():
-            top = top.parent
-        return top.parent, list(directory.relative_to(top.parent).parts)
-
-    for root in sorted(
-        roots, key=lambda candidate: len(candidate.parts), reverse=True
-    ):
-        try:
-            package_parts = directory.relative_to(root).parts
-        except ValueError:
+    uv_sources = {}
+    tool = project.get("tool")
+    if isinstance(tool, dict):
+        uv = tool.get("uv")
+        if isinstance(uv, dict):
+            sources = uv.get("sources")
+            if isinstance(sources, dict):
+                uv_sources = sources
+    for source_name, source_config in uv_sources.items():
+        if not isinstance(source_config, dict):
             continue
-        if package_parts:
-            return root, list(package_parts)
-    return None
-
-
-def _module_python_files(module: LocalModule) -> tuple[Path, ...]:
-    if module.kind == "module":
-        return (module.path,)
-    if module.files:
-        return module.files
-    init = module.path / "__init__.py"
-    if init.is_file() and _is_package_python_file(init, module.path):
-        return (init.resolve(),)
-    return ()
-
-
-def _is_package_python_file(path: Path, root: Path) -> bool:
-    if path.suffix != ".py" or "__pycache__" in path.parts:
-        return False
-    if not _path_in_root(path, root):
-        return False
-    return path.is_file()
-
-
-def _path_in_root(path: Path, root: Path) -> bool:
-    try:
-        path.resolve().relative_to(root.resolve())
-    except (OSError, ValueError):
-        return False
-    return True
-
-
-def _raise_package_symlink_alias(path: Path) -> None:
-    raise LocalWheelError(
-        "Package module symlink aliases cannot be packaged for html-wasm "
-        f"local wheels: {path}"
-    )
-
-
-def _module_scan_paths(
-    parts: list[str], module: LocalModule
-) -> tuple[_ScanPath, ...]:
-    if module.kind == "module":
-        return (_ScanPath(module.path),)
-
-    paths: list[_ScanPath] = []
-    package_root = module.root or module.path.parent
-    current = module.path
-    init = current / "__init__.py"
-    if init.is_file():
-        if not _is_package_python_file(init, module.path):
-            raise LocalWheelError(
-                "Package module symlinks outside the package root are "
-                "not supported for html-wasm local wheels: "
-                f"{init}"
-            )
-        paths.append(_ScanPath(init.resolve(), package_root, tuple(parts[:1])))
-
-    package_parts = parts[:1]
-    for part in parts[1:]:
-        file = current / f"{part}.py"
-        if file.is_file():
-            paths.append(
-                _ScanPath(file.resolve(), package_root, tuple(package_parts))
-            )
-            break
-
-        current = current / part
-        package_parts.append(part)
-        init = current / "__init__.py"
-        if init.is_file():
-            if not _is_package_python_file(init, module.path):
-                raise LocalWheelError(
-                    "Package module symlinks outside the package root are "
-                    "not supported for html-wasm local wheels: "
-                    f"{init}"
-                )
-            paths.append(
-                _ScanPath(init.resolve(), package_root, tuple(package_parts))
-            )
-
-    return tuple(paths)
-
-
-def _dedupe_paths(paths: Sequence[_ScanPath]) -> tuple[_ScanPath, ...]:
-    seen: set[tuple[Path, Path | None, tuple[str, ...]]] = set()
-    result: list[_ScanPath] = []
-    for path in paths:
-        key = _scan_key(path)
-        if key in seen:
+        source_url = source_config.get("path")
+        canonical = _canonical_package_name(str(source_name))
+        metadata = dependency_metadata.get(canonical)
+        if source_url is None or metadata is None:
             continue
-        seen.add(key)
-        result.append(path)
-    return tuple(result)
+        wheel_path = _local_wheel_path(str(source_url), notebook_path)
+        if wheel_path is None:
+            continue
+        name, dependency_marker = metadata
+        wheel_dependencies[canonical] = _WheelDependency(
+            name,
+            wheel_path,
+            dependency_marker,
+        )
+
+    for wheel_dependency in wheel_dependencies.values():
+        if not wheel_dependency.path.is_file():
+            raise LocalWheelError(
+                f"PEP 723 local wheel dependency does not exist: "
+                f"{wheel_dependency.path}"
+            )
+
+    return tuple(wheel_dependencies.values())
+
+
+def _wheel_requirement(dependency: _WheelDependency) -> str:
+    url = f"{WASM_WHEEL_URL_PREFIX}/{quote(dependency.path.name)}"
+    requirement = f"{dependency.name} @ {url}"
+    if dependency.marker is not None:
+        requirement += f" ; {dependency.marker}"
+    return requirement
+
+
+def _remove_uv_sources(project: dict[str, object], names: set[str]) -> None:
+    tool = project.get("tool")
+    if not isinstance(tool, dict):
+        return
+    uv = tool.get("uv")
+    if not isinstance(uv, dict):
+        return
+    sources = uv.get("sources")
+    if not isinstance(sources, dict):
+        return
+    for source_name in tuple(sources):
+        if _canonical_package_name(str(source_name)) in names:
+            del sources[source_name]
+    if not sources:
+        del uv["sources"]
+    if not uv:
+        del tool["uv"]
+    if not tool:
+        del project["tool"]
 
 
 def _wheel_files(module: LocalModule) -> tuple[tuple[str, Path], ...]:
@@ -664,7 +361,7 @@ def _wheel_files(module: LocalModule) -> tuple[tuple[str, Path], ...]:
 
     return tuple(
         (f"{module.name}/{path.relative_to(module.path).as_posix()}", path)
-        for path in _module_python_files(module)
+        for path in module_python_files(module)
     )
 
 
@@ -678,12 +375,46 @@ def _content_hash(files: Sequence[tuple[str, Path]]) -> str:
     return digest.hexdigest()[:12]
 
 
-def _dependencies(files: Sequence[tuple[str, Path]]) -> tuple[str, ...]:
+def _dependencies(
+    files: Sequence[tuple[str, Path]], local_names: set[str]
+) -> tuple[str, ...]:
     dependencies: set[str] = set()
     for _, path in files:
         project = PyProjectReader.from_script(path.read_text(encoding="utf-8"))
-        dependencies.update(project.dependencies)
+        dependencies.update(
+            str(dependency) for dependency in project.dependencies
+        )
+    package_names = {
+        _dependency_name(dependency) for dependency in dependencies
+    }
+    package_names.discard(None)
+    mapping = module_name_to_pypi_name()
+    for _, path in files:
+        for namespace in import_namespaces(path):
+            if (
+                namespace in local_names
+                or namespace in sys.stdlib_module_names
+                or namespace == "marimo"
+            ):
+                continue
+            package = mapping.get(namespace, namespace.replace("_", "-"))
+            if _metadata_name(package) not in package_names:
+                dependencies.add(package)
     return tuple(sorted(dependencies))
+
+
+def _dependency_name(dependency: str) -> str | None:
+    from packaging.requirements import InvalidRequirement, Requirement
+
+    try:
+        requirement = Requirement(dependency)
+    except InvalidRequirement:
+        match = re.match(
+            r"\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)",
+            dependency,
+        )
+        return _metadata_name(match.group("name")) if match else None
+    return _metadata_name(requirement.name)
 
 
 def _metadata(
@@ -726,4 +457,9 @@ def _wheel_distribution_name(name: str) -> str:
 
 
 def _metadata_name(name: str) -> str:
-    return re.sub(r"[-_.]+", "-", name).lower()
+    normalized = re.sub(r"[-_.]+", "-", name).lower()
+    if _VALID_METADATA_NAME_RE.match(normalized):
+        return normalized
+    stem = re.sub(r"[^a-z0-9]+", "-", normalized).strip("-") or "module"
+    digest = hashlib.sha256(name.encode()).hexdigest()[:8]
+    return f"marimo-local-{stem}-{digest}"

@@ -62,8 +62,6 @@ export interface WasmController {
     queryParameters: Record<string, string | string[]>;
     code: string;
     filename: string | null;
-    allowedWheelOrigin?: string;
-    wheelUrls?: string[];
     userConfig: UserConfig;
     onMessage: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
