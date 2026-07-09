@@ -279,8 +279,7 @@ class TestFrameWatcherWithoutDebugger:
         ops = stream.parsed_operations
         assert ops, "heartbeat never flushed the active line"
         assert isinstance(ops[0], ActiveLineNotification)
-        assert ops[0].cell_id == "abc"
-        assert ops[0].line == 5
+        assert (ops[0].cell_id, ops[0].line) == ("abc", 5)
         assert watcher._flushed == ("abc", 5)
 
     @staticmethod

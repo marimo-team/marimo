@@ -2,6 +2,7 @@
 
 import { atom } from "jotai";
 import type { CellId } from "@/core/cells/ids";
+import type { ActiveLineInfo } from "@/core/codemirror/cells/line-timing-decorations";
 import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
@@ -37,9 +38,7 @@ export function setActiveLine(
 ): void {
   const prev = store.get(activeLineAtom);
   if (next === null) {
-    if (prev !== null) {
-      store.set(activeLineAtom, null);
-    }
+    store.set(activeLineAtom, null);
     return;
   }
   if (prev?.cellId === next.cellId && prev.line === next.line) {
@@ -64,7 +63,7 @@ export function createDebuggerLineAtom(cellId: CellId) {
 
 /** Per-cell derived atom: the active line + start time for `cellId`, or `null`. */
 export function createActiveLineInfoAtom(cellId: CellId) {
-  return atom((get) => {
+  return atom((get): ActiveLineInfo | null => {
     const current = get(activeLineAtom);
     return current?.cellId === cellId
       ? { line: current.line, startedAtMs: current.startedAtMs }

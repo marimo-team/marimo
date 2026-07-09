@@ -165,7 +165,11 @@ describe("debugger-state", () => {
       vi.setSystemTime(2000);
       setActiveLine({ cellId: cell1, line: 3 });
 
-      expect(store.get(activeLineAtom)?.startedAtMs).toBe(1000);
+      expect(store.get(activeLineAtom)).toEqual({
+        cellId: cell1,
+        line: 3,
+        startedAtMs: 1000,
+      });
     });
 
     it("resets startedAtMs when the line changes", () => {
