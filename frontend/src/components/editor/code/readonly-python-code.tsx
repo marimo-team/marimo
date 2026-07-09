@@ -76,7 +76,7 @@ export const ReadonlyCode = memo(
       language = "python",
       ...rest
     } = props;
-    const [hideCode, setHideCode] = useState(initiallyHideCode);
+    const [hideCode, setHideCode] = useState(!!initiallyHideCode);
 
     const extensions = useMemo(
       () => [
@@ -99,8 +99,8 @@ export const ReadonlyCode = memo(
           {insertNewCell && <InsertNewCell code={code} />}
           {showHideCode && (
             <ToggleCodeButton
-              hidden={hideCode ?? false}
-              onClick={() => setHideCode(!hideCode)}
+              hidden={hideCode}
+              onClick={() => setHideCode((prev) => !prev)}
             />
           )}
         </div>
@@ -128,7 +128,13 @@ const CopyButton = (props: { text: string }) => {
 
   return (
     <Tooltip content="Copy code" usePortal={false}>
-      <Button onClick={copy} size="xs" className="py-0" variant="secondary">
+      <Button
+        onClick={copy}
+        size="xs"
+        className="py-0"
+        variant="secondary"
+        aria-label="Copy code"
+      >
         <CopyIcon size={14} strokeWidth={1.5} />
       </Button>
     </Tooltip>
@@ -143,6 +149,7 @@ const ToggleCodeButton = (props: { hidden: boolean; onClick: () => void }) => {
     >
       <Button
         onClick={props.onClick}
+        aria-label={props.hidden ? "Show code" : "Hide code"}
         size="xs"
         className="py-0"
         variant="secondary"
@@ -171,6 +178,7 @@ const InsertNewCell = (props: { code: string }) => {
         size="xs"
         className="py-0"
         variant="secondary"
+        aria-label="Add code to notebook"
       >
         <PlusIcon size={14} strokeWidth={1.5} />
       </Button>
