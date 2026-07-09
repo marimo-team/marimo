@@ -258,9 +258,9 @@ class KernelManagerImpl(KernelManager):
 
         # Otherwise, we have something that is `ProcessLike`.
         # A graceful shutdown asks the kernel to stop cleanly so it can flush
-        # pending work (cache writes, export manifest) before we kill it. It's
-        # opt-in because the wait below blocks the caller: the live server
-        # closes sessions on the event loop and must not stall it.
+        # pending work (cache writes, export manifest) before we kill it. The
+        # join below is what makes this opt-in: it blocks the caller, and the
+        # live server closes sessions on the event loop, which must not stall.
         wants_clean_stop = graceful or self.profile_path is not None
         if wants_clean_stop and self.kernel_task.is_alive():
             self.queue_manager.put_control_request(
