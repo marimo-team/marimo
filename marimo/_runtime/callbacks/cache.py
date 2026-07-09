@@ -44,6 +44,8 @@ class CacheCallbacks:
 
     def teardown(self) -> None:
         """Flush pending cache writes; publish an export manifest if caching."""
+        if not self._caching_enabled():
+            return
         from marimo._save.loaders import (
             dump_cache_manifests,
             flush_active_caches,
