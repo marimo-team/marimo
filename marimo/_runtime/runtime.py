@@ -97,6 +97,7 @@ from marimo._runtime.callbacks import (
     SecretsCallbacks,
     SqlCallbacks,
     SupportsTeardown,
+    cache_cells_enabled,
 )
 from marimo._runtime.commands import (
     AppMetadata,
@@ -491,7 +492,11 @@ class Kernel:
         self.datasets_callbacks = DatasetCallbacks(self)
         self.packages_callbacks = PackagesCallbacks(self)
         self.sql_callbacks = SqlCallbacks(self)
-        self.cache_callbacks = CacheCallbacks(self)
+        self.cache_callbacks = CacheCallbacks(
+            self,
+            caching_enabled=lambda: cache_cells_enabled(self.user_config),
+            notebook_filename=app_metadata.filename,
+        )
         self.external_storage_callbacks = ExternalStorageCallbacks(self)
         self._callbacks: list[KernelCallback] = [
             self.secrets_callbacks,

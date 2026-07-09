@@ -256,11 +256,15 @@ class KernelManagerImpl(KernelManager):
                 )
             return
 
-        # Otherwise, we have something that is `ProcessLike`
-        if self.profile_path is not None and self.kernel_task.is_alive():
+        # Otherwise, we have something that is `ProcessLike`.
+        # Request a clean shutdown first so the kernel can flush pending
+        # work (e.g. LazyLoader cache writes) before we kill it.
+        if self.kernel_task.is_alive():
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
             )
+
+        if self.profile_path is not None and self.kernel_task.is_alive():
             # Hack: Wait for kernel to exit and write out profile;
             # joining the process hangs, but not sure why.
             print_(
@@ -273,6 +277,9 @@ class KernelManagerImpl(KernelManager):
             time.sleep(1)
 
         self.queue_manager.close_queues()
+        # Give the kernel time for a clean shutdown (flush caches, etc.)
+        if self.kernel_task.is_alive():
+            self.kernel_task.join(timeout=5)
         try:
             try_kill_process_and_group(self.kernel_task)
         except ProcessLookupError:

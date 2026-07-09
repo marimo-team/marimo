@@ -250,6 +250,47 @@ def flush_active_caches() -> None:
     LazyLoader.flush_all()
 
 
+def dump_cache_manifests(manifest_name: str) -> None:
+    """Write this session's produced keys into each file-backed cache dir.
+
+    An out-of-process exporter (`html-wasm --execute`) reads `manifest_name` to
+    discover what to bundle. In-memory stores (the WASM `DictStore`) are skipped
+    — nothing on disk. The loop only matters for multi-cache-block notebooks.
+    """
+    loaders = LazyLoader.active_loaders()
+    keys = LazyLoader.export_keys()
+    seen: set[Path] = set()
+    for loader in loaders:
+        store = loader.store
+        inner = store._inner if isinstance(store, LazyStore) else None
+        if not isinstance(inner, FileStore):
+            continue
+        cache_dir = inner.save_path
+        if cache_dir in seen:
+            continue
+        seen.add(cache_dir)
+        _write_export_manifest(cache_dir, manifest_name, keys)
+
+
+def _write_export_manifest(
+    cache_dir: Path, manifest_name: str, keys: list[str]
+) -> None:
+    """Atomically (re)write the export manifest in `cache_dir`."""
+    import json
+    import os
+
+    # NB. temp file + os.replace so a reader never sees a half-written
+    # manifest, and a mid-write kill leaves the previous one intact.
+
+    try:
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        tmp = cache_dir / f"{manifest_name}.{os.getpid()}.tmp"
+        tmp.write_text(json.dumps(keys))
+        os.replace(tmp, cache_dir / manifest_name)
+    except OSError as e:
+        LOGGER.warning("Failed to write cache export manifest: %s", e)
+
+
 class LazyStore(Store):
     """Native store for `LazyLoader`.
 
@@ -424,6 +465,20 @@ class LazyLoader(BasePersistenceLoader):
         """Drain pending background writes for every active loader."""
         for loader in cls.active_loaders():
             loader.flush()
+
+    @classmethod
+    def export_keys(cls) -> list[str]:
+        """Keys this session produced, merged across every active loader.
+
+        Flush first if the result must reflect pending background writes.
+        """
+        return sorted(
+            {
+                key
+                for loader in cls.active_loaders()
+                for key in loader.store.export_keys()
+            }
+        )
 
     @classmethod
     def active_loaders(cls) -> list[LazyLoader]:
