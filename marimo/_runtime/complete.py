@@ -640,7 +640,7 @@ def _get_completions(
             return script, completions
     except Exception as e:
         # jedi's static analysis can crash while inferring some code — for
-        # example https://github.com/davidhalter/jedi/issues/1990). 
+        # example https://github.com/davidhalter/jedi/issues/1990).
         # Fallback to interpreter when it crashes
         LOGGER.debug("Completion with jedi Script failed: %s", str(e))
     return _get_completions_with_interpreter(document, glbls, glbls_lock)
