@@ -634,13 +634,19 @@ def _get_completions(
     glbls: dict[str, Any],
     glbls_lock: threading.RLock,
 ) -> tuple[jedi.Script, list[jedi.api.classes.Completion]]:
-    script, completions = _get_completions_with_script(codes, document)
-    completions = script.complete()
-    if not completions:
-        script, completions = _get_completions_with_interpreter(
-            document, glbls, glbls_lock
-        )
-    return script, completions
+    try:
+        script, completions = _get_completions_with_script(codes, document)
+        if completions:
+            return script, completions
+    except Exception as e:
+        # jedi's static analysis can raise while inferring some code — for
+        # example, resolving the generic return type of polars' `concat`
+        # crashes with an AttributeError
+        # (https://github.com/davidhalter/jedi/issues/1990). Treat a crash
+        # like "no static completions" so the interpreter-based fallback
+        # below still gets a chance to run.
+        LOGGER.debug("Completion with jedi Script failed: %s", str(e))
+    return _get_completions_with_interpreter(document, glbls, glbls_lock)
 
 
 # NOTE you will hit front display bug if the result set doesn't
