@@ -10,6 +10,7 @@ from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 
 from marimo import _loggers
+from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._server.api.auth import (
     RANDOM_SECRET,
     CustomAuthenticationMiddleware,
@@ -71,6 +72,7 @@ def create_starlette_app(
                 Middleware(
                     CustomSessionMiddleware,
                     secret_key=RANDOM_SECRET,
+                    https_only=GLOBAL_SETTINGS.SESSION_COOKIE_SECURE,
                 ),
             ]
         )
