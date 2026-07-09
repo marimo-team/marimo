@@ -722,8 +722,9 @@ async def run_app_until_completion(
             )
 
     # Stop distributor, terminate kernel process, etc -- all information is
-    # captured by the session view.
-    session.close()
+    # captured by the session view. When exporting caches, close gracefully so
+    # the kernel flushes the cache manifest that bundle_cache_export reads next.
+    session.close(graceful=cache_export)
 
     return session.session_view, session_consumer.did_error
 

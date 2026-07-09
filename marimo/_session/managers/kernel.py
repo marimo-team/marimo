@@ -243,7 +243,7 @@ class KernelManagerImpl(KernelManager):
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self.kernel_task.pid, signal.SIGINT)
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, threading.Thread):
@@ -257,9 +257,12 @@ class KernelManagerImpl(KernelManager):
             return
 
         # Otherwise, we have something that is `ProcessLike`.
-        # Request a clean shutdown first so the kernel can flush pending
-        # work (e.g. LazyLoader cache writes) before we kill it.
-        if self.kernel_task.is_alive():
+        # A graceful shutdown asks the kernel to stop cleanly so it can flush
+        # pending work (cache writes, export manifest) before we kill it. The
+        # join below is what makes this opt-in: it blocks the caller, and the
+        # live server closes sessions on the event loop, which must not stall.
+        wants_clean_stop = graceful or self.profile_path is not None
+        if wants_clean_stop and self.kernel_task.is_alive():
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
             )
@@ -278,7 +281,7 @@ class KernelManagerImpl(KernelManager):
 
         self.queue_manager.close_queues()
         # Give the kernel time for a clean shutdown (flush caches, etc.)
-        if self.kernel_task.is_alive():
+        if graceful and self.kernel_task.is_alive():
             self.kernel_task.join(timeout=5)
         try:
             try_kill_process_and_group(self.kernel_task)

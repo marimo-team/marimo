@@ -78,8 +78,13 @@ class KernelManager(Protocol):
         """Interrupt the running kernel."""
         ...
 
-    def close_kernel(self) -> None:
-        """Close the kernel and clean up resources."""
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        """Close the kernel and clean up resources.
+
+        When `graceful` is True, wait (join) for the kernel to flush pending
+        work (e.g. cache writes) before killing it. The join is off by default
+        so event-loop callers aren't stalled by it.
+        """
         ...
 
     @property
@@ -219,6 +224,9 @@ class Session(Protocol):
         """Attach an extension for the duration of the context."""
         ...
 
-    def close(self) -> None:
-        """Close the session."""
+    def close(self, *, graceful: bool = False) -> None:
+        """Close the session.
+
+        See `KernelManager.close_kernel` for `graceful`.
+        """
         ...
