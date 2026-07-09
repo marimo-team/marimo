@@ -178,7 +178,7 @@ def _notebook_to_markdown_export_document(
 
 def _format_filename_title(filename: str) -> str:
     basename = os.path.basename(filename)
-    for suffix in (".myst.md", ".markdown", ".qmd", ".md", ".py"):
+    for suffix in (".myst.md", ".markdown", ".qmd", ".mdx", ".md", ".py"):
         if basename.endswith(suffix):
             name = basename[: -len(suffix)]
             break
