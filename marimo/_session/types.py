@@ -81,9 +81,9 @@ class KernelManager(Protocol):
     def close_kernel(self, *, graceful: bool = False) -> None:
         """Close the kernel and clean up resources.
 
-        When `graceful` is True, wait for the kernel to flush pending work
-        (e.g. cache writes) before killing it. Off by default so callers on the
-        event loop don't block.
+        When `graceful` is True, wait (join) for the kernel to flush pending
+        work (e.g. cache writes) before killing it. The join is off by default
+        so event-loop callers aren't stalled by it.
         """
         ...
 

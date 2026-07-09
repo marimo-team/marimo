@@ -214,7 +214,7 @@ class AppHostKernelManager(KernelManager):
         pass
 
     def close_kernel(self, *, graceful: bool = False) -> None:
-        del graceful  # App-host kernels are always force-terminated.
+        del graceful  # unsupported: shutdown is delegated to the app host.
         self.queue_manager.close_queues()
         self._app_host.stop_kernel(self._session_id)
 

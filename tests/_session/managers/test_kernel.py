@@ -170,4 +170,5 @@ def test_close_kernel_graceful_stops_and_joins(
     manager.close_kernel(graceful=True)
 
     queue_manager.put_control_request.assert_called_once()
-    fake_task.join.assert_called_once()
+    # Lock in the bounded wait so an unbounded join() can't sneak back in.
+    fake_task.join.assert_called_once_with(timeout=5)

@@ -392,7 +392,7 @@ class IPCKernelManagerImpl(KernelManager):
                 os.kill(self._process.pid, signal.SIGINT)
 
     def close_kernel(self, *, graceful: bool = False) -> None:
-        del graceful  # IPC kernels are always force-terminated.
+        del graceful  # unsupported here: IPC shutdown never waits for exit.
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
