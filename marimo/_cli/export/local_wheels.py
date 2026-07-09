@@ -75,11 +75,28 @@ class _WheelDependency:
 def copy_local_wheels(
     out_dir: Path,
     wheel_paths: Sequence[Path],
+    *,
+    source_wheel_dir: Path | None = None,
 ) -> None:
+    wheel_dir = out_dir / WASM_WHEEL_DIR
+    current_names = {wheel_path.name for wheel_path in wheel_paths}
+    same_as_source = (
+        source_wheel_dir is not None
+        and wheel_dir.resolve() == source_wheel_dir.resolve()
+    )
+    if wheel_dir.exists():
+        for wheel_path in wheel_dir.glob("*.whl"):
+            if wheel_path.name in current_names:
+                continue
+            if (
+                same_as_source
+                and _AUTO_WHEEL_VERSION_MARKER not in wheel_path.name
+            ):
+                continue
+            wheel_path.unlink()
     if not wheel_paths:
         return
 
-    wheel_dir = out_dir / WASM_WHEEL_DIR
     wheel_dir.mkdir(parents=True, exist_ok=True)
     for wheel_path in wheel_paths:
         target = wheel_dir / wheel_path.name
@@ -243,7 +260,11 @@ def _local_wheel_path(url: str, notebook_path: Path) -> Path | None:
     raw_url = url.split("#", 1)[0]
     parsed = urlparse(raw_url)
     if parsed.scheme == "file":
-        source_path = Path(url2pathname(unquote(parsed.path)))
+        source_url_path = url2pathname(unquote(parsed.path))
+        source_netloc = unquote(parsed.netloc)
+        if source_netloc and source_netloc.lower() != "localhost":
+            source_url_path = f"//{source_netloc}{source_url_path}"
+        source_path = Path(source_url_path)
     elif parsed.scheme:
         return None
     else:

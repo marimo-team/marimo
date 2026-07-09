@@ -17,6 +17,7 @@ from marimo._cli.export.local_modules import (
     resolve_notebook_local_modules,
 )
 from marimo._cli.export.local_wheels import (
+    WASM_WHEEL_DIR,
     auto_wheel_dependencies,
     build_local_module_wheels,
     copy_local_wheels,
@@ -1024,6 +1025,7 @@ def html_wasm(
                     tuple(
                         dependency.path for dependency in wheel_dependencies
                     ),
+                    source_wheel_dir=file_path.path.parent / WASM_WHEEL_DIR,
                 )
                 return result
         except LocalWheelError as error:

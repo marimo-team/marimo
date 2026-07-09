@@ -19,6 +19,7 @@ from click.testing import CliRunner, Result
 
 from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
+from marimo._cli.export.local_wheels import _local_wheel_path
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.utils import uri_decode_component
 from marimo._session.state.serialize import get_session_cache_file
@@ -162,6 +163,18 @@ def _write_minimal_wasm_notebook(
     )
 
 
+def test_local_wheel_path_preserves_file_url_netloc(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    assert (
+        _local_wheel_path("file://server/share/pkg.whl", notebook)
+        == Path("//server/share/pkg.whl").resolve()
+    )
+    assert (
+        _local_wheel_path("file://localhost/tmp/pkg.whl", notebook)
+        == Path("/tmp/pkg.whl").resolve()
+    )
+
+
 class TestExportHTML:
     @staticmethod
     def test_cli_export_html(temp_marimo_file: str) -> None:
@@ -223,6 +236,14 @@ class TestExportHTML:
         (baz / "other.py").write_text("value = 'other'\n")
 
         out_dir = tmp_path / "out"
+        stale_wheel_dir = out_dir / "public" / "wheels"
+        stale_wheel_dir.mkdir(parents=True)
+        (
+            stale_wheel_dir / "stale-0.0.0+marimo.old-py3-none-any.whl"
+        ).write_bytes(b"stale")
+        (stale_wheel_dir / "old_explicit-0.1.0-py3-none-any.whl").write_bytes(
+            b"stale"
+        )
         p = _run_export(
             "html-wasm",
             str(notebook),
@@ -252,6 +273,11 @@ class TestExportHTML:
             dependency.startswith("baz @ ../public/wheels/baz-")
             for dependency in dependencies
         )
+        wheel_dir = out_dir / "public" / "wheels"
+        assert not (
+            wheel_dir / "stale-0.0.0+marimo.old-py3-none-any.whl"
+        ).exists()
+        assert not (wheel_dir / "old_explicit-0.1.0-py3-none-any.whl").exists()
 
     @staticmethod
     def test_cli_export_html_wasm_copies_pep723_local_wheels(
