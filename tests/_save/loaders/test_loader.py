@@ -207,7 +207,10 @@ class TestLazyLoader(ABCTestLoader):
     suffix = "jsonl"
 
     def _instance(self) -> Loader:
-        return LazyLoader("test", store=self.store)
+        # These exercise generic loader mechanics (hit/miss, blob handling)
+        # with hand-written unsigned manifests; signing behavior is covered in
+        # test_lazy_signing.py. mode="off" serves unsigned entries as-is.
+        return LazyLoader("test", store=self.store, mode="off")
 
     def teardown_method(self) -> None:
         if self.value and hasattr(self.value, "flush"):

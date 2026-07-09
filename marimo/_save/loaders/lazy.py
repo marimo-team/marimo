@@ -1,9 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import hashlib
 import importlib
 import inspect
+import math
 import pickle
 import queue
 import threading
@@ -28,6 +30,13 @@ from marimo._save.cache import (
 from marimo._save.encode import common_container_to_bytes, data_to_buffer
 from marimo._save.hash import DEFAULT_HASH, HashKey
 from marimo._save.loaders.loader import BasePersistenceLoader
+from marimo._save.signing import (
+    CacheSignatureError,
+    CacheSigner,
+    _get_default_signer,
+    _sha256hex,
+    fingerprint,
+)
 from marimo._save.stores import DEFAULT_STORE, FileStore, Store
 
 if TYPE_CHECKING:
@@ -54,10 +63,189 @@ from marimo._save.stubs.stubs import mro_lookup
 LOGGER = _loggers.marimo_logger()
 
 
+class _Unset:
+    """Sentinel for LazyLoader.signer default — distinguishes 'not provided'
+    from explicit `None` (which opts out of signing entirely)."""
+
+
+_SIGNER_UNSET = _Unset()
+
+# Verification posture. `off`: no signing or verification (legacy / opt-out).
+# `verify` (default): sign on write, and on read serve only entries that
+# verify against a trusted key — unverifiable entries miss and recompute
+# (fail-safe). `strict`: like verify, but an unverifiable entry raises
+# (fail-closed).
+_VALID_MODES = ("off", "verify", "strict")
+
+
+# Fingerprint digests use standard base64 (matching `ssh-keygen -lf`
+# presentation). Accept a urlsafe-encoded paste too and canonicalize it so it
+# still matches fingerprint() output.
+_FP_URLSAFE_TO_STD = str.maketrans("-_", "+/")
+
+
+def _normalize_fingerprint(fp: str) -> str:
+    """Validate and canonicalize one `"SHA256:<base64>"` fingerprint.
+
+    Accepts standard or urlsafe base64, padded or unpadded, and returns the
+    canonical form produced by :func:`marimo._save.signing.fingerprint`
+    (standard base64, no padding). Raising on a malformed digest here turns a
+    fat-fingered fingerprint into a configuration-time error rather than a
+    permanent, silent cache miss (the digest would validate on prefix alone but
+    never match a real key).
+    """
+    import binascii
+
+    if not isinstance(fp, str) or not fp.startswith("SHA256:"):
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; expected "
+            "'SHA256:<base64>' as produced by "
+            "marimo._save.signing.fingerprint()."
+        )
+    body = fp[len("SHA256:") :].translate(_FP_URLSAFE_TO_STD).rstrip("=")
+    try:
+        raw = base64.b64decode(body + "=" * (-len(body) % 4), validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; the digest is not "
+            "valid base64."
+        ) from e
+    if len(raw) != 32:
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; expected a SHA-256 "
+            f"(32-byte) digest, got {len(raw)} byte(s)."
+        )
+    # Re-encode from the decoded bytes rather than returning `body` verbatim.
+    # base64 of 32 bytes has 2 unused ("slack") bits in the final character, so
+    # several distinct final characters decode to the same digest; returning
+    # the raw text would let such a variant validate here yet never match the
+    # canonical form emitted by signing.fingerprint() — a permanent silent miss.
+    return "SHA256:" + base64.b64encode(raw).decode("ascii").rstrip("=")
+
+
+def _normalize_fingerprints(value: Iterable[str] | None) -> set[str]:
+    """Validate and collect `trusted_signers` fingerprint strings.
+
+    Rejects a bare `str` (which would otherwise iterate into single
+    characters — a silent-miss footgun) and canonicalizes each entry via
+    :func:`_normalize_fingerprint` so a padded or urlsafe paste still matches
+    :func:`marimo._save.signing.fingerprint` output.
+    """
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        raise TypeError(
+            "trusted_signers must be an iterable of fingerprint strings, not "
+            "a single str. Wrap it in a set/list: trusted_signers={fp}."
+        )
+    return {_normalize_fingerprint(fp) for fp in value}
+
+
 class _BlobStatus(Enum):
-    """Sentinel placed in the results queue when a blob is missing."""
+    """Sentinel placed in the results queue for a blob that yielded no value.
+
+    `MISSING`: the store had no bytes for the key — under a verified manifest a
+    genuine gap is an integrity anomaly. `UNREADABLE`: bytes were present and
+    hash-verified but the deserializer failed (an environment issue, e.g. a
+    CUDA tensor on a CPU-only host) — authentic, so recompute rather than flag
+    tampering.
+    """
 
     MISSING = auto()
+    UNREADABLE = auto()
+
+
+# Domain-separation tag prepended to manifest signable bytes, binding a
+# signature to this purpose and format version independent of payload shape.
+_MANIFEST_SIG_CONTEXT = b"marimo-cache-manifest:v1:"
+
+
+def _signable_bytes(schema: CacheSchema) -> bytes:
+    """Return the canonical bytes to sign or verify for a cache manifest.
+
+    Clears the `signature` envelope field so save and restore operate on
+    identical input. The manifest structs set `omit_defaults` (see
+    `lazy_stub.py`), so these bytes stay stable across additive,
+    absent-defaulted schema changes; any other schema change must bump
+    `MARIMO_CACHE_VERSION`.
+    """
+    unsigned_meta = msgspec.structs.replace(schema.meta, signature=None)
+    return _MANIFEST_SIG_CONTEXT + msgspec.json.encode(
+        msgspec.structs.replace(schema, meta=unsigned_meta)
+    )
+
+
+def _is_local_file_store(store: Store) -> bool:
+    """True when a loader's blobs live on the local filesystem, so a
+    machine-local auto-generated signing key is meaningful (single-machine
+    trust).
+
+    `LazyStore` wraps its backend by composition rather than subclassing
+    `FileStore`, so unwrap to the inner store. Shared/remote backends
+    (Redis, REST) and the WASM HTTP store (`DictStore` inner) return
+    `False` — their entries can't be verified by a key only this machine
+    holds.
+    """
+    if isinstance(store, LazyStore):
+        return isinstance(store._inner, FileStore)
+    return isinstance(store, FileStore)
+
+
+def _is_trusted_origin_store(store: Store) -> bool:
+    """True when a verify capability gap may degrade to `off` (serve
+    unverified) instead of missing every read."""
+    # NB. WASM blobs are fetched same-origin from the notebook location; an
+    # attacker who can swap them already controls the notebook code served
+    # from that origin, so verification adds nothing. Shared/remote stores are
+    # what signing protects, so they are never trusted (no degrade).
+    if isinstance(store, WasmLazyStore):
+        return True
+    return _is_local_file_store(store)
+
+
+def _verify_signed_blob(
+    key: str,
+    data: bytes,
+    blob_hash_map: dict[str, str] | None,
+    effective_signer: CacheSigner | None,
+) -> None:
+    """Check a fetched blob against its signed hash before deserialization.
+
+    No-op for unsigned entries (`effective_signer is None`). For a verified
+    manifest, a *missing* hash is itself a signature error: the signed manifest
+    and the blob set must agree, so a hash-less reference means writer drift or
+    tampering rather than a reason to skip the check (which would otherwise let
+    a blob reach `pickle.loads` unverified — even in strict mode).
+    """
+    if effective_signer is None:
+        return
+    expected_hash = (blob_hash_map or {}).get(key)
+    if expected_hash is None:
+        raise CacheSignatureError(
+            f"A signed cache entry is missing the integrity hash for blob "
+            f"{key!r}. The cached data may be corrupted or was modified "
+            f"outside of marimo.\n"
+            f"To recover, call cache_clear() on the cached function or "
+            f"context manager."
+        )
+    effective_signer.verify_blob(key, data, expected_hash)
+
+
+def _incomplete_cache_error(
+    effective_signer: CacheSigner | None,
+) -> Exception:
+    """Error for a cache entry missing one or more blobs."""
+    # NB. under a verified manifest the blob set is authenticated, so a missing
+    # blob is a trust anomaly: raise CacheSignatureError so strict fails closed
+    # (verify still misses). Unsigned entries stay a plain miss.
+    if effective_signer is not None:
+        return CacheSignatureError(
+            "A signed cache entry is missing one or more blobs. The cached "
+            "data may be corrupted or was modified outside of marimo.\n"
+            "To recover, call cache_clear() on the cached function or "
+            "context manager."
+        )
+    return FileNotFoundError("Incomplete cache: missing blobs")
 
 
 def _module_available(type_hint: str | None) -> bool:
@@ -134,6 +322,21 @@ def _maybe_import_ref(value: Any) -> tuple[str, str] | None:
     return (module, qualname) if obj is value else None
 
 
+# Token <-> value for non-finite floats, inlined in Item.special_float rather
+# than pickled (see the field for why they can't use Item.primitive).
+_NON_FINITE_FLOATS: dict[str, float] = {
+    "nan": float("nan"),
+    "inf": float("inf"),
+    "-inf": float("-inf"),
+}
+
+
+def _non_finite_token(value: float) -> str:
+    if math.isnan(value):
+        return "nan"
+    return "inf" if value > 0 else "-inf"
+
+
 def to_item(
     path: Path,
     value: Any | None,
@@ -175,7 +378,20 @@ def to_item(
             module=value.name,
             module_version=value.version or None,
         )
-    if isinstance(value, (int, str, float, bool, bytes, type(None))):
+    # bool must be tested before int (bool is a subclass of int).
+    # Coerce scalar subclasses (e.g. numpy.float64, numpy.int32) to plain
+    # Python types so msgspec.json.encode can serialise them.
+    if isinstance(value, bool):
+        return Item(primitive=bool(value))
+    if isinstance(value, int):
+        return Item(primitive=int(value))
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            return Item(special_float=_non_finite_token(value))
+        return Item(primitive=float(value))
+    # NB. no `bytes`: msgspec JSON-encodes it to a base64 str that restores as
+    # str, corrupting the value (bytes route to "pickle" via LAZY_STUB_LOOKUP).
+    if isinstance(value, (str, type(None))):
         return Item(primitive=value)
 
     return Item(
@@ -213,6 +429,10 @@ def from_item(item: Item, var_name: str = "") -> Any:
         return FunctionStub.from_dump(item.function)
     if item.class_def is not None:
         return ClassStub.from_dump(item.class_def)
+    if item.special_float is not None:
+        # A corrupted/unknown token can only arise in a tampered manifest,
+        # which verify/strict reject before reaching here; fall back to nan.
+        return _NON_FINITE_FLOATS.get(item.special_float, float("nan"))
     if item.primitive is not None:
         return item.primitive
     return None
@@ -443,7 +663,59 @@ class LazyLoader(BasePersistenceLoader):
         self,
         name: str,
         store: Store | None = None,
+        signer: CacheSigner | None | _Unset = _SIGNER_UNSET,
+        trusted_signers: Iterable[str] | None = None,
+        mode: str = "verify",
     ) -> None:
+        """Create a LazyLoader.
+
+        Args:
+            name: Cache namespace / directory name.
+            store: Backing store.  Defaults to `LazyStore` (file-based).
+            signer: :class:`~marimo._save.signing.CacheSigner` for Ed25519
+                manifest signing (write) and verification (read).  A loader
+                always trusts its own signer's key, so the common case — one
+                signer that both signs and verifies — needs nothing else.
+                Pass `signer=None` to explicitly disable signing.  When
+                omitted, a signer is resolved automatically: env vars
+                `MARIMO_CACHE_SIGNING_PRIVATE_KEY` /
+                `MARIMO_CACHE_SIGNING_PUBLIC_KEY` take precedence, then a
+                saved key in `marimo_state_dir()/cache_signing_key.pem`; if
+                neither exists a fresh key is generated and saved there (local
+                file stores only — shared/remote stores use only an explicitly
+                configured key, since an auto key is unverifiable elsewhere).
+                Resolves to `None` (unsigned) when the `cryptography`
+                package is not installed.
+            trusted_signers: Fingerprint strings (`"SHA256:<base64>"` from
+                :func:`~marimo._save.signing.fingerprint`) that this loader
+                trusts, in addition to its own signer (always trusted for its
+                own writes).  An entry verifies when it is signed directly by a
+                trusted fingerprint's key.  Padded or urlsafe fingerprints are
+                normalized to canonical form.
+            mode: Verification posture — `"off"`, `"verify"` (default), or
+                `"strict"`.  `off` neither signs nor verifies (legacy
+                opt-out).  `verify` signs on write and, on read, serves only
+                entries that verify against a trusted key; an unverifiable
+                entry misses and is recomputed (fail-safe).  `strict` is like
+                `verify` but raises
+                :class:`~marimo._save.signing.CacheSignatureError` on an
+                unverifiable entry (fail-closed).  `strict` also requires a
+                signing/verification capability at construction; `verify`
+                degrades to `off` (with a one-time warning) when none exists.
+        """
+        if (
+            not isinstance(signer, (_Unset, CacheSigner))
+            and signer is not None
+        ):
+            raise TypeError(
+                "signer must be a CacheSigner or None, got "
+                f"{type(signer).__name__}."
+            )
+        if mode not in _VALID_MODES:
+            raise ValueError(
+                f"Invalid cache signing mode {mode!r}; expected one of "
+                f"{', '.join(_VALID_MODES)}."
+            )
         loaders = _cache_state().active_lazy_loaders
         if store is None:
             # Reuse the store across recreations of a named loader (State GC,
@@ -452,7 +724,177 @@ class LazyLoader(BasePersistenceLoader):
             store = prev.store if prev is not None else self._store_cls()
         super().__init__(name, "jsonl", store)
         self._pending: list[threading.Thread] = []
+        self._trusted_fingerprints = _normalize_fingerprints(trusted_signers)
+        self._mode = mode
+        self._degrade_warned = False
+        self._write_skip_warned = False
+        # Store the signer unresolved (the `signer` property auto-resolves an
+        # `_Unset` sentinel on first access). Deferring means mode='off' — which
+        # never signs or verifies — doesn't load or mint a machine-local key
+        # (avoiding a stray cache_signing_key.pem and read-only-state-dir
+        # warnings for a caller who opted out). verify/strict resolve it below.
+        self._signer: CacheSigner | _Unset | None = signer
+        # Fail fast on an impossible strict configuration (no crypto, or no
+        # signer and no trusted_signers). This reads `self.signer` for
+        # verify/strict (resolving the key), but returns early for 'off'.
+        # Register only afterwards so a rejected loader never lingers in the
+        # active registry (which would otherwise be returned to a later
+        # same-named lookup).
+        self._effective_mode()
         loaders[name] = self
+
+    def _resolve_unset_signer(self) -> CacheSigner | None:
+        """Auto-resolve the signer for an unset value, matching __init__.
+
+        A local file store auto-generates (or loads) a machine-local key so the
+        loader signs its own writes — *even when* `trusted_signers` is also
+        configured. Composing trust with signing this way means adding a
+        teammate's fingerprint to also trust their caches never silently turns
+        off signing of our own writes (which would otherwise leave the loader
+        read-only). Shared/remote stores don't auto-generate — an auto key is
+        unverifiable by other machines — so they use only an explicitly
+        configured (env/config) key.
+        """
+        return _get_default_signer(
+            auto_generate=_is_local_file_store(self.store)
+        )
+
+    def _effective_mode(self) -> str:
+        """Resolve the verification mode after capability checks.
+
+        `verify` degrades to `off` (with a one-time warning) when there is
+        nothing to verify with — no `cryptography` package, or neither a
+        signer nor `trusted_signers`. `strict` instead raises, so a
+        fail-closed loader never silently serves unverified data. Recomputed
+        on each load/save (not cached) so a reconfigure via `setattr` — which
+        applies kwargs in caller order — is always honored.
+        """
+        if self._mode == "off":
+            return "off"
+
+        from marimo._dependencies.dependencies import DependencyManager
+
+        if not DependencyManager.cryptography.has():
+            if self._mode == "strict":
+                raise ValueError(
+                    "mode='strict' cache signing requires the 'cryptography' "
+                    "package, which is not installed."
+                )
+            reason = "the 'cryptography' package is not installed"
+            # NB. A trusted-origin store degrades to 'off'; a shared/remote
+            # store keeps 'verify' (so every read misses and writes are skipped)
+            # rather than serving the unverified bytes signing protects.
+            if _is_trusted_origin_store(self.store):
+                self._warn_degraded(reason)
+                return "off"
+            self._warn_no_trust_anchor(reason)
+            return "verify"
+        if self.signer is None and not self._trusted_fingerprints:
+            if self._mode == "strict":
+                raise ValueError(
+                    "mode='strict' requires a signer or trusted_signers to "
+                    "verify against, but neither is configured. Pass "
+                    "signer=CacheSigner.from_public_key_pem(...) or "
+                    "trusted_signers={fingerprint, ...}."
+                )
+            # Same trusted-origin split as the no-cryptography branch.
+            if _is_trusted_origin_store(self.store):
+                self._warn_degraded(
+                    "no signer or trusted_signers is configured"
+                )
+                return "off"
+            self._warn_no_trust_anchor("no signer or trusted_signers is set")
+            return "verify"
+        return self._mode
+
+    def _warn_degraded(self, reason: str) -> None:
+        if not self._degrade_warned:
+            self._degrade_warned = True
+            LOGGER.warning(
+                "LazyLoader mode=%r degraded to 'off' because %s; cache "
+                "entries are neither signed nor verified.",
+                self._mode,
+                reason,
+            )
+
+    def _warn_no_trust_anchor(self, reason: str) -> None:
+        """One-time warning: a shared/remote store has no way to verify.
+
+        Unlike the local degrade-to-off path, 'verify' is kept so unverified
+        bytes are never served — the consequence is that every read misses and
+        every write is skipped until the loader can verify again (`reason`
+        names what's missing).
+        """
+        if not self._degrade_warned:
+            self._degrade_warned = True
+            LOGGER.warning(
+                "LazyLoader mode=%r cannot verify cache entries for a "
+                "shared/remote store (%s): every read misses and writes are "
+                "skipped. Install 'cryptography' and set "
+                "MARIMO_CACHE_SIGNING_PRIVATE_KEY (to sign+verify) or "
+                "MARIMO_CACHE_SIGNING_PUBLIC_KEY (to verify only), or pass "
+                "trusted_signers=..., to use the cache; or mode='off' to cache "
+                "without signing.",
+                self._mode,
+                reason,
+            )
+
+    # Property accessors so LoaderPartial.create_or_reconfigure() can update
+    # signer / trusted_signers / mode via setattr() using the constructor
+    # argument names.
+    @property
+    def signer(self) -> CacheSigner | None:
+        # Auto-resolve the _Unset sentinel on first access. In 'off' mode we
+        # never sign or verify, so don't load or mint a key — return None
+        # without caching it, so a later reconfigure to verify/strict still
+        # resolves (see __init__).
+        if isinstance(self._signer, _Unset):
+            if self._mode == "off":
+                return None
+            self._signer = self._resolve_unset_signer()
+        return self._signer
+
+    @signer.setter
+    def signer(self, value: CacheSigner | None | _Unset) -> None:
+        # Validate up front (mirrors __init__) so a bad reconfigure fails here
+        # rather than as an AttributeError mid-save.
+        if not isinstance(value, (_Unset, CacheSigner)) and value is not None:
+            raise TypeError(
+                "signer must be a CacheSigner or None, got "
+                f"{type(value).__name__}."
+            )
+        # NB. store the sentinel unresolved; the `signer` property defers
+        # resolution (and skips it in 'off' mode). Resolving here would
+        # mint/load a machine-local key when reconfiguring an off-mode loader.
+        self._signer = value
+
+    @property
+    def trusted_signers(self) -> frozenset[str]:
+        # Frozen copy so mutating the return value can't bypass
+        # _normalize_fingerprints — assign to the property to change trust.
+        return frozenset(self._trusted_fingerprints)
+
+    @trusted_signers.setter
+    def trusted_signers(self, value: Iterable[str] | None) -> None:
+        self._trusted_fingerprints = _normalize_fingerprints(value)
+
+    @property
+    def mode(self) -> str:
+        return self._mode
+
+    @mode.setter
+    def mode(self, value: str) -> None:
+        # No capability fail-fast here: create_or_reconfigure() applies kwargs
+        # via setattr in caller order, so a signer set in the same reconfigure
+        # may not be applied yet. _effective_mode() enforces the capability
+        # invariant at load/save time; __init__ enforces it for direct
+        # construction.
+        if value not in _VALID_MODES:
+            raise ValueError(
+                f"Invalid cache signing mode {value!r}; expected one of "
+                f"{', '.join(_VALID_MODES)}."
+            )
+        self._mode = value
 
     def flush(self) -> None:
         """Wait for all pending background writes to complete."""
@@ -495,6 +937,10 @@ class LazyLoader(BasePersistenceLoader):
         glbls: dict[str, Any] | None = None,
     ) -> Cache | None:
         del glbls
+        # Resolve the effective mode before the try so an impossible strict
+        # configuration surfaces as a ValueError rather than being swallowed
+        # as a generic miss by the except clause below.
+        mode = self._effective_mode()
         manifest_key = str(self.build_path(key))
         # Invalidated for re-execution this session.
         if manifest_key in _cache_state().stale_keys:
@@ -505,6 +951,26 @@ class LazyLoader(BasePersistenceLoader):
             if not blob:
                 return None
             return self.restore_cache(key, blob)
+        except CacheSignatureError as e:
+            # Evict the rejected manifest + its blobs. On WASM this clears the
+            # HTTP-fetched bytes from the session store (and poisons the keys
+            # so they aren't re-fetched), so tampered data can't be re-served
+            # or swept into a later export bundle via export_keys(); no-op
+            # natively, where a non-strict recompute overwrites the entry.
+            # Any manifest that fails to verify against a trusted key reaches
+            # here (bad signature, unsigned, or an untrusted key), so it is
+            # never served unverified — see _resolve_effective_signer.
+            self._on_restore_failure(key, blob)
+            if mode == "strict":
+                raise
+            # verify (fail-safe): degrade to cache miss rather than crashing;
+            # the entry is recomputed rather than served unverified.
+            LOGGER.warning(
+                "Cache signature verification failed (treating as "
+                "cache miss): %s",
+                e,
+            )
+            return None
         except Exception as e:
             LOGGER.warning("Failed to restore lazy cache: %s", e)
             self._on_restore_failure(key, blob)
@@ -516,9 +982,133 @@ class LazyLoader(BasePersistenceLoader):
         """Hook after a failed restore. No-op natively; the WASM variant
         evicts and poisons the bad keys so HTTP won't re-fetch them."""
 
-    def restore_cache(self, _key: HashKey, blob: bytes) -> Cache:
-        cache_data = msgspec.json.decode(blob, type=CacheSchema)
+    def _direct_candidates(self, cache_data: CacheSchema) -> list[CacheSigner]:
+        """Candidate verifier keys for the direct path, in priority order:
+        this loader's own signer (always trusted for its own writes), then the
+        manifest's declared signer key when its fingerprint is in
+        `trusted_signers`."""
+        candidates: list[CacheSigner] = []
+        own = self.signer
+        if own is not None:
+            candidates.append(own)
+        declared = cache_data.meta.signer_public_key
+        if declared:
+            try:
+                if fingerprint(declared) in self._trusted_fingerprints:
+                    candidates.append(
+                        CacheSigner.from_public_key_pem(declared)
+                    )
+            except Exception:
+                # A malformed/unsupported declared key can't be a direct
+                # candidate (parsing it can raise ValueError,
+                # CacheSignatureError, or cryptography's UnsupportedAlgorithm,
+                # none of which subclass a common base) — swallow it here so a
+                # strict loader still raises "unverifiable" downstream instead
+                # of escaping to the generic-miss handler. The own-signer
+                # candidate may still verify.
+                pass
+        return candidates
+
+    def _resolve_effective_signer(
+        self, cache_data: CacheSchema, mode: str
+    ) -> CacheSigner | None:
+        """Verify the manifest and return the signer that validated it.
+
+        In `off` mode returns `None` without checking (data served as-is).
+        In `verify`/`strict` the entry must verify against a trusted key:
+        this loader's own signer (implicitly trusted for its own writes), or
+        the manifest's declared signer key when its fingerprint is in
+        `trusted_signers`. Anything else raises `CacheSignatureError`, so
+        unverifiable data is recomputed (verify) or rejected (strict) — never
+        deserialized.
+
+        Returning the verifying signer (non-`None`) enables the blob-hash
+        checks downstream.
+
+        Note: a cache written by another machine's auto-generated key on a
+        shared or committed cache dir won't match any trusted fingerprint, so
+        it misses (recomputes) rather than being accepted. To share a cache
+        across machines, configure a shared signing key
+        (`MARIMO_CACHE_SIGNING_*`) or add the writer's fingerprint to
+        `trusted_signers`.
+        """
+        if mode == "off":
+            return None
+
+        sig = cache_data.meta.signature
+        if sig is None:
+            raise CacheSignatureError(
+                f"A cache entry is unsigned, but this loader verifies cache "
+                f"signatures (mode={self._mode!r}). The entry may predate "
+                f"signing or was tampered with; it will be recomputed.\n"
+                f"To recover, call cache_clear() on the cached function or "
+                f"context manager."
+            )
+
+        signable = _signable_bytes(cache_data)
+        for verifier in self._direct_candidates(cache_data):
+            try:
+                verifier.verify(signable, sig)
+                return verifier
+            except CacheSignatureError:
+                continue
+
+        raise CacheSignatureError(
+            "A cache entry could not be verified against any trusted signer — "
+            "its signature is invalid or was made by an untrusted key. The "
+            "entry will be recomputed.\n"
+            "To recover, call cache_clear() on the cached function or context "
+            "manager."
+        )
+
+    def restore_cache(self, key: HashKey, blob: bytes) -> Cache:
+        mode = self._effective_mode()
+        try:
+            cache_data = msgspec.json.decode(blob, type=CacheSchema)
+        except msgspec.DecodeError as e:
+            # NB. under strict an undecodable/tampered manifest is a trust
+            # anomaly (fail-closed), not the silent miss verify/off treat it as.
+            if mode == "strict":
+                raise CacheSignatureError(
+                    "A cache manifest could not be decoded (mode='strict'). "
+                    "The cache may be corrupted or was modified outside of "
+                    "marimo.\n"
+                    "To recover, call cache_clear() on the cached function or "
+                    "context manager."
+                ) from e
+            raise
+
+        # Guard: the manifest must describe the entry we asked for, checked
+        # before any blob I/O or deserialization (otherwise it is only caught
+        # in cache_attempt() after every blob has already been
+        # pickle.loads()-ed). The hash is inside the signed bytes, so under a
+        # verifying mode a mismatch is a trust anomaly (a corrupt, misfiled, or
+        # substituted manifest): strict surfaces it (fail-closed), while
+        # verify/off treat it as a generic miss (recompute).
+        if cache_data.hash != key.hash:
+            if mode == "strict":
+                raise CacheSignatureError(
+                    f"A cache manifest's hash {cache_data.hash!r} does not "
+                    f"match the requested key {key.hash!r} (mode='strict'). "
+                    f"The cache may be corrupted or was modified outside of "
+                    f"marimo.\n"
+                    f"To recover, call cache_clear() on the cached function or "
+                    f"context manager."
+                )
+            raise FileNotFoundError(
+                f"Cache manifest hash {cache_data.hash!r} does not match the "
+                f"requested key {key.hash!r}"
+            )
+
+        # Manifest verification (synchronous, before any blob I/O). Returns the
+        # signer that validated the manifest (which enables blob-hash checking
+        # below), or None in 'off' mode. Raises CacheSignatureError when a
+        # verify/strict loader cannot verify the entry — load_cache then misses
+        # (verify) or re-raises (strict).
+        effective_signer = self._resolve_effective_signer(cache_data, mode)
+
         base = Path(self.name) / cache_data.hash
+        blob_hash_map = cache_data.meta.blob_hashes  # {} for unsigned entries
 
         # Collect references to load
         ref_vars: dict[str, str] = {}
@@ -562,7 +1152,12 @@ class LazyLoader(BasePersistenceLoader):
         if return_ref:
             unique_keys.add(return_ref)
         unpickled = self._read_blobs(
-            unique_keys, ref_type_hints, return_ref, return_type_hint
+            unique_keys,
+            ref_type_hints,
+            return_ref,
+            return_type_hint,
+            blob_hash_map,
+            effective_signer,
         )
 
         # Distribute to defs
@@ -583,7 +1178,11 @@ class LazyLoader(BasePersistenceLoader):
                 # the unpickle until Cache.restore has materialized the class.
                 raw = self.store.get(ref)
                 if not raw:
-                    raise FileNotFoundError("Incomplete cache: missing blobs")
+                    raise _incomplete_cache_error(effective_signer)
+                # Deferred blobs bypass `_read_blobs`, so verify the signed
+                # blob hash here too — before these bytes are ever unpickled
+                # by `ReferenceStub.load` during `Cache.restore`.
+                _verify_signed_blob(ref, raw, blob_hash_map, effective_signer)
                 stub = ImmediateReferenceStub(
                     ReferenceStub(ref, hash_value=item.hash or "", blob=raw)
                 )
@@ -636,7 +1235,13 @@ class LazyLoader(BasePersistenceLoader):
         ref_type_hints: dict[str, str | None],
         return_ref: str | None,
         return_type_hint: str | None,
+        blob_hash_map: dict[str, str] | None = None,
+        effective_signer: CacheSigner | None = None,
     ) -> Any:
+        # Verify the blob hash before deserialization so a tampered blob never
+        # reaches pickle.loads. Raises CacheSignatureError (propagated by the
+        # callers) on mismatch or a missing hash under a verified manifest.
+        _verify_signed_blob(key, data, blob_hash_map, effective_signer)
         ext = Path(key).suffix
         deserialize = BLOB_DESERIALIZERS.get(
             ext, BLOB_DESERIALIZERS[".pickle"]
@@ -658,9 +1263,16 @@ class LazyLoader(BasePersistenceLoader):
         ref_type_hints: dict[str, str | None],
         return_ref: str | None,
         return_type_hint: str | None,
+        blob_hash_map: dict[str, str] | None = None,
+        effective_signer: CacheSigner | None = None,
     ) -> dict[str, Any]:
         """Read + deserialize blobs in parallel via threads."""
         results: queue.Queue[tuple[str, Any]] = queue.Queue()
+        # Threads append here on a signed-hash mismatch. list.append is
+        # thread-safe under the GIL. Surfaced as the first error after join so
+        # a strict-mode loader raises rather than degrading to a
+        # generic cache miss.
+        errors: list[CacheSignatureError] = []
 
         def _load_blob(key: str) -> None:
             try:
@@ -675,14 +1287,22 @@ class LazyLoader(BasePersistenceLoader):
                                 ref_type_hints,
                                 return_ref,
                                 return_type_hint,
+                                blob_hash_map,
+                                effective_signer,
                             ),
                         )
                     )
                 else:
                     results.put((key, _BlobStatus.MISSING))
-            except Exception as e:
-                LOGGER.warning("Failed to deserialize blob %s: %s", key, e)
+            except CacheSignatureError as exc:
+                errors.append(exc)
                 results.put((key, _BlobStatus.MISSING))
+            except Exception as e:
+                # Hash verification precedes deserialization, so bytes that
+                # reach here are authentic — a failure is an environment issue,
+                # not tampering. Recompute rather than flag corruption.
+                LOGGER.warning("Failed to deserialize blob %s: %s", key, e)
+                results.put((key, _BlobStatus.UNREADABLE))
 
         threads = [
             threading.Thread(target=_load_blob, args=(key,))
@@ -691,15 +1311,38 @@ class LazyLoader(BasePersistenceLoader):
         for t in threads:
             t.start()
         unpickled: dict[str, Any] = {}
+        missing = False
+        unreadable = False
         try:
+            # Drain all N results (one per key) and join before deciding.
+            # Raising on the first MISSING dequeued would let a genuinely
+            # missing blob mask a concurrent thread's signed-hash mismatch,
+            # routing a strict loader through the generic-miss path instead of
+            # raising. Each error thread appends to `errors` before putting its
+            # MISSING, so after the full drain `errors` is complete.
             for _ in unique_keys:
                 key, val = results.get()
                 if val is _BlobStatus.MISSING:
-                    raise FileNotFoundError("Incomplete cache: missing blobs")
-                unpickled[key] = val
+                    missing = True
+                elif val is _BlobStatus.UNREADABLE:
+                    unreadable = True
+                else:
+                    unpickled[key] = val
         finally:
             for t in threads:
                 t.join()
+        # Precedence: a hash mismatch or a genuinely-missing blob under a
+        # verified manifest is a trust anomaly (strict raises); an
+        # authentic-but-unreadable blob is a plain miss (recompute) in every
+        # mode, matching the deserializers' documented recompute fallback.
+        if errors:
+            raise errors[0]
+        if missing:
+            raise _incomplete_cache_error(effective_signer)
+        if unreadable:
+            raise FileNotFoundError(
+                "Incomplete cache: a blob could not be deserialized"
+            )
         return unpickled
 
     def save_cache(self, cache: Cache) -> bool:
@@ -759,9 +1402,60 @@ class LazyLoader(BasePersistenceLoader):
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)
 
+        # Use property to normalise any stale _Unset sentinel.
+        signer = self.signer
+        mode = self._effective_mode()
+        # Sign only when verifying: 'off' writes unsigned (legacy), and a
+        # signer without a private key can't sign at all.
+        signing = mode != "off" and signer is not None and signer.can_sign
+
+        if mode != "off" and not signing:
+            # NB. skip rather than write: an unsigned entry only pollutes the
+            # store with data every verifying reader rejects on load.
+            if not self._write_skip_warned:
+                self._write_skip_warned = True
+                LOGGER.warning(
+                    "LazyLoader mode=%r cannot sign cache entries (no private "
+                    "signing key is available), so this write was skipped — an "
+                    "unsigned entry would be rejected on load. Install "
+                    "'cryptography' and set MARIMO_CACHE_SIGNING_PRIVATE_KEY "
+                    "(or pass a private-key signer) to write signed entries, or "
+                    "use mode='off' to write unsigned.",
+                    mode,
+                )
+            return False
+
+        # Blob digests collected while writing; embedded + signed by
+        # `_encode_manifest` on the signed path (stays empty otherwise).
+        blob_hashes: dict[str, str] = {}
+
         def _encode_manifest() -> bytes:
             # Encoded after the blobs so any `unserializable_type` marks set
-            # by `_put_or_mark_unserializable` are reflected in the manifest.
+            # by `_put_or_mark_unserializable` are reflected in the manifest,
+            # and (when signing) every blob hash has been collected.
+            if signing:
+                assert signer is not None
+                base_schema = CacheSchema(
+                    hash=cache.hash,
+                    cache_type=cache_type_enum,
+                    stateful_refs=list(cache.stateful_refs),
+                    defs=defs_dict,
+                    meta=Meta(
+                        version=version,
+                        return_value=return_item,
+                        blob_hashes=blob_hashes,
+                        signer_public_key=signer.public_key_pem(),
+                        signature=None,
+                    ),
+                    ui_defs=ui_defs_list,
+                )
+                sig = signer.sign(_signable_bytes(base_schema))
+                signed_meta = msgspec.structs.replace(
+                    base_schema.meta, signature=sig
+                )
+                return msgspec.json.encode(
+                    msgspec.structs.replace(base_schema, meta=signed_meta)
+                )
             return msgspec.json.encode(
                 CacheSchema(
                     hash=cache.hash,
@@ -798,10 +1492,14 @@ class LazyLoader(BasePersistenceLoader):
             instead mark each manifest `Item` with `unserializable_type`.
 
             Returns `True` when the blob was stored, `False` when it was
-            marked unserializable.
+            marked unserializable. Records the blob digest for the signed
+            manifest when the loader is signing.
             """
             try:
-                store.put(key, serialize(value))
+                data = serialize(value)
+                store.put(key, data)
+                if signing:
+                    blob_hashes[key] = _sha256hex(data)
             except Exception as e:
                 LOGGER.warning(
                     "Failed to serialize %s for cache; marking "
@@ -868,7 +1566,8 @@ class LazyLoader(BasePersistenceLoader):
                             var,
                         )
                 # Manifest last — readers check for it to detect complete
-                # writes, and it now carries any unserializable marks set above.
+                # writes, and it now carries any unserializable marks set above
+                # plus (when signing) the signed blob hashes and signature.
                 store.put(manifest_key, _encode_manifest())
             except Exception:
                 LOGGER.exception("Failed to write cache blobs for %s", path)
@@ -900,17 +1599,26 @@ class WasmLazyLoader(LazyLoader):
         ref_type_hints: dict[str, str | None],
         return_ref: str | None,
         return_type_hint: str | None,
+        blob_hash_map: dict[str, str] | None = None,
+        effective_signer: CacheSigner | None = None,
     ) -> dict[str, Any]:
         unpickled: dict[str, Any] = {}
         # The store handles concurrency (HTTP batch fetch in WASM). The WASM
         # variant pairs with a `WasmLazyStore` (see `_store_cls`), whose
         # `get_batch` fetches concurrently; `get_batch` is defined on every
-        # `Store` so no narrowing is needed.
+        # `Store` so no narrowing is needed. A signed-hash mismatch raises
+        # CacheSignatureError straight out of `_deserialize_blob`.
         for key, data in self.store.get_batch(unique_keys):
             if not data:
-                raise FileNotFoundError("Incomplete cache: missing blobs")
+                raise _incomplete_cache_error(effective_signer)
             unpickled[key] = self._deserialize_blob(
-                key, data, ref_type_hints, return_ref, return_type_hint
+                key,
+                data,
+                ref_type_hints,
+                return_ref,
+                return_type_hint,
+                blob_hash_map,
+                effective_signer,
             )
         return unpickled
 

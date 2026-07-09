@@ -102,6 +102,7 @@ sandbox = [
 recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                           # For `marimo edit --sandbox DIRECTORY`
+    "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
     "ruff",                                      # Formatting
