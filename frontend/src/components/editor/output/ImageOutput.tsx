@@ -17,18 +17,32 @@ export const ImageOutput = ({
   height,
   className,
 }: Props): JSX.Element => {
-  // Convert numeric values to pixel strings, pass string values (like "100%") as-is
+  // Numeric dimensions are set as HTML attributes rather than inline styles.
+  // Attributes give the browser the image's intrinsic size and aspect ratio,
+  // but can still be overridden by stylesheet rules (`max-width: 100%;
+  // height: auto` from preflight), so images shrink proportionally in
+  // width-constrained containers like mo.hstack. Inline styles would win
+  // over `height: auto` and distort the aspect ratio.
+  //
+  // String values like "100%" are only valid in CSS, so they go in the
+  // style attribute.
   const style: React.CSSProperties = {};
-  if (width !== undefined) {
-    style.width = typeof width === "number" ? `${width}px` : width;
+  if (typeof width === "string") {
+    style.width = width;
   }
-  if (height !== undefined) {
-    style.height = typeof height === "number" ? `${height}px` : height;
+  if (typeof height === "string") {
+    style.height = height;
   }
 
   return (
     <span className={className}>
-      <img src={src} alt={alt} style={style} />
+      <img
+        src={src}
+        alt={alt}
+        width={typeof width === "number" ? width : undefined}
+        height={typeof height === "number" ? height : undefined}
+        style={style}
+      />
     </span>
   );
 };
