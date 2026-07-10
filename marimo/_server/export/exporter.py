@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import mimetypes
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -553,7 +554,17 @@ class Exporter:
         )
         web_exporter.exclude_input = not include_inputs
         web_exporter.allow_chromium_download = True
-        pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        previous_policy = None
+        if sys.platform == "win32":
+            # nbconvert creates Playwright's worker loop through the global policy.
+            # Restore Windows' default Proactor policy so it supports subprocesses.
+            previous_policy = asyncio.get_event_loop_policy()
+            asyncio.set_event_loop_policy(None)
+        try:
+            pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        finally:
+            if previous_policy is not None:
+                asyncio.set_event_loop_policy(previous_policy)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)

@@ -6,6 +6,7 @@ import json
 import pathlib
 import sys
 import textwrap
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING, Any
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
@@ -1723,6 +1724,53 @@ class TestPDFExport:
             mock_webpdf_exporter.assert_called_once()
             assert mock_exporter_instance.exclude_input is False
             assert mock_exporter_instance.allow_chromium_download is True
+
+    @pytest.mark.skipif(
+        sys.platform != "win32"
+        or not DependencyManager.nbformat.has()
+        or not DependencyManager.nbconvert.has(),
+        reason="requires Windows, nbformat, and nbconvert",
+    )
+    def test_export_as_pdf_webpdf_can_spawn_subprocess_on_windows(
+        self,
+    ) -> None:
+        async def spawn_process() -> None:
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, "-c", "pass"
+            )
+            await process.wait()
+
+        mock_exporter_instance = MagicMock()
+
+        def render(
+            *_args: Any, **_kwargs: Any
+        ) -> tuple[bytes, dict[Any, Any]]:
+            with ThreadPoolExecutor() as pool:
+                pool.submit(asyncio.run, spawn_process()).result()
+            return b"mock_webpdf_data", {}
+
+        mock_exporter_instance.from_notebook_node.side_effect = render
+        original_policy = asyncio.get_event_loop_policy()
+        selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
+        asyncio.set_event_loop_policy(selector_policy)
+
+        try:
+            with (
+                patch.object(DependencyManager, "require_many"),
+                patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
+            ):
+                mock_webpdf_exporter.return_value = mock_exporter_instance
+
+                result = Exporter().export_as_pdf(
+                    app=_load_fixture_app("basic"),
+                    session_view=None,
+                    webpdf=True,
+                )
+
+            assert result == b"mock_webpdf_data"
+            assert asyncio.get_event_loop_policy() is selector_policy
+        finally:
+            asyncio.set_event_loop_policy(original_policy)
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()

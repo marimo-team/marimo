@@ -138,6 +138,8 @@ def watch_and_export(
                 err=True,
             )
 
+    export_lock = asyncio.Lock()
+
     async def on_file_changed(file_path: Path) -> None:
         if output:
             echo(
@@ -147,9 +149,10 @@ def watch_and_export(
             # `export_callback` may call `asyncio_run()` internally. This callback
             # runs inside the file watcher's event loop, so we must execute the
             # export in a separate thread to avoid `asyncio.run()` nesting.
-            result = await asyncio.to_thread(
-                export_callback, MarimoPath(file_path)
-            )
+            async with export_lock:
+                result = await asyncio.to_thread(
+                    export_callback, MarimoPath(file_path)
+                )
         except Exception as e:
             echo(f"Error: {e}", err=True)
             return
