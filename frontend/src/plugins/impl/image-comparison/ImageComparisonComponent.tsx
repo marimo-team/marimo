@@ -31,9 +31,13 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
     () => new Set(),
   );
 
-  const handleError = (src: string) => {
+  React.useEffect(() => {
+    setFailedSrcs(new Set());
+  }, [beforeSrc, afterSrc]);
+
+  const handleError = React.useCallback((src: string) => {
     setFailedSrcs((prev) => new Set(prev).add(src));
-  };
+  }, []);
 
   const containerStyle: React.CSSProperties = {
     width: width || "100%",
