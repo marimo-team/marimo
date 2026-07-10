@@ -17,6 +17,9 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._plugins.ui._impl.anywidget.widget_ref import (
+    AnyWidgetStateSerializer,
+)
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.methods import getcallable
@@ -109,93 +112,6 @@ def _sync_widget_state(widget: AnyWidget) -> None:
             )
 
 
-_WIDGET_REF_PREFIX = "anywidget:"
-
-
-def _try_get_widget_model_id(value: Any) -> str | None:
-    """Return the model id of a value if it looks like an anywidget.
-
-    Detects two shapes:
-
-    1. ipywidgets-derived ``AnyWidget`` instances. These have ``model_id``
-       set eagerly because marimo registers ``init_marimo_widget`` via
-       ``Widget.on_widget_constructed``, so the comm is already open by
-       the time the parent serializes its state.
-    2. Protocol-based widgets (RFC 0001) — plain classes / dataclasses /
-       pydantic models / msgspec structs — that put a
-       ``MimeBundleDescriptor`` at ``_repr_mimebundle_``. Touching the
-       attribute triggers the descriptor's ``__get__``, which spins up
-       the comm if it hasn't been opened yet. This is exactly the side
-       effect we want when a child is assigned to a parent's trait but
-       never displayed standalone.
-    """
-    # ipywidgets path. `model_id` is a property that returns the comm id;
-    # `init_marimo_widget` ensures the comm is open at construction.
-    model_id = getattr(value, "model_id", None)
-    if isinstance(model_id, str) and model_id:
-        return model_id
-    # Protocol path. Imported lazily so this module doesn't hard-depend
-    # on the `_descriptor` private path; older anywidget versions without
-    # it just skip protocol detection.
-    try:
-        from anywidget._descriptor import (  # type: ignore[import-not-found]
-            MimeBundleDescriptor,
-            ReprMimeBundle,
-        )
-    except ImportError:
-        return None
-    bundle = getattr(value, "_repr_mimebundle_", None)
-    # Defensive: when accessed on a class (not an instance) the descriptor
-    # returns itself; force `__get__` so we always end up with a bundle.
-    if isinstance(bundle, MimeBundleDescriptor):
-        bundle = bundle.__get__(value, type(value))
-    if isinstance(bundle, ReprMimeBundle):
-        # Post-RFC 0001 anywidget exposes `model_id` directly. Older
-        # versions only expose the underlying comm; fall back to its id
-        # so this code keeps working against shipped anywidget too.
-        bundle_id = getattr(bundle, "model_id", None)
-        if not isinstance(bundle_id, str) or not bundle_id:
-            comm = getattr(bundle, "_comm", None)
-            bundle_id = getattr(comm, "comm_id", None)
-        if isinstance(bundle_id, str) and bundle_id:
-            return bundle_id
-    return None
-
-
-def _replace_widget_refs(value: Any) -> Any:
-    """Recursively replace nested anywidget instances with `anywidget:<id>`.
-
-    Walks dicts, lists, and tuples so widget refs can live anywhere in the
-    state tree (e.g. `{"layout": {"left": <widget>, "right": None}}`).
-    Any value with an `_model_id` attribute is replaced with the wire-format
-    string the frontend's `host.getWidget(ref)` expects.
-
-    Returns a new container if any replacement occurred, otherwise the
-    original value (so untouched state can pass through without a copy).
-    """
-    model_id = _try_get_widget_model_id(value)
-    if model_id is not None:
-        return f"{_WIDGET_REF_PREFIX}{model_id}"
-    if isinstance(value, dict):
-        replaced = {k: _replace_widget_refs(v) for k, v in value.items()}
-        # Preserve identity when nothing changed — avoids a needless copy
-        # on the hot serialization path for widgets without nested refs.
-        if all(replaced[k] is value[k] for k in value):
-            return value
-        return replaced
-    if isinstance(value, list):
-        replaced_list = [_replace_widget_refs(v) for v in value]
-        if all(a is b for a, b in zip(replaced_list, value, strict=True)):
-            return value
-        return replaced_list
-    if isinstance(value, tuple):
-        replaced_tuple = tuple(_replace_widget_refs(v) for v in value)
-        if all(a is b for a, b in zip(replaced_tuple, value, strict=True)):
-            return value
-        return replaced_tuple
-    return value
-
-
 def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     """Get the state of an AnyWidget."""
     # Remove widget-specific system traits not needed for the frontend
@@ -223,6 +139,7 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     }
 
     state: dict[str, Any] = widget.get_state()
+    serializer = AnyWidgetStateSerializer(state)
 
     # Filter out system traits from the serialized state
     # This should include the binary data,
@@ -235,7 +152,7 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     # `Widget.on_widget_constructed` fires `init_marimo_widget` on
     # construction), so the frontend has the model registered by the time
     # the parent's state arrives.
-    return cast(AnyWidgetState, _replace_widget_refs(filtered))
+    return cast(AnyWidgetState, serializer.serialize(filtered))
 
 
 def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:

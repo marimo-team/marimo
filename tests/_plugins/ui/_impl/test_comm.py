@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -401,6 +402,94 @@ class TestEsmSpecMinting:
             serialize_kernel_message(notification)
         )
         assert result.message.esm_spec == notification.message.esm_spec
+
+
+@dataclass(frozen=True)
+class _ModelIdWidget:
+    """Minimal ipywidgets-backed anywidget shape for wire transport tests."""
+
+    model_id: str
+
+
+class TestAnywidgetWireReferences:
+    ESM = "export default { render() {} }"
+
+    def test_model_open_replaces_direct_and_nested_widget_refs(
+        self, comm_manager: MarimoCommManager
+    ) -> None:
+        from marimo._messaging.serde import (
+            deserialize_kernel_message,
+            serialize_kernel_message,
+        )
+
+        child = _ModelIdWidget("child-open")
+        with patch(
+            "marimo._plugins.ui._impl.comm.broadcast_notification"
+        ) as mock_broadcast:
+            comm = MarimoComm(
+                comm_id=WidgetModelId("parent-open"),
+                comm_manager=comm_manager,
+                target_name="jupyter.widget",
+                data={
+                    "state": {
+                        "_esm": self.ESM,
+                        "child": child,
+                        "layout": {"items": [child, {"nested": child}]},
+                    },
+                    "buffer_paths": [],
+                    "method": "open",
+                },
+            )
+            notification = mock_broadcast.call_args[0][0]
+        comm._closed = True
+
+        expected_state = {
+            "child": "anywidget:child-open",
+            "layout": {
+                "items": [
+                    "anywidget:child-open",
+                    {"nested": "anywidget:child-open"},
+                ]
+            },
+        }
+        assert notification.message.state == expected_state
+
+        roundtripped = deserialize_kernel_message(
+            serialize_kernel_message(notification)
+        )
+        assert roundtripped.message.state == expected_state
+
+    def test_model_update_replaces_reassigned_widget_ref(
+        self, comm_manager: MarimoCommManager
+    ) -> None:
+        replacement = _ModelIdWidget("child-update")
+        with patch(
+            "marimo._plugins.ui._impl.comm.broadcast_notification"
+        ) as mock_broadcast:
+            comm = MarimoComm(
+                comm_id=WidgetModelId("parent-update"),
+                comm_manager=comm_manager,
+                target_name="jupyter.widget",
+                data={
+                    "state": {"_esm": self.ESM},
+                    "buffer_paths": [],
+                    "method": "open",
+                },
+            )
+            mock_broadcast.reset_mock()
+            comm.send(
+                data={
+                    "state": {"child": replacement},
+                    "buffer_paths": [],
+                    "method": "update",
+                }
+            )
+            notification = mock_broadcast.call_args[0][0]
+        comm._closed = True
+
+        assert notification.message.state == {
+            "child": "anywidget:child-update"
+        }
 
 
 def test_comm_lifecycle_item_dispose_idempotent(comm: MarimoComm):
