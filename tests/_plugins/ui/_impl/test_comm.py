@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
@@ -516,26 +517,26 @@ class TestEsmHotReload:
         with patch(
             "marimo._plugins.ui._impl.comm.broadcast_notification"
         ) as mock_broadcast:
-            comm = MarimoComm(
-                comm_id=WidgetModelId("hmr-test"),
-                comm_manager=comm_manager,
-                target_name="jupyter.widget",
-                data={
-                    "state": {"_esm": "export default {}"},
-                    "buffer_paths": [],
-                    "method": "open",
-                },
-            )
             with patch(
                 "marimo._runtime.context.utils.get_mode", return_value=mode
             ):
-                comm.send(
+                comm = MarimoComm(
+                    comm_id=WidgetModelId("hmr-test"),
+                    comm_manager=comm_manager,
+                    target_name="jupyter.widget",
                     data={
-                        "state": {"_esm": self.ESM_V2, "count": 1},
+                        "state": {"_esm": "export default {}"},
                         "buffer_paths": [],
-                        "method": "update",
-                    }
+                        "method": "open",
+                    },
                 )
+            comm.send(
+                data={
+                    "state": {"_esm": self.ESM_V2, "count": 1},
+                    "buffer_paths": [],
+                    "method": "update",
+                }
+            )
             update = mock_broadcast.call_args[0][0].message
         comm._closed = True
         return comm, update
@@ -562,6 +563,66 @@ class TestEsmHotReload:
         assert update.esm_spec is None
         assert comm.esm_spec is not None
         assert comm.esm_spec.hash == hash_code("export default {}")
+
+    def test_plain_thread_send_uses_creation_session(
+        self, executing_kernel, comm_manager
+    ):
+        """A library-owned watcher thread keeps the comm's mode and stream."""
+        from marimo._messaging.notification import (
+            ModelLifecycleNotification,
+            ModelUpdate,
+        )
+        from marimo._utils.code import hash_code
+
+        comm = MarimoComm(
+            comm_id=WidgetModelId("thread-hmr-test"),
+            comm_manager=comm_manager,
+            target_name="jupyter.widget",
+            data={
+                "state": {"_esm": "export default {}", "_css": ""},
+                "buffer_paths": [],
+                "method": "open",
+            },
+        )
+        stream = executing_kernel.stream
+        stream.messages.clear()
+        errors: list[BaseException] = []
+
+        def send_update() -> None:
+            try:
+                comm.send(
+                    data={
+                        "state": {
+                            "_esm": self.ESM_V2,
+                            "_css": "button { color: hotpink; }",
+                        },
+                        "buffer_paths": [],
+                        "method": "update",
+                    }
+                )
+            except BaseException as exc:
+                errors.append(exc)
+
+        watcher = threading.Thread(target=send_update)
+        watcher.start()
+        watcher.join(timeout=1)
+
+        assert not watcher.is_alive()
+        assert not errors
+        assert len(stream.operations) == 1
+        notification = stream.operations[0]
+        assert isinstance(notification, ModelLifecycleNotification)
+        assert isinstance(notification.message, ModelUpdate)
+        assert notification.message.state == {
+            "_css": "button { color: hotpink; }"
+        }
+        assert notification.message.esm_spec is not None
+        assert notification.message.esm_spec.hash == hash_code(self.ESM_V2)
+        # The callback thread intentionally does not inherit the mutable
+        # runtime context; inline HMR modules therefore use the supported
+        # data-URL transport instead of touching the virtual-file registry.
+        assert notification.message.esm_spec.url.startswith("data:")
+        comm.close()
 
 
 class TestClientUpdateStrip:

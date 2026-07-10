@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from marimo._loggers import marimo_logger
 from marimo._messaging.notification import (
@@ -24,6 +24,10 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
 )
 from marimo._types.ids import WidgetModelId
+
+if TYPE_CHECKING:
+    from marimo._messaging.types import Stream
+    from marimo._runtime.context.utils import RunMode
 
 LOGGER = marimo_logger()
 
@@ -185,6 +189,17 @@ class MarimoComm:
         self.comm_manager = comm_manager
         self.target_name = target_name
         self.ui_element_id: str | None = None
+
+        # Library-owned callbacks (such as anywidget's file watcher) may send
+        # from a plain background thread, which has no marimo runtime context.
+        # Bind the comm to the session in which it was opened so those sends
+        # retain both their transport and edit/run policy.
+        from marimo._runtime.context import safe_get_context
+        from marimo._runtime.context.utils import get_mode
+
+        ctx = safe_get_context()
+        self._stream: Stream | None = ctx.stream if ctx is not None else None
+        self._mode: RunMode | None = get_mode()
         self._open(data=data, buffers=buffers)
 
     def _open(
@@ -253,11 +268,9 @@ class MarimoComm:
             data["state"] = state
         changed_spec: EsmSpec | None = None
         if isinstance(state, dict) and "_esm" in state:
-            from marimo._runtime.context.utils import get_mode
-
             esm = state["_esm"]
             data["state"] = {k: v for k, v in state.items() if k != "_esm"}
-            if get_mode() == "edit" and isinstance(esm, str) and esm:
+            if self._mode == "edit" and isinstance(esm, str) and esm:
                 self.esm_spec = EsmSpec.from_esm(esm)
                 changed_spec = self.esm_spec
         self._broadcast(data, buffers or [], esm_spec=changed_spec)
@@ -280,7 +293,8 @@ class MarimoComm:
             ModelLifecycleNotification(
                 model_id=self.comm_id,
                 message=ModelClose(),
-            )
+            ),
+            stream=self._stream,
         )
 
         if not deleting:
@@ -303,7 +317,8 @@ class MarimoComm:
             ModelLifecycleNotification(
                 model_id=self.comm_id,
                 message=message,
-            )
+            ),
+            stream=self._stream,
         )
 
     # This is the method that ipywidgets.widgets.Widget uses to respond to
