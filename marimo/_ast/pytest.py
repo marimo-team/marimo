@@ -456,18 +456,30 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
         raise ValueError(
             f"Expected function or class definition, got {type(scope).__name__}"
         )
-    # Get first frame not in library to insert the class.
-    # May be multiple levels if called from pytest or something.
     frames = fast_stack()
+    notebook_file = inspect.getfile(func)
 
     cls = build_test_class(
-        scope.body, run, inspect.getfile(func), name, cell.defs, frames
+        scope.body, run, notebook_file, name, cell.defs, frames
     )
 
-    # ensure marimo/_ not in frame path, using this file as a reference.
-    library = Path(__file__).parent.parent
+    # Inject the stub class into the notebook module's own frame so pytest's
+    # module-level collection finds it. Match by the cell's source file rather
+    # than "first frame not under marimo/": that heuristic misfires for
+    # notebooks that live inside the marimo package (e.g. marimo/_smoke_tests/*),
+    # whose own module frame is then wrongly treated as library code and skipped,
+    # dropping every test in the cell.
+    target = Path(notebook_file).resolve()
     for frame in frames:
-        if library not in Path(frame.filename).parents:
-            # Insert the class into the frame.
+        if Path(frame.filename).resolve() == target:
+            # At module level f_locals is the module dict, so this persists.
             frame.frame.f_locals[cls.__name__] = cls
             break
+    else:
+        # Fallback to the previous heuristic if no frame matches the source
+        # file (keeps prior behavior for any unforeseen path/symlink case).
+        library = Path(__file__).parent.parent
+        for frame in frames:
+            if library not in Path(frame.filename).parents:
+                frame.frame.f_locals[cls.__name__] = cls
+                break

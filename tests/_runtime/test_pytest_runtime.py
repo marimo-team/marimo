@@ -217,6 +217,82 @@ def test_live_collection_ignores_stale_disk(tmp_path) -> None:
     assert "test_old_name" not in result.output
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="Fails on Windows CI")
+def test_offline_collection_inside_marimo_package() -> None:
+    """Plain `pytest notebook.py` must collect multi-def cells, classes, and
+    fixture-using tests even when the notebook lives inside the marimo package.
+
+    `process_for_pytest` injects the generated MarimoTestBlock stub into the
+    notebook's own module frame; an earlier "first frame not under marimo/"
+    heuristic skipped that frame for notebooks inside the package (e.g.
+    marimo/_smoke_tests/*), silently dropping every test in such cells.
+    """
+    import subprocess
+
+    import marimo
+
+    notebook = """
+import marimo
+app = marimo.App()
+
+with app.setup:
+    import pytest
+
+
+@app.cell
+def _():
+    @pytest.fixture
+    def my_fixture():
+        return 7
+
+    def test_uses_fixture(my_fixture):
+        assert my_fixture == 7
+
+    @pytest.mark.parametrize("x", [1, 2])
+    def test_param(x):
+        assert x > 0
+    return
+
+
+if __name__ == "__main__":
+    app.run()
+"""
+    # The bug only triggers when the notebook path is inside the marimo package.
+    pkg_dir = Path(marimo.__file__).parent / "_smoke_tests"
+    nb = pkg_dir / f"_offline_collect_probe_{os.getpid()}.py"
+    nb.write_text(notebook)
+    # Mimic a standalone CLI run: the inherited PYTEST_CURRENT_TEST (set by the
+    # outer pytest) would otherwise disable marimo's pytest test-rewrite in the
+    # child during collection.
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+    try:
+        proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "pytest",
+                str(nb),
+                "--collect-only",
+                "-q",
+                "-p",
+                "no:cacheprovider",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=Path(marimo.__file__).parent.parent,
+            env=env,
+        )
+    finally:
+        nb.unlink(missing_ok=True)
+
+    out = proc.stdout + proc.stderr
+    # The fixture-using test and both parametrized cases must be collected.
+    assert "test_uses_fixture" in out, out
+    assert "test_param[1]" in out, out
+    assert "test_param[2]" in out, out
+    assert "MarimoTestBlock" in out, out
+
+
 def test_pytest_result_summary_includes_xfail() -> None:
     from marimo._runtime.pytest import MarimoPytestResult
 
