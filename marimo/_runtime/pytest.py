@@ -303,6 +303,8 @@ class ReplaceStubPlugin:
                 "failed.",
                 exc_info=True,
             )
+            self.collect_live = False
+            return None
             return None
 
     def _live_owner(self, item: Any) -> str | None:
