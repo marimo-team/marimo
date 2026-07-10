@@ -293,6 +293,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    sendSetBreakpoints: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/breakpoints", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     sendListFiles: async (request) => {
       await waitForConnectionOpen();
       return getClient()

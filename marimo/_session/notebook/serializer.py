@@ -20,8 +20,6 @@ class NotebookSerializer(Protocol):
 
         Args:
             notebook: Notebook in intermediate representation
-            path: Target file path
-            previous_path: Previous file path (for format conversions)
 
         Returns:
             Serialized notebook content as string

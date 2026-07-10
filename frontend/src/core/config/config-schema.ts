@@ -203,6 +203,7 @@ export const UserConfigSchema = z
     server: z
       .looseObject({
         disable_file_downloads: z.boolean().optional(),
+        transport: z.enum(["websocket", "sse"]).optional(),
       })
       .prefault(() => ({})),
     diagnostics: z

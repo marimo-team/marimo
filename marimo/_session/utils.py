@@ -20,8 +20,10 @@ def send_message_to_consumer(
     consumer_id: ConsumerId | None,
 ) -> None:
     """Send a message operation to a specific consumer in a session."""
-    notification = serialize_kernel_message(operation)
-    if session.connection_state() == ConnectionState.OPEN:
-        for consumer, c_id in session.consumers.items():
-            if c_id == consumer_id:
-                consumer.notify(notification)
+    if consumer_id is None:
+        return
+    if session.connection_state() != ConnectionState.OPEN:
+        return
+    consumer = session.room.get_consumer(consumer_id)
+    if consumer is not None:
+        consumer.notify(serialize_kernel_message(operation))

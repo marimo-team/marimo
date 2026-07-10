@@ -1989,6 +1989,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/kernel/pdb/breakpoints": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["SetBreakpointsRequest"];
+        };
+      };
+      responses: {
+        /** @description Set the live debugger's breakpoints for the session. */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/kernel/pdb/pm": {
     parameters: {
       query?: never;
@@ -3376,6 +3417,25 @@ export type webhooks = Record<string, any>;
 export interface components {
   schemas: {
     /**
+     * ActiveLineNotification
+     * @description Reports the line a cell's frame watcher is currently executing.
+     *
+     *         Emitted on a timed heartbeat while a cell runs (only when the line
+     *         changed), so the editor can highlight the live line. A `None` line
+     *         clears the highlight (e.g. when the cell finishes).
+     *
+     *         Attributes:
+     *             cell_id: Cell whose frame is being watched.
+     *             line: 1-based line within the cell, or `None` to clear.
+     */
+    ActiveLineNotification: {
+      cell_id: components["schemas"]["CellId"];
+      /** @default null */
+      line?: number | null;
+      /** @enum {unknown} */
+      op: "active-line";
+    };
+    /**
      * AddPackageRequest
      * @description This can be a remove package or a local package.
      *
@@ -3932,13 +3992,16 @@ export interface components {
      * @description Per-consumer access capabilities for a session connection.
      *
      *         - editor: `{edit: True, interact: True}`
-     *         - viewer: `{edit: False, interact: False}`
+     *         - interactor: `{edit: False, interact: True}` (default for a secondary
+     *           connection: drives UI state but cannot edit the notebook)
+     *         - read-only viewer: `{edit: False, interact: False}` (opt-in, set by a
+     *           deployment's capability provider)
      *
-     *         These gate the frontend UI; they are not the server's authority boundary.
-     *         Scopes are granted per session mode (see `@requires`), so in an edit session
-     *         every connection (viewers included) carries the `edit` scope and can issue
-     *         edit requests. A viewer's read-only status is enforced by the client hiding
-     *         edit affordances, not by the server rejecting the request.
+     *         The server enforces these: control requests are gated against the issuing
+     *         consumer's stored capabilities at the control-request chokepoint (the
+     *         authority) and mirrored as an advisory HTTP 403 at the request handlers.
+     *         Commands classified as `read` in `marimo._session.capabilities` (such as
+     *         completions and previews) are always permitted.
      */
     ConsumerCapabilities: {
       edit: boolean;
@@ -4302,6 +4365,24 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EsmSpec
+     * @description Where the frontend imports a widget's ESM from, and which version.
+     *
+     *         Specs travel only on kernel-authored notifications, never in model
+     *         state: state is client-writable and echoed to peers, so executing
+     *         code from it would let one client run code on another.
+     *
+     *         Attributes:
+     *             url: URL to import the ESM from. A virtual file for inline
+     *                 source; an external URL when `_esm` is itself a URL.
+     *             hash: Hash of the `_esm` string. Keys the frontend module cache
+     *                 and signals code changes (hot reload).
+     */
+    EsmSpec: {
+      hash: string;
+      url: string;
     };
     /**
      * ExecuteCellCommand
@@ -5014,6 +5095,7 @@ export interface components {
         | components["schemas"]["ExecuteScratchpadCommand"]
         | components["schemas"]["ExecuteStaleCellsCommand"]
         | components["schemas"]["DebugCellCommand"]
+        | components["schemas"]["SetBreakpointsCommand"]
         | components["schemas"]["DeleteCellCommand"]
         | components["schemas"]["SyncGraphCommand"]
         | components["schemas"]["UpdateCellConfigCommand"]
@@ -5097,6 +5179,7 @@ export interface components {
         | components["schemas"]["CacheClearedNotification"]
         | components["schemas"]["CacheInfoNotification"]
         | components["schemas"]["FocusCellNotification"]
+        | components["schemas"]["ActiveLineNotification"]
         | components["schemas"]["NotebookDocumentTransactionNotification"]
         | components["schemas"]["ConsumerCapabilitiesNotification"];
     };
@@ -5549,10 +5632,23 @@ export interface components {
     /**
      * ModelOpen
      * @description Initial widget state on creation.
+     *
+     *         For anywidgets, the widget's ESM does not travel in `state`: the
+     *         comm strips `_esm` and sends an `EsmSpec` instead. `None` for
+     *         models with no ESM (e.g. traditional ipywidgets).
+     *
+     *         Attributes:
+     *             state: Initial trait values, minus `_esm`.
+     *             buffer_paths: Paths into `state` whose binary values were
+     *                 extracted into `buffers`.
+     *             buffers: Binary payloads, parallel to `buffer_paths`.
+     *             esm_spec: Where to import this widget's ESM from.
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
+      /** @default null */
+      esm_spec?: null | components["schemas"]["EsmSpec"];
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
@@ -5569,10 +5665,22 @@ export interface components {
     /**
      * ModelUpdate
      * @description State sync - changed traits only.
+     *
+     *         Attributes:
+     *             state: Changed trait values, minus `_esm` (see `ModelOpen`).
+     *             buffer_paths: Paths into `state` whose binary values were
+     *                 extracted into `buffers`.
+     *             buffers: Binary payloads, parallel to `buffer_paths`.
+     *             esm_spec: Present only when the widget's `_esm` changed on a
+     *                 live model (hot reload, edit mode only). A spec whose
+     *                 `hash` differs from the current one tells the frontend the
+     *                 widget's code changed and views must be rebuilt.
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
+      /** @default null */
+      esm_spec?: null | components["schemas"]["EsmSpec"];
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;
@@ -6242,14 +6350,53 @@ export interface components {
      *             inside its static assets directory.
      *         - `disable_file_downloads`: if true, the file download button will be
      *             hidden in the file explorer.
+     *         - `transport`: experimental. The transport used to stream kernel
+     *             messages to the frontend, typically set with the
+     *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
+     *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
+     *             server-sent events over HTTP, for deployments behind proxies or
+     *             services that do not support WebSockets. Terminal, LSP, and
+     *             real-time collaboration still require WebSockets; RTC is disabled
+     *             when using `"sse"`.
      */
     ServerConfig: {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+      /** @enum {unknown} */
+      transport?: "sse" | "websocket";
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;
+    /**
+     * SetBreakpointsCommand
+     * @description Set the live debugger's breakpoints (session-scoped, not persisted).
+     *
+     *         Replaces the full breakpoint set: the frontend always sends the complete
+     *         map of cell id -> 1-based line numbers. Only meaningful when the
+     *         `debugger` experimental feature is enabled.
+     *
+     *         Attributes:
+     *             breakpoints: Map of cell id to lines that have a breakpoint.
+     *             request: HTTP request context if available.
+     */
+    SetBreakpointsCommand: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+      /** @enum {unknown} */
+      type: "set-breakpoints";
+    };
+    /** SetBreakpointsRequest */
+    SetBreakpointsRequest: {
+      breakpoints: {
+        [key: string]: number[];
+      };
+      /** @default null */
+      request?: components["schemas"]["HTTPRequest"] | null;
+    };
     /**
      * SetCode
      * @description Replace a cell's source code.

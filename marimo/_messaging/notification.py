@@ -176,20 +176,73 @@ class UIElementMessageNotification(
     buffers: list[bytes] | None = None
 
 
+class EsmSpec(msgspec.Struct):
+    """Where the frontend imports a widget's ESM from, and which version.
+
+    Specs travel only on kernel-authored notifications, never in model
+    state: state is client-writable and echoed to peers, so executing
+    code from it would let one client run code on another.
+
+    Attributes:
+        url: URL to import the ESM from. A virtual file for inline
+            source; an external URL when `_esm` is itself a URL.
+        hash: Hash of the `_esm` string. Keys the frontend module cache
+            and signals code changes (hot reload).
+    """
+
+    url: str
+    hash: str
+
+    @staticmethod
+    def from_esm(esm: str) -> EsmSpec:
+        """Mint a spec for an `_esm` trait value."""
+        # Imported lazily: this module is low-level messaging, and
+        # mo_data pulls in the runtime/output machinery.
+        import marimo._output.data.data as mo_data
+        from marimo._utils.code import hash_code
+
+        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+
+
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
-    """Initial widget state on creation."""
+    """Initial widget state on creation.
+
+    For anywidgets, the widget's ESM does not travel in `state`: the
+    comm strips `_esm` and sends an `EsmSpec` instead. `None` for
+    models with no ESM (e.g. traditional ipywidgets).
+
+    Attributes:
+        state: Initial trait values, minus `_esm`.
+        buffer_paths: Paths into `state` whose binary values were
+            extracted into `buffers`.
+        buffers: Binary payloads, parallel to `buffer_paths`.
+        esm_spec: Where to import this widget's ESM from.
+    """
 
     state: dict[str, Any]
     buffer_paths: list[list[str | int]]
     buffers: list[bytes]
+    esm_spec: EsmSpec | None = None
 
 
 class ModelUpdate(msgspec.Struct, tag="update", tag_field="method"):
-    """State sync - changed traits only."""
+    """State sync - changed traits only.
+
+    Attributes:
+        state: Changed trait values, minus `_esm` (see `ModelOpen`).
+        buffer_paths: Paths into `state` whose binary values were
+            extracted into `buffers`.
+        buffers: Binary payloads, parallel to `buffer_paths`.
+        esm_spec: Present only when the widget's `_esm` changed on a
+            live model (hot reload, edit mode only). A spec whose
+            `hash` differs from the current one tells the frontend the
+            widget's code changed and views must be rebuilt.
+    """
 
     state: dict[str, Any]
     buffer_paths: list[list[str | int]]
     buffers: list[bytes]
+    esm_spec: EsmSpec | None = None
 
 
 class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):
@@ -294,17 +347,34 @@ class ConsumerCapabilities(msgspec.Struct, frozen=True):
     """Per-consumer access capabilities for a session connection.
 
     - editor: `{edit: True, interact: True}`
-    - viewer: `{edit: False, interact: False}`
+    - interactor: `{edit: False, interact: True}` (default for a secondary
+      connection: drives UI state but cannot edit the notebook)
+    - read-only viewer: `{edit: False, interact: False}` (opt-in, set by a
+      deployment's capability provider)
 
-    These gate the frontend UI; they are not the server's authority boundary.
-    Scopes are granted per session mode (see `@requires`), so in an edit session
-    every connection (viewers included) carries the `edit` scope and can issue
-    edit requests. A viewer's read-only status is enforced by the client hiding
-    edit affordances, not by the server rejecting the request.
+    The server enforces these: control requests are gated against the issuing
+    consumer's stored capabilities at the control-request chokepoint (the
+    authority) and mirrored as an advisory HTTP 403 at the request handlers.
+    Commands classified as `read` in `marimo._session.capabilities` (such as
+    completions and previews) are always permitted.
     """
 
     edit: bool
     interact: bool
+
+    # Canonical role presets. Declared here and assigned below the class
+    # because each value is an instance of the class itself, which does not
+    # exist yet inside the body (cf. `datetime.min`/`datetime.max`).
+    EDITOR: ClassVar[ConsumerCapabilities]
+    INTERACTOR: ClassVar[ConsumerCapabilities]
+    VIEWER: ClassVar[ConsumerCapabilities]
+
+
+ConsumerCapabilities.EDITOR = ConsumerCapabilities(edit=True, interact=True)
+ConsumerCapabilities.INTERACTOR = ConsumerCapabilities(
+    edit=False, interact=True
+)
+ConsumerCapabilities.VIEWER = ConsumerCapabilities(edit=False, interact=False)
 
 
 class ConsumerCapabilitiesNotification(
@@ -810,6 +880,23 @@ class FocusCellNotification(Notification, tag="focus-cell"):
     cell_id: CellId_t
 
 
+class ActiveLineNotification(Notification, tag="active-line"):
+    """Reports the line a cell's frame watcher is currently executing.
+
+    Emitted on a timed heartbeat while a cell runs (only when the line
+    changed), so the editor can highlight the live line. A `None` line
+    clears the highlight (e.g. when the cell finishes).
+
+    Attributes:
+        cell_id: Cell whose frame is being watched.
+        line: 1-based line within the cell, or `None` to clear.
+    """
+
+    name: ClassVar[str] = "active-line"
+    cell_id: CellId_t
+    line: int | None = None
+
+
 class SecretKeysResultNotification(Notification, tag="secret-keys-result"):
     """Available secret keys from secret providers.
 
@@ -915,6 +1002,8 @@ NotificationMessage = (
     | CacheInfoNotification
     # Kiosk
     | FocusCellNotification
+    # Debugger
+    | ActiveLineNotification
     # Document
     | NotebookDocumentTransactionNotification
     # Consumer

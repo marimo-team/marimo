@@ -316,7 +316,7 @@ async def test_connects_to_existing_session_with_same_file(
                 # Check in the same room
                 session_manager = get_session_manager(client)
                 assert len(session_manager.sessions) == 1
-                assert len(session_manager.sessions["123"].consumers) == 2
+                assert session_manager.sessions["123"].room.size == 2
 
                 data2 = websocket2.receive_json()
                 assert_parse_ready_response(data2)
@@ -358,6 +358,20 @@ def test_ws_requires_authentication(client: TestClient) -> None:
     with pytest.raises(WebSocketDisconnect) as exc_info:
         with client.websocket_connect("/ws"):
             raise AssertionError("Should not be able to connect without auth")
+
+    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
+
+
+def test_ws_rejects_invalid_token(client: TestClient) -> None:
+    """An incorrect access_token must be rejected, not just a missing one."""
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(
+            "/ws?session_id=123&access_token=wrong-token"
+        ):
+            raise AssertionError(
+                "Should not be able to connect with an invalid token"
+            )
 
     assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"

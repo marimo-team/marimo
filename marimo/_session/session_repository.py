@@ -48,7 +48,7 @@ class SessionRepository:
     def get_by_consumer_id(self, consumer_id: ConsumerId) -> Session | None:
         """Find a session by consumer ID (for kiosk mode)."""
         for session in self._sessions.values():
-            if consumer_id in session.consumers.values():
+            if session.room.get_consumer(consumer_id) is not None:
                 return session
         return None
 

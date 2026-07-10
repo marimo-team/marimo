@@ -30,13 +30,11 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 
 if TYPE_CHECKING:
     import pandas as pd
+    from pandas._typing import DtypeObj
 
     from marimo._plugins.ui._impl.table import SortArgs
 
 LOGGER = _loggers.marimo_logger()
-
-if TYPE_CHECKING:
-    from pandas._typing import DtypeObj
 
 
 def _trivial_range_index(index: pd.Index) -> bool:
@@ -46,9 +44,61 @@ def _trivial_range_index(index: pd.Index) -> bool:
     return isinstance(index, pd.RangeIndex) and index.name is None
 
 
-def _resolve_index_name(name: object, columns: set[str]) -> str:
-    """Return a non-conflicting index name by appending '_index' if needed."""
-    return f"{name}_index" if name in columns else str(name)
+def _flatten_non_trivial_index(df: pd.DataFrame) -> pd.DataFrame:
+    """Turn a MultiIndex or named index into regular columns.
+
+    An unnamed default RangeIndex (0, 1, 2, ...) is left untouched. Each level
+    of a MultiIndex or named index becomes its own column, named via
+    `_index_level_names`.
+    """
+    import pandas as pd
+
+    is_multi_index = isinstance(df.index, pd.MultiIndex)
+    is_non_trivial_index = isinstance(
+        df.index, pd.Index
+    ) and not _trivial_range_index(df.index)
+
+    if not is_multi_index and not is_non_trivial_index:
+        return df
+
+    names = _index_level_names(df.index, set(df.columns))
+    return df.rename_axis(names).reset_index()
+
+
+def _rename_index_levels(index: pd.Index, names: list[str]) -> pd.Index:
+    """Return `index` with its levels renamed to `names`, in level order."""
+    import pandas as pd
+
+    if isinstance(index, pd.MultiIndex):
+        return index.set_names(names)
+    return index.rename(names[0])
+
+
+def _resolve_index_name(name: object, used: set[str]) -> str:
+    """Return a name absent from `used`, appending '_index' until unique."""
+    resolved = str(name)
+    while resolved in used:
+        resolved = f"{resolved}_index"
+    return resolved
+
+
+def _index_level_names(index: pd.Index, columns: set[str]) -> list[str]:
+    """Column name for each index level, in level order.
+
+    Unnamed levels are numbered `Index0`, `Index1`, ... Names colliding with
+    `columns` or with an earlier level get an `_index` suffix until unique.
+    """
+    unnamed_count = 0
+    used = set(columns)
+    names: list[str] = []
+    for name in index.names:
+        if name is None:
+            name = f"Index{unnamed_count}"
+            unnamed_count += 1
+        resolved = _resolve_index_name(name, used)
+        used.add(resolved)
+        names.append(resolved)
+    return names
 
 
 def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
@@ -57,8 +107,6 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     Avoids 'ValueError: cannot insert x, already exists' on reset_index().
     Modifies the DataFrame in-place and returns it.
     """
-    import pandas as pd
-
     index_names = df.index.names
     conflicting_names = set(index_names) & set(df.columns)
     if not conflicting_names:
@@ -67,11 +115,7 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     columns = set(df.columns)
     new_names = [_resolve_index_name(name, columns) for name in index_names]
 
-    if isinstance(df.index, pd.MultiIndex):
-        df.index = df.index.set_names(new_names)
-    else:
-        df.index = df.index.rename(new_names[0])
-
+    df.index = _rename_index_levels(df.index, new_names)
     return df
 
 
@@ -264,44 +308,15 @@ class PandasTableManagerFactory(TableManagerFactory):
                         "Error handling complex or timedelta64 dtype",
                         exc_info=e,
                     )
+                    result = _flatten_non_trivial_index(result)
+
                     return sanitize_json_bigint(
                         to_json(result), ensure_ascii=ensure_ascii
                     )
 
-                # Flatten row multi-index
-                # Reset index if it's a MultiIndex or a named Index
-                # (including named RangeIndex, which pandas 3.0 uses for sequential integers)
-                # Only skip reset for unnamed default RangeIndex (0, 1, 2, ...)
-                if isinstance(result.index, pd.MultiIndex) or (
-                    isinstance(result.index, pd.Index)
-                    and not _trivial_range_index(result.index)
-                ):
-                    unnamed_indexes = any(
-                        idx is None for idx in result.index.names
-                    )
-
-                    index_levels = result.index.nlevels
-
-                    _resolve_index_column_conflicts(result)
-                    index_names = result.index.names
-
-                    result = result.reset_index()
-
-                    if unnamed_indexes:
-                        # After reset_index, the index is converted to a column
-                        # We need to rename the new columns to empty strings
-                        # And it must be unique for each column
-                        # TODO: On the frontend this still displays the original index, not the renamed one
-                        empty_name = ""
-                        for i, idx_name in enumerate(index_names):
-                            if idx_name is None:
-                                result.columns.values[i] = empty_name
-                                empty_name += " "
-
-                        if index_levels > 1:
-                            LOGGER.warning(
-                                "Indexes with more than one level are not well supported, call reset_index() or use mo.plain(df)"
-                            )
+                # Flatten row multi-index / named index into columns so it is
+                # serialized alongside the data.
+                result = _flatten_non_trivial_index(result)
 
                 return sanitize_json_bigint(
                     to_json(result), ensure_ascii=ensure_ascii
@@ -405,16 +420,15 @@ class PandasTableManagerFactory(TableManagerFactory):
             # We override the default implementation to use pandas
             # headers
             def get_row_headers(self) -> FieldTypes:
-                headers = self._get_row_headers_for_index(
+                return self._get_row_headers_for_index(
                     self._original_data.index
                 )
-                # Rename headers that collide with column names so the
-                # frontend receives names consistent with to_json_str().
-                columns = set(self._original_data.columns)
-                return [
-                    (_resolve_index_name(name, columns), ft)
-                    for name, ft in headers
-                ]
+
+            def with_index_as_columns(self) -> PandasTableManager:
+                flattened = _flatten_non_trivial_index(self._original_data)
+                if flattened is self._original_data:
+                    return self
+                return PandasTableManager(flattened)
 
             def _has_non_trivial_index(self) -> bool:
                 """Check if the DataFrame has a non-trivial index that should be searched."""
@@ -463,20 +477,23 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if _trivial_range_index(index):
                     return []
 
+                # Names are shared with the chart-data flatten path so the
+                # offered fields match the serialized columns exactly.
+                names = _index_level_names(
+                    index, set(self._original_data.columns)
+                )
                 if isinstance(index, pd.MultiIndex):
-                    # recurse
-                    headers: FieldTypes = []
-                    for i in range(index.nlevels):
-                        headers.extend(
-                            self._get_row_headers_for_index(
-                                index.get_level_values(i)
-                            )
+                    return [
+                        (
+                            name,
+                            self._map_dtype_to_field_type(
+                                index.get_level_values(i).dtype
+                            ),
                         )
-                    return headers
+                        for i, name in enumerate(names)
+                    ]
 
-                dtype = index.dtype
-                field_type = self._map_dtype_to_field_type(dtype)
-                return [(str(index.name or ""), field_type)]
+                return [(names[0], self._map_dtype_to_field_type(index.dtype))]
 
             # We override the default implementation to use pandas's
             # internal fields since they get displayed in the UI.

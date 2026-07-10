@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._messaging.notebook.changes import Transaction
+from marimo._messaging.notebook.reconcile import reconcile_transaction
 from marimo._messaging.notification import (
     NotebookDocumentTransactionNotification,
 )
@@ -53,7 +54,8 @@ async def document_transaction(request: Request) -> BaseResponse:
     session = app_state.require_current_session()
     session_id = app_state.require_current_session_id()
 
-    transaction = Transaction(changes=tuple(body.changes), source="frontend")
+    sanitized = reconcile_transaction(tuple(body.changes), session.document)
+    transaction = Transaction(changes=sanitized, source="frontend")
     applied = session.document.apply(transaction)
     session.notify(
         NotebookDocumentTransactionNotification(transaction=applied),

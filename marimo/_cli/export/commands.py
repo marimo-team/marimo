@@ -407,7 +407,7 @@ Watch for changes and regenerate the script on modification:
 )
 @click.option(
     "--flavor",
-    type=click.Choice(["pymdown", "qmd", "mystmd"]),
+    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
     default=None,
     help="Markdown flavor to export.",
 )
@@ -1004,6 +1004,7 @@ def html_wasm(
                     show_code=show_code,
                     cli_args=cli_args,
                     argv=list(args),
+                    cache_export_dir=out_dir,
                 )
             )
 
@@ -1042,9 +1043,9 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    return watch_and_export(
-        MarimoPath(name), outfile, watch, export_callback, force
-    )
+    # NB. with --execute, the callback also bundles session caches into the
+    # export's public/cache/.
+    watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
 
 
 export.add_command(html)

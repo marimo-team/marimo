@@ -253,6 +253,8 @@ class DependencyManager:
         "pydantic_ai", pkg_name_to_install="pydantic-ai-slim"
     )
     pydantic = Dependency("pydantic")
+    duckduckgo_search = Dependency("ddgs")  # For web search
+    markdownify = Dependency("markdownify")  # For web fetch
     zmq = Dependency("zmq")  # pyzmq for sandbox IPC kernels
     torch = Dependency("torch")
     flax = Dependency("flax")
@@ -261,6 +263,7 @@ class DependencyManager:
     obstore = Dependency("obstore")
     fsspec = Dependency("fsspec")
     cloudpathlib = Dependency("cloudpathlib")
+    cryptography = Dependency("cryptography")
 
     # Version requirements to properly support the new superfences introduced in
     # pymdown#2470

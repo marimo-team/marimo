@@ -8,7 +8,7 @@ from starlette.background import BackgroundTask
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
-from marimo._config.config import PartialMarimoConfig
+from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._messaging.notification import MissingPackageAlertNotification
@@ -16,7 +16,10 @@ from marimo._runtime.commands import UpdateUserConfigCommand
 from marimo._runtime.packages.utils import is_python_isolated
 from marimo._server.ai.mcp.config import is_mcp_config_empty
 from marimo._server.api.deps import AppState
-from marimo._server.api.utils import parse_request
+from marimo._server.api.utils import (
+    enforce_consumer_capability,
+    parse_request,
+)
 from marimo._server.lsp import any_lsp_server_running
 from marimo._server.models.models import (
     SaveUserConfigurationRequest,
@@ -68,6 +71,13 @@ async def save_user_config(
     body = await parse_request(
         request, cls=SaveUserConfigurationRequest, allow_unknown_keys=True
     )
+    # Refuse read-only connections before writing anything to disk.
+    if session is not None:
+        enforce_consumer_capability(
+            app_state,
+            UpdateUserConfigCommand(cast(MarimoConfig, body.config)),
+        )
+
     # TODO: we may want to validate deep-partial here, but validating with PartialMarimoConfig it too strict
     # so we just cast to PartialMarimoConfig
     config = app_state.config_manager.save_config(

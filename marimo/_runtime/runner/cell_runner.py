@@ -29,6 +29,7 @@ from marimo._runtime.exceptions import (
     unwrap_user_exception,
 )
 from marimo._runtime.executor import (
+    DebuggerLifecycle,
     Evaluator,
     ExecutionLifecycle,
     StrictLifecycle,
@@ -174,6 +175,22 @@ class Runner:
                         user_config.get("runtime", {}).get("pin_modules", True)
                     ),
                 )
+            )
+        # Live debugger and line-timing highlight share one frame-watching
+        # lifecycle (a single `sys.settrace` hook). Gated here so there is
+        # zero tracing overhead when disabled.
+        experimental = (
+            self.user_config.get("experimental", {})
+            if self.user_config is not None
+            else {}
+        )
+        debugger_on = self.debugger is not None and bool(
+            experimental.get("debugger", False)
+        )
+        line_timing_on = bool(experimental.get("line_timing", False))
+        if debugger_on or line_timing_on:
+            lifecycles.append(
+                DebuggerLifecycle(self.debugger if debugger_on else None)
             )
         self._evaluator = Evaluator(
             executor=resolve_executor(), lifecycles=lifecycles

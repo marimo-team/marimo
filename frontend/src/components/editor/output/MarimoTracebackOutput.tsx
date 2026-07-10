@@ -24,8 +24,10 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { getCellEditorView } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { SCRATCH_CELL_ID } from "@/core/cells/ids";
+import { toggleBreakpoint } from "@/core/codemirror/cells/debugger-state";
 import { insertDebuggerAtLine } from "@/core/codemirror/editing/debugging";
 import { aiFeaturesEnabledAtom } from "@/core/config/config";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { getRequestClient } from "@/core/network/requests";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isWasm } from "@/core/wasm/utils";
@@ -42,7 +44,7 @@ import {
   getTracebackInfo,
 } from "@/utils/traceback";
 import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
-import { AIFixButton, buildFixPromptFromText } from "../errors/auto-fix";
+import { AIFixButton, buildFixInChatPrompt } from "../errors/auto-fix";
 import { MangledSegments } from "../errors/mangled-local-chip";
 import { CellLinkTraceback } from "../links/cell-link";
 import type { OnRefactorWithAI } from "../Output";
@@ -101,7 +103,7 @@ export const MarimoTracebackOutput = ({
 
   const openAISidebar = () => {
     openAiAssistant({
-      prompt: buildFixPromptFromText(lastTracebackLine, cellId),
+      prompt: buildFixInChatPrompt(cellId, lastTracebackLine),
     });
   };
 
@@ -212,7 +214,14 @@ function lastLine(text: string): string {
 export const replaceTracebackFilenames = (domNode: DOMNode) => {
   const info = getTracebackInfo(domNode);
   if (info?.kind === "cell") {
-    const tooltipContent = <InsertBreakpointContent />;
+    // With the live debugger enabled, toggle a real gutter breakpoint
+    // instead of mutating the user's code with a `breakpoint()` statement.
+    const debuggerEnabled = getFeatureFlag("debugger");
+    const tooltipContent = debuggerEnabled ? (
+      <ToggleBreakpointContent />
+    ) : (
+      <InsertBreakpointContent />
+    );
     return (
       <span className="nb">
         <span className="inline-flex items-center">
@@ -228,6 +237,10 @@ export const replaceTracebackFilenames = (domNode: DOMNode) => {
               >
                 <BugPlayIcon
                   onClick={() => {
+                    if (debuggerEnabled && !isStaticNotebook()) {
+                      toggleBreakpoint(info.cellId, info.lineNumber);
+                      return;
+                    }
                     const view = getCellEditorView(info.cellId);
                     if (view) {
                       insertDebuggerAtLine(view, info.lineNumber);
@@ -293,4 +306,8 @@ const InsertBreakpointContent = () => {
       Insert a <Kbd className="inline">breakpoint()</Kbd> at this line
     </>
   );
+};
+
+const ToggleBreakpointContent = () => {
+  return <>Toggle a breakpoint at this line</>;
 };

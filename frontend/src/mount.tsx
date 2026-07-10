@@ -54,8 +54,8 @@ import { notebookFileStore } from "./core/wasm/store";
 import { WebSocketState } from "./core/websocket/types";
 import {
   handleWidgetMessage,
-  MODEL_MANAGER,
-} from "./plugins/impl/anywidget/model";
+  WIDGET_REGISTRY,
+} from "./plugins/impl/anywidget/registry";
 import { vegaLoader } from "./plugins/impl/vega/loader";
 import { initializePlugins } from "./plugins/plugins";
 import { ThemeProvider } from "./theme/ThemeProvider";
@@ -369,7 +369,7 @@ function hydrateStaticModels(): void {
     return;
   }
   for (const notification of notifications) {
-    handleWidgetMessage(MODEL_MANAGER, notification);
+    handleWidgetMessage(WIDGET_REGISTRY, notification);
   }
 }
 

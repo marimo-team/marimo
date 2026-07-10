@@ -13,8 +13,8 @@ if typing.TYPE_CHECKING:
     from marimo._messaging.types import KernelMessage
     from marimo._runtime.commands import (
         BatchableCommand,
-        CodeCompletionCommand,
         CommandMessage,
+        OutOfBandCommand,
     )
     from marimo._session.queue import QueueType
 
@@ -48,8 +48,8 @@ class QueueManager:
         return self.conn.ui_element.queue
 
     @property
-    def completion_queue(self) -> QueueType[CodeCompletionCommand]:
-        """Queue for code completion requests."""
+    def completion_queue(self) -> QueueType[OutOfBandCommand]:
+        """Queue for off-main-loop commands (completions + breakpoints)."""
         return self.conn.completion.queue
 
     @property

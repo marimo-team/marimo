@@ -45,6 +45,7 @@ export const MockRequestClient = {
       openFile: vi.fn().mockResolvedValue({}),
       getUsageStats: vi.fn().mockResolvedValue({}),
       sendPdb: vi.fn().mockResolvedValue({}),
+      sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
       sendSearchFiles: vi
         .fn()

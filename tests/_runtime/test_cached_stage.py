@@ -127,10 +127,15 @@ class TestCachedLifecyclePreflight:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """When a consumer's transitive ref resolves to an UnhashableStub in
-        scope, pre-flight marks the producers as stale (so it re-runs live
-        rather than re-hitting the same unusable value) and raises
+        scope, pre-flight marks the producer stale (so it re-runs live rather
+        than re-hitting the same unusable value) and raises
         MarimoRescheduleError with cells_to_rerun populated, so run_all can
         requeue the producer (plus this cell).
+
+        Invalidation marks the manifest stale but must NOT destroy it: the
+        producer's entry is not corrupt, it merely restored as a stub in this
+        environment (e.g. an optional dep is absent). Destroying it would lose a
+        recoverable hit if the producer's live rerun also fails.
         """
         from unittest.mock import MagicMock
 
@@ -141,9 +146,6 @@ class TestCachedLifecyclePreflight:
         producer_manifest = "lazy/E_producer.jsonl"
         life._restored_keys["producer"] = producer_manifest
 
-        # Invalidation both clears the store entry (for on-disk/in-memory
-        # stores) and marks it stale (so the lazy WASM store can't re-fetch
-        # and re-hit the same value over HTTP).
         stale_calls: list[str] = []
         clear_calls: list[str] = []
         monkeypatch.setattr(
@@ -162,7 +164,9 @@ class TestCachedLifecyclePreflight:
             life._preflight_refs(cell, glbls)  # type: ignore[arg-type]
 
         assert stale_calls == [producer_manifest]
-        assert clear_calls == [producer_manifest]
+        # The producer's cache entry is preserved (not cleared) so a rerun that
+        # itself fails leaves the recoverable hit intact.
+        assert clear_calls == []
         assert {"producer", "consumer"} <= ei.value.cells_to_rerun
 
     def test_persistent_stub_producer_not_requeued_twice(self) -> None:
@@ -366,6 +370,14 @@ class TestCachedLifecycleIntegration:
         differs and misses, B's pre-flight sees the stub in its refs →
         invalidates A and requeues. A re-runs with the real lambda; B
         retries; `g == 15`.
+
+        A bare lambda is `__main__`/`builtins.function` — not a marimo-owned
+        stub — so the consumer routes it through the execution path and cannot
+        reproduce the producer's key from the stub alone. Reschedule-recovery
+        is the correct outcome here (the lambda is reconstructable by re-running
+        A). The marimo-owned unpicklable case (a `persistent_cache` wrapper) is
+        instead dequeued to zero contribution in `hash.py`, so its consumers
+        stay content-addressed and hit without a reschedule.
         """
         k = caching_kernel.k
         producer = exec_req.get(code="f = lambda x: x + 10")
@@ -386,6 +398,49 @@ class TestCachedLifecycleIntegration:
         assert callable(k.globals["f"])
         assert not isinstance(k.globals["f"], UnhashableStub)
         assert not isinstance(k.globals["g"], UnhashableStub)
+
+    @requires_stub_loader
+    async def test_serializable_sibling_ref_does_not_drag_producer_live(
+        self,
+        caching_kernel: MockedKernel,
+        exec_req: ExecReqProvider,
+        tracked_loaders: list[LazyLoader],
+    ) -> None:
+        """A producer defines a serializable value alongside an unpicklable one;
+        a consumer that references ONLY the serializable value must not force the
+        producer to re-run live.
+
+        This is the invariant behind the KANNS export fix: split the UI labels
+        (serializable strings) out from the callables (lambdas) so the UI cell
+        references the labels. On restore the labels come back as a real value —
+        no stub in the consumer's refs — so pre-flight never reschedules the
+        producer, and its unpicklable def stays an inert stub. Proof that the
+        producer was NOT dragged live: `fns` remains an UnhashableStub.
+        """
+        k = caching_kernel.k
+        producer = exec_req.get(
+            code="labels = ['a', 'b']; fns = [lambda: 1, lambda: 2]"
+        )
+        consumer = exec_req.get(code="n = len(labels)")
+
+        await k.run([producer, consumer])
+        assert k.globals["n"] == 2
+
+        for loader in tracked_loaders:
+            loader.flush()
+
+        # Simulate fresh session.
+        k.globals.pop("labels", None)
+        k.globals.pop("fns", None)
+        k.globals.pop("n", None)
+
+        await k.run([producer, consumer])
+        # Consumer still resolves from the serializable sibling.
+        assert k.globals["n"] == 2
+        # Producer was skipped (hit) and NOT rescheduled live: its unpicklable
+        # def is still the inert stub, and its serializable def is a real list.
+        assert isinstance(k.globals.get("fns"), UnhashableStub)
+        assert k.globals.get("labels") == ["a", "b"]
 
 
 # ---------------------------------------------------------------------------

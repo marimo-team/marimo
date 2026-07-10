@@ -29,10 +29,18 @@ class CacheType(Enum):
     UNKNOWN = "Unknown"
 
 
-class Item(msgspec.Struct):
+class Item(msgspec.Struct, omit_defaults=True):
     """Represents a cached item with different value types.
 
     Only one of the value fields should be set (oneof semantics).
+
+    `omit_defaults` keeps the encoded manifest — and therefore the signature
+    computed over it — stable when a new optional field (default `None`/
+    empty) is added: an entry that doesn't set the field encodes identically
+    before and after the field exists.  Any change that is *not* purely
+    additive-with-an-absent-default (reordering, renaming, changing a default,
+    adding a required field) alters the signable bytes and MUST bump
+    `MARIMO_CACHE_VERSION`.
     """
 
     primitive: Any | None = None
@@ -42,8 +50,9 @@ class Item(msgspec.Struct):
     # `from typing import Optional` or `from os.path import join`. Stored
     # inline so trivial imported references never get their own blob on disk.
     import_ref: tuple[str, str] | None = None
-    # (code, filename, linenumber)
-    function: tuple[str, str, int] | None = None
+    # (code, filename, lineno, is_cached); is_cached marks an @mo.cache /
+    # @mo.persistent_cache wrapper (see `FunctionStub`).
+    function: tuple[str, str, int, bool] | None = None
     # (code, qualname) — cell-defined class source. Materialized into the
     # cell namespace (and __main__) before pickle blobs deserialize, so
     # __main__-qualified instances can resolve their type.
@@ -59,6 +68,11 @@ class Item(msgspec.Struct):
     unserializable_type: str | None = None
     # Pinned version of a `module` def, captured at cache time.
     module_version: str | None = None
+    # Non-finite float token ("nan"/"inf"/"-inf"), stored inline rather than via
+    # `primitive`: msgspec encodes non-finite floats as JSON `null`, which both
+    # corrupts the value and breaks signature verification (the re-encoded
+    # manifest drops the null field).
+    special_float: str | None = None
 
     def __post_init__(self) -> None:
         fields_set = sum(
@@ -71,6 +85,7 @@ class Item(msgspec.Struct):
                 self.function,
                 self.class_def,
                 self.unserializable_type,
+                self.special_float,
             ]
             if field is not None
         )
@@ -78,12 +93,24 @@ class Item(msgspec.Struct):
             raise ValueError("Item can only have one value field set")
 
 
-class Meta(msgspec.Struct):
+class Meta(msgspec.Struct, omit_defaults=True):
     version: int
     return_value: Item | None = None
+    # Maps each blob store-key to its SHA-256 hex digest.  Covered by the
+    # Ed25519 signature (which is computed over the manifest with the
+    # signature field cleared), so blob hashes are implicitly authenticated.
+    blob_hashes: dict[str, str] = msgspec.field(default_factory=dict)
+    # PEM-encoded Ed25519 public key of the signer.  Included in the signed
+    # bytes (NOT stripped by _signable_bytes), so an attacker cannot swap
+    # the claimed key without invalidating the signature.
+    signer_public_key: str | None = None
+    # --- Envelope field (stripped before signing) ---
+    # Base64url-encoded Ed25519 signature over _signable_bytes() of this
+    # manifest (signature=None). None means the entry is unsigned.
+    signature: str | None = None
 
 
-class Cache(msgspec.Struct):
+class Cache(msgspec.Struct, omit_defaults=True):
     hash: str
     cache_type: CacheType
     defs: dict[str, Item]
@@ -333,7 +360,7 @@ class UnhashableStub(CustomStub):
 
     __marimo_unhashable__ = True
 
-    __slots__ = ("error_msg", "type_name", "var_name")
+    __slots__ = ("content_hash", "error_msg", "type_name", "var_name")
 
     def __init__(
         self,
@@ -341,8 +368,13 @@ class UnhashableStub(CustomStub):
         var_name: str = "",
         error_msg: str = "",
         type_name: str | None = None,
+        content_hash: str = "",
     ) -> None:
         self.var_name = var_name
+        # Hex content digest, persisted for data primitives. Lets a consumer
+        # reproduce its cache key without materializing the value — the hasher
+        # replays it. Empty for non-data defs, which route by graph provenance.
+        self.content_hash = content_hash
         if type_name is not None:
             # Explicit fq name — used when rebuilding from a manifest marker,
             # where the original value object is no longer available.
@@ -391,7 +423,8 @@ class UnhashableStub(CustomStub):
     def __repr__(self) -> str:
         return (
             f"<UnhashableStub var_name={self.var_name!r} "
-            f"type={self.type_name!r}>"
+            f"type={self.type_name!r} "
+            f"content_hash={self.content_hash!r}>"
         )
 
     @staticmethod

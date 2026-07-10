@@ -23,6 +23,7 @@ from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._server.models.models import InstantiateNotebookRequest
+from marimo._server.sse import format_sse_event
 from marimo._session.extensions.types import EventAwareExtension
 
 if TYPE_CHECKING:
@@ -72,7 +73,7 @@ class Done(TypedDict):
 
 def _format_sse(event: str, data: Any) -> str:
     """Format a single SSE event (event + JSON data)."""
-    return f"event: {event}\ndata: {json.dumps(data)}\n\n"
+    return format_sse_event(json.dumps(data), event=event)
 
 
 # -- Listeners ----------------------------------------------------------------

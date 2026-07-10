@@ -21,6 +21,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EsmSpec,
     InstallingPackageAlertNotification,
     ModelClose,
     ModelCustom,
@@ -426,6 +427,56 @@ class TestModelReplayState:
             ModelUpdate(state={"b": 99, "c": 3}, buffer_paths=[], buffers=[])
         )
         assert view.state == {"a": 1, "b": 99, "c": 3}
+
+    def test_esm_spec_round_trips(self) -> None:
+        """Late joiners must receive the spec from the original open."""
+        spec = EsmSpec(url="./@file/10-w.js", hash="abc123")
+        view = ModelReplayState.from_open(
+            WidgetModelId("m"),
+            ModelOpen(
+                state={"count": 1},
+                buffer_paths=[],
+                buffers=[],
+                esm_spec=spec,
+            ),
+        )
+        assert view.esm_spec == spec
+        assert view.to_notification().message.esm_spec == spec
+
+    def test_apply_update_preserves_spec_by_default(self) -> None:
+        """Ordinary state updates carry no spec and must not clear it."""
+        spec = EsmSpec(url="./@file/10-w.js", hash="abc123")
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"count": 1},
+            buffers={},
+            esm_spec=spec,
+        )
+        view.apply_update(
+            ModelUpdate(state={"count": 2}, buffer_paths=[], buffers=[])
+        )
+        assert view.esm_spec == spec
+
+    def test_apply_update_with_spec_replaces_it(self) -> None:
+        """A spec on an update is an edit-mode hot reload; late joiners
+        must replay the new code, not the original open's."""
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={},
+            buffers={},
+            esm_spec=EsmSpec(url="./@file/10-old.js", hash="old"),
+        )
+        new_spec = EsmSpec(url="./@file/10-new.js", hash="new")
+        view.apply_update(
+            ModelUpdate(
+                state={},
+                buffer_paths=[],
+                buffers=[],
+                esm_spec=new_spec,
+            )
+        )
+        assert view.esm_spec == new_spec
+        assert view.to_notification().message.esm_spec == new_spec
 
     def test_apply_update_replaces_buffer_for_updated_key(self) -> None:
         view = ModelReplayState(

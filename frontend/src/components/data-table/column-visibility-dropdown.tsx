@@ -59,6 +59,12 @@ export const ColumnVisibilityDropdown = <TData,>({
   const hiddenIds = userColumns
     .filter((column) => !column.getIsVisible())
     .map((column) => column.id);
+  const hideableIds = userColumns
+    .filter((column) => column.getCanHide())
+    .map((column) => column.id);
+  const visibleHideableCount = hideableIds.filter(
+    (id) => !hiddenIds.includes(id),
+  ).length;
 
   const applyHidden = (next: string[] | string | null) => {
     const hidden = new Set(Array.isArray(next) ? next : []);
@@ -126,6 +132,15 @@ export const ColumnVisibilityDropdown = <TData,>({
                 >
                   <EyeIcon className="w-3 h-3 mr-1.5" />
                   Show all
+                </CommandItem>
+                <CommandItem
+                  value="__hide_all__"
+                  disabled={visibleHideableCount === 0}
+                  onSelect={() => applyHidden(hideableIds)}
+                  className="cursor-pointer"
+                >
+                  <EyeOffIcon className="w-3 h-3 mr-1.5" />
+                  Hide all
                 </CommandItem>
                 <CommandSeparator />
               </>

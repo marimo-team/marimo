@@ -129,6 +129,23 @@ def _normalize_html_path(html: str, temp_file: str) -> str:
     return html.replace(dirname, "path")
 
 
+async def _wait_for_file(file: str, timeout: float = 10.0) -> None:
+    """Poll until `file` exists, up to `timeout` seconds.
+
+    Logging "Re-exporting" and finishing the write to disk are separate
+    steps, so a fixed sleep between them is a race on slow CI runners.
+    Poll instead of assuming the write has landed.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if await async_path.exists(file):
+            return
+        await asyncio.sleep(0.05)
+    assert await async_path.exists(file), (
+        f"{file} was not created within {timeout}s"
+    )
+
+
 class TestExportHTML:
     @staticmethod
     def test_cli_export_html(temp_marimo_file: str) -> None:
@@ -650,8 +667,7 @@ class TestExportScript:
                 assert "Re-exporting" in line
                 break
 
-        await asyncio.sleep(0.1)
-        assert await async_path.exists(temp_out_file)
+        await _wait_for_file(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -709,6 +725,14 @@ class TestExportMarkdown:
         assert "```{marimo .python" in p.output
 
     @staticmethod
+    def test_export_markdown_with_mdx_flavor(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "mdx")
+        _assert_success(p)
+        assert "```python marimo" in p.output
+
+    @staticmethod
     def test_export_markdown_infers_qmd_from_output(
         temp_marimo_file: str, tmp_path: Path
     ) -> None:
@@ -732,6 +756,17 @@ class TestExportMarkdown:
 
         _assert_success(p)
         assert "```{marimo} python" in output.read_text()
+
+    @staticmethod
+    def test_export_markdown_infers_mdx_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.mdx"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        assert "```python marimo" in output.read_text()
 
     @staticmethod
     def test_export_markdown_stdout_uses_default_flavor(
@@ -826,8 +861,7 @@ class TestExportMarkdown:
                 assert "Re-exporting" in line
                 break
 
-        await asyncio.sleep(0.1)
-        assert await async_path.exists(temp_out_file)
+        await _wait_for_file(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),

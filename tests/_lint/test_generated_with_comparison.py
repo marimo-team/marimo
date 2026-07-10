@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 
-from marimo._lint.linter import contents_differ_excluding_generated_with
+from marimo._utils.generated_with import (
+    contents_differ_excluding_generated_with,
+)
 
 
 def test_contents_differ_excluding_generated_with():

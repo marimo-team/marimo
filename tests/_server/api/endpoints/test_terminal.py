@@ -34,6 +34,14 @@ is_mac = sys.platform == "darwin"
 
 
 @pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.skipif(
+    is_mac,
+    reason=(
+        "pty.fork() is unsafe on macOS when mixed with higher-level system "
+        "APIs and segfaults intermittently under the multi-threaded test "
+        "client; see https://docs.python.org/3/library/pty.html"
+    ),
+)
 def test_terminal_ws(client: TestClient) -> None:
     with client.websocket_connect(TERMINAL_WS_URL) as websocket:
         # Send echo message
@@ -482,6 +490,14 @@ class TestCommandBufferEdgeCases:
 
 
 @pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.skipif(
+    is_mac,
+    reason=(
+        "pty.fork() is unsafe on macOS when mixed with higher-level system "
+        "APIs and segfaults intermittently under the multi-threaded test "
+        "client; see https://docs.python.org/3/library/pty.html"
+    ),
+)
 def test_terminal_ws_unicode_input(client: TestClient) -> None:
     """Test terminal websocket with unicode input."""
     with client.websocket_connect(TERMINAL_WS_URL) as websocket:
