@@ -154,6 +154,51 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("getSseURL", () => {
+    it("should return an http(s) URL with the session ID", () => {
+      const runtime = new RuntimeManager(mockConfig);
+      const url = runtime.getSseURL("1234" as SessionId);
+
+      expect(url.protocol).toBe("https:");
+      expect(url.pathname).toBe("/sse");
+      expect(url.searchParams.get("session_id")).toBe("1234");
+    });
+
+    it("should never put the auth token in the URL, even cross-origin", () => {
+      // SSE requests can send headers, so auth travels in the
+      // Authorization header; a token in the URL would leak into
+      // proxy and server logs.
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getSseURL("s_123" as SessionId);
+
+      expect(url.searchParams.get("access_token")).toBeNull();
+      expect(url.toString()).not.toContain("my-secret-token");
+    });
+
+    it("should strip an access_token forwarded from the page URL", () => {
+      // The page URL can briefly carry access_token before auth cleanup
+      // removes it; it must not be forwarded to /sse.
+      const original = window.location.href;
+      window.history.pushState({}, "", "/?access_token=page-token&foo=bar");
+      try {
+        const runtime = new RuntimeManager(mockConfig);
+        const url = runtime.getSseURL("s_123" as SessionId);
+
+        expect(url.searchParams.get("access_token")).toBeNull();
+        expect(url.searchParams.get("foo")).toBe("bar");
+      } finally {
+        window.history.pushState({}, "", original);
+      }
+    });
+  });
+
   describe("getWsSyncURL", () => {
     it("should return WebSocket Sync URL", () => {
       const runtime = new RuntimeManager(mockConfig);

@@ -329,12 +329,24 @@ class ProjectConfigManager(PartialMarimoConfigReader):
 
 class EnvConfigManager(PartialMarimoConfigReader):
     def _maybe_override_from_env(
-        self, key: str, path: list[str], config: PartialMarimoConfig
+        self,
+        key: str,
+        path: list[str],
+        config: PartialMarimoConfig,
+        allowed_values: tuple[Any, ...] | None = None,
     ) -> None:
         loaded_value = env_to_value(key)
         if not isinstance(loaded_value, tuple):
             return
         value = loaded_value[0]
+        if allowed_values is not None and value not in allowed_values:
+            LOGGER.warning(
+                "Ignoring invalid value %r for %s; expected one of %s",
+                value,
+                key,
+                ", ".join(map(repr, allowed_values)),
+            )
+            return
 
         current = cast(dict[str, Any], config)
         for p in path[:-1]:
@@ -353,6 +365,12 @@ class EnvConfigManager(PartialMarimoConfigReader):
             "_MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE",
             ["runtime", "auto_instantiate"],
             project_config,
+        )
+        self._maybe_override_from_env(
+            "MARIMO_SERVER_TRANSPORT",
+            ["server", "transport"],
+            project_config,
+            allowed_values=("websocket", "sse"),
         )
         if hide_secrets:
             return mask_secrets_partial(project_config)

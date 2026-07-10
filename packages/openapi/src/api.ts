@@ -6307,11 +6307,21 @@ export interface components {
      *             inside its static assets directory.
      *         - `disable_file_downloads`: if true, the file download button will be
      *             hidden in the file explorer.
+     *         - `transport`: experimental. The transport used to stream kernel
+     *             messages to the frontend, typically set with the
+     *             `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
+     *             (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
+     *             server-sent events over HTTP, for deployments behind proxies or
+     *             services that do not support WebSockets. Terminal, LSP, and
+     *             real-time collaboration still require WebSockets; RTC is disabled
+     *             when using `"sse"`.
      */
     ServerConfig: {
       browser: "default" | string;
       disable_file_downloads?: boolean;
       follow_symlink: boolean;
+      /** @enum {unknown} */
+      transport?: "sse" | "websocket";
     };
     /** Format: session-id */
     SessionId: TypedString<"SessionId">;

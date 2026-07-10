@@ -39,6 +39,7 @@ from marimo._server.models.models import (
     UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
+from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
@@ -345,15 +346,8 @@ async def execute_code(
 
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
-        while True:
-            # request._receive is the ASGI `receive` callable. Although
-            # it's a private Starlette attribute, it's the standard way to
-            # detect disconnects and doesn't race with StreamingResponse
-            # (which only writes to the send channel, never reads receive).
-            message = await request._receive()
-            if message.get("type") == "http.disconnect":
-                session.try_interrupt()
-                return
+        await wait_for_http_disconnect(request)
+        session.try_interrupt()
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         disconnect_task = asyncio.create_task(_watch_disconnect())
@@ -390,6 +384,12 @@ async def execute_code(
                         yield event
 
                 yield build_done_event(session, listener)
+        except asyncio.CancelledError:
+            # On ASGI spec < 2.4, Starlette consumes http.disconnect
+            # itself and cancels this generator before _watch_disconnect
+            # observes it; still interrupt the kernel on the way out.
+            session.try_interrupt()
+            raise
         finally:
             await cancel_and_wait(disconnect_task)
 

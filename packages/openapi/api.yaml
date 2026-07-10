@@ -4679,7 +4679,14 @@ components:
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
         \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer."
+        \ button will be\n        hidden in the file explorer.\n    - `transport`:\
+        \ experimental. The transport used to stream kernel\n        messages to the\
+        \ frontend, typically set with the\n        `MARIMO_SERVER_TRANSPORT` environment\
+        \ variable. `\"websocket\"`\n        (default) uses the `/ws` WebSocket endpoint;\
+        \ `\"sse\"` uses\n        server-sent events over HTTP, for deployments behind\
+        \ proxies or\n        services that do not support WebSockets. Terminal, LSP,\
+        \ and\n        real-time collaboration still require WebSockets; RTC is disabled\n\
+        \        when using `\"sse\"`."
       properties:
         browser:
           anyOf:
@@ -4690,6 +4697,10 @@ components:
           type: boolean
         follow_symlink:
           type: boolean
+        transport:
+          enum:
+          - sse
+          - websocket
       required:
       - browser
       - follow_symlink
