@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { isWidgetModelId, type WidgetModelId } from "./types";
+
 export const WIDGET_REF_PREFIX = "anywidget:";
 
 /**
@@ -14,9 +16,12 @@ export const WIDGET_REF_PREFIX = "anywidget:";
  * using that path resolve children manually via
  * `model.widget_manager.get_model(id)` after stripping the prefix.
  */
-export function parseWidgetRef(ref: unknown): string {
+export function parseWidgetRef(ref: unknown): WidgetModelId {
   if (typeof ref === "string" && ref.startsWith(WIDGET_REF_PREFIX)) {
-    return ref.slice(WIDGET_REF_PREFIX.length);
+    const modelId = ref.slice(WIDGET_REF_PREFIX.length);
+    if (isWidgetModelId(modelId)) {
+      return modelId;
+    }
   }
   throw new Error(
     `[anywidget] Invalid widget reference: ${JSON.stringify(ref)}`,

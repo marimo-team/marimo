@@ -51,9 +51,12 @@ describe("createHost", () => {
    * would: model + ESM spec, with the module load answered by the spy. */
   function registerChild(
     widgetDef: object,
-    state: ModelState = { count: 0 },
+    state?: ModelState,
   ): Model<ModelState> {
-    const childModel = new Model<ModelState>(state, createMockComm());
+    const childModel = new Model<ModelState>(
+      state ?? { count: 0 },
+      createMockComm(),
+    );
     WIDGET_REGISTRY.setModel(modelId, childModel);
     WIDGET_REGISTRY.setSpec(modelId, {
       url: `./@file/10-${modelId}.js`,
@@ -69,13 +72,13 @@ describe("createHost", () => {
       const childModel = new Model<ModelState>({ value: 42 }, createMockComm());
       WIDGET_REGISTRY.setModel(modelId, childModel);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getModel(ref(modelId));
       expect(resolved.get("value")).toBe(42);
     });
 
     it("rejects an invalid ref", async () => {
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       await expect(host.getModel("IPY_MODEL_xyz")).rejects.toThrow(/Invalid/);
     });
 
@@ -83,7 +86,7 @@ describe("createHost", () => {
       const childModel = new Model<ModelState>({ count: 0 }, createMockComm());
       WIDGET_REGISTRY.setModel(modelId, childModel);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getModel(ref(modelId));
 
       const cb = vi.fn();
@@ -108,7 +111,7 @@ describe("createHost", () => {
       };
       registerChild(widgetDef);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getWidget(ref(modelId));
       expect(resolved.exports).toBe(exports);
 
@@ -130,7 +133,7 @@ describe("createHost", () => {
       };
       registerChild(widgetDef);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const widgetPromise = host.getWidget(ref(modelId));
 
       // Until initialize resolves, getWidget should be pending.
@@ -154,7 +157,7 @@ describe("createHost", () => {
       };
       registerChild(widgetDef);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const widgetPromise = host.getWidget(ref(modelId));
       widgetPromise.catch(() => undefined);
       // Let the import resolve and initialize start.
@@ -170,7 +173,7 @@ describe("createHost", () => {
       const childModel = new Model<ModelState>({ count: 0 }, createMockComm());
       WIDGET_REGISTRY.setModel(modelId, childModel);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       await expect(host.getWidget(ref(modelId))).rejects.toThrow(/No ESM spec/);
     });
 
@@ -181,7 +184,7 @@ describe("createHost", () => {
       };
       registerChild(widgetDef);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getWidget(ref(modelId));
 
       await resolved.render({ el: document.createElement("div") });
@@ -200,7 +203,7 @@ describe("createHost", () => {
       };
       registerChild(widgetDef);
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getWidget(ref(modelId));
 
       const childController = new AbortController();
@@ -247,10 +250,11 @@ describe("WidgetBinding receives a host in render props", () => {
         initialize: vi.fn(),
         render: vi.fn(),
       };
-      const parentBinding = await WidgetBinding.create(
-        parentWidget,
-        parentModel,
-      );
+      const parentBinding = await WidgetBinding.create({
+        widgetDef: parentWidget,
+        model: parentModel,
+        createHost: (signal) => createHost(WIDGET_REGISTRY, signal),
+      });
 
       await parentBinding.createView(
         { el: document.createElement("div") },
@@ -295,7 +299,7 @@ describe("host-mounted views hydrate like display-mounted ones", () => {
       });
       getModuleSpy.mockResolvedValue({ default: childWidget });
 
-      const host = createHost(parentController.signal);
+      const host = createHost(WIDGET_REGISTRY, parentController.signal);
       const resolved = await host.getWidget(ref(childId));
 
       const el = document.createElement("div");

@@ -1,20 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
-import type { AnyWidget } from "@anywidget/types";
+import type { AnyWidget, Initialize, Render } from "@anywidget/types";
 import { Logger } from "@/utils/Logger";
 import { hasFunctionProperty, isRecord } from "@/utils/records";
 
-export function isAnyWidgetModule(mod: any): mod is { default: AnyWidget } {
-  if (!mod.default) {
-    return false;
-  }
+function isRenderHook(value: unknown): value is Render {
+  return typeof value === "function";
+}
 
+function isInitializeHook(value: unknown): value is Initialize {
+  return typeof value === "function";
+}
+
+function isWidgetDefinition(
+  value: unknown,
+): value is { render?: Render; initialize?: Initialize } {
   return (
-    typeof mod.default === "function" ||
-    typeof mod.default?.render === "function" ||
-    typeof mod.default?.initialize === "function"
+    isRecord(value) &&
+    (isRenderHook(value.render) || isInitializeHook(value.initialize))
   );
+}
+
+function isAnyWidget(value: unknown): value is AnyWidget {
+  return typeof value === "function" || isWidgetDefinition(value);
+}
+
+export function isAnyWidgetModule(mod: unknown): mod is { default: AnyWidget } {
+  return isRecord(mod) && isAnyWidget(mod.default);
 }
 
 const warnedLegacyNamedExportUrls = new Set<string>();
@@ -28,20 +39,31 @@ const legacyWidgetCache = new WeakMap<object, AnyWidget>();
  * export, otherwise synthesize one from legacy named `render`/`initialize`
  * exports. Returns null if neither is present.
  */
-export function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
+export function resolveAnyWidget(
+  mod: unknown,
+  jsUrl: string,
+): AnyWidget | null {
   if (isAnyWidgetModule(mod)) {
     return mod.default;
+  }
+
+  if (!isRecord(mod)) {
+    return null;
   }
 
   // Only fall back to legacy (pre-AFM) named exports when there is no default
   // export at all; a present-but-invalid default should surface an error
   // rather than be masked.
-  if (mod?.default != null) {
+  if (mod.default !== undefined) {
     return null;
   }
 
-  const hasNamedRender = typeof mod?.render === "function";
-  const hasNamedInitialize = typeof mod?.initialize === "function";
+  const render = isRenderHook(mod.render) ? mod.render : undefined;
+  const initialize = isInitializeHook(mod.initialize)
+    ? mod.initialize
+    : undefined;
+  const hasNamedRender = render !== undefined;
+  const hasNamedInitialize = initialize !== undefined;
   if (!hasNamedRender && !hasNamedInitialize) {
     return null;
   }
@@ -61,7 +83,7 @@ export function resolveAnyWidget(mod: any, jsUrl: string): AnyWidget | null {
     );
   }
 
-  const widget: AnyWidget = { render: mod.render, initialize: mod.initialize };
+  const widget: AnyWidget = { render, initialize };
   legacyWidgetCache.set(mod, widget);
   return widget;
 }
@@ -74,6 +96,14 @@ export function getInvalidAnyWidgetModuleError(
   const hasNamedRender = isRecord(mod) && hasFunctionProperty(mod, "render");
   const hasNamedInitialize =
     isRecord(mod) && hasFunctionProperty(mod, "initialize");
+
+  if (isRecord(mod) && mod.default !== undefined) {
+    return new Error(
+      `Anywidget module at ${jsUrl} has an invalid default export. ` +
+        "Expected a factory function or an object with `render` or `initialize`. " +
+        `See ${afmDocs}`,
+    );
+  }
 
   if (hasNamedRender || hasNamedInitialize) {
     const namedExports = [
@@ -99,18 +129,10 @@ export function getInvalidAnyWidgetModuleError(
     );
   }
 
-  if (!isRecord(mod) || mod.default === undefined) {
-    return new Error(
-      `Anywidget module at ${jsUrl} is missing a default export. ` +
-        "Per the AFM spec, use `export default { render }` or " +
-        "`export default async () => ({ render })`. " +
-        `See ${afmDocs}`,
-    );
-  }
-
   return new Error(
-    `Anywidget module at ${jsUrl} has an invalid default export. ` +
-      "Expected a factory function or an object with `render` or `initialize`. " +
+    `Anywidget module at ${jsUrl} is missing a default export. ` +
+      "Per the AFM spec, use `export default { render }` or " +
+      "`export default async () => ({ render })`. " +
       `See ${afmDocs}`,
   );
 }

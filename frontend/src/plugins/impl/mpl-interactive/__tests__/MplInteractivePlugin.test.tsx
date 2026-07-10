@@ -13,7 +13,7 @@ import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 import { Model } from "@/plugins/impl/anywidget/model";
 import { WIDGET_REGISTRY } from "@/plugins/impl/anywidget/registry";
-import type { WidgetModelId } from "@/plugins/impl/anywidget/types";
+import type { ModelState, WidgetModelId } from "@/plugins/impl/anywidget/types";
 import { visibleForTesting } from "../MplInteractivePlugin";
 
 const { ensureMplJs, injectCss, MplInteractiveSlot, resetMplJsLoading } =
@@ -119,7 +119,9 @@ describe("MplInteractivePlugin URL validation", () => {
   describe("injectCss", () => {
     it("refuses to append <link> for the PoC attack CSS URL", () => {
       const container = document.createElement("div");
-      const loggerSpy = vi.spyOn(Logger, "error").mockImplementation(() => {});
+      const loggerSpy = vi
+        .spyOn(Logger, "error")
+        .mockImplementation(() => undefined);
 
       const cleanup = injectCss(container, "http://127.0.0.1:8820/x.css");
 
@@ -137,7 +139,7 @@ describe("MplInteractivePlugin URL validation", () => {
       "data:text/css,body{background:red}",
     ])("refuses to append <link> for %s", (url) => {
       const container = document.createElement("div");
-      vi.spyOn(Logger, "error").mockImplementation(() => {});
+      vi.spyOn(Logger, "error").mockImplementation(() => undefined);
 
       injectCss(container, url);
 
@@ -195,8 +197,8 @@ function installMplFigureMock(): ReturnType<typeof vi.fn> {
   return ctor;
 }
 
-function makeModel(): Model<Record<string, never>> {
-  return new Model(
+function makeModel(): Model<ModelState> {
+  return new Model<ModelState>(
     {},
     {
       sendUpdate: vi.fn().mockResolvedValue(undefined),
@@ -223,7 +225,7 @@ function makeProps(modelId: WidgetModelId) {
 
 describe("MplInteractiveSlot rerun rebinding", () => {
   beforeEach(() => {
-    vi.spyOn(Logger, "error").mockImplementation(() => {});
+    vi.spyOn(Logger, "error").mockImplementation(() => undefined);
     resetMplJsLoading();
   });
 

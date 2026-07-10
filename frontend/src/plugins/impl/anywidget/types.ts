@@ -10,6 +10,10 @@ export type EventHandler = (...args: any[]) => void;
  */
 export type WidgetModelId = TypedString<"WidgetModelId">;
 
+export function isWidgetModelId(value: unknown): value is WidgetModelId {
+  return typeof value === "string" && value.length > 0;
+}
+
 /**
  * AnyWidget model state with buffers.
  */

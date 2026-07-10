@@ -15,7 +15,9 @@ describe("isAnyWidgetModule", () => {
 
   it("should accept a default factory function", () => {
     expect(
-      isAnyWidgetModule({ default: async () => ({ render: () => {} }) }),
+      isAnyWidgetModule({
+        default: async () => ({ render: () => undefined }),
+      }),
     ).toBe(true);
   });
 
@@ -33,7 +35,7 @@ describe("resolveAnyWidget", () => {
   });
 
   it("should return a default factory function", () => {
-    const factory = async () => ({ render: () => {} });
+    const factory = async () => ({ render: () => undefined });
     expect(resolveAnyWidget({ default: factory }, jsUrl)).toBe(factory);
   });
 
@@ -117,5 +119,14 @@ describe("getInvalidAnyWidgetModuleError", () => {
     const error = getInvalidAnyWidgetModuleError({ default: {} }, jsUrl);
     expect(error.message).toContain("invalid default export");
     expect(error.message).toContain("https://anywidget.dev/en/afm/");
+  });
+
+  it("prioritizes an invalid default over legacy named hooks", () => {
+    const error = getInvalidAnyWidgetModuleError(
+      { default: {}, render: () => undefined },
+      jsUrl,
+    );
+    expect(error.message).toContain("invalid default export");
+    expect(error.message).not.toContain("uses named exports");
   });
 });

@@ -10,7 +10,7 @@ import {
 } from "vitest";
 import { getMarimoInternal, Model } from "../model";
 import { handleWidgetMessage, WidgetRegistry } from "../registry";
-import type { EsmSpec, WidgetModelId } from "../types";
+import type { EsmSpec, ModelState, WidgetModelId } from "../types";
 import { WIDGET_DEF_REGISTRY } from "../widget-binding";
 
 // Helper to create typed model IDs for tests
@@ -49,7 +49,7 @@ describe("WidgetRegistry models", () => {
   });
 
   it("should set and get models", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     const retrievedModel = await registry.getModel(testId);
     expect(retrievedModel).toBe(model);
@@ -61,8 +61,20 @@ describe("WidgetRegistry models", () => {
     );
   });
 
+  it("accepts a fresh model after an earlier rendezvous times out", async () => {
+    const id = asModelId("late-model");
+    await expect(registry.getModel(id)).rejects.toThrow(
+      "Model not found for key: late-model",
+    );
+
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    registry.setModel(id, model);
+
+    await expect(registry.getModel(id)).resolves.toBe(model);
+  });
+
   it("should delete models", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.delete(testId);
     await expect(registry.getModel(testId)).rejects.toThrow();
@@ -94,7 +106,7 @@ describe("WidgetRegistry models", () => {
   });
 
   it("should handle custom messages", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     const callback = vi.fn();
     model.on("msg:custom", callback);
     registry.setModel(testId, model);
@@ -107,7 +119,7 @@ describe("WidgetRegistry models", () => {
   });
 
   it("should handle close messages", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
 
     await handleWidgetMessage(registry, {
@@ -190,17 +202,19 @@ describe("WidgetRegistry.getWidget", () => {
     };
     getModuleSpy.mockResolvedValue({ default: widgetDef });
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
 
-    const { binding } = await registry.getWidget(testId);
+    const widget = await registry.getWidget(testId);
 
-    expect(getModuleSpy).toHaveBeenCalledWith(SPEC.url, SPEC.hash, {
+    expect(getModuleSpy).toHaveBeenCalledWith({
+      jsUrl: SPEC.url,
+      jsHash: SPEC.hash,
       kernelAuthored: true,
     });
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
-    expect(binding.exports).toBe(exports);
+    expect(widget.exports).toBe(exports);
   });
 
   it("records the spec from an open message", async () => {
@@ -219,7 +233,9 @@ describe("WidgetRegistry.getWidget", () => {
     });
 
     await registry.getWidget(testId);
-    expect(getModuleSpy).toHaveBeenCalledWith(SPEC.url, SPEC.hash, {
+    expect(getModuleSpy).toHaveBeenCalledWith({
+      jsUrl: SPEC.url,
+      jsHash: SPEC.hash,
       kernelAuthored: true,
     });
   });
@@ -228,7 +244,7 @@ describe("WidgetRegistry.getWidget", () => {
     const widgetDef = { initialize: vi.fn(), render: vi.fn() };
     getModuleSpy.mockResolvedValue({ default: widgetDef });
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
 
@@ -237,14 +253,14 @@ describe("WidgetRegistry.getWidget", () => {
       registry.getWidget(testId),
     ]);
     const c = await registry.getWidget(testId);
-    expect(a.binding).toBe(b.binding);
-    expect(a.binding).toBe(c.binding);
+    expect(a.exports).toBe(b.exports);
+    expect(a.exports).toBe(c.exports);
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
     expect(getModuleSpy).toHaveBeenCalledTimes(1);
   });
 
   it("fails fast for a model with no ESM spec", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
 
     await expect(registry.getWidget(testId)).rejects.toThrow(
@@ -255,7 +271,7 @@ describe("WidgetRegistry.getWidget", () => {
   it("rejects when the module import fails, then retries fresh", async () => {
     getModuleSpy.mockRejectedValueOnce(new Error("network down"));
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
 
@@ -265,15 +281,15 @@ describe("WidgetRegistry.getWidget", () => {
     // starts over from the spec.
     const widgetDef = { initialize: vi.fn(), render: vi.fn() };
     getModuleSpy.mockResolvedValue({ default: widgetDef });
-    const { binding } = await registry.getWidget(testId);
-    expect(binding.exports).toBeUndefined();
+    const widget = await registry.getWidget(testId);
+    expect(widget.exports).toBeUndefined();
     expect(widgetDef.initialize).toHaveBeenCalledTimes(1);
   });
 
   it("rejects with the AFM error when the module has no usable exports", async () => {
     getModuleSpy.mockResolvedValue({ notAWidget: true });
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
 
@@ -295,7 +311,7 @@ describe("WidgetRegistry.getWidget", () => {
     };
     getModuleSpy.mockResolvedValue({ default: widgetDef });
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
 
@@ -316,7 +332,7 @@ describe("WidgetRegistry.getWidget", () => {
     };
     getModuleSpy.mockResolvedValue({ default: widgetDef });
 
-    const model = new Model({ count: 0 }, createMockComm());
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.setSpec(testId, SPEC);
     await registry.getWidget(testId);
@@ -354,8 +370,8 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
     const registry = new WidgetRegistry(50, () => isEditMode);
     const v1 = makeWidget("v1");
     const v2 = makeWidget("v2");
-    getModuleSpy.mockImplementation(async (url: string) => {
-      return url === SPEC_V1.url ? { default: v1 } : { default: v2 };
+    getModuleSpy.mockImplementation(async ({ jsUrl }) => {
+      return jsUrl === SPEC_V1.url ? { default: v1 } : { default: v2 };
     });
 
     await handleWidgetMessage(registry, {
@@ -368,15 +384,16 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
         esm_spec: { url: SPEC_V1.url, hash: SPEC_V1.hash },
       },
     });
-    const { model, binding } = await registry.getWidget(testId);
+    const model = await registry.getModel(testId);
+    const widget = await registry.getWidget(testId);
 
     // Mount a live view the swap must re-render.
     const el = document.createElement("div");
     const viewController = new AbortController();
-    await binding.createView({ el }, { signal: viewController.signal });
+    await widget.render({ el, signal: viewController.signal });
     expect(el.textContent).toBe("v1");
 
-    return { registry, model, binding, el, viewController, v1, v2 };
+    return { registry, model, widget, el, viewController, v1, v2 };
   }
 
   it("swaps the generation and re-renders live views in edit mode", async () => {
@@ -396,7 +413,7 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
       },
     });
 
-    const { binding: next } = await registry.getWidget(testId);
+    const next = await registry.getWidget(testId);
     // Wait for the swap's re-render to land in the DOM.
     await vi.waitFor(() => {
       expect(el.textContent).toBe("v2");
@@ -414,7 +431,7 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
   });
 
   it("does not swap outside edit mode; the spec is only recorded", async () => {
-    const { registry, binding, el, v2 } = await setup(false);
+    const { registry, el, v2 } = await setup(false);
 
     await handleWidgetMessage(registry, {
       model_id: testId,
@@ -427,14 +444,13 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
       },
     });
 
-    const { binding: same } = await registry.getWidget(testId);
-    expect(same).toBe(binding);
+    await registry.getWidget(testId);
     expect(v2.initialize).not.toHaveBeenCalled();
     expect(el.textContent).toBe("v1");
   });
 
   it("ignores an update whose spec hash is unchanged", async () => {
-    const { registry, binding, v1 } = await setup(true);
+    const { registry, v1 } = await setup(true);
 
     await handleWidgetMessage(registry, {
       model_id: testId,
@@ -447,8 +463,7 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
       },
     });
 
-    const { binding: same } = await registry.getWidget(testId);
-    expect(same).toBe(binding);
+    await registry.getWidget(testId);
     expect(v1.initialize).toHaveBeenCalledTimes(1);
   });
 
@@ -499,6 +514,72 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
     model.set("count", 11);
     expect(onCount).toHaveBeenCalledTimes(1);
   });
+
+  it("starts a new generation without waiting for stale initialize", async () => {
+    const registry = new WidgetRegistry(50, () => true);
+    const first = {
+      initialize: vi.fn().mockReturnValue(new Promise(() => undefined)),
+      render: vi.fn(),
+    };
+    const second = { initialize: vi.fn(), render: vi.fn() };
+    getModuleSpy.mockImplementation(async ({ jsUrl }) => ({
+      default: jsUrl === SPEC_V1.url ? first : second,
+    }));
+    registry.setModel(
+      testId,
+      new Model<ModelState>({ count: 0 }, createMockComm()),
+    );
+    registry.setSpec(testId, SPEC_V1);
+
+    const waiting = registry.getWidget(testId);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    registry.setSpec(testId, SPEC_V2);
+
+    await expect(waiting).resolves.toBeDefined();
+    expect(second.initialize).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WidgetRegistry runtime styles", () => {
+  it("mounts composed widget CSS in its render root", async () => {
+    const registry = new WidgetRegistry(50);
+    const id = asModelId("styled-child");
+    const getModuleSpy = vi
+      .spyOn(WIDGET_DEF_REGISTRY, "getModule")
+      .mockResolvedValue({ default: { render: vi.fn() } });
+    const model = new Model<ModelState>(
+      { _css: ".child { color: red; }" },
+      createMockComm(),
+    );
+    registry.setModel(id, model);
+    registry.setSpec(id, {
+      url: "./@file/styled-child.js",
+      hash: "styled-child-hash",
+    });
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    const el = document.createElement("div");
+    root.append(el);
+    const controller = new AbortController();
+
+    try {
+      await registry.createView({
+        modelId: id,
+        el,
+        signal: controller.signal,
+      });
+      expect(root.querySelector("style")?.textContent).toContain("color: red");
+
+      model.set("_css", ".child { color: blue; }");
+      expect(root.querySelector("style")?.textContent).toContain("color: blue");
+
+      controller.abort();
+      expect(root.querySelector("style")).toBeNull();
+    } finally {
+      registry.delete(id);
+      getModuleSpy.mockRestore();
+    }
+  });
 });
 
 describe("WidgetRegistry custom messages during rendezvous", () => {
@@ -513,7 +594,7 @@ describe("WidgetRegistry custom messages during rendezvous", () => {
       .mockResolvedValue({ default: widgetDef });
 
     try {
-      const model = new Model({ count: 0 }, createMockComm());
+      const model = new Model<ModelState>({ count: 0 }, createMockComm());
       const callback = vi.fn();
       model.on("msg:custom", callback);
       registry.setModel(testId, model);

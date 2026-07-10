@@ -11,7 +11,7 @@ import {
 import { TestUtils } from "@/__tests__/test-helpers";
 import { getMarimoInternal, Model } from "../model";
 import { WidgetRegistry } from "../registry";
-import type { WidgetModelId } from "../types";
+import type { ModelState, WidgetModelId } from "../types";
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
@@ -31,7 +31,7 @@ vi.mock("@/core/static/static-state", () => ({
 }));
 
 // Helper to create a mock MarimoComm
-function createMockComm<T>() {
+function createMockComm() {
   return {
     sendUpdate: vi.fn().mockResolvedValue(undefined),
     sendCustomMessage: vi.fn().mockResolvedValue(undefined),
@@ -40,7 +40,7 @@ function createMockComm<T>() {
 
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
-  let mockComm: ReturnType<typeof createMockComm<{ foo: string; bar: number }>>;
+  let mockComm: ReturnType<typeof createMockComm>;
 
   beforeEach(() => {
     mockComm = createMockComm();
@@ -204,7 +204,7 @@ describe("Model", () => {
 
   describe("widget_manager", () => {
     const childModelId = asModelId("test-id");
-    const childModel = new Model({ foo: "test" }, createMockComm());
+    const childModel = new Model<ModelState>({ foo: "test" }, createMockComm());
     const manager = new WidgetRegistry(10);
     let previousModelManager = Model._modelManager;
 

@@ -2,17 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import { useAsyncData } from "@/hooks/useAsyncData";
-import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
 import type { IPluginProps } from "@/plugins/types";
-import { prettyError } from "@/utils/errors";
-import { Logger } from "@/utils/Logger";
 import { ErrorBanner } from "../common/error-banner";
-import type { Model } from "./model";
 import { WIDGET_REGISTRY } from "./registry";
-import type { ModelState, WidgetModelId } from "./types";
-import type { WidgetBinding } from "./widget-binding";
+import { isWidgetModelId, type WidgetModelId } from "./types";
 
 /**
  * The component's only data attribute; everything else arrives through
@@ -21,8 +15,6 @@ import type { WidgetBinding } from "./widget-binding";
 interface Data {
   modelId: WidgetModelId;
 }
-
-type AnyWidgetState = ModelState;
 
 /**
  * Value payload sent by the frontend on state updates.
@@ -34,120 +26,26 @@ interface ModelIdRef {
   model_id?: WidgetModelId;
 }
 
-export function useMountCss(css: string | null | undefined, host: HTMLElement) {
-  // Mount the CSS
-  useEffect(() => {
-    const shadowRoot = host.shadowRoot;
-    if (!css || !shadowRoot) {
-      return;
-    }
-
-    // Try constructed stylesheets first
-    if (
-      "adoptedStyleSheets" in Document.prototype &&
-      "replace" in CSSStyleSheet.prototype
-    ) {
-      const sheet = new CSSStyleSheet();
-      try {
-        sheet.replaceSync(css);
-        if (shadowRoot) {
-          shadowRoot.adoptedStyleSheets = [
-            ...shadowRoot.adoptedStyleSheets,
-            sheet,
-          ];
-        }
-        return () => {
-          if (shadowRoot) {
-            shadowRoot.adoptedStyleSheets =
-              shadowRoot.adoptedStyleSheets.filter((s) => s !== sheet);
-          }
-        };
-      } catch {
-        // Fall through to inline styles if constructed sheets fail
-      }
-    }
-
-    // Fallback to inline styles
-    const style = document.createElement("style");
-    style.innerHTML = css;
-    shadowRoot.append(style);
-    return () => {
-      style.remove();
-    };
-  }, [css, host]);
-}
-
 export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
   .withData(
     z.object({
-      modelId: z.string().transform((v) => v as WidgetModelId),
+      modelId: z.custom<WidgetModelId>(isWidgetModelId, {
+        message: "Expected a non-empty widget model id",
+      }),
     }),
   )
   .withFunctions({})
   .renderer((props) => <AnyWidgetSlot {...props} />);
 
 /**
- * The registry resolves the model, imports the widget's code, and runs
- * `initialize`; this component's job is views — and remounting when
- * `modelId` changes, which is what a cell re-run produces (#3962).
+ * React adapter for a runtime-owned view. React supplies only the render
+ * target and its lifetime; the runtime owns models, generations, CSS,
+ * composition, and hot reload.
  */
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   const { modelId } = props.data;
-  const host = props.host as HTMLElementNotDerivedFromRef;
-
-  const { data, error } = useAsyncData(async () => {
-    const widget = await WIDGET_REGISTRY.getWidget(modelId);
-    // Tag the result with the id it was loaded for so the old view
-    // stays mounted until the new widget is ready (useAsyncData exposes
-    // the previous result during a cell re-run transition).
-    return { modelId, ...widget };
-  }, [modelId]);
-
-  if (error) {
-    return <ErrorBanner error={error} />;
-  }
-
-  if (!data) {
-    return null;
-  }
-
-  return (
-    <LoadedSlot
-      // Remount when the model changes (cell re-run: new comm, new id);
-      // value updates leave the key stable.
-      key={data.modelId}
-      model={data.model}
-      binding={data.binding}
-      host={host}
-    />
-  );
-};
-
-interface LoadedSlotProps {
-  model: Model<AnyWidgetState>;
-  binding: WidgetBinding<AnyWidgetState>;
-  host: HTMLElementNotDerivedFromRef;
-}
-
-/**
- * One mounted view of an initialized widget (render runs once per
- * view; the registry already ran initialize).
- */
-const LoadedSlot = ({ model, binding, host }: LoadedSlotProps) => {
   const htmlRef = useRef<HTMLDivElement>(null);
-
-  // CSS is state, not code, so it hot-applies in every mode.
-  const [css, setCss] = useState<string | null | undefined>(() =>
-    model.get("_css"),
-  );
-  useEffect(() => {
-    const controller = new AbortController();
-    model.on("change:_css", (value: string) => setCss(value), {
-      signal: controller.signal,
-    });
-    return () => controller.abort();
-  }, [model]);
-  useMountCss(css, host);
+  const [error, setError] = useState<Error>();
 
   useEffect(() => {
     const el = htmlRef.current;
@@ -155,18 +53,27 @@ const LoadedSlot = ({ model, binding, host }: LoadedSlotProps) => {
       return;
     }
     const controller = new AbortController();
-    binding.createView({ el }, { signal: controller.signal }).catch((error) => {
-      Logger.error("Error rendering anywidget", error);
-      el.classList.add("text-error");
-      el.innerHTML = `Error rendering anywidget: ${prettyError(error)}`;
+    setError(undefined);
+    WIDGET_REGISTRY.createView({
+      modelId,
+      el,
+      signal: controller.signal,
+    }).catch((error) => {
+      if (!controller.signal.aborted) {
+        setError(error instanceof Error ? error : new Error(String(error)));
+      }
     });
     return () => controller.abort();
-  }, [binding, model]);
+  }, [modelId]);
 
-  return <div ref={htmlRef} />;
+  return (
+    <>
+      {error ? <ErrorBanner error={error} /> : null}
+      <div ref={htmlRef} />
+    </>
+  );
 };
 
 export const visibleForTesting = {
   AnyWidgetSlot,
-  LoadedSlot,
 };

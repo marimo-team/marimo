@@ -15,6 +15,10 @@ describe("parseWidgetRef", () => {
     expect(() => parseWidgetRef("abc-123")).toThrow(/Invalid/);
   });
 
+  it("rejects an empty model id", () => {
+    expect(() => parseWidgetRef(WIDGET_REF_PREFIX)).toThrow(/Invalid/);
+  });
+
   it("rejects non-string inputs", () => {
     expect(() => parseWidgetRef(undefined)).toThrow(/Invalid/);
     expect(() => parseWidgetRef(null)).toThrow(/Invalid/);

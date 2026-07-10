@@ -41,8 +41,8 @@ importers:
         specifier: ^3.0.134
         version: 3.0.134(react@19.2.4)(zod@4.3.6)
       '@anywidget/types':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: ^0.4.0
+        version: 0.4.0
       '@codemirror/autocomplete':
         specifier: ^6.20.1
         version: 6.20.1
@@ -747,8 +747,8 @@ packages:
   '@antfu/utils@9.2.0':
     resolution: {integrity: sha512-Oq1d9BGZakE/FyoEtcNeSwM7MpDO2vUBi11RWBZXf75zPsbUVWmUs03EqkRFrcgbXyKTas0BdZWC1wcuSoqSAw==}
 
-  '@anywidget/types@0.2.0':
-    resolution: {integrity: sha512-+XtK4uwxRd4JpuevUMhirrbvC0V4yCA/i0lEjhmSAtOaxiXIg/vBKzaSonDuoZ1a9LEjUXTW2+m7w+ULgsJYvg==}
+  '@anywidget/types@0.4.0':
+    resolution: {integrity: sha512-Qno/7V0lKHCMq3DJuSKKHMwilFKPSe8wFftL5xWmgaMCc938mNTtv+i19UrvDfpj9cQTnlPqyXy8t3JOgQ8laA==}
 
   '@asamuzakjp/css-color@3.2.0':
     resolution: {integrity: sha512-K1A6z8tS3XsmCMM86xoWdn7Fkdn9m6RSVtocUrJYIwZnFVkng/PvkEoWtOWmP+Scc6saYWHWZYbndEEXxl24jw==}
@@ -9909,7 +9909,7 @@ snapshots:
 
   '@antfu/utils@9.2.0': {}
 
-  '@anywidget/types@0.2.0': {}
+  '@anywidget/types@0.4.0': {}
 
   '@asamuzakjp/css-color@3.2.0':
     dependencies:

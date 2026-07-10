@@ -1,6 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
 import type {
   AnyWidget,
   Experimental,
@@ -12,7 +10,7 @@ import { resolveVirtualFileURL } from "@/core/static/files";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { Logger } from "@/utils/Logger";
-import { type Host, createHost } from "./host";
+import type { Host } from "./host";
 import type { Model } from "./model";
 import { modelProxy, type ProxyRegistration } from "./model-proxy";
 import type { ModelState } from "./types";
@@ -53,7 +51,7 @@ function abortSignalAny(signals: AbortSignal[]): AbortSignal {
  * A single import is shared across all widget instances using the same module.
  */
 class WidgetDefRegistry {
-  #cache = new Map<string, Promise<any>>();
+  #cache = new Map<string, Promise<unknown>>();
 
   /**
    * Get (or start) the ESM import for a widget module, cached by
@@ -61,17 +59,18 @@ class WidgetDefRegistry {
    * `kernelAuthored: true` only for URLs from an `EsmSpec`; it widens
    * the import gate to remote and data URLs.
    */
-  getModule(
-    jsUrl: string,
-    jsHash: string,
-    opts: { kernelAuthored?: boolean } = {},
-  ): Promise<any> {
+  getModule(options: {
+    jsUrl: string;
+    jsHash: string;
+    kernelAuthored?: boolean;
+  }): Promise<unknown> {
+    const { jsUrl, jsHash, kernelAuthored = false } = options;
     const cached = this.#cache.get(jsHash);
     if (cached) {
       return cached;
     }
 
-    const promise = this.#doImport(jsUrl, opts).catch((error) => {
+    const promise = this.#doImport(jsUrl, { kernelAuthored }).catch((error) => {
       // On failure, remove from cache so a retry with a new URL can work
       this.#cache.delete(jsHash);
       throw error;
@@ -84,7 +83,7 @@ class WidgetDefRegistry {
   async #doImport(
     jsUrl: string,
     opts: { kernelAuthored?: boolean } = {},
-  ): Promise<any> {
+  ): Promise<unknown> {
     // By default, only trust marimo virtual file paths: arbitrary URLs
     // would let markdown-injected elements import attacker-controlled
     // JavaScript. Kernel-authored URLs (from an `EsmSpec`) are exempt —
@@ -117,15 +116,26 @@ interface ResolvedWidget<T extends ModelState> {
   render?: Render<T>;
 }
 
-/**
- * One live view of a binding, tracked so a generation swap can
- * re-render into the same elements. `signal` is the caller's own
- * signal, because the replacement view must outlive this generation.
- */
-export interface TrackedView {
-  el: HTMLElement;
-  signal: AbortSignal;
-  host?: Host;
+type HostFactory = (signal: AbortSignal) => Host;
+type Cleanup = () => void | PromiseLike<void>;
+
+function isCleanup(value: unknown): value is Cleanup {
+  return typeof value === "function";
+}
+
+interface CreateWidgetBindingOptions<T extends ModelState> {
+  widgetDef: AnyWidget<T>;
+  model: Model<T>;
+  createHost: HostFactory;
+  controller?: AbortController;
+}
+
+async function safelyRunCleanup(cleanup: Cleanup, reason: string) {
+  try {
+    await cleanup();
+  } catch (error) {
+    Logger.warn(`[WidgetBinding] ${reason} cleanup failed`, error);
+  }
 }
 
 /**
@@ -142,18 +152,20 @@ export class WidgetBinding<T extends ModelState = ModelState> {
   #widget: ResolvedWidget<T>;
   #model: Model<T>;
   #exports: unknown;
-  #views = new Set<TrackedView>();
+  #createHost: HostFactory;
 
-  private constructor(
-    widget: ResolvedWidget<T>,
-    model: Model<T>,
-    exports: unknown,
-    controller: AbortController,
-  ) {
-    this.#widget = widget;
-    this.#model = model;
-    this.#exports = exports;
-    this.#controller = controller;
+  private constructor(options: {
+    widget: ResolvedWidget<T>;
+    model: Model<T>;
+    exports: unknown;
+    controller: AbortController;
+    createHost: HostFactory;
+  }) {
+    this.#widget = options.widget;
+    this.#model = options.model;
+    this.#exports = options.exports;
+    this.#controller = options.controller;
+    this.#createHost = options.createHost;
   }
 
   /**
@@ -162,36 +174,32 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * `controller`'s signal. Aborting the controller mid-initialize
    * still runs any legacy cleanup callback, and `create` rejects.
    */
-  static async create<T extends ModelState>(
-    widgetDef: AnyWidget<T>,
-    model: Model<T>,
-    controller: AbortController = new AbortController(),
-  ): Promise<WidgetBinding<T>> {
+  static async create<T extends ModelState>({
+    widgetDef,
+    model,
+    createHost,
+    controller = new AbortController(),
+  }: CreateWidgetBindingOptions<T>): Promise<WidgetBinding<T>> {
     const signal = controller.signal;
-    const widget = (
-      typeof widgetDef === "function" ? await widgetDef() : widgetDef
-    ) as ResolvedWidget<T>;
+    const widget: ResolvedWidget<T> =
+      typeof widgetDef === "function" ? await widgetDef() : widgetDef;
 
     const initPromise = Promise.resolve(
       widget.initialize?.({
         model: modelProxy(model, signal),
         experimental,
         signal,
-      } as Parameters<NonNullable<typeof widget.initialize>>[0]),
+      }),
     );
     // If destroyed mid-initialize, still run a late-arriving legacy
     // cleanup callback: the widget acquired resources.
     initPromise
       .then(async (settled) => {
-        if (signal.aborted && typeof settled === "function") {
-          await settled();
+        if (signal.aborted && isCleanup(settled)) {
+          await safelyRunCleanup(settled, "late initialize");
         }
       })
-      .catch((error) => {
-        if (signal.aborted) {
-          Logger.warn("[WidgetBinding] cleanup after abort threw", error);
-        }
-      });
+      .catch(() => undefined);
 
     // Race against destruction so a hung `initialize` can't strand
     // callers whose model already closed.
@@ -216,8 +224,12 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     //   object   → widget exports (anywidget>=0.11)
     //   void     → nothing
     let exports: unknown;
-    if (typeof result === "function") {
-      signal.addEventListener("abort", result as () => void);
+    if (isCleanup(result)) {
+      signal.addEventListener(
+        "abort",
+        () => void safelyRunCleanup(result, "initialize"),
+        { once: true },
+      );
       exports = undefined;
     } else if (typeof result === "object" && result !== null) {
       exports = result;
@@ -225,7 +237,13 @@ export class WidgetBinding<T extends ModelState = ModelState> {
       exports = undefined;
     }
 
-    return new WidgetBinding(widget, model, exports, controller);
+    return new WidgetBinding({
+      widget,
+      model,
+      exports,
+      controller,
+      createHost,
+    });
   }
 
   /**
@@ -234,13 +252,6 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    */
   get exports(): unknown {
     return this.#exports;
-  }
-
-  /**
-   * Views currently mounted from this binding.
-   */
-  get liveViews(): readonly TrackedView[] {
-    return [...this.#views];
   }
 
   /**
@@ -254,7 +265,7 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    */
   async createView(
     target: { el: HTMLElement },
-    options: { signal: AbortSignal; host?: Host },
+    options: { signal: AbortSignal },
   ): Promise<void> {
     const widget = this.#widget;
     if (!widget.render) {
@@ -269,21 +280,11 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     if (renderSignal.aborted) {
       return;
     }
-    const view: TrackedView = {
-      el: target.el,
-      signal: options.signal,
-      host: options.host,
-    };
-    this.#views.add(view);
-    renderSignal.addEventListener("abort", () => this.#views.delete(view), {
-      once: true,
-    });
     // Clear whatever a previous generation or render left behind.
     target.el.innerHTML = "";
-    // Each view gets a `host` scoped to its own signal so child views
-    // tear down with this view; callers may pass a host already scoped
-    // to a parent's lifetime.
-    const host = options.host ?? createHost(renderSignal);
+    // Each view gets a host scoped to its own signal so child views tear
+    // down with this view.
+    const host = this.#createHost(renderSignal);
     const registrations: ProxyRegistration[] = [];
     const renderCleanup = await widget.render({
       model: modelProxy(this.#model, renderSignal, (registration) =>
@@ -293,16 +294,23 @@ export class WidgetBinding<T extends ModelState = ModelState> {
       experimental,
       signal: renderSignal,
       host,
-    } as Parameters<NonNullable<typeof widget.render>>[0]);
-    if (renderCleanup) {
-      renderSignal.addEventListener("abort", () => {
+    });
+    if (isCleanup(renderCleanup)) {
+      const runCleanup = async () => {
         const reason = options.signal.aborted
           ? "view unmount"
           : "binding destroyed";
         Logger.debug(
           `[WidgetBinding] Render cleanup triggered (reason: ${reason})`,
         );
-        renderCleanup();
+        await safelyRunCleanup(renderCleanup, "render");
+      };
+      if (renderSignal.aborted) {
+        await runCleanup();
+        return;
+      }
+      renderSignal.addEventListener("abort", () => void runCleanup(), {
+        once: true,
       });
     }
     this.#replayState(registrations, renderSignal);

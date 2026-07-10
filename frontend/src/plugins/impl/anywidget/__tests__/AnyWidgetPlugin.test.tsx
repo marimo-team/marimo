@@ -10,15 +10,14 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
 import type { IPluginProps } from "@/plugins/types";
 import { visibleForTesting } from "../AnyWidgetPlugin";
 import { Model } from "../model";
 import { WIDGET_REGISTRY } from "../registry";
-import type { EsmSpec, WidgetModelId } from "../types";
-import { WIDGET_DEF_REGISTRY, WidgetBinding } from "../widget-binding";
+import type { EsmSpec, ModelState, WidgetModelId } from "../types";
+import { WIDGET_DEF_REGISTRY } from "../widget-binding";
 
-const { AnyWidgetSlot, LoadedSlot } = visibleForTesting;
+const { AnyWidgetSlot } = visibleForTesting;
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
@@ -30,94 +29,11 @@ function createMockComm() {
   };
 }
 
-function createMockModel(state: Record<string, unknown> = { count: 0 }) {
-  return new Model(state, createMockComm());
+function createMockModel(state?: ModelState) {
+  return new Model<ModelState>(state ?? { count: 0 }, createMockComm());
 }
 
-const hostEl = () =>
-  document.createElement("div") as unknown as HTMLElementNotDerivedFromRef;
-
-describe("LoadedSlot", () => {
-  let mockModel: ReturnType<typeof createMockModel>;
-  let mockWidget: {
-    initialize: ReturnType<typeof vi.fn>;
-    render: ReturnType<typeof vi.fn>;
-  };
-  let mockBinding: Awaited<ReturnType<typeof WidgetBinding.create>>;
-
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    mockModel = createMockModel();
-    mockWidget = { initialize: vi.fn(), render: vi.fn() };
-    mockBinding = await WidgetBinding.create(mockWidget, mockModel);
-  });
-
-  const props = () => ({
-    model: mockModel,
-    binding: mockBinding,
-    host: hostEl(),
-  });
-
-  it("should render a div and mount a view into it", async () => {
-    const { container } = render(<LoadedSlot {...props()} />);
-    expect(container.querySelector("div")).not.toBeNull();
-    await waitFor(() => {
-      expect(mockWidget.render).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("should abort the view on unmount", async () => {
-    const { unmount } = render(<LoadedSlot {...props()} />);
-    await waitFor(() => {
-      expect(mockWidget.render).toHaveBeenCalledTimes(1);
-    });
-    const signal = mockWidget.render.mock.calls[0][0].signal as AbortSignal;
-    expect(signal.aborted).toBe(false);
-    unmount();
-    expect(signal.aborted).toBe(true);
-  });
-
-  it("should hydrate view state even when listener attaches late", async () => {
-    const lateModel = createMockModel({ count: 8 });
-    const lateListenerWidget = {
-      initialize: vi.fn(),
-      render: vi.fn(({ model, el }) => {
-        // Simulate a widget view that starts with a local default and
-        // relies on change events for hydration.
-        el.textContent = "count is 5";
-        const onCount = () => {
-          el.textContent = `count is ${model.get("count")}`;
-        };
-        model.on("change:count", onCount);
-        return () => model.off("change:count", onCount);
-      }),
-    };
-    const binding = await WidgetBinding.create(lateListenerWidget, lateModel);
-    const { container } = render(
-      <LoadedSlot model={lateModel} binding={binding} host={hostEl()} />,
-    );
-
-    await waitFor(() => {
-      expect(lateListenerWidget.render).toHaveBeenCalled();
-      expect(container.textContent).toContain("count is 8");
-    });
-  });
-
-  it("should paint the error into the element when render throws", async () => {
-    const throwingWidget = {
-      initialize: vi.fn(),
-      render: vi.fn().mockRejectedValue(new Error("widget exploded")),
-    };
-    const model = createMockModel();
-    const binding = await WidgetBinding.create(throwingWidget, model);
-    const { container } = render(
-      <LoadedSlot model={model} binding={binding} host={hostEl()} />,
-    );
-    await waitFor(() => {
-      expect(container.textContent).toContain("Error rendering anywidget");
-    });
-  });
-});
+const hostEl = () => document.createElement("div");
 
 describe("AnyWidgetSlot", () => {
   const SPEC: EsmSpec = { url: "./@file/10-slot.js", hash: "slot-hash" };
@@ -172,6 +88,17 @@ describe("AnyWidgetSlot", () => {
     });
   });
 
+  it("aborts the runtime-owned view on unmount", async () => {
+    const { unmount } = render(<AnyWidgetSlot {...props(modelId)} />);
+    await waitFor(() => {
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
+    });
+    const signal = mockWidget.render.mock.calls[0][0].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
+
   it("does not remount when only the value changes", async () => {
     // Regression: a state update rewrites the plugin value (dropping
     // model_id), but the key comes from data attributes, so the view
@@ -223,6 +150,14 @@ describe("AnyWidgetSlot", () => {
     const { container } = render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
       expect(container.textContent).toContain("import failed");
+    });
+  });
+
+  it("shows an error banner when render fails", async () => {
+    mockWidget.render.mockRejectedValue(new Error("widget exploded"));
+    const { container } = render(<AnyWidgetSlot {...props(modelId)} />);
+    await waitFor(() => {
+      expect(container.textContent).toContain("widget exploded");
     });
   });
 });

@@ -1,26 +1,17 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { AnyModel } from "@anywidget/types";
+import type { AnyModel, Host, ResolvedWidget } from "@anywidget/types";
 import { modelProxy } from "./model-proxy";
-import { WIDGET_REGISTRY } from "./registry";
+import type { Model } from "./model";
+import type { ModelState } from "./types";
 import type { WidgetModelId } from "./types";
 import { parseWidgetRef } from "./widget-ref";
 
-/**
- * The `host` prop passed to a widget's `render`. Lets a parent widget
- * resolve a child widget by reference, mirroring the anywidget>=0.11
- * `Host` interface.
- */
-export interface Host {
-  getWidget<T = unknown>(ref: string): Promise<ResolvedWidget<T>>;
-  getModel<T extends Record<string, unknown> = Record<string, unknown>>(
-    ref: string,
-  ): Promise<AnyModel<T>>;
-}
+export type { Host, ResolvedWidget };
 
-export interface ResolvedWidget<T = unknown> {
-  exports: T;
-  render(opts: { el: HTMLElement; signal?: AbortSignal }): Promise<void>;
+export interface WidgetResolver {
+  getModel(key: WidgetModelId): Promise<Model<ModelState>>;
+  getWidget<T = unknown>(key: WidgetModelId): Promise<ResolvedWidget<T>>;
 }
 
 /**
@@ -33,13 +24,16 @@ export interface ResolvedWidget<T = unknown> {
  * own model via `model.on(...)` are scoped to the same signal through
  * `modelProxy`.
  */
-export function createHost(parentSignal: AbortSignal): Host {
+export function createHost(
+  resolver: WidgetResolver,
+  parentSignal: AbortSignal,
+): Host {
   return {
     async getModel<T extends Record<string, unknown> = Record<string, unknown>>(
       ref: string,
     ): Promise<AnyModel<T>> {
-      const modelId = parseWidgetRef(ref) as WidgetModelId;
-      const model = await WIDGET_REGISTRY.getModel(modelId);
+      const modelId = parseWidgetRef(ref);
+      const model = await resolver.getModel(modelId);
       // Wrap in a proxy so listeners the parent registers on the child's
       // model are auto-cleared when the parent's view tears down.
       // The generic T is structural — modelProxy returns the underlying
@@ -47,14 +41,12 @@ export function createHost(parentSignal: AbortSignal): Host {
       return modelProxy(model, parentSignal) as unknown as AnyModel<T>;
     },
     async getWidget<T = unknown>(ref: string): Promise<ResolvedWidget<T>> {
-      const modelId = parseWidgetRef(ref) as WidgetModelId;
-      // The registry binds from the ESM spec if nothing else has, so
-      // this works for children never displayed on their own.
-      const { binding } = await WIDGET_REGISTRY.getWidget(modelId);
+      const modelId = parseWidgetRef(ref);
+      const widget = await resolver.getWidget<T>(modelId);
       return {
-        exports: binding.exports as T,
+        exports: widget.exports,
         async render({ el, signal }) {
-          await binding.createView({ el }, { signal: signal ?? parentSignal });
+          await widget.render({ el, signal: signal ?? parentSignal });
         },
       };
     },

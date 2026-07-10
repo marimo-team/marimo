@@ -1,11 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
 import type { NotificationMessageData } from "@/core/kernel/messages";
 import { getRequestClient } from "@/core/network/requests";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { assertNever } from "@/utils/assertNever";
-import { Deferred } from "@/utils/Deferred";
 import {
   type Base64String,
   base64ToDataView,
@@ -15,34 +12,16 @@ import { Logger } from "@/utils/Logger";
 import { repl } from "@/utils/repl";
 import { viewStateAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
+import { createHost, type WidgetResolver } from "./host";
 import { getMarimoInternal, type MarimoComm, Model } from "./model";
-import {
-  getInvalidAnyWidgetModuleError,
-  resolveAnyWidget,
-} from "./resolve-widget";
+import { WidgetRuntime } from "./runtime";
 import { decodeFromWire, serializeBuffersToBase64 } from "./serialization";
-import type { EsmSpec, ModelState, WidgetModelId } from "./types";
-import { WIDGET_DEF_REGISTRY, WidgetBinding } from "./widget-binding";
-
-/**
- * One generation of a widget's binding. The controller tears it down,
- * aborting an in-flight `initialize` if creation hasn't settled.
- */
-interface Generation {
-  hash: string;
-  controller: AbortController;
-  promise: Promise<WidgetBinding<any>>;
-}
-
-/**
- * Everything the registry knows about one widget, keyed by model id.
- */
-interface RegistryEntry {
-  deferred: Deferred<Model<ModelState>>;
-  controller: AbortController;
-  esmSpec?: EsmSpec;
-  generation?: Generation;
-}
+import {
+  isWidgetModelId,
+  type EsmSpec,
+  type ModelState,
+  type WidgetModelId,
+} from "./types";
 
 /**
  * Only edit sessions may swap widget code ("present" is an edit
@@ -54,11 +33,11 @@ function defaultIsEditMode(): boolean {
 }
 
 /**
- * The single owner of widget models, specs, and bindings, serving the
- * React plugin and `host.getWidget` alike.
+ * Maps model ids to stable runtimes and routes callers through their
+ * public behavior. Generation and view lifecycles stay inside each runtime.
  */
-export class WidgetRegistry {
-  #entries = new Map<WidgetModelId, RegistryEntry>();
+export class WidgetRegistry implements WidgetResolver {
+  #runtimes = new Map<WidgetModelId, WidgetRuntime>();
   #timeout: number;
   #isEditMode: () => boolean;
 
@@ -67,16 +46,23 @@ export class WidgetRegistry {
     this.#isEditMode = isEditMode;
   }
 
-  #getOrCreateEntry(key: WidgetModelId): RegistryEntry {
-    let entry = this.#entries.get(key);
-    if (!entry) {
-      entry = {
-        deferred: new Deferred<Model<ModelState>>(),
-        controller: new AbortController(),
-      };
-      this.#entries.set(key, entry);
+  #getOrCreateRuntime(key: WidgetModelId): WidgetRuntime {
+    let runtime = this.#runtimes.get(key);
+    if (!runtime) {
+      const nextRuntime = new WidgetRuntime(key, {
+        timeout: this.#timeout,
+        isEditMode: this.#isEditMode,
+        createHost: (signal) => createHost(this, signal),
+        onModelTimeout: () => {
+          if (this.#runtimes.get(key) === nextRuntime) {
+            this.#runtimes.delete(key);
+          }
+        },
+      });
+      runtime = nextRuntime;
+      this.#runtimes.set(key, runtime);
     }
-    return entry;
+    return runtime;
   }
 
   /**
@@ -84,30 +70,16 @@ export class WidgetRegistry {
    * hasn't arrived yet. Rejects after the registry timeout so a ref to
    * a model that never opens fails loudly instead of hanging.
    */
-  getModel(key: WidgetModelId): Promise<Model<any>> {
-    const entry = this.#getOrCreateEntry(key);
-    if (entry.deferred.status === "pending") {
-      setTimeout(() => {
-        if (entry.deferred.status !== "pending") {
-          return;
-        }
-        entry.deferred.reject(new Error(`Model not found for key: ${key}`));
-        this.#entries.delete(key);
-      }, this.#timeout);
-    }
-    return entry.deferred.promise;
+  getModel(key: WidgetModelId): Promise<Model<ModelState>> {
+    return this.#getOrCreateRuntime(key).getModel();
   }
 
   /**
    * Get a model synchronously if it exists and has been resolved.
    * Returns undefined if the model doesn't exist or is still pending.
    */
-  getModelSync(key: WidgetModelId): Model<any> | undefined {
-    const entry = this.#entries.get(key);
-    if (entry && entry.deferred.status === "resolved") {
-      return entry.deferred.value;
-    }
-    return undefined;
+  getModelSync(key: WidgetModelId): Model<ModelState> | undefined {
+    return this.#runtimes.get(key)?.getModelSync();
   }
 
   /**
@@ -118,12 +90,11 @@ export class WidgetRegistry {
     key: WidgetModelId,
     factory: (signal: AbortSignal) => Model<ModelState>,
   ): void {
-    const entry = this.#getOrCreateEntry(key);
-    entry.deferred.resolve(factory(entry.controller.signal));
+    this.#getOrCreateRuntime(key).createModel(factory);
   }
 
-  setModel(key: WidgetModelId, model: Model<any>): void {
-    this.#getOrCreateEntry(key).deferred.resolve(model);
+  setModel(key: WidgetModelId, model: Model<ModelState>): void {
+    this.#getOrCreateRuntime(key).setModel(model);
   }
 
   /**
@@ -134,129 +105,19 @@ export class WidgetRegistry {
    * must never be treated as code (it is client-writable).
    */
   setSpec(key: WidgetModelId, spec: EsmSpec): void {
-    const entry = this.#getOrCreateEntry(key);
-    entry.esmSpec = spec;
-    // Outside edit sessions the spec is only recorded, becoming what
-    // future generations are built from.
-    if (
-      entry.generation &&
-      entry.generation.hash !== spec.hash &&
-      this.#isEditMode()
-    ) {
-      this.#swapGeneration(key, entry, spec);
-    }
+    this.#getOrCreateRuntime(key).setSpec(spec);
   }
 
-  /**
-   * Import a spec's module, resolve the widget, and run `initialize`.
-   */
-  async #createBinding(
-    spec: EsmSpec,
-    model: Model<any>,
-    controller: AbortController,
-  ): Promise<WidgetBinding<any>> {
-    const mod = await WIDGET_DEF_REGISTRY.getModule(spec.url, spec.hash, {
-      kernelAuthored: true,
-    });
-    const widget = resolveAnyWidget(mod, spec.url);
-    if (!widget) {
-      throw getInvalidAnyWidgetModuleError(mod, spec.url);
-    }
-    return WidgetBinding.create(widget, model, controller);
+  getWidget<T = unknown>(key: WidgetModelId) {
+    return this.#getOrCreateRuntime(key).getWidget<T>();
   }
 
-  #startGeneration(
-    entry: RegistryEntry,
-    spec: EsmSpec,
-    model: Model<any>,
-  ): Generation {
-    const controller = new AbortController();
-    const generation: Generation = {
-      hash: spec.hash,
-      controller,
-      promise: this.#createBinding(spec, model, controller),
-    };
-    // A failed generation must not poison the entry; the next
-    // getWidget retries from the current spec.
-    generation.promise.catch(() => {
-      if (entry.generation === generation) {
-        entry.generation = undefined;
-      }
-    });
-    entry.generation = generation;
-    return generation;
-  }
-
-  /**
-   * Hot reload: destroy the live generation (cleanups run, listeners
-   * clear), create the next one against the same model, and re-render
-   * its views in place. Model state persists.
-   */
-  #swapGeneration(
-    key: WidgetModelId,
-    entry: RegistryEntry,
-    spec: EsmSpec,
-  ): void {
-    const previous = entry.generation;
-    if (!previous) {
-      return;
-    }
-    Logger.debug(`[WidgetRegistry] Hot-swapping generation for model=${key}`);
-    const controller = new AbortController();
-    const generation: Generation = {
-      hash: spec.hash,
-      controller,
-      promise: (async () => {
-        // A failed old generation just means nothing to destroy.
-        const old = await previous.promise.catch(() => undefined);
-        const views = old ? old.liveViews : [];
-        previous.controller.abort();
-        const model = await entry.deferred.promise;
-        const next = await this.#createBinding(spec, model, controller);
-        for (const view of views) {
-          if (view.signal.aborted) {
-            continue;
-          }
-          void next.createView(
-            { el: view.el },
-            { signal: view.signal, host: view.host },
-          );
-        }
-        return next;
-      })(),
-    };
-    generation.promise.catch(() => {
-      if (entry.generation === generation) {
-        entry.generation = undefined;
-      }
-    });
-    entry.generation = generation;
-  }
-
-  /**
-   * Resolve the fully-initialized widget for `key`: its model and the
-   * current binding generation, `initialize` settled. The first caller
-   * starts the generation; everyone else awaits the same promise. A
-   * model without a spec has no code anywhere, so that fails fast.
-   */
-  async getWidget(
-    key: WidgetModelId,
-  ): Promise<{ model: Model<any>; binding: WidgetBinding<any> }> {
-    const model = await this.getModel(key);
-    const entry = this.#getOrCreateEntry(key);
-    if (!entry.generation) {
-      const spec = entry.esmSpec;
-      if (!spec) {
-        throw new Error(
-          `[anywidget] No ESM spec for model ${key}: ` +
-            "nothing ever provided this widget's code",
-        );
-      }
-      this.#startGeneration(entry, spec, model);
-    }
-    // Non-null: set above or already present.
-    const generation = entry.generation as Generation;
-    return { model, binding: await generation.promise };
+  createView(options: {
+    modelId: WidgetModelId;
+    el: HTMLElement;
+    signal: AbortSignal;
+  }): Promise<void> {
+    return this.#getOrCreateRuntime(options.modelId).createView(options);
   }
 
   /**
@@ -264,17 +125,12 @@ export class WidgetRegistry {
    * signal and the current generation.
    */
   delete(key: WidgetModelId): void {
-    Logger.debug(`[WidgetRegistry] Deleting entry for model=${key}`);
-    const entry = this.#entries.get(key);
-    if (!entry) {
+    const runtime = this.#runtimes.get(key);
+    if (!runtime) {
       return;
     }
-    entry.generation?.controller.abort();
-    // Destroyed-mid-initialize rejections reach awaiting callers but
-    // must not surface as unhandled here.
-    entry.generation?.promise.catch(() => undefined);
-    entry.controller.abort();
-    this.#entries.delete(key);
+    runtime.dispose();
+    this.#runtimes.delete(key);
   }
 }
 
@@ -298,7 +154,10 @@ export async function handleWidgetMessage(
   registry: WidgetRegistry,
   notification: NotificationMessageData<"model-lifecycle">,
 ): Promise<void> {
-  const modelId = notification.model_id as WidgetModelId;
+  const modelId = notification.model_id;
+  if (!isWidgetModelId(modelId)) {
+    throw new Error(`[anywidget] Invalid model id: ${String(modelId)}`);
+  }
   const msg = notification.message;
 
   // Decode base64 buffers to DataViews (present in open/update/custom messages)
