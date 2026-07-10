@@ -1710,6 +1710,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
             mock_webpdf_exporter.return_value = mock_exporter_instance
@@ -1726,26 +1727,65 @@ class TestPDFExport:
             assert mock_exporter_instance.allow_chromium_download is True
 
     @pytest.mark.skipif(
-        sys.platform != "win32"
-        or not DependencyManager.nbformat.has()
-        or not DependencyManager.nbconvert.has(),
-        reason="requires Windows, nbformat, and nbconvert",
+        not DependencyManager.nbformat.has(),
+        reason="nbformat not installed",
     )
-    def test_export_as_pdf_webpdf_can_spawn_subprocess_on_windows(
-        self,
+    def test_webpdf_render_preserves_parent_event_loop_policy(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        import nbformat
+
+        from marimo._server.export.exporter import _render_webpdf
+
+        (tmp_path / "nbconvert.py").write_text(
+            textwrap.dedent(
+                """
+                class WebPDFExporter:
+                    def __init__(self, config):
+                        self.config = config
+
+                    def from_notebook_node(self, notebook):
+                        return b"mock_webpdf_data", {}
+                """
+            ),
+            encoding="utf-8",
+        )
+        monkeypatch.syspath_prepend(str(tmp_path))
+        with (
+            patch.object(sys, "platform", "win32"),
+            patch.object(
+                asyncio, "set_event_loop_policy"
+            ) as set_event_loop_policy,
+        ):
+            result = _render_webpdf(
+                nbformat.v4.new_notebook(),  # type: ignore[no-untyped-call]
+                include_inputs=True,
+            )
+
+        assert result == b"mock_webpdf_data"
+        set_event_loop_policy.assert_not_called()
+
+    @pytest.mark.skipif(
+        sys.platform != "win32" or not DependencyManager.nbconvert.has(),
+        reason="requires Windows and nbconvert",
+    )
+    def test_webpdf_worker_can_spawn_subprocess_on_windows(self) -> None:
+        from marimo._server.export.exporter import (
+            _render_webpdf_with_nbconvert,
+        )
+
         async def spawn_process() -> None:
             process = await asyncio.create_subprocess_exec(
                 sys.executable, "-c", "pass"
             )
-            await process.wait()
+            assert await process.wait() == 0
 
         mock_exporter_instance = MagicMock()
 
         def render(
             *_args: Any, **_kwargs: Any
         ) -> tuple[bytes, dict[Any, Any]]:
-            with ThreadPoolExecutor() as pool:
+            with ThreadPoolExecutor(max_workers=1) as pool:
                 pool.submit(asyncio.run, spawn_process()).result()
             return b"mock_webpdf_data", {}
 
@@ -1755,20 +1795,15 @@ class TestPDFExport:
         asyncio.set_event_loop_policy(selector_policy)
 
         try:
-            with (
-                patch.object(DependencyManager, "require_many"),
-                patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
-            ):
+            with patch(
+                "nbconvert.WebPDFExporter", create=True
+            ) as mock_webpdf_exporter:
                 mock_webpdf_exporter.return_value = mock_exporter_instance
-
-                result = Exporter().export_as_pdf(
-                    app=_load_fixture_app("basic"),
-                    session_view=None,
-                    webpdf=True,
+                result = _render_webpdf_with_nbconvert(
+                    MagicMock(), include_inputs=True
                 )
 
             assert result == b"mock_webpdf_data"
-            assert asyncio.get_event_loop_policy() is selector_policy
         finally:
             asyncio.set_event_loop_policy(original_policy)
 
@@ -1800,6 +1835,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
             mock_webpdf_exporter.return_value = mock_exporter_instance
@@ -1890,6 +1926,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
@@ -1954,6 +1991,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
@@ -2005,6 +2043,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
@@ -2053,6 +2092,7 @@ class TestPDFExport:
 
         with (
             patch.object(DependencyManager, "require_many"),
+            patch.object(sys, "platform", "linux"),
             patch("nbconvert.PDFExporter") as mock_pdf_exporter,
             patch("nbconvert.WebPDFExporter") as mock_webpdf_exporter,
         ):
