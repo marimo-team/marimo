@@ -1727,8 +1727,8 @@ class TestPDFExport:
             assert mock_exporter_instance.allow_chromium_download is True
 
     @pytest.mark.skipif(
-        not DependencyManager.nbformat.has(),
-        reason="nbformat not installed",
+        sys.platform != "win32" or not DependencyManager.nbformat.has(),
+        reason="requires Windows and nbformat",
     )
     def test_webpdf_render_preserves_parent_event_loop_policy(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -1752,7 +1752,6 @@ class TestPDFExport:
         )
         monkeypatch.syspath_prepend(str(tmp_path))
         with (
-            patch.object(sys, "platform", "win32"),
             patch.object(
                 asyncio, "set_event_loop_policy"
             ) as set_event_loop_policy,
