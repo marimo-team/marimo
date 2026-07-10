@@ -6,7 +6,8 @@ import { z } from "zod";
 import { useEventListener } from "@/hooks/useEventListener";
 import { createPlugin } from "@/plugins/core/builder";
 import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
-import { MODEL_MANAGER, type Model } from "@/plugins/impl/anywidget/model";
+import type { Model } from "@/plugins/impl/anywidget/model";
+import { WIDGET_REGISTRY } from "@/plugins/impl/anywidget/registry";
 import type { ModelState, WidgetModelId } from "@/plugins/impl/anywidget/types";
 import type { IPluginProps } from "@/plugins/types";
 import { downloadBlob } from "@/utils/download";
@@ -204,7 +205,7 @@ const MplInteractiveSlot = (props: IPluginProps<ModelIdRef, Data>) => {
 
     let model: Model<ModelState>;
     try {
-      model = await MODEL_MANAGER.get(id);
+      model = await WIDGET_REGISTRY.getModel(id);
     } catch {
       Logger.error("Failed to get model for mpl interactive", id);
       return;

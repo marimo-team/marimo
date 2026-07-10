@@ -13,14 +13,15 @@ from typing import (
     cast,
 )
 
-import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
+from marimo._plugins.ui._impl.anywidget.widget_ref import (
+    AnyWidgetStateSerializer,
+)
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
-from marimo._utils.code import hash_code
 from marimo._utils.methods import getcallable
 
 AnyWidgetState: TypeAlias = dict[str, Any]
@@ -138,11 +139,20 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     }
 
     state: dict[str, Any] = widget.get_state()
+    serializer = AnyWidgetStateSerializer(state)
 
     # Filter out system traits from the serialized state
     # This should include the binary data,
     # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-    return {k: v for k, v in state.items() if k not in ignored_traits}
+    filtered = {k: v for k, v in state.items() if k not in ignored_traits}
+
+    # Replace nested AnyWidget values with `anywidget:<model_id>` strings
+    # so the frontend can resolve them via `host.getWidget(ref)`. Children
+    # already have their comms opened (ipywidgets'
+    # `Widget.on_widget_constructed` fires `init_marimo_widget` on
+    # construction), so the frontend has the model registered by the time
+    # the parent's state arrives.
+    return cast(AnyWidgetState, serializer.serialize(filtered))
 
 
 def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:
@@ -190,10 +200,9 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        js: str = getattr(widget, "_esm", "")  # type: ignore [unused-ignore]
-        js_hash = hash_code(js)
-
-        # Trigger comm initialization early to ensure _model_id is set
+        # Trigger comm initialization early to ensure _model_id is set.
+        # Opening the comm broadcasts the widget's state and its ESM
+        # spec; the component only needs to say which model it displays.
         _ = widget.comm
 
         # Get the model_id from the widget (should always be set after comm init)
@@ -205,11 +214,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
             component_name="marimo-anywidget",
             initial_value=ModelIdRef(model_id=model_id),
             label=None,
-            args={
-                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]
-                "js-hash": js_hash,
-                "model-id": model_id,
-            },
+            args={"model-id": model_id},
             on_change=None,
         )
 

@@ -34,6 +34,7 @@ from marimo._convert.ipynb.from_ir import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notification import ModelOpen
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
@@ -174,9 +175,19 @@ class Exporter:
             request.include_code, app_code, notebook_snapshot, session_snapshot
         )
 
-        # Build fallback virtual_files dict for files not in HTML outputs
+        # Build fallback virtual_files dict for files not in HTML outputs.
+        # Widget ESM referenced only by model notifications (e.g. a
+        # composed child never displayed on its own) appears in no HTML
+        # output, so the inline pass above cannot see it.
+        model_notifications = session_view.get_model_notifications()
+        esm_urls = [
+            self._normalize_virtual_file_url(n.message.esm_spec.url)
+            for n in model_notifications
+            if isinstance(n.message, ModelOpen)
+            and n.message.esm_spec is not None
+        ]
         virtual_files = self._build_virtual_files_dict(
-            request.files,
+            [*request.files, *esm_urls],
             replaced_files,
             max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
         )
@@ -195,7 +206,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
-            model_notifications=session_view.get_model_notifications(),
+            model_notifications=model_notifications,
             asset_url=request.asset_url,
         )
 
@@ -343,8 +354,15 @@ class Exporter:
                 )
                 continue
 
-            # Process virtual file URLs
-            if self._VIRTUAL_FILE_PREFIX_WITH_SLASH not in file_url:
+            # Process virtual file URLs. Export requests use `/@file/`,
+            # while runtime-created virtual files use the relative
+            # `./@file/` form.
+            if not file_url.startswith(
+                (
+                    self._VIRTUAL_FILE_PREFIX_WITH_SLASH,
+                    self._VIRTUAL_FILE_PATTERN,
+                )
+            ):
                 continue
 
             data_uri = self._read_virtual_file_as_data_uri(
@@ -363,17 +381,24 @@ class Exporter:
         """Read a virtual file and convert it to a data URI.
 
         Args:
-            file_url: Virtual file URL in format /@file/{byte_length}-{filename}
+            file_url: Virtual file URL in `/@file/{byte_length}-{filename}`
+                or `./@file/{byte_length}-{filename}` format.
             max_inline_bytes: Maximum file size in bytes to inline.
                 Files larger than this are skipped. None means no limit.
 
         Returns:
             Data URI string, or None if file cannot be read
         """
-        # Extract byte_length and filename from URL
-        # Format: /@file/{byte_length}-{filename}
-        prefix_len = len(self._VIRTUAL_FILE_PREFIX_WITH_SLASH)
-        virtual_file = file_url[prefix_len:]
+        # Extract byte_length and filename from either URL form.
+        if file_url.startswith(self._VIRTUAL_FILE_PATTERN):
+            virtual_file = file_url[len(self._VIRTUAL_FILE_PATTERN) :]
+        elif file_url.startswith(self._VIRTUAL_FILE_PREFIX_WITH_SLASH):
+            virtual_file = file_url[
+                len(self._VIRTUAL_FILE_PREFIX_WITH_SLASH) :
+            ]
+        else:
+            LOGGER.warning("Invalid virtual file URL in export: %s", file_url)
+            return None
 
         try:
             byte_length_str, basename = virtual_file.split("-", 1)

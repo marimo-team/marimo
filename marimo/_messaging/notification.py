@@ -176,20 +176,73 @@ class UIElementMessageNotification(
     buffers: list[bytes] | None = None
 
 
+class EsmSpec(msgspec.Struct):
+    """Where the frontend imports a widget's ESM from, and which version.
+
+    Specs travel only on kernel-authored notifications, never in model
+    state: state is client-writable and echoed to peers, so executing
+    code from it would let one client run code on another.
+
+    Attributes:
+        url: URL to import the ESM from. A virtual file for inline
+            source; an external URL when `_esm` is itself a URL.
+        hash: Hash of the `_esm` string. Keys the frontend module cache
+            and signals code changes (hot reload).
+    """
+
+    url: str
+    hash: str
+
+    @staticmethod
+    def from_esm(esm: str) -> EsmSpec:
+        """Mint a spec for an `_esm` trait value."""
+        # Imported lazily: this module is low-level messaging, and
+        # mo_data pulls in the runtime/output machinery.
+        import marimo._output.data.data as mo_data
+        from marimo._utils.code import hash_code
+
+        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+
+
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
-    """Initial widget state on creation."""
+    """Initial widget state on creation.
+
+    For anywidgets, the widget's ESM does not travel in `state`: the
+    comm strips `_esm` and sends an `EsmSpec` instead. `None` for
+    models with no ESM (e.g. traditional ipywidgets).
+
+    Attributes:
+        state: Initial trait values, minus `_esm`.
+        buffer_paths: Paths into `state` whose binary values were
+            extracted into `buffers`.
+        buffers: Binary payloads, parallel to `buffer_paths`.
+        esm_spec: Where to import this widget's ESM from.
+    """
 
     state: dict[str, Any]
     buffer_paths: list[list[str | int]]
     buffers: list[bytes]
+    esm_spec: EsmSpec | None = None
 
 
 class ModelUpdate(msgspec.Struct, tag="update", tag_field="method"):
-    """State sync - changed traits only."""
+    """State sync - changed traits only.
+
+    Attributes:
+        state: Changed trait values, minus `_esm` (see `ModelOpen`).
+        buffer_paths: Paths into `state` whose binary values were
+            extracted into `buffers`.
+        buffers: Binary payloads, parallel to `buffer_paths`.
+        esm_spec: Present only when the widget's `_esm` changed on a
+            live model (hot reload, edit mode only). A spec whose
+            `hash` differs from the current one tells the frontend the
+            widget's code changed and views must be rebuilt.
+    """
 
     state: dict[str, Any]
     buffer_paths: list[list[str | int]]
     buffers: list[bytes]
+    esm_spec: EsmSpec | None = None
 
 
 class ModelCustom(msgspec.Struct, tag="custom", tag_field="method"):

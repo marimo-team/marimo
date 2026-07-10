@@ -4367,6 +4367,24 @@ export interface components {
       theme: "dark" | "light" | "system";
     };
     /**
+     * EsmSpec
+     * @description Where the frontend imports a widget's ESM from, and which version.
+     *
+     *         Specs travel only on kernel-authored notifications, never in model
+     *         state: state is client-writable and echoed to peers, so executing
+     *         code from it would let one client run code on another.
+     *
+     *         Attributes:
+     *             url: URL to import the ESM from. A virtual file for inline
+     *                 source; an external URL when `_esm` is itself a URL.
+     *             hash: Hash of the `_esm` string. Keys the frontend module cache
+     *                 and signals code changes (hot reload).
+     */
+    EsmSpec: {
+      hash: string;
+      url: string;
+    };
+    /**
      * ExecuteCellCommand
      * @description Execute a single cell.
      *
@@ -5614,10 +5632,23 @@ export interface components {
     /**
      * ModelOpen
      * @description Initial widget state on creation.
+     *
+     *         For anywidgets, the widget's ESM does not travel in `state`: the
+     *         comm strips `_esm` and sends an `EsmSpec` instead. `None` for
+     *         models with no ESM (e.g. traditional ipywidgets).
+     *
+     *         Attributes:
+     *             state: Initial trait values, minus `_esm`.
+     *             buffer_paths: Paths into `state` whose binary values were
+     *                 extracted into `buffers`.
+     *             buffers: Binary payloads, parallel to `buffer_paths`.
+     *             esm_spec: Where to import this widget's ESM from.
      */
     ModelOpen: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
+      /** @default null */
+      esm_spec?: null | components["schemas"]["EsmSpec"];
       /** @enum {unknown} */
       method: "open";
       state: Record<string, any>;
@@ -5634,10 +5665,22 @@ export interface components {
     /**
      * ModelUpdate
      * @description State sync - changed traits only.
+     *
+     *         Attributes:
+     *             state: Changed trait values, minus `_esm` (see `ModelOpen`).
+     *             buffer_paths: Paths into `state` whose binary values were
+     *                 extracted into `buffers`.
+     *             buffers: Binary payloads, parallel to `buffer_paths`.
+     *             esm_spec: Present only when the widget's `_esm` changed on a
+     *                 live model (hot reload, edit mode only). A spec whose
+     *                 `hash` differs from the current one tells the frontend the
+     *                 widget's code changed and views must be rebuilt.
      */
     ModelUpdate: {
       buffer_paths: (string | number)[][];
       buffers: components["schemas"]["Base64String"][];
+      /** @default null */
+      esm_spec?: null | components["schemas"]["EsmSpec"];
       /** @enum {unknown} */
       method: "update";
       state: Record<string, any>;

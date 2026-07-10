@@ -1,271 +1,163 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { render, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { TestUtils } from "@/__tests__/test-helpers";
-import type { HTMLElementNotDerivedFromRef } from "@/hooks/useEventListener";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from "vitest";
+import type { IPluginProps } from "@/plugins/types";
 import { visibleForTesting } from "../AnyWidgetPlugin";
-import { MODEL_MANAGER, Model } from "../model";
-import type { WidgetModelId } from "../types";
-import { BINDING_MANAGER } from "../widget-binding";
+import { Model } from "../model";
+import { WIDGET_REGISTRY } from "../registry";
+import type { EsmSpec, ModelState, WidgetModelId } from "../types";
+import { WIDGET_DEF_REGISTRY } from "../widget-binding";
 
-const {
-  LoadedSlot,
-  isAnyWidgetModule,
-  resolveAnyWidget,
-  getInvalidAnyWidgetModuleError,
-} = visibleForTesting;
+const { AnyWidgetSlot } = visibleForTesting;
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
 
-// Mock a minimal AnyWidget implementation
-const mockWidget = {
-  initialize: vi.fn(),
-  render: vi.fn(),
-};
+function createMockComm() {
+  return {
+    sendUpdate: vi.fn().mockResolvedValue(undefined),
+    sendCustomMessage: vi.fn().mockResolvedValue(undefined),
+  };
+}
 
-describe("LoadedSlot", () => {
-  const modelId = asModelId("test-model-id");
-  let mockModel: Model<{ count: number }>;
+function createMockModel(state?: ModelState) {
+  return new Model<ModelState>(state ?? { count: 0 }, createMockComm());
+}
 
-  const mockProps = {
-    widget: mockWidget,
-    data: {
-      jsUrl: "http://example.com/widget.js",
-      jsHash: "abc123",
-      modelId: modelId,
-    },
-    host: document.createElement(
-      "div",
-    ) as unknown as HTMLElementNotDerivedFromRef,
-    modelId: modelId,
+const hostEl = () => document.createElement("div");
+
+describe("AnyWidgetSlot", () => {
+  const SPEC: EsmSpec = { url: "./@file/10-slot.js", hash: "slot-hash" };
+  let getModuleSpy: MockInstance<typeof WIDGET_DEF_REGISTRY.getModule>;
+  let nextId = 0;
+  let modelId: WidgetModelId;
+  let mockWidget: {
+    initialize: ReturnType<typeof vi.fn>;
+    render: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(() => {
-    vi.clearAllMocks();
-    // Create and register a mock model before each test
-    mockModel = new Model(
-      { count: 0 },
-      {
-        sendUpdate: vi.fn().mockResolvedValue(undefined),
-        sendCustomMessage: vi.fn().mockResolvedValue(undefined),
-      },
-    );
-    MODEL_MANAGER.set(modelId, mockModel);
+    nextId += 1;
+    modelId = asModelId(`slot-test-${nextId}`);
+    mockWidget = { initialize: vi.fn(), render: vi.fn() };
+    getModuleSpy = vi
+      .spyOn(WIDGET_DEF_REGISTRY, "getModule")
+      .mockResolvedValue({ default: mockWidget });
+    WIDGET_REGISTRY.setModel(modelId, createMockModel());
+    WIDGET_REGISTRY.setSpec(modelId, {
+      url: SPEC.url,
+      // Unique hash per test so the module-cache spy is always hit.
+      hash: `${SPEC.hash}-${nextId}`,
+    });
   });
 
   afterEach(() => {
-    BINDING_MANAGER.destroy(modelId);
+    WIDGET_REGISTRY.delete(modelId);
+    getModuleSpy.mockRestore();
   });
 
-  it("should render a div with ref", () => {
-    const { container } = render(<LoadedSlot {...mockProps} />);
-    expect(container.querySelector("div")).not.toBeNull();
-  });
+  const props = (
+    id: WidgetModelId,
+    value: Record<string, unknown> = {},
+  ): IPluginProps<{ model_id?: WidgetModelId }, { modelId: WidgetModelId }> =>
+    ({
+      data: { modelId: id },
+      value,
+      host: hostEl(),
+      setValue: vi.fn(),
+      functions: {},
+    }) as unknown as IPluginProps<
+      { model_id?: WidgetModelId },
+      { modelId: WidgetModelId }
+    >;
 
-  it("should call runAnyWidgetModule on initialization", async () => {
-    render(<LoadedSlot {...mockProps} />);
-
-    // Wait a render
+  it("resolves the widget through the registry and renders a view", async () => {
+    render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
-      expect(mockWidget.render).toHaveBeenCalled();
+      expect(mockWidget.initialize).toHaveBeenCalledTimes(1);
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("should not remount when value update drops model_id", async () => {
-    // Regression: when the frontend sends a state update (e.g. {zoom_level: 0}),
-    // it overwrites the UIElement value that originally held {model_id: "..."}.
-    // The key must stay stable because modelId comes from data, not value.
-    const { container, rerender } = render(<LoadedSlot {...mockProps} />);
-
+  it("aborts the runtime-owned view on unmount", async () => {
+    const { unmount } = render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
       expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
+    const signal = mockWidget.render.mock.calls[0][0].signal as AbortSignal;
+    expect(signal.aborted).toBe(false);
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
 
+  it("does not remount when only the value changes", async () => {
+    // Regression: a state update rewrites the plugin value (dropping
+    // model_id), but the key comes from data attributes, so the view
+    // must survive.
+    const { container, rerender } = render(
+      <AnyWidgetSlot {...props(modelId)} />,
+    );
+    await waitFor(() => {
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
+    });
     const divBefore = container.querySelector("div");
 
-    // Simulate a value update that does NOT include model_id
-    // (this is what happens when the widget sends trait state)
-    rerender(<LoadedSlot {...mockProps} />);
+    rerender(<AnyWidgetSlot {...props(modelId, { zoom_level: 0 })} />);
 
     await waitFor(() => {
-      // The div should be the same DOM node (no remount)
       expect(container.querySelector("div")).toBe(divBefore);
-      // render should not be called again (no remount)
       expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("should re-run widget when widget prop changes", async () => {
-    const { rerender } = render(<LoadedSlot {...mockProps} />);
-
-    // Wait for initial render
+  it("remounts and re-initializes when modelId changes (cell re-run)", async () => {
+    // Regression for marimo-team/marimo#3962: a cell re-run reconstructs
+    // the widget, opening a new comm with a new model id. The plugin
+    // must remount so initialize runs against the fresh model.
+    const { rerender } = render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
-      expect(mockWidget.render).toHaveBeenCalled();
+      expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
 
-    // Create a new widget mock
-    const newMockWidget = {
-      initialize: vi.fn(),
-      render: vi.fn(),
-    };
+    const rerunId = asModelId(`slot-test-${nextId}-rerun`);
+    WIDGET_REGISTRY.setModel(rerunId, createMockModel());
+    WIDGET_REGISTRY.setSpec(rerunId, {
+      url: SPEC.url,
+      hash: `${SPEC.hash}-${nextId}-rerun`,
+    });
+    try {
+      rerender(<AnyWidgetSlot {...props(rerunId)} />);
+      await waitFor(() => {
+        expect(mockWidget.initialize).toHaveBeenCalledTimes(2);
+        expect(mockWidget.render).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      WIDGET_REGISTRY.delete(rerunId);
+    }
+  });
 
-    // Change the widget
-    rerender(<LoadedSlot {...mockProps} widget={newMockWidget} />);
-    await TestUtils.nextTick();
-
-    // Wait for re-render with new widget
+  it("shows an error banner when the widget cannot be resolved", async () => {
+    getModuleSpy.mockRejectedValue(new Error("import failed"));
+    const { container } = render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
-      expect(newMockWidget.render).toHaveBeenCalled();
+      expect(container.textContent).toContain("import failed");
     });
   });
 
-  it("should hydrate view state even when listener attaches late", async () => {
-    mockModel = new Model(
-      { count: 8 },
-      {
-        sendUpdate: vi.fn().mockResolvedValue(undefined),
-        sendCustomMessage: vi.fn().mockResolvedValue(undefined),
-      },
-    );
-    MODEL_MANAGER.set(modelId, mockModel);
-
-    const lateListenerWidget = {
-      initialize: vi.fn(),
-      render: vi.fn(({ model, el }) => {
-        // Simulate a widget view that starts with a local default and
-        // relies on change events for hydration.
-        el.textContent = "count is 5";
-        const onCount = () => {
-          el.textContent = `count is ${model.get("count")}`;
-        };
-        model.on("change:count", onCount);
-        return () => model.off("change:count", onCount);
-      }),
-    };
-
-    const { container } = render(
-      <LoadedSlot {...mockProps} widget={lateListenerWidget} />,
-    );
-
+  it("shows an error banner when render fails", async () => {
+    mockWidget.render.mockRejectedValue(new Error("widget exploded"));
+    const { container } = render(<AnyWidgetSlot {...props(modelId)} />);
     await waitFor(() => {
-      expect(lateListenerWidget.render).toHaveBeenCalled();
-      expect(container.textContent).toContain("count is 8");
+      expect(container.textContent).toContain("widget exploded");
     });
-  });
-});
-
-describe("isAnyWidgetModule", () => {
-  it("should accept a default object with render", () => {
-    expect(isAnyWidgetModule({ default: { render: () => undefined } })).toBe(
-      true,
-    );
-  });
-
-  it("should accept a default factory function", () => {
-    expect(
-      isAnyWidgetModule({ default: async () => ({ render: () => {} }) }),
-    ).toBe(true);
-  });
-
-  it("should reject legacy named render exports", () => {
-    expect(isAnyWidgetModule({ render: () => undefined })).toBe(false);
-  });
-});
-
-describe("resolveAnyWidget", () => {
-  const jsUrl = "./@file/widget.js";
-
-  it("should return the default export when present", () => {
-    const widget = { render: () => undefined };
-    expect(resolveAnyWidget({ default: widget }, jsUrl)).toBe(widget);
-  });
-
-  it("should return a default factory function", () => {
-    const factory = async () => ({ render: () => {} });
-    expect(resolveAnyWidget({ default: factory }, jsUrl)).toBe(factory);
-  });
-
-  it("should synthesize a widget from a legacy named render export", () => {
-    const render = vi.fn();
-    const resolved = resolveAnyWidget({ render }, jsUrl);
-    expect(resolved).not.toBeNull();
-    expect(resolved).toMatchObject({ render });
-  });
-
-  it("should synthesize a widget from a legacy named initialize export", () => {
-    const initialize = vi.fn();
-    const resolved = resolveAnyWidget({ initialize }, jsUrl);
-    expect(resolved).not.toBeNull();
-    expect(resolved).toMatchObject({ initialize });
-  });
-
-  it("should return null for a module with no valid exports", () => {
-    expect(resolveAnyWidget({}, jsUrl)).toBeNull();
-    expect(resolveAnyWidget({ default: {} }, jsUrl)).toBeNull();
-    expect(resolveAnyWidget({ render: "not a function" }, jsUrl)).toBeNull();
-  });
-
-  it("should return a stable widget identity across calls for one module", () => {
-    const mod = { render: vi.fn() };
-    expect(resolveAnyWidget(mod, jsUrl)).toBe(resolveAnyWidget(mod, jsUrl));
-  });
-
-  it("should not fall back to named exports when a default export is present", () => {
-    // A present-but-invalid default should surface an error, not be masked.
-    expect(
-      resolveAnyWidget({ default: {}, render: vi.fn() }, jsUrl),
-    ).toBeNull();
-  });
-});
-
-describe("getInvalidAnyWidgetModuleError", () => {
-  const jsUrl = "./@file/widget.js";
-
-  it("should explain legacy named render exports", () => {
-    const error = getInvalidAnyWidgetModuleError(
-      { render: () => undefined },
-      jsUrl,
-    );
-    expect(error.message).toContain("named exports (`render`)");
-    expect(error.message).toContain("`export default { render }`");
-    expect(error.message).toContain("not `export function render`");
-  });
-
-  it("should explain legacy named initialize exports", () => {
-    const error = getInvalidAnyWidgetModuleError(
-      { initialize: () => undefined },
-      jsUrl,
-    );
-    expect(error.message).toContain("named exports (`initialize`)");
-    expect(error.message).toContain("`export default { initialize }`");
-    expect(error.message).toContain("not `export function initialize`");
-  });
-
-  it("should avoid nested backticks for multi-hook named exports", () => {
-    const error = getInvalidAnyWidgetModuleError(
-      { render: () => undefined, initialize: () => undefined },
-      jsUrl,
-    );
-    expect(error.message).toContain(
-      "`export default { render, initialize }` (not `named export function ...`).",
-    );
-    expect(error.message).not.toContain("`named `export");
-  });
-
-  it("should explain a missing default export", () => {
-    expect(getInvalidAnyWidgetModuleError({}, jsUrl).message).toContain(
-      "missing a default export",
-    );
-    expect(getInvalidAnyWidgetModuleError(null, jsUrl).message).toContain(
-      "missing a default export",
-    );
-  });
-
-  it("should explain an invalid default export", () => {
-    const error = getInvalidAnyWidgetModuleError({ default: {} }, jsUrl);
-    expect(error.message).toContain("invalid default export");
-    expect(error.message).toContain("https://anywidget.dev/en/afm/");
   });
 });
