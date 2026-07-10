@@ -1,6 +1,6 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -16,10 +16,12 @@ from marimo._server.ai.providers import (
     CustomProvider,
     GoogleProvider,
     OpenAIProvider,
+    StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
     get_completion_provider,
 )
+from marimo._server.ai.tracing import SpanInfo
 
 
 @pytest.mark.parametrize(
@@ -33,7 +35,7 @@ from marimo._server.ai.providers import (
             "bedrock",
             id="bedrock",
         ),
-        pytest.param("openrouter/gpt-4", "openrouter", id="openrouter"),
+        pytest.param("openrouter/openai/gpt-4", "openrouter", id="openrouter"),
     ],
 )
 def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
@@ -87,7 +89,7 @@ def test_anyprovider_for_model(model_name: str, provider_name: str) -> None:
             id="bedrock",
         ),
         pytest.param(
-            "openrouter/gpt-4", CustomProvider, None, id="openrouter"
+            "openrouter/openai/gpt-4", CustomProvider, None, id="openrouter"
         ),
     ],
 )
@@ -250,8 +252,8 @@ def test_openai_default_thinking(
         if provider_kind == "azure"
         else OpenAIProvider(model_name, config)
     )
-    model = provider.create_model(max_tokens=512)
-    settings = provider._build_agent_settings(model)
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=512)
 
     has_thinking = settings is not None and settings.get("thinking") is True
     has_summary = (
@@ -271,31 +273,31 @@ def test_openai_default_thinking(
         pytest.param(
             "claude-opus-4-7",
             # Opus 4.7 disallows sampling settings, so no temperature.
-            {"max_tokens": 1024},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="opus_4_7_adaptive_no_sampling",
         ),
         pytest.param(
             "claude-opus-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="opus_4_6",
         ),
         pytest.param(
             "claude-sonnet-4-6",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="sonnet_4_6",
         ),
         pytest.param(
             "claude-opus-4-5-20251101",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="opus_4_5",
         ),
         pytest.param(
             "claude-3-7-sonnet-20250219",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="sonnet_3_7",
         ),
@@ -307,7 +309,7 @@ def test_openai_default_thinking(
         # corrected upstream, behavior here will follow automatically.
         pytest.param(
             "claude-3-5-sonnet-20241022",
-            {"max_tokens": 1024, "temperature": 1},
+            {"max_tokens": 1024, "anthropic_cache": True, "thinking": True},
             True,
             id="sonnet_3_5_trusts_profile",
         ),
@@ -323,15 +325,15 @@ def test_anthropic_settings_split(
     expected_model_settings: dict[str, Any],
     expected_agent_thinking: bool,
 ) -> None:
-    """Verify the model-level settings (temperature) and agent-level thinking flag."""
+    """Verify request settings carry Anthropic max tokens/cache/thinking."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
-    model = provider.create_model(max_tokens=1024)
-    assert dict(model.settings) == expected_model_settings
+    model = provider.create_model()
+    model_settings = provider._build_model_settings(model, max_tokens=1024)
+    assert dict(model_settings) == expected_model_settings
 
-    agent_settings = provider._build_agent_settings(model)
     actual_thinking = (
-        agent_settings is not None and agent_settings.get("thinking") is True
+        model_settings is not None and model_settings.get("thinking") is True
     )
     assert actual_thinking == expected_agent_thinking
 
@@ -368,23 +370,23 @@ def test_anthropic_thinking_payload_translation(
     and rejects `{"type": "enabled", "budget_tokens": ...}` with HTTP 400.
     """
     from pydantic_ai.models import ModelRequestParameters
-    from pydantic_ai.models.anthropic import AnthropicModel
+    from pydantic_ai.models.anthropic import (
+        AnthropicModel,
+        AnthropicModelSettings,
+    )
 
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider(model_name, config)
-    model = provider.create_model(max_tokens=1024)
+    model = provider.create_model()
     assert isinstance(model, AnthropicModel)
 
-    # Combine the model-level settings (temperature) with the agent-level
-    # thinking flag the way pydantic-ai does at request time.
-    merged = dict(model.settings or {})
-    merged.update(provider._build_agent_settings(model) or {})
-
+    settings = provider._build_model_settings(model, max_tokens=1024)
     prepared_settings, prepared_params = model.prepare_request(
-        merged, ModelRequestParameters()
+        settings, ModelRequestParameters()
     )
     payload = model._translate_thinking(  # type: ignore[attr-defined]
-        prepared_settings or {}, prepared_params
+        cast("AnthropicModelSettings", prepared_settings or {}),
+        prepared_params,
     )
     if expected_payload_kind == "adaptive":
         assert payload == {"type": "adaptive"}
@@ -414,8 +416,8 @@ def test_google_default_thinking(
     """Google's profile correctly distinguishes thinking vs non-thinking models."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = GoogleProvider(model_name, config)
-    model = provider.create_model(max_tokens=512)
-    settings = provider._build_agent_settings(model)
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=512)
     actual = settings is not None and settings.get("thinking") is True
     assert actual == expected_thinking
 
@@ -444,6 +446,7 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
             system_prompt="Test prompt",
             max_tokens=100,
             additional_tools=[],
+            span_info=SpanInfo(endpoint="completion", model="openai/gpt-4"),
         )
 
         mock_request.assert_called_once()
@@ -457,6 +460,34 @@ async def test_completion_does_not_pass_redundant_instructions() -> None:
         assert instructions == "Test prompt"
 
 
+@pytest.mark.requires("pydantic_ai")
+async def test_completion_tool_count_includes_capabilities() -> None:
+    """`completion` reports tools plus the agent's native capabilities, so its
+    telemetry matches the streaming paths."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    agent = MagicMock(name="agent")
+    agent.root_capability.capabilities = [MagicMock(), MagicMock()]
+    result = MagicMock()
+    result.output = "hi"
+    agent.run = AsyncMock(return_value=result)
+
+    span_info = SpanInfo(endpoint="completion", model="openai/gpt-4")
+
+    with patch.object(provider, "create_agent", return_value=agent):
+        await provider.completion(
+            messages=[],
+            system_prompt="x",
+            max_tokens=100,
+            additional_tools=[MagicMock(name="tool")],
+            span_info=span_info,
+        )
+
+    # 1 additional tool + 2 capabilities.
+    assert span_info.tool_count == 3
+
+
 @pytest.mark.skipif(
     not DependencyManager.anthropic.has()
     or not DependencyManager.pydantic_ai.has(),
@@ -468,10 +499,9 @@ def test_anthropic_applies_default_floor_when_max_tokens_none() -> None:
 
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider("claude-sonnet-4-5", config)
-    model = provider.create_model(max_tokens=None)
-    assert (
-        dict(model.settings).get("max_tokens") == ANTHROPIC_DEFAULT_MAX_TOKENS
-    )
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=None)
+    assert dict(settings).get("max_tokens") == ANTHROPIC_DEFAULT_MAX_TOKENS
 
 
 @pytest.mark.skipif(
@@ -483,8 +513,9 @@ def test_anthropic_override_wins_over_default_floor() -> None:
     """An explicit max_tokens overrides the Anthropic default floor."""
     config = AnyProviderConfig(api_key="test-key", base_url=None)
     provider = AnthropicProvider("claude-sonnet-4-5", config)
-    model = provider.create_model(max_tokens=12345)
-    assert dict(model.settings).get("max_tokens") == 12345
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=12345)
+    assert dict(settings).get("max_tokens") == 12345
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -493,8 +524,9 @@ def test_openai_chat_omits_max_tokens_when_none() -> None:
     pydantic-ai falls through to the upstream provider's default."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = OpenAIProvider("gpt-4", config)
-    model = provider.create_model(max_tokens=None)
-    assert "max_tokens" not in dict(model.settings)
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=None)
+    assert "max_tokens" not in dict(settings or {})
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -502,35 +534,37 @@ def test_openai_chat_passes_explicit_max_tokens() -> None:
     """Non-Anthropic providers pass through an explicit max_tokens."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = OpenAIProvider("gpt-4", config)
-    model = provider.create_model(max_tokens=12345)
-    assert dict(model.settings).get("max_tokens") == 12345
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=12345)
+    assert dict(settings or {}).get("max_tokens") == 12345
 
 
 @pytest.mark.requires("pydantic_ai")
 def test_custom_provider_agent_passes_explicit_max_tokens() -> None:
-    """The chat path builds the agent (not the model), so the agent's
-    model_settings must carry the explicit max_tokens."""
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
-    with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
-        mock_get_tm.return_value = MagicMock()
-        agent = provider.create_agent(
-            max_tokens=12345, tools=[], system_prompt="x"
-        )
-    assert dict(agent.model_settings or {}).get("max_tokens") == 12345
+    """Custom providers pass explicit max_tokens through agent settings."""
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://my.internal.llm/v1"
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("my_provider/my-model"), config
+    )
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=12345)
+    assert dict(settings).get("max_tokens") == 12345
 
 
 @pytest.mark.requires("pydantic_ai")
 def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
     """The chat path omits max_tokens from agent model_settings when unset."""
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
-    provider = get_completion_provider(config, "openrouter/gpt-4")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
     with patch("marimo._server.ai.providers.get_tool_manager") as mock_get_tm:
         mock_get_tm.return_value = MagicMock()
         agent = provider.create_agent(
-            max_tokens=None, tools=[], system_prompt="x"
+            name="test", max_tokens=None, tools=[], system_prompt="x"
         )
-    assert "max_tokens" not in dict(agent.model_settings or {})
+    settings = cast("dict[str, Any]", agent.model_settings or {})
+    assert "max_tokens" not in settings
 
 
 @pytest.mark.parametrize(
@@ -615,8 +649,6 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     """A custom provider whose name we don't recognize, but whose base URL
     points at DeepSeek, inherits DeepSeek's profile so `reasoning_content`
     round-trips. Regression test for #9786."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://api.deepseek.com"
     )
@@ -628,18 +660,20 @@ def test_custom_provider_inherits_profile_from_base_url() -> None:
     assert provider._provider_name == "deepseek"
     assert provider.provider.name == "deepseek"
 
-    model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field == "reasoning_content"
-    assert profile.openai_chat_send_back_thinking_parts == "field"
+    model = provider.create_model()
+    profile = model.profile
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") == "reasoning_content"
+        assert profile.get("openai_chat_send_back_thinking_parts") == "field"
+    else:
+        assert profile.openai_chat_thinking_field == "reasoning_content"
+        assert profile.openai_chat_send_back_thinking_parts == "field"
 
 
 @pytest.mark.requires("pydantic_ai")
 def test_custom_provider_unknown_base_url_stays_generic() -> None:
     """An unknown name with an unrecognized base URL falls back to the generic
     OpenAI provider (no thinking field), preserving prior behavior."""
-    from pydantic_ai.profiles.openai import OpenAIModelProfile
-
     config = AnyProviderConfig(
         api_key="test-key", base_url="https://my.internal.llm/v1"
     )
@@ -650,9 +684,30 @@ def test_custom_provider_unknown_base_url_stays_generic() -> None:
     assert provider._provider_name == "my_provider"
     assert provider.provider.name == "openai"
 
-    model = provider.create_model(max_tokens=None)
-    profile = OpenAIModelProfile.from_profile(model.profile)
-    assert profile.openai_chat_thinking_field is None
+    model = provider.create_model()
+    profile = model.profile
+    if isinstance(profile, dict):
+        assert profile.get("openai_chat_thinking_field") is None
+    else:
+        assert profile.openai_chat_thinking_field is None
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_create_model_infers_from_registry() -> None:
+    """`create_model` resolves the model through pydantic-ai's registry using
+    the `provider:model` id so we get the provider-tuned model class."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
+    assert isinstance(provider, CustomProvider)
+
+    sentinel = MagicMock(name="inferred-model")
+    with patch(
+        "pydantic_ai.models.infer_model", return_value=sentinel
+    ) as mock_infer:
+        model = provider.create_model()
+
+    assert model is sentinel
+    assert mock_infer.call_args.args[0] == "openrouter:openai/gpt-4"
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -666,3 +721,227 @@ def test_custom_provider_known_name_not_overridden_by_base_url() -> None:
         AiModelId.from_model("openrouter/some-model"), config
     )
     assert provider._provider_name == "openrouter"
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
+    """The code-mode harness builds an agent with the execute_code toolset,
+    passes the system prompt as instructions, and returns the adapter's
+    streaming response."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    session = MagicMock(name="session")
+    request = MagicMock(name="request")
+    toolset = MagicMock(name="toolset")
+    streaming_response = MagicMock(name="streaming_response")
+    adapter: MagicMock = MagicMock(name="adapter")
+    adapter.streaming_response = MagicMock(return_value=streaming_response)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="chat", model="openai/gpt-4"),
+    )
+
+    def build_mock_agent(*_args: Any, **kwargs: Any) -> MagicMock:
+        # `tool_count` reads back the agent's aggregated capabilities, so the
+        # mock must expose the capabilities it was constructed with.
+        agent = MagicMock(name="agent")
+        agent.root_capability.capabilities = kwargs.get("capabilities", [])
+        return agent
+
+    with (
+        patch.object(provider, "create_model", return_value=MagicMock()),
+        patch.object(provider, "_build_model_settings", return_value={}),
+        # Isolate from provider-adaptive web tools (covered separately) so the
+        # only capabilities are the three references capabilities.
+        patch.object(provider, "_build_agent_capabilities", return_value=[]),
+        patch.object(provider, "convert_messages", return_value=[]),
+        patch(
+            "marimo._server.ai.tools.code_mode.build_execute_code_toolset",
+            return_value=toolset,
+        ) as mock_build_toolset,
+        patch("pydantic_ai.Agent", side_effect=build_mock_agent) as mock_agent,
+        patch(
+            "pydantic_ai.ui.vercel_ai.VercelAIAdapter",
+            return_value=adapter,
+        ),
+    ):
+        result = await provider.stream_completion_harness(
+            messages=[],
+            system_prompt="SYSTEM PROMPT WITH SKILL",
+            session=session,
+            request=request,
+            max_tokens=1234,
+            stream_options=stream_options,
+        )
+
+    assert result is streaming_response
+    assert stream_options.span_info.tool_count == 4
+    # The toolset is bound to the caller's session and request.
+    mock_build_toolset.assert_called_once_with(session, request)
+
+    # The agent is constructed with that toolset and the system prompt as
+    # instructions (which now carries the marimo-pair skill).
+    agent_kwargs = mock_agent.call_args.kwargs
+    assert agent_kwargs["toolsets"] == [toolset]
+    assert agent_kwargs["instructions"] == "SYSTEM PROMPT WITH SKILL"
+    capabilities = agent_kwargs["capabilities"]
+    assert len(capabilities) == 3
+    assert {capability.id for capability in capabilities} == {
+        "gotchas",
+        "notebook-improvements",
+        "rich-representations",
+    }
+    assert all(capability.defer_loading for capability in capabilities)
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_create_custom_provider_passes_supported_credentials() -> None:
+    """`_create_custom_provider` constructs the resolved provider class,
+    passing only the credentials its constructor accepts."""
+    config = AnyProviderConfig(api_key="test-key", base_url="https://x/v1")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
+    assert isinstance(provider, CustomProvider)
+
+    captured: dict[str, Any] = {}
+
+    class FakeProvider:
+        def __init__(
+            self, *, api_key: str | None = None, base_url: str | None = None
+        ) -> None:
+            captured["api_key"] = api_key
+            captured["base_url"] = base_url
+
+    result = provider._create_custom_provider(FakeProvider, config)  # type: ignore[arg-type]
+    assert isinstance(result, FakeProvider)
+    assert captured == {"api_key": "test-key", "base_url": "https://x/v1"}
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_create_custom_provider_omits_unsupported_base_url() -> None:
+    """A provider whose constructor has no `base_url` parameter is built with
+    just the api key, even when the config carries a base URL."""
+    config = AnyProviderConfig(api_key="test-key", base_url="https://x/v1")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
+    assert isinstance(provider, CustomProvider)
+
+    captured: dict[str, Any] = {}
+
+    class ApiKeyOnlyProvider:
+        def __init__(self, *, api_key: str | None = None) -> None:
+            captured["api_key"] = api_key
+
+    result = provider._create_custom_provider(ApiKeyOnlyProvider, config)  # type: ignore[arg-type]
+    assert isinstance(result, ApiKeyOnlyProvider)
+    assert captured == {"api_key": "test-key"}
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_create_custom_provider_falls_back_to_openai_on_error() -> None:
+    """If constructing the provider raises, we fall back to a generic
+    OpenAI-compatible provider rather than propagating the error."""
+    from pydantic_ai.providers.openai import (
+        OpenAIProvider as PydanticOpenAI,
+    )
+
+    config = AnyProviderConfig(api_key="test-key", base_url="https://x/v1")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
+    assert isinstance(provider, CustomProvider)
+
+    class BrokenProvider:
+        def __init__(self, *, api_key: str | None = None) -> None:
+            del api_key
+            raise RuntimeError("boom")
+
+    result = provider._create_custom_provider(BrokenProvider, config)  # type: ignore[arg-type]
+    assert isinstance(result, PydanticOpenAI)
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_applies_openrouter_cache_settings() -> None:
+    """OpenRouter agents opt into prompt caching at the agent-settings level."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = get_completion_provider(config, "openrouter/openai/gpt-4")
+    assert isinstance(provider, CustomProvider)
+
+    model = provider.create_model()
+    settings = cast(
+        "dict[str, Any]",
+        provider._build_model_settings(model, max_tokens=100),
+    )
+
+    assert settings["openrouter_cache_instructions"] is True
+    assert settings["openrouter_cache_messages"] is True
+    assert settings["openrouter_cache_tool_definitions"] == "1h"
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_custom_provider_non_openrouter_omits_cache_settings() -> None:
+    """Non-OpenRouter custom providers don't get OpenRouter-specific settings."""
+    config = AnyProviderConfig(
+        api_key="test-key", base_url="https://my.internal.llm/v1"
+    )
+    provider = CustomProvider(
+        AiModelId.from_model("my_provider/my-model"), config
+    )
+
+    model = provider.create_model()
+    settings = provider._build_model_settings(model, max_tokens=None)
+
+    assert "openrouter_cache_instructions" not in settings
+    assert "max_tokens" not in settings
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_agent_capabilities_from_native_tool_support() -> None:
+    """Provider-adaptive tools are enabled based on the model profile's
+    supported native tools when no local search/fetch deps are installed."""
+    from pydantic_ai.native_tools import (
+        WebFetchTool,
+        WebSearchTool,
+        XSearchTool,
+    )
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    model = MagicMock(name="model")
+    model.profile.supported_native_tools = {
+        WebSearchTool,
+        WebFetchTool,
+        XSearchTool,
+    }
+
+    with (
+        patch.object(
+            DependencyManager.duckduckgo_search, "has", return_value=False
+        ),
+        patch.object(DependencyManager.markdownify, "has", return_value=False),
+    ):
+        capabilities = provider._build_agent_capabilities(model)
+
+    assert sorted(type(c).__name__ for c in capabilities) == [
+        "WebFetch",
+        "WebSearch",
+        "XSearch",
+    ]
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_agent_capabilities_empty_without_support_or_deps() -> None:
+    """No capabilities are added when the model supports no native tools and
+    no local search/fetch deps are installed."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    model = MagicMock(name="model")
+    model.profile.supported_native_tools = set()
+
+    with (
+        patch.object(
+            DependencyManager.duckduckgo_search, "has", return_value=False
+        ),
+        patch.object(DependencyManager.markdownify, "has", return_value=False),
+    ):
+        capabilities = provider._build_agent_capabilities(model)
+
+    assert capabilities == []

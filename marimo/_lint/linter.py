@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,30 +16,15 @@ from marimo._lint.rule_engine import EarlyStoppingConfig, RuleEngine
 from marimo._loggers import capture_output
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._utils import async_path
+from marimo._utils.generated_with import (
+    contents_differ_excluding_generated_with,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator
 
     from marimo._config.config import LintConfig
     from marimo._lint.rules.base import LintRule
-
-
-def contents_differ_excluding_generated_with(
-    original: str, generated: str
-) -> bool:
-    """Compare file contents while ignoring __generated_with differences.
-
-    This prevents unnecessary file writes when only the __generated_with
-    version metadata differs between the original and generated content.
-    """
-    # Regex to match the __generated_with line
-    pattern = r"^__generated_with = .*$"
-
-    # Remove __generated_with lines from both contents
-    orig_cleaned = re.sub(pattern, "", original, flags=re.MULTILINE).strip()
-    gen_cleaned = re.sub(pattern, "", generated, flags=re.MULTILINE).strip()
-
-    return orig_cleaned != gen_cleaned
 
 
 async def _to_async_iterator(

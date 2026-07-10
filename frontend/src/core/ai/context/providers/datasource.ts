@@ -8,6 +8,7 @@ import type { CellId } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { renderDatasourceInfo } from "@/core/codemirror/language/languages/sql/renderers";
 import {
+  allTablesAtom,
   type ConnectionsMap,
   type DatasetTablesMap,
   dataSourceConnectionsAtom,
@@ -18,7 +19,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
-import { store } from "@/core/state/jotai";
+import type { JotaiStore } from "@/core/state/jotai";
 import type { AIContextItem } from "../registry";
 import { AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
@@ -148,7 +149,10 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
   }
 }
 
-export function getDatasourceContext(cellId: CellId): string | null {
+export function getDatasourceContext(
+  cellId: CellId,
+  store: JotaiStore,
+): string | null {
   const cellData = store.get(cellDataAtom(cellId));
   const code = cellData?.code;
   if (!code || code.trim() === "") {
@@ -163,4 +167,25 @@ export function getDatasourceContext(cellId: CellId): string | null {
     return `@${CONTEXT_TYPE}://${datasourceSchema.name}`;
   }
   return null;
+}
+
+export function formatDatasourceContextForCell(
+  cellId: CellId,
+  store: JotaiStore,
+): string | null {
+  const mention = getDatasourceContext(cellId, store);
+  if (!mention) {
+    return null;
+  }
+
+  const connectionsMap = store.get(dataSourceConnectionsAtom).connectionsMap;
+  const tablesMap = store.get(allTablesAtom);
+  const provider = new DatasourceContextProvider(connectionsMap, tablesMap);
+  const uri = mention.slice(1);
+  const item = provider.getItems().find((candidate) => candidate.uri === uri);
+  if (!item) {
+    return null;
+  }
+
+  return provider.formatContext(item);
 }

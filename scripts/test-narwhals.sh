@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
 # This script is used externally by the narwhals repo to run marimo tests

@@ -27,6 +27,7 @@ import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { useTheme } from "@/theme/useTheme";
+import { uniqueBy } from "@/utils/arrays";
 import { inferFieldTypes } from "../columns";
 import {
   type FieldTypesWithExternalType,
@@ -54,6 +55,22 @@ const CHART_HEIGHT = 290;
 const CHART_MAX_ROWS = 50_000;
 const CHART_MAX_COLUMNS = 50;
 
+/**
+ * Append row-header (index) fields to the chart field list, skipping any whose
+ * name already exists as a data column so the chart builder never offers the
+ * same axis twice.
+ */
+export function mergeIndexFields(
+  fieldTypes: FieldTypesWithExternalType | null | undefined,
+  rowHeaders: FieldTypesWithExternalType | null | undefined,
+): FieldTypesWithExternalType {
+  const base = fieldTypes ?? [];
+  if (!rowHeaders || rowHeaders.length === 0) {
+    return base;
+  }
+  return uniqueBy([...base, ...rowHeaders], (f) => f[0]);
+}
+
 export interface TablePanelProps {
   cellId: CellId | null;
   data: unknown[];
@@ -64,6 +81,7 @@ export interface TablePanelProps {
   onCloseChartBuilder?: () => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  rowHeaders?: FieldTypesWithExternalType | null;
 }
 
 export const TablePanel: React.FC<TablePanelProps> = ({
@@ -74,6 +92,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
   columns,
   getDataUrl,
   fieldTypes,
+  rowHeaders,
   displayHeader,
   onCloseChartBuilder,
 }) => {
@@ -265,7 +284,10 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
-              fieldTypes={fieldTypes ?? inferFieldTypes(dataTable.props.data)}
+              fieldTypes={mergeIndexFields(
+                fieldTypes ?? inferFieldTypes(dataTable.props.data),
+                rowHeaders,
+              )}
               isLargeDataset={isLargeDataset}
             />
           </TabsContent>

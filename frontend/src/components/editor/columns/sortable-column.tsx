@@ -78,7 +78,7 @@ const SortableColumnInternal = React.forwardRef(
     };
 
     const dragHandle = (
-      <div className="px-2 pb-0 group flex items-center overflow-hidden border-b border-[var(--slate-7)]">
+      <div className="px-2 pb-0 group flex items-center overflow-hidden border-b border-(--slate-7)">
         <Tooltip content="Move column left" side="top" delayDuration={300}>
           <Button
             variant="text"
@@ -161,7 +161,7 @@ const SortableColumnInternal = React.forwardRef(
           isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
-        <div className="border border-[var(--slate-7)]">
+        <div className="border border-(--slate-7)">
           {dragHandle}
           {props.children}
         </div>

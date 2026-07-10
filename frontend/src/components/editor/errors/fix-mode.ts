@@ -4,7 +4,7 @@ import { useAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
-export type FixMode = "prompt" | "autofix";
+export type FixMode = "prompt" | "autofix" | "chat";
 
 const BASE_KEY = "marimo:ai-autofix-mode";
 

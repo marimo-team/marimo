@@ -153,7 +153,6 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     with open(initial_filename) as f:
         contents = f.read()
         assert "app = marimo.App()" in contents
-        assert "marimo-team/marimo" not in contents
         assert "marimo-version" not in contents
     app_file_manager.rename(str(initial_filename)[:-3] + ".qmd")
     next_filename = app_file_manager.filename
@@ -162,9 +161,69 @@ def test_rename_to_qmd(app_file_manager: AppFileManager) -> None:
     with open(next_filename) as f:
         contents = f.read()
         assert "marimo-version" in contents
-        assert "filters:" in contents
-        assert "marimo-team/marimo" in contents
+        assert "```{marimo .python}" in contents
         assert "app = marimo.App()" not in contents
+
+
+def test_save_mystmd_preserves_frontmatter_and_marimo_config(
+    tmp_path: Path,
+) -> None:
+    temp_file = tmp_path / "notebook.myst.md"
+    temp_file.write_text(
+        "---\n"
+        "title: My Title\n"
+        "author: Marimo Team\n"
+        "---\n"
+        "\n"
+        "```{marimo-config}\n"
+        "---\n"
+        "header: |-\n"
+        "  import os\n"
+        "pyproject: |-\n"
+        '  dependencies = ["polars"]\n'
+        "width: full\n"
+        "---\n"
+        "```\n"
+        "\n"
+        "```{marimo} python\n"
+        "x = 1\n"
+        "```",
+        encoding="utf-8",
+    )
+    manager = AppFileManager(filename=str(temp_file))
+
+    assert manager.app.config.app_title == "My Title"
+    assert manager.app.config.width == "full"
+    assert manager.app.to_ir().header is not None
+    assert "import os" in manager.app.to_ir().header.value
+    assert 'dependencies = ["polars"]' in manager.app.to_ir().header.value
+
+    cells = list(manager.app.cell_manager.cell_data())
+    manager.save(
+        SaveNotebookRequest(
+            cell_ids=[cell.cell_id for cell in cells],
+            filename=str(temp_file),
+            codes=[cell.code for cell in cells],
+            names=[cell.name for cell in cells],
+            configs=[cell.config for cell in cells],
+            persist=True,
+        )
+    )
+
+    contents = temp_file.read_text(encoding="utf-8")
+    assert "title: My Title" in contents
+    assert "author: Marimo Team" in contents
+    assert "```{marimo-config}" in contents
+    assert "import os" in contents
+    assert 'dependencies = ["polars"]' in contents
+    assert "width: full" in contents
+
+    reloaded = AppFileManager(filename=str(temp_file))
+    assert reloaded.app.config.app_title == "My Title"
+    assert reloaded.app.config.width == "full"
+    assert reloaded.app.to_ir().header is not None
+    assert "import os" in reloaded.app.to_ir().header.value
+    assert 'dependencies = ["polars"]' in reloaded.app.to_ir().header.value
 
 
 def test_save_app_config_valid(app_file_manager: AppFileManager) -> None:
@@ -1181,6 +1240,48 @@ if __name__ == "__main__":
 
     # Should NOT match because we added actual content
     assert manager.file_content_matches_last_save() is False
+
+
+def test_file_content_matches_last_save_ignores_generated_with_version(
+    tmp_path: Path,
+) -> None:
+    temp_file = tmp_path / "test_generated_with.py"
+    temp_file.write_text(
+        """
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+@app.cell
+def cell1():
+    x = 1
+    return x
+
+if __name__ == "__main__":
+    app.run()
+"""
+    )
+
+    manager = AppFileManager(filename=str(temp_file))
+    manager.save(
+        SaveNotebookRequest(
+            cell_ids=[CellId_t("1")],
+            filename=str(temp_file),
+            codes=["x = 1"],
+            names=["cell1"],
+            configs=[CellConfig()],
+            persist=True,
+        )
+    )
+
+    temp_file.write_text(
+        temp_file.read_text().replace(
+            f'__generated_with = "{__version__}"',
+            '__generated_with = "0.0.0"',
+        )
+    )
+
+    assert manager.file_content_matches_last_save() is True
 
 
 def test_file_content_matches_last_save_multiple_saves(tmp_path: Path) -> None:

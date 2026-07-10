@@ -54,6 +54,16 @@ def ast_parse(
         return cast(ast.Module, ast.parse(contents, **kwargs))
 
 
+def split_source_lines(text: str) -> list[str]:
+    """Split source into lines the way `ast`/`tokenize` count them.
+
+    Unlike `str.splitlines()`, this only treats `\\n`, `\\r`, and `\\r\\n` as
+    line breaks. `str.splitlines()` additionally splits on `\\f`, `\\v`, the
+    `\\x1c`-`\\x1e` separators, and Unicode line separators.
+    """
+    return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+
+
 def fixed_dedent(text: str) -> str:
     """Manually edited code, can dedent"""
     # Added robustness for AI generated code
@@ -72,6 +82,33 @@ def fixed_dedent(text: str) -> str:
         return line
 
     return dedent("\n".join(map(refill, lines)))
+
+
+def unwrap_cell_body(formatted: str) -> str:
+    """Extract the body of a wrapped `def _():` cell after ruff formatting.
+
+    Used by RuffFormatter to unwrap cells that were temporarily wrapped in a
+    dummy function so ruff applies function-scope blank-line rules (E301)
+    instead of file-scope rules (E302).
+    """
+    tree = ast_parse(formatted)
+    fn = tree.body[0]
+    if not isinstance(fn, ast.FunctionDef):
+        raise ValueError(
+            f"Expected a FunctionDef node, got {type(fn).__name__}"
+        )
+    # The `def _():` header is a single line, so everything from `fn.lineno`
+    # (the first body line) through the end of the source is the cell body.
+    # Extracting this whole span rather than statement offsets keeps comments
+    # and decorators, which have no AST nodes of their own and would otherwise
+    # fall outside the first/last statement's line and column offsets.
+    start_lineno = fn.lineno
+
+    extractor = Extractor(formatted)
+    raw = extractor.extract_from_offsets(
+        start_lineno, 0, len(extractor.lines) - 1, None
+    )
+    return fixed_dedent(raw).strip()
 
 
 def extract_lineno(node: Node) -> int:
@@ -105,7 +142,7 @@ class Extractor:
 
     def __init__(self, contents: str):
         self.contents = contents.strip()
-        self.lines = self.contents.splitlines() if self.contents else []
+        self.lines = split_source_lines(self.contents) if self.contents else []
 
     def extract_from_offsets(
         self,

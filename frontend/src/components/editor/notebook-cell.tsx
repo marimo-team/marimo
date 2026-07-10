@@ -29,6 +29,7 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
+import { clearCellBreakpoints } from "@/core/codemirror/cells/debugger-state";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
@@ -58,7 +59,6 @@ import type { UserConfig } from "../../core/config/config-schema";
 import { isAppInteractionDisabled } from "../../core/websocket/connection-utils";
 import { useCellRenderCount } from "../../hooks/useCellRenderCount";
 import type { Theme } from "../../theme/useTheme";
-import { derefNotNull } from "../../utils/dereference";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
@@ -233,8 +233,9 @@ export type CellComponentActions = Pick<
 export interface CellHandle {
   /**
    * The CodeMirror editor view.
+   * TODO: merge this with editorViewOrNull
    */
-  editorView: EditorView;
+  editorView: EditorView | null;
   /**
    * The CodeMirror editor view, or null if it is not yet mounted.
    */
@@ -280,7 +281,7 @@ const CellComponent = (props: CellProps) => {
     ref,
     () => ({
       get editorView() {
-        return derefNotNull(editorView);
+        return editorView.current;
       },
       get editorViewOrNull() {
         return editorView.current;
@@ -746,6 +747,9 @@ const EditableCellComponent = ({
               onRefactorWithAI={handleRefactorWithAI}
               onClear={() => {
                 actions.clearCellConsoleOutput({ cellId });
+                // The debugger "Clear" (trashcan) also drops this cell's
+                // breakpoints; no-op when none are set.
+                clearCellBreakpoints(cellId);
               }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({
@@ -1211,6 +1215,9 @@ const SetupCellComponent = ({
               onRefactorWithAI={handleRefactorWithAI}
               onClear={() => {
                 actions.clearCellConsoleOutput({ cellId });
+                // The debugger "Clear" (trashcan) also drops this cell's
+                // breakpoints; no-op when none are set.
+                clearCellBreakpoints(cellId);
               }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({

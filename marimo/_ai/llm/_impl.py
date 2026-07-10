@@ -796,21 +796,6 @@ class pydantic_ai(ChatModel):
                     result,
                 )
             return result  # type: ignore[no-any-return]
-        except TypeError:
-            # Fallback for pydantic-ai < 1.52.0 which doesn't have sdk_version param
-            try:
-                # by_alias=True: Use camelCase keys expected by Vercel AI SDK.
-                # exclude_none=True: Remove null values which cause validation errors.
-                serialized = chunk.model_dump(
-                    mode="json", by_alias=True, exclude_none=True
-                )
-            except Exception as e:
-                LOGGER.error("Error serializing vercel ai chunk: %s", e)
-                return None
-            else:
-                if serialized.get("type") == "done":
-                    return None
-                return serialized
         except Exception as e:
             LOGGER.error("Error serializing vercel ai chunk: %s", e)
             return None
@@ -838,17 +823,11 @@ class pydantic_ai(ChatModel):
             messages=ui_messages,
         )
 
-        try:
-            adapter = VercelAIAdapter(
-                agent=self.agent,
-                run_input=run_input,
-                sdk_version=AI_SDK_VERSION,
-            )
-        except TypeError:
-            adapter = VercelAIAdapter(
-                agent=self.agent,
-                run_input=run_input,
-            )
+        adapter = VercelAIAdapter(
+            agent=self.agent,
+            run_input=run_input,
+            sdk_version=AI_SDK_VERSION,
+        )
         event_stream = adapter.run_stream(model_settings=model_settings)
         async for event in event_stream:
             if serialized := self._serialize_vercel_ai_chunk(event):

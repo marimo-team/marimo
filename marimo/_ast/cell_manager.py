@@ -370,6 +370,10 @@ class CellManager:
     def configs(self) -> Iterable[CellConfig]:
         """Get an iterator over all cell configurations.
 
+        The returned configs are owned by the document; treat them as read
+        only and change a cell's config with a SetConfig transaction rather
+        than mutating in place.
+
         Returns:
             Iterable[CellConfig]: Iterator yielding each cell's configuration
         """
@@ -432,6 +436,10 @@ class CellManager:
 
     def config_map(self) -> dict[CellId_t, CellConfig]:
         """Get a mapping of cell IDs to their configurations.
+
+        The returned configs are owned by the document; treat them as read
+        only and change a cell's config with a SetConfig transaction rather
+        than mutating in place.
 
         Returns:
             dict[CellId_t, CellConfig]: Dictionary mapping cell IDs to their configurations

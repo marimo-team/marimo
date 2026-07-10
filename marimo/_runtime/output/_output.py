@@ -2,7 +2,11 @@
 from __future__ import annotations
 
 from marimo._messaging.cell_output import CellChannel
-from marimo._messaging.notification_utils import CellNotificationUtils
+from marimo._messaging.notification import CellNotification
+from marimo._messaging.notification_utils import (
+    CellNotificationUtils,
+    broadcast_notification,
+)
 from marimo._messaging.tracebacks import write_traceback
 from marimo._output import formatting
 from marimo._output.rich_help import mddoc
@@ -45,8 +49,11 @@ def replace(value: object) -> None:
     output = ctx.execution_context.output
     output.clear()
     if value is not None:
-        output.append(formatting.as_html(value))
-    write_internal(cell_id=ctx.execution_context.cell_id, value=value)
+        html = formatting.as_html(value)
+        output.append(html)
+        write_internal(cell_id=ctx.execution_context.cell_id, value=html)
+    else:
+        write_internal(cell_id=ctx.execution_context.cell_id, value=value)
 
 
 @mddoc
@@ -135,3 +142,27 @@ def remove(value: object) -> None:
     output = ctx.execution_context.output
     output.remove(value)
     flush()
+
+
+@mddoc
+def clear_console() -> None:
+    """Clear a cell's console output.
+
+    Call `mo.output.clear_console()` to clear the console output area below a
+    cell, including text written earlier in the same run (via `print`, logging,
+    or `stdout`/`stderr`).
+    """
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        return
+
+    if ctx.execution_context is None:
+        return
+
+    ctx.stream.flush_console()
+    if ctx.stream.cell_id is not None:
+        broadcast_notification(
+            CellNotification(cell_id=ctx.stream.cell_id, console=[]),
+            stream=ctx.stream,
+        )

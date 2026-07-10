@@ -117,14 +117,23 @@ class Loader(ABC):
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
         return Path(f"{prefix}{key.hash}")
 
+    def flush(self) -> None:
+        """Drain any pending asynchronous writes so results are durable.
+
+        No-op by default; backends that dispatch writes to background threads
+        (e.g. the lazy loader) override this to join them before shutdown.
+        """
+        return
+
     def cache_attempt(
         self,
         defs: set[Name],
         key: HashKey,
         stateful_refs: set[Name],
+        glbls: dict[str, Any] | None = None,
     ) -> Cache:
         start_time = time.time()
-        loaded = self.load_cache(key)
+        loaded = self.load_cache(key, glbls=glbls)
         if not loaded:
             return Cache.empty(defs=defs, key=key, stateful_refs=stateful_refs)
         load_time = time.time() - start_time
@@ -180,8 +189,14 @@ class Loader(ABC):
         """
 
     @abstractmethod
-    def load_cache(self, key: HashKey) -> Cache | None:
-        """Load Cache"""
+    def load_cache(
+        self,
+        key: HashKey,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache | None:
+        """Load Cache. `glbls` is an optional cell namespace used by
+        loaders (e.g. `LazyLoader`) that need to resolve
+        `__main__`-qualified pickle refs against the live cell scope."""
 
     @abstractmethod
     def save_cache(self, cache: Cache) -> bool:
@@ -223,13 +238,25 @@ class BasePersistenceLoader(Loader):
     def cache_hit(self, key: HashKey) -> bool:
         return self.store.hit(str(self.build_path(key)))
 
+    def mark_stale(self, manifest_key: str) -> None:
+        """Force a manifest to miss for the rest of the session.
+
+        No-op by default; loaders with a session-scoped store override this to
+        record the key as stale.
+        """
+
     def save_cache(self, cache: Cache) -> bool:
         blob = self.to_blob(cache)
         if blob is None:
             return False
         return self.store.put(str(self.build_path(cache.key)), blob)
 
-    def load_cache(self, key: HashKey) -> Cache | None:
+    def load_cache(
+        self,
+        key: HashKey,
+        glbls: dict[str, Any] | None = None,
+    ) -> Cache | None:
+        del glbls  # Base persistence loader doesn't need a cell namespace.
         try:
             blob: bytes | None = self.store.get(str(self.build_path(key)))
             if not blob:

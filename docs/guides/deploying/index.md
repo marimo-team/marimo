@@ -53,6 +53,31 @@ If you would like to deploy your application at a subpath, you can set the `--ba
 marimo run app.py --base-url /subpath
 ```
 
+### Deploying without WebSockets (experimental)
+
+marimo streams kernel messages to the browser over a WebSocket by default.
+Some proxies and hosting services handle WebSockets poorly or not at all; for
+these deployments, you can switch the kernel connection to server-sent
+events (SSE) over plain HTTP with the `MARIMO_SERVER_TRANSPORT` environment
+variable:
+
+```bash
+MARIMO_SERVER_TRANSPORT=sse marimo run app.py
+```
+
+This setting is experimental. Keep in mind:
+
+- The terminal and language servers (LSP) in `marimo edit` still require
+  WebSockets and are unaffected by this setting.
+- Real-time collaboration (`rtc_v2`) requires WebSockets and is disabled
+  when using SSE.
+- Make sure proxies do not buffer the `/sse` endpoint's
+  `text/event-stream` responses (marimo sends `Cache-Control: no-transform`
+  and `X-Accel-Buffering: no` headers, and a keep-alive comment every 20
+  seconds).
+- Browsers cap concurrent HTTP/1.1 connections per origin (typically 6), so
+  prefer serving over HTTP/2 when many notebook tabs may be open at once.
+
 ### Including code in your application
 
 By default, `marimo run` does not send your notebook's source code to

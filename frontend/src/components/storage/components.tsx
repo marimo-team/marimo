@@ -6,14 +6,10 @@ import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
 import CloudflareIcon from "@marimo-team/llm-info/icons/cloudflare.svg?inline";
 import CoreweaveIcon from "@marimo-team/llm-info/icons/coreweave.svg?inline";
 import CoreweaveDarkIcon from "@marimo-team/llm-info/icons/coreweave-dark.svg?inline";
-import {
-  DatabaseZapIcon,
-  GithubIcon,
-  GlobeIcon,
-  HardDriveIcon,
-} from "lucide-react";
+import { DatabaseZapIcon, GlobeIcon, HardDriveIcon } from "lucide-react";
 import GoogleCloudIcon from "@/components/databases/icons/google-cloud-storage.svg?inline";
 import GoogleDriveIcon from "@/components/databases/icons/google-drive.svg?inline";
+import { GitHubIcon } from "@/components/icons/github";
 import type { KnownStorageProtocol } from "@/core/storage/types";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
@@ -32,7 +28,7 @@ const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
   file: HardDriveIcon,
   "in-memory": DatabaseZapIcon,
   gdrive: { src: GoogleDriveIcon },
-  github: GithubIcon,
+  github: GitHubIcon,
 };
 
 export const ProtocolIcon: React.FC<{

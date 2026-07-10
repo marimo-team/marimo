@@ -45,7 +45,7 @@ const SessionTab: React.FC<SessionTabProps> = memo(
         <Button
           variant="ghost"
           size="sm"
-          className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive flex-shrink-0"
+          className="h-4 w-4 p-0 hover:bg-destructive/20 hover:text-destructive shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             onClose(session.tabId);
@@ -131,7 +131,7 @@ export const SessionTabs: React.FC<SessionTabsProps> = memo(({ className }) => {
         onSelectSession={handleSelectSession}
         onCloseSession={handleCloseSession}
       />
-      <AgentSelector className="h-6 flex-shrink-0" />
+      <AgentSelector className="h-6 shrink-0" />
     </div>
   );
 });

@@ -15,6 +15,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EsmSpec,
     InstallingPackageAlertNotification,
     InterruptedNotification,
     ModelClose,
@@ -72,6 +73,7 @@ class ModelReplayState:
     model_id: WidgetModelId
     state: dict[str, Any]
     buffers: dict[BufferPath, bytes]
+    esm_spec: EsmSpec | None = None
 
     @staticmethod
     def from_open(model_id: WidgetModelId, msg: ModelOpen) -> ModelReplayState:
@@ -83,6 +85,7 @@ class ModelReplayState:
             model_id=model_id,
             state=dict(msg.state),
             buffers=buffers,
+            esm_spec=msg.esm_spec,
         )
 
     def apply_update(self, msg: ModelUpdate) -> None:
@@ -98,6 +101,10 @@ class ModelReplayState:
         self.state.update(msg.state)
         for path, buf in zip(msg.buffer_paths, msg.buffers, strict=False):
             self.buffers[tuple(path)] = buf
+        # A spec on an update is a hot reload; late joiners must replay
+        # the current code, not the original open's.
+        if msg.esm_spec is not None:
+            self.esm_spec = msg.esm_spec
 
     def to_notification(self) -> ModelLifecycleNotification:
         paths = list(self.buffers.keys())
@@ -108,6 +115,7 @@ class ModelReplayState:
                 state=dict(self.state),
                 buffer_paths=[list(p) for p in paths],
                 buffers=bufs,
+                esm_spec=self.esm_spec,
             ),
         )
 
@@ -644,8 +652,14 @@ def merge_cell_notification(
     if current.status is None:
         current.status = previous.status
 
-    # If we went from queued to running, clear the console.
-    if current.status == "running" and previous.status == "queued":
+    # Reset the console on an explicit empty list (the `[]` clears contract,
+    # e.g. mo.output.clear_console()) or on queued -> running. Otherwise stale
+    # console output would persist in the session view.
+    explicit_clear = isinstance(current.console, list) and not current.console
+    queued_to_running = (
+        current.status == "running" and previous.status == "queued"
+    )
+    if explicit_clear or queued_to_running:
         current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)

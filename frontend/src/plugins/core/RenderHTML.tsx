@@ -199,6 +199,37 @@ const keyImagesBySrc: TransformFn = (
   return cloneElement(reactNode, { key: `${src}-${index}` });
 };
 
+// Decorator: applies a checked-state-based key to task-list checkbox
+// <input> elements (e.g. GFM `- [ ]` / `- [x]` rendered by
+// pymdownx.tasklist) so they remount when their checked-ness changes.
+//
+// pymdownx.tasklist omits the `checked` HTML attribute entirely for
+// unchecked items (rather than emitting checked="false"). When markdown
+// edits shift which item lands at a given tree position (e.g. deleting
+// completed items above unchecked ones), reusing the same DOM <input>
+// across a checked -> unchecked item is a controlled -> uncontrolled prop
+// transition for React: React stops managing the DOM `checked` property in
+// that transition instead of resetting it, leaving the previous item's
+// checked state visually stuck until a full remount. Baking checked-ness
+// into the key forces a fresh node instead of reusing the stale one.
+const keyTaskListCheckboxesByChecked: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+  index: number,
+): JSX.Element | undefined => {
+  if (!(domNode instanceof Element) || domNode.name !== "input") {
+    return undefined;
+  }
+  if (domNode.attribs?.type !== "checkbox") {
+    return undefined;
+  }
+  if (!isValidElement(reactNode)) {
+    return undefined;
+  }
+  const checked = "checked" in domNode.attribs;
+  return cloneElement(reactNode, { key: `checkbox-${index}-${checked}` });
+};
+
 // Wrap elements with data-marimo-doc attribute in a DocHoverTarget
 const wrapDocHoverTargets: TransformFn = (
   reactNode: ReactNode,
@@ -326,7 +357,10 @@ function parseHtml({
   // and may further wrap/clone it. Used for cross-cutting concerns that
   // should apply regardless of which (if any) match-and-replace transform
   // ran above.
-  const decoratorFunctions: TransformFn[] = [keyImagesBySrc];
+  const decoratorFunctions: TransformFn[] = [
+    keyImagesBySrc,
+    keyTaskListCheckboxesByChecked,
+  ];
 
   return parse(html, {
     replace: (domNode: DOMNode, index: number) => {

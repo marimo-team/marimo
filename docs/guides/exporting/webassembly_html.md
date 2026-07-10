@@ -176,6 +176,20 @@ Use `MarimoIslandGenerator` to generate HTML for islands
 
 Any relevant `.html` that gets generated can be run through the [`development.md`](https://github.com/marimo-team/marimo/blob/main/frontend/islands/development.md) file instructions.
 
+### Island payloads
+
+`MarimoIslandGenerator.render_html(include_payload=True)` and `render_body(include_payload=True)` include a JSON payload. The payload stores each cell's code, rendered output HTML, output MIME type, and display settings.
+
+The islands runtime uses this payload to hydrate the page. The DOM still provides the visible island slots, and the payload provides the runtime cell code and output metadata.
+
+An emitted payload looks like this. HTML-sensitive characters inside JSON strings are escaped before marimo writes the script tag.
+
+```html
+<script type="application/vnd.marimo.islands+json">{"schemaVersion":1,"appId":"main","cells":[{"cellId":"cell-1","code":"mo.md('Hello, islands!')","outputHtml":"\u003cspan\u003eHello, islands!\u003c/span\u003e","outputMimetype":"text/markdown","reactive":true,"displayCode":false,"displayOutput":true}]}</script>
+```
+
+If you post-process island HTML, preserve the script tag with type `application/vnd.marimo.islands+json` and keep its contents unchanged.
+
 ### Islands in action
 
 !!! warning "Advanced topic!"

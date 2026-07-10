@@ -326,6 +326,7 @@ class App:
                             refs=cell_impl.refs,
                             sql_refs=cell_impl.sql_refs,
                             temporaries=cell_impl.temporaries,
+                            closed_over_temporaries=cell_impl.closed_over_temporaries,
                             variable_data=cell_impl.variable_data,
                             deleted_refs=cell_impl.deleted_refs,
                             body=cell_impl.body,

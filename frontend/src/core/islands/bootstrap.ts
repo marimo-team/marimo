@@ -5,8 +5,8 @@ import { ISLAND_CSS_CLASSES, ISLAND_TAG_NAMES } from "@/core/islands/constants";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
-  MODEL_MANAGER,
-} from "@/plugins/impl/anywidget/model";
+  WIDGET_REGISTRY,
+} from "@/plugins/impl/anywidget/registry";
 import { initializePlugins } from "@/plugins/plugins";
 import { Functions } from "@/utils/functions";
 import {
@@ -174,6 +174,7 @@ function handleMessage(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "active-line":
       case "variables":
       case "variable-values":
       case "data-column-preview":
@@ -252,7 +253,7 @@ function handleMessage(
         return;
 
       case "model-lifecycle":
-        handleWidgetMessage(MODEL_MANAGER, msg.data);
+        handleWidgetMessage(WIDGET_REGISTRY, msg.data);
         return;
 
       case "consumer-capabilities":

@@ -124,8 +124,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       `Starting sessions for ${apps.length} app(s):`,
       apps.map((a) => `${a.id} (${a.cells.length} cells)`),
     );
+    // Payload-backed apps already carry the exact runtime cells and order. The
+    // full-notebook export context may describe a different source and would
+    // override the payload contract for single-app pages.
     const exportContext =
-      apps.length === 1 ? getMarimoExportContext() : undefined;
+      apps.length === 1 && !apps[0]?.payloadBacked
+        ? getMarimoExportContext()
+        : undefined;
     const notebookCode = exportContext?.notebookCode;
     for (const app of apps) {
       const file = notebookCode || createMarimoFile(app);
@@ -239,6 +244,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendListFiles = throwNotImplemented;
   sendSearchFiles = throwNotImplemented;
   sendPdb = throwNotImplemented;
+  sendSetBreakpoints = throwNotImplemented;
   sendCreateFileOrFolder = throwNotImplemented;
   sendDeleteFileOrFolder = throwNotImplemented;
   sendCopyFileOrFolder = throwNotImplemented;

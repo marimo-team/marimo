@@ -9,13 +9,22 @@ from starlette.authentication import requires
 from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._runtime.commands import HTTPRequest, UpdateUIElementCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     FILE_QUERY_PARAM_KEY,
 )
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
-from marimo._server.api.utils import dispatch_control_request, parse_request
+from marimo._server.api.utils import (
+    dispatch_control_request,
+    enforce_consumer_capability,
+    get_code_mode_credentials,
+    parse_request,
+)
 from marimo._server.models.models import (
     BaseResponse,
     DebugCellRequest,
@@ -25,10 +34,12 @@ from marimo._server.models.models import (
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
+    SetBreakpointsRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
+from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
@@ -78,13 +89,15 @@ async def set_ui_element_values(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateUIElementValuesRequest)
+    command = UpdateUIElementCommand(
+        object_ids=body.object_ids,
+        values=body.values,
+        token=str(uuid4()),
+        request=HTTPRequest.from_request(request),
+    )
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        UpdateUIElementCommand(
-            object_ids=body.object_ids,
-            values=body.values,
-            token=str(uuid4()),
-            request=HTTPRequest.from_request(request),
-        ),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -242,8 +255,10 @@ async def run_cell(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
+    command = body.as_command()
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        body.as_command(),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -331,15 +346,8 @@ async def execute_code(
 
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
-        while True:
-            # request._receive is the ASGI `receive` callable. Although
-            # it's a private Starlette attribute, it's the standard way to
-            # detect disconnects and doesn't race with StreamingResponse
-            # (which only writes to the send channel, never reads receive).
-            message = await request._receive()
-            if message.get("type") == "http.disconnect":
-                session.try_interrupt()
-                return
+        await wait_for_http_disconnect(request)
+        session.try_interrupt()
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         disconnect_task = asyncio.create_task(_watch_disconnect())
@@ -354,19 +362,11 @@ async def execute_code(
             with session.scoped(listener):
                 async with session.scratchpad_lock:
                     http_req = HTTPRequest.from_request(request)
-                    # Inject trusted server URL and auth token for
-                    # code-mode screenshot support.  We use the
-                    # server's own host/port (from config) rather
-                    # than the request's Host header to prevent
-                    # header-spoofing attacks.
-                    http_req.meta["screenshot_auth_token"] = str(
-                        app_state.session_manager.auth_token
+                    server_url, auth_token = get_code_mode_credentials(
+                        app_state, request
                     )
-                    base_url = app_state.base_url.rstrip("/")
-                    scheme = request.url.scheme or "http"
-                    http_req.meta["screenshot_server_url"] = (
-                        f"{scheme}://{app_state.host}:{app_state.port}{base_url}"
-                    )
+                    http_req.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
+                    http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
                     notebook_cells, cell_outputs = snapshot_for_scratchpad(
                         session
                     )
@@ -384,6 +384,12 @@ async def execute_code(
                         yield event
 
                 yield build_done_event(session, listener)
+        except asyncio.CancelledError:
+            # On ASGI spec < 2.4, Starlette consumes http.disconnect
+            # itself and cancels this generator before _watch_disconnect
+            # observes it; still interrupt the kernel on the way out.
+            session.try_interrupt()
+            raise
         finally:
             await cancel_and_wait(disconnect_task)
 
@@ -446,6 +452,35 @@ async def run_post_mortem(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DebugCellRequest)
+
+
+@router.post("/pdb/breakpoints")
+@requires("edit")
+async def set_breakpoints(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetBreakpointsRequest"
+    responses:
+        200:
+            description: Set the live debugger's breakpoints for the session.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, SetBreakpointsRequest)
 
 
 @router.post("/restart_session")

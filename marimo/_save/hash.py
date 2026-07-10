@@ -705,11 +705,18 @@ class BlockHasher:
                 version = ""
                 module = None
                 if self.pin_modules:
-                    module = sys.modules[imports[ref].module]
-                    version = getattr(module, "__version__", "")
+                    # Fall back to the in-scope value (which may be a module
+                    # stub) so its replayed `__version__` reproduces the pinned
+                    # hash.
+                    module = sys.modules.get(imports[ref].module) or scope.get(
+                        local_ref
+                    )
+                    version = getattr(module, "__version__", "") or ""
                     if not version:
-                        module = sys.modules[imports[ref].namespace]
-                        version = getattr(module, "__version__", "")
+                        module = sys.modules.get(
+                            imports[ref].namespace
+                        ) or scope.get(imports[ref].namespace)
+                        version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
                     bytes(f"module:{ref}:{version}", "utf-8"), "module"
@@ -747,6 +754,44 @@ class BlockHasher:
                 serial_value = hash_wrapped_functions(
                     value, self.hash_alg.name
                 )
+            # A restored stub — a placeholder left in scope for a value we
+            # could not materialize here (e.g. a tensor whose optional dep is
+            # absent in this environment). The `__marimo_unhashable__` protocol
+            # marker avoids importing the stub class into the hasher.
+            elif getattr(type(value), "__marimo_unhashable__", False):
+                digest = getattr(value, "content_hash", "")
+                type_name = getattr(value, "type_name", "") or ""
+                stub_module = (
+                    type_name.rsplit(".", 1)[0] if "." in type_name else ""
+                )
+                is_marimo_stub = stub_module.startswith("marimo")
+                if digest:
+                    # The stub carries the value's persisted content digest;
+                    # replay it so the key matches the native content hash
+                    # without recomputing `data_to_buffer(value)`.
+                    content_serialization[ref] = bytes.fromhex(digest)
+                elif is_marimo_stub:
+                    # No digest, but the stub stands in for a marimo-owned value
+                    # (e.g. a `persistent_cache` wrapper `_cache_call`). Native
+                    # dequeues those with zero contribution: the external-module
+                    # guard below is False for marimo modules (`not
+                    # __module__.startswith("marimo")`), so on the real value it
+                    # falls through to `refs.remove`. Mirror that here so a
+                    # restored marimo stub does not flip the consumer's key from
+                    # content- to execution-addressed.
+                    pass
+                elif local_ref in self.graph.definitions:
+                    # No digest: the stub stands in for a graph-defined
+                    # function/class/lambda, which the native run routes
+                    # through the execution path (via the `__main__` branch
+                    # below on the real value). Route by graph provenance so
+                    # this environment reproduces the same key.
+                    continue
+                # A digest-less stub that is neither marimo-owned nor
+                # graph-defined is dequeued with no content, matching native's
+                # fall-through behaviour.
+                refs.remove(local_ref)
+                continue
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
@@ -1078,6 +1123,7 @@ def cache_attempt_from_hash(
         hasher.defs,
         hasher.key,
         hasher.stateful_refs,
+        glbls=scope,
     )
 
 
@@ -1166,4 +1212,5 @@ def content_cache_attempt_from_base(
         hasher.defs,
         hasher.key,
         stateful_refs,
+        glbls=scope,
     )

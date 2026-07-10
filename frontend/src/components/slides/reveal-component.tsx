@@ -16,6 +16,7 @@ import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
+import { outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -333,6 +334,7 @@ const SubslideView = ({
                     cellId={cell.id}
                     status={cell.status}
                     output={cell.output}
+                    stale={outputIsStale(cell, false)}
                   />
                 );
               }
@@ -397,6 +399,7 @@ const ParkedPreviewContent = ({
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      stale={outputIsStale(cell, false)}
     />
   );
 };
@@ -684,7 +687,7 @@ const RevealSlidesComponent = ({
       <div className="group relative" style={{ width, height }}>
         <Deck
           deckRef={deckRef}
-          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-none focus-visible:outline-none"
+          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-hidden focus-visible:outline-hidden"
           config={revealConfig}
           onReady={handleDeckReady}
           onSlideChange={handleSlideChange}

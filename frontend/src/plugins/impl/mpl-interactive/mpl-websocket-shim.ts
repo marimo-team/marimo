@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Fake WebSocket that routes messages through MarimoComm / MODEL_MANAGER
+ * Fake WebSocket that routes messages through MarimoComm / WIDGET_REGISTRY
  * instead of a real network WebSocket.
  *
  * mpl.js expects a WebSocket-like object with:
@@ -18,6 +18,16 @@ export class MplCommWebSocket {
   onclose: (() => void) | null = null;
 
   constructor(sendFn: (msg: unknown) => void) {
+    this.sendFn = sendFn;
+  }
+
+  /**
+   * Re-point outbound sends at a new backend comm without recreating the
+   * socket. The figure manager is reused across cell reruns, so the same
+   * socket instance stays bound to mpl.js (which wires `onopen`/`onmessage`
+   * onto it at construction); only the comm behind it changes.
+   */
+  setSendHandler(sendFn: (msg: unknown) => void): void {
     this.sendFn = sendFn;
   }
 

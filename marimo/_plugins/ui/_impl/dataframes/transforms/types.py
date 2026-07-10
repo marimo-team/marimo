@@ -296,6 +296,32 @@ class Transformations:
     transforms: list[Transform]
 
 
+def normalize_transforms_payload(value: dict[str, Any]) -> dict[str, Any]:
+    """Coerce the legacy flat-list `where` shape into a FilterGroup dict.
+
+    The DataFramePlugin frontend can still emit a `filter_rows` transform whose
+    `where` is a bare list of conditions (e.g. on `.form()` submit) instead of
+    a FilterGroup. Normalize it before parsing so `FilterRowsTransform.where`
+    stays a FilterGroup for all downstream consumers.
+    """
+    transforms = value.get("transforms")
+    if not isinstance(transforms, list):
+        return value
+    for transform in transforms:
+        if (
+            isinstance(transform, dict)
+            and transform.get("type") == "filter_rows"
+            and isinstance(transform.get("where"), list)
+        ):
+            transform["where"] = {
+                "type": "group",
+                "operator": "and",
+                "children": transform["where"],
+                "negate": False,
+            }
+    return value
+
+
 T = TypeVar("T")
 
 

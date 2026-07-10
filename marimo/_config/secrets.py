@@ -16,8 +16,10 @@ def mask_secrets_partial(config: PartialMarimoConfig) -> PartialMarimoConfig:
 
 
 def mask_secrets(config: MarimoConfig) -> MarimoConfig:
-    def deep_remove_from_path(path: list[str], obj: dict[str, Any]) -> None:
-        if not path:
+    def deep_remove_from_path(
+        path: list[str], obj: dict[str, Any] | Any
+    ) -> None:
+        if not path or not isinstance(obj, dict):
             return
 
         key = path[0]
@@ -52,12 +54,11 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
     )
 
     new_config = deep_copy(config)
-    config_dict = cast(dict[str, Any], new_config)
 
     for secret in secrets:
-        deep_remove_from_path(list(secret), config_dict)
+        deep_remove_from_path(list(secret), new_config)
 
-    return new_config  # type: ignore
+    return cast(MarimoConfig, new_config)
 
 
 T = TypeVar("T")

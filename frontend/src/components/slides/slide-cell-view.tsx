@@ -13,6 +13,7 @@ import { StopButton } from "@/components/editor/cell/StopButton";
 import { useRunCell } from "@/components/editor/cell/useRunCells";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions } from "@/core/cells/cells";
 import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
@@ -26,7 +27,7 @@ import { connectionAtom } from "@/core/network/connection";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { ReadonlyCode } from "../editor/code/readonly-python-code";
-import { languageAdapterFromCode } from "@/core/codemirror/language/extension";
+import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 
 type RuntimeCell = CellRuntimeState & CellData;
 
@@ -96,6 +97,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      stale={outputIsStale(cell, false)}
     />
   );
 
@@ -188,22 +190,24 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   const [userConfig] = useUserConfig();
   const cellOutputPosition = userConfig.display.cell_output;
 
-  const language = useMemo(() => {
-    const adapter = languageAdapterFromCode(cell.code.trim());
-    return adapter.type === "sql" ? "sql" : "python";
-  }, [cell.code]);
+  const display = useMemo(() => getReadonlyCodeDisplay(cell.code), [cell.code]);
 
   const output = (
     <CellOutputSlide
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      stale={outputIsStale(cell, false)}
     />
   );
 
   const editor = (
     <div className="marimo-cell">
-      <ReadonlyCode code={cell.code} language={language} showHideCode={false} />
+      <ReadonlyCode
+        code={display.code}
+        language={display.language}
+        showHideCode={false}
+      />
     </div>
   );
 

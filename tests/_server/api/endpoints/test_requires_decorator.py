@@ -22,6 +22,10 @@ EXEMPT_ENDPOINTS: set[tuple[str, str]] = {
     # via `_MARIMO_DISABLE_AUTH_ON_VIRTUAL_FILES` for sandboxed/embedded
     # deployments.
     ("assets.py", "/@file/{filename_and_length:path}"),
+    # The SSE session stream does its own auth check so failures are
+    # delivered in-band as a `close` event (matching /ws close frames)
+    # instead of an HTTP error; covered by auth tests in test_sse.py.
+    ("ws_endpoint.py", "/sse"),
 }
 
 ENDPOINTS_DIR = Path(__file__).resolve().parents[4] / (

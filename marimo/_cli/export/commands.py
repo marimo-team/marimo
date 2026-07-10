@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -22,6 +23,11 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
+from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
@@ -29,7 +35,6 @@ from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
     export_as_ipynb,
-    export_as_md,
     export_as_script,
     export_as_wasm,
     notebook_uses_slides_layout,
@@ -47,6 +52,8 @@ from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
@@ -167,6 +174,39 @@ def watch_and_export(
             watcher.stop()
 
     asyncio_run(start())
+
+
+def _export_as_markdown(
+    path: MarimoPath,
+    *,
+    flavor: MarkdownFlavorName | None,
+    filename: str | None,
+) -> ExportResult:
+    if path.is_python():
+        converter = MarimoConvert.from_py(path.read_text(encoding="utf-8"))
+    elif path.is_markdown():
+        converter = MarimoConvert.from_md(path.read_text(encoding="utf-8"))
+    else:
+        raise click.ClickException(
+            f"Unsupported file type: {path.path.suffix}"
+        )
+
+    ir = replace(converter.ir, filename=path.short_name)
+    source_filename = ir.filename or path.short_name
+    export_filename = filename or source_filename
+    markdown_flavor = normalize_markdown_flavor(
+        flavor, filename=export_filename
+    )
+    return ExportResult(
+        contents=MarimoConvert.from_ir(ir).to_markdown(
+            filename=source_filename,
+            flavor=markdown_flavor,
+        ),
+        download_filename=markdown_output_filename(
+            export_filename, markdown_flavor
+        ),
+        did_error=False,
+    )
 
 
 @click.command(
@@ -353,7 +393,9 @@ Watch for changes and regenerate the script on modification:
     default=None,
     help=(
         "Output file to save the markdown to. "
-        "If not provided, markdown will be printed to stdout."
+        "If --flavor is omitted, this file's extension selects the "
+        "markdown flavor. If not provided, markdown will be printed to "
+        "stdout; shell redirection is not inspected for flavor inference."
     ),
 )
 @click.option(
@@ -362,6 +404,12 @@ Watch for changes and regenerate the script on modification:
     default=None,
     type=bool,
     help=_sandbox_message,
+)
+@click.option(
+    "--flavor",
+    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
+    default=None,
+    help="Markdown flavor to export.",
 )
 @click.option(
     "-f",
@@ -376,7 +424,12 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str, output: Path, watch: bool, sandbox: bool | None, force: bool
+    name: str,
+    output: Path,
+    watch: bool,
+    sandbox: bool | None,
+    flavor: MarkdownFlavorName | None,
+    force: bool,
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -385,8 +438,10 @@ def md(
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
+    filename = str(output) if output is not None else None
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path)
+        return _export_as_markdown(file_path, flavor=flavor, filename=filename)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -949,6 +1004,7 @@ def html_wasm(
                     show_code=show_code,
                     cli_args=cli_args,
                     argv=list(args),
+                    cache_export_dir=out_dir,
                 )
             )
 
@@ -987,9 +1043,9 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
-    return watch_and_export(
-        MarimoPath(name), outfile, watch, export_callback, force
-    )
+    # NB. with --execute, the callback also bundles session caches into the
+    # export's public/cache/.
+    watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
 
 
 export.add_command(html)

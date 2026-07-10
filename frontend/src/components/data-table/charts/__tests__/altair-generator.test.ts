@@ -85,6 +85,10 @@ const Mocks = {
       type: "arc",
       innerRadius: 100,
     },
+    arcDefault: {
+      type: "arc",
+      innerRadius: undefined,
+    },
   },
 };
 
@@ -125,6 +129,26 @@ describe("generateAltairChart", () => {
           x=alt.X(field='category'),
           y=alt.Y(field='value')
       )"
+    `);
+  });
+
+  it("should generate a pie chart when arc has undefined innerRadius", () => {
+    const spec = createSpec({
+      mark: Mocks.marks.arcDefault,
+      encoding: {
+        theta: Mocks.thetaAxis,
+      },
+    });
+    const datasource = "df";
+
+    const result = generateAltairChart(spec, datasource).toCode();
+
+    expect(result).toMatchInlineSnapshot(`
+      "alt.Chart(df)
+      .mark_arc()
+      .encode(theta=alt.Theta(field='theta', axis={
+          'title': 'Theta Axis'
+      }))"
     `);
   });
 

@@ -54,6 +54,10 @@ from marimo._code_mode._plan import (
     _UpdateOp,
     _validate_ops,
 )
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
 from marimo._messaging.cell_output import CellOutput
 from marimo._messaging.errors import Error
 from marimo._messaging.notebook.changes import (
@@ -1405,19 +1409,20 @@ class AsyncCodeModeContext:
                 "available.  screenshot() must be called during cell "
                 "execution (e.g. from code-mode)."
             )
-        # Read trusted server URL and auth token injected by the
-        # /execute endpoint (from server config, not request headers).
+
+        # Trusted server URL + auth token injected by the /execute
+        # endpoint (from server config, not request headers).
         server_url = cast(
-            "str | None", request.meta.get("screenshot_server_url")
+            "str | None", request.meta.get(SCREENSHOT_SERVER_URL_KEY)
         )
         if server_url is None:
             raise ScreenshotError(
-                "Cannot take screenshots: screenshot_server_url not "
+                "Cannot take screenshots: screenshot credentials not "
                 "found in request.meta.  This endpoint may not "
                 "support screenshots."
             )
         screenshot_auth_token = cast(
-            "str | None", request.meta.get("screenshot_auth_token")
+            "str | None", request.meta.get(SCREENSHOT_AUTH_TOKEN_KEY)
         )
 
         # Lazy-init the screenshot session (browser reuse).

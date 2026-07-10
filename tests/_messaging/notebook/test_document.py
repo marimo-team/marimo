@@ -181,6 +181,42 @@ class TestCreateCell:
         assert cell.config.hide_code is True
         assert cell.config.disabled is True
 
+    def test_copies_config_on_ingest(self) -> None:
+        """CreateCell stores a copy of the config, not the caller's instance.
+
+        Two documents built from the same CellConfig must not share it, and
+        mutating one document's stored config must not affect the other.
+        """
+        shared = CellConfig(disabled=True)
+
+        def build() -> NotebookDocument:
+            doc = NotebookDocument()
+            doc.apply(
+                _tx(
+                    CreateCell(
+                        cell_id=CellId_t("a"),
+                        code="x = 1",
+                        name="__",
+                        config=shared,
+                    )
+                )
+            )
+            return doc
+
+        doc_a = build()
+        doc_b = build()
+
+        config_a = doc_a.get_cell(CellId_t("a")).config
+        config_b = doc_b.get_cell(CellId_t("a")).config
+
+        assert config_a is not shared
+        assert config_b is not shared
+        assert config_a is not config_b
+
+        config_a.configure({"disabled": False})
+        assert doc_b.get_cell(CellId_t("a")).config.disabled is True
+        assert shared.disabled is True
+
 
 # ------------------------------------------------------------------
 # DeleteCell

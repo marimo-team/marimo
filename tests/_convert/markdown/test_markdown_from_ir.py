@@ -1,7 +1,12 @@
 # Copyright 2024 Marimo. All rights reserved.
 from __future__ import annotations
 
+import pytest
+
 from marimo._ast.app import App, InternalApp
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+)
 from marimo._convert.markdown.from_ir import (
     _format_filename_title,
     _get_sql_options_from_cell,
@@ -16,6 +21,8 @@ def test_format_filename_title():
     assert _format_filename_title("/path/to/my_notebook.py") == "My Notebook"
     assert _format_filename_title("simple.py") == "Simple"
     assert _format_filename_title("my-cool_notebook.md") == "My Cool Notebook"
+    assert _format_filename_title("notebook.myst.md") == "Notebook"
+    assert _format_filename_title("notebook.mdx") == "Notebook"
 
 
 def test_get_sql_options_from_cell_basic():
@@ -305,13 +312,188 @@ def test_convert_from_ir_to_markdown_qmd_format():
         notebook, filename="notebook.qmd"
     )
     assert "```{marimo .python" in markdown_qmd
-    assert "filters:" in markdown_qmd  # qmd should have marimo filter
+
+    markdown_mystmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.myst.md"
+    )
+    assert "```{marimo} python" in markdown_mystmd
 
     # Test .md filename produces standard format
     markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
-    assert "```{marimo .python" not in markdown_md
     # Should use either superfences or fallback format
     assert (
         "```python {.marimo" in markdown_md
         or "```{.python.marimo" in markdown_md
     )
+
+
+def test_convert_from_ir_to_markdown_mdx_format():
+    """Test that .mdx files use mdx-marimo fence format."""
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        Header,
+        NotebookSerializationV1,
+    )
+
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={"app_title": "MDX Demo"}),
+        cells=[
+            CellDef(
+                name="setup",
+                code="import marimo as mo",
+                options={"hide_code": True},
+            ),
+            CellDef(
+                name="view",
+                code='mo.md("# Ready")',
+                options={},
+            ),
+        ],
+        header=Header(
+            value=(
+                '# /// script\n# dependencies = ["polars"]\n# ///\nimport os'
+            )
+        ),
+        violations=[],
+        valid=True,
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(notebook, filename="notebook.mdx")
+
+    assert markdown.startswith("---\ntitle: MDX Demo\n")
+    assert '```marimo-config\ndependencies = ["polars"]\n```' in markdown
+    assert "```python marimo include=false\nimport os\n```" in markdown
+    assert "```python marimo hide-code=true name=setup" in markdown
+    assert "# Ready" in markdown
+
+
+def test_convert_from_ir_to_markdown_explicit_flavor():
+    """Test that explicit flavors override filename inference."""
+    app = App()
+
+    @app.cell()
+    def test_cell():
+        x = 1
+        return (x,)
+
+    internal_app = InternalApp(app)
+    notebook = internal_app.to_ir()
+
+    markdown_qmd = convert_from_ir_to_markdown(
+        notebook, filename="notebook.md", flavor="qmd"
+    )
+    assert "```{marimo .python" in markdown_qmd
+
+    markdown_md = convert_from_ir_to_markdown(
+        notebook, filename="notebook.qmd", flavor="pymdown"
+    )
+    assert (
+        "```python {.marimo" in markdown_md
+        or "```{.python.marimo" in markdown_md
+    )
+
+
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected"),
+    [
+        ("source.py", "pymdown", "source.md"),
+        ("source.py", "qmd", "source.qmd"),
+        ("source.py", "mystmd", "source.myst.md"),
+        ("source.py", "mdx", "source.mdx"),
+        ("source.qmd", "pymdown", "source.md"),
+        ("source.mdx", "pymdown", "source.md"),
+        ("source.myst.md", "pymdown", "source.md"),
+        ("source.myst.md", "mystmd", "source.myst.md"),
+        (None, "qmd", "notebook.qmd"),
+        (None, "mdx", "notebook.mdx"),
+    ],
+)
+def test_markdown_output_filename(filename, flavor, expected):
+    assert markdown_output_filename(filename, flavor) == expected
+
+
+@pytest.mark.parametrize(
+    ("filename", "flavor", "expected_head", "expected_name"),
+    [
+        (
+            "notebook.md",
+            "pymdown",
+            "```python",
+            'name="a&quot;b &amp; &lt;c&gt;"',
+        ),
+        (
+            "notebook.qmd",
+            "qmd",
+            "```{marimo .python",
+            'name="a&quot;b &amp; &lt;c&gt;"',
+        ),
+        (
+            "notebook.mdx",
+            "mdx",
+            "```python marimo",
+            "name='a\"b & <c>'",
+        ),
+    ],
+)
+def test_convert_from_ir_to_markdown_escapes_code_cell_attributes(
+    filename: str,
+    flavor: str,
+    expected_head: str,
+    expected_name: str,
+) -> None:
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        NotebookSerializationV1,
+    )
+
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[
+            CellDef(
+                name='a"b & <c>',
+                code="x = 1",
+                options={},
+            )
+        ],
+        violations=[],
+        valid=True,
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename=filename, flavor=flavor
+    )
+
+    assert expected_head in markdown
+    assert expected_name in markdown
+
+
+def test_convert_from_ir_to_markdown_mdx_escapes_quoted_options() -> None:
+    from marimo._schemas.serialization import (
+        AppInstantiation,
+        CellDef,
+        NotebookSerializationV1,
+    )
+
+    notebook = NotebookSerializationV1(
+        app=AppInstantiation(options={}),
+        cells=[
+            CellDef(
+                name="a\"b'c\\d",
+                code="x = 1",
+                options={},
+            )
+        ],
+        violations=[],
+        valid=True,
+        filename="notebook.py",
+    )
+
+    markdown = convert_from_ir_to_markdown(
+        notebook, filename="notebook.mdx", flavor="mdx"
+    )
+
+    assert 'name="a\\"b\'c\\\\d"' in markdown

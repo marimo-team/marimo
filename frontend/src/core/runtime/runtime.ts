@@ -107,9 +107,10 @@ export class RuntimeManager {
   }
 
   /**
-   * The WebSocket URL of the runtime.
+   * Search params for a session connection: the base URL's params, merged
+   * with the current page's, plus the session id.
    */
-  getWsURL(sessionId: SessionId): URL {
+  private getSessionSearchParams(sessionId: SessionId): URLSearchParams {
     const baseUrl = new URL(this.config.url);
     const searchParams = new URLSearchParams(baseUrl.search);
 
@@ -123,27 +124,40 @@ export class RuntimeManager {
     });
 
     searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return this.formatWsURL("/ws", searchParams);
+    return searchParams;
+  }
+
+  /**
+   * The WebSocket URL of the runtime.
+   */
+  getWsURL(sessionId: SessionId): URL {
+    return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
+  }
+
+  /**
+   * The SSE URL of the runtime; the http(s) alternative to `getWsURL`
+   * when `server.transport` is `"sse"`. Unlike WebSockets, SSE requests
+   * can send headers, so auth travels in the Authorization header
+   * (see `headers()`) instead of the URL.
+   */
+  getSseURL(sessionId: SessionId): URL {
+    const url = this.formatHttpURL({
+      path: "/sse",
+      searchParams: this.getSessionSearchParams(sessionId),
+      restrictToKnownQueryParams: false,
+    });
+    // The page URL can still carry access_token (merged in from the
+    // current page's params, before auth cleanup strips it); never
+    // forward it — a token in the URL leaks into proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
   }
 
   /**
    * The WebSocket Sync URL of the runtime, for real-time updates.
    */
   getWsSyncURL(sessionId: SessionId): URL {
-    const baseUrl = new URL(this.config.url);
-    const searchParams = new URLSearchParams(baseUrl.search);
-
-    // Merge in current page's query parameters
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.forEach((value, key) => {
-      // Don't override base URL params
-      if (!searchParams.has(key)) {
-        searchParams.set(key, value);
-      }
-    });
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return this.formatWsURL("/ws_sync", searchParams);
+    return this.formatWsURL("/ws_sync", this.getSessionSearchParams(sessionId));
   }
 
   /**

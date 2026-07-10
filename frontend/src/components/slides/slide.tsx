@@ -11,19 +11,22 @@ interface SlideContentProps extends Pick<
   "output" | "status"
 > {
   cellId: CellId;
+  stale: boolean;
 }
 
-export const Slide = memo(({ output, cellId, status }: SlideContentProps) => {
-  const loading = outputIsLoading(status);
-  return (
-    <OutputArea
-      className="contents"
-      allowExpand={false}
-      output={output}
-      cellId={cellId}
-      stale={loading}
-      loading={loading}
-    />
-  );
-});
+export const Slide = memo(
+  ({ output, cellId, status, stale }: SlideContentProps) => {
+    const loading = outputIsLoading(status);
+    return (
+      <OutputArea
+        className="contents"
+        allowExpand={false}
+        output={output}
+        cellId={cellId}
+        stale={stale}
+        loading={loading}
+      />
+    );
+  },
+);
 Slide.displayName = "Slide";

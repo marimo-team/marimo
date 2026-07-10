@@ -1,5 +1,28 @@
 components:
   schemas:
+    ActiveLineNotification:
+      description: "Reports the line a cell's frame watcher is currently executing.\n\
+        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
+        \    changed), so the editor can highlight the live line. A `None` line\n\
+        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
+        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
+        \ line within the cell, or `None` to clear."
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - active-line
+      required:
+      - op
+      - cell_id
+      title: ActiveLineNotification
+      type: object
     AddPackageRequest:
       description: 'This can be a remove package or a local package.
 
@@ -134,6 +157,7 @@ components:
           enum:
           - agent
           - ask
+          - code_mode
           - manual
         models:
           $ref: '#/components/schemas/AiModelConfig'
@@ -592,8 +616,6 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
-        context:
-          $ref: '#/components/schemas/AiCompletionContext'
         includeOtherCode:
           type: string
         model:
@@ -622,7 +644,6 @@ components:
           - type: 'null'
           default: null
       required:
-      - context
       - includeOtherCode
       - uiMessages
       title: ChatRequest
@@ -862,13 +883,15 @@ components:
       type: object
     ConsumerCapabilities:
       description: "Per-consumer access capabilities for a session connection.\n\n\
-        \    - editor: `{edit: True, interact: True}`\n    - viewer: `{edit: False,\
-        \ interact: False}`\n\n    These gate the frontend UI; they are not the server's\
-        \ authority boundary.\n    Scopes are granted per session mode (see `@requires`),\
-        \ so in an edit session\n    every connection (viewers included) carries the\
-        \ `edit` scope and can issue\n    edit requests. A viewer's read-only status\
-        \ is enforced by the client hiding\n    edit affordances, not by the server\
-        \ rejecting the request."
+        \    - editor: `{edit: True, interact: True}`\n    - interactor: `{edit: False,\
+        \ interact: True}` (default for a secondary\n      connection: drives UI state\
+        \ but cannot edit the notebook)\n    - read-only viewer: `{edit: False, interact:\
+        \ False}` (opt-in, set by a\n      deployment's capability provider)\n\n \
+        \   The server enforces these: control requests are gated against the issuing\n\
+        \    consumer's stored capabilities at the control-request chokepoint (the\n\
+        \    authority) and mirrored as an advisory HTTP 403 at the request handlers.\n\
+        \    Commands classified as `read` in `marimo._session.capabilities` (such\
+        \ as\n    completions and previews) are always permitted."
       properties:
         edit:
           type: boolean
@@ -1489,6 +1512,25 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    EsmSpec:
+      description: "Where the frontend imports a widget's ESM from, and which version.\n\
+        \n    Specs travel only on kernel-authored notifications, never in model\n\
+        \    state: state is client-writable and echoed to peers, so executing\n \
+        \   code from it would let one client run code on another.\n\n    Attributes:\n\
+        \        url: URL to import the ESM from. A virtual file for inline\n    \
+        \        source; an external URL when `_esm` is itself a URL.\n        hash:\
+        \ Hash of the `_esm` string. Keys the frontend module cache\n            and\
+        \ signals code changes (hot reload)."
+      properties:
+        hash:
+          type: string
+        url:
+          type: string
+      required:
+      - url
+      - hash
+      title: EsmSpec
       type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
@@ -2636,6 +2678,7 @@ components:
           - $ref: '#/components/schemas/ExecuteScratchpadCommand'
           - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
           - $ref: '#/components/schemas/DebugCellCommand'
+          - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
           - $ref: '#/components/schemas/SyncGraphCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
@@ -2679,6 +2722,7 @@ components:
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
               rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              set-breakpoints: '#/components/schemas/SetBreakpointsCommand'
               stop-kernel: '#/components/schemas/StopKernelCommand'
               storage-download: '#/components/schemas/StorageDownloadCommand'
               storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
@@ -2768,10 +2812,12 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
+          - $ref: '#/components/schemas/ActiveLineNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
             mapping:
+              active-line: '#/components/schemas/ActiveLineNotification'
               alert: '#/components/schemas/AlertNotification'
               banner: '#/components/schemas/BannerNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
@@ -2903,7 +2949,9 @@ components:
         \ schemas in a database. Used by the SQL editor for\n    schema selection.\n\
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
-        \     database: Database to query."
+        \     database: Database to query.\n        schema_path: Parent schema path\
+        \ whose child schemas to list.\n            Empty lists the database's top-level\
+        \ schemas."
       properties:
         database:
           type: string
@@ -2911,6 +2959,11 @@ components:
           type: string
         requestId:
           $ref: '#/components/schemas/RequestId'
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - list-sql-schemas
@@ -2929,6 +2982,11 @@ components:
           type: string
         requestId:
           $ref: '#/components/schemas/RequestId'
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - requestId
       - engine
@@ -2941,7 +2999,8 @@ components:
         \n    Attributes:\n        request_id: Unique identifier for this request.\n\
         \        engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n   \
         \     database: Database to query.\n        schema: Schema to list tables\
-        \ from."
+        \ from.\n        schema_path: Path of nested schemas (relative to `database`)\
+        \ for\n            catalogs with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -2951,6 +3010,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - list-sql-tables
@@ -2972,6 +3036,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - requestId
       - engine
@@ -3541,7 +3610,14 @@ components:
       title: ModelLifecycleNotification
       type: object
     ModelOpen:
-      description: Initial widget state on creation.
+      description: "Initial widget state on creation.\n\n    For anywidgets, the widget's\
+        \ ESM does not travel in `state`: the\n    comm strips `_esm` and sends an\
+        \ `EsmSpec` instead. `None` for\n    models with no ESM (e.g. traditional\
+        \ ipywidgets).\n\n    Attributes:\n        state: Initial trait values, minus\
+        \ `_esm`.\n        buffer_paths: Paths into `state` whose binary values were\n\
+        \            extracted into `buffers`.\n        buffers: Binary payloads,\
+        \ parallel to `buffer_paths`.\n        esm_spec: Where to import this widget's\
+        \ ESM from."
       properties:
         buffer_paths:
           items:
@@ -3555,6 +3631,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - open
@@ -3593,7 +3674,14 @@ components:
       title: ModelRequest
       type: object
     ModelUpdate:
-      description: State sync - changed traits only.
+      description: "State sync - changed traits only.\n\n    Attributes:\n       \
+        \ state: Changed trait values, minus `_esm` (see `ModelOpen`).\n        buffer_paths:\
+        \ Paths into `state` whose binary values were\n            extracted into\
+        \ `buffers`.\n        buffers: Binary payloads, parallel to `buffer_paths`.\n\
+        \        esm_spec: Present only when the widget's `_esm` changed on a\n  \
+        \          live model (hot reload, edit mode only). A spec whose\n       \
+        \     `hash` differs from the current one tells the frontend the\n       \
+        \     widget's code changed and views must be rebuilt."
       properties:
         buffer_paths:
           items:
@@ -3607,6 +3695,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - update
@@ -3933,7 +4026,9 @@ components:
         \ Attributes:\n        request_id: Unique identifier for this request.\n \
         \       engine: SQL engine ('postgresql', 'mysql', 'duckdb', etc.).\n    \
         \    database: Database containing the table.\n        schema: Schema containing\
-        \ the table.\n        table_name: Table to preview."
+        \ the table.\n        table_name: Table to preview.\n        schema_path:\
+        \ Path of nested schemas (relative to `database`) for\n            catalogs\
+        \ with nested schemas. Empty for the top level."
       properties:
         database:
           type: string
@@ -3943,6 +4038,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
         type:
@@ -3967,6 +4067,11 @@ components:
           $ref: '#/components/schemas/RequestId'
         schema:
           type: string
+        schemaPath:
+          default: []
+          items:
+            type: string
+          type: array
         tableName:
           type: string
       required:
@@ -4310,12 +4415,19 @@ components:
       type: object
     SQLDatabaseMetadata:
       description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name."
+        \ Connection identifier.\n        database: Database name.\n        schema_path:\
+        \ Parent schema path the schemas belong under. Empty for\n            the\
+        \ database's top level."
       properties:
         connection:
           type: string
         database:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
       required:
       - connection
       - database
@@ -4324,7 +4436,8 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name."
+        \       schema: Schema name.\n        schema_path: Path of nested schemas\
+        \ (relative to `database`). Empty\n            for the top level."
       properties:
         connection:
           type: string
@@ -4332,6 +4445,11 @@ components:
           type: string
         schema:
           type: string
+        schema_path:
+          default: []
+          items:
+            type: string
+          type: array
         type:
           enum:
           - sql-metadata
@@ -4501,12 +4619,24 @@ components:
       title: SaveUserConfigurationRequest
       type: object
     Schema:
-      description: "Represents a database schema and its tables.\n\nAttributes:\n\
-        \    name (str): The name of the schema.\n    tables (List[DataTable]): Tables\
-        \ in this schema.\n    tables_resolved (bool): True when `tables` has been\
-        \ enumerated\n        False when table discovery was deferred. Defaults to\
-        \ True"
+      description: "Represents a database schema and its tables.\n\nA schema may itself\
+        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
+        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
+        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
+        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
+        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
+        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
+        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
+        \ discovery was deferred. Defaults to True"
       properties:
+        child_schemas:
+          default: []
+          items:
+            $ref: '#/components/schemas/Schema'
+          type: array
+        child_schemas_resolved:
+          default: true
+          type: boolean
         name:
           type: string
         tables:
@@ -4592,7 +4722,14 @@ components:
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
         \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer."
+        \ button will be\n        hidden in the file explorer.\n    - `transport`:\
+        \ experimental. The transport used to stream kernel\n        messages to the\
+        \ frontend, typically set with the\n        `MARIMO_SERVER_TRANSPORT` environment\
+        \ variable. `\"websocket\"`\n        (default) uses the `/ws` WebSocket endpoint;\
+        \ `\"sse\"` uses\n        server-sent events over HTTP, for deployments behind\
+        \ proxies or\n        services that do not support WebSockets. Terminal, LSP,\
+        \ and\n        real-time collaboration still require WebSockets; RTC is disabled\n\
+        \        when using `\"sse\"`."
       properties:
         browser:
           anyOf:
@@ -4603,6 +4740,10 @@ components:
           type: boolean
         follow_symlink:
           type: boolean
+        transport:
+          enum:
+          - sse
+          - websocket
       required:
       - browser
       - follow_symlink
@@ -4611,6 +4752,50 @@ components:
     SessionId:
       format: session-id
       type: string
+    SetBreakpointsCommand:
+      description: "Set the live debugger's breakpoints (session-scoped, not persisted).\n\
+        \n    Replaces the full breakpoint set: the frontend always sends the complete\n\
+        \    map of cell id -> 1-based line numbers. Only meaningful when the\n  \
+        \  `debugger` experimental feature is enabled.\n\n    Attributes:\n      \
+        \  breakpoints: Map of cell id to lines that have a breakpoint.\n        request:\
+        \ HTTP request context if available."
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - set-breakpoints
+      required:
+      - type
+      - breakpoints
+      title: SetBreakpointsCommand
+      type: object
+    SetBreakpointsRequest:
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+      required:
+      - breakpoints
+      title: SetBreakpointsRequest
+      type: object
     SetCode:
       description: Replace a cell's source code.
       properties:
@@ -5197,6 +5382,7 @@ components:
             enum:
             - agent
             - ask
+            - code_mode
             - manual
           type: array
         name:
@@ -6606,6 +6792,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
+  /api/kernel/pdb/breakpoints:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetBreakpointsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set the live debugger's breakpoints for the session.
   /api/kernel/pdb/pm:
     post:
       parameters:

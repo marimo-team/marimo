@@ -4,6 +4,7 @@ import type { Table } from "@tanstack/react-table";
 import type { TableData } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
 import { jsonParseWithSpecialChar } from "@/utils/json/json-parser";
+import { isRecord } from "@/utils/records";
 import { getMimeValues } from "./mime-cell";
 import type { DataType } from "@/core/kernel/messages";
 import {
@@ -231,10 +232,6 @@ function stripHtml(html: string): string {
 }
 
 const HTML_MIMETYPES = new Set(["text/html", "text/markdown"]);
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
 
 /**
  * Get clipboard-ready text and optional HTML for a cell.

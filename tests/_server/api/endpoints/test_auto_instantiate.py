@@ -127,11 +127,11 @@ class TestAutoInstantiateHTTPRequest:
     """Tests for HTTP request propagation during auto-instantiate."""
 
     def test_auto_instantiate_passes_http_request(self) -> None:
-        """Verify _auto_instantiate passes HTTPRequest from websocket.
+        """Verify _auto_instantiate passes HTTPRequest from the connection.
 
         This verifies the fix for the issue where mo.app_meta().request
         returned None in run mode because _auto_instantiate was passing
-        http_request=None instead of extracting it from the websocket.
+        http_request=None instead of extracting it from the connection.
         """
         from marimo._server.api.endpoints.ws.ws_session_connector import (
             SessionConnector,
@@ -144,7 +144,7 @@ class TestAutoInstantiateHTTPRequest:
             manager=MagicMock(),
             handler=MagicMock(),
             params=MagicMock(),
-            websocket=MagicMock(),
+            connection=MagicMock(),
         )
 
         with patch(
@@ -153,7 +153,7 @@ class TestAutoInstantiateHTTPRequest:
         ) as mock_from_request:
             connector._auto_instantiate(mock_session)
 
-        mock_from_request.assert_called_once_with(connector.websocket)
+        mock_from_request.assert_called_once_with(connector.connection)
         assert (
             mock_session.instantiate.call_args.kwargs["http_request"]
             is mock_http_request

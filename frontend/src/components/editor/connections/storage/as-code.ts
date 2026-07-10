@@ -168,6 +168,10 @@ function generateGDriveCode(
   connection: Extract<StorageConnection, { type: "gdrive" }>,
   options: { secrets: SecretContainer; isEmbedded?: boolean },
 ): { imports: Set<string>; code: string } {
+  /**
+   * Skip instance cache True so you can create multiple connections which don't reference the same creds.
+   * Use listings cache False so we don't get stale reads.
+   */
   const { secrets, isEmbedded = false } = options;
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
@@ -179,18 +183,21 @@ function generateGDriveCode(
     );
     const code = dedent(`
       _creds = json.loads("""${connection.credentials_json?.startsWith("ENV:") ? `{${creds}}` : connection.credentials_json}""")
-      fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False)
+      fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)
     `);
     return { imports, code };
   }
 
+  // In the iframe (embedded) flow we authenticate via the console-based OOB
+  // flow, which prints an auth URL and reads the code from stdin. Clear the
+  // console afterwards so the (single-use) auth code doesn't linger.
   const code = isEmbedded
     ? dedent(`
-        fs = GoogleDriveFileSystem(use_listings_cache=False, auth_kwargs={"use_local_webserver": False})
-        print("Google Drive connected! Important: Run this cell again to clear the console")
+        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True, auth_kwargs={"use_local_webserver": False})
+        mo.output.clear_console()
       `)
     : dedent(`
-        fs = GoogleDriveFileSystem(use_listings_cache=False)
+        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)
       `);
   return { imports, code };
 }

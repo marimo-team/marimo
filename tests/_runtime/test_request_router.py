@@ -19,6 +19,7 @@ from marimo._runtime.commands import (
     ClearCacheCommand,
     CodeCompletionCommand,
     CommandMessage,
+    SetBreakpointsCommand,
     StopKernelCommand,
 )
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
@@ -40,9 +41,11 @@ ALL_CALLBACKS: list[type] = [
 ]
 
 # Commands that are part of the CommandMessage dispatch surface but are
-# intentionally not handled by the kernel's RequestRouter. CodeCompletionCommand
-# is delivered on its own queue and processed by start_completion_worker.
-NOT_ROUTED: set[type] = {CodeCompletionCommand}
+# intentionally not handled by the kernel's RequestRouter. These are delivered
+# on the off-main-loop completion queue and processed by
+# start_out_of_band_worker: CodeCompletionCommand (autocomplete) and
+# SetBreakpointsCommand (live-debugger breakpoints, so they apply mid-run).
+NOT_ROUTED: set[type] = {CodeCompletionCommand, SetBreakpointsCommand}
 
 
 def _all_command_classes() -> set[type]:

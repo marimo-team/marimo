@@ -20,11 +20,14 @@ export const renderUIMessage = ({
   message,
   isStreamingReasoning,
   isLast,
+  isActive,
   addToolApprovalResponse,
 }: {
   message: UIMessage;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  /** Whether the chat is currently streaming/submitting a response. */
+  isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }) => {
   return (
@@ -49,6 +52,7 @@ export const renderUIMessage = ({
           approval={part.approval}
           onApprove={addToolApprovalResponse}
           isLive={isLast}
+          isActive={isActive}
         />
       );
     }
@@ -102,6 +106,7 @@ export const renderUIMessage = ({
             approval={part.approval}
             onApprove={addToolApprovalResponse}
             isLive={isLast}
+            isActive={isActive}
           />
         );
       case "source-document":

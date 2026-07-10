@@ -21,6 +21,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { useLocale } from "react-aria";
 import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import type { CellSelectionState } from "@/components/data-table/cell-selection/types";
@@ -75,6 +76,7 @@ import { useEffectSkipFirstRender } from "@/hooks/useEffectSkipFirstRender";
 import { Arrays } from "@/utils/arrays";
 import { Functions } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
+import { prettyNumber } from "@/utils/numbers";
 import {
   generateColumns,
   inferFieldTypes,
@@ -181,6 +183,7 @@ interface Data<T> {
   maxHeight?: number;
   selection: DataTableSelection;
   showDownload: boolean;
+  showSearch: boolean;
   showFilters: boolean;
   showColumnSummaries: boolean | "stats" | "chart";
   showDataTypes: boolean;
@@ -195,6 +198,7 @@ interface Data<T> {
   hiddenColumns?: string[];
   textJustifyColumns?: Record<string, "left" | "center" | "right">;
   wrappedColumns?: string[];
+  columnWidths?: Record<string, number>;
   headerTooltip?: Record<string, string>;
   totalColumns: number;
   maxColumns: number | "all";
@@ -266,6 +270,7 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
       showColumnExplorer: z.boolean().default(true),
       showRowExplorer: z.boolean().default(true),
       showChartBuilder: z.boolean().default(true),
+      showSearch: z.boolean().default(true),
       rowHeaders: columnToFieldTypesSchema,
       freezeColumnsLeft: z.array(z.string()).optional(),
       freezeColumnsRight: z.array(z.string()).optional(),
@@ -274,6 +279,9 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
         .record(z.string(), z.enum(["left", "center", "right"]))
         .optional(),
       wrappedColumns: z.array(z.string()).optional(),
+      columnWidths: z
+        .record(z.string(), z.number().int().positive())
+        .optional(),
       headerTooltip: z.record(z.string(), z.string()).optional(),
       fieldTypes: columnToFieldTypesSchema.nullish(),
       totalColumns: z.number(),
@@ -381,7 +389,6 @@ export const DataTablePlugin = createPlugin<S>("marimo-table")
             {...props.data}
             {...props.functions}
             host={props.host}
-            enableSearch={true}
             data={props.data.data}
             value={props.value}
             setValue={props.setValue}
@@ -466,8 +473,6 @@ interface DataTableProps<T> extends Data<T>, DataTableFunctions {
   // Selection
   value: S;
   setValue: (value: S) => void;
-  // Search
-  enableSearch: boolean;
   // Filters
   enableFilters?: boolean;
   cellStyles?: CellStyleState | null;
@@ -696,7 +701,9 @@ export const LoadingDataTableComponent = memo(
     >(async () => {
       // TODO: props.get_column_summaries is always true,
       // so we are unable to detect if the function is registered
-      if (props.totalRows === 0 || !props.showColumnSummaries) {
+      // Column summaries come from a kernel RPC, absent in static exports.
+      const isStatic = isStaticNotebook();
+      if (props.totalRows === 0 || !props.showColumnSummaries || isStatic) {
         return {
           data: null,
           stats: {},
@@ -798,6 +805,7 @@ export const LoadingDataTableComponent = memo(
             dataTable={dataTable}
             getDataUrl={props.get_data_url}
             fieldTypes={props.fieldTypes}
+            rowHeaders={props.rowHeaders}
             cellId={cellId}
           />
         ) : (
@@ -837,7 +845,7 @@ const DataTableComponent = ({
   setValue,
   sorting,
   setSorting,
-  enableSearch,
+  showSearch,
   searchQuery,
   setSearchQuery,
   filters,
@@ -848,6 +856,7 @@ const DataTableComponent = ({
   hiddenColumns,
   textJustifyColumns,
   wrappedColumns,
+  columnWidths,
   headerTooltip,
   totalColumns,
   get_row_ids,
@@ -871,9 +880,12 @@ const DataTableComponent = ({
     sizeBytesIsLoading?: boolean;
   }): JSX.Element => {
   const id = useId();
+  const { locale } = useLocale();
   const [viewedRowIdx, setViewedRowIdx] = useState(0);
   const { isPanelOpen, isAnyPanelOpen, togglePanel, panelType, setPanelType } =
     usePanelOwnership(id, cellId);
+
+  const isStatic = isStaticNotebook();
 
   const chartSpecModel = useMemo(() => {
     if (!columnSummaries) {
@@ -935,6 +947,7 @@ const DataTableComponent = ({
   const memoizedRowHeaders = useDeepCompareMemoize(rowHeaders);
   const memoizedTextJustifyColumns = useDeepCompareMemoize(textJustifyColumns);
   const memoizedWrappedColumns = useDeepCompareMemoize(wrappedColumns);
+  const memoizedColumnWidths = useDeepCompareMemoize(columnWidths);
   const memoizedChartSpecModel = useDeepCompareMemoize(chartSpecModel);
   const fractionDigitsByColumn = useDeepCompareMemoize(computedFractionDigits);
   const shownColumns = memoizedClampedFieldTypes.length;
@@ -942,6 +955,11 @@ const DataTableComponent = ({
   // If the field types are not set, we don't show them
   if (!fieldTypes) {
     showDataTypes = false;
+  }
+
+  // Row/cell selection writes back to the kernel, absent in static exports.
+  if (isStatic) {
+    selection = null;
   }
 
   const columns = useMemo(
@@ -953,6 +971,7 @@ const DataTableComponent = ({
         fieldTypes: memoizedClampedFieldTypes,
         textJustifyColumns: memoizedTextJustifyColumns,
         wrappedColumns: memoizedWrappedColumns,
+        columnWidths: memoizedColumnWidths,
         headerTooltip: headerTooltip,
         // Only show data types if they are explicitly set
         showDataTypes: showDataTypes,
@@ -967,6 +986,7 @@ const DataTableComponent = ({
       memoizedClampedFieldTypes,
       memoizedTextJustifyColumns,
       memoizedWrappedColumns,
+      memoizedColumnWidths,
       headerTooltip,
       calculate_top_k_rows,
       fractionDigitsByColumn,
@@ -1102,6 +1122,13 @@ const DataTableComponent = ({
           Result clipped. Showing {shownColumns} of {totalColumns} columns.
         </Banner>
       )}
+      {isStatic && typeof totalRows === "number" && data.length < totalRows && (
+        <Banner className="mb-1 rounded">
+          Showing the first <strong>{prettyNumber(data.length, locale)}</strong>{" "}
+          of <strong>{prettyNumber(totalRows, locale)}</strong> rows. Increase
+          the table's <code>page_size</code> to embed more in the static export.
+        </Banner>
+      )}
       {columnSummaries?.is_disabled && (
         // Note: Keep the text in sync with the constant defined in table_manager.py
         //       This hard-code can be removed when Functions can pass structural
@@ -1138,7 +1165,7 @@ const DataTableComponent = ({
             hoverTemplate={hoverTemplate}
             cellHoverTexts={cellHoverTexts}
             downloadAs={showDownload ? downloadAs : undefined}
-            enableSearch={enableSearch}
+            showSearch={showSearch}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             showFilters={showFilters}

@@ -135,14 +135,10 @@ print("This code cell has a syntax error"
 and on notebook save, will annotate the cell for you:
 
 ````md
-```python {.marimo unparseable="true"}
-print("This code cell has a syntax error"
-```
-````
-
 ```python {.marimo unparsable="true"}
 print("This code cell has a syntax error"
 ```
+````
 
 ## Limitations of the markdown format
 
