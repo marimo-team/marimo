@@ -514,7 +514,7 @@ y = 2\
     assert fixed_dedent("") == snapshot("")
 
     # Only whitespace
-    assert fixed_dedent("    ") == snapshot("    ")
+    assert fixed_dedent("    ") == snapshot("")
 
     # Blank lines in middle
     assert fixed_dedent("    x = 1\n\n    y = 2") == snapshot("""\

@@ -189,7 +189,9 @@ def fixed_dedent(text: str) -> str:
             break
 
     if indent is None:
-        return smart_dedent(text)
+        # No code line to key off of (all-blank input): fall back to a plain
+        # dedent, matching textwrap's normalization of whitespace-only lines.
+        return textwrap.dedent(text)
 
     def refill(i: int, ln: str) -> str:
         if protected[i] or ln.startswith(indent):
