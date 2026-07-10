@@ -79,6 +79,27 @@ async def test_marimo_http_exception():
     assert response.body == b'{"detail":"Bad request"}'
 
 
+async def test_marimo_http_exception_403_preserved():
+    """A capability refusal (marimo 403) must not be rewritten to 401.
+
+    Starlette 403s are rewritten to 401 to prompt for auth; a read-only
+    refusal is not an auth failure, so it is raised as a marimo HTTPException
+    and must reach the client as 403.
+    """
+    exc = MarimoHTTPException(
+        status_code=403, detail="This connection is read-only for this action."
+    )
+    request = Request(
+        {
+            "type": "http",
+            "path": "/api/kernel/run",
+            "headers": [(b"accept", b"application/json")],
+        }
+    )
+    response = await handle_error(request, exc)
+    assert response.status_code == 403
+
+
 async def test_module_not_found_error():
     # Mock AppState and session
     mock_app_state = MagicMock()

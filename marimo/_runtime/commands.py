@@ -221,6 +221,27 @@ class DebugCellCommand(Command):
         return f"DebugCellCommand(cell={self.cell_id})"
 
 
+class SetBreakpointsCommand(Command):
+    """Set the live debugger's breakpoints (session-scoped, not persisted).
+
+    Replaces the full breakpoint set: the frontend always sends the complete
+    map of cell id -> 1-based line numbers. Only meaningful when the
+    `debugger` experimental feature is enabled.
+
+    Attributes:
+        breakpoints: Map of cell id to lines that have a breakpoint.
+        request: HTTP request context if available.
+    """
+
+    breakpoints: dict[CellId_t, list[int]]
+    # incoming request, e.g. from Starlette or FastAPI
+    request: HTTPRequest | None = None
+
+    def __repr__(self) -> str:
+        count = sum(len(lines) for lines in self.breakpoints.values())
+        return f"SetBreakpointsCommand(count={count})"
+
+
 class ExecuteCellCommand(Command):
     """Execute a single cell.
 
@@ -915,6 +936,7 @@ CommandMessage = (
     | ExecuteScratchpadCommand
     | ExecuteStaleCellsCommand
     | DebugCellCommand
+    | SetBreakpointsCommand
     | DeleteCellCommand
     | SyncGraphCommand
     | UpdateCellConfigCommand
@@ -949,4 +971,15 @@ CommandMessage = (
 
 All commands that can be sent to the kernel.
 
+"""
+
+
+OutOfBandCommand = CodeCompletionCommand | SetBreakpointsCommand
+"""Commands processed off the main control loop.
+
+Unlike the rest of `CommandMessage` (which the kernel handles serially, and so
+cannot be delivered while a cell is executing), these are drained by a
+background worker and applied immediately. A command belongs here when it is
+fire-and-forget, cheap to apply, and useful mid-execution. Add a member to this
+union and a branch to `Kernel.dispatch_out_of_band` to introduce a new one.
 """

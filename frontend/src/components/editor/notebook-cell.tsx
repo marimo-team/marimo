@@ -29,6 +29,7 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
+import { clearCellBreakpoints } from "@/core/codemirror/cells/debugger-state";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { CSSClasses } from "@/core/constants";
 import { canCollapseOutline } from "@/core/dom/outline";
@@ -746,6 +747,9 @@ const EditableCellComponent = ({
               onRefactorWithAI={handleRefactorWithAI}
               onClear={() => {
                 actions.clearCellConsoleOutput({ cellId });
+                // The debugger "Clear" (trashcan) also drops this cell's
+                // breakpoints; no-op when none are set.
+                clearCellBreakpoints(cellId);
               }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({
@@ -1211,6 +1215,9 @@ const SetupCellComponent = ({
               onRefactorWithAI={handleRefactorWithAI}
               onClear={() => {
                 actions.clearCellConsoleOutput({ cellId });
+                // The debugger "Clear" (trashcan) also drops this cell's
+                // breakpoints; no-op when none are set.
+                clearCellBreakpoints(cellId);
               }}
               onSubmitDebugger={(text, index) => {
                 actions.setStdinResponse({

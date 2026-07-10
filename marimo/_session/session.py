@@ -16,9 +16,7 @@ from marimo import _loggers
 from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
-from marimo._messaging.notification import (
-    NotificationMessage,
-)
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -29,6 +27,7 @@ from marimo._runtime.commands import (
     HTTPRequest,
     UpdateUIElementCommand,
 )
+from marimo._session.capabilities import consumer_can, required_capability
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
 from marimo._session.extensions.extensions import (
@@ -65,7 +64,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
 
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._server.models.models import InstantiateNotebookRequest
@@ -307,11 +306,6 @@ class SessionImpl(Session):
             if extension in self.extensions:
                 self.extensions.remove(extension)
 
-    @property
-    def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
-        """Get the consumers in the session."""
-        return self.room.consumers
-
     async def rename_path(self, new_path: str) -> None:
         """Rename the path of the session."""
         old_path = self.app_file_manager.path
@@ -349,8 +343,38 @@ class SessionImpl(Session):
         request: commands.CommandMessage,
         from_consumer_id: ConsumerId | None,
     ) -> None:
-        """Put a control request in the control queue."""
+        """Put a control request in the control queue.
+
+        Drops requests from consumers that lack the capability the command
+        requires. `from_consumer_id is None` denotes a system-originated
+        request and is always allowed.
+        """
+        if not self._consumer_may_issue(request, from_consumer_id):
+            LOGGER.warning(
+                "Dropping %s from consumer %s: command requires %s capability",
+                type(request).__name__,
+                from_consumer_id,
+                required_capability(type(request)).value,
+            )
+            return
         self._event_bus.emit_received_command(self, request, from_consumer_id)
+
+    def _consumer_may_issue(
+        self,
+        request: commands.CommandMessage,
+        from_consumer_id: ConsumerId | None,
+    ) -> bool:
+        if from_consumer_id is None:
+            return True
+        consumer = self.room.get_consumer(from_consumer_id)
+        if consumer is None:
+            # A stale or forged consumer id is not in the room: drop it rather
+            # than fall back to read-tier, which `consumer_can` grants
+            # unconditionally.
+            return False
+        return consumer_can(
+            self.room.get_capabilities(consumer), type(request)
+        )
 
     def put_input(self, text: str) -> None:
         """Put an input() request in the input queue."""
@@ -385,11 +409,7 @@ class SessionImpl(Session):
         # Consumers are also extensions, so we want to attach them to the session
         self.extensions.add(session_consumer)
         session_consumer.on_attach(self, self._event_bus)
-        self.room.add_consumer(
-            session_consumer,
-            consumer_id=session_consumer.consumer_id,
-            main=main,
-        )
+        self.room.add_consumer(session_consumer, main=main)
 
     def get_current_state(self) -> SessionView:
         """Return the current state of the session."""
@@ -417,11 +437,14 @@ class SessionImpl(Session):
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
 
-    def close(self) -> None:
+    def close(self, *, graceful: bool = False) -> None:
         """
         Close the session.
 
         This will close the session consumer, kernel, and all kiosk consumers.
+
+        When `graceful` is True, wait for the kernel to flush pending work
+        before killing it (see `KernelManager.close_kernel`).
         """
         if self._closed:
             return
@@ -432,7 +455,7 @@ class SessionImpl(Session):
         self._detach_extensions()
         # Close the room
         self.room.close()
-        self._kernel_manager.close_kernel()
+        self._kernel_manager.close_kernel(graceful=graceful)
 
     def instantiate(
         self,

@@ -32,6 +32,10 @@ import { cacheInfoAtom } from "../cache/requests";
 import { SCRATCH_CELL_ID } from "../cells/ids";
 import { useRunsActions } from "../cells/runs";
 import { focusAndScrollCellOutputIntoView } from "../cells/scrollCellIntoView";
+import {
+  debuggerCurrentLineAtom,
+  resyncBreakpoints,
+} from "../codemirror/cells/debugger-state";
 import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { useSetAppConfig } from "../config/config";
@@ -196,6 +200,7 @@ export function useMarimoKernelConnection(opts: {
   const runtimeManager = useRuntimeManager();
   const setCacheInfo = useSetAtom(cacheInfoAtom);
   const setKernelStartupError = useSetAtom(kernelStartupErrorAtom);
+  const setDebuggerCurrentLine = useSetAtom(debuggerCurrentLineAtom);
   const {
     setNamespaces: setStorageNamespaces,
     filterFromVariables: filterStorageFromVariables,
@@ -221,6 +226,11 @@ export function useMarimoKernelConnection(opts: {
           existingCells,
         });
         setKioskMode(msg.data.kiosk);
+        // A freshly started kernel has no breakpoints of its own; re-push
+        // the client's set so they still apply, and clear the stale
+        // highlighted line from the previous kernel instance.
+        setDebuggerCurrentLine(null);
+        resyncBreakpoints();
         return;
       }
 
@@ -391,6 +401,13 @@ export function useMarimoKernelConnection(opts: {
 
       case "focus-cell":
         focusAndScrollCellOutputIntoView(msg.data.cell_id);
+        return;
+      case "active-line":
+        setDebuggerCurrentLine(
+          msg.data.line == null
+            ? null
+            : { cellId: msg.data.cell_id, line: msg.data.line },
+        );
         return;
       case "notebook-document-transaction":
         handleDocumentTransaction(msg.data.transaction);

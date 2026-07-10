@@ -271,12 +271,16 @@ class panel(UIElement[T, T]):
         import marimo as mo
         import panel as pn
 
-        slider = pn.widgets.IntSlider(start=0, end=10, value=5)
-        rx_stars = mo.ui.panel(slider.rx() * "*")
+        # Panel values are reactive just in its own cell, but not across cells.
+        pn_slider = pn.widgets.IntSlider(
+            name="Panel", start=0, end=10, value=5
+        )
+        mo.ui.panel(pn.Column(pn_slider, pn_slider.rx() * "★"))
 
         # In another cell, access its value
+        # Note: this cell will NOT re-run when you move the slider — re-run it
         # This works for all widgets
-        slider.value
+        pn_slider.value
         ```
 
     Attributes:

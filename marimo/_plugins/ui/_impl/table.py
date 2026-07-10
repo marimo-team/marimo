@@ -1365,14 +1365,19 @@ class table(
         """Get the data URL for the entire table. Used for charting."""
         del args
 
+        # Expose a non-trivial row index (e.g. a named datetime index) as a
+        # column so it can be selected as a chart axis. Scoped to the chart
+        # data path; downloads and the displayed table are unaffected.
+        chart_manager = self._searched_manager.with_index_as_columns()
+
         if DependencyManager.altair.has():
-            result = _to_marimo_arrow(self._searched_manager.data)
+            result = _to_marimo_arrow(chart_manager.data)
             return GetDataUrlResponse(
                 data_url=result["url"],
                 format=result["format"]["type"],
             )
 
-        url, data_format = self._to_chart_data_url(self._searched_manager)
+        url, data_format = self._to_chart_data_url(chart_manager)
         return GetDataUrlResponse(
             data_url=url,
             format=data_format,
@@ -1849,15 +1854,6 @@ def _validate_frozen_columns(
             raise ValueError("The same column cannot be frozen on both sides.")
 
     if freeze_columns_left_set:
-        # Unnamed row headers (e.g. a default pandas index) have no stable
-        # client-side id, so we can't freeze them. Surface this directly
-        # rather than letting the frontend silently no-op.
-        if "" in freeze_columns_left_set and "" in row_header_names_set:
-            raise ValueError(
-                "Cannot freeze an unnamed row index. "
-                "Set `df.index.name = '...'` (or `df.index.names = [...]` "
-                "for a MultiIndex) and pass that name to freeze_columns_left."
-            )
         invalid = (
             freeze_columns_left_set - column_names_set - row_header_names_set
         )

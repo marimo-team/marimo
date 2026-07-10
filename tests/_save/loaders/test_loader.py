@@ -207,7 +207,10 @@ class TestLazyLoader(ABCTestLoader):
     suffix = "jsonl"
 
     def _instance(self) -> Loader:
-        return LazyLoader("test", store=self.store)
+        # These exercise generic loader mechanics (hit/miss, blob handling)
+        # with hand-written unsigned manifests; signing behavior is covered in
+        # test_lazy_signing.py. mode="off" serves unsigned entries as-is.
+        return LazyLoader("test", store=self.store, mode="off")
 
     def teardown_method(self) -> None:
         if self.value and hasattr(self.value, "flush"):
@@ -331,6 +334,53 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["ok"] == [1, 2, 3]
         assert isinstance(loaded.defs["f"], UnhashableStub)
         assert loaded.defs["f"].var_name == "f"
+
+    def test_absent_module_blob_not_fetched(self) -> None:
+        """A def blob whose type's root module can't be imported here is
+        never fetched: restore stands in an `UnhashableStub` carrying the
+        persisted content digest so a downstream consumer still reproduces
+        its key without the (unmaterializable) value."""
+        loader = self.instance()
+        base = Path("test") / "absent_hash"
+        # Reference a blob intentionally NOT written to the store — if the
+        # gate fetched it, restore would miss on the absent blob.
+        ref = (base / "t.pt").as_posix()
+        manifest = msgspec.json.encode(
+            CacheSchema(
+                hash="absent_hash",
+                cache_type=CacheType("Pure"),
+                defs={
+                    "t": Item(
+                        reference=ref,
+                        type_hint="faketorch.Tensor",
+                        hash="deadbeef",
+                    )
+                },
+                stateful_refs=[],
+                meta=Meta(version=MARIMO_CACHE_VERSION),
+            )
+        )
+        cache_path = loader.build_path(key("absent_hash", "Pure"))
+        self.store.put(str(cache_path), manifest)
+
+        requested: list[str] = []
+        original_get = self.store.get
+
+        def spy(k: str):
+            requested.append(k)
+            return original_get(k)
+
+        self.store.get = spy  # type: ignore[method-assign]
+
+        loaded = loader.load_cache(key("absent_hash", "Pure"))
+        assert loaded is not None
+        stub = loaded.defs["t"]
+        assert isinstance(stub, UnhashableStub)
+        assert stub.var_name == "t"
+        assert stub.type_name == "faketorch.Tensor"
+        assert stub.content_hash == "deadbeef"
+        # The blob was skipped — only the manifest was fetched.
+        assert ref not in requested
 
     def test_unserializable_ui_clears_ui_defs_and_stale_blob(self) -> None:
         """A UI def that can't be pickled must not leave `ui_defs` pointing

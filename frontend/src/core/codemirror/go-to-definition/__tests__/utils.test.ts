@@ -2,13 +2,17 @@
 
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { afterEach, describe, expect, test } from "vitest";
+import { EditorView, keymap } from "@codemirror/view";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
-import { goToDefinitionAtCursorPosition } from "../utils";
+import {
+  goToDefinitionAtCursorPosition,
+  goToDefinitionWithLspFallback,
+  requestLspGoToDefinition,
+} from "../utils";
 
 async function tick(): Promise<void> {
   await new Promise((resolve) => requestAnimationFrame(resolve));
@@ -179,5 +183,73 @@ print(mymodule)`;
     expect(moduleView.state.selection.main.head).toBe(
       moduleCode.indexOf("mymodule"),
     );
+  });
+});
+
+describe("goToDefinitionWithLspFallback", () => {
+  test("falls through to LSP when marimo cannot resolve the symbol", () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "parser.add_argument('--foo')",
+        selection: { anchor: "parser.add_argument".indexOf("add_argument") },
+        extensions: [
+          python(),
+          keymap.of([{ key: "F12", run: lspGoToDefinition }]),
+        ],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+
+    const result = goToDefinitionWithLspFallback(view);
+
+    expect(result).toBe(true);
+    expect(lspGoToDefinition).toHaveBeenCalledOnce();
+  });
+
+  test("does not invoke LSP when marimo resolves the symbol", async () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const code = "a = 10\nprint(a)";
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: code,
+        selection: { anchor: code.indexOf("a", 3) },
+        extensions: [
+          python(),
+          keymap.of([{ key: "F12", run: lspGoToDefinition }]),
+        ],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+
+    const result = goToDefinitionWithLspFallback(view);
+
+    expect(result).toBe(true);
+    expect(lspGoToDefinition).not.toHaveBeenCalled();
+    await tick();
+    expect(view.state.selection.main.head).toBe(0);
+  });
+
+  test("falls through with a modified shortcut like Ctrl-F12", () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "parser.add_argument('--foo')",
+        selection: { anchor: "parser.add_argument".indexOf("add_argument") },
+        extensions: [
+          python(),
+          keymap.of([{ key: "Ctrl-F12", run: lspGoToDefinition }]),
+        ],
+      }),
+      parent: document.body,
+    });
+    views.push(view);
+
+    const result = requestLspGoToDefinition(view, "Ctrl-F12");
+
+    expect(result).toBe(true);
+    expect(lspGoToDefinition).toHaveBeenCalledOnce();
   });
 });

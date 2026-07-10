@@ -6,7 +6,8 @@ import os
 import sys
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, cast
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.app import InternalApp
@@ -32,7 +33,10 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
-from marimo._runtime.commands import AppMetadata, SerializedCLIArgs
+from marimo._runtime.commands import (
+    AppMetadata,
+    SerializedCLIArgs,
+)
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.serialization import NotebookSerialization
 from marimo._server.export._status import emit_pdf_export_status
@@ -370,6 +374,67 @@ async def run_app_then_export_as_html(
     )
 
 
+def bundle_cache_export(notebook_path: MarimoPath, out_dir: Path) -> None:
+    """Copy an executed session's cached blobs into `<out_dir>/public/cache/`.
+
+    Reads the per-notebook export manifest the kernel wrote next to the blobs,
+    and copies exactly those entries — where the browser store fetches them.
+    No manifest (caching off, no caches, or a kernel killed before it flushed)
+    means nothing to bundle: the export still works, the browser recomputes.
+    """
+    import json
+    import shutil
+    from pathlib import PurePosixPath
+
+    manifest_file = _cache_export_manifest_path(notebook_path)
+    cache_src = manifest_file.parent
+    if not manifest_file.exists():
+        echo("No caches to bundle.")
+        return
+    try:
+        keys: list[str] = json.loads(manifest_file.read_text())
+    except (OSError, ValueError) as e:
+        LOGGER.warning("Failed to read cache export manifest: %s", e)
+        return
+
+    cache_dst = out_dir / "public" / "cache"
+    copied = 0
+    for key in keys:
+        if not isinstance(key, str):
+            LOGGER.warning("Skipping non-string cache manifest key: %r", key)
+            continue
+        # A stale/tampered manifest key could otherwise escape the cache dir.
+        rel = PurePosixPath(key)
+        if rel.is_absolute() or ".." in rel.parts:
+            LOGGER.warning("Skipping unsafe cache manifest key: %r", key)
+            continue
+        src_file = cache_src / key
+        if not src_file.is_file():
+            continue
+        try:
+            dst_file = cache_dst / key
+            dst_file.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_file, dst_file)
+            copied += 1
+        except OSError as e:
+            LOGGER.warning("Failed to bundle cache file %s: %s", key, e)
+    echo(f"Bundled {copied} cache files into {cache_dst}.")
+
+
+def _cache_export_manifest_path(notebook_path: MarimoPath) -> Path:
+    """Path of the export manifest for `notebook_path`.
+
+    Derived identically to the executing kernel's (see `export_manifest_name`)
+    so the exporter reads exactly the file the run wrote.
+    """
+    from marimo._save.stores.file import export_manifest_name
+    from marimo._utils.paths import notebook_output_dir
+
+    absolute = notebook_path.absolute_name
+    cache_dir = notebook_output_dir(Path(absolute).parent) / "cache"
+    return cache_dir / export_manifest_name(absolute)
+
+
 async def run_app_then_export_as_wasm(
     path: MarimoPath,
     mode: Literal["edit", "run"],
@@ -378,8 +443,14 @@ async def run_app_then_export_as_wasm(
     argv: list[str],
     *,
     asset_url: str | None = None,
+    cache_export_dir: Path | None = None,
 ) -> ExportResult:
-    """Execute notebook and export as WASM HTML with embedded session."""
+    """Execute notebook and export as WASM HTML with embedded session.
+
+    When `cache_export_dir` is set, the caches this run produced are bundled
+    into `<cache_export_dir>/public/cache/` so the exported notebook ships
+    them and skips recomputation in the browser.
+    """
     from marimo._session.state.serialize import (
         serialize_notebook,
         serialize_session_view,
@@ -392,11 +463,31 @@ async def run_app_then_export_as_wasm(
     resolved = config.get_config()
     display_config = resolved["display"]
 
+    from marimo._runtime.callbacks.cache import cache_cells_enabled
+
+    # Caching is opt-in: bundle caches only when the notebook enables
+    # `cache_cells`. Otherwise export runs fully live, so no cell's output
+    # (console included) is served from a warm cache and skips execution.
+    cache_dir = (
+        cache_export_dir
+        if cache_export_dir is not None and cache_cells_enabled(resolved)
+        else None
+    )
+
+    if cache_dir is not None:
+        # NB. drop a prior run's manifest so we never bundle a stale key set.
+        _cache_export_manifest_path(path).unlink(missing_ok=True)
+
     session_view, did_error = await run_app_until_completion(
         file_manager,
         cli_args,
         argv=argv,
+        cache_export=cache_dir is not None,
     )
+    if cache_dir is not None:
+        # NB. the run joined the kernel, which wrote the manifest on shutdown,
+        # so it's on disk to read now.
+        bundle_cache_export(path, cache_dir)
 
     session_snapshot = serialize_session_view(
         session_view,
@@ -494,6 +585,7 @@ async def run_app_until_completion(
     argv: list[str] | None,
     quiet: bool = False,
     persist_session: bool = True,
+    cache_export: bool = False,
 ) -> tuple[SessionView, bool]:
     from marimo._session.consumer import SessionConsumer
     from marimo._session.events import SessionEventBus
@@ -558,22 +650,21 @@ async def run_app_until_completion(
         def connection_state(self) -> ConnectionState:
             return ConnectionState.OPEN
 
+    runtime_overrides: dict[str, Any] = {
+        "on_cell_change": "autorun",
+        "auto_instantiate": True,
+        "auto_reload": "off",
+        "watcher_on_save": "lazy",
+    }
+    if cache_export:
+        # Cache every executed cell so the export can bundle the results;
+        # this same flag gates the kernel's export-manifest dump on teardown.
+        runtime_overrides["cache_cells"] = True
     config_manager = get_default_config_manager(
         current_path=file_manager.path
     ).with_overrides(
-        {
-            "runtime": cast(
-                RuntimeConfig,
-                {
-                    "on_cell_change": "autorun",
-                    "auto_instantiate": True,
-                    "auto_reload": "off",
-                    "watcher_on_save": "lazy",
-                    # We cast because we don't want to override the other
-                    # config values
-                },
-            ),
-        }
+        # We cast because we don't want to override the other config values.
+        {"runtime": cast(RuntimeConfig, runtime_overrides)}
     )
 
     # Create a session
@@ -631,8 +722,9 @@ async def run_app_until_completion(
             )
 
     # Stop distributor, terminate kernel process, etc -- all information is
-    # captured by the session view.
-    session.close()
+    # captured by the session view. When exporting caches, close gracefully so
+    # the kernel flushes the cache manifest that bundle_cache_export reads next.
+    session.close(graceful=cache_export)
 
     return session.session_view, session_consumer.did_error
 

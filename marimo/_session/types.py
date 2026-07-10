@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 if TYPE_CHECKING:
     import asyncio
     import threading
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._messaging.notebook.document import NotebookDocument
@@ -42,7 +42,7 @@ class QueueManager(Protocol):
 
     control_queue: QueueType[commands.CommandMessage]
     set_ui_element_queue: QueueType[commands.BatchableCommand]
-    completion_queue: QueueType[commands.CodeCompletionCommand]
+    completion_queue: QueueType[commands.OutOfBandCommand]
     input_queue: QueueType[str]
     stream_queue: QueueType[KernelMessage | None] | None
     win32_interrupt_queue: QueueType[bool] | None
@@ -78,8 +78,13 @@ class KernelManager(Protocol):
         """Interrupt the running kernel."""
         ...
 
-    def close_kernel(self) -> None:
-        """Close the kernel and clean up resources."""
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        """Close the kernel and clean up resources.
+
+        When `graceful` is True, wait (join) for the kernel to flush pending
+        work (e.g. cache writes) before killing it. The join is off by default
+        so event-loop callers aren't stalled by it.
+        """
         ...
 
     @property
@@ -139,11 +144,6 @@ class Session(Protocol):
     @property
     def document(self) -> NotebookDocument:
         """The notebook document this session reflects."""
-        ...
-
-    @property
-    def consumers(self) -> Mapping[SessionConsumer, ConsumerId]:
-        """Get the consumers in the session."""
         ...
 
     def kernel_state(self) -> KernelState:
@@ -224,6 +224,9 @@ class Session(Protocol):
         """Attach an extension for the duration of the context."""
         ...
 
-    def close(self) -> None:
-        """Close the session."""
+    def close(self, *, graceful: bool = False) -> None:
+        """Close the session.
+
+        See `KernelManager.close_kernel` for `graceful`.
+        """
         ...

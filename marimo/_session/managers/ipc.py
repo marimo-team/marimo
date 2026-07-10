@@ -88,7 +88,7 @@ class IPCQueueManagerImpl(QueueManager):
     @property
     def completion_queue(  # type: ignore[override]
         self,
-    ) -> QueueType[commands.CodeCompletionCommand]:
+    ) -> QueueType[commands.OutOfBandCommand]:
         return self._ipc.completion_queue
 
     @property
@@ -391,7 +391,8 @@ class IPCKernelManagerImpl(KernelManager):
                 LOGGER.debug("Sending SIGINT to kernel")
                 os.kill(self._process.pid, signal.SIGINT)
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        del graceful  # unsupported here: IPC shutdown never waits for exit.
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()

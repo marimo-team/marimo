@@ -9,8 +9,12 @@ import { MODEL_MANAGER, Model } from "../model";
 import type { WidgetModelId } from "../types";
 import { BINDING_MANAGER } from "../widget-binding";
 
-const { LoadedSlot, isAnyWidgetModule, getInvalidAnyWidgetModuleError } =
-  visibleForTesting;
+const {
+  LoadedSlot,
+  isAnyWidgetModule,
+  resolveAnyWidget,
+  getInvalidAnyWidgetModuleError,
+} = visibleForTesting;
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
@@ -167,6 +171,52 @@ describe("isAnyWidgetModule", () => {
 
   it("should reject legacy named render exports", () => {
     expect(isAnyWidgetModule({ render: () => undefined })).toBe(false);
+  });
+});
+
+describe("resolveAnyWidget", () => {
+  const jsUrl = "./@file/widget.js";
+
+  it("should return the default export when present", () => {
+    const widget = { render: () => undefined };
+    expect(resolveAnyWidget({ default: widget }, jsUrl)).toBe(widget);
+  });
+
+  it("should return a default factory function", () => {
+    const factory = async () => ({ render: () => {} });
+    expect(resolveAnyWidget({ default: factory }, jsUrl)).toBe(factory);
+  });
+
+  it("should synthesize a widget from a legacy named render export", () => {
+    const render = vi.fn();
+    const resolved = resolveAnyWidget({ render }, jsUrl);
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({ render });
+  });
+
+  it("should synthesize a widget from a legacy named initialize export", () => {
+    const initialize = vi.fn();
+    const resolved = resolveAnyWidget({ initialize }, jsUrl);
+    expect(resolved).not.toBeNull();
+    expect(resolved).toMatchObject({ initialize });
+  });
+
+  it("should return null for a module with no valid exports", () => {
+    expect(resolveAnyWidget({}, jsUrl)).toBeNull();
+    expect(resolveAnyWidget({ default: {} }, jsUrl)).toBeNull();
+    expect(resolveAnyWidget({ render: "not a function" }, jsUrl)).toBeNull();
+  });
+
+  it("should return a stable widget identity across calls for one module", () => {
+    const mod = { render: vi.fn() };
+    expect(resolveAnyWidget(mod, jsUrl)).toBe(resolveAnyWidget(mod, jsUrl));
+  });
+
+  it("should not fall back to named exports when a default export is present", () => {
+    // A present-but-invalid default should surface an error, not be masked.
+    expect(
+      resolveAnyWidget({ default: {}, render: vi.fn() }, jsUrl),
+    ).toBeNull();
   });
 });
 

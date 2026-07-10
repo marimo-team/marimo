@@ -21,6 +21,7 @@ from marimo._server.api.endpoints.ws.ws_connection_validator import (
 from marimo._server.api.endpoints.ws_endpoint import DOC_MANAGER
 from marimo._server.api.utils import (
     dispatch_control_request,
+    enforce_consumer_capability,
     get_code_mode_credentials,
     parse_request,
 )
@@ -33,6 +34,7 @@ from marimo._server.models.models import (
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
+    SetBreakpointsRequest,
     SuccessResponse,
     UpdateUIElementValuesRequest,
 )
@@ -86,13 +88,15 @@ async def set_ui_element_values(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=UpdateUIElementValuesRequest)
+    command = UpdateUIElementCommand(
+        object_ids=body.object_ids,
+        values=body.values,
+        token=str(uuid4()),
+        request=HTTPRequest.from_request(request),
+    )
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        UpdateUIElementCommand(
-            object_ids=body.object_ids,
-            values=body.values,
-            token=str(uuid4()),
-            request=HTTPRequest.from_request(request),
-        ),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -250,8 +254,10 @@ async def run_cell(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExecuteCellsRequest)
     body.request = HTTPRequest.from_request(request)
+    command = body.as_command()
+    enforce_consumer_capability(app_state, command)
     app_state.require_current_session().put_control_request(
-        body.as_command(),
+        command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
     )
 
@@ -446,6 +452,35 @@ async def run_post_mortem(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DebugCellRequest)
+
+
+@router.post("/pdb/breakpoints")
+@requires("edit")
+async def set_breakpoints(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetBreakpointsRequest"
+    responses:
+        200:
+            description: Set the live debugger's breakpoints for the session.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, SetBreakpointsRequest)
 
 
 @router.post("/restart_session")

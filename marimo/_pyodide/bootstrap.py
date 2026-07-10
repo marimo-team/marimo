@@ -139,9 +139,7 @@ def create_session(
                 app_config=app.config,
                 kiosk=False,
                 capabilities=KernelCapabilitiesNotification(),
-                consumer_capabilities=ConsumerCapabilities(
-                    edit=True, interact=True
-                ),
+                consumer_capabilities=ConsumerCapabilities.EDITOR,
             )
         ),
     )

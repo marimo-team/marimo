@@ -399,7 +399,7 @@ const VerticalCell = memo(
           {display && (
             <div className="tray">
               <ReadonlyCode
-                initiallyHideCode={config.hide_code || kiosk}
+                initiallyHideCode={config.hide_code}
                 code={display.code}
                 language={display.language}
               />
