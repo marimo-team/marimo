@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.23.14"
 app = marimo.App()
 
 with app.setup:
@@ -51,20 +51,16 @@ def _():
     def test_parameterized_collected(x, y):
         assert inc(x) == y, "These tests should pass."
 
-
     @pytest.mark.parametrize("x, y", [(3, 4), (4, 5)])
     def test_parameterized_collected2(x, y):
         assert inc(x) == y, "These tests should pass."
-
 
     @pytest.mark.skip(reason="Skip for fun")
     def test_normal_regular():
         assert True
 
-
     def test_transitive_uri():
         cross_cell_fail()
-
 
     class TestParent:
         def test_parent_inner(self):
@@ -82,19 +78,12 @@ def _():
     def test_sanity():
         assert True
 
-
     def test_orwell():
         a = 2
         b = 5
         assert a + a == b
 
     return
-
-
-@app.cell
-def _():
-    fo = 7
-    return (fo,)
 
 
 @app.cell
@@ -106,11 +95,6 @@ def _():
     def test_fixture(foo):
         assert foo == 8
 
-    return
-
-
-@app.cell
-def _():
     return
 
 
