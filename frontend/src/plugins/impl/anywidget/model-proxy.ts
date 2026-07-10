@@ -1,8 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { AnyModel } from "@anywidget/types";
-import type { Model } from "./model";
 import type { ModelState } from "./types";
+
+type ModelEventCallback = Parameters<AnyModel<ModelState>["on"]>[1];
 
 /**
  * A listener registered through a model proxy (see the hydration
@@ -10,7 +11,7 @@ import type { ModelState } from "./types";
  */
 export interface ProxyRegistration {
   event: string;
-  callback: (...args: unknown[]) => void;
+  callback: ModelEventCallback;
 }
 
 /**
@@ -29,28 +30,41 @@ export interface ProxyRegistration {
  *
  * `onRegister`, when given, observes each `on()` registration.
  */
+// oxlint-disable-next-line marimo/prefer-object-params -- concise internal helper used at protocol call sites
 export function modelProxy<T extends ModelState>(
-  model: Model<T>,
+  model: AnyModel<T>,
   signal: AbortSignal,
   onRegister?: (registration: ProxyRegistration) => void,
 ): AnyModel<T> {
   return {
-    get: model.get.bind(model),
-    set: model.set.bind(model),
-    save_changes: model.save_changes.bind(model),
-    // marimo's send returns Promise<void>; AnyModel declares void. The
-    // returned promise is ignored at the AnyModel boundary, which is fine.
-    send: model.send.bind(model) as AnyModel<T>["send"],
-    on(name: string, callback: (...args: unknown[]) => void): void {
-      model.on(name, callback, { signal });
+    get(key) {
+      return model.get(key);
+    },
+    set(key, value) {
+      model.set(key, value);
+    },
+    save_changes() {
+      model.save_changes();
+    },
+    send: model.send.bind(model),
+    on(name: string, callback: ModelEventCallback): void {
+      if (signal.aborted) {
+        return;
+      }
+      model.on(name, callback);
+      signal.addEventListener("abort", () => model.off(name, callback), {
+        once: true,
+      });
       onRegister?.({ event: name, callback });
     },
-    off(
-      name?: string | null,
-      callback?: ((...args: unknown[]) => void) | null,
-    ): void {
+    off(name?: string | null, callback?: ModelEventCallback | null): void {
       model.off(name ?? null, callback ?? null);
     },
-    widget_manager: model.widget_manager,
-  } as AnyModel<T>;
+    widget_manager: {
+      async get_model<TT extends ModelState>(modelId: string) {
+        const child = await model.widget_manager.get_model<TT>(modelId);
+        return modelProxy(child, signal);
+      },
+    },
+  };
 }

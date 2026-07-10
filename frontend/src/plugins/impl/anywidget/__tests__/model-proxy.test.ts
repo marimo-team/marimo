@@ -112,6 +112,26 @@ describe("modelProxy", () => {
     expect(cb2).toHaveBeenCalledTimes(2);
   });
 
+  it("scopes legacy widget_manager child listeners to the parent signal", async () => {
+    const parent = new Model<ModelState>({}, createMockComm());
+    const child = new Model<ModelState>({ count: 0 }, createMockComm());
+    vi.spyOn(parent.widget_manager, "get_model").mockResolvedValue(child);
+    const controller = new AbortController();
+    const parentProxy = modelProxy(parent, controller.signal);
+
+    const childProxy =
+      await parentProxy.widget_manager.get_model<ModelState>("child-id");
+    const callback = vi.fn();
+    childProxy.on("change:count", callback);
+
+    child.set("count", 1);
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    controller.abort();
+    child.set("count", 2);
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it("forwards get / set / save_changes", () => {
     const comm = createMockComm();
     const model = new Model<ModelState>({ count: 0 }, comm);
