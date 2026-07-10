@@ -97,7 +97,7 @@ def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
         # process restores Proactor before Playwright creates its subprocess loop.
         asyncio.set_event_loop_policy(None)
 
-    from nbconvert import WebPDFExporter
+    from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
 
     web_exporter = WebPDFExporter(  # type: ignore[no-untyped-call]
         config=_nbconvert_tag_remove_config(),
