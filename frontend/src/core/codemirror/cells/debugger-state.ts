@@ -2,27 +2,50 @@
 
 import { atom } from "jotai";
 import type { CellId } from "@/core/cells/ids";
+import type { ActiveLineInfo } from "@/core/codemirror/cells/line-timing-decorations";
 import { getRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
 
 /**
- * State for the experimental live debugger.
+ * State for the experimental live debugger and line-timing highlight.
  *
- * - `debuggerCurrentLineAtom` holds the cell + line the kernel's frame watcher
- *   is currently executing (driven by `active-line` notifications). Only one
- *   cell runs at a time, so a single global value suffices.
+ * - `activeLineAtom` holds the cell + line the kernel's frame watcher is
+ *   currently executing (driven by `active-line` notifications), plus when
+ *   the frontend first saw execution on that line. Only one cell runs at a
+ *   time, so a single global value suffices.
  * - `breakpointsAtom` holds the user's gutter breakpoints, session-only. It is
  *   the source of truth; mutations are mirrored to the kernel via
  *   `sendSetBreakpoints`.
  */
 
-export interface DebuggerLine {
+export interface ActiveLine {
   cellId: CellId;
   line: number;
+  /** When the frontend first saw execution on this (cellId, line). */
+  startedAtMs: number;
 }
 
-export const debuggerCurrentLineAtom = atom<DebuggerLine | null>(null);
+export const activeLineAtom = atom<ActiveLine | null>(null);
+
+/**
+ * Update the active line, stamping `startedAtMs` only when the (cellId, line)
+ * actually changes, so duplicate notifications (e.g. reconnects) never reset
+ * the elapsed-time baseline.
+ */
+export function setActiveLine(
+  next: { cellId: CellId; line: number } | null,
+): void {
+  const prev = store.get(activeLineAtom);
+  if (next === null) {
+    store.set(activeLineAtom, null);
+    return;
+  }
+  if (prev?.cellId === next.cellId && prev.line === next.line) {
+    return;
+  }
+  store.set(activeLineAtom, { ...next, startedAtMs: Date.now() });
+}
 
 export const breakpointsAtom = atom<ReadonlyMap<CellId, ReadonlySet<number>>>(
   new Map<CellId, ReadonlySet<number>>(),
@@ -33,8 +56,18 @@ const EMPTY_LINES: ReadonlySet<number> = new Set();
 /** Per-cell derived atom: the current debug line for `cellId`, or `null`. */
 export function createDebuggerLineAtom(cellId: CellId) {
   return atom((get) => {
-    const current = get(debuggerCurrentLineAtom);
+    const current = get(activeLineAtom);
     return current?.cellId === cellId ? current.line : null;
+  });
+}
+
+/** Per-cell derived atom: the active line + start time for `cellId`, or `null`. */
+export function createActiveLineInfoAtom(cellId: CellId) {
+  return atom((get): ActiveLineInfo | null => {
+    const current = get(activeLineAtom);
+    return current?.cellId === cellId
+      ? { line: current.line, startedAtMs: current.startedAtMs }
+      : null;
   });
 }
 

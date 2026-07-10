@@ -12,6 +12,7 @@ export interface ExperimentalFeatures {
   cache_panel: boolean;
   external_agents: boolean;
   debugger: boolean; // Live frame-watching debugger (gutter breakpoints + pdb)
+  line_timing: boolean; // Green active-line highlight + per-line elapsed timer
   // Add new feature flags here
 }
 
@@ -22,6 +23,7 @@ const defaultValues: ExperimentalFeatures = {
   cache_panel: false,
   external_agents: import.meta.env.DEV,
   debugger: false,
+  line_timing: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

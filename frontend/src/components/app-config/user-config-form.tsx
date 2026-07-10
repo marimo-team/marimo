@@ -1314,6 +1314,32 @@ export const UserConfigForm: React.FC = () => {
                 </div>
               )}
             />
+            <OverriddenFormField
+              control={form.control}
+              name="experimental.line_timing"
+              render={({ field, override }) => (
+                <div className="flex flex-col gap-y-1">
+                  <FormItem className={formItemClasses}>
+                    <FormLabel className="font-normal">Line Timing</FormLabel>
+                    <FormControl>
+                      <Checkbox
+                        data-testid="line-timing-checkbox"
+                        checked={override.value === true}
+                        disabled={override.isOverridden}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                  <IsOverridden override={override} />
+                  <FormDescription>
+                    Highlight the line a cell is currently executing in green,
+                    with an elapsed timer next to long-running lines. Adds
+                    tracing overhead to every run while enabled. This change
+                    requires a page refresh to take effect.
+                  </FormDescription>
+                </div>
+              )}
+            />
           </SettingGroup>
         );
     }

@@ -202,3 +202,101 @@ class TestFrameWatcher:
         assert ops[0].cell_id == "abc"
         assert ops[0].line == 5
         assert ops[1].line is None
+
+
+class TestFrameWatcherWithoutDebugger:
+    """The watcher with `debugger=None` (the `line_timing` flag) only streams
+    the active line; there is no pdb to enter."""
+
+    @staticmethod
+    def test_records_current_cell_line() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        watcher = FrameWatcher(None)
+        code = TestFrameWatcher._cell_code("abc", "a = 1\nb = 2\nc = 3\n")
+        watcher.install()
+        try:
+            exec(code, {})
+            current = watcher._current
+        finally:
+            watcher.uninstall()
+        assert current == ("abc", 3)
+
+    @staticmethod
+    def test_install_uninstall_restores_previous_trace() -> None:
+        import sys
+
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        prev = sys.gettrace()
+        watcher = FrameWatcher(None)
+        watcher.install()
+        installed = sys.gettrace()
+        assert getattr(installed, "__self__", None) is watcher
+        watcher.uninstall()
+        assert sys.gettrace() is prev
+
+    @staticmethod
+    def test_runs_to_completion_without_entering_pdb() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        watcher = FrameWatcher(None)
+        code = TestFrameWatcher._cell_code(
+            "abc", "total = 0\nfor i in range(3):\n    total += i\n"
+        )
+        glbls: dict[str, Any] = {}
+        watcher.install()
+        try:
+            exec(code, glbls)
+        finally:
+            watcher.uninstall()
+        assert glbls["total"] == 3
+
+    @staticmethod
+    def test_heartbeat_flushes_active_line() -> None:
+        import threading
+        import time
+
+        from marimo._messaging.notification import ActiveLineNotification
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        watcher = FrameWatcher(None)
+        stream = MockStream()
+        watcher._stream = stream
+        watcher._current = ("abc", 5)  # type: ignore[assignment]
+        watcher._stop.clear()
+        thread = threading.Thread(target=watcher._heartbeat, daemon=True)
+        thread.start()
+        try:
+            for _ in range(100):
+                if stream.parsed_operations:
+                    break
+                time.sleep(0.01)
+        finally:
+            watcher._stop.set()
+            thread.join(timeout=1.0)
+
+        ops = stream.parsed_operations
+        assert ops, "heartbeat never flushed the active line"
+        assert isinstance(ops[0], ActiveLineNotification)
+        assert (ops[0].cell_id, ops[0].line) == ("abc", 5)
+        assert watcher._flushed == ("abc", 5)
+
+    @staticmethod
+    def test_uninstall_broadcasts_line_clear() -> None:
+        from marimo._runtime.executor.lifecycles.debugger import FrameWatcher
+
+        watcher = FrameWatcher(None)
+        code = TestFrameWatcher._cell_code("abc", "a = 1\n")
+        watcher.install()
+        # No runtime context in tests, so install() found no stream; give the
+        # watcher one to observe the clear broadcast on uninstall.
+        stream = MockStream()
+        watcher._stream = stream
+        try:
+            exec(code, {})
+        finally:
+            watcher.uninstall()
+
+        assert stream.parsed_operations
+        assert stream.parsed_operations[-1].line is None

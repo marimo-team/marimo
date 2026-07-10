@@ -1,16 +1,18 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { cellId } from "@/__tests__/branded";
 import { store } from "@/core/state/jotai";
 import {
+  activeLineAtom,
   breakpointsAtom,
   clearCellBreakpoints,
+  createActiveLineInfoAtom,
   createCellBreakpointsAtom,
   createDebuggerLineAtom,
-  debuggerCurrentLineAtom,
   resyncBreakpoints,
+  setActiveLine,
   toggleBreakpoint,
 } from "../debugger-state";
 
@@ -25,7 +27,7 @@ const cell2 = cellId("cell2");
 describe("debugger-state", () => {
   beforeEach(() => {
     store.set(breakpointsAtom, new Map());
-    store.set(debuggerCurrentLineAtom, null);
+    store.set(activeLineAtom, null);
     vi.clearAllMocks();
   });
 
@@ -130,10 +132,93 @@ describe("debugger-state", () => {
     });
 
     it("returns the line only for the matching cell", () => {
-      store.set(debuggerCurrentLineAtom, { cellId: cell1, line: 10 });
+      store.set(activeLineAtom, { cellId: cell1, line: 10, startedAtMs: 0 });
 
       expect(store.get(createDebuggerLineAtom(cell1))).toBe(10);
       expect(store.get(createDebuggerLineAtom(cell2))).toBeNull();
+    });
+  });
+
+  describe("setActiveLine", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("stamps startedAtMs when the line is first set", () => {
+      vi.setSystemTime(1000);
+      setActiveLine({ cellId: cell1, line: 3 });
+
+      expect(store.get(activeLineAtom)).toEqual({
+        cellId: cell1,
+        line: 3,
+        startedAtMs: 1000,
+      });
+    });
+
+    it("preserves startedAtMs when the same line is set again", () => {
+      vi.setSystemTime(1000);
+      setActiveLine({ cellId: cell1, line: 3 });
+      vi.setSystemTime(2000);
+      setActiveLine({ cellId: cell1, line: 3 });
+
+      expect(store.get(activeLineAtom)).toEqual({
+        cellId: cell1,
+        line: 3,
+        startedAtMs: 1000,
+      });
+    });
+
+    it("resets startedAtMs when the line changes", () => {
+      vi.setSystemTime(1000);
+      setActiveLine({ cellId: cell1, line: 3 });
+      vi.setSystemTime(2000);
+      setActiveLine({ cellId: cell1, line: 4 });
+
+      expect(store.get(activeLineAtom)).toEqual({
+        cellId: cell1,
+        line: 4,
+        startedAtMs: 2000,
+      });
+    });
+
+    it("resets startedAtMs when the cell changes", () => {
+      vi.setSystemTime(1000);
+      setActiveLine({ cellId: cell1, line: 3 });
+      vi.setSystemTime(2000);
+      setActiveLine({ cellId: cell2, line: 3 });
+
+      expect(store.get(activeLineAtom)).toEqual({
+        cellId: cell2,
+        line: 3,
+        startedAtMs: 2000,
+      });
+    });
+
+    it("clears the active line on null", () => {
+      setActiveLine({ cellId: cell1, line: 3 });
+      setActiveLine(null);
+
+      expect(store.get(activeLineAtom)).toBeNull();
+    });
+  });
+
+  describe("createActiveLineInfoAtom", () => {
+    it("returns null when no line is set", () => {
+      expect(store.get(createActiveLineInfoAtom(cell1))).toBeNull();
+    });
+
+    it("returns line info only for the matching cell", () => {
+      store.set(activeLineAtom, { cellId: cell1, line: 10, startedAtMs: 42 });
+
+      expect(store.get(createActiveLineInfoAtom(cell1))).toEqual({
+        line: 10,
+        startedAtMs: 42,
+      });
+      expect(store.get(createActiveLineInfoAtom(cell2))).toBeNull();
     });
   });
 });
