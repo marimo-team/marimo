@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import mimetypes
+import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -88,6 +89,41 @@ def _nbconvert_tag_remove_config() -> Config:
         NBCONVERT_REMOVE_INPUT_TAG,
     )
     return config
+
+
+def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
+    if sys.platform == "win32":
+        # marimo installs the Selector policy during import. The spawned render
+        # process restores Proactor before Playwright creates its subprocess loop.
+        asyncio.set_event_loop_policy(None)
+
+    from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+
+    web_exporter = WebPDFExporter(  # type: ignore[no-untyped-call]
+        config=_nbconvert_tag_remove_config(),
+    )
+    web_exporter.exclude_input = not include_inputs
+    web_exporter.allow_chromium_download = True
+    pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+    return pdf_data
+
+
+def _render_webpdf(notebook: Any, include_inputs: bool) -> Any:
+    if sys.platform != "win32":
+        return _render_webpdf_with_nbconvert(notebook, include_inputs)
+
+    from concurrent.futures import ProcessPoolExecutor
+    from multiprocessing import get_context
+
+    with ProcessPoolExecutor(
+        max_workers=1,
+        mp_context=get_context("spawn"),
+    ) as pool:
+        return pool.submit(
+            _render_webpdf_with_nbconvert,
+            notebook,
+            include_inputs,
+        ).result()
 
 
 class Exporter:
@@ -541,19 +577,12 @@ class Exporter:
                     exc_info=e,
                 )
 
-        from nbconvert import WebPDFExporter
-
         emit_pdf_export_status(
             status_callback,
             phase="render",
             message="rendering PDF via WebPDF...",
         )
-        web_exporter = WebPDFExporter(  # type: ignore[no-untyped-call]
-            config=_nbconvert_tag_remove_config(),
-        )
-        web_exporter.exclude_input = not include_inputs
-        web_exporter.allow_chromium_download = True
-        pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+        pdf_data = _render_webpdf(notebook, include_inputs)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
