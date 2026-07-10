@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -146,16 +146,16 @@ def _(mo, selected_dataset):
 
     mo.md(
         f"""
-        ---------
+    ---------
 
-        ## Selected dataset: **{selected_dataset.id}**
+    ## Selected dataset: **{selected_dataset.id}**
 
-        > {selected_dataset.description or "no description"}
+    > {selected_dataset.description or "no description"}
 
-        Downloads: _{selected_dataset.downloads}_
+    Downloads: _{selected_dataset.downloads}_
 
-        You can select one of the parquet files below to load it into duckdb.
-        """
+    You can select one of the parquet files below to load it into duckdb.
+    """
     )
     return
 
@@ -238,14 +238,14 @@ def _(has_selected_file, mo, render_sql_editor):
         [
             mo.md(
                 """
-        ## SQL Editor
+    ## SQL Editor
 
-        You can query this dataset using SQL. The SQL query will be executed in duckdb. You can use the `$dataset` variable to reference the dataset's parquet files. For example:
+    You can query this dataset using SQL. The SQL query will be executed in duckdb. You can use the `$dataset` variable to reference the dataset's parquet files. For example:
 
-        ```sql
-        SELECT * FROM '$dataset' LIMIT 10
-        ```
-        """
+    ```sql
+    SELECT * FROM '$dataset' LIMIT 10
+    ```
+    """
             ),
             sql_editor,
         ]
@@ -271,10 +271,10 @@ def _(datasets, mo, render_dataframe_editor):
         [
             mo.md(
                 """
-        ## Dataframe Editor
+    ## Dataframe Editor
 
-        You can explore the dataset using the dataframe editor below. The dataframe editor is powered by [mo.ui.dataframe](https://docs.marimo.io/api/inputs/dataframe.html)
-        """
+    You can explore the dataset using the dataframe editor below. The dataframe editor is powered by [mo.ui.dataframe](https://docs.marimo.io/api/inputs/dataframe.html)
+    """
             ),
             df_editor,
         ]
@@ -312,7 +312,6 @@ def _(con, mo, url):
         df_editor = mo.ui.dataframe(data)
         return df_editor
 
-
     return render_dataframe_editor, render_sql_editor, render_sql_results
 
 
@@ -346,7 +345,6 @@ def _(functools, json, pd, requests):
         urls = [f["url"] for f in j["parquet_files"]]
         return urls
 
-
     return fetch_hugging_face_datasets, load_hugging_face_dataset
 
 
@@ -358,7 +356,6 @@ def _():
     import marimo as mo
     import duckdb
     import pandas as pd
-
 
     return duckdb, functools, json, mo, pd, requests
 

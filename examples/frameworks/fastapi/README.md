@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # FastAPI + marimo
 
 This is a simple example of how to use FastAPI with marimo. This example programmatically creates multiple marimo apps from a directory, and then serves them as a single FastAPI app.

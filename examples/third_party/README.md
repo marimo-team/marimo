@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Third-party 📦
 
 These examples showcase how to use various third-party packages in marimo.

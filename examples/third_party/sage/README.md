@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Sage: chat with any codebase 🤖💬
 
 This example shows how to create a notebook that lets you

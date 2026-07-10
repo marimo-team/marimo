@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -25,11 +25,11 @@ def _(data):
 
 
 @app.cell
-def _(mo):
+def _(cars_df, mo):
     _df = mo.sql(
         f"""
-            CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
-            """
+        CREATE OR REPLACE TABLE cars AS SELECT * FROM cars_df;
+        """
     )
     return
 
@@ -63,14 +63,14 @@ def _(mo, origin, top_n):
 def _(mo, origin_filter, top_n, year_range):
     _df = mo.sql(
         f"""
-            SELECT Name, Year, Origin, Horsepower, Miles_per_Gallon,
-                   Acceleration, Weight_in_lbs
-            FROM cars
-            WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
-            {origin_filter}
-            ORDER BY Horsepower DESC
-            LIMIT {top_n.value}
-            """
+        SELECT Name, Year, Origin, Horsepower, Miles_per_Gallon,
+               Acceleration, Weight_in_lbs
+        FROM cars
+        WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
+        {origin_filter}
+        ORDER BY Horsepower DESC
+        LIMIT {top_n.value}
+        """
     )
     return
 
@@ -84,27 +84,27 @@ def _(mo):
 
 
 @app.cell
-def _(mo, year_range):
+def _(cars, mo, year_range):
     _df = mo.sql(
         f"""
-            WITH ranked_cars AS (
-                SELECT *,
-                       ROW_NUMBER() OVER (PARTITION BY Origin ORDER BY Horsepower DESC) as rank,
-                       AVG(Horsepower) OVER (PARTITION BY Origin) as avg_horsepower,
-                       AVG(Miles_per_Gallon) OVER (PARTITION BY Origin) as avg_mpg
-                FROM cars
-                WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
-            )
-            SELECT Origin,
-                   ROUND(avg_horsepower, 2) as Avg_Horsepower,
-                   ROUND(avg_mpg, 2) as Avg_MPG,
-                   FIRST(Name) as Top_Car,
-                   FIRST(Horsepower) as Top_Horsepower
-            FROM ranked_cars
-            WHERE rank = 1
-            GROUP BY Origin, avg_horsepower, avg_mpg
-            ORDER BY Avg_Horsepower DESC
-            """
+        WITH ranked_cars AS (
+            SELECT *,
+                   ROW_NUMBER() OVER (PARTITION BY Origin ORDER BY Horsepower DESC) as rank,
+                   AVG(Horsepower) OVER (PARTITION BY Origin) as avg_horsepower,
+                   AVG(Miles_per_Gallon) OVER (PARTITION BY Origin) as avg_mpg
+            FROM cars
+            WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
+        )
+        SELECT Origin,
+               ROUND(avg_horsepower, 2) as Avg_Horsepower,
+               ROUND(avg_mpg, 2) as Avg_MPG,
+               FIRST(Name) as Top_Car,
+               FIRST(Horsepower) as Top_Horsepower
+        FROM ranked_cars
+        WHERE rank = 1
+        GROUP BY Origin, avg_horsepower, avg_mpg
+        ORDER BY Avg_Horsepower DESC
+        """
     )
     return
 
@@ -112,14 +112,14 @@ def _(mo, year_range):
 @app.cell
 def _(alt, duckdb, mo, year_range):
     _query = f"""
-        SELECT Year, 
-               AVG(Horsepower) as Avg_Horsepower, 
-               AVG(Miles_per_Gallon) as Avg_MPG
-        FROM cars
-        WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
-        GROUP BY Year
-        ORDER BY Year
-        """
+    SELECT Year, 
+           AVG(Horsepower) as Avg_Horsepower, 
+           AVG(Miles_per_Gallon) as Avg_MPG
+    FROM cars
+    WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
+    GROUP BY Year
+    ORDER BY Year
+    """
     _data = duckdb.sql(_query).df()
 
     base = alt.Chart(_data).encode(x="Year:T")
@@ -148,10 +148,10 @@ def _(alt, duckdb, mo, year_range):
 @app.cell(hide_code=True)
 def _(alt, duckdb, mo, year_range):
     _query = f"""
-        SELECT Horsepower, Miles_per_Gallon, Origin
-        FROM cars
-        WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
-        """
+    SELECT Horsepower, Miles_per_Gallon, Origin
+    FROM cars
+    WHERE Year BETWEEN {year_range.value[0]} AND {year_range.value[1]}
+    """
     _data = duckdb.sql(_query).df()
 
     _chart = (
@@ -175,7 +175,7 @@ def _(alt, duckdb, mo, year_range):
 def _(chart, mo):
     mo.stop(chart.value.empty, mo.callout("Select cars from the chart above."))
     selected_cars = chart.value
-    return
+    return (selected_cars,)
 
 
 @app.cell(hide_code=True)
@@ -207,29 +207,29 @@ def _(aggs, aggs_selected, mo):
 
 
 @app.cell(hide_code=True)
-def _(mo):
+def _(cars, mo, selected_cars):
     aggs_selected = mo.sql("""
-        SELECT 
-            COUNT(*) as count,
-            AVG(Horsepower) as avg_horsepower,
-            AVG(Miles_per_Gallon) as avg_mpg,
-            MIN(Horsepower) as min_horsepower,
-            MAX(Horsepower) as max_horsepower,
-            MIN(Miles_per_Gallon) as min_mpg,
-            MAX(Miles_per_Gallon) as max_mpg
-        FROM selected_cars
-        """)
+    SELECT 
+        COUNT(*) as count,
+        AVG(Horsepower) as avg_horsepower,
+        AVG(Miles_per_Gallon) as avg_mpg,
+        MIN(Horsepower) as min_horsepower,
+        MAX(Horsepower) as max_horsepower,
+        MIN(Miles_per_Gallon) as min_mpg,
+        MAX(Miles_per_Gallon) as max_mpg
+    FROM selected_cars
+    """)
     aggs = mo.sql("""
-        SELECT 
-            COUNT(*) as count,
-            AVG(Horsepower) as avg_horsepower,
-            AVG(Miles_per_Gallon) as avg_mpg,
-            MIN(Horsepower) as min_horsepower,
-            MAX(Horsepower) as max_horsepower,
-            MIN(Miles_per_Gallon) as min_mpg,
-            MAX(Miles_per_Gallon) as max_mpg
-        FROM cars
-        """)
+    SELECT 
+        COUNT(*) as count,
+        AVG(Horsepower) as avg_horsepower,
+        AVG(Miles_per_Gallon) as avg_mpg,
+        MIN(Horsepower) as min_horsepower,
+        MAX(Horsepower) as max_horsepower,
+        MIN(Miles_per_Gallon) as min_mpg,
+        MAX(Miles_per_Gallon) as max_mpg
+    FROM cars
+    """)
     mo.output.clear()
     return aggs, aggs_selected
 
@@ -240,7 +240,6 @@ def _():
     import duckdb
     import altair as alt
     from vega_datasets import data
-
 
     return alt, data, duckdb, mo
 

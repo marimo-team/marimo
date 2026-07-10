@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # AI 🤖
 
 These examples showcase a few simple applications of AI.

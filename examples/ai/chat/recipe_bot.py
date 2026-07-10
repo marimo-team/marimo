@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.15.5"
 app = marimo.App(width="medium")
 
 
@@ -20,8 +20,8 @@ def _():
         mo.ai.llm.openai(
             "gpt-4o",
             system_message="""You are a helpful assistant that can
-                parse my recipe and summarize them for me.
-                Give me a title in the first line.""",
+            parse my recipe and summarize them for me.
+            Give me a title in the first line.""",
         ),
         allow_attachments=["image/png", "image/jpeg"],
         prompts=["What is the recipe?"],

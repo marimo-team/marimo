@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,6 @@ def _():
     import pandas as pd
     import plotly.express as px
     import plotly.graph_objects as go
-
 
     return go, mo, pd, px
 
@@ -100,12 +99,12 @@ def _(funnel_plot, mo, pipeline_data):
         _summary = "Click any funnel stage to inspect it."
 
     mo.md(f"""
-        ### Selected Stage
+    ### Selected Stage
 
-        {_summary}
+    {_summary}
 
-        **Raw selection:** {funnel_plot.value}
-        """)
+    **Raw selection:** {funnel_plot.value}
+    """)
     return
 
 
@@ -203,12 +202,12 @@ def _(area_plot, mo):
         _detail = "Click any segment to inspect it."
 
     mo.md(f"""
-        ### Selected Segment
+    ### Selected Segment
 
-        {_detail}
+    {_detail}
 
-        **Raw selection:** {area_plot.value}
-        """)
+    **Raw selection:** {area_plot.value}
+    """)
     return
 
 

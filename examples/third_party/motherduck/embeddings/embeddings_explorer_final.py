@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -38,7 +38,6 @@ def _():
     import numpy as np
     from sklearn.decomposition import PCA
 
-
     return PCA, alt, hdbscan, mo, np, pl, umap
 
 
@@ -46,8 +45,8 @@ def _():
 def _(mo):
     _df = mo.sql(
         """
-            ATTACH IF NOT EXISTS 'md:my_db'
-            """
+        ATTACH IF NOT EXISTS 'md:my_db'
+        """
     )
     return
 
@@ -56,13 +55,13 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         """
-            CREATE OR REPLACE TABLE my_db.demo_embedding AS
-            SELECT DISTINCT ON (url) *  -- Remove duplicate URLs
-            FROM 'hf://datasets/julien040/hacker-news-posts/story.parquet'
-            WHERE contains(title, 'database')  -- Filter for posts about databases
-                AND score > 5  -- Only include popular posts
-            LIMIT 50000;
-            """
+        CREATE OR REPLACE TABLE my_db.demo_embedding AS
+        SELECT DISTINCT ON (url) *  -- Remove duplicate URLs
+        FROM 'hf://datasets/julien040/hacker-news-posts/story.parquet'
+        WHERE contains(title, 'database')  -- Filter for posts about databases
+            AND score > 5  -- Only include popular posts
+        LIMIT 50000;
+        """
     )
     return
 
@@ -71,10 +70,10 @@ def _(mo):
 def _(mo):
     embeddings = mo.sql(
         """
-            SELECT *, embedding(title) as text_embedding
-            FROM my_db.demo_embedding
-            LIMIT 1500;  -- Limiting for performance in this demo, but you can adjust this
-            """
+        SELECT *, embedding(title) as text_embedding
+        FROM my_db.demo_embedding
+        LIMIT 1500;  -- Limiting for performance in this demo, but you can adjust this
+        """
     )
     return (embeddings,)
 
@@ -83,10 +82,10 @@ def _(mo):
 def _(PCA, hdbscan, np, umap):
     def umap_reduce(np_array):
         """
-            Reduce the dimensionality of the embeddings to 2D using
-            UMAP algorithm. UMAP preserves both local and global structure
-            of the high-dimensional data.
-            """
+        Reduce the dimensionality of the embeddings to 2D using
+        UMAP algorithm. UMAP preserves both local and global structure
+        of the high-dimensional data.
+        """
         reducer = umap.UMAP(
             n_components=2,  # Reduce to 2D for visualization
             metric="cosine",  # Use cosine similarity for text embeddings
@@ -97,10 +96,10 @@ def _(PCA, hdbscan, np, umap):
 
     def cluster_points(np_array, min_cluster_size=4, max_cluster_size=50):
         """
-            Cluster the embeddings using HDBSCAN algorithm.
-            We first reduce dimensionality to 50D with PCA to speed up clustering,
-            while still preserving most of the important information.
-            """
+        Cluster the embeddings using HDBSCAN algorithm.
+        We first reduce dimensionality to 50D with PCA to speed up clustering,
+        while still preserving most of the important information.
+        """
         pca = PCA(n_components=50)
         np_array = pca.fit_transform(np_array)
 
@@ -113,7 +112,6 @@ def _(PCA, hdbscan, np, umap):
         return np.where(
             hdb.labels_ == -1, "outlier", "cluster_" + hdb.labels_.astype(str)
         )
-
 
     return cluster_points, umap_reduce
 

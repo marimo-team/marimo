@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -53,9 +53,9 @@ def _(df, mo):
     @ell.tool()
     def filter_dataset(sql_query: str):
         """
-            Filter a polars dataframe using SQL. Please only use fields from the schema.
-            When referring to the table in SQL, call it 'data'.
-            """
+        Filter a polars dataframe using SQL. Please only use fields from the schema.
+        When referring to the table in SQL, call it 'data'.
+        """
         filtered = df.sql(sql_query, table_name="data")
         return mo.ui.table(
             filtered,
@@ -63,7 +63,6 @@ def _(df, mo):
             selection=None,
             show_column_summaries=False,
         )
-
 
     return chart_data, ell, filter_dataset
 

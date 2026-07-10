@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # HuggingFace 📦
 
 These examples showcase how to use HuggingFace's models in marimo.

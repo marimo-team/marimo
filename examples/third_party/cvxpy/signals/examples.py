@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -244,14 +244,12 @@ def _():
     import modules.dataloaders as dataloaders
     import modules.solutions as solutions
 
-
     return dataloaders, np, plt, solutions
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -28,7 +28,6 @@ def _():
     import marimo as mo
     import ibis
     import altair as alt
-
 
     return alt, ibis, mo
 

@@ -1,6 +1,6 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.18.4"
 app = marimo.App(width="medium")
 
 
@@ -45,13 +45,13 @@ def _():
 def _(heatmap, mo):
     # 4. Display it
     mo.md(f"""
-        ## Sales Heatmap
+    ## Sales Heatmap
 
-        {heatmap}
+    {heatmap}
 
-        ### Selected Cells:
-        {heatmap.value}
-        """)
+    ### Selected Cells:
+    {heatmap.value}
+    """)
     return
 
 

@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -23,7 +23,6 @@ def _(mo):
 def _():
     import pymde
 
-
     return (pymde,)
 
 
@@ -31,14 +30,12 @@ def _():
 def _():
     import matplotlib.pyplot as plt
 
-
     return (plt,)
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -61,36 +58,36 @@ def _(E_X, degrees, mde, mo, rotated_embedding):
 
     rotation = mo.md(
         rf"""
-            ## Laplacian Embedding
+        ## Laplacian Embedding
 
-            On the right is a Laplacian embedding of the MNIST dataset. This is formed
-            by stacking the bottom eigenvectors (excluding the all-ones vector) of
-            a Laplacian matrix representing a similarity graph on the data.
+        On the right is a Laplacian embedding of the MNIST dataset. This is formed
+        by stacking the bottom eigenvectors (excluding the all-ones vector) of
+        a Laplacian matrix representing a similarity graph on the data.
 
-            ## Distortion
+        ## Distortion
 
-            Embeddings try to be faithful to the original data by minimizing
-            the distortion between pairwise relationships of items, on average.
-            For this embedding $X$, the average distortion is $E(X) = {E_X:0.4f}$.
+        Embeddings try to be faithful to the original data by minimizing
+        the distortion between pairwise relationships of items, on average.
+        For this embedding $X$, the average distortion is $E(X) = {E_X:0.4f}$.
 
-            ## Rotational Invariance
-            Embeddings are _rotationally invariant_: the distortion doesn't change
-            with rotation.
+        ## Rotational Invariance
+        Embeddings are _rotationally invariant_: the distortion doesn't change
+        with rotation.
 
-            **Try it!** Rotate the embedding {degrees} degrees to
-            produce a new embedding $\hat X$:
+        **Try it!** Rotate the embedding {degrees} degrees to
+        produce a new embedding $\hat X$:
 
-            \[
-            \hat X = X \begin{{bmatrix}}
-                \cos({degrees.value} \degree) & -\sin({degrees.value} \degree) \\
-                \sin({degrees.value} \degree) & \cos({degrees.value} \degree)
-            \end{{bmatrix}}
-            \]
+        \[
+        \hat X = X \begin{{bmatrix}}
+            \cos({degrees.value} \degree) & -\sin({degrees.value} \degree) \\
+            \sin({degrees.value} \degree) & \cos({degrees.value} \degree)
+        \end{{bmatrix}}
+        \]
 
 
-            The average distortion of the rotated embedding is $E(\hat X) = {_E_X_hat:0.4f}$,
-            which should match $E(X)$!
-            """
+        The average distortion of the rotated embedding is $E(\hat X) = {_E_X_hat:0.4f}$,
+        which should match $E(X)$!
+        """
     ).style({"max-width": "550px"})
     return (rotation,)
 
@@ -111,7 +108,6 @@ def _(embedding, mnist, plt, pymde):
         )
         plt.tight_layout()
         return rotated_embedding, ax
-
 
     return (rotate_embedding,)
 

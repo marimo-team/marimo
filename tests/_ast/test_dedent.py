@@ -105,6 +105,30 @@ class TestSmartDedent:
         assert result.startswith("@app.function")
         assert "Happens to that ?" in result
 
+    def test_under_indented_docstring_preserved(self):
+        # Docstring under-indented relative to the code (a line with only two
+        # spaces) is left completely untouched; only the code is dedented.
+        code = (
+            '    """Cell to compute sum\n'
+            "  e.g. a=1; b=2\n"
+            "    foo\n"
+            '    """\n'
+            "    a + b\n"
+        )
+        assert smart_dedent(code) == (
+            '"""Cell to compute sum\n'
+            "  e.g. a=1; b=2\n"
+            "    foo\n"
+            '    """\n'
+            "a + b\n"
+        )
+
+    def test_blank_line_in_docstring_preserved(self):
+        # A blank line inside an in-step docstring keeps its newline instead of
+        # being swallowed (the line block is still dedented with the code).
+        code = '    """hello\n\n    world\n    """\n    x = 1\n'
+        assert smart_dedent(code) == '"""hello\n\nworld\n"""\nx = 1\n'
+
 
 class TestFixedDedent:
     def test_basic(self):
@@ -125,3 +149,9 @@ class TestFixedDedent:
         result = fixed_dedent(code)
         assert "  indented" in result
         assert "    more" in result
+
+    def test_no_spurious_trailing_newline(self):
+        # A trailing newline must not survive into the result (it would add a
+        # spurious blank line before the auto-generated `return` on save).
+        assert fixed_dedent("    import x\n") == "import x"
+        assert fixed_dedent("    x = 1\n    y = 2\n") == "x = 1\ny = 2"

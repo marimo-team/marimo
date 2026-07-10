@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _():
     import marimo as mo
     import pandas as pd
     import plotly.graph_objects as go
-
 
     return go, mo, pd
 
@@ -119,14 +118,14 @@ def _(mo, pl_plot):
         _detail = "Click or drag to select bars."
 
     mo.md(f"""
-        ### Selection Detail
+    ### Selection Detail
 
-        {_detail}
+    {_detail}
 
-        **Indices:** {pl_plot.indices}
+    **Indices:** {pl_plot.indices}
 
-        **Raw value:** {pl_plot.value}
-        """)
+    **Raw value:** {pl_plot.value}
+    """)
     return
 
 
@@ -236,12 +235,12 @@ def _(h_plot, mo):
         _summary = "Click or drag to select budget items."
 
     mo.md(f"""
-        ### Horizontal Selection
+    ### Horizontal Selection
 
-        {_summary}
+    {_summary}
 
-        **Indices:** {h_plot.indices}
-        """)
+    **Indices:** {h_plot.indices}
+    """)
     return
 
 

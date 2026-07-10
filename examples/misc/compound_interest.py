@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -24,9 +24,9 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-            This notebook illustrates exponential growth, using compound interest
-            as an example.
-            """
+        This notebook illustrates exponential growth, using compound interest
+        as an example.
+        """
     ).callout()
     return
 
@@ -68,8 +68,8 @@ def _(mo):
     mo.md(
         f"""## Investment Parameters
 
-            {table}
-            """)
+        {table}
+        """)
     return (
         annual_return,
         capital_gains_tax_rate,
@@ -129,17 +129,17 @@ def simulate(
     plt.title("Net Wealth")
 
     _prose = f"""
-        ## Net Worth
+    ## Net Worth
 
-        With an initial investment of **${{initial_investment.value :,.02f}}**, an annual
-        return of **{annual_return.value * 100:.02f}%** with
-        **${{monthly_investment.value:,.02f}}** invested monthly, in {years.value} years
-        you will have approximately **${{values[-1]:,.02f}}** accumulated in
-        equities. Assuming a long-term capitals gain tax of
-        **{capital_gains_tax_rate.value*100:.02f}%**, the net portfolio value is
-        **${{values_less_taxes[-1]:,.02f}}**. Compare that to the
-        **${{investment_principals[-1]:,.02f}}** that you contributed in total.
-        """
+    With an initial investment of **${{initial_investment.value :,.02f}}**, an annual
+    return of **{annual_return.value * 100:.02f}%** with
+    **${{monthly_investment.value:,.02f}}** invested monthly, in {years.value} years
+    you will have approximately **${{values[-1]:,.02f}}** accumulated in
+    equities. Assuming a long-term capitals gain tax of
+    **{capital_gains_tax_rate.value*100:.02f}%**, the net portfolio value is
+    **${{values_less_taxes[-1]:,.02f}}**. Compare that to the
+    **${{investment_principals[-1]:,.02f}}** that you contributed in total.
+    """
 
     ax = plt.gca()
     mo.md(_prose)
@@ -156,7 +156,6 @@ def _(ax):
 def _():
     import marimo as mo
     import matplotlib.pyplot as plt
-
 
     return mo, plt
 

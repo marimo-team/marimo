@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Examples
 
 This folder contains example marimo notebooks, meant to teach you how to

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -26,7 +26,6 @@ def _():
     import os
     import simplemind as sm
 
-
     return mo, os, sm
 
 
@@ -34,13 +33,13 @@ def _():
 def _(mo, os):
     has_set_env = os.environ.get("OPENAI_API_KEY") is not None
     mo.md(f"""
-        Missing OpenAI API key. Re-run this notebook with the following command:
+    Missing OpenAI API key. Re-run this notebook with the following command:
 
-        ```bash
-        export OPENAI_API_KEY='sk-'
-        marimo edit {__file__}
-        ```
-        """).callout("warn") if not has_set_env else ""
+    ```bash
+    export OPENAI_API_KEY='sk-'
+    marimo edit {__file__}
+    ```
+    """).callout("warn") if not has_set_env else ""
     return
 
 
@@ -75,7 +74,6 @@ def _(set_logs, sm):
 
         def post_send_hook(self, conversation, response):
             add_log(f"Received response: {response.text}")
-
 
     return (LoggingPlugin,)
 

@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -74,14 +74,14 @@ def _(chart, mo, show_images, table):
 
     mo.md(
         f"""
-            **Here's a preview of the images you've selected**:
+        **Here's a preview of the images you've selected**:
 
-            {mo.as_html(selected_images)}
+        {mo.as_html(selected_images)}
 
-            Here's all the data you've selected.
+        Here's all the data you've selected.
 
-            {table}
-            """
+        {table}
+        """
     )
     return
 
@@ -128,7 +128,6 @@ def _(functools, mnist, mo, pymde, torch):
         mo.output.clear()
         return X
 
-
     return (compute_embedding,)
 
 
@@ -157,7 +156,6 @@ def _(mnist, plt):
         plt.tight_layout()
         return fig
 
-
     return (show_images,)
 
 
@@ -171,7 +169,6 @@ def _():
 
     import marimo as mo
 
-
     return functools, mo, plt, pymde, torch
 
 
@@ -179,14 +176,12 @@ def _():
 def _():
     import altair as alt
 
-
     return (alt,)
 
 
 @app.cell
 def _():
     import pandas as pd
-
 
     return (pd,)
 

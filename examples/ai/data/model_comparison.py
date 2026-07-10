@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -196,7 +196,6 @@ def _(json, os):
         with open(path, "w", encoding="utf-8") as f:
             f.write(json.dumps(choices))
 
-
     return load_choices, write_choices
 
 
@@ -258,7 +257,6 @@ def _(urllib):
 def _():
     import marimo as mo
 
-
     return (mo,)
 
 
@@ -269,7 +267,6 @@ def _():
     import random
     import textwrap
     import urllib
-
 
     return json, os, random, textwrap, urllib
 

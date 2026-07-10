@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -16,7 +16,6 @@ app = marimo.App(width="medium")
 def _():
     import marimo as mo
     import plotly.graph_objects as go
-
 
     return go, mo
 
@@ -59,18 +58,18 @@ def _(go, mo):
 @app.cell
 def _(bar_chart, mo):
     mo.md(f"""
-        ### Interactive Chart
+    ### Interactive Chart
 
-        {bar_chart}
+    {bar_chart}
 
-        ### Selected Bars
+    ### Selected Bars
 
-        Select bars by dragging a box over them:
+    Select bars by dragging a box over them:
 
-        ```python
-        {bar_chart.value}
-        ```
-        """)
+    ```python
+    {bar_chart.value}
+    ```
+    """)
     return
 
 
@@ -111,18 +110,18 @@ def _(go, mo):
 @app.cell
 def _(mo, stacked_chart):
     mo.md(f"""
-        ### Stacked Bar Chart
+    ### Stacked Bar Chart
 
-        {stacked_chart}
+    {stacked_chart}
 
-        **Note:** When you select a stacked bar, all segments at that position are returned!
+    **Note:** When you select a stacked bar, all segments at that position are returned!
 
-        ### Selected Data
+    ### Selected Data
 
-        ```python
-        {stacked_chart.value}
-        ```
-        """)
+    ```python
+    {stacked_chart.value}
+    ```
+    """)
     return
 
 
@@ -163,18 +162,18 @@ def _(go, mo):
 @app.cell
 def _(grouped_chart, mo):
     mo.md(f"""
-        ### Grouped Bar Chart
+    ### Grouped Bar Chart
 
-        {grouped_chart}
+    {grouped_chart}
 
-        **Note:** When you select a category, all bars in that group are returned!
+    **Note:** When you select a category, all bars in that group are returned!
 
-        ### Selected Data
+    ### Selected Data
 
-        ```python
-        {grouped_chart.value}
-        ```
-        """)
+    ```python
+    {grouped_chart.value}
+    ```
+    """)
     return
 
 
@@ -205,16 +204,16 @@ def _(go, mo):
 @app.cell
 def _(horizontal_chart, mo):
     mo.md(f"""
-        ### Horizontal Bar Chart
+    ### Horizontal Bar Chart
 
-        {horizontal_chart}
+    {horizontal_chart}
 
-        ### Selected Data
+    ### Selected Data
 
-        ```python
-        {horizontal_chart.value}
-        ```
-        """)
+    ```python
+    {horizontal_chart.value}
+    ```
+    """)
     return
 
 

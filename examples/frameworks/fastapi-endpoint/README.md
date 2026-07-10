@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # FastAPI + marimo, as an API endpoint
 
 This is a simple example of how to use FastAPI with marimo. This example turns marimo notebooks into an API endpoint, which can be embedded in any FastAPI app.

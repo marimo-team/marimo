@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Frameworks 🧩
 
 These examples show how to use marimo with various web/ASGI frameworks, such as FastAPI, Flask, and FastHTML.

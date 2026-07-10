@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -37,10 +37,10 @@ def _(mo):
 
     mo.md(
         f"""
-            How much do you expect to make this year, **after taxes**?
+        How much do you expect to make this year, **after taxes**?
 
-            {income.center()}
-            """
+        {income.center()}
+        """
     )
     return income, retirement_contribution
 
@@ -50,15 +50,15 @@ def _(mo):
     mo.callout(
         mo.md(
             """
-                **Heads-up!**
+            **Heads-up!**
 
-                This calculator does not take taxes into account. Please make sure
-                that you provide **after-tax** income. Also exclude 401k contributions.
+            This calculator does not take taxes into account. Please make sure
+            that you provide **after-tax** income. Also exclude 401k contributions.
 
-                You can estimate your federal and state taxes using an online 
-                calculator, such as the one
-                [linked here](https://smartasset.com/taxes/income-taxes).
-                """
+            You can estimate your federal and state taxes using an online 
+            calculator, such as the one
+            [linked here](https://smartasset.com/taxes/income-taxes).
+            """
         ),
         kind="warn",
     )
@@ -102,9 +102,9 @@ def _(income, mo, np, retirement_contribution):
 
     mo.md(
         f"""
-            With an after-tax income of **${{income.value*1000:,}}**, you'll take home
-            **${{net_cash_per_month:,.02f}}** every month.
-            """
+        With an after-tax income of **${{income.value*1000:,}}**, you'll take home
+        **${{net_cash_per_month:,.02f}}** every month.
+        """
     )
     return net_cash, net_cash_per_month
 
@@ -136,11 +136,11 @@ def _(mo):
 
     mo.md(
         f"""
-            ## Loan
+        ## Loan
 
-            Next, enter some details about the home you'd like to purchase,
-            the mortgage you qualify for, and additional home expenses.
-            """
+        Next, enter some details about the home you'd like to purchase,
+        the mortgage you qualify for, and additional home expenses.
+        """
     )
     return (
         down_payment_pct,
@@ -203,18 +203,18 @@ def _(
 
     mo.md(
         f"""
-            You're purchasing a home worth **${{home_price.value * 1000:,}}**, with a
-            down payment of **${{down_payment*1000:,.02f}}**.
+        You're purchasing a home worth **${{home_price.value * 1000:,}}**, with a
+        down payment of **${{down_payment*1000:,.02f}}**.
 
-            At a rate of **{rate.value}**%,
-            you will owe **${{annual_home_payment:,.02f}}** per year on home expenses.
-            That's **${{monthly_home_payment:,.02f}}** per month, which is
-            **{monthly_home_payment / (net_cash_per_month) * 100:,.02f}%** of
-            your take-home pay.
+        At a rate of **{rate.value}**%,
+        you will owe **${{annual_home_payment:,.02f}}** per year on home expenses.
+        That's **${{monthly_home_payment:,.02f}}** per month, which is
+        **{monthly_home_payment / (net_cash_per_month) * 100:,.02f}%** of
+        your take-home pay.
 
-            You'll have **${{cash_less_housing/12:,.02f}}** left over per
-            month for expenses and saving.
-              """
+        You'll have **${{cash_less_housing/12:,.02f}}** left over per
+        month for expenses and saving.
+          """
     ).callout()
     return (cash_less_housing,)
 
@@ -318,11 +318,11 @@ def _(
 
     mo.md(
         f"""
-            Your total monthly expenses are **${{monthly_expenses:,.02f}}**.
+        Your total monthly expenses are **${{monthly_expenses:,.02f}}**.
 
-            This means you will save **${{annual_cash_saved/12:,.02f}}** per month,
-            or **${{annual_cash_saved:,.02f}}** annually.
-            """
+        This means you will save **${{annual_cash_saved/12:,.02f}}** per month,
+        or **${{annual_cash_saved:,.02f}}** annually.
+        """
     )
     return
 
@@ -377,14 +377,14 @@ def _(interest_payments, mo, np, principal_payments, years):
 
     mo.md(
         f"""
-            ## Payments
+        ## Payments
 
-            The plots below visualize your mortgage payments, over the duration of the
-            entire mortgage. The left plot shows cumulative payments, and the right one
-            shows monthly payments.
+        The plots below visualize your mortgage payments, over the duration of the
+        entire mortgage. The left plot shows cumulative payments, and the right one
+        shows monthly payments.
 
-            {mo.as_html(fig)}
-            """
+        {mo.as_html(fig)}
+        """
     )
     return
 
@@ -394,7 +394,6 @@ def _():
     import marimo as mo
     import mortgage
     import numpy as np
-
 
     return mo, mortgage, np
 

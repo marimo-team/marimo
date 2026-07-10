@@ -1,3 +1,4 @@
+# Copyright 2026 Marimo. All rights reserved.
 """Token-aware dedent that preserves multiline string literal whitespace."""
 
 from __future__ import annotations
@@ -76,23 +77,31 @@ def _get_protected_lines(
     return protected
 
 
-def _compute_block_shifts(
-    lines: list[str], protected: list[bool], base_shift: int
-) -> list[int]:
-    """Compute the per-line dedent shift for protected (string-literal) lines.
+def _strip_indent(line: str, shift: int) -> str:
+    """Remove up to `shift` leading spaces/tabs.
 
-    A contiguous run of protected lines is only shifted by the same amount
-    as the surrounding code (`base_shift`) if the block's own minimum
-    internal indentation is at least `base_shift` — i.e. the block is
-    "in step" with the surrounding code's indentation (e.g. a markdown
-    block written to visually align with the code around it) and can
-    safely absorb the same dedent without disturbing its relative
-    structure. If the block is less indented than that in places (e.g.
-    hand-crafted data with deliberately varied indentation), it is left
-    completely untouched.
+    Never touches the line's content or terminator, so blank lines shorter
+    than `shift` keep their newline instead of being swallowed.
+    """
+    i = 0
+    while i < shift and i < len(line) and line[i] in " \t":
+        i += 1
+    return line[i:]
+
+
+def _under_indented_string_lines(
+    lines: list[str], protected: list[bool], base_shift: int
+) -> list[bool]:
+    """Mark protected lines belonging to an under-indented string block.
+
+    A multiline string's interior is dedented with the surrounding code
+    (the common case, equivalent to `textwrap.dedent`) unless the block is
+    under-indented — i.e. some non-blank interior line has less leading
+    whitespace than `base_shift`. Dedenting such a block would eat into its
+    content, so the whole block is left untouched instead.
     """
     n = len(lines)
-    block_shift = [0] * n
+    keep = [False] * n
     i = 0
     while i < n:
         if not protected[i]:
@@ -103,58 +112,48 @@ def _compute_block_shifts(
         while j < n and protected[j]:
             line = lines[j]
             if line.strip():
-                stripped = line.lstrip()
-                block_min = min(block_min, len(line) - len(stripped))
+                block_min = min(block_min, len(line) - len(line.lstrip()))
             j += 1
-        if block_min == float("inf") or block_min >= base_shift:
+        if block_min != float("inf") and block_min < base_shift:
             for k in range(i, j):
-                block_shift[k] = base_shift
+                keep[k] = True
         i = j
-    return block_shift
+    return keep
 
 
 def smart_dedent(code: str) -> str:
     """Token-aware dedent.
 
-    Strips base indentation from code lines. Lines inside multiline string
-    literals (triple-quoted strings of any prefix: regular, f-strings,
-    r-strings, b-strings, etc) only participate in the same dedent if doing
-    so wouldn't disturb the string block's own internal indentation
-    structure — otherwise they are left completely untouched.
+    Strips base indentation (computed from code lines only) from every line.
+    In the common case this is identical to `textwrap.dedent`. The exception
+    is a multiline string whose interior is under-indented relative to the
+    surrounding code: dedenting it would eat into the string's content, so its
+    interior is left completely untouched.
     """
-    lines = split_source_lines(code, keepends=True)
-
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
     except TokenError:
         return textwrap.dedent(code)
 
+    lines = split_source_lines(code, keepends=True)
     protected = _get_protected_lines(code, tokens)
 
     min_indent: float = float("inf")
     for i, line in enumerate(lines):
-        if protected[i]:
+        if protected[i] or not line.strip():
             continue
-        if not line.strip():
-            continue
-        stripped = line.lstrip()
-        min_indent = min(min_indent, len(line) - len(stripped))
+        min_indent = min(min_indent, len(line) - len(line.lstrip()))
 
     if min_indent in (0, float("inf")):
         return code
 
     base_shift = int(min_indent)
-    block_shift = _compute_block_shifts(lines, protected, base_shift)
+    keep = _under_indented_string_lines(lines, protected, base_shift)
 
-    result = []
-    for i, line in enumerate(lines):
-        shift = block_shift[i] if protected[i] else base_shift
-        if shift <= 0:
-            result.append(line)
-        else:
-            result.append(line[shift:] if line[:shift].strip() == "" else line)
-
-    return "".join(result)
+    return "".join(
+        line if keep[i] else _strip_indent(line, base_shift)
+        for i, line in enumerate(lines)
+    )
 
 
 def fixed_dedent(text: str) -> str:
@@ -174,22 +173,27 @@ def fixed_dedent(text: str) -> str:
 
     protected = _get_protected_lines(text, tokens)
 
+    # Mirror str.splitlines(): a final line terminator yields a trailing ""
+    # that we drop, so the result carries no spurious trailing newline. (The
+    # trailing line is never inside a string, so `protected` stays aligned.)
+    n = len(lines)
+    if n > 1 and lines[-1] == "":
+        n -= 1
+
     indent = None
-    for i, line in enumerate(lines):
+    for i in range(n):
         if protected[i]:
             continue
-        if content := line.lstrip():
-            indent = line[: len(line) - len(content)]
+        if content := lines[i].lstrip():
+            indent = lines[i][: len(lines[i]) - len(content)]
             break
 
     if indent is None:
         return smart_dedent(text)
 
     def refill(i: int, ln: str) -> str:
-        if protected[i]:
+        if protected[i] or ln.startswith(indent):
             return ln
-        if not ln.startswith(indent):
-            return indent + ln
-        return ln
+        return indent + ln
 
-    return smart_dedent("\n".join(refill(i, ln) for i, ln in enumerate(lines)))
+    return smart_dedent("\n".join(refill(i, lines[i]) for i in range(n)))

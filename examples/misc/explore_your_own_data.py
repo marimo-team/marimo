@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -28,10 +28,10 @@ def _(mo):
 
     mo.md(
         f"""
-            This notebook lets you upload a CSV and plot its columns.
+        This notebook lets you upload a CSV and plot its columns.
 
-            You can download a <a href="{sample}" target="_blank">sample CSV</a> if you'd like.
-            """
+        You can download a <a href="{sample}" target="_blank">sample CSV</a> if you'd like.
+        """
     )
     return
 
@@ -40,10 +40,10 @@ def _(mo):
 def _(mo, uploaded_file):
     mo.md(
         f"""
-            {mo.hstack([mo.md("**Upload a CSV.**")], justify="center")}
+        {mo.hstack([mo.md("**Upload a CSV.**")], justify="center")}
 
-            {uploaded_file}
-            """
+        {uploaded_file}
+        """
     )
     return
 
@@ -118,7 +118,6 @@ def _():
     import io
     import matplotlib.pyplot as plt
     import pandas as pd
-
 
     return alt, io, mo, pd
 

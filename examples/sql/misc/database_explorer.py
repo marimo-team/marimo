@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -23,7 +23,6 @@ def _():
 
     import duckdb
     import marimo as mo
-
 
     return duckdb, mo, os
 
@@ -54,12 +53,12 @@ def _(database_url, duckdb):
     if database_url.value:
         _ = duckdb.sql(
             f"""
-                    INSTALL postgres; 
-                    LOAD postgres;
+                INSTALL postgres; 
+                LOAD postgres;
 
-                    DETACH DATABASE IF EXISTS my_db;
-                    ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
-                """
+                DETACH DATABASE IF EXISTS my_db;
+                ATTACH DATABASE '{database_url.value}' AS my_db  (TYPE postgres, READ_ONLY);
+            """
         )
     return
 
@@ -82,8 +81,8 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-            SHOW ALL TABLES;
-            """
+        SHOW ALL TABLES;
+        """
     )
     return
 
@@ -134,8 +133,8 @@ def _(FUNCTIONS, mo):
 def _(function, mo):
     _df = mo.sql(
         f"""
-            SELECT * FROM {function.value} WHERE database_name == 'my_db'
-            """
+        SELECT * FROM {function.value} WHERE database_name == 'my_db'
+        """
     )
     return
 
@@ -152,8 +151,8 @@ def _(mo):
 def _(duckdb, mo):
     tables = duckdb.execute(
         """
-        SELECT table_name FROM duckdb_tables() WHERE internal = False;
-        """
+    SELECT table_name FROM duckdb_tables() WHERE internal = False;
+    """
     ).df()
     table_names = list(tables["table_name"])
     mo.accordion({f"Found {len(table_names)} tables": table_names})
@@ -190,8 +189,8 @@ def _(mo, table_select):
 def _(limit, mo, table_select_value):
     selected_table = mo.sql(
         f"""
-            select * from my_db.{table_select_value} LIMIT {limit.value};
-            """
+        select * from my_db.{table_select_value} LIMIT {limit.value};
+        """
     )
     return (selected_table,)
 

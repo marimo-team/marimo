@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(app_title="In Memory Cache")
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -21,7 +20,6 @@ def _(mo):
         print("Sleeping")
         time.sleep(t)
         return t
-
 
     return (sleep_for,)
 

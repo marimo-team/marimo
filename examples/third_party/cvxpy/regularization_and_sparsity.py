@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -105,8 +105,8 @@ def _(mo):
     sparsity_parameter = mo.ui.slider(0, 10, step=0.1)
     mo.md(
         f"""
-            Choose the regularization strength $\\lambda$: {sparsity_parameter}
-            """)
+        Choose the regularization strength $\\lambda$: {sparsity_parameter}
+        """)
     return (sparsity_parameter,)
 
 
@@ -115,25 +115,25 @@ def _(mo, n, number_of_zeros, sparsity_parameter, x_l1, x_l2):
     (
         mo.md(
             """
-                **$\\lambda$ = 0.**
+            **$\\lambda$ = 0.**
 
-                No regularization is applied. The solutions are the same.
-                """
+            No regularization is applied. The solutions are the same.
+            """
         )
         if sparsity_parameter.value == 0 else
         mo.md(
             f"""
-                **$\\lambda$ = {sparsity_parameter.value}.**
+            **$\\lambda$ = {sparsity_parameter.value}.**
 
-                Watch how the fraction of entries of $x$ near $0$ changes as $\\lambda$
-                increases.
+            Watch how the fraction of entries of $x$ near $0$ changes as $\\lambda$
+            increases.
 
-                **$p=1$**: {number_of_zeros(x_l1) / n * 100:.02f}% of the entries of
-                $x$ are extremely close to $0$.
+            **$p=1$**: {number_of_zeros(x_l1) / n * 100:.02f}% of the entries of
+            $x$ are extremely close to $0$.
 
-                **$p=2$**: {number_of_zeros(x_l2) / n * 100:.02f}% of the entries of
-                $x$ are extremely close to $0$.
-                """
+            **$p=2$**: {number_of_zeros(x_l2) / n * 100:.02f}% of the entries of
+            $x$ are extremely close to $0$.
+            """
         )
     )
     return
@@ -170,7 +170,6 @@ def _(np):
     def number_of_zeros(x):
         return np.isclose(x, 0).sum()
 
-
     return (number_of_zeros,)
 
 
@@ -188,7 +187,6 @@ def _(np, x_min_max):
         ax.set_xlabel('$x_i$')
         ax.set_ylabel('fraction of components')
         return ax
-
 
     return (cdf,)
 
@@ -209,7 +207,6 @@ def _(cp):
             return x.value
         return solve
 
-
     return (sparse_solver,)
 
 
@@ -219,7 +216,6 @@ def _():
     import matplotlib.pyplot as plt
     import numpy as np
 
-
     return cp, np, plt
 
 
@@ -227,14 +223,12 @@ def _():
 def _():
     import functools
 
-
     return (functools,)
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

@@ -7,14 +7,13 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -43,12 +42,12 @@ def _(mo, reset):
     variables = (
         mo.md(
             """
-                Choose your variable values
+            Choose your variable values
 
-                {x}
+            {x}
 
-                {y}
-                """
+            {y}
+            """
         )
         .batch(
             x=mo.ui.slider(start=1, stop=10, step=1, label="$x =$"),
@@ -73,13 +72,13 @@ def _(mo, reset, submitted_values, variables):
 
     mo.md(
         f"""
-            At the moment,
-            $x = {x}$ and $y = {y}$
+        At the moment,
+        $x = {x}$ and $y = {y}$
 
-            All values ever assumed by $x$ and $y$ are
+        All values ever assumed by $x$ and $y$ are
 
-            {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
-            """
+        {mo.hstack([mo.tree(submitted_values), reset], align="center", gap=4)}
+        """
     ).callout()
     return
 

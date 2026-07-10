@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -25,8 +25,8 @@ def _(mo):
     n_items = mo.ui.slider(start=3, stop=64, step=1)
     mo.md(
         f"""
-            Choose a number of items $n$: {n_items}
-            """
+        Choose a number of items $n$: {n_items}
+        """
     )
     return (n_items,)
 
@@ -43,8 +43,8 @@ def _(mo, pymde):
     )
     mo.md(
         f"""
-            Choose a penalty function: {penalty_function}
-            """
+        Choose a penalty function: {penalty_function}
+        """
     )
     return (penalty_function,)
 
@@ -55,18 +55,18 @@ def _(complete_graph, mo, n_items, penalty_function):
 
     mo.md(
         f"""
-            Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on
-            ${n_items.value}$ nodes. This graph has
+        Here is a plot of $K_n$ with $n={n_items.value}$, i.e., a complete graph on
+        ${n_items.value}$ nodes. This graph has
 
-            \\[
-            (n)(n-1)/2 = {n_items.value*(n_items.value-1)//2}
-            \\]
+        \\[
+        (n)(n-1)/2 = {n_items.value*(n_items.value-1)//2}
+        \\]
 
-            edges. The plot was obtained using a
-            {penalty_function.value.__name__.lower()} penalty function.
+        edges. The plot was obtained using a
+        {penalty_function.value.__name__.lower()} penalty function.
 
-            {mo.as_html(plot)}
-            """
+        {mo.as_html(plot)}
+        """
     )
     return
 
@@ -88,7 +88,6 @@ def _(pymde):
         mde.embed(verbose=True)
         return mde.plot(edges=edges)
 
-
     return (complete_graph,)
 
 
@@ -96,14 +95,12 @@ def _(pymde):
 def _():
     import pymde
 
-
     return (pymde,)
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

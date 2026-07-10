@@ -8,14 +8,13 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -34,14 +33,14 @@ def _(mo):
 def _(mo):
     mo.md(
         r"""
-            <a href="https://api-docs.deepseek.com/" target="_blank" rel="noopener noreferrer">
-              <img
-                src="https://chat.deepseek.com/deepseek-chat.jpeg"
-                alt="Powered by deepseek"
-                width="450"
-              />
-            </a>
-            """
+        <a href="https://api-docs.deepseek.com/" target="_blank" rel="noopener noreferrer">
+          <img
+            src="https://chat.deepseek.com/deepseek-chat.jpeg"
+            alt="Powered by deepseek"
+            width="450"
+          />
+        </a>
+        """
     ).center()
     return
 

@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Testing 🧪
 
 These basic examples show how to use test marimo notebooks.

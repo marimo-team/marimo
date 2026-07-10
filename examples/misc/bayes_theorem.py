@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -65,31 +65,31 @@ def _(
         [
             mo.md(
                 rf"""
-                    ## Probabilities
+                ## Probabilities
 
-                    You can configure the probabilities of the events $H$, $E \mid H$, and $E \mid \neg H$
+                You can configure the probabilities of the events $H$, $E \mid H$, and $E \mid \neg H$
 
-                    {mo.as_html([p_h, p_e_given_h, p_e_given_not_h])}
+                {mo.as_html([p_h, p_e_given_h, p_e_given_not_h])}
 
-                    The plot on the right visualizes the probabilities of these events. 
+                The plot on the right visualizes the probabilities of these events. 
 
-                    1. The yellow rectangle represents the event $H$, and its area is $P(H) = {p_h.value:0.2f}$.
-                    2. The teal rectangle overlapping with the yellow one represents the event $E \cap H$, and
-                       its area is $P(H) \cdot P(E \mid H) = {p_h.value * p_e_given_h.value:0.2f}$.
-                    3. The teal rectangle that doesn't overlap the yellow rectangle represents the event $E \cap \neg H$, and
-                       its area is $P(\neg H) \cdot P(E \mid \neg H) = {(1 - p_h.value) * p_e_given_not_h.value:0.2f}$.
+                1. The yellow rectangle represents the event $H$, and its area is $P(H) = {p_h.value:0.2f}$.
+                2. The teal rectangle overlapping with the yellow one represents the event $E \cap H$, and
+                   its area is $P(H) \cdot P(E \mid H) = {p_h.value * p_e_given_h.value:0.2f}$.
+                3. The teal rectangle that doesn't overlap the yellow rectangle represents the event $E \cap \neg H$, and
+                   its area is $P(\neg H) \cdot P(E \mid \neg H) = {(1 - p_h.value) * p_e_given_not_h.value:0.2f}$.
 
-                    Notice that the sum of the areas in $2$ and $3$ is the probability $P(E) = {p_e:0.2f}$. 
+                Notice that the sum of the areas in $2$ and $3$ is the probability $P(E) = {p_e:0.2f}$. 
 
-                    One way to think about Bayes' Theorem is the following: the probability $P(H \mid E)$ is the probability
-                    of $E$ and $H$ happening together (the area of the rectangle $2$), divided by the probability of $E$ happening
-                    at all (the sum of the areas of $2$ and $3$).
-                    In this case, Bayes' Theorem says
+                One way to think about Bayes' Theorem is the following: the probability $P(H \mid E)$ is the probability
+                of $E$ and $H$ happening together (the area of the rectangle $2$), divided by the probability of $E$ happening
+                at all (the sum of the areas of $2$ and $3$).
+                In this case, Bayes' Theorem says
 
-                    \[
-                    P(H \mid E) = \frac{{P(H) P(E \mid H)}}{{P(E)}} = \frac{{{p_h.value} \cdot {p_e_given_h.value}}}{{{p_e:0.2f}}} = {bayes_result:0.2f}
-                    \]
-                    """
+                \[
+                P(H \mid E) = \frac{{P(H) P(E \mid H)}}{{P(E)}} = \frac{{{p_h.value} \cdot {p_e_given_h.value}}}{{{p_e:0.2f}}} = {bayes_result:0.2f}
+                \]
+                """
             ),
             construct_probability_plot(),
         ],
@@ -153,14 +153,12 @@ def _(p_e_given_h, p_e_given_not_h, p_h):
         plt.legend()
         return plt.gca()
 
-
     return (construct_probability_plot,)
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

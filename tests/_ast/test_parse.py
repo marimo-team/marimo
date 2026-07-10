@@ -531,10 +531,7 @@ x = 1\
 """)
 
     # Trailing blank lines
-    assert fixed_dedent("    x = 1\n\n") == snapshot("""\
-x = 1
-
-""")
+    assert fixed_dedent("    x = 1\n\n") == snapshot("x = 1\n")
 
     # Tabs as indentation
     assert fixed_dedent("\tx = 1\n\ty = 2") == snapshot("""\
@@ -593,6 +590,7 @@ y = 2\
         '    """This is a docstring.\n\n    Args:\n        x: something\n    """'
     ) == snapshot('''\
 """This is a docstring.
+
 Args:
     x: something
 """\

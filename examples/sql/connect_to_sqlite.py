@@ -12,7 +12,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.17.4"
 app = marimo.App(width="medium")
 
 
@@ -58,14 +58,14 @@ def _(mo):
         {
             "Tip: Creating SQL Cells": mo.md(
                 f"""
-                    Create a SQL cell in one of two ways:
+                Create a SQL cell in one of two ways:
 
-                    1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
-                    2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
+                1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
+                2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
 
-                    In the SQL cell, you can query dataframes in your notebook as if
-                    they were tables — just reference them by name.
-                    """
+                In the SQL cell, you can query dataframes in your notebook as if
+                they were tables — just reference them by name.
+                """
             )
         }
     )
@@ -76,15 +76,15 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-            -- Boilerplate: detach the database so this cell works when you re-run it
-            DETACH DATABASE IF EXISTS chinook;
+        -- Boilerplate: detach the database so this cell works when you re-run it
+        DETACH DATABASE IF EXISTS chinook;
 
-            -- Attach the database; omit READ_ONLY if you want to write to the database.
-            ATTACH 'Chinook_Sqlite.sqlite' as chinook (TYPE SQLITE, READ_ONLY);
+        -- Attach the database; omit READ_ONLY if you want to write to the database.
+        ATTACH 'Chinook_Sqlite.sqlite' as chinook (TYPE SQLITE, READ_ONLY);
 
-            -- This query lists all the tables in the Chinook database
-            SELECT table_name FROM INFORMATION_SCHEMA.TABLES where table_catalog == 'chinook';
-            """
+        -- This query lists all the tables in the Chinook database
+        SELECT table_name FROM INFORMATION_SCHEMA.TABLES where table_catalog == 'chinook';
+        """
     )
     return
 
@@ -101,8 +101,8 @@ def _(mo):
 def _(mo):
     _df = mo.sql(
         f"""
-            SELECT composer, MEAN(Milliseconds) as avg_track_ms from chinook.track GROUP BY composer ORDER BY avg_track_ms DESC;
-            """
+        SELECT composer, MEAN(Milliseconds) as avg_track_ms from chinook.track GROUP BY composer ORDER BY avg_track_ms DESC;
+        """
     )
     return
 
@@ -111,9 +111,9 @@ def _(mo):
 def _(mo):
     mo.md(
         f"""
-            You can explore the schemas of all your tables at a glance in the **data sources panel**: click
-            the {mo.icon("lucide:database")} icon in the left sidebar to open it.
-            """
+        You can explore the schemas of all your tables at a glance in the **data sources panel**: click
+        the {mo.icon("lucide:database")} icon in the left sidebar to open it.
+        """
     )
     return
 

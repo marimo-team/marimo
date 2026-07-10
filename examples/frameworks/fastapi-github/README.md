@@ -1,8 +1,3 @@
----
-title: Readme
-marimo-version: 0.23.9
----
-
 # Server marimo notebooks from a GitHub repository
 
 In this example, we programmatically create multiple marimo apps from a GitHub repository, and then serve them as a single FastAPI app.

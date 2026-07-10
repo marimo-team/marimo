@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -33,7 +33,6 @@ def _():
     import matplotlib.pyplot as plt
     import numpy as np
     import torch
-
 
     return np, plt, pymde, torch
 
@@ -159,7 +158,6 @@ def _(torch):
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

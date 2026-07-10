@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -16,14 +16,12 @@ app = marimo.App()
 def _():
     import marimo as mo
 
-
     return (mo,)
 
 
 @app.cell
 def _():
     from vega_datasets import data
-
 
     return (data,)
 

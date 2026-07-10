@@ -7,14 +7,13 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 

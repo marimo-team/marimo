@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -18,7 +18,6 @@ def _():
 
     import marimo as mo
     import plotly.graph_objects as go
-
 
     return go, mo, random
 
@@ -81,17 +80,17 @@ def _(numeric_hist, values):
 @app.cell
 def _(mapped_original_values, mo, numeric_hist, selected_rows):
     mo.md(f"""
-        ### Numeric Selection Output
+    ### Numeric Selection Output
 
-        **Selected rows:** {len(selected_rows)}
+    **Selected rows:** {len(selected_rows)}
 
-        **Selected indices:** {len(numeric_hist.indices)}
+    **Selected indices:** {len(numeric_hist.indices)}
 
-        **Selection range:** {numeric_hist.ranges}
+    **Selection range:** {numeric_hist.ranges}
 
-        **First mapped original values (using pointIndex):**
-        {mapped_original_values}
-        """)
+    **First mapped original values (using pointIndex):**
+    {mapped_original_values}
+    """)
     return
 
 
@@ -127,17 +126,17 @@ def _(go, mo, random):
 @app.cell
 def _(categorical_hist, mo):
     mo.md(f"""
-        ### Categorical Selection Output
+    ### Categorical Selection Output
 
-        **Selected rows:** {len(categorical_hist.value)}
+    **Selected rows:** {len(categorical_hist.value)}
 
-        **Selected indices:** {len(categorical_hist.indices)}
+    **Selected indices:** {len(categorical_hist.indices)}
 
-        **Selection range:** {categorical_hist.ranges}
+    **Selection range:** {categorical_hist.ranges}
 
-        **Preview:**
-        {categorical_hist.value[:10]}
-        """)
+    **Preview:**
+    {categorical_hist.value[:10]}
+    """)
     return
 
 
@@ -173,17 +172,17 @@ def _(go, mo, random):
 @app.cell
 def _(horizontal_hist, mo):
     mo.md(f"""
-        ### Horizontal Selection Output
+    ### Horizontal Selection Output
 
-        **Selected rows:** {len(horizontal_hist.value)}
+    **Selected rows:** {len(horizontal_hist.value)}
 
-        **Selected indices:** {len(horizontal_hist.indices)}
+    **Selected indices:** {len(horizontal_hist.indices)}
 
-        **Selection range:** {horizontal_hist.ranges}
+    **Selection range:** {horizontal_hist.ranges}
 
-        **Preview:**
-        {horizontal_hist.value[:10]}
-        """)
+    **Preview:**
+    {horizontal_hist.value[:10]}
+    """)
     return
 
 

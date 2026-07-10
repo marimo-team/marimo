@@ -10,7 +10,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -23,7 +23,6 @@ def _():
     from oauth2client.service_account import ServiceAccountCredentials
     from oauth2client.client import GoogleCredentials
 
-
     return GoogleCredentials, ServiceAccountCredentials, gspread, mo, os, pd
 
 
@@ -33,13 +32,13 @@ def _(mo):
     credentials = mo.ui.text(placeholder="path/to/creds.json")
     mo.md(
         f"""
-            ## **⚙ Configuration**
+        ## **⚙ Configuration**
 
-            This app requires a Google Cloud Platform account and a bucket to access.
+        This app requires a Google Cloud Platform account and a bucket to access.
 
-            Authenticate with `gcloud auth login`, or provide a path to a credentials
-            file: {credentials}
-            """
+        Authenticate with `gcloud auth login`, or provide a path to a credentials
+        file: {credentials}
+        """
     )
     return (credentials,)
 

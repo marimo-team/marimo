@@ -8,14 +8,13 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -64,7 +63,6 @@ def _(mo):
 @app.cell
 def _():
     import matplotlib.pyplot as plt
-
 
     return (plt,)
 

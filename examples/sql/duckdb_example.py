@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium", sql_output="polars")
 
 
@@ -19,7 +19,6 @@ app = marimo.App(width="medium", sql_output="polars")
 def _():
     import marimo as mo
     import altair as alt
-
 
     return alt, mo
 
@@ -35,12 +34,12 @@ def _(mo):
 def _(digits, mo):
     result = mo.sql(
         f"""
-            CREATE TABLE random_data AS
-            SELECT i AS id, RANDOM() AS random_value,
-            FROM range({digits.value}) AS t(i);
+        CREATE TABLE random_data AS
+        SELECT i AS id, RANDOM() AS random_value,
+        FROM range({digits.value}) AS t(i);
 
-            SELECT * FROM random_data;
-            """
+        SELECT * FROM random_data;
+        """
     )
     return (result,)
 

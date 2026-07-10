@@ -13,7 +13,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="full")
 
 
@@ -29,11 +29,11 @@ def _(mo):
 def _(clear_selection, mo, pokemon_types):
     mo.md(
         f"""
-            Compare Pokémon by primary type, or drill down into
-            statistics of individual Pokémon.
+        Compare Pokémon by primary type, or drill down into
+        statistics of individual Pokémon.
 
-            Start by choosing one or more types: {pokemon_types} {clear_selection}
-            """
+        Start by choosing one or more types: {pokemon_types} {clear_selection}
+        """
     )
     return
 
@@ -86,9 +86,9 @@ def _(mo, pokemon_types):
 def _(mo, pokemon_types):
     mo.md(
         """
-            **Compare distributions** by type or **drill down**
-            into specific Pokémon's statistics 👇
-            """
+        **Compare distributions** by type or **drill down**
+        into specific Pokémon's statistics 👇
+        """
     ).callout(kind="info") if pokemon_types.value else None
     return
 
@@ -135,10 +135,10 @@ def _(attribute, colors, filtered_pokemons, mo, plt, pokemon_types, sns):
 
         return mo.md(
             f"""
-                Visualized below is the distribution of {attribute}.
+            Visualized below is the distribution of {attribute}.
 
-                {mo.as_html(plt.gca())}
-                """
+            {mo.as_html(plt.gca())}
+            """
         ).center()
 
 
@@ -170,11 +170,11 @@ def _(mo, plot_pokemon, table):
 
     drilldown = mo.md(
         f"""
-            Select one or more Pokémon using the checkboxes. Then scroll down for
-            a plot.
+        Select one or more Pokémon using the checkboxes. Then scroll down for
+        a plot.
 
-            {mo.hstack([table, stat_plot], justify="start")}
-            """
+        {mo.hstack([table, stat_plot], justify="start")}
+        """
     )
     return (drilldown,)
 
@@ -198,7 +198,6 @@ def _(pokemon):
         ax.fill(angles, stats, alpha=0.2, label=name)
         return ax
 
-
     return (plot_single_pokemon,)
 
 
@@ -219,7 +218,6 @@ def _(np, plot_single_pokemon, plt):
         if names:
             plt.legend(loc="upper left")
         return ax
-
 
     return (plot_pokemon,)
 
@@ -271,7 +269,6 @@ def _():
 @app.cell
 def _():
     import plotly.express as px
-
 
     return
 

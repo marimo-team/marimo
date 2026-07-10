@@ -11,14 +11,13 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -41,32 +40,32 @@ def _():
 
     df = data.iris()
     df.head()
-    return
+    return (df,)
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(
         f"""
-            Next, we **create a SQL cell**.
+        Next, we **create a SQL cell**.
 
-            Create a SQL cell in one of two ways:
+        Create a SQL cell in one of two ways:
 
-            1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
-            2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
+        1. Click the {mo.icon("lucide:database")} `SQL` button at the **bottom of your notebook**
+        2. **Right-click** the {mo.icon("lucide:circle-plus")} button to the **left of a cell**, and choose `SQL`.
 
-            In the SQL cell, you can query dataframes in your notebook as if they were tables — just reference them by name.
-            """
+        In the SQL cell, you can query dataframes in your notebook as if they were tables — just reference them by name.
+        """
     )
     return
 
 
 @app.cell
-def _(mo):
+def _(df, mo):
     result = mo.sql(
         f"""
-            SELECT species, mean(petalLength) as meanPetalLength FROM df GROUP BY species ORDER BY meanPetalLength
-            """, output=False
+        SELECT species, mean(petalLength) as meanPetalLength FROM df GROUP BY species ORDER BY meanPetalLength
+        """, output=False
     )
     return (result,)
 

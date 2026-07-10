@@ -16,7 +16,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App(width="medium")
 
 
@@ -30,7 +30,6 @@ def _():
     import polars as pl
     from bs4 import BeautifulSoup
     from vega_datasets import data
-
 
     return BeautifulSoup, alt, data, ell, mo, pl, requests
 
@@ -175,8 +174,8 @@ def _(BeautifulSoup, alt, client, dataset_dropdown, df, ell, mo, requests):
     @ell.tool()
     def filter_dataset_with_sql(sql_query: str):
         """
-            Filter a polars dataframe using SQL. Please only use fields from the schema.
-            When referring to the dataframe, call it 'data'."""
+        Filter a polars dataframe using SQL. Please only use fields from the schema.
+        When referring to the dataframe, call it 'data'."""
         filtered = df.sql(sql_query, table_name="data")
         return mo.ui.table(filtered, selection=None, label=sql_query)
 
@@ -184,19 +183,19 @@ def _(BeautifulSoup, alt, client, dataset_dropdown, df, ell, mo, requests):
     @ell.tool()
     def execute_code(code: str):
         """
-            Execute python. Please make sure it is safe before executing.
-            Otherwise do not choose this tool.
-            """
+        Execute python. Please make sure it is safe before executing.
+        Otherwise do not choose this tool.
+        """
         try:
             return mo.md(f"""
-        ```python
+    ```python
 
-        {code}
+    {code}
 
-        ```
+    ```
 
-        {custom_exec(code)}
-                """)
+    {custom_exec(code)}
+            """)
         except Exception as e:
             return f"Failed to execute code: {code}"
 
@@ -204,16 +203,16 @@ def _(BeautifulSoup, alt, client, dataset_dropdown, df, ell, mo, requests):
     @ell.simple(model="gpt-4-turbo", client=client)
     def rag(content: str, question: str):
         """
-            Given some content, answer a question about it.
-            """
+        Given some content, answer a question about it.
+        """
         return f"Content: {content}. Question: {question}"
 
 
     @ell.tool()
     def search_the_web(search_query: str, question: str):
         """
-            Search the web with a give search query and question
-            """
+        Search the web with a give search query and question
+        """
 
         response = requests.get(
             "https://google.com/search", params={"q": search_query}
@@ -256,9 +255,9 @@ def _(TOOLS, client, df, ell, get_dataset, mo):
         return [
             ell.system(
                 f"""
-                    You are a chatbot with many tools. Choose a tool or respond with markdown-compatible text.
-                    If you are talking about a dataset, the current dataset is {get_dataset()}, with schema:{df.schema}
-                    """
+                You are a chatbot with many tools. Choose a tool or respond with markdown-compatible text.
+                If you are talking about a dataset, the current dataset is {get_dataset()}, with schema:{df.schema}
+                """
             ),
         ] + message_history
 
@@ -272,7 +271,6 @@ def _(TOOLS, client, df, ell, get_dataset, mo):
                 [mo.md(f"Tool used: **{str(tool.tool.__name__)}**"), tool_response]
             )
         return mo.md(response.text)
-
 
     return (model,)
 

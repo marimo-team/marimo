@@ -7,7 +7,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.19.7"
 app = marimo.App()
 
 
@@ -15,13 +15,13 @@ app = marimo.App()
 def _(mo, n_items):
     mo.md(
         f"""
-            # Embedding binary trees
+        # Embedding binary trees
 
-            In this example, we'll use PyMDE to draw binary trees. Sweep the
-            slider to draw bigger trees ...
+        In this example, we'll use PyMDE to draw binary trees. Sweep the
+        slider to draw bigger trees ...
 
-            {n_items}
-            """
+        {n_items}
+        """
     )
     return
 
@@ -70,7 +70,6 @@ def _(functools, pymde, torch):
         tree = pymde.Graph.from_edges(torch.tensor(edges))
         return tree, pymde.preprocess.graph.shortest_paths(tree)
 
-
     return (make_graph,)
 
 
@@ -88,7 +87,6 @@ def _(functools, pymde):
         )
         return mde.embed(verbose=True)
 
-
     return (embed,)
 
 
@@ -100,7 +98,6 @@ def _():
     import torch
 
     import marimo as mo
-
 
     return functools, mo, pymde, torch
 

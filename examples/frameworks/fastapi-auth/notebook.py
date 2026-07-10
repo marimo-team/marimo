@@ -1,13 +1,12 @@
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.0"
 app = marimo.App(width="medium")
 
 
 @app.cell
 def _():
     import marimo as mo
-
 
     return (mo,)
 
@@ -19,12 +18,12 @@ def _(mo):
     meta = req.meta if req else None
 
     mo.md(f"""
-        ## User info from `mo.app_meta().request`
+    ## User info from `mo.app_meta().request`
 
-        - **user**: `{user}`
-        - **username**: `{user['username'] if isinstance(user, dict) else 'N/A'}`
-        - **meta**: `{meta}`
-        """)
+    - **user**: `{user}`
+    - **username**: `{user['username'] if isinstance(user, dict) else 'N/A'}`
+    - **meta**: `{meta}`
+    """)
     return
 
 

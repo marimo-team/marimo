@@ -9,7 +9,7 @@
 
 import marimo
 
-__generated_with = "0.23.9"
+__generated_with = "0.20.2"
 app = marimo.App(width="medium")
 
 
@@ -19,7 +19,6 @@ def _():
     import pandas as pd
     import plotly.express as px
     import plotly.graph_objects as go
-
 
     return go, mo, pd, px
 
@@ -70,41 +69,44 @@ def _(pd):
     return (df,)
 
 
-@app.function
-def selected_rows(selection, data):
-    """Map a mo.ui.plotly selection back to rows in the source DataFrame."""
-    empty = data.iloc[0:0].copy()
-    if not selection:
+@app.cell
+def _():
+    def selected_rows(selection, data):
+        """Map a mo.ui.plotly selection back to rows in the source DataFrame."""
+        empty = data.iloc[0:0].copy()
+        if not selection:
+            return empty
+
+        # Prefer sample_id embedded via customdata.
+        # Box-body clicks embed sample_id as customdata[0], not a top-level key.
+        ids = []
+        for row in selection:
+            if isinstance(row.get("sample_id"), str):
+                ids.append(row["sample_id"])
+            else:
+                cd = row.get("customdata")
+                if isinstance(cd, (list, tuple)) and cd and isinstance(cd[0], str):
+                    ids.append(cd[0])
+        if ids:
+            return (
+                data[data["sample_id"].isin(ids)]
+                .drop_duplicates("sample_id")
+                .sort_values("sample_id")
+            )
+
+        # Fall back to pointIndex
+        indices = sorted({
+            row["pointIndex"]
+            for row in selection
+            if isinstance(row.get("pointIndex"), int)
+            and 0 <= row["pointIndex"] < len(data)
+        })
+        if indices:
+            return data.iloc[indices].copy()
+
         return empty
 
-    # Prefer sample_id embedded via customdata.
-    # Box-body clicks embed sample_id as customdata[0], not a top-level key.
-    ids = []
-    for row in selection:
-        if isinstance(row.get("sample_id"), str):
-            ids.append(row["sample_id"])
-        else:
-            cd = row.get("customdata")
-            if isinstance(cd, (list, tuple)) and cd and isinstance(cd[0], str):
-                ids.append(cd[0])
-    if ids:
-        return (
-            data[data["sample_id"].isin(ids)]
-            .drop_duplicates("sample_id")
-            .sort_values("sample_id")
-        )
-
-    # Fall back to pointIndex
-    indices = sorted({
-        row["pointIndex"]
-        for row in selection
-        if isinstance(row.get("pointIndex"), int)
-        and 0 <= row["pointIndex"] < len(data)
-    })
-    if indices:
-        return data.iloc[indices].copy()
-
-    return empty
+    return (selected_rows,)
 
 
 @app.cell
@@ -145,7 +147,7 @@ def _(df, go, mo):
 
 
 @app.cell
-def _(box_single, df, mo):
+def _(box_single, df, mo, selected_rows):
     _sel = selected_rows(box_single.value, df)
 
     _summary = (
@@ -157,17 +159,17 @@ def _(box_single, df, mo):
     )
 
     mo.md(f"""
-        ### Single-Trace Selection
+    ### Single-Trace Selection
 
-        **{_summary}**
+    **{_summary}**
 
-        **Indices:** {box_single.indices}
-        """)
+    **Indices:** {box_single.indices}
+    """)
     return
 
 
 @app.cell
-def _(box_single, df, mo):
+def _(box_single, df, mo, selected_rows):
     mo.ui.table(selected_rows(box_single.value, df))
     return
 
@@ -205,7 +207,7 @@ def _(df, mo, px):
 
 
 @app.cell
-def _(box_grouped, df, mo):
+def _(box_grouped, df, mo, selected_rows):
     _sel_g = selected_rows(box_grouped.value, df)
 
     _summary_g = (
@@ -219,19 +221,19 @@ def _(box_grouped, df, mo):
     )
 
     mo.md(f"""
-        ### Grouped Selection
+    ### Grouped Selection
 
-        **{_summary_g}**
+    **{_summary_g}**
 
-        **Indices:** {box_grouped.indices}
+    **Indices:** {box_grouped.indices}
 
-        **Range:** {box_grouped.ranges}
-        """)
+    **Range:** {box_grouped.ranges}
+    """)
     return
 
 
 @app.cell
-def _(box_grouped, df, mo):
+def _(box_grouped, df, mo, selected_rows):
     mo.ui.table(selected_rows(box_grouped.value, df))
     return
 
@@ -275,7 +277,7 @@ def _(df, go, mo):
 
 
 @app.cell
-def _(box_horizontal, df, mo):
+def _(box_horizontal, df, mo, selected_rows):
     _sel_h = selected_rows(box_horizontal.value, df)
 
     _summary_h = (
@@ -285,17 +287,17 @@ def _(box_horizontal, df, mo):
     )
 
     mo.md(f"""
-        ### Horizontal Selection
+    ### Horizontal Selection
 
-        **{_summary_h}**
+    **{_summary_h}**
 
-        **Indices:** {box_horizontal.indices}
-        """)
+    **Indices:** {box_horizontal.indices}
+    """)
     return
 
 
 @app.cell
-def _(box_horizontal, df, mo):
+def _(box_horizontal, df, mo, selected_rows):
     mo.ui.table(selected_rows(box_horizontal.value, df))
     return
 
