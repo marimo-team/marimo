@@ -19,9 +19,9 @@ from marimo._ast.compiler import (
     ir_cell_factory,
     toplevel_cell_factory,
 )
+from marimo._ast.dedent import fixed_dedent
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
-from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
 from marimo._messaging.notebook.changes import (
     CreateCell,
