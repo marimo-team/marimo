@@ -8,6 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from marimo._plugins.ui._impl.anywidget.init import CommLifecycleItem
+from marimo._plugins.ui._impl.anywidget.widget_ref import (
+    AnyWidgetStateSerializer,
+)
 from marimo._plugins.ui._impl.comm import (
     MarimoComm,
     MarimoCommManager,
@@ -414,6 +417,21 @@ class _ModelIdWidget:
 
 class TestAnywidgetWireReferences:
     ESM = "export default { render() {} }"
+
+    def test_plain_state_does_not_import_optional_anywidget(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        for module_name in list(sys.modules):
+            if module_name == "anywidget" or module_name.startswith(
+                "anywidget."
+            ):
+                monkeypatch.delitem(sys.modules, module_name)
+
+        serializer = AnyWidgetStateSerializer({"_esm": self.ESM})
+        state = {"count": 1, "label": "counter"}
+
+        assert serializer.serialize(state) is state
+        assert "anywidget" not in sys.modules
 
     def test_model_open_replaces_direct_and_nested_widget_refs(
         self, comm_manager: MarimoCommManager

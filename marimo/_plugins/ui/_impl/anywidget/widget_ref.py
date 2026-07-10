@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from typing import Any
 
 _WIDGET_REF_PREFIX = "anywidget:"
@@ -25,20 +26,27 @@ def _try_get_widget_model_id(value: Any) -> str | None:
     if isinstance(model_id, str) and model_id:
         return model_id
 
-    # Imported lazily so marimo does not require anywidget at import time and
-    # remains compatible with older versions without the descriptor API.
-    try:
-        from anywidget._descriptor import (  # type: ignore[import-not-found]
-            MimeBundleDescriptor,
-            ReprMimeBundle,
-        )
-    except ImportError:
+    # A descriptor-backed widget can only exist after this module has been
+    # imported. Reuse it instead of importing an optional dependency while
+    # inspecting arbitrary state values. A failed submodule import can leave a
+    # partial `anywidget` module in `sys.modules`.
+    descriptor_module = sys.modules.get("anywidget._descriptor")
+    if descriptor_module is None:
+        return None
+    descriptor_type = getattr(descriptor_module, "MimeBundleDescriptor", None)
+    repr_type = getattr(descriptor_module, "ReprMimeBundle", None)
+    if not isinstance(descriptor_type, type) or not isinstance(
+        repr_type, type
+    ):
         return None
 
     bundle = getattr(value, "_repr_mimebundle_", None)
-    if isinstance(bundle, MimeBundleDescriptor):
-        bundle = bundle.__get__(value, type(value))
-    if isinstance(bundle, ReprMimeBundle):
+    if isinstance(bundle, descriptor_type):
+        descriptor_get = getattr(bundle, "__get__", None)
+        if not callable(descriptor_get):
+            return None
+        bundle = descriptor_get(value, type(value))
+    if isinstance(bundle, repr_type):
         bundle_id = getattr(bundle, "model_id", None)
         if not isinstance(bundle_id, str) or not bundle_id:
             comm = getattr(bundle, "_comm", None)
