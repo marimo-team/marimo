@@ -15,7 +15,7 @@ from typing import (
     cast,
 )
 
-from marimo._ast.dedent import fixed_dedent
+from marimo._ast.dedent import fixed_dedent as fixed_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,

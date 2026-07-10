@@ -34,7 +34,9 @@ def split_source_lines(text: str, keepends: bool = False) -> list[str]:
     return lines
 
 
-def _get_protected_lines(code: str, tokens: list) -> list[bool]:
+def _get_protected_lines(
+    code: str, tokens: list[tokenize.TokenInfo]
+) -> list[bool]:
     """Return a bool list marking lines inside multiline string literals.
 
     Handles both regular triple-quoted strings (STRING token) and f-strings
