@@ -195,7 +195,7 @@ class Linter:
             # `.md`/`.qmd` files, and most are plain documentation. Failing on
             # them (as with non-marimo Python scripts) would be too noisy.
             if self.ignore_scripts or file_path.endswith((".md", ".qmd")):
-                # Skip this file silently when ignore_scripts is enabled
+                # Skip this file silently when ignore_scripts is enabled (or for plain markdown).
                 file_status.skipped = True
                 file_status.message = (
                     f"Skipped: {file_path} (not a marimo notebook)"
