@@ -191,7 +191,10 @@ class Linter:
             file_status.skipped = True
             file_status.message = f"Skipped: {file_path} (empty file)"
         elif load_result.status == "invalid":
-            if self.ignore_scripts:
+            # Markdown is skipped unconditionally: `marimo check` globs all
+            # `.md`/`.qmd` files, and most are plain documentation. Failing on
+            # them (as with non-marimo Python scripts) would be too noisy.
+            if self.ignore_scripts or file_path.endswith((".md", ".qmd")):
                 # Skip this file silently when ignore_scripts is enabled
                 file_status.skipped = True
                 file_status.message = (
