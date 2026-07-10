@@ -5,9 +5,9 @@ import functools
 import os
 import re
 import sys
+import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-import types
 
 from marimo import _loggers
 from marimo._ast.cell import Cell
@@ -308,6 +308,7 @@ class ReplaceStubPlugin:
     def _live_owner(self, item: Any) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
         import pytest  # type: ignore
+
         node = item
         while node.parent is not None and not isinstance(
             node.parent, pytest.Module
@@ -336,9 +337,7 @@ class ReplaceStubPlugin:
             # in-scope fixtures are present in the synthetic module (see
             # `_live_module_globals`).
             items[:] = [
-                item
-                for item in items
-                if self._live_owner(item) in self.defs
+                item for item in items if self._live_owner(item) in self.defs
             ]
             return
 
@@ -448,9 +447,7 @@ class ReplaceStubPlugin:
 
         tr.write_line(self._result.summary)
 
-    def pytest_runtest_logreport(
-        self, report: pytest.TestReport
-    ) -> None:
+    def pytest_runtest_logreport(self, report: pytest.TestReport) -> None:
         """In place updates the report for some better formatting.
         In particular:
            - removes stub class reference for scoped tests
