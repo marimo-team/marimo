@@ -73,6 +73,28 @@ describe("WidgetRegistry models", () => {
     await expect(registry.getModel(id)).resolves.toBe(model);
   });
 
+  it("disposes a pre-open view when model rendezvous times out", async () => {
+    const id = asModelId("timed-out-view");
+    const host = document.createElement("div");
+    const root = host.attachShadow({ mode: "open" });
+    const el = document.createElement("div");
+    root.append(el);
+    const controller = new AbortController();
+
+    const pending = registry.createView({
+      modelId: id,
+      el,
+      signal: controller.signal,
+    });
+    expect(root.querySelector("style")).not.toBeNull();
+
+    await expect(pending).rejects.toThrow(
+      "Model not found for key: timed-out-view",
+    );
+    expect(root.querySelector("style")).toBeNull();
+    expect(controller.signal.aborted).toBe(false);
+  });
+
   it("should delete models", async () => {
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
@@ -396,6 +418,31 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
     return { registry, model, widget, el, viewController, v1, v2 };
   }
 
+  it("preserves the initial spec before first mount outside edit mode", async () => {
+    const registry = new WidgetRegistry(50, () => false);
+    const v1 = makeWidget("v1");
+    const v2 = makeWidget("v2");
+    getModuleSpy.mockImplementation(async ({ jsUrl }) => ({
+      default: jsUrl === SPEC_V1.url ? v1 : v2,
+    }));
+    registry.setModel(
+      testId,
+      new Model<ModelState>({ count: 0 }, createMockComm()),
+    );
+    registry.setSpec(testId, SPEC_V1);
+
+    // A viewer may receive an editor's hot-reload update before it ever
+    // mounts this widget. Its code must still be immutable for the model.
+    registry.setSpec(testId, SPEC_V2);
+    const widget = await registry.getWidget(testId);
+    const el = document.createElement("div");
+    await widget.render({ el });
+
+    expect(el.textContent).toBe("v1");
+    expect(v1.initialize).toHaveBeenCalledTimes(1);
+    expect(v2.initialize).not.toHaveBeenCalled();
+  });
+
   it("swaps the generation and re-renders live views in edit mode", async () => {
     const { registry, model, el, v1, v2 } = await setup(true);
 
@@ -430,7 +477,7 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
     expect(onCount).toHaveBeenCalledTimes(1);
   });
 
-  it("does not swap outside edit mode; the spec is only recorded", async () => {
+  it("ignores replacement specs outside edit mode", async () => {
     const { registry, el, v2 } = await setup(false);
 
     await handleWidgetMessage(registry, {
@@ -537,6 +584,53 @@ describe("WidgetRegistry generation swap (hot reload)", () => {
 
     await expect(waiting).resolves.toBeDefined();
     expect(second.initialize).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for old render cleanup before rendering the replacement", async () => {
+    const registry = new WidgetRegistry(50, () => true);
+    let cleanupStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      cleanupStarted = resolve;
+    });
+    let finishCleanup!: () => void;
+    const cleanupGate = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const v1 = {
+      initialize: vi.fn(),
+      render: vi.fn(({ el }: { el: HTMLElement }) => {
+        el.textContent = "v1";
+        return async () => {
+          cleanupStarted();
+          await cleanupGate;
+          el.textContent = "stale cleanup";
+        };
+      }),
+    };
+    const v2 = makeWidget("v2");
+    getModuleSpy.mockImplementation(async ({ jsUrl }) => ({
+      default: jsUrl === SPEC_V1.url ? v1 : v2,
+    }));
+    registry.setModel(
+      testId,
+      new Model<ModelState>({ count: 0 }, createMockComm()),
+    );
+    registry.setSpec(testId, SPEC_V1);
+    const widget = await registry.getWidget(testId);
+    const el = document.createElement("div");
+    await widget.render({ el });
+
+    registry.setSpec(testId, SPEC_V2);
+    await started;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const rendersBeforeCleanupFinished = v2.render.mock.calls.length;
+
+    finishCleanup();
+    expect(rendersBeforeCleanupFinished).toBe(0);
+    await vi.waitFor(() => {
+      expect(el.textContent).toBe("v2");
+    });
+    expect(v2.render).toHaveBeenCalledTimes(1);
   });
 });
 

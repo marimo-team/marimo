@@ -153,6 +153,8 @@ export class WidgetBinding<T extends ModelState = ModelState> {
   #model: Model<T>;
   #exports: unknown;
   #createHost: HostFactory;
+  #cleanupTasks = new Set<Promise<void>>();
+  #viewTasks = new Set<Promise<void>>();
 
   private constructor(options: {
     widget: ResolvedWidget<T>;
@@ -224,12 +226,9 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     //   object   → widget exports (anywidget>=0.11)
     //   void     → nothing
     let exports: unknown;
+    let initializeCleanup: Cleanup | undefined;
     if (isCleanup(result)) {
-      signal.addEventListener(
-        "abort",
-        () => void safelyRunCleanup(result, "initialize"),
-        { once: true },
-      );
+      initializeCleanup = result;
       exports = undefined;
     } else if (typeof result === "object" && result !== null) {
       exports = result;
@@ -237,13 +236,21 @@ export class WidgetBinding<T extends ModelState = ModelState> {
       exports = undefined;
     }
 
-    return new WidgetBinding({
+    const binding = new WidgetBinding({
       widget,
       model,
       exports,
       controller,
       createHost,
     });
+    if (initializeCleanup) {
+      signal.addEventListener(
+        "abort",
+        () => void binding.#trackCleanup(initializeCleanup, "initialize"),
+        { once: true },
+      );
+    }
+    return binding;
   }
 
   /**
@@ -264,6 +271,19 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * to this view's listeners; re-firing at other views double-paints.
    */
   async createView(
+    target: { el: HTMLElement },
+    options: { signal: AbortSignal },
+  ): Promise<void> {
+    const task = this.#createView(target, options);
+    this.#viewTasks.add(task);
+    try {
+      await task;
+    } finally {
+      this.#viewTasks.delete(task);
+    }
+  }
+
+  async #createView(
     target: { el: HTMLElement },
     options: { signal: AbortSignal },
   ): Promise<void> {
@@ -296,14 +316,14 @@ export class WidgetBinding<T extends ModelState = ModelState> {
       host,
     });
     if (isCleanup(renderCleanup)) {
-      const runCleanup = async () => {
+      const runCleanup = () => {
         const reason = options.signal.aborted
           ? "view unmount"
           : "binding destroyed";
         Logger.debug(
           `[WidgetBinding] Render cleanup triggered (reason: ${reason})`,
         );
-        await safelyRunCleanup(renderCleanup, "render");
+        return this.#trackCleanup(renderCleanup, "render");
       };
       if (renderSignal.aborted) {
         await runCleanup();
@@ -314,6 +334,13 @@ export class WidgetBinding<T extends ModelState = ModelState> {
       });
     }
     this.#replayState(registrations, renderSignal);
+  }
+
+  #trackCleanup(cleanup: Cleanup, reason: string): Promise<void> {
+    const task = safelyRunCleanup(cleanup, reason);
+    this.#cleanupTasks.add(task);
+    void task.finally(() => this.#cleanupTasks.delete(task));
+    return task;
   }
 
   /**
@@ -345,9 +372,13 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * Destroy this generation, running initialize/render cleanups and
    * clearing listeners registered through its model proxies.
    */
-  destroy(): void {
+  async destroy(): Promise<void> {
     Logger.debug("[WidgetBinding] Destroying binding generation");
     this.#controller.abort();
+    await Promise.allSettled(this.#viewTasks);
+    while (this.#cleanupTasks.size > 0) {
+      await Promise.all(this.#cleanupTasks);
+    }
   }
 }
 

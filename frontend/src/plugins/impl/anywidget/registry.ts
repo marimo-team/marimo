@@ -55,6 +55,7 @@ export class WidgetRegistry implements WidgetResolver {
         createHost: (signal) => createHost(this, signal),
         onModelTimeout: () => {
           if (this.#runtimes.get(key) === nextRuntime) {
+            nextRuntime.dispose();
             this.#runtimes.delete(key);
           }
         },

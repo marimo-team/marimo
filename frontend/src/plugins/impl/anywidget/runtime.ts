@@ -57,6 +57,7 @@ export class WidgetRuntime {
   #modelTimeout: ReturnType<typeof setTimeout> | undefined;
   #esmSpec: EsmSpec | undefined;
   #generation: Generation | undefined;
+  #generationCleanup = Promise.resolve();
   #css = "";
 
   constructor(key: WidgetModelId, options: WidgetRuntimeOptions) {
@@ -121,12 +122,18 @@ export class WidgetRuntime {
   }
 
   setSpec(spec: EsmSpec): void {
+    if (!this.#esmSpec) {
+      this.#esmSpec = spec;
+      return;
+    }
+    // A viewer's code is immutable for the lifetime of its model. This
+    // also covers a viewer that receives an editor's update before its
+    // first view creates a generation.
+    if (!this.#isEditMode()) {
+      return;
+    }
     this.#esmSpec = spec;
-    if (
-      this.#generation &&
-      this.#generation.hash !== spec.hash &&
-      this.#isEditMode()
-    ) {
+    if (this.#generation && this.#generation.hash !== spec.hash) {
       this.#swapGeneration(spec);
     }
   }
@@ -238,7 +245,7 @@ export class WidgetRuntime {
     Logger.debug(
       `[WidgetRuntime] Hot-swapping generation for model=${this.#key}`,
     );
-    previous.controller.abort();
+    const cleanup = this.#queueGenerationCleanup(previous);
     const model = this.getModelSync();
     if (!model) {
       return;
@@ -246,10 +253,29 @@ export class WidgetRuntime {
     const generation = this.#startGeneration(spec, model);
     for (const view of this.#views) {
       view.generation = undefined;
-      void this.#renderView(view, generation).catch((error) => {
-        Logger.error("[WidgetRuntime] Error replacing widget view", error);
-      });
+      void cleanup
+        .then(() => this.#renderView(view, generation))
+        .catch((error) => {
+          Logger.error("[WidgetRuntime] Error replacing widget view", error);
+        });
     }
+  }
+
+  #queueGenerationCleanup(generation: Generation): Promise<void> {
+    // Abort immediately so pending initialize/render hooks see cancellation,
+    // but serialize their settled cleanup before replacement DOM is rendered.
+    generation.controller.abort();
+    const cleanup = this.#generationCleanup.then(async () => {
+      try {
+        const binding = await generation.promise;
+        await binding.destroy();
+      } catch {
+        // A generation aborted during import/initialize has no binding to
+        // settle. Late initialize cleanup is handled by WidgetBinding.create.
+      }
+    });
+    this.#generationCleanup = cleanup;
+    return cleanup;
   }
 
   async #renderView(
@@ -265,7 +291,7 @@ export class WidgetRuntime {
       : await this.#getCurrentBinding();
     const current = this.#generation;
     if (!current || current !== (generation ?? current)) {
-      return this.#renderView(view);
+      return;
     }
     if (view.generation === current) {
       return;
@@ -276,7 +302,7 @@ export class WidgetRuntime {
     } catch (error) {
       if (current !== this.#generation) {
         view.generation = undefined;
-        return this.#renderView(view);
+        return;
       }
       throw error;
     }
@@ -325,7 +351,9 @@ export class WidgetRuntime {
       this.#model.promise.catch(() => undefined);
       this.#model.reject(new Error("[anywidget] widget runtime destroyed"));
     }
-    this.#generation?.controller.abort();
+    if (this.#generation) {
+      void this.#queueGenerationCleanup(this.#generation);
+    }
     this.#controller.abort();
     this.#views.clear();
     for (const mount of this.#styleMounts.values()) {
