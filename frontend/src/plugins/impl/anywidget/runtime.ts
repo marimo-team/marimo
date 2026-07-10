@@ -310,7 +310,9 @@ export class WidgetRuntime {
 
   #mountStyle(view: RuntimeView): void {
     const root = view.el.getRootNode();
-    if (!(root instanceof Document || root instanceof ShadowRoot)) {
+    // `instanceof` misses cross-realm roots (e.g. a Document
+    // Picture-in-Picture window); the guards check realm-independent nodeType.
+    if (!isDocument(root) && !isShadowRoot(root)) {
       return;
     }
     let mount = this.#styleMounts.get(root);
@@ -363,14 +365,26 @@ export class WidgetRuntime {
   }
 }
 
+function isDocument(node: Node): node is Document {
+  return node.nodeType === Node.DOCUMENT_NODE;
+}
+
+function isShadowRoot(node: Node): node is ShadowRoot {
+  return node.nodeType === Node.DOCUMENT_FRAGMENT_NODE && "host" in node;
+}
+
 function createStyleMount(root: StyleRoot, initialCss: string): StyleMount {
+  // Build stylesheets in the root's own realm so they apply in a cross-realm
+  // root (e.g. a Document Picture-in-Picture window).
+  const doc = isDocument(root) ? root : (root.ownerDocument ?? document);
+  const view = doc.defaultView ?? window;
   if (
     "adoptedStyleSheets" in root &&
-    typeof CSSStyleSheet !== "undefined" &&
-    typeof CSSStyleSheet.prototype.replaceSync === "function"
+    typeof view.CSSStyleSheet !== "undefined" &&
+    typeof view.CSSStyleSheet.prototype.replaceSync === "function"
   ) {
     try {
-      const sheet = new CSSStyleSheet();
+      const sheet = new view.CSSStyleSheet();
       sheet.replaceSync(initialCss);
       root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
       return {
@@ -389,10 +403,10 @@ function createStyleMount(root: StyleRoot, initialCss: string): StyleMount {
     }
   }
 
-  const style = document.createElement("style");
+  const style = doc.createElement("style");
   style.textContent = initialCss;
-  if (root instanceof Document) {
-    root.head.append(style);
+  if (isDocument(root)) {
+    doc.head.append(style);
   } else {
     root.append(style);
   }
