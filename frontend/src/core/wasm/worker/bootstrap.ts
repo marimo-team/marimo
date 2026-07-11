@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { loadPyodide, type PyodideInterface } from "pyodide";
+import type { PyCallable, PyProxy } from "pyodide/ffi";
 import type { UserConfig } from "@/core/config/config-schema";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type { JsonString } from "@/utils/json/base64";
@@ -12,6 +13,7 @@ import type { SerializedBridge, WasmController } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
 
 const MAKE_SNAPSHOT = false;
+type SessionResources = [PyProxy, PyCallable, PyProxy, PyCallable];
 
 // This class initializes the wasm environment
 // We would like this initialization to be parallelizable
@@ -25,6 +27,9 @@ const MAKE_SNAPSHOT = false;
 
 export class DefaultWasmController implements WasmController {
   protected pyodide: PyodideInterface | null = null;
+  private packageLoadQueue = Promise.resolve();
+  private sessionGeneration = 0;
+  private stopCurrentSession: PyCallable | undefined;
 
   get requirePyodide() {
     invariant(this.pyodide, "Pyodide not loaded");
@@ -111,6 +116,7 @@ export class DefaultWasmController implements WasmController {
     onMessage: (message: JsonString<NotificationPayload>) => void;
     userConfig: UserConfig;
   }): Promise<SerializedBridge> {
+    const sessionGeneration = this.sessionGeneration;
     const { code, filename, onMessage, queryParameters, userConfig } = opts;
     // We pass down a messenger object to the code
     // This is used to have synchronous communication between the JS and Python code
@@ -126,47 +132,120 @@ export class DefaultWasmController implements WasmController {
 
     const span = t.startSpan("startSession.runPython");
     const nbFilename = filename || WasmFileSystem.NOTEBOOK_FILENAME;
-    const [bridge, init, packages] = this.requirePyodide.runPython(
+    const sessionResources = this.requirePyodide.runPython(
       `
       print("[py] Starting marimo...")
       import asyncio
+      import gc
       import js
       from marimo._pyodide.bootstrap import create_session, instantiate
 
       assert js.messenger, "messenger is not defined"
       assert js.query_params, "query_params is not defined"
 
-      session, bridge = create_session(
-        filename="${nbFilename}",
-        query_params=js.query_params.to_py(),
-        message_callback=js.messenger.callback,
-        user_config=js.user_config.to_py(),
-      )
+      def create_session_resources():
+        session, bridge = create_session(
+          filename="${nbFilename}",
+          query_params=js.query_params.to_py(),
+          message_callback=js.messenger.callback,
+          user_config=js.user_config.to_py(),
+        )
+        session_task = None
 
-      def init(auto_instantiate=True):
-        instantiate(session, auto_instantiate)
-        asyncio.create_task(session.start())
+        def init(auto_instantiate=True):
+          nonlocal session_task
+          instantiate(session, auto_instantiate)
+          session_task = asyncio.create_task(session.start())
 
-      # Find the packages to install
-      with open("${nbFilename}", "r") as f:
-        packages = session.find_packages(f.read())
+        async def stop():
+          nonlocal bridge, session, session_task
+          task = session_task
+          try:
+            kernel_task = getattr(session, "kernel_task", None)
+            if kernel_task is None:
+              if task is not None:
+                task.cancel()
+            else:
+              kernel_task.stop()
+            if task is not None:
+              try:
+                await task
+              except asyncio.CancelledError:
+                pass
+          finally:
+            session_task = None
+            session = None
+            bridge = None
+            gc.collect()
 
-      bridge, init, packages`,
-    );
+        with open("${nbFilename}", "r") as f:
+          packages = session.find_packages(f.read())
+
+        return bridge, init, packages, stop
+
+      create_session_resources()`,
+    ) as PyProxy;
     span.end();
-
-    const foundPackages = new Set<string>(packages.toJs());
+    let bridgeProxy!: PyProxy;
+    let initSession!: PyCallable;
+    let packagesProxy!: PyProxy;
+    let stopSession!: PyCallable;
+    try {
+      [bridgeProxy, initSession, packagesProxy, stopSession] =
+        sessionResources as unknown as SessionResources;
+    } finally {
+      sessionResources.destroy();
+    }
+    let foundPackages: Set<string>;
+    try {
+      foundPackages = new Set<string>(packagesProxy.toJs());
+    } catch (error) {
+      bridgeProxy.destroy();
+      initSession.destroy();
+      stopSession.destroy();
+      throw error;
+    } finally {
+      packagesProxy.destroy();
+    }
+    this.stopCurrentSession?.destroy();
+    this.stopCurrentSession = stopSession;
 
     // Fire and forget:
     // Load notebook dependencies and instantiate the session
     // We don't want to wait for this to finish,
     // so we can show the initial code immediately giving
     // a sense of responsiveness.
-    void this.loadNotebookDeps(code, foundPackages).then(() => {
-      return init(userConfig.runtime.auto_instantiate);
+    const dependenciesReady = this.packageLoadQueue.then(() => {
+      if (sessionGeneration !== this.sessionGeneration) {
+        return;
+      }
+      return this.loadNotebookDeps(code, foundPackages);
     });
+    this.packageLoadQueue = dependenciesReady.catch(() => undefined);
+    void dependenciesReady
+      .then(() => {
+        if (sessionGeneration !== this.sessionGeneration) {
+          return;
+        }
+        return initSession(userConfig.runtime.auto_instantiate);
+      })
+      .catch((error: unknown) => {
+        Logger.error("Failed to load notebook dependencies", error);
+      })
+      .finally(() => initSession.destroy());
 
-    return bridge;
+    return bridgeProxy as unknown as SerializedBridge;
+  }
+
+  async stopSession(): Promise<void> {
+    this.sessionGeneration += 1;
+    const stop = this.stopCurrentSession;
+    this.stopCurrentSession = undefined;
+    try {
+      await stop?.();
+    } finally {
+      stop?.destroy();
+    }
   }
 
   private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
