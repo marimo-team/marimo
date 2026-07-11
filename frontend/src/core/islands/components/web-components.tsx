@@ -18,7 +18,7 @@ import {
   ISLAND_DATA_ATTRIBUTES,
   ISLAND_TAG_NAMES,
 } from "../constants";
-import { extractIslandCodeFromEmbed } from "../parse";
+import { extractIslandCodeFromEmbed, retainIslandSource } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 
 /**
@@ -131,6 +131,7 @@ export class MarimoIslandElement extends HTMLElement {
     const optionalEditor = this.getOptionalEditor();
     const code = this.code;
     const cellId = this.cellId;
+    retainIslandSource(this, { code, output: initialOutput });
 
     // Read objectId directly from the DOM before createRoot clears children.
     // optionalEditor is a <RenderHTML> wrapper, so its .props don't carry the

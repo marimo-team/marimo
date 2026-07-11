@@ -74,12 +74,15 @@ interface MarimoIslandPayloadCell {
   displayOutput: boolean;
 }
 
+const retainedPayloadCellIds = new WeakMap<HTMLElement, string>();
+
 /**
  * Parses marimo island apps from the DOM
  * @param root - Root element to search within (defaults to document)
  */
 export function parseMarimoIslandApps(
   root: Document | Element = document,
+  options: { materialize?: boolean } = {},
 ): MarimoIslandApp[] {
   const embeds = [
     ...root.querySelectorAll<HTMLElement>(ISLAND_TAG_NAMES.ISLAND),
@@ -90,11 +93,12 @@ export function parseMarimoIslandApps(
     return [];
   }
 
+  const materialize = options.materialize ?? true;
   if (payloads.length > 0) {
-    return parsePayloadBackedApps(embeds, payloads);
+    return parsePayloadBackedApps({ embeds, materialize, payloads });
   }
 
-  return parseIslandElementsIntoApps(embeds);
+  return parseIslandElementsIntoApps(embeds, materialize);
 }
 
 /**
@@ -103,6 +107,7 @@ export function parseMarimoIslandApps(
  */
 export function parseIslandElementsIntoApps(
   embeds: HTMLElement[],
+  materialize = true,
 ): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
@@ -140,16 +145,23 @@ export function parseIslandElementsIntoApps(
     });
 
     // Add data-cell-idx attribute to the island element
-    embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
+    if (materialize) {
+      embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
+    }
   }
 
   return [...apps.values()];
 }
 
-function parsePayloadBackedApps(
-  embeds: HTMLElement[],
-  payloads: MarimoIslandPayload[],
-): MarimoIslandApp[] {
+function parsePayloadBackedApps({
+  embeds,
+  materialize,
+  payloads,
+}: {
+  embeds: HTMLElement[];
+  materialize: boolean;
+  payloads: MarimoIslandPayload[];
+}): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
   const matchedPayloadCells = new Map<MarimoIslandPayloadCell, HTMLElement>();
   const consumedEmbeds = new Set<HTMLElement>();
@@ -169,7 +181,9 @@ function parsePayloadBackedApps(
       }
       consumedEmbeds.add(embed);
       matchedPayloadCells.set(cell, embed);
-      materializeIslandPayload(embed, cell);
+      if (materialize && !retainedPayloadCellIds.has(embed)) {
+        materializeIslandPayload(embed, cell);
+      }
       hasMatchedIsland = true;
     }
     // Only payloads matched to island anchors can start runtime apps.
@@ -215,7 +229,7 @@ function parsePayloadBackedApps(
         appCell.disabled = true;
       }
       app.cells.push(appCell);
-      if (cell.reactive) {
+      if (materialize && cell.reactive) {
         embed?.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
       }
     }
@@ -223,12 +237,14 @@ function parsePayloadBackedApps(
 
   // A supported payload is the runtime source for its app. Extra same-app DOM
   // islands are disconnected from runtime binding.
-  for (const embed of embeds) {
-    const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
-    if (appId && payloadAppIds.has(appId) && !consumedEmbeds.has(embed)) {
-      embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
-      embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
-      embed.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+  if (materialize) {
+    for (const embed of embeds) {
+      const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
+      if (appId && payloadAppIds.has(appId) && !consumedEmbeds.has(embed)) {
+        embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
+        embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
+        embed.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+      }
     }
   }
 
@@ -237,7 +253,10 @@ function parsePayloadBackedApps(
     return !appId || !payloadAppIds.has(appId);
   });
 
-  return [...apps.values(), ...parseIslandElementsIntoApps(domOnlyEmbeds)];
+  return [
+    ...apps.values(),
+    ...parseIslandElementsIntoApps(domOnlyEmbeds, materialize),
+  ];
 }
 
 function findMatchingIsland({
@@ -257,7 +276,8 @@ function findMatchingIsland({
     }
     return (
       embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID) === appId &&
-      embed.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID) === cell.cellId
+      (embed.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID) ??
+        retainedPayloadCellIds.get(embed)) === cell.cellId
     );
   });
 }
@@ -266,6 +286,7 @@ function materializeIslandPayload(
   embed: HTMLElement,
   cell: MarimoIslandPayloadCell,
 ): void {
+  retainedPayloadCellIds.set(embed, cell.cellId);
   embed.setAttribute(
     ISLAND_DATA_ATTRIBUTES.REACTIVE,
     JSON.stringify(cell.reactive),
@@ -304,9 +325,26 @@ function ensureIslandChild(embed: HTMLElement, tagName: string): HTMLElement {
  * @param embed - The island HTML element
  * @returns Cell data or null if invalid
  */
+const retainedIslandSources = new WeakMap<
+  HTMLElement,
+  { output: string; code: string }
+>();
+
+export function retainIslandSource(
+  embed: HTMLElement,
+  source: { output: string; code: string },
+): void {
+  retainedIslandSources.set(embed, source);
+}
+
 export function parseIslandElement(
   embed: HTMLElement,
 ): { output: string; code: string } | null {
+  const retained = retainedIslandSources.get(embed);
+  if (retained) {
+    return retained.code ? retained : null;
+  }
+
   const cellOutput = embed.querySelector<HTMLElement>(
     ISLAND_TAG_NAMES.CELL_OUTPUT,
   );
