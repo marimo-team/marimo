@@ -71,6 +71,22 @@ DOC_CACHE_SIZE = 200
 # characters falls through to signature help below, which is the useful
 # behavior inside a call's argument list (e.g. `mo.ui.slider(start=1,`).
 COMPLETION_TRIGGER_CHARACTERS = frozenset({".", "/"})
+# Matches an import statement whose cursor sits at a name position with an empty
+# prefix, e.g. `from dataclasses import ` or `import ` or `from a import b, `.
+# Unlike an empty prefix after `(`/`,` (which yields the entire namespace), Jedi
+# returns only the relevant, bounded set of importable names here, so completing
+# on an empty prefix is the useful behavior. Operates on the final line only.
+_IMPORT_COMPLETION_PATTERN = re.compile(
+    r"\s*(?:from\s+[\w.]+\s+)?import\s+(?:\w+(?:\s+as\s+\w+)?\s*,\s*)*$"
+)
+
+
+def _is_import_completion_context(document: str) -> bool:
+    """Return True when the cursor is at an import-name position (empty prefix)."""
+    last_line = document.rsplit("\n", 1)[-1]
+    return _IMPORT_COMPLETION_PATTERN.match(last_line) is not None
+
+
 # Matches display bracket delimiters: \[...\]
 _MATH_DISPLAY_BRACKET_PATTERN = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
 # Matches inline paren delimiters: \(...\)
@@ -701,7 +717,9 @@ def complete(
         prefix_length: int = (
             completions[0].get_completion_prefix_length() if completions else 0
         )
-        prefix = request.document[-prefix_length:]
+        # `document[-0:]` is the whole document, not an empty string, so guard
+        # the empty-prefix case explicitly.
+        prefix = request.document[-prefix_length:] if prefix_length else ""
 
         key_options = _maybe_get_key_options(
             request.document,
@@ -733,8 +751,15 @@ def complete(
                 bool(completions) and completions[0].type == "path"
             )
 
-        if prefix_length == 0 and request.document and not is_trigger_char:
-            # Empty prefix, not dot notation; don't complete ...
+        in_import_context = _is_import_completion_context(request.document)
+        if (
+            prefix_length == 0
+            and request.document
+            and not is_trigger_char
+            and not in_import_context
+        ):
+            # Empty prefix, not dot notation or an import statement;
+            # don't complete ...
             completions = []
 
             # Get docstring in function context. A bit of a hack, since

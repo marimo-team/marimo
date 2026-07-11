@@ -820,6 +820,37 @@ def test_no_completions_for_division_operator(document: str) -> None:
     assert content["options"] == []
 
 
+@pytest.mark.parametrize(
+    "document",
+    [
+        "from dataclasses import ",
+        "from dataclasses import field, ",
+        "from  dataclasses  import  ",
+    ],
+)
+def test_completion_after_from_import_with_empty_prefix(document: str) -> None:
+    """`from module import <cursor>` must complete on an empty prefix.
+
+    Regression test for #10140: Jedi returns the module's importable names here,
+    but an empty prefix that isn't a `.`/`/` trigger was being discarded, so the
+    popup never opened after `from x import `.
+    """
+    content = _run_complete(document)
+    assert content["op"] == CompletionResultNotification.name
+    assert content["prefix_length"] == 0
+    names = {option["name"] for option in content["options"]}
+    assert {"dataclass", "field", "asdict"} <= names
+
+
+def test_completion_after_bare_import_with_empty_prefix() -> None:
+    """`import <cursor>` completes to top-level modules on an empty prefix."""
+    content = _run_complete("import ")
+    assert content["op"] == CompletionResultNotification.name
+    assert content["prefix_length"] == 0
+    names = {option["name"] for option in content["options"]}
+    assert "dataclasses" in names
+
+
 def test_path_completion_still_works(tmp_path: Any) -> None:
     """`/` still triggers file-path completion inside a string literal."""
     (tmp_path / "marimo_data.csv").write_text("x\n")
