@@ -45,6 +45,8 @@ vi.stubGlobal("URL", MockURL);
 const {
   mockBridge,
   mockLoadPackages,
+  mockReplaceSessionRequest,
+  mockStopSessionRequest,
   mockStartSessionRequest,
   mockParseMarimoIslandApps,
   mockCreateMarimoFile,
@@ -52,6 +54,8 @@ const {
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockLoadPackages: vi.fn(),
+  mockReplaceSessionRequest: vi.fn(),
+  mockStopSessionRequest: vi.fn(),
   mockStartSessionRequest: vi.fn(),
   mockParseMarimoIslandApps: vi.fn<() => TestIslandApp[]>(() => []),
   mockCreateMarimoFile: vi.fn(),
@@ -66,7 +70,9 @@ vi.mock("@/core/wasm/rpc", () => ({
       request: {
         bridge: mockBridge,
         loadPackages: mockLoadPackages,
+        replaceSession: mockReplaceSessionRequest,
         startSession: mockStartSessionRequest,
+        stopSession: mockStopSessionRequest,
       },
       send: {
         consumerReady: vi.fn(),
@@ -118,6 +124,17 @@ describe("IslandsPyodideBridge", () => {
     bridge = new IslandsPyodideBridge({ autoStartSessions: false });
   });
 
+  function mockSingleApp(file = "generated app 1") {
+    mockParseMarimoIslandApps.mockReturnValue([
+      {
+        id: "app-1",
+        cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+      },
+    ]);
+    mockCreateMarimoFile.mockReturnValue(file);
+    bridge.workerReady.resolve();
+  }
+
   describe("startSessionsForAllApps", () => {
     it("should prefer trusted export notebook code when there is exactly one reactive app", async () => {
       mockParseMarimoIslandApps.mockReturnValue([
@@ -140,6 +157,7 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
         appId: "app-1",
         code: "import marimo\napp = marimo.App()\n@app.cell\ndef __():\n    x = 1\n    return",
+        sessionGeneration: 1,
       });
     });
 
@@ -164,6 +182,7 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
         appId: "app-1",
         code: "generated payload app",
+        sessionGeneration: 1,
       });
     });
 
@@ -194,10 +213,32 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStartSessionRequest).toHaveBeenNthCalledWith(1, {
         appId: "app-1",
         code: "generated app 1",
+        sessionGeneration: 1,
       });
       expect(mockStartSessionRequest).toHaveBeenNthCalledWith(2, {
         appId: "app-2",
         code: "generated app 2",
+        sessionGeneration: 2,
+      });
+
+      await bridge.sendComponentValues({
+        objectIds: [uiElementId("slider-1")],
+        values: [2],
+      });
+      await bridge.stopSession();
+
+      expect(mockReplaceSessionRequest).not.toHaveBeenCalled();
+      expect(mockStopSessionRequest).not.toHaveBeenCalled();
+      expect(mockBridge).toHaveBeenCalledWith({
+        appId: "app-1",
+        functionName: "put_control_request",
+        payload: {
+          objectIds: ["slider-1"],
+          token: "test-uuid-12345",
+          type: "update-ui-element",
+          values: [2],
+        },
+        sessionGeneration: 1,
       });
     });
 
@@ -218,7 +259,99 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
         appId: "app-1",
         code: "generated app 1",
+        sessionGeneration: 1,
       });
+    });
+  });
+
+  describe("app lifecycle", () => {
+    it("replaces the active single app and skips duplicate initialization", async () => {
+      mockSingleApp();
+
+      await bridge.initializeApps();
+      await bridge.initializeApps();
+      await bridge.sendComponentValues({
+        objectIds: [uiElementId("slider-1")],
+        values: [2],
+      });
+
+      expect(mockReplaceSessionRequest).toHaveBeenCalledOnce();
+      expect(mockReplaceSessionRequest).toHaveBeenCalledWith({
+        appId: "app-1",
+        code: "generated app 1",
+        sessionGeneration: 1,
+      });
+      expect(mockBridge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appId: "app-1",
+          sessionGeneration: 1,
+        }),
+      );
+      mockCreateMarimoFile.mockReturnValue("generated app 2");
+      await bridge.initializeApps();
+
+      expect(mockReplaceSessionRequest).toHaveBeenCalledTimes(2);
+      expect(mockReplaceSessionRequest).toHaveBeenNthCalledWith(2, {
+        appId: "app-1",
+        code: "generated app 2",
+        sessionGeneration: 2,
+      });
+    });
+
+    it("stops the matching active app", async () => {
+      mockSingleApp();
+      await bridge.initializeApps();
+
+      await bridge.stopSession("other-app");
+      await bridge.stopSession("app-1");
+
+      expect(mockStopSessionRequest).toHaveBeenCalledOnce();
+      expect(mockStopSessionRequest).toHaveBeenCalledWith({
+        appId: "app-1",
+        sessionGeneration: 1,
+      });
+    });
+
+    it("allows initialization to retry after replacement fails", async () => {
+      mockSingleApp();
+      mockReplaceSessionRequest
+        .mockRejectedValueOnce(new Error("replacement failed"))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(bridge.initializeApps()).rejects.toThrow(
+        "replacement failed",
+      );
+      await bridge.initializeApps();
+
+      expect(mockReplaceSessionRequest).toHaveBeenCalledTimes(2);
+    });
+
+    it("scopes controls while the replacement session is pending", async () => {
+      let finishReplacement!: () => void;
+      mockReplaceSessionRequest.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finishReplacement = resolve;
+        }),
+      );
+      mockSingleApp();
+
+      const initialization = bridge.initializeApps();
+      await vi.waitFor(() =>
+        expect(mockReplaceSessionRequest).toHaveBeenCalledOnce(),
+      );
+      await bridge.sendComponentValues({
+        objectIds: [uiElementId("slider-1")],
+        values: [2],
+      });
+
+      expect(mockBridge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          appId: "app-1",
+          sessionGeneration: 1,
+        }),
+      );
+      finishReplacement();
+      await initialization;
     });
   });
 
@@ -313,7 +446,11 @@ describe("IslandsPyodideBridge", () => {
       await bridge.sendRun(request);
 
       // Verify loadPackages was called with joined codes
-      expect(mockLoadPackages).toHaveBeenCalledWith("import pandas");
+      expect(mockLoadPackages).toHaveBeenCalledWith({
+        appId: undefined,
+        code: "import pandas",
+        sessionGeneration: undefined,
+      });
 
       // Verify order: loadPackages should be called before bridge
       const loadPackagesCallOrder =

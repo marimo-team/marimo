@@ -63,8 +63,14 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private readonly store: typeof defaultStore;
   private readonly root: Document | Element;
   private readonly autoStartSessions: boolean;
+  private session:
+    | { appId: string; code?: string; sessionGeneration: number }
+    | undefined;
+  private nextSessionGeneration = 0;
+  private appTransition = Promise.resolve();
 
   public initialized = new Deferred<void>();
+  public workerReady = new Deferred<void>();
 
   constructor(config: IslandsBridgeConfig = {}) {
     this.store = config.store || defaultStore;
@@ -88,8 +94,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
    */
   private setupMessageListeners(): void {
     this.rpc.addMessageListener("ready", () => {
+      this.workerReady.resolve();
       if (this.autoStartSessions) {
-        this.startSessionsForAllApps();
+        void this.startSessionsForAllApps();
       }
     });
 
@@ -118,8 +125,18 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Starts sessions for all apps found in the DOM
    */
-  private startSessionsForAllApps(): void {
+  private startSessionsForAllApps(): Promise<void> {
+    return this.enqueueAppTransition(() => this.startApps(false));
+  }
+
+  async initializeApps(): Promise<void> {
+    await this.workerReady.promise;
+    await this.enqueueAppTransition(() => this.startApps(true));
+  }
+
+  private async startApps(replaceSingleApp: boolean): Promise<void> {
     const apps = parseMarimoIslandApps(this.root);
+    const replacesSession = replaceSingleApp && apps.length === 1;
     Logger.debug(
       `Starting sessions for ${apps.length} app(s):`,
       apps.map((a) => `${a.id} (${a.cells.length} cells)`),
@@ -134,20 +151,75 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     const notebookCode = exportContext?.notebookCode;
     for (const app of apps) {
       const file = notebookCode || createMarimoFile(app);
+      if (
+        replacesSession &&
+        this.session?.appId === app.id &&
+        this.session.code === file
+      ) {
+        return;
+      }
       Logger.debug(`App ${app.id} marimo file:\n`, file);
-      this.startSession({
+      const request = {
         code: file,
         appId: app.id,
-      }).catch((error) => {
+        sessionGeneration: ++this.nextSessionGeneration,
+      };
+      const previousSession = this.session;
+      if (replacesSession || !previousSession) {
+        this.session = {
+          ...request,
+          code: replacesSession ? file : undefined,
+        };
+      }
+      const operation = replacesSession
+        ? this.rpc.proxy.request.replaceSession(request)
+        : this.startSession(request);
+      try {
+        await operation;
+      } catch (error) {
+        if (this.session?.sessionGeneration === request.sessionGeneration) {
+          this.session = replacesSession ? undefined : previousSession;
+        }
         Logger.error(`Failed to start session for app ${app.id}:`, error);
-      });
+        if (replacesSession) {
+          throw error;
+        }
+      }
     }
+  }
+
+  async stopSession(appId?: string): Promise<void> {
+    await this.enqueueAppTransition(async () => {
+      const session = this.session;
+      if (session?.code === undefined || (appId && session.appId !== appId)) {
+        return;
+      }
+      try {
+        await this.rpc.proxy.request.stopSession(
+          appId === undefined
+            ? { sessionGeneration: session.sessionGeneration }
+            : { appId, sessionGeneration: session.sessionGeneration },
+        );
+      } finally {
+        this.session = undefined;
+      }
+    });
+  }
+
+  private enqueueAppTransition(operation: () => Promise<void>): Promise<void> {
+    const result = this.appTransition.then(operation);
+    this.appTransition = result.catch(() => undefined);
+    return result;
   }
 
   /**
    * Starts a new Python session for an app
    */
-  async startSession(opts: { code: string; appId: string }): Promise<void> {
+  async startSession(opts: {
+    code: string;
+    appId: string;
+    sessionGeneration: number;
+  }): Promise<void> {
     await this.rpc.proxy.request.startSession(opts);
   }
 
@@ -203,11 +275,19 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   // ============================================================================
 
   sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
-    await this.rpc.proxy.request.loadPackages(request.codes.join("\n"));
-    await this.putControlRequest({
-      type: "execute-cells",
-      ...request,
+    const session = this.session;
+    await this.rpc.proxy.request.loadPackages({
+      appId: session?.appId,
+      code: request.codes.join("\n"),
+      sessionGeneration: session?.sessionGeneration,
     });
+    await this.putControlRequest(
+      {
+        type: "execute-cells",
+        ...request,
+      },
+      session,
+    );
     return null;
   };
 
@@ -278,10 +358,17 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
 
   // The kernel uses msgspec to parse control requests, which requires a 'type'
   // field for discriminated union deserialization.
-  private async putControlRequest(operation: CommandMessage): Promise<void> {
+  private async putControlRequest(
+    operation: CommandMessage,
+    session = this.session,
+  ): Promise<void> {
     await this.rpc.proxy.request.bridge({
       functionName: "put_control_request",
       payload: operation,
+      ...(session && {
+        appId: session.appId,
+        sessionGeneration: session.sessionGeneration,
+      }),
     });
   }
 
@@ -301,7 +388,9 @@ let globalBridgeInstance: IslandsPyodideBridge | null = null;
 
 export function getGlobalBridge(): IslandsPyodideBridge {
   if (!globalBridgeInstance) {
-    globalBridgeInstance = new IslandsPyodideBridge();
+    globalBridgeInstance = new IslandsPyodideBridge({
+      autoStartSessions: false,
+    });
   }
   return globalBridgeInstance;
 }
