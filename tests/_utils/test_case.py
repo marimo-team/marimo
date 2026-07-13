@@ -16,6 +16,11 @@ def test_camel_case() -> None:
     assert to_camel_case("") == ""
     assert to_camel_case("alreadyCamelCase") == "alreadyCamelCase"
     assert to_camel_case("With_Some_CAPS") == "withSomeCaps"
+    # Leading underscores are preserved and the first real letter is kept.
+    assert to_camel_case("_private_key") == "_privateKey"
+    assert to_camel_case("_id") == "_id"
+    assert to_camel_case("__dunder_name") == "__dunderName"
+    assert to_camel_case("_") == "_"
 
 
 def test_deep_to_camel_case() -> None:
