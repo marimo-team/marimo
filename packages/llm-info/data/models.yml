@@ -93,7 +93,7 @@ anthropic:
 openai:
   - name: GPT-5.6
     model: gpt-5.6
-    description: ""
+    description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -103,7 +103,7 @@ openai:
 
   - name: GPT-5.6 Luna
     model: gpt-5.6-luna
-    description: ""
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -113,7 +113,7 @@ openai:
 
   - name: GPT-5.6 Sol
     model: gpt-5.6-sol
-    description: ""
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -123,23 +123,13 @@ openai:
 
   - name: GPT-5.6 Terra
     model: gpt-5.6-terra
-    description: ""
+    description: "Balanced model in OpenAI's GPT-5.6 series, suited for everyday coding, reasoning, and agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
     output_types: [text]
     release_date: 2026-07-09
     cost: {input: 2.5, output: 15}
-
-  - name: GPT-Realtime-2.1
-    model: gpt-realtime-2.1
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-07-06
-    cost: {input: 4, output: 24}
 
   - name: GPT-5.5
     model: gpt-5.5
@@ -211,46 +201,6 @@ openai:
     release_date: 2025-12-16
 
 google:
-  - name: Claude Sonnet 5
-    model: claude-sonnet-5@default
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
-  - name: Gemini Omni Flash Preview
-    model: gemini-omni-flash-preview
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking]
-    input_types: [text, image]
-    output_types: []
-    release_date: 2026-06-30
-    cost: {input: 1.5, output: 17.5}
-
-  - name: Claude Opus 4.8
-    model: claude-opus-4-8@default
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-05-28
-    cost: {input: 5, output: 25}
-
-  - name: Nano Banana 2
-    model: gemini-3.1-flash-image
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking]
-    input_types: [text, image, pdf]
-    output_types: [text, image]
-    release_date: 2026-05-28
-    cost: {input: 0.5, output: 60}
-
   - name: Gemini 3.5 Flash
     model: gemini-3.5-flash
     description: "Google's high-efficiency multimodal model, bringing near-Pro level coding and reasoning at Flash-tier cost and speed"
@@ -320,46 +270,6 @@ google:
     cost: {input: 2, output: 12}
 
 bedrock:
-  - name: Claude Sonnet 5 (AU)
-    model: au.anthropic.claude-sonnet-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
-  - name: Claude Sonnet 5 (EU)
-    model: eu.anthropic.claude-sonnet-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2.2, output: 11}
-
-  - name: Claude Sonnet 5 (Global)
-    model: global.anthropic.claude-sonnet-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
-  - name: Claude Sonnet 5 (JP)
-    model: jp.anthropic.claude-sonnet-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -369,6 +279,16 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5 (Global)
+    model: global.anthropic.claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
 
   - name: Claude Sonnet 5
     model: anthropic.claude-sonnet-5
@@ -812,19 +732,9 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
-  - name: Nemotron 3 Ultra
-    model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-06-04
-    cost: {input: 0.75, output: 2.75}
-
   - name: Granite 4.1 8B
     model: ibm-granite/granite-4.1-8b
-    description: ""
+    description: "Dense 8B decoder-only model from IBM's Granite 4.1 family with a 131K-token context window, designed for enterprise tasks"
     roles: [chat, edit]
     capabilities: [tool_calling]
     input_types: [text]
@@ -871,6 +781,16 @@ wandb:
     output_types: [text]
     release_date: 2026-04-07
     cost: {input: 1.4, output: 4.4}
+
+  - name: Nemotron 3 Ultra
+    model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
+    description: "Open frontier-reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-06-04
+    cost: {input: 0.75, output: 2.75}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
