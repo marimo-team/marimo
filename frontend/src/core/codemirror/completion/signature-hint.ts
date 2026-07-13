@@ -1,11 +1,37 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import type { EditorState } from "@codemirror/state";
 import { StateEffect, StateField } from "@codemirror/state";
-import { showTooltip, type Tooltip } from "@codemirror/view";
+import { type EditorView, showTooltip, type Tooltip } from "@codemirror/view";
 
 /**
  * Effect to set (or clear, with `null`) the floating signature hint.
  */
 export const setSignatureHintEffect = StateEffect.define<Tooltip | null>();
+
+// Bound the backward scan so large cells stay cheap on every keystroke.
+const MAX_LINES_BACK = 20;
+
+/**
+ * Cheap heuristic for whether `pos` sits inside an unclosed call, by counting
+ * parentheses balance over the preceding (bounded) lines. Mirrors the LSP
+ * path's `isCursorInsideFunctionCall`; like it, this ignores parens in strings
+ * or comments, which is good enough for dismissing the hint once a call closes.
+ */
+function isCursorInsideCall(state: EditorState, pos: number): boolean {
+  const line = state.doc.lineAt(pos);
+  const startLine = Math.max(1, line.number - MAX_LINES_BACK);
+  const from = state.doc.line(startLine).from;
+  const text = state.doc.sliceString(from, pos);
+  let balance = 0;
+  for (const char of text) {
+    if (char === "(") {
+      balance++;
+    } else if (char === ")") {
+      balance--;
+    }
+  }
+  return balance > 0;
+}
 
 /**
  * Wrap a tooltip so it renders like the completion popup's info box.
@@ -57,12 +83,28 @@ export const signatureHintField = StateField.define<Tooltip | null>({
     if (tr.selection && !tr.docChanged) {
       return null;
     }
-    // Keep the hint anchored across edits; the completion source refreshes or
-    // clears it as new results arrive.
+    // Dismiss once the cursor leaves the call. Otherwise keep the
+    // hint anchored across edits so it doesn't flicker while a fresh result is
+    // in flight; the completion source refreshes or clears it as results arrive.
     if (tr.docChanged) {
+      if (!isCursorInsideCall(tr.state, tr.state.selection.main.head)) {
+        return null;
+      }
       return { ...tooltip, pos: tr.changes.mapPos(tooltip.pos) };
     }
     return tooltip;
   },
   provide: (field) => showTooltip.from(field),
 });
+
+/**
+ * Dismiss the floating signature hint if one is showing.
+ * Returns `true` if a hint was dismissed.
+ */
+export function closeSignatureHint(view: EditorView): boolean {
+  if (view.state.field(signatureHintField, false)) {
+    view.dispatch({ effects: setSignatureHintEffect.of(null) });
+    return true;
+  }
+  return false;
+}
