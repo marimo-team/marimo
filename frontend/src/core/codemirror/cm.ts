@@ -50,6 +50,7 @@ import type { HotkeyProvider } from "../hotkeys/hotkeys";
 import { requestEditCompletion } from "./ai/request";
 import { cellBundle } from "./cells/extensions";
 import type { CodemirrorCellActions } from "./cells/state";
+import { codeLensBundle } from "./code-lens/extension";
 import { jupyterHelpExtension } from "./compat/jupyter";
 import { hintTooltip } from "./completion/hints";
 import { completionKeymap } from "./completion/keymap";
@@ -198,6 +199,8 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
       cellId,
       displayConfig.reference_highlighting ?? true,
     ),
+    // Inline icons linking datasources/buckets/caches to their panels
+    codeLensBundle(cellId),
   ];
 };
 

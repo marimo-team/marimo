@@ -556,7 +556,7 @@ function isPropertyAccess(cursor: TreeCursor): boolean {
  * Checks if the syntax tree contains any syntax errors.
  * If there are errors, we shouldn't show reactive variable highlighting.
  */
-function hasSyntaxErrors(tree: Tree): boolean {
+export function hasSyntaxErrors(tree: Tree): boolean {
   const cursor = tree.cursor();
   do {
     // Lezer uses "⚠" as the error node name for syntax errors
