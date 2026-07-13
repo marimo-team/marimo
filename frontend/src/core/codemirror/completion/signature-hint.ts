@@ -66,13 +66,7 @@ export function asSignatureHint(tooltip: Tooltip): Tooltip {
  * Holds the floating "signature hint" shown after typing `(` or `,` inside a
  * call on the non-LSP (Jedi) completion path.
  *
- * The LSP path has its own signature help; this fills the gap for users
- * without a language server. The completion source (`pythonCompletionSource`)
- * drives it: it dispatches `setSignatureHintEffect` with the tooltip when the
- * backend returns a signature and with `null` otherwise. The hint is also
- * cleared when the cursor moves via a selection-only change (e.g. clicking
- * away or arrowing out of the call), and kept anchored across edits so it
- * doesn't flicker while a fresh result is in flight.
+ * The LSP path has its own signature help; this fills the gap for users without a language server.
  */
 export const signatureHintField = StateField.define<Tooltip | null>({
   create: () => null,
