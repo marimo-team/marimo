@@ -1197,6 +1197,7 @@ UNEXPECTED_STATEMENT_BODY_CELL_VIOLATION = (
 UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
 ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
+NON_MARIMO_MARKDOWN_VIOLATION = "markdown without marimo cells or metadata"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
 SCANNER_UNPARSABLE_CELL_VIOLATION = (
     "Cell contains a syntax error and could not be parsed"
@@ -1221,5 +1222,12 @@ def all_violations_soft(violations: list[Violation]) -> bool:
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
     return any(
         (v.description == NON_MARIMO_PYTHON_SCRIPT_VIOLATION)
+        for v in notebook.violations
+    )
+
+
+def is_non_marimo_markdown(notebook: NotebookSerialization) -> bool:
+    return any(
+        (v.description == NON_MARIMO_MARKDOWN_VIOLATION)
         for v in notebook.violations
     )
