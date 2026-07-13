@@ -13,9 +13,15 @@ const MAX_LINES_BACK = 20;
 
 /**
  * Cheap heuristic for whether `pos` sits inside an unclosed call, by counting
- * parentheses balance over the preceding (bounded) lines. Mirrors the LSP
- * path's `isCursorInsideFunctionCall`; like it, this ignores parens in strings
- * or comments, which is good enough for dismissing the hint once a call closes.
+ * raw parentheses balance over the preceding (bounded) lines. Mirrors the LSP
+ * path's `isCursorInsideFunctionCall`.
+ *
+ * This does NOT distinguish parens inside strings or comments (e.g. `f(")")`),
+ * and it only scans back `MAX_LINES_BACK` lines. That's acceptable because the
+ * sole consumer is hint dismissal: the worst case is the hint lingering or
+ * clearing slightly early in a rare edge case, and it self-corrects on the next
+ * edit or cursor move. A syntax-tree-aware check would be more correct but far
+ * more expensive to run on every keystroke.
  */
 function isCursorInsideCall(state: EditorState, pos: number): boolean {
   const line = state.doc.lineAt(pos);
