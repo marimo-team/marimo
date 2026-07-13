@@ -47,9 +47,14 @@ export function findDeclarationSites(options: {
       }
       return;
     }
-    // Recurse into tuple/list unpacking, e.g. `(a, b) = ...` or `[a, b] = ...`.
+    // Recurse into tuple/list unpacking, e.g. `(a, b) = ...` or `[a, b] = ...`,
+    // and parenthesized targets, e.g. `(df) = ...`.
     // Member/subscript targets (`obj.attr = ...`) are not declarations.
-    if (node.name === "TupleExpression" || node.name === "ArrayExpression") {
+    if (
+      node.name === "TupleExpression" ||
+      node.name === "ArrayExpression" ||
+      node.name === "ParenthesizedExpression"
+    ) {
       for (let child = node.firstChild; child; child = child.nextSibling) {
         collectTargetNames(child);
       }
@@ -192,16 +197,38 @@ function analyzeCacheSite(
 }
 
 /**
+ * True when the `mo` at `from` is a standalone module reference (the object of
+ * `mo.cache`), not an attribute of something else. This filters out chains
+ * like `obj.mo.cache(f)` — where `mo` is a `PropertyName` rather than a
+ * `VariableName` — and mentions inside comments or strings.
+ */
+function isStandaloneMoReference(
+  state: EditorState,
+  tree: Tree,
+  from: number,
+): boolean {
+  const node = tree.resolveInner(from, 1);
+  if (NON_CODE_NODES.has(node.name)) {
+    return false;
+  }
+  // In `obj.mo.cache`, `mo` parses as a `PropertyName`; a standalone `mo`
+  // (including whitespace-separated `mo . cache`) parses as a `VariableName`.
+  return (
+    node.name === "VariableName" &&
+    state.doc.sliceString(node.from, node.to) === "mo"
+  );
+}
+
+/**
  * Finds occurrences of `mo.cache` / `mo.persistent_cache` (as a decorator,
  * call, or context manager) with a simple text match, skipping mentions in
- * comments and strings. `to` extends past call arguments when present.
+ * comments, strings, and attribute chains (`obj.mo.cache`). `to` extends past
+ * call arguments when present.
  */
 export function findCacheSites(state: EditorState): CacheSite[] {
   const tree = syntaxTree(state);
   return [...state.doc.toString().matchAll(CACHE_PATTERN)]
-    .filter(
-      (match) => !NON_CODE_NODES.has(tree.resolveInner(match.index, 1).name),
-    )
+    .filter((match) => isStandaloneMoReference(state, tree, match.index))
     .map((match) =>
       analyzeCacheSite(state, tree, match.index, match.index + match[0].length),
     );

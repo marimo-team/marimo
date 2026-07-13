@@ -6,6 +6,7 @@ import {
   sessionPanelAtom,
 } from "@/components/editor/chrome/panels/panel-accordion-state";
 import { openPanel } from "@/components/editor/chrome/state";
+import { assertNever } from "@/utils/assertNever";
 import type { CodeLensKind } from "./entities";
 
 /**
@@ -27,5 +28,7 @@ export function openLensTarget(kind: CodeLensKind): void {
       // No-ops if the cache panel is hidden (not in the layout)
       openPanel("cache");
       return;
+    default:
+      assertNever(kind);
   }
 }

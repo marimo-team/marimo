@@ -54,6 +54,10 @@ describe("findDeclarationSites", () => {
     ]);
   });
 
+  it("handles a parenthesized single target", () => {
+    expect(run(["df"], "(df) = load()").map((t) => t.name)).toEqual(["df"]);
+  });
+
   it("returns only the first assignment site per name", () => {
     const targets = run(["df"], "df = 1\ndf = 2");
     expect(targets).toEqual([{ from: 0, to: 2, name: "df" }]);
@@ -134,6 +138,11 @@ describe("findCacheSites", () => {
     expect(runCache("memo.cache(f)")).toEqual([]);
     expect(runCache("mo.cached(f)")).toEqual([]);
     expect(runCache("mo.cache_info()")).toEqual([]);
+  });
+
+  it("does not match attribute chains like obj.mo.cache", () => {
+    expect(runCache("obj.mo.cache(f)")).toEqual([]);
+    expect(runCache("self.mo.persistent_cache(g)")).toEqual([]);
   });
 
   it("does not match mentions in comments or strings", () => {

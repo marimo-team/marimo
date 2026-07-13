@@ -147,15 +147,25 @@ const CachePopover: React.FC<{
   const variables = useAtomValue(variablesAtom);
   const cacheInfo = useAtomValue(cacheInfoAtom);
 
-  // Refresh notebook-wide cache info while open
-  useEffect(() => {
-    void getRequestClient().getCacheInfo();
-  }, []);
-
   const variable = boundName ? variables[boundName as VariableName] : undefined;
   const stats = variable?.dataType?.startsWith("_cache_call")
     ? variable.value?.match(CACHE_STATS_PATTERN)
     : undefined;
+  const hasLocalStats = Boolean(stats);
+
+  // Only fetch the notebook-wide fallback when there are no per-cache stats to
+  // show. Swallow failures (disconnects, kernel not ready) so the popover
+  // doesn't emit an unhandled promise rejection.
+  useEffect(() => {
+    if (hasLocalStats) {
+      return;
+    }
+    getRequestClient()
+      .getCacheInfo()
+      .catch(() => {
+        // Keep any stale cache info; nothing to surface here
+      });
+  }, [hasLocalStats]);
 
   return (
     <div className={CONTAINER_STYLES}>
