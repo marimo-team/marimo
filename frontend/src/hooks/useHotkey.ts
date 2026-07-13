@@ -17,13 +17,31 @@ type HotkeyHandler = (
   // oxlint-disable-next-line typescript/no-invalid-void-type
 ) => boolean | void | undefined | Promise<void>;
 
+interface HotkeyOptions {
+  /**
+   * If true, the hotkey is not handled at all: the callback does not run, the
+   * event's default is not prevented, and the action is not registered in the
+   * shortcut registry.
+   *
+   * This differs from passing `Functions.NOOP` as the callback, which still
+   * swallows the keystroke (preventDefault) to suppress native browser/OS
+   * behavior.
+   */
+  disabled?: boolean;
+}
+
 /**
  * Registers a hotkey listener for the given shortcut.
  *
  * @param callback The callback to run when the shortcut is pressed. It does not need to be memoized as this hook will always use the latest callback.
  * If the callback returns false, preventDefault will not be called on the event.
  */
-export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
+export function useHotkey(
+  shortcut: HotkeyAction,
+  callback: HotkeyHandler,
+  options: HotkeyOptions = {},
+) {
+  const { disabled = false } = options;
   const { registerAction, unregisterAction } = useSetRegisteredAction();
   const hotkeys = useAtomValue(hotkeysAtom);
 
@@ -31,7 +49,7 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
   const memoizeCallback = useEvent((evt?: KeyboardEvent) => callback(evt));
 
   const listener = useEvent((e: KeyboardEvent) => {
-    if (e.defaultPrevented) {
+    if (disabled || e.defaultPrevented) {
       return;
     }
 
@@ -51,11 +69,18 @@ export function useHotkey(shortcut: HotkeyAction, callback: HotkeyHandler) {
 
   // Register with the shortcut registry
   useEffect(() => {
-    if (!isNOOP) {
+    if (!isNOOP && !disabled) {
       registerAction(shortcut, memoizeCallback);
       return () => unregisterAction(shortcut);
     }
-  }, [memoizeCallback, shortcut, isNOOP, registerAction, unregisterAction]);
+  }, [
+    memoizeCallback,
+    shortcut,
+    isNOOP,
+    disabled,
+    registerAction,
+    unregisterAction,
+  ]);
 }
 
 /**

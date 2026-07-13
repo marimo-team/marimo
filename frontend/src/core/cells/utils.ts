@@ -2,6 +2,8 @@
 
 import type { EditorView } from "@codemirror/view";
 import { Objects } from "@/utils/objects";
+import type { MarimoError, OutputMessage } from "../kernel/messages";
+import { isErrorMime } from "../mime";
 import type { RuntimeState } from "../network/types";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
@@ -195,4 +197,53 @@ export function cellStatusClasses({
     disabled: disabled ?? false,
     stale: status === "disabled-transitively",
   };
+}
+
+/**
+ * Status classes for a published cell (read or present mode, output only).
+ */
+export function publishedCellClasses({
+  errored,
+  stopped,
+}: {
+  errored: boolean;
+  stopped: boolean;
+}) {
+  return {
+    published: true,
+    "has-error": errored,
+    stopped: stopped,
+  };
+}
+
+/**
+ * Whether a published cell (read or present mode) should be hidden.
+ *
+ * Errored, interrupted, and stopped cells (and error outputs) are hidden in
+ * published views, unless `show_tracebacks` is enabled and the output carries
+ * an exception traceback to display inline.
+ */
+export function shouldHidePublishedCell({
+  errored,
+  interrupted,
+  stopped,
+  output,
+  showErrorTracebacks,
+}: {
+  errored: boolean;
+  interrupted: boolean;
+  stopped: boolean;
+  output: OutputMessage | null;
+  showErrorTracebacks: boolean;
+}): boolean {
+  const outputIsError = isErrorMime(output?.mimetype);
+  const hasTraceback =
+    showErrorTracebacks &&
+    outputIsError &&
+    Array.isArray(output?.data) &&
+    output.data.some(
+      (e: MarimoError) =>
+        e.type === "exception" && "traceback" in e && e.traceback,
+    );
+  return (errored || interrupted || stopped || outputIsError) && !hasTraceback;
 }
