@@ -46,6 +46,23 @@ class TestPairPrompt:
         assert "execute-code.sh" in result.output
         assert "marimo-pair" in result.output
 
+    def test_prompt_with_session(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+        )
+        assert result.exit_code == 0
+        assert TEST_URL in result.output
+        assert "s_ab12cd" in result.output
+        assert "--session s_ab12cd" in result.output
+
+    def test_prompt_without_session_omits_flag(self) -> None:
+        result = _runner.invoke(
+            cli_main, ["pair", "prompt", "--url", TEST_URL]
+        )
+        assert result.exit_code == 0
+        assert "--session" not in result.output
+
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
             for flag in ("--claude", "--codex", "--opencode"):
@@ -91,6 +108,28 @@ class TestPairPromptWithToken:
         assert token_file.read_text() == "my-secret-token"
         if sys.platform != "win32":
             assert oct(token_file.stat().st_mode & 0o777) == "0o600"
+
+    def test_with_token_and_session(self, tmp_path: Path) -> None:
+        with patch(
+            "marimo._cli.pair.commands._token_dir", return_value=tmp_path
+        ):
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    TEST_URL,
+                    "--session",
+                    "s_ab12cd",
+                    "--with-token",
+                ],
+                input="my-secret-token\n",
+            )
+        assert result.exit_code == 0
+        assert "--session s_ab12cd" in result.output
+        # The token hint should target the same session.
+        assert "--session s_ab12cd --token" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
