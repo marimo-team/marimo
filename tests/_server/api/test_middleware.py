@@ -161,6 +161,46 @@ def test_skew_protection_skips_execute(edit_app: Starlette) -> None:
     )
 
 
+def test_skew_protection_enforced_for_form_content_type(
+    edit_app: Starlette,
+) -> None:
+    """The skew protection token is enforced regardless of Content-Type."""
+    client = TestClient(edit_app)
+
+    # An invalid skew token with a form-urlencoded Content-Type is rejected.
+    # `data=` sends an application/x-www-form-urlencoded body.
+    response = client.post(
+        "/api/home/running_notebooks",
+        headers=token_header("fake-token", "old-skew-id"),
+        data={"foo": "bar"},
+    )
+    assert response.status_code == 401, response.text
+
+    # And a valid skew token still passes.
+    response = client.post(
+        "/api/home/running_notebooks",
+        headers=token_header("fake-token"),
+        data={"foo": "bar"},
+    )
+    assert response.status_code == 200, response.text
+
+
+def test_skew_protection_skips_login(edit_app: Starlette) -> None:
+    """The login form is a plain HTML form and cannot attach the server
+    token, so it must be exempt from skew protection."""
+    client = TestClient(edit_app, follow_redirects=False)
+
+    # A login POST without any skew token reaches the handler instead of
+    # being blocked (401) by skew protection. The login itself fails
+    # (bad password), which re-renders the login page with an error.
+    response = client.post(
+        "/auth/login",
+        data={"password": "wrong-password"},
+    )
+    assert response.status_code == 200, response.text
+    assert "Invalid password" in response.text
+
+
 def test_skew_protection_disabled() -> None:
     """Test that skew protection can be disabled via CLI flag"""
     app = create_starlette_app(base_url="", skew_protection=False)
