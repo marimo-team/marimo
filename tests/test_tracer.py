@@ -454,3 +454,83 @@ class TestInstrumentAI:
             side_effect=RuntimeError("boom"),
         ):
             _instrument_ai(MagicMock())
+
+
+@pytest.mark.requires("opentelemetry")
+class TestAttachTraceContext:
+    """Tests for attach_trace_context() cross-process propagation."""
+
+    def setup_method(self) -> None:
+        _reset_otel()
+
+    def teardown_method(self) -> None:
+        _reset_otel()
+
+    def _traceparent_for(self, trace_id: int, span_id: int) -> str:
+        return f"00-{trace_id:032x}-{span_id:016x}-01"
+
+    def test_links_span_to_incoming_traceparent(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import attach_trace_context
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        trace.set_tracer_provider(TracerProvider())
+        tracer = trace.get_tracer("test")
+
+        trace_id = 0x0AF7651916CD43DD8448EB211C80319C
+        span_id = 0xB7AD6B7169203331
+        headers = {"traceparent": self._traceparent_for(trace_id, span_id)}
+
+        with attach_trace_context(headers):
+            with tracer.start_as_current_span("child") as span:
+                ctx = span.get_span_context()
+                # Child span inherits the incoming trace id and is parented to
+                # the incoming span.
+                assert ctx.trace_id == trace_id
+                assert span.parent is not None
+                assert span.parent.span_id == span_id
+
+    def test_noop_when_no_headers(self) -> None:
+        from marimo._tracer import attach_trace_context
+
+        # Should not raise and should be a pure no-op.
+        with attach_trace_context(None):
+            pass
+        with attach_trace_context({}):
+            pass
+
+    def test_noop_when_tracing_disabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import attach_trace_context
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", False)
+        trace.set_tracer_provider(TracerProvider())
+        tracer = trace.get_tracer("test")
+
+        headers = {
+            "traceparent": self._traceparent_for(
+                0x0AF7651916CD43DD8448EB211C80319C, 0xB7AD6B7169203331
+            )
+        }
+
+        with attach_trace_context(headers):
+            with tracer.start_as_current_span("child") as span:
+                # No context attached; the span starts a fresh, parentless
+                # trace.
+                assert (
+                    span.get_span_context().trace_id
+                    != 0x0AF7651916CD43DD8448EB211C80319C
+                )
+                assert span.parent is None

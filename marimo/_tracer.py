@@ -14,7 +14,7 @@ from marimo._utils.platform import is_pyodide
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterator, Mapping, Sequence
     from pathlib import Path
 
     from opentelemetry import trace
@@ -283,6 +283,40 @@ def create_tracer(trace_name: str) -> trace.Tracer:
         LOGGER.debug("Failed to create tracer: %s", e)
 
     return cast(Any, MockTracer())  # type: ignore[no-any-return]
+
+
+@contextmanager
+def attach_trace_context(
+    headers: Mapping[str, str] | None,
+) -> Iterator[None]:
+    """Attach the W3C trace context from incoming request headers.
+
+    Extracts a `traceparent`/`tracestate` (or any configured propagator's)
+    context from `headers` and installs it as the current context for the
+    duration of the block. This links kernel spans to the trace of the
+    originating HTTP request, so a distributed trace (e.g. from an upstream
+    FastAPI/Starlette app) can span both the marimo server and the kernel,
+    even though the kernel runs in a separate process.
+
+    No-op when there are no headers, tracing is disabled, or opentelemetry
+    is unavailable.
+    """
+    if not headers or is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
+        yield
+        return
+
+    try:
+        from opentelemetry import context as otel_context
+        from opentelemetry.propagate import extract
+    except Exception:
+        yield
+        return
+
+    token = otel_context.attach(extract(carrier=dict(headers)))
+    try:
+        yield
+    finally:
+        otel_context.detach(token)
 
 
 try:
