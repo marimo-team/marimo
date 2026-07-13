@@ -46,6 +46,9 @@ class CodeLensWidget extends WidgetType {
 
   override eq(other: CodeLensWidget): boolean {
     return (
+      // `pos` is captured by the DOM hover/click handlers, so a reused widget
+      // whose anchor moved must not be treated as equal
+      this.spec.pos === other.spec.pos &&
       this.spec.kind === other.spec.kind &&
       this.spec.name === other.spec.name &&
       this.spec.cache?.boundName === other.spec.cache?.boundName &&
@@ -58,6 +61,8 @@ class CodeLensWidget extends WidgetType {
     const element = document.createElement("span");
     element.className = "mo-code-lens";
     element.setAttribute("role", "button");
+    // Focusable so the action is reachable and activatable by keyboard
+    element.tabIndex = 0;
     // No `title`: the native tooltip is replaced by the hover popover
     element.setAttribute("aria-label", LENS_TOOLTIPS[spec.kind]);
     // Static, trusted markup (see icons.ts)
@@ -91,6 +96,14 @@ class CodeLensWidget extends WidgetType {
       event.stopPropagation();
       hidePopover();
       openLensTarget(spec.kind);
+    };
+    element.onkeydown = (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        event.stopPropagation();
+        hidePopover();
+        openLensTarget(spec.kind);
+      }
     };
     return element;
   }
@@ -195,7 +208,12 @@ class CodeLensPlugin {
   }
 
   update(update: ViewUpdate) {
-    if (update.docChanged) {
+    // Recompute on edits, and when the cell's language changes (e.g. Python ->
+    // SQL) so stale Python-only icons are cleared even if the text is unchanged
+    const adapterChanged =
+      update.startState.field(languageAdapterState, false)?.type !==
+      update.state.field(languageAdapterState, false)?.type;
+    if (update.docChanged || adapterChanged) {
       this.scheduleUpdate();
     }
   }

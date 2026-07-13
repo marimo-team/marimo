@@ -166,6 +166,25 @@ describe("codeLensBundle", () => {
     expect(openLensTarget).toHaveBeenCalledWith("table");
   });
 
+  it("is keyboard focusable and activatable", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    const lens = lenses(v)[0];
+
+    expect(lens.getAttribute("role")).toBe("button");
+    expect(lens.tabIndex).toBe(0);
+
+    lens.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    expect(openLensTarget).toHaveBeenCalledWith("table");
+
+    lens.dispatchEvent(
+      new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+    );
+    expect(openLensTarget).toHaveBeenCalledTimes(2);
+  });
+
   it("renders a lens at a bucket declaration", async () => {
     seedStore({ namespaces: [BUCKET_NAMESPACE] });
     const v = await mount("bucket = get_bucket()");
