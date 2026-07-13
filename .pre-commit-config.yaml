@@ -67,7 +67,7 @@ repos:
     hooks:
       - id: unique-test-filenames
         name: Enforce unique test filenames
-        entry: python scripts/check_test_filenames.py
+        entry: uv run python scripts/check_test_filenames.py
         language: system
         pass_filenames: false
         files: ^tests/.*\.py$
