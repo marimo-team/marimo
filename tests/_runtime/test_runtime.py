@@ -2694,6 +2694,28 @@ class TestStoredOutput:
         op_names = [op.get("op") for op in stream.operations]
         assert "missing-package-alert" in op_names
 
+    async def test_marimo_submodule_not_reported_as_missing(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A failed `import marimo.<x>` must not raise a missing-package alert.
+
+        marimo is always installed; a missing submodule can't be fixed by
+        installing marimo, so we never nudge callers (e.g. code_mode) to
+        install it.
+        """
+        k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
+
+        await k.run(
+            [
+                exec_req.get("import marimo.this_submodule_does_not_exist"),
+            ]
+        )
+
+        stream = MockStream(mocked_kernel.stream)
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" not in op_names
+
 
 class TestDisable:
     async def test_disable_and_reenable_not_stale(
