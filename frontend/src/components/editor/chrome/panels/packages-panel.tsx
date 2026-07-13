@@ -307,7 +307,7 @@ const PackagesList: React.FC<{
   // regardless of capitalization (package managers sort inconsistently).
   const sortedPackages = React.useMemo(
     () =>
-      [...packages].sort((a, b) =>
+      packages.toSorted((a, b) =>
         a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
       ),
     [packages],
