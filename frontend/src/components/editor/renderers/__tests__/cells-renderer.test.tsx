@@ -8,10 +8,14 @@ import { initialLayoutState, layoutStateAtom } from "@/core/layout/layout";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { CellsRenderer } from "../cells-renderer";
+import type { LayoutType } from "../types";
 
 function renderWithStore(
   mode: AppMode,
-  { kiosk = false, layout = "vertical" as const } = {},
+  {
+    kiosk = false,
+    layout = "vertical",
+  }: { kiosk?: boolean; layout?: LayoutType } = {},
 ) {
   const store = createStore();
   store.set(requestClientAtom, MockRequestClient.create());
@@ -41,6 +45,13 @@ describe("CellsRenderer", () => {
     // swapping to the layout renderer would remount every output.
     const { queryByTestId } = renderWithStore("present");
     expect(queryByTestId("notebook-children")).toBeTruthy();
+  });
+
+  it("uses the layout renderer in present mode with a non-vertical layout", () => {
+    // Only present+vertical keeps the editable tree mounted; grid/slides swap
+    // to their layout renderer (which remounts outputs) per the toggle logic.
+    const { queryByTestId } = renderWithStore("present", { layout: "grid" });
+    expect(queryByTestId("notebook-children")).toBeFalsy();
   });
 
   it("uses the layout renderer in read mode", () => {

@@ -140,7 +140,10 @@ describe("output persistence across mode changes", () => {
 
     const { container, rerender } = render(renderCell("edit"), { wrapper });
 
-    // Returns true when the element is gone or inside a `hidden` ancestor
+    // Returns true when the element is not visible: either gone from the DOM or
+    // inside a `hidden` ancestor. Edit chrome may unmount while presenting (only
+    // the cell *output* is contractually kept mounted — see the DOM-node test
+    // above); either way it must not be visible.
     const isHidden = (testId: string) => {
       const el = container.querySelector(`[data-testid='${testId}']`);
       return el === null || el.closest("[hidden]") !== null;

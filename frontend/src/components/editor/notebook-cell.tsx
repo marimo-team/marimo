@@ -1159,6 +1159,14 @@ const SetupCellComponent = ({
 
   const isPresenting = mode === "present";
 
+  // CodeMirror cannot measure itself while its hidden ancestor is display:none,
+  // so re-measure when returning to edit mode. (Mirrors EditableCellComponent.)
+  useEffect(() => {
+    if (!isPresenting) {
+      editorView.current?.requestMeasure();
+    }
+  }, [isPresenting, editorView]);
+
   return (
     <TooltipProvider>
       <CellActionsContextMenu
