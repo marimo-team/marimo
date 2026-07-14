@@ -42,6 +42,22 @@ describe("useMessageQueue", () => {
     ]);
   });
 
+  it("flushNext sees a message enqueued in the same act (before re-render)", () => {
+    const { result } = renderHook(() => useMessageQueue());
+    const send = vi.fn();
+
+    // Mirrors enqueue + onFinish in the same tick: the ref must be updated
+    // synchronously inside enqueue, not only on the next render.
+    act(() => {
+      result.current.enqueue([textPart("queued while finishing")]);
+      result.current.flushNext(send);
+    });
+
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledWith([textPart("queued while finishing")]);
+    expect(result.current.messages).toEqual([]);
+  });
+
   it("drains sequentially, even across synchronous flushNext calls", () => {
     const { result } = renderHook(() => useMessageQueue());
     const send = vi.fn();

@@ -2,7 +2,7 @@
 
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
-import { hasPendingToolCalls } from "../chat-utils";
+import { hasPendingToolCalls, shouldFlushQueue } from "../chat-utils";
 
 /**
  * `hasPendingToolCalls` powers `sendAutomaticallyWhen` in `mo.ui.chat`:
@@ -265,5 +265,31 @@ describe("hasPendingToolCalls", () => {
         ]),
       ]),
     ).toBe(true);
+  });
+});
+
+describe("shouldFlushQueue", () => {
+  it("flushes when the turn completed without error or pending tools", () => {
+    expect(
+      shouldFlushQueue({ isError: false, hasPendingToolCalls: false }),
+    ).toBe(true);
+  });
+
+  it("does not flush on error", () => {
+    expect(
+      shouldFlushQueue({ isError: true, hasPendingToolCalls: false }),
+    ).toBe(false);
+  });
+
+  it("does not flush while a tool round-trip is still pending", () => {
+    expect(
+      shouldFlushQueue({ isError: false, hasPendingToolCalls: true }),
+    ).toBe(false);
+  });
+
+  it("does not flush on error even when tools are also pending", () => {
+    expect(shouldFlushQueue({ isError: true, hasPendingToolCalls: true })).toBe(
+      false,
+    );
   });
 });

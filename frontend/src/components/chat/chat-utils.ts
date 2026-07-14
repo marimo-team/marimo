@@ -251,7 +251,11 @@ export function useMessageQueue() {
   messagesRef.current = messages;
 
   const enqueue = useEvent((parts: ChatMessagePart[]) => {
-    setMessages((prev) => [...prev, { id: generateUUID(), parts }]);
+    setMessages((prev) => {
+      const next = [...prev, { id: generateUUID(), parts }];
+      messagesRef.current = next;
+      return next;
+    });
   });
 
   const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {
