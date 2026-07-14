@@ -17,8 +17,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   design-md:
@@ -34,3 +33,5 @@ jobs:
           frozen: false
           cache: false
       - run: pixi run make design-md-check
+    permissions:
+      contents: read

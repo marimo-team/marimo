@@ -7,8 +7,7 @@ on:
         description: "The release version that was built"
         value: ${{ jobs.publish_release.outputs.marimo_version }}
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   TURBO_TEAM: marimo
@@ -108,7 +107,7 @@ jobs:
       package-artifact-name: frontend
       working-directory: '.'
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write # Required for OIDC
       contents: read
 
   publish_islands:
@@ -119,5 +118,5 @@ jobs:
       package-artifact-name: frontend-islands
       working-directory: '.'
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write # Required for OIDC
       contents: read

@@ -11,9 +11,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.run_id }}
   cancel-in-progress: false
 
-permissions:
-  contents: read
-  id-token: write # required for Doppler OIDC
+permissions: {}
 
 env:
   UV_EXCLUDE_NEWER: "7 days"
@@ -105,3 +103,6 @@ jobs:
           VERCEL_PROJECT_ID: ${{ steps.secrets.outputs.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ steps.secrets.outputs.VERCEL_TOKEN }}
         run: vercel deploy --prebuilt --prod
+    permissions:
+      contents: read
+      id-token: write

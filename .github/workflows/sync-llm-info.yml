@@ -10,10 +10,7 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  id-token: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   sync-models:
@@ -121,3 +118,7 @@ jobs:
           - `pnpm --dir packages/llm-info test`
           EOF
           )"
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write

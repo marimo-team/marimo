@@ -15,8 +15,7 @@ on:
       - "README_Traditional_Chinese.md"
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   link-check:
@@ -29,12 +28,7 @@ jobs:
         uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2
         with:
           args: >-
-            --verbose
-            --no-progress
-            --accept 200,403,408
-            README.md
-            README_Chinese.md
-            README_Japanese.md
-            README_Spanish.md
-            README_Traditional_Chinese.md
+            --verbose --no-progress --accept 200,403,408 README.md README_Chinese.md README_Japanese.md README_Spanish.md README_Traditional_Chinese.md
           fail: true
+    permissions:
+      contents: read

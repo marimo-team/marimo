@@ -9,9 +9,7 @@ on:
 jobs:
   create-tag:
     if: >-
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.base.ref == 'main' &&
-      startsWith(github.event.pull_request.title, 'release: ')
+      github.event.pull_request.merged == true && github.event.pull_request.base.ref == 'main' && startsWith(github.event.pull_request.title, 'release: ')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -68,3 +66,4 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           git tag -a "$VERSION" -m "release: $VERSION"
           git push origin "$VERSION"
+permissions: {}

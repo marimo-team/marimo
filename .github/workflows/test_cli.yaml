@@ -9,8 +9,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   TURBO_TEAM: marimo
@@ -30,6 +29,8 @@ jobs:
             cli:
               - 'marimo/**'
               - '.github/workflows/test_cli.yaml'
+    permissions:
+      contents: read
 
   build_wheel:
     needs: changes
@@ -133,6 +134,8 @@ jobs:
           wheel_file=$(ls dist/*.whl)
           echo "Testing wheel: $wheel_file"
           node tests/_pyodide/test_pyodide_acceptance.mjs "$wheel_file"
+    permissions:
+      contents: read
 
   test_cli:
     needs: [changes, build_wheel]
@@ -179,6 +182,8 @@ jobs:
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl
           uv run --no-project pytest -v tests/_cli/test_cli* -p no:xdist --maxfail=2
+    permissions:
+      contents: read
 
   test_examples:
     needs: [changes]
@@ -214,3 +219,5 @@ jobs:
             git --no-pager diff marimo/_tutorials
             exit 1
           fi
+    permissions:
+      contents: read

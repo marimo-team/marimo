@@ -8,9 +8,7 @@ on:
     - cron: "0 9 * * *"
   workflow_dispatch:
 
-permissions:
-  issues: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   stale:
@@ -62,14 +60,9 @@ jobs:
           days-before-close: 14
           stale-pr-label: "stale"
           stale-pr-message: >
-            This pull request has been automatically marked as stale because it
-            has not had activity in 30 days. It will be closed in 14 days if no
-            further activity occurs. If this PR is still relevant, please leave
-            a comment or push new changes to keep it open. Thank you for your
-            contribution!
+            This pull request has been automatically marked as stale because it has not had activity in 30 days. It will be closed in 14 days if no further activity occurs. If this PR is still relevant, please leave a comment or push new changes to keep it open. Thank you for your contribution!
           close-pr-message: >
-            This pull request has been automatically closed due to inactivity.
-            Feel free to reopen it if you'd like to continue working on it.
+            This pull request has been automatically closed due to inactivity. Feel free to reopen it if you'd like to continue working on it.
           close-pr-label: "closed-stale"
           # Process external drafts; team drafts are exempted via the
           # "team-draft" label applied in the step above.
@@ -85,3 +78,6 @@ jobs:
           # --- Rate Limiting ---
           # Ascending order processes oldest first
           ascending: true
+    permissions:
+      issues: write
+      pull-requests: write

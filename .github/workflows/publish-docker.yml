@@ -14,9 +14,7 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: read
-  packages: write
+permissions: {}
 
 env:
   REGISTRY: ghcr.io
@@ -199,3 +197,6 @@ jobs:
           status: ${{ steps.docker_publish_status.outputs.status }}
           slack-webhook-url: ${{ secrets.SLACK_WEBHOOK_URL_RELEASES }}
           artifact-url: "https://ghcr.io/marimo-team/marimo"
+    permissions:
+      contents: read
+      packages: write

@@ -8,9 +8,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.issue.number }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 env:
   TURBO_TEAM: marimo
@@ -27,9 +25,7 @@ jobs:
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR' ||
         github.event.comment.author_association == 'MEMBER'
-      ) &&
-      github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/marimo create-test-release')
+      ) && github.event.issue.pull_request && contains(github.event.comment.body, '/marimo create-test-release')
     name: 📤 Publish test release
     runs-on: ubuntu-latest
     environment: testpypi
@@ -160,7 +156,7 @@ jobs:
       working-directory: '.'
       npm-tag: 'dev'
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write # Required for OIDC
       contents: read
 
   update_pr_comment:
@@ -215,3 +211,6 @@ jobs:
             } catch (err) {
               console.error(err);
             }
+    permissions:
+      contents: read
+      pull-requests: write

@@ -6,10 +6,9 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.release.id }}
-  cancel-in-progress: false  # Don't cancel release notifications
+  cancel-in-progress: false # Don't cancel release notifications
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   github-releases-to-discord:
@@ -25,3 +24,5 @@ jobs:
           color: "2105893"
           username: "GitHub"
           avatar_url: "https://cdn.discordapp.com/icons/1059888774789730424/bc13378b871c363137358a531e1a2f82.png"
+    permissions:
+      contents: read

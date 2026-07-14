@@ -9,8 +9,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
@@ -31,6 +30,8 @@ jobs:
               - 'frontend/**'
               - 'marimo/**'
               - '.github/workflows/playwright.yml'
+    permissions:
+      contents: read
   test:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}

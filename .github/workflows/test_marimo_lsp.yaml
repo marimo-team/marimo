@@ -9,9 +9,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
-  issues: write
+permissions: {}
 
 env:
   UV_EXCLUDE_NEWER: "7 days"
@@ -82,3 +80,6 @@ jobs:
                 'This likely means a recent change broke the marimo-lsp integration.',
               ].join('\n'),
             });
+    permissions:
+      contents: read
+      issues: write

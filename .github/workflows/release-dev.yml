@@ -7,8 +7,7 @@ on:
         description: "The dev version that was built"
         value: ${{ jobs.publish_dev_release.outputs.marimo_version }}
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   TURBO_TEAM: marimo
@@ -165,6 +164,8 @@ jobs:
             echo "is_latest=false" >> "$GITHUB_OUTPUT"
             echo "::notice::Skipping npm publish — superseded by a newer commit on main ($LATEST_SHA) during build."
           fi
+    permissions:
+      contents: read
 
   publish_wasm_dev:
     name: 📤 Publish @marimo-team/frontend to npm
@@ -176,7 +177,7 @@ jobs:
       working-directory: '.'
       npm-tag: 'dev'
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write # Required for OIDC
       contents: read
 
   publish_islands_dev:
@@ -189,5 +190,5 @@ jobs:
       working-directory: '.'
       npm-tag: 'dev'
     permissions:
-      id-token: write  # Required for OIDC
+      id-token: write # Required for OIDC
       contents: read

@@ -9,8 +9,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
+permissions: {}
 
 env:
   MARIMO_SKIP_UPDATE_CHECK: 1
@@ -34,6 +33,8 @@ jobs:
               - 'pyproject.toml'
             docs:
               - 'docs/**'
+    permissions:
+      contents: read
 
   test_docs:
     needs: changes
@@ -58,6 +59,8 @@ jobs:
         with:
           check-name: "docs build"
           command: "uv run --group docs mkdocs build --strict"
+    permissions:
+      contents: read
 
   test_check:
     needs: changes
@@ -97,6 +100,8 @@ jobs:
         with:
           check-name: "typecheck"
           command: "uv run --only-group typecheck mypy marimo --exclude=marimo/_tutorials/"
+    permissions:
+      contents: read
 
   # For PRs, we only run the tests for the changed files.
   # If there is a `test-all` label, we run the tests across unchanged files as well.
@@ -140,6 +145,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
+    permissions:
+      contents: read
 
   test_python_macos:
     needs: changes
@@ -159,6 +166,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
+    permissions:
+      contents: read
 
   test_python_windows:
     needs: changes
@@ -178,6 +187,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           dependencies: ${{ matrix.dependencies }}
+    permissions:
+      contents: read
 
   # Only run coverage on `main` so it is not blocking
   test_coverage:

@@ -11,9 +11,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   changes:
@@ -41,6 +39,9 @@ jobs:
             notifications:
               - 'marimo/_schemas/generated/notifications.yaml'
               - '.github/workflows/test_schemas.yaml'
+    permissions:
+      contents: read
+      pull-requests: write
 
   check-schemas:
     needs: changes
@@ -135,3 +136,6 @@ jobs:
               repo: context.repo.repo,
               body: output
             })
+    permissions:
+      contents: read
+      pull-requests: write

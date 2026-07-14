@@ -7,15 +7,10 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: false  # Don't cancel CLA checks
+  cancel-in-progress: false # Don't cancel CLA checks
 
 # explicitly configure permissions, in case your GITHUB_TOKEN workflow permissions are set to read-only in repository settings
-permissions:
-  actions: write
-  contents: write
-  pull-requests: write
-  statuses: write
-  id-token: write # required for Doppler OIDC
+permissions: {}
 
 jobs:
   CLAAssistant:
@@ -54,3 +49,9 @@ jobs:
           #custom-pr-sign-comment: 'The signature to be committed in order to sign the CLA'
           #custom-allsigned-prcomment: 'pull request comment when all contributors has signed, defaults to **CLA Assistant Lite bot** All Contributors have signed the CLA.'
           #use-dco-flag: true - If you are using DCO instead of CLA
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+      statuses: write
+      id-token: write

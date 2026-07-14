@@ -1,7 +1,6 @@
 name: Test Pre-built Wheel
 
-permissions:
-  contents: read
+permissions: {}
 
 on:
   push:
@@ -41,3 +40,5 @@ jobs:
           uv build --wheel
           WHEEL=$(ls dist/*.whl)
           uv tool run --no-build --python=${{ matrix.python-version }} --from "$WHEEL" marimo --version
+    permissions:
+      contents: read

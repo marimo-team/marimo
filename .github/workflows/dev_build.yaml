@@ -6,8 +6,7 @@ on:
       - 'Makefile'
       - 'pyproject.toml'
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   build:
@@ -27,3 +26,5 @@ jobs:
       - run: pixi run make check-prereqs
       - run: pixi run make fe
       - run: pixi run make py
+    permissions:
+      contents: read

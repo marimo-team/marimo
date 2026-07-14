@@ -6,9 +6,7 @@ on:
   pull_request_target:
     types: [labeled, unlabeled, opened, reopened, edited, synchronize]
 
-permissions:
-  contents: read
-  pull-requests: write
+permissions: {}
 
 jobs:
   auto-label:
@@ -17,3 +15,6 @@ jobs:
       - uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: read
+      pull-requests: write
