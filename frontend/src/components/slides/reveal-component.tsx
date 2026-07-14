@@ -27,7 +27,7 @@ import { Logger } from "@/utils/Logger";
 import "./slides.css";
 import "./reveal-slides.css";
 import type {
-  DeckContentAlign,
+  DeckVerticalAlign,
   SlideConfig,
   SlidesLayout,
   SlideType,
@@ -41,7 +41,7 @@ import {
   type ComposedSubslide,
 } from "./compose-slides";
 import {
-  DEFAULT_DECK_CONTENT_ALIGN,
+  DEFAULT_DECK_VERTICAL_ALIGN,
   DEFAULT_DECK_TRANSITION,
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
@@ -303,9 +303,9 @@ export function useParkedPreview(options: {
  * content off the slide edges regardless of alignment.
  */
 function resolveSlideContentStyle(
-  contentAlign: DeckContentAlign | undefined,
+  verticalAlign: DeckVerticalAlign | undefined,
 ): CSSProperties {
-  switch (contentAlign ?? DEFAULT_DECK_CONTENT_ALIGN) {
+  switch (verticalAlign ?? DEFAULT_DECK_VERTICAL_ALIGN) {
     case "top":
       return { margin: "0 20px auto" };
     case "bottom":
@@ -537,7 +537,9 @@ const RevealSlidesComponent = ({
   );
 
   const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
-  const slideContentStyle = resolveSlideContentStyle(layout.deck?.contentAlign);
+  const slideContentStyle = resolveSlideContentStyle(
+    layout.deck?.verticalAlign,
+  );
 
   // Reveal's Notes plugin iframes the deck for the current/upcoming-slide
   // previews. We load the same URL but as a read-only kiosk client with the

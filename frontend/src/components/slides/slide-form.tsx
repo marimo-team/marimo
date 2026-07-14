@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import type {
-  DeckContentAlign,
+  DeckVerticalAlign,
   DeckTransition,
   SlidesLayout,
   SlideType,
@@ -38,7 +38,7 @@ import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
 export const DEFAULT_SLIDE_TYPE: SlideType = "slide";
 export const DEFAULT_DECK_TRANSITION: DeckTransition = "slide";
-export const DEFAULT_DECK_CONTENT_ALIGN: DeckContentAlign = "center";
+export const DEFAULT_DECK_VERTICAL_ALIGN: DeckVerticalAlign = "center";
 const COLLAPSED_CONFIG_WIDTH = 36;
 const slideConfigOpenAtom = atomWithStorage<boolean>(
   "marimo:slides:config-open",
@@ -120,13 +120,13 @@ const DECK_TRANSITION_OPTIONS: DeckTransitionOption[] = [
   { value: "zoom", label: "Zoom", description: "Zoom into the next slide." },
 ];
 
-interface DeckContentAlignOption {
-  value: DeckContentAlign;
+interface DeckVerticalAlignOption {
+  value: DeckVerticalAlign;
   label: string;
   description: string;
 }
 
-const DECK_CONTENT_ALIGN_OPTIONS: DeckContentAlignOption[] = [
+const DECK_VERTICAL_ALIGN_OPTIONS: DeckVerticalAlignOption[] = [
   {
     value: "center",
     label: "Center",
@@ -326,10 +326,10 @@ const DeckConfigForm = ({
     (opt) => opt.value === currentTransition,
   )?.description;
 
-  const currentContentAlign: DeckContentAlign =
-    layout.deck?.contentAlign ?? DEFAULT_DECK_CONTENT_ALIGN;
-  const activeContentAlignDescription = DECK_CONTENT_ALIGN_OPTIONS.find(
-    (opt) => opt.value === currentContentAlign,
+  const currentVerticalAlign: DeckVerticalAlign =
+    layout.deck?.verticalAlign ?? DEFAULT_DECK_VERTICAL_ALIGN;
+  const activeVerticalAlignDescription = DECK_VERTICAL_ALIGN_OPTIONS.find(
+    (opt) => opt.value === currentVerticalAlign,
   )?.description;
 
   const handleTransitionChange = (value: DeckTransition) => {
@@ -339,10 +339,10 @@ const DeckConfigForm = ({
     });
   };
 
-  const handleContentAlignChange = (value: DeckContentAlign) => {
+  const handleVerticalAlignChange = (value: DeckVerticalAlign) => {
     setLayout({
       ...layout,
-      deck: { ...layout.deck, contentAlign: value },
+      deck: { ...layout.deck, verticalAlign: value },
     });
   };
 
@@ -378,31 +378,34 @@ const DeckConfigForm = ({
       </div>
       <div className="flex flex-col gap-1.5">
         <label
-          htmlFor="deck-content-align"
+          htmlFor="deck-vertical-align"
           className="font-semibold text-sm text-foreground"
         >
-          Content alignment
+          Vertical alignment
         </label>
         <Select
-          value={currentContentAlign}
+          value={currentVerticalAlign}
           onValueChange={(value) =>
-            handleContentAlignChange(value as DeckContentAlign)
+            handleVerticalAlignChange(value as DeckVerticalAlign)
           }
         >
-          <SelectTrigger id="deck-content-align" aria-label="Content alignment">
+          <SelectTrigger
+            id="deck-vertical-align"
+            aria-label="Vertical alignment"
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {DECK_CONTENT_ALIGN_OPTIONS.map(({ value, label }) => (
+            {DECK_VERTICAL_ALIGN_OPTIONS.map(({ value, label }) => (
               <SelectItem key={value} value={value}>
                 {label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-        {activeContentAlignDescription && (
+        {activeVerticalAlignDescription && (
           <p className="text-xs text-foreground/70">
-            {activeContentAlignDescription}
+            {activeVerticalAlignDescription}
           </p>
         )}
       </div>

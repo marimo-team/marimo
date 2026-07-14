@@ -23,12 +23,12 @@ const DeckTransitionSchema = z.enum([
 ]);
 export type DeckTransition = z.infer<typeof DeckTransitionSchema>;
 
-const DeckContentAlignSchema = z.enum(["top", "center", "bottom"]);
-export type DeckContentAlign = z.infer<typeof DeckContentAlignSchema>;
+const DeckVerticalAlignSchema = z.enum(["top", "center", "bottom"]);
+export type DeckVerticalAlign = z.infer<typeof DeckVerticalAlignSchema>;
 
 const DeckConfigSchema = z.looseObject({
   transition: DeckTransitionSchema.optional(),
-  contentAlign: DeckContentAlignSchema.optional(),
+  verticalAlign: DeckVerticalAlignSchema.optional(),
 });
 export type DeckConfig = z.infer<typeof DeckConfigSchema>;
 

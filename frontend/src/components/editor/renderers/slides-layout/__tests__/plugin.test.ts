@@ -43,19 +43,19 @@ describe("SlidesLayoutPlugin validator", () => {
     ).toBe(false);
   });
 
-  it("accepts each valid deck content alignment", () => {
-    for (const contentAlign of ["top", "center", "bottom"]) {
+  it("accepts each valid deck vertical alignment", () => {
+    for (const verticalAlign of ["top", "center", "bottom"]) {
       expect(
-        SlidesLayoutPlugin.validator.safeParse({ deck: { contentAlign } })
+        SlidesLayoutPlugin.validator.safeParse({ deck: { verticalAlign } })
           .success,
       ).toBe(true);
     }
   });
 
-  it("rejects an unknown deck content alignment", () => {
+  it("rejects an unknown deck vertical alignment", () => {
     expect(
       SlidesLayoutPlugin.validator.safeParse({
-        deck: { contentAlign: "middle" },
+        deck: { verticalAlign: "middle" },
       }).success,
     ).toBe(false);
   });
@@ -286,14 +286,14 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
     },
   },
   {
-    // `contentAlign` was added to DeckConfig.
-    label: "deck.contentAlign round-trips through validate + (de)serialize",
+    // `verticalAlign` was added to DeckConfig.
+    label: "deck.verticalAlign round-trips through validate + (de)serialize",
     input: {
       cells: [{}],
-      deck: { transition: "fade", contentAlign: "top" },
+      deck: { transition: "fade", verticalAlign: "top" },
     },
     expected: {
-      deck: { transition: "fade", contentAlign: "top" },
+      deck: { transition: "fade", verticalAlign: "top" },
       cellIds: ["a"],
     },
   },
