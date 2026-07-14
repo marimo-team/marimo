@@ -218,13 +218,21 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
     Args:
         axes: A matplotlib `Axes` object. The full figure is rendered,
             but selections map to this axes' coordinate space.
+        value: Initial box selection as `{"x": (min, max), "y": (min, max)}`.
+            The selection is clamped to the axes' bounds.
         debounce: If `True`, the selection is only sent to Python on
             mouse-up. If `False` (the default), it streams while dragging.
     """
 
     name: Final[str] = "marimo-matplotlib"
 
-    def __init__(self, axes: Axes, *, debounce: bool = False) -> None:
+    def __init__(
+        self,
+        axes: Axes,
+        value: dict[str, tuple[float, float]] | None = None,
+        *,
+        debounce: bool = False,
+    ) -> None:
         DependencyManager.matplotlib.require("for `mo.ui.matplotlib`")
 
         from matplotlib.figure import Figure  # type: ignore[import-untyped]
@@ -263,14 +271,46 @@ class matplotlib(UIElement[dict[str, JSONType], MatplotlibSelection]):
             (1 - bbox.y0) * fig_height_px,  # bottom
         ]
 
+        x_bounds = axes.get_xlim()
+        y_bounds = axes.get_ylim()
+        initial_value: dict[str, JSONType] = {}
+        if value is not None:
+            try:
+                selection_x_min, selection_x_max = sorted(
+                    map(float, value["x"])
+                )
+                selection_y_min, selection_y_max = sorted(
+                    map(float, value["y"])
+                )
+            except Exception:
+                raise ValueError(
+                    "`value` must be of the form {'x': (min, max), 'y': (min, max)}."
+                ) from None
+            axes_x_min, axes_x_max = sorted(x_bounds)
+            axes_y_min, axes_y_max = sorted(y_bounds)
+            x_min = max(selection_x_min, axes_x_min)
+            x_max = min(selection_x_max, axes_x_max)
+            y_min = max(selection_y_min, axes_y_min)
+            y_max = min(selection_y_max, axes_y_max)
+            if x_min <= x_max and y_min <= y_max:
+                initial_value = {
+                    "type": "box",
+                    "has_selection": True,
+                    "data": {
+                        "x_min": x_min,
+                        "x_max": x_max,
+                        "y_min": y_min,
+                        "y_max": y_max,
+                    },
+                }
         super().__init__(
             component_name=matplotlib.name,
-            initial_value={},
+            initial_value=initial_value,
             label="",
             args={
                 "chart-base64": chart_base64,
-                "x-bounds": list(axes.get_xlim()),
-                "y-bounds": list(axes.get_ylim()),
+                "x-bounds": list(x_bounds),
+                "y-bounds": list(y_bounds),
                 "axes-pixel-bounds": axes_pixel_bounds,
                 "width": fig_width_px,
                 "height": fig_height_px,
