@@ -8,40 +8,57 @@ import { type EditorView, showTooltip, type Tooltip } from "@codemirror/view";
  */
 export const setSignatureHintEffect = StateEffect.define<Tooltip | null>();
 
+// Bound the scan so large cells stay cheap on every keystroke.
+const MAX_LINES_BACK = 20;
+
 /**
  * Whether the cursor at `head` is still inside the call the hint is anchored to.
  *
  * The hint's `anchor` sits just inside the call's `(` (the position where the
- * completion fired). We scan forward from the anchor to the cursor and treat
- * the call as closed once the parenthesis balance drops below zero — i.e. the
+ * completion fired). We scan forward toward the cursor and treat the call as
+ * closed once the parenthesis balance drops to zero or below — i.e. the
  * anchoring `(` has been matched by a `)`. Being anchor-relative means grouping
  * parens around the call (e.g. `(plt.plot())`) don't keep a stale hint alive:
  * we dismiss exactly when *this* call closes, not when the outermost one does.
  *
- * This is a cheap character scan that does not distinguish parens inside strings
- * or comments (e.g. `f(")")`); that's acceptable because the only consumer is
- * hint dismissal, where the worst case is the hint clearing one keystroke early
- * and self-correcting on the next edit. A syntax-tree-aware check would be more
- * correct but far more expensive to run on every keystroke.
+ * The scan is bounded to the last {@link MAX_LINES_BACK} lines before the
+ * cursor. When the anchor falls outside that window we assume the anchored `(`
+ * is still open (balance starts at 1). That can dismiss a keystroke early in
+ * rare edge cases; acceptable for hint dismissal.
+ *
+ * This does not distinguish parens inside strings or comments (e.g. `f(")")`).
  */
-function isCursorInsideAnchoredCall(
-  state: EditorState,
-  anchor: number,
-  head: number,
-): boolean {
-  // Cursor moved before the call's opening paren: no longer inside it.
+function isCursorInsideAnchoredCall(options: {
+  state: EditorState;
+  anchor: number;
+  head: number;
+}): boolean {
+  const { state, anchor, head } = options;
   if (head < anchor) {
     return false;
   }
-  const text = state.doc.sliceString(anchor, head);
-  let balance = 0;
-  for (const char of text) {
-    if (char === "(") {
-      balance++;
-    } else if (char === ")") {
-      balance--;
-      if (balance < 0) {
-        return false;
+
+  const headLine = state.doc.lineAt(head).number;
+  const anchorLine = state.doc.lineAt(anchor).number;
+  const startLine = Math.max(anchorLine, headLine - MAX_LINES_BACK + 1);
+  const from = Math.max(anchor, state.doc.line(startLine).from);
+
+  // If the anchor is outside the bounded window, assume its `(` is still open.
+  let balance = from > anchor ? 1 : 0;
+  const iter = state.doc.iterRange(from, head);
+  for (;;) {
+    const { value, done } = iter.next();
+    if (done) {
+      break;
+    }
+    for (const char of value) {
+      if (char === "(") {
+        balance++;
+      } else if (char === ")") {
+        balance--;
+        if (balance <= 0) {
+          return false;
+        }
       }
     }
   }
@@ -99,11 +116,11 @@ export const signatureHintField = StateField.define<Tooltip | null>({
     if (tr.docChanged) {
       const anchor = tr.changes.mapPos(tooltip.pos);
       if (
-        !isCursorInsideAnchoredCall(
-          tr.state,
+        !isCursorInsideAnchoredCall({
+          state: tr.state,
           anchor,
-          tr.state.selection.main.head,
-        )
+          head: tr.state.selection.main.head,
+        })
       ) {
         return null;
       }

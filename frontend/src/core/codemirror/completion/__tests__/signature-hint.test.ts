@@ -96,6 +96,25 @@ describe("signatureHintField", () => {
     }).state;
     expect(state.field(signatureHintField)?.pos).toBe(4);
   });
+
+  it("dismisses the tooltip when the closing paren is typed in a large multi-line call", () => {
+    const anchor = "f(".length;
+    const prefix = `f(\n${"  x,\n".repeat(25)}`;
+    let state = EditorState.create({
+      doc: prefix,
+      selection: { anchor: prefix.length },
+      extensions: [signatureHintField],
+    });
+    state = state.update({
+      effects: setSignatureHintEffect.of(fakeTooltip(anchor)),
+    }).state;
+    const head = prefix.length;
+    state = state.update({
+      changes: { from: head, insert: ")" },
+      selection: { anchor: head + 1 },
+    }).state;
+    expect(state.field(signatureHintField)).toBeNull();
+  });
 });
 
 describe("asSignatureHint", () => {
