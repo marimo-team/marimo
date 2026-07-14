@@ -1105,7 +1105,7 @@ Example:
 @click.option(
     "--execute-opengraph-generators",
     is_flag=True,
-    help="Execute OpenGraph generators for trusted notebooks. Not available in Docker.",
+    help="Execute OpenGraph generators for trusted notebooks.",
 )
 @click.option(
     "--show-tracebacks/--no-show-tracebacks",
@@ -1176,6 +1176,7 @@ def run(
             "run",
             port=port,
             debug=GLOBAL_SETTINGS.DEVELOPMENT_MODE,
+            execute_opengraph_generators=execute_opengraph_generators,
         )
         return
 
