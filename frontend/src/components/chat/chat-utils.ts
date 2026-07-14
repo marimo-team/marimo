@@ -7,9 +7,10 @@ import {
   isToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
   lastAssistantMessageIsCompleteWithToolCalls,
+  type ToolUIPart,
   type UIMessage,
 } from "ai";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import type { ProviderId } from "@/core/ai/ids/ids";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
@@ -20,6 +21,7 @@ import type {
 } from "@/core/network/types";
 import { blobToString } from "@/utils/fileToBase64";
 import { Logger } from "@/utils/Logger";
+import { generateUUID } from "@/utils/uuid";
 import { getAICompletionBodyWithAttachments } from "../editor/ai/completion-utils";
 import { toast } from "../ui/use-toast";
 
@@ -186,8 +188,42 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   }
   return (
     lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
-    lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
+    lastAssistantMessageIsCompleteWithApprovalResponses({ messages }) ||
+    (lastPart.state === "output-denied" && !lastPart.providerExecuted)
   );
+}
+
+/**
+ * True when the assistant is still waiting on tool execution or user approval.
+ * Unlike `hasPendingToolCalls` (ready to auto-resume), these states must block
+ * releasing queued user messages.
+ */
+export function hasUnresolvedToolCalls(messages: UIMessage[]): boolean {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage || lastMessage.role !== "assistant") {
+    return false;
+  }
+  return lastMessage.parts.some(
+    (part) => isToolUIPart(part) && isUnresolvedToolState(part.state),
+  );
+}
+
+function isUnresolvedToolState(state: ToolUIPart["state"]): boolean {
+  switch (state) {
+    case "approval-requested":
+    case "input-streaming":
+    case "input-available":
+      return true;
+    case "approval-responded":
+    case "output-available":
+    case "output-error":
+    case "output-denied":
+      return false;
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
 }
 
 export function useFileState() {
@@ -216,4 +252,77 @@ export function useFileState() {
     setFiles((prev) => prev.filter((f) => f !== fileToRemove));
 
   return { files, addFiles, clearFiles, removeFile };
+}
+
+export type ChatMessagePart = UIMessage["parts"][number];
+
+export interface QueuedUserMessage {
+  id: string;
+  parts: ChatMessagePart[];
+}
+
+/**
+ * Decide whether the message queue should release its next message after a
+ * chat request settles. `onFinish` fires on every completion — including
+ * aborts, errors, and each intermediate tool-call round — so the queue must
+ * only advance once the assistant has genuinely finished its turn.
+ */
+export function shouldFlushQueue(opts: {
+  isError: boolean;
+  isAbort: boolean;
+  hasPendingToolCalls: boolean;
+  hasUnresolvedToolCalls: boolean;
+}): boolean {
+  if (opts.isError) {
+    return false;
+  }
+  // User stopped the stream; release queued input even if a tool part is still
+  // mid-flight (e.g. `input-streaming`).
+  if (opts.isAbort) {
+    return true;
+  }
+  return !opts.hasPendingToolCalls && !opts.hasUnresolvedToolCalls;
+}
+
+/**
+ * Queue of user messages typed while the assistant is still responding.
+ * Messages are enqueued in order and released one at a time.
+ */
+export function useMessageQueue() {
+  const [messages, setMessages] = useState<QueuedUserMessage[]>([]);
+  // Mirror the queue in a ref so `flushNext` reads the latest value even when
+  // invoked from a callback (e.g. `onFinish`) captured on an earlier render.
+  const messagesRef = useRef<QueuedUserMessage[]>([]);
+  const hasQueuedRef = useRef(false);
+  messagesRef.current = messages;
+  hasQueuedRef.current = messages.length > 0;
+
+  const enqueue = useEvent((parts: ChatMessagePart[]) => {
+    setMessages((prev) => {
+      const next = [...prev, { id: generateUUID(), parts }];
+      messagesRef.current = next;
+      hasQueuedRef.current = true;
+      return next;
+    });
+  });
+
+  const flushNext = useEvent((send: (parts: ChatMessagePart[]) => void) => {
+    const queue = messagesRef.current;
+    if (queue.length === 0) {
+      return;
+    }
+    const [next, ...rest] = queue;
+    messagesRef.current = rest;
+    hasQueuedRef.current = rest.length > 0;
+    setMessages(rest);
+    send(next.parts);
+  });
+
+  const clear = useEvent(() => {
+    messagesRef.current = [];
+    hasQueuedRef.current = false;
+    setMessages([]);
+  });
+
+  return { messages, enqueue, flushNext, clear, hasQueuedRef };
 }
