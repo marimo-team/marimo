@@ -305,7 +305,6 @@ class ReplaceStubPlugin:
             )
             self.collect_live = False
             return None
-            return None
 
     def _live_owner(self, item: Any) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
