@@ -156,7 +156,7 @@ from marimo._sql.engines.types import (
 from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
-from marimo._tracer import kernel_tracer
+from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
 from marimo._utils.lifespans import Lifespans
@@ -2338,7 +2338,12 @@ class Kernel:
         acquiring an RLock costs ~100ns so the overhead is negligible.
         """
         LOGGER.debug("Acquiring globals lock to handle request %s", request)
-        with self.lock_globals():
+        # Link kernel spans to the trace of the originating HTTP request (if
+        # the request carried W3C trace headers), so distributed traces span
+        # the server and the kernel.
+        http_request = getattr(request, "request", None)
+        headers = getattr(http_request, "headers", None)
+        with self.lock_globals(), attach_trace_context(headers):
             LOGGER.debug("Handling control request: %s", request)
             await self.router.dispatch(request)
             LOGGER.debug("Handled control request: %s", request)

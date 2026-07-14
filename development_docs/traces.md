@@ -87,6 +87,14 @@ resulting spans are linked as children of the caller's trace. No extra
 configuration is needed — propagation works automatically whenever tracing is
 enabled.
 
+Propagation also reaches the kernel, which runs in a separate process. The
+request headers travel with each control command, and `handle_message`
+re-attaches the extracted trace context before dispatching, so kernel spans
+(cell execution, dataset previews, function calls, etc.) become children of the
+originating request's trace. This lets a single distributed trace span an
+upstream app (e.g., a FastAPI gateway instrumented with Logfire), the marimo
+server, and the kernel — even when marimo is mounted as an ASGI sub-app.
+
 ## Profiling the kernel
 
 You can generate profiling statistics of the kernel in edit mode using the
