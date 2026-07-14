@@ -97,6 +97,16 @@ describe("signatureHintField", () => {
     expect(state.field(signatureHintField)?.pos).toBe(4);
   });
 
+  it("keeps the tooltip when a nested call closes inside the anchored call", () => {
+    const anchor = "f(".length;
+    let state = stateWithHint("f(g(x", anchor);
+    state = state.update({
+      changes: { from: 5, insert: ")" },
+      selection: { anchor: 6 },
+    }).state;
+    expect(state.field(signatureHintField)?.pos).toBe(anchor);
+  });
+
   it("dismisses the tooltip when the closing paren is typed in a large multi-line call", () => {
     const anchor = "f(".length;
     const prefix = `f(\n${"  x,\n".repeat(25)}`;

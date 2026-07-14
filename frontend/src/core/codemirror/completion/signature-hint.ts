@@ -12,21 +12,10 @@ export const setSignatureHintEffect = StateEffect.define<Tooltip | null>();
 const MAX_LINES_BACK = 20;
 
 /**
- * Whether the cursor at `head` is still inside the call the hint is anchored to.
+ * Whether the cursor is still inside the anchored call (just inside its `(`).
  *
- * The hint's `anchor` sits just inside the call's `(` (the position where the
- * completion fired). We scan forward toward the cursor and treat the call as
- * closed once the parenthesis balance drops to zero or below — i.e. the
- * anchoring `(` has been matched by a `)`. Being anchor-relative means grouping
- * parens around the call (e.g. `(plt.plot())`) don't keep a stale hint alive:
- * we dismiss exactly when *this* call closes, not when the outermost one does.
- *
- * The scan is bounded to the last {@link MAX_LINES_BACK} lines before the
- * cursor. When the anchor falls outside that window we assume the anchored `(`
- * is still open (balance starts at 1). That can dismiss a keystroke early in
- * rare edge cases; acceptable for hint dismissal.
- *
- * This does not distinguish parens inside strings or comments (e.g. `f(")")`).
+ * Anchor-relative paren scan, bounded to {@link MAX_LINES_BACK} lines.
+ * Good enough for hint dismissal — not a full parse (ignores strings/comments).
  */
 function isCursorInsideAnchoredCall(options: {
   state: EditorState;
@@ -44,7 +33,8 @@ function isCursorInsideAnchoredCall(options: {
   const from = Math.max(anchor, state.doc.line(startLine).from);
 
   // If the anchor is outside the bounded window, assume its `(` is still open.
-  let balance = from > anchor ? 1 : 0;
+  const assumedOpen = from > anchor;
+  let balance = assumedOpen ? 1 : 0;
   const iter = state.doc.iterRange(from, head);
   for (;;) {
     const { value, done } = iter.next();
@@ -56,7 +46,8 @@ function isCursorInsideAnchoredCall(options: {
         balance++;
       } else if (char === ")") {
         balance--;
-        if (balance <= 0) {
+        const closed = assumedOpen ? balance <= 0 : balance < 0;
+        if (closed) {
           return false;
         }
       }
