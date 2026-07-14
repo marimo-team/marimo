@@ -42,6 +42,23 @@ describe("SlidesLayoutPlugin validator", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("accepts each valid deck content alignment", () => {
+    for (const contentAlign of ["top", "center", "bottom"]) {
+      expect(
+        SlidesLayoutPlugin.validator.safeParse({ deck: { contentAlign } })
+          .success,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects an unknown deck content alignment", () => {
+    expect(
+      SlidesLayoutPlugin.validator.safeParse({
+        deck: { contentAlign: "middle" },
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("SlidesLayoutPlugin deserializeLayout", () => {
@@ -266,6 +283,18 @@ const BACKWARDS_COMPAT_SNAPSHOTS: BackwardsCompatCase[] = [
         ["a", { type: "slide", showCode: true }],
         ["b", { type: "fragment", showCode: false }],
       ],
+    },
+  },
+  {
+    // `contentAlign` was added to DeckConfig.
+    label: "deck.contentAlign round-trips through validate + (de)serialize",
+    input: {
+      cells: [{}],
+      deck: { transition: "fade", contentAlign: "top" },
+    },
+    expected: {
+      deck: { transition: "fade", contentAlign: "top" },
+      cellIds: ["a"],
     },
   },
 ];
