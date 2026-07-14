@@ -2,7 +2,11 @@
 
 import type { UIMessage } from "ai";
 import { describe, expect, it } from "vitest";
-import { hasPendingToolCalls, shouldFlushQueue } from "../chat-utils";
+import {
+  hasPendingToolCalls,
+  hasUnresolvedToolCalls,
+  shouldFlushQueue,
+} from "../chat-utils";
 
 /**
  * `hasPendingToolCalls` powers `sendAutomaticallyWhen` in `mo.ui.chat`:
@@ -75,6 +79,23 @@ describe("hasPendingToolCalls", () => {
             state: "approval-responded",
             input: { path: "secrets.env" },
             approval: { id: "approval-1", approved: true },
+          } as unknown as UIMessage["parts"][number],
+        ]),
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns true when the user denied a tool approval", () => {
+    expect(
+      hasPendingToolCalls([
+        userMessage("delete it"),
+        assistantToolMessage([
+          {
+            type: "tool-delete_file",
+            toolCallId: "call-1",
+            state: "output-denied",
+            input: { path: "secrets.env" },
+            approval: { id: "approval-1", approved: false },
           } as unknown as UIMessage["parts"][number],
         ]),
       ]),
@@ -268,28 +289,127 @@ describe("hasPendingToolCalls", () => {
   });
 });
 
+describe("hasUnresolvedToolCalls", () => {
+  it("returns false when there are no messages", () => {
+    expect(hasUnresolvedToolCalls([])).toBe(false);
+  });
+
+  it("returns true while approval is still requested", () => {
+    expect(
+      hasUnresolvedToolCalls([
+        userMessage("delete it"),
+        assistantToolMessage([
+          {
+            type: "tool-delete_file",
+            toolCallId: "call-1",
+            state: "approval-requested",
+            input: { path: "secrets.env" },
+            approval: { id: "approval-1" },
+          } as unknown as UIMessage["parts"][number],
+        ]),
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns true while a tool is still running", () => {
+    expect(
+      hasUnresolvedToolCalls([
+        userMessage("run it"),
+        assistantToolMessage([
+          {
+            type: "tool-run_query",
+            toolCallId: "call-1",
+            state: "input-available",
+            input: { sql: "select 1" },
+          } as unknown as UIMessage["parts"][number],
+        ]),
+      ]),
+    ).toBe(true);
+  });
+
+  it("returns false once tools are ready to round-trip", () => {
+    expect(
+      hasUnresolvedToolCalls([
+        userMessage("run it"),
+        assistantToolMessage([
+          {
+            type: "tool-run_query",
+            toolCallId: "call-1",
+            state: "output-available",
+            input: { sql: "select 1" },
+            output: 1,
+          } as unknown as UIMessage["parts"][number],
+        ]),
+      ]),
+    ).toBe(false);
+  });
+
+  it("returns false once the user denied a tool approval", () => {
+    expect(
+      hasUnresolvedToolCalls([
+        userMessage("delete it"),
+        assistantToolMessage([
+          {
+            type: "tool-delete_file",
+            toolCallId: "call-1",
+            state: "output-denied",
+            input: { path: "secrets.env" },
+            approval: { id: "approval-1", approved: false },
+          } as unknown as UIMessage["parts"][number],
+        ]),
+      ]),
+    ).toBe(false);
+  });
+});
+
 describe("shouldFlushQueue", () => {
   it("flushes when the turn completed without error or pending tools", () => {
     expect(
-      shouldFlushQueue({ isError: false, hasPendingToolCalls: false }),
+      shouldFlushQueue({
+        isError: false,
+        hasPendingToolCalls: false,
+        hasUnresolvedToolCalls: false,
+      }),
     ).toBe(true);
   });
 
   it("does not flush on error", () => {
     expect(
-      shouldFlushQueue({ isError: true, hasPendingToolCalls: false }),
+      shouldFlushQueue({
+        isError: true,
+        hasPendingToolCalls: false,
+        hasUnresolvedToolCalls: false,
+      }),
     ).toBe(false);
   });
 
   it("does not flush while a tool round-trip is still pending", () => {
     expect(
-      shouldFlushQueue({ isError: false, hasPendingToolCalls: true }),
+      shouldFlushQueue({
+        isError: false,
+        hasPendingToolCalls: true,
+        hasUnresolvedToolCalls: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("does not flush while approval is still requested", () => {
+    expect(
+      shouldFlushQueue({
+        isError: false,
+        hasPendingToolCalls: false,
+        hasUnresolvedToolCalls: true,
+      }),
     ).toBe(false);
   });
 
   it("does not flush on error even when tools are also pending", () => {
-    expect(shouldFlushQueue({ isError: true, hasPendingToolCalls: true })).toBe(
-      false,
-    );
+    expect(
+      shouldFlushQueue({
+        isError: true,
+        hasPendingToolCalls: true,
+        hasUnresolvedToolCalls: true,
+      }),
+    ).toBe(false);
   });
 });

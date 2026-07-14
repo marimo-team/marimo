@@ -95,5 +95,27 @@ describe("useMessageQueue", () => {
     act(() => result.current.clear());
 
     expect(result.current.messages).toEqual([]);
+    expect(result.current.hasQueuedRef.current).toBe(false);
+  });
+
+  it("hasQueuedRef stays in sync when enqueue and flush run in the same act", () => {
+    const { result } = renderHook(() => useMessageQueue());
+    const send = vi.fn();
+
+    act(() => {
+      result.current.enqueue([textPart("first")]);
+      result.current.enqueue([textPart("second")]);
+    });
+    expect(result.current.hasQueuedRef.current).toBe(true);
+
+    act(() => {
+      result.current.flushNext(send);
+    });
+    expect(result.current.hasQueuedRef.current).toBe(true);
+
+    act(() => {
+      result.current.flushNext(send);
+    });
+    expect(result.current.hasQueuedRef.current).toBe(false);
   });
 });

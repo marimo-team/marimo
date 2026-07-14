@@ -7,6 +7,7 @@ import {
   isToolUIPart,
   lastAssistantMessageIsCompleteWithApprovalResponses,
   lastAssistantMessageIsCompleteWithToolCalls,
+  type ToolUIPart,
   type UIMessage,
 } from "ai";
 import { useRef, useState } from "react";
@@ -187,8 +188,42 @@ export function hasPendingToolCalls(messages: UIMessage[]): boolean {
   }
   return (
     lastAssistantMessageIsCompleteWithToolCalls({ messages }) ||
-    lastAssistantMessageIsCompleteWithApprovalResponses({ messages })
+    lastAssistantMessageIsCompleteWithApprovalResponses({ messages }) ||
+    (lastPart.state === "output-denied" && !lastPart.providerExecuted)
   );
+}
+
+/**
+ * True when the assistant is still waiting on tool execution or user approval.
+ * Unlike `hasPendingToolCalls` (ready to auto-resume), these states must block
+ * releasing queued user messages.
+ */
+export function hasUnresolvedToolCalls(messages: UIMessage[]): boolean {
+  const lastMessage = messages.at(-1);
+  if (!lastMessage || lastMessage.role !== "assistant") {
+    return false;
+  }
+  return lastMessage.parts.some(
+    (part) => isToolUIPart(part) && isUnresolvedToolState(part.state),
+  );
+}
+
+function isUnresolvedToolState(state: ToolUIPart["state"]): boolean {
+  switch (state) {
+    case "approval-requested":
+    case "input-streaming":
+    case "input-available":
+      return true;
+    case "approval-responded":
+    case "output-available":
+    case "output-error":
+    case "output-denied":
+      return false;
+    default: {
+      const _exhaustive: never = state;
+      return _exhaustive;
+    }
+  }
 }
 
 export function useFileState() {
@@ -235,8 +270,11 @@ export interface QueuedUserMessage {
 export function shouldFlushQueue(opts: {
   isError: boolean;
   hasPendingToolCalls: boolean;
+  hasUnresolvedToolCalls: boolean;
 }): boolean {
-  return !opts.isError && !opts.hasPendingToolCalls;
+  return (
+    !opts.isError && !opts.hasPendingToolCalls && !opts.hasUnresolvedToolCalls
+  );
 }
 
 /**
@@ -248,12 +286,15 @@ export function useMessageQueue() {
   // Mirror the queue in a ref so `flushNext` reads the latest value even when
   // invoked from a callback (e.g. `onFinish`) captured on an earlier render.
   const messagesRef = useRef<QueuedUserMessage[]>([]);
+  const hasQueuedRef = useRef(false);
   messagesRef.current = messages;
+  hasQueuedRef.current = messages.length > 0;
 
   const enqueue = useEvent((parts: ChatMessagePart[]) => {
     setMessages((prev) => {
       const next = [...prev, { id: generateUUID(), parts }];
       messagesRef.current = next;
+      hasQueuedRef.current = true;
       return next;
     });
   });
@@ -265,14 +306,16 @@ export function useMessageQueue() {
     }
     const [next, ...rest] = queue;
     messagesRef.current = rest;
+    hasQueuedRef.current = rest.length > 0;
     setMessages(rest);
     send(next.parts);
   });
 
   const clear = useEvent(() => {
     messagesRef.current = [];
+    hasQueuedRef.current = false;
     setMessages([]);
   });
 
-  return { messages, enqueue, flushNext, clear };
+  return { messages, enqueue, flushNext, clear, hasQueuedRef };
 }

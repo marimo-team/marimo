@@ -91,6 +91,7 @@ import {
   generateChatTitle,
   handleToolCall,
   hasPendingToolCalls,
+  hasUnresolvedToolCalls,
   isLastMessageReasoning,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   type QueuedUserMessage,
@@ -526,6 +527,7 @@ const ChatPanelBody = () => {
     enqueue: enqueueUserMessage,
     flushNext: flushNextQueuedMessage,
     clear: clearQueuedMessages,
+    hasQueuedRef,
   } = useMessageQueue();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
@@ -610,6 +612,7 @@ const ChatPanelBody = () => {
         shouldFlushQueue({
           isError,
           hasPendingToolCalls: hasPendingToolCalls(messages),
+          hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
         })
       ) {
         flushNextQueuedMessage(sendUserMessage);
@@ -644,7 +647,7 @@ const ChatPanelBody = () => {
   isLoadingRef.current = isLoading;
 
   const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
-    if (isLoadingRef.current) {
+    if (isLoadingRef.current || hasQueuedRef.current) {
       enqueueUserMessage(parts);
     } else {
       sendUserMessage(parts);
