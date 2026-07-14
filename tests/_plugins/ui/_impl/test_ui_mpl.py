@@ -45,6 +45,55 @@ def test_basic_construction() -> None:
     assert not fig.value
 
 
+def test_initial_box_selection() -> None:
+    ax = _make_scatter_ax()
+    fig = matplotlib(ax, value={"x": (1.0, 3.0), "y": (2.0, 4.0)})
+
+    assert fig._args.initial_value == {
+        "type": "box",
+        "has_selection": True,
+        "data": {
+            "x_min": 1.0,
+            "x_max": 3.0,
+            "y_min": 2.0,
+            "y_max": 4.0,
+        },
+    }
+    assert fig.value == BoxSelection(
+        x_min=1.0,
+        x_max=3.0,
+        y_min=2.0,
+        y_max=4.0,
+    )
+
+
+def test_initial_box_selection_clamps_to_axes() -> None:
+    ax = _make_scatter_ax()
+    axes_x_min, axes_x_max = sorted(ax.get_xlim())
+    axes_y_min, axes_y_max = sorted(ax.get_ylim())
+
+    partial = matplotlib(
+        ax,
+        value={
+            "x": (3.0, axes_x_min - 1),
+            "y": (axes_y_max + 1, 2.0),
+        },
+    )
+    assert partial.value == BoxSelection(
+        x_min=axes_x_min,
+        x_max=3.0,
+        y_min=2.0,
+        y_max=axes_y_max,
+    )
+
+    outside = matplotlib(
+        ax,
+        value={"x": (axes_x_max + 1, axes_x_max + 2), "y": (2.0, 4.0)},
+    )
+    assert isinstance(outside.value, EmptySelection)
+    assert outside._args.initial_value == {}
+
+
 def test_construction_no_figure_raises() -> None:
     fig = plt.figure()
     ax = fig.add_subplot(111)
