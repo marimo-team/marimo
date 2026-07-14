@@ -127,22 +127,18 @@ def test_workspace_files_in_run_mode(client: TestClient) -> None:
         marker = Path(temp_dir) / "marker.txt"
         marimo_file = Path(temp_dir) / "notebook.py"
         marimo_file.write_text(
-            textwrap.dedent(
-                f"""
-                # /// script
-                # [tool.marimo.opengraph]
-                # title = "Static Title"
-                # generator = "generate_opengraph"
-                # ///
-                import marimo
-                app = marimo.App()
-                with app.setup:
-                    open({str(marker)!r}, "w").write("executed")
-                @app.function
-                def generate_opengraph(context, parent):
-                    return {{"title": "Dynamic Title"}}
-                """
-            ).lstrip(),
+            f"""# /// script
+# [tool.marimo.opengraph]
+# title = "Static Title"
+# generator = "generate_opengraph"
+# ///
+import marimo
+app = marimo.App()
+with app.setup:
+    open({str(marker)!r}, "w").write("executed")
+def generate_opengraph(context, parent):
+    return {{"title": "Dynamic Title"}}
+""",
             encoding="utf-8",
         )
 

@@ -491,7 +491,7 @@ def resolve_opengraph_metadata(
     context: OpenGraphContext | None = None,
     execute_generator: bool = False,
 ) -> OpenGraphMetadata:
-    """Resolve OpenGraph metadata and optionally execute a generator hook."""
+    """Resolve OpenGraph metadata from config, defaults, and a generator hook."""
     declared = read_opengraph_from_file(filepath) or OpenGraphConfig()
 
     title = declared.title or app_title or derive_title_from_path(filepath)

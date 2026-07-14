@@ -1105,9 +1105,7 @@ Example:
 @click.option(
     "--execute-opengraph-generators",
     is_flag=True,
-    default=False,
-    type=bool,
-    help="Execute notebook-defined OpenGraph generators while resolving metadata.",
+    help="Execute OpenGraph generators for trusted notebooks. Not available in Docker.",
 )
 @click.option(
     "--show-tracebacks/--no-show-tracebacks",
