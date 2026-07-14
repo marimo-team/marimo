@@ -1103,6 +1103,13 @@ Example:
     help="Custom asset URL for loading static resources. Can include {version} placeholder.",
 )
 @click.option(
+    "--execute-opengraph-generators",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Execute notebook-defined OpenGraph generators while resolving metadata.",
+)
+@click.option(
     "--show-tracebacks/--no-show-tracebacks",
     is_flag=True,
     default=None,
@@ -1137,6 +1144,7 @@ def run(
     trusted: bool | None,
     server_startup_command: str | None,
     asset_url: str | None,
+    execute_opengraph_generators: bool,
     show_tracebacks: bool | None,
     name: str,
     args: tuple[str, ...],
@@ -1281,6 +1289,7 @@ def run(
         sandbox_mode=sandbox_mode,
         startup_tip=choose_startup_tip(click.get_current_context()),
         show_tracebacks=show_tracebacks,
+        execute_opengraph_generators=execute_opengraph_generators,
     )
 
 

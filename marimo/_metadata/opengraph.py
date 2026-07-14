@@ -489,8 +489,9 @@ def resolve_opengraph_metadata(
     *,
     app_title: str | None = None,
     context: OpenGraphContext | None = None,
+    execute_generator: bool = False,
 ) -> OpenGraphMetadata:
-    """Resolve OpenGraph metadata from config, defaults, and a generator hook."""
+    """Resolve OpenGraph metadata and optionally execute a generator hook."""
     declared = read_opengraph_from_file(filepath) or OpenGraphConfig()
 
     title = declared.title or app_title or derive_title_from_path(filepath)
@@ -505,7 +506,7 @@ def resolve_opengraph_metadata(
         image=image,
     )
 
-    if declared.generator:
+    if declared.generator and execute_generator:
         ctx = context or OpenGraphContext(filepath=filepath)
         dynamic = _run_opengraph_generator(
             declared.generator, context=ctx, parent=resolved
