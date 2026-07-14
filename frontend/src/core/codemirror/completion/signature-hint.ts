@@ -8,35 +8,44 @@ import { type EditorView, showTooltip, type Tooltip } from "@codemirror/view";
  */
 export const setSignatureHintEffect = StateEffect.define<Tooltip | null>();
 
-// Bound the backward scan so large cells stay cheap on every keystroke.
-const MAX_LINES_BACK = 20;
-
 /**
- * Cheap heuristic for whether `pos` sits inside an unclosed call, by counting
- * raw parentheses balance over the preceding (bounded) lines. Mirrors the LSP
- * path's `isCursorInsideFunctionCall`.
+ * Whether the cursor at `head` is still inside the call the hint is anchored to.
  *
- * This does NOT distinguish parens inside strings or comments (e.g. `f(")")`),
- * and it only scans back `MAX_LINES_BACK` lines. That's acceptable because the
- * sole consumer is hint dismissal: the worst case is the hint lingering or
- * clearing slightly early in a rare edge case, and it self-corrects on the next
- * edit or cursor move. A syntax-tree-aware check would be more correct but far
- * more expensive to run on every keystroke.
+ * The hint's `anchor` sits just inside the call's `(` (the position where the
+ * completion fired). We scan forward from the anchor to the cursor and treat
+ * the call as closed once the parenthesis balance drops below zero — i.e. the
+ * anchoring `(` has been matched by a `)`. Being anchor-relative means grouping
+ * parens around the call (e.g. `(plt.plot())`) don't keep a stale hint alive:
+ * we dismiss exactly when *this* call closes, not when the outermost one does.
+ *
+ * This is a cheap character scan that does not distinguish parens inside strings
+ * or comments (e.g. `f(")")`); that's acceptable because the only consumer is
+ * hint dismissal, where the worst case is the hint clearing one keystroke early
+ * and self-correcting on the next edit. A syntax-tree-aware check would be more
+ * correct but far more expensive to run on every keystroke.
  */
-function isCursorInsideCall(state: EditorState, pos: number): boolean {
-  const line = state.doc.lineAt(pos);
-  const startLine = Math.max(1, line.number - MAX_LINES_BACK);
-  const from = state.doc.line(startLine).from;
-  const text = state.doc.sliceString(from, pos);
+function isCursorInsideAnchoredCall(
+  state: EditorState,
+  anchor: number,
+  head: number,
+): boolean {
+  // Cursor moved before the call's opening paren: no longer inside it.
+  if (head < anchor) {
+    return false;
+  }
+  const text = state.doc.sliceString(anchor, head);
   let balance = 0;
   for (const char of text) {
     if (char === "(") {
       balance++;
     } else if (char === ")") {
       balance--;
+      if (balance < 0) {
+        return false;
+      }
     }
   }
-  return balance > 0;
+  return true;
 }
 
 /**
@@ -83,14 +92,22 @@ export const signatureHintField = StateField.define<Tooltip | null>({
     if (tr.selection && !tr.docChanged) {
       return null;
     }
-    // Dismiss once the cursor leaves the call. Otherwise keep the
-    // hint anchored across edits so it doesn't flicker while a fresh result is
-    // in flight; the completion source refreshes or clears it as results arrive.
+    // Dismiss once the cursor leaves the anchored call (e.g. the closing paren
+    // is typed). Otherwise keep the hint anchored across edits so it doesn't
+    // flicker while a fresh result is in flight; the completion source refreshes
+    // or clears it as results arrive.
     if (tr.docChanged) {
-      if (!isCursorInsideCall(tr.state, tr.state.selection.main.head)) {
+      const anchor = tr.changes.mapPos(tooltip.pos);
+      if (
+        !isCursorInsideAnchoredCall(
+          tr.state,
+          anchor,
+          tr.state.selection.main.head,
+        )
+      ) {
         return null;
       }
-      return { ...tooltip, pos: tr.changes.mapPos(tooltip.pos) };
+      return { ...tooltip, pos: anchor };
     }
     return tooltip;
   },

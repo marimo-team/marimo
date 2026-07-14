@@ -73,13 +73,26 @@ describe("signatureHintField", () => {
     expect(state.field(signatureHintField)).toBeNull();
   });
 
-  it("keeps the tooltip while still inside an outer call", () => {
-    // Cursor inside the inner call of `f(g(<cursor>`.
-    let state = stateWithHint("f(g(", 4);
-    // Close the inner call; the cursor remains inside the outer call.
+  it("dismisses the tooltip when the anchored call closes inside grouping parens", () => {
+    // Regression for the `(plt.plot())` case: the outer grouping paren must not
+    // keep the (now-closed) plt.plot hint alive.
+    let state = stateWithHint("(plt.plot(", 10);
+    // Close plt.plot's call; the outer `(` is still open but we've left the
+    // anchored call.
     state = state.update({
-      changes: { from: 4, insert: ")" },
-      selection: { anchor: 5 },
+      changes: { from: 10, insert: ")" },
+      selection: { anchor: 11 },
+    }).state;
+    expect(state.field(signatureHintField)).toBeNull();
+  });
+
+  it("keeps the tooltip while typing a nested call inside the anchored call", () => {
+    // Cursor inside the anchored call of `f(g(<cursor>`; opening/typing a nested
+    // call stays inside the anchored call, so the hint should remain.
+    let state = stateWithHint("f(g(", 4);
+    state = state.update({
+      changes: { from: 4, insert: "x(" },
+      selection: { anchor: 6 },
     }).state;
     expect(state.field(signatureHintField)?.pos).toBe(4);
   });
