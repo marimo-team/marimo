@@ -45,6 +45,9 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
+    ModelCommand,
+    ModelCustomMessage,
+    ModelUpdateMessage,
     UpdateUIElementCommand,
 )
 from marimo._session.state.session_view import ModelReplayState, SessionView
@@ -349,6 +352,111 @@ def test_model_multiple_models(session_view: SessionView) -> None:
         )
     assert session_view.model_states[model_id1].state == {"key": "v1"}
     assert session_view.model_states[model_id2].state == {"key": "v2"}
+
+
+def _open_model(
+    session_view: SessionView,
+    model_id: WidgetModelId,
+    state: dict[str, Any],
+) -> None:
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelOpen(state=state, buffer_paths=[], buffers=[]),
+        )
+    )
+
+
+def test_model_command_merges_into_replay(session_view: SessionView) -> None:
+    """A client's model write is recorded for reconnect replay."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0, "label": "hi"})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"count": 5}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {
+        "count": 5,
+        "label": "hi",
+    }
+
+
+def test_model_command_merges_buffers(session_view: SessionView) -> None:
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"img": None})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(
+                state={"img": None}, buffer_paths=[["img"]]
+            ),
+            buffers=[b"\x89PNG"],
+        )
+    )
+    assert session_view.model_states[model_id].buffers == {
+        ("img",): b"\x89PNG"
+    }
+
+
+def test_model_command_strips_code_and_style(
+    session_view: SessionView,
+) -> None:
+    """Replayed state reaches future viewers, so a client must not
+    be able to persist `_esm` or `_css` into it."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(
+                state={
+                    "_esm": "alert('pwned')",
+                    "_css": "body { display: none }",
+                    "count": 2,
+                },
+                buffer_paths=[],
+            ),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {"count": 2}
+
+
+def test_model_command_without_open_ignored(
+    session_view: SessionView,
+) -> None:
+    model_id = WidgetModelId("never_opened")
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"count": 1}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    assert model_id not in session_view.model_states
+
+
+def test_model_command_custom_message_ignored(
+    session_view: SessionView,
+) -> None:
+    """Custom messages are ephemeral — they never mutate replay state."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelCustomMessage(content={"foo": "bar"}),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {"count": 0}
 
 
 def test_get_model_notifications(session_view: SessionView) -> None:
