@@ -377,6 +377,7 @@ export class MatplotlibRenderer {
 
     if (state.chartBase64 !== this.#currentChartBase64) {
       this.#loadImage(state.chartBase64);
+      this.#restoreSelection(state.value);
       return;
     }
 
