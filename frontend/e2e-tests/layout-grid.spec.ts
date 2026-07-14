@@ -109,7 +109,11 @@ function expectValidBoundingBox(
 }
 
 async function bbForText(page: Page, text: string) {
-  const el = page.getByText(text).first();
+  // Scope to the visible match: while presenting, the vertical layout renders
+  // the editable cell tree with its CodeMirror editors mounted but
+  // `display:none`, so an unscoped `getByText` also resolves the hidden editor
+  // line, whose text precedes the rendered output in the DOM.
+  const el = page.getByText(text).filter({ visible: true }).first();
   await expect(el).toBeVisible();
   const bb = await el.boundingBox();
   expectValidBoundingBox(bb);

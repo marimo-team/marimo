@@ -30,11 +30,24 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   canMoveLeft: boolean;
   canMoveRight: boolean;
   footer?: React.ReactNode;
+  /**
+   * If true, dragging is disabled and the column chrome is hidden
+   * (e.g. while presenting).
+   */
+  presenting?: boolean;
 }
 
 const SortableColumnInternal = React.forwardRef(
   (
-    { columnId, canDelete, canMoveLeft, canMoveRight, footer, ...props }: Props,
+    {
+      columnId,
+      canDelete,
+      canMoveLeft,
+      canMoveRight,
+      footer,
+      presenting,
+      ...props
+    }: Props,
     ref: React.Ref<HTMLDivElement>,
   ) => {
     const {
@@ -45,7 +58,7 @@ const SortableColumnInternal = React.forwardRef(
       transition,
       isDragging,
       isOver,
-    } = useSortable({ id: columnId });
+    } = useSortable({ id: columnId, disabled: presenting });
 
     const style: React.CSSProperties = {
       transform: transform
@@ -78,7 +91,11 @@ const SortableColumnInternal = React.forwardRef(
     };
 
     const dragHandle = (
-      <div className="px-2 pb-0 group flex items-center overflow-hidden border-b border-(--slate-7)">
+      <div
+        data-testid="column-header"
+        className="px-2 pb-0 group flex items-center overflow-hidden border-b border-(--slate-7)"
+        hidden={presenting}
+      >
         <Tooltip content="Move column left" side="top" delayDuration={300}>
           <Button
             variant="text"
@@ -161,7 +178,10 @@ const SortableColumnInternal = React.forwardRef(
           isOver && "bg-accent/20", // Add a background color when dragging over
         )}
       >
-        <div className="border border-(--slate-7)">
+        <div
+          data-testid="column-frame"
+          className={cn(!presenting && "border border-(--slate-7)")}
+        >
           {dragHandle}
           {props.children}
         </div>
