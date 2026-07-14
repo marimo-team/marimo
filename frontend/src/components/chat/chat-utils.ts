@@ -269,12 +269,19 @@ export interface QueuedUserMessage {
  */
 export function shouldFlushQueue(opts: {
   isError: boolean;
+  isAbort: boolean;
   hasPendingToolCalls: boolean;
   hasUnresolvedToolCalls: boolean;
 }): boolean {
-  return (
-    !opts.isError && !opts.hasPendingToolCalls && !opts.hasUnresolvedToolCalls
-  );
+  if (opts.isError) {
+    return false;
+  }
+  // User stopped the stream; release queued input even if a tool part is still
+  // mid-flight (e.g. `input-streaming`).
+  if (opts.isAbort) {
+    return true;
+  }
+  return !opts.hasPendingToolCalls && !opts.hasUnresolvedToolCalls;
 }
 
 /**

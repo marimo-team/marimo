@@ -600,7 +600,7 @@ const ChatPanelBody = () => {
         };
       },
     }),
-    onFinish: ({ messages, isError }) => {
+    onFinish: ({ messages, isError, isAbort }) => {
       setChatState((prev) => {
         return replaceMessagesInChat({
           chatState: prev,
@@ -608,15 +608,7 @@ const ChatPanelBody = () => {
           messages: messages,
         });
       });
-      if (
-        shouldFlushQueue({
-          isError,
-          hasPendingToolCalls: hasPendingToolCalls(messages),
-          hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
-        })
-      ) {
-        flushNextQueuedMessage(sendUserMessage);
-      }
+      tryFlushQueuedMessages(messages, { isError, isAbort });
     },
     onToolCall: async ({ toolCall }) => {
       await handleToolCall({
@@ -638,6 +630,27 @@ const ChatPanelBody = () => {
   const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
     sendMessage({ role: "user", parts });
   });
+
+  const tryFlushQueuedMessages = useEvent(
+    (
+      chatMessages: typeof messages,
+      opts: { isError: boolean; isAbort: boolean },
+    ) => {
+      if (!hasQueuedRef.current) {
+        return;
+      }
+      if (
+        shouldFlushQueue({
+          isError: opts.isError,
+          isAbort: opts.isAbort,
+          hasPendingToolCalls: hasPendingToolCalls(chatMessages),
+          hasUnresolvedToolCalls: hasUnresolvedToolCalls(chatMessages),
+        })
+      ) {
+        flushNextQueuedMessage(sendUserMessage);
+      }
+    },
+  );
 
   const isLoading = status === "submitted" || status === "streaming";
   // Read via a ref so the queue-vs-send decision stays correct even when it is
@@ -699,6 +712,18 @@ const ChatPanelBody = () => {
     });
     return () => cancelAnimationFrame(frame);
   }, [messages, queuedMessages, isLoading, isScrolledToBottom, scrollToBottom]);
+
+  // Retry when tool parts resolve after the stream ends (e.g. assistant text
+  // trails a still-running tool call, so `onFinish` alone cannot flush).
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    tryFlushQueuedMessages(messages, {
+      isError: error != null,
+      isAbort: false,
+    });
+  }, [messages, isLoading, error, tryFlushQueuedMessages]);
 
   const startNewChatState = useEvent((initialMessage: string) => {
     const now = Date.now();

@@ -367,6 +367,7 @@ describe("shouldFlushQueue", () => {
     expect(
       shouldFlushQueue({
         isError: false,
+        isAbort: false,
         hasPendingToolCalls: false,
         hasUnresolvedToolCalls: false,
       }),
@@ -377,6 +378,7 @@ describe("shouldFlushQueue", () => {
     expect(
       shouldFlushQueue({
         isError: true,
+        isAbort: false,
         hasPendingToolCalls: false,
         hasUnresolvedToolCalls: false,
       }),
@@ -387,6 +389,7 @@ describe("shouldFlushQueue", () => {
     expect(
       shouldFlushQueue({
         isError: false,
+        isAbort: false,
         hasPendingToolCalls: true,
         hasUnresolvedToolCalls: false,
       }),
@@ -397,16 +400,110 @@ describe("shouldFlushQueue", () => {
     expect(
       shouldFlushQueue({
         isError: false,
+        isAbort: false,
         hasPendingToolCalls: false,
         hasUnresolvedToolCalls: true,
       }),
     ).toBe(false);
   });
 
+  it("flushes on abort even when a tool is still streaming", () => {
+    expect(
+      shouldFlushQueue({
+        isError: false,
+        isAbort: true,
+        hasPendingToolCalls: false,
+        hasUnresolvedToolCalls: true,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not flush on abort when the run ended in error", () => {
+    expect(
+      shouldFlushQueue({
+        isError: true,
+        isAbort: true,
+        hasPendingToolCalls: false,
+        hasUnresolvedToolCalls: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("flushes once trailing text is present and tools are resolved", () => {
+    const messages = [
+      userMessage("run it"),
+      assistantToolMessage([
+        {
+          type: "tool-run_query",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: {},
+          output: 1,
+        } as unknown as UIMessage["parts"][number],
+        { type: "text", text: "Done." },
+      ]),
+    ];
+
+    expect(
+      shouldFlushQueue({
+        isError: false,
+        isAbort: false,
+        hasPendingToolCalls: hasPendingToolCalls(messages),
+        hasUnresolvedToolCalls: hasUnresolvedToolCalls(messages),
+      }),
+    ).toBe(true);
+  });
+
+  it("blocks flush while text trails a still-running tool, then allows it after resolution", () => {
+    const running = [
+      userMessage("run it"),
+      assistantToolMessage([
+        {
+          type: "tool-run_query",
+          toolCallId: "call-1",
+          state: "input-available",
+          input: {},
+        } as unknown as UIMessage["parts"][number],
+        { type: "text", text: "Running your query..." },
+      ]),
+    ];
+    const resolved = [
+      userMessage("run it"),
+      assistantToolMessage([
+        {
+          type: "tool-run_query",
+          toolCallId: "call-1",
+          state: "output-available",
+          input: {},
+          output: 1,
+        } as unknown as UIMessage["parts"][number],
+        { type: "text", text: "Running your query..." },
+      ]),
+    ];
+
+    expect(
+      shouldFlushQueue({
+        isError: false,
+        isAbort: false,
+        hasPendingToolCalls: hasPendingToolCalls(running),
+        hasUnresolvedToolCalls: hasUnresolvedToolCalls(running),
+      }),
+    ).toBe(false);
+    expect(
+      shouldFlushQueue({
+        isError: false,
+        isAbort: false,
+        hasPendingToolCalls: hasPendingToolCalls(resolved),
+        hasUnresolvedToolCalls: hasUnresolvedToolCalls(resolved),
+      }),
+    ).toBe(true);
+  });
+
   it("does not flush on error even when tools are also pending", () => {
     expect(
       shouldFlushQueue({
         isError: true,
+        isAbort: false,
         hasPendingToolCalls: true,
         hasUnresolvedToolCalls: true,
       }),
