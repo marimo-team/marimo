@@ -113,13 +113,10 @@ def _create_model_message(
 ) -> ModelMessage | None:
     """Create the appropriate ModelMessage based on the method field.
 
-    Returns None for unknown methods that should be skipped. `data` is
-    the ipywidgets-shaped comm payload; `esm_spec` is minted by the
-    comm itself, never supplied by comm callers.
-
-    `echo_update` is coerced to `ModelUpdate`: marimo has no echo
-    protocol, and dropping echoes would lose frontend-driven trait
-    changes from reconnect replay.
+    Returns None for methods that should be skipped, including
+    `echo_update`. `data` is the ipywidgets-shaped comm payload;
+    `esm_spec` is minted by the comm itself, never supplied by comm
+    callers.
     """
     bbuffers = [_ensure_bytes(b) for b in buffers]
     method = data.get("method", "update")
@@ -146,14 +143,11 @@ def _create_model_message(
             buffers=bbuffers,
         )
     elif method == "echo_update":
-        # Preserve frontend-driven trait changes for reconnect replay.
-        # anywidget/ipywidgets can emit echo_update as the synchronisation
-        # acknowledgement path; dropping it causes stale replay state.
-        return ModelUpdate(
-            state=state,
-            buffer_paths=buffer_paths,
-            buffers=bbuffers,
-        )
+        # ipywidgets' acknowledgement of a client write. Broadcasting
+        # it would feed the write back into the sender's model,
+        # re-firing change listeners. Reconnect replay records client
+        # writes server-side instead (SessionView.add_control_request).
+        return None
     else:
         LOGGER.warning("Unknown method: %s, skipping", method)
         return None
