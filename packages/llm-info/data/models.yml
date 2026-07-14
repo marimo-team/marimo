@@ -91,6 +91,46 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: GPT-5.6
+    model: gpt-5.6
+    description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Luna
+    model: gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 1, output: 6}
+
+  - name: GPT-5.6 Sol
+    model: gpt-5.6-sol
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Terra
+    model: gpt-5.6-terra
+    description: "Balanced model in OpenAI's GPT-5.6 series, suited for everyday coding, reasoning, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 2.5, output: 15}
+
   - name: GPT-5.5
     model: gpt-5.5
     description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
@@ -239,6 +279,16 @@ bedrock:
     output_types: [text]
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5 (Global)
+    model: global.anthropic.claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
 
   - name: Claude Sonnet 5
     model: anthropic.claude-sonnet-5
@@ -682,6 +732,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Granite 4.1 8B
+    model: ibm-granite/granite-4.1-8b
+    description: "Dense 8B decoder-only model from IBM's Granite 4.1 family with a 131K-token context window, designed for enterprise tasks"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-29
+    cost: {input: 0.05, output: 0.1}
+
   - name: DeepSeek V4-Flash
     model: deepseek-ai/DeepSeek-V4-Flash
     description: "DeepSeek V4-Flash is an MoE model with 1M context length great for coding, reasoning, and agentic workloads"
@@ -721,6 +781,16 @@ wandb:
     output_types: [text]
     release_date: 2026-04-07
     cost: {input: 1.4, output: 4.4}
+
+  - name: Nemotron 3 Ultra
+    model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
+    description: "Open frontier-reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-06-04
+    cost: {input: 0.75, output: 2.75}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
