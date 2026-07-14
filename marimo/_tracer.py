@@ -308,11 +308,14 @@ def attach_trace_context(
     try:
         from opentelemetry import context as otel_context
         from opentelemetry.propagate import extract
-    except Exception:
+
+        token = otel_context.attach(extract(carrier=dict(headers)))
+    except Exception as e:
+        # A missing dependency or malformed header must never break dispatch.
+        LOGGER.debug("Failed to attach trace context", exc_info=e)
         yield
         return
 
-    token = otel_context.attach(extract(carrier=dict(headers)))
     try:
         yield
     finally:
