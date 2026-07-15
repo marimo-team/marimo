@@ -49,7 +49,7 @@ _ISOLATION_DEFS = {"test_cross_cell_fixture_fails", "test_missing_fixture"}
 
 @pytest.fixture(scope="module")
 def notebook_env() -> tuple[
-    type[_app_type], dict[str, object], Path, type[_run_pytest_type]
+    type[_app_type], dict[str, object], Path, type[_run_pytest_type], set[str]
 ]:
     from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
     from marimo._runtime.pytest import run_pytest
