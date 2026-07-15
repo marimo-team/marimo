@@ -21,12 +21,13 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { deserializeBlob } from "@/utils/blob";
+import { fileDetailsToBlob } from "@/utils/blob";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob, downloadByURL } from "@/utils/download";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { FilePreviewHeader } from "./file-header";
 import {
+  buildMediaSource,
   FileContentRenderer,
   isMediaMime,
   MIME_TO_LANGUAGE,
@@ -122,29 +123,23 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const handleDownload = () => {
-    if (data.isBase64 && data.contents) {
-      if (isMediaMime(mimeType)) {
-        const dataURL = base64ToDataURL(
-          data.contents as Base64String,
-          mimeType,
-        );
-        downloadByURL(dataURL, data.file.name);
-      } else {
-        const blob = deserializeBlob(
-          base64ToDataURL(
-            data.contents as Base64String,
-            data.mimeType || "application/octet-stream",
-          ),
-        );
-        downloadBlob(blob, data.file.name);
-      }
+    // Media files download via data URL so the browser infers the extension.
+    if (data.isBase64 && data.contents && isMediaMime(mimeType)) {
+      downloadByURL(
+        base64ToDataURL(data.contents as Base64String, mimeType),
+        data.file.name,
+      );
       return;
     }
 
-    downloadBlob(
-      new Blob([data.contents || internalValue], { type: mimeType }),
-      data.file.name,
-    );
+    const blob = fileDetailsToBlob({
+      contents: data.contents || internalValue,
+      mimeType: data.isBase64
+        ? data.mimeType || "application/octet-stream"
+        : mimeType,
+      isBase64: data.isBase64 ?? false,
+    });
+    downloadBlob(blob, data.file.name);
   };
 
   const header = (
@@ -208,6 +203,15 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     </Alert>
   );
 
+  const mediaSource =
+    isMedia && data.contents
+      ? buildMediaSource({
+          contents: data.contents,
+          mimeType,
+          isBase64: data.isBase64 ?? false,
+        })
+      : undefined;
+
   return (
     <>
       {header}
@@ -221,11 +225,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
               ? internalValue
               : (data.contents ?? undefined)
         }
-        mediaSource={
-          isMedia
-            ? { base64: data.contents as Base64String, mime: mimeType }
-            : undefined
-        }
+        mediaSource={mediaSource}
         readOnly={!isText}
         onChange={setInternalValue}
         extensions={[

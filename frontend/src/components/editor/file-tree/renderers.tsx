@@ -60,6 +60,27 @@ function resolveMediaSrc(source: MediaSource): string {
   return base64ToDataURL(source.base64, source.mime);
 }
 
+/**
+ * Build a {@link MediaSource} from file details.
+ * Binary media is base64-encoded; text-based media (e.g. SVG) uses a UTF-8 data URL.
+ */
+export function buildMediaSource({
+  contents,
+  mimeType,
+  isBase64,
+}: {
+  contents: string;
+  mimeType: string;
+  isBase64: boolean;
+}): MediaSource {
+  if (isBase64) {
+    return { base64: contents as Base64String, mime: mimeType };
+  }
+  return {
+    url: `data:${mimeType};charset=utf-8,${encodeURIComponent(contents)}`,
+  };
+}
+
 export const CsvViewer: React.FC<{ contents: string }> = ({ contents }) => {
   const data = useMemo(() => parseCsvData(contents), [contents]);
   const [pagination, setPagination] = useState<PaginationState>({
