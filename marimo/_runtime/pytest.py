@@ -128,7 +128,7 @@ def _global_scope_defs() -> set[str]:
     """Names visible to every cell: the setup cell and top-level
     (`@app.function` / `@app.class_definition`) definitions.
 
-    Used to determone notebook-global fixtures for live collection.
+    Used to determine notebook-global fixtures for live collection.
     Returns an empty set when no kernel context is available.
     """
     from marimo._ast.names import SETUP_CELL_NAME
@@ -304,7 +304,6 @@ class ReplaceStubPlugin:
                 exc_info=True,
             )
             self.collect_live = False
-            return None
             return None
 
     def _live_owner(self, item: Any) -> str | None:
