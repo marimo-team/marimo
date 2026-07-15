@@ -7,12 +7,37 @@ import {
   getRawPrompt,
   getTerminalCommand,
   maskToken,
+  shellQuote,
 } from "../pair-with-agent-commands";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
   sessionId: "s_ab12cd",
 };
+
+describe("shellQuote", () => {
+  it("quotes an empty string", () => {
+    expect(shellQuote("")).toBe("''");
+  });
+
+  it("leaves shell-safe values untouched", () => {
+    expect(shellQuote("http://localhost:8000")).toBe("http://localhost:8000");
+    expect(shellQuote("s_ab12cd")).toBe("s_ab12cd");
+  });
+
+  it("quotes values with shell metacharacters", () => {
+    expect(shellQuote("http://host:8000?a=1&b=2")).toBe(
+      "'http://host:8000?a=1&b=2'",
+    );
+    expect(shellQuote("has space")).toBe("'has space'");
+    expect(shellQuote("$(rm -rf /)")).toBe("'$(rm -rf /)'");
+  });
+
+  it("escapes embedded single quotes without breaking out", () => {
+    // Closes the quote, emits a literal ' via "'", then reopens: '"'"'
+    expect(shellQuote("a'b")).toBe(`'a'"'"'b'`);
+  });
+});
 
 describe("getMarimoCommand", () => {
   afterEach(() => {
@@ -33,19 +58,28 @@ describe("getMarimoCommand", () => {
 describe("getTerminalCommand", () => {
   it("includes the url and session for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url 'http://localhost:8000' --session 's_ab12cd' --claude)"`,
+      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --claude)"`,
     );
     expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url 'http://localhost:8000' --session 's_ab12cd' --codex)"`,
+      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --codex)"`,
     );
     expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url 'http://localhost:8000' --session 's_ab12cd' --opencode)"`,
+      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --opencode)"`,
     );
   });
 
   it("always targets the given session, not a random one", () => {
     const command = getTerminalCommand("claude", CONNECTION, false);
-    expect(command).toContain("--session 's_ab12cd'");
+    expect(command).toContain("--session s_ab12cd");
+  });
+
+  it("shell-escapes a url containing metacharacters", () => {
+    const command = getTerminalCommand(
+      "claude",
+      { url: "http://host:8000?file=a&b", sessionId: "s_ab12cd" },
+      false,
+    );
+    expect(command).toContain("--url 'http://host:8000?file=a&b'");
   });
 
   it("adds --with-token before the agent flag when requested", () => {
@@ -80,8 +114,13 @@ describe("getRawPrompt", () => {
   it("includes a session-scoped token hint when a token is present", () => {
     const prompt = getRawPrompt(CONNECTION, "secret-token");
     expect(prompt).toContain(
-      "execute-code.sh --url http://localhost:8000 --session s_ab12cd --token 'secret-token'",
+      "execute-code.sh --url http://localhost:8000 --session s_ab12cd --token secret-token",
     );
+  });
+
+  it("shell-escapes a token containing a single quote", () => {
+    const prompt = getRawPrompt(CONNECTION, "tok'en");
+    expect(prompt).toContain(`--token 'tok'"'"'en'`);
   });
 
   it("matches the CLI prompt shape", () => {

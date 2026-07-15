@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -169,9 +170,11 @@ def prompt(
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
     # The specific notebook the user wants to pair on, so agents don't have to
-    # guess when multiple sessions are open on the same server.
-    session_flag = f" --session {session}" if session else ""
-    execute_cmd = f"execute-code.sh --url {url}{session_flag}"
+    # guess when multiple sessions are open on the same server. Shell-quote the
+    # dynamic values since this command is meant to be copy-pasted into a shell
+    # and the url/session may contain metacharacters (e.g. `&` in a query).
+    session_flag = f" --session {shlex.quote(session)}" if session else ""
+    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{session_flag}"
     # Validate that the selected agents have the required skills
     selected_agents = {
         "claude": claude,

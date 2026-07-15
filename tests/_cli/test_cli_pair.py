@@ -63,6 +63,14 @@ class TestPairPrompt:
         assert result.exit_code == 0
         assert "--session" not in result.output
 
+    def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
+        # The execute-code.sh command is meant to be copy-pasted into a shell,
+        # so a url with metacharacters (`&`) must be quoted so it isn't split.
+        url = "http://localhost:8000?file=a&b"
+        result = _runner.invoke(cli_main, ["pair", "prompt", "--url", url])
+        assert result.exit_code == 0
+        assert f"execute-code.sh --url '{url}'" in result.output
+
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
             for flag in ("--claude", "--codex", "--opencode"):

@@ -22,6 +22,27 @@ export function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
 }
 
+/**
+ * POSIX-quote a value for safe embedding in a shell command. These commands are
+ * meant to be copied into a terminal, so a url/token containing shell
+ * metacharacters (`'`, `&`, `$(...)`, ...) must not break out of its argument.
+ *
+ * Mirrors Python's `shlex.quote` (used on the CLI side in
+ * `marimo/_cli/pair/commands.py`) so both sides produce identical commands:
+ * values that are already shell-safe are left as-is for readability, and
+ * anything else is single-quoted with embedded quotes escaped as `'"'"'`.
+ */
+export function shellQuote(value: string): string {
+  if (value === "") {
+    return "''";
+  }
+  // Same "safe" character set as CPython's shlex.quote (ASCII \w plus a few).
+  if (/^[\w@%+=:,./-]+$/.test(value)) {
+    return value;
+  }
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
@@ -42,7 +63,7 @@ export function getTerminalCommand(
   withToken: boolean,
 ): string {
   const tokenFlag = withToken ? " --with-token" : "";
-  const base = `${getMarimoCommand()} pair prompt --url '${url}' --session '${sessionId}'${tokenFlag}`;
+  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)} --session ${shellQuote(sessionId)}${tokenFlag}`;
   switch (agent) {
     case "claude":
       return `claude "$(${base} --claude)"`;
@@ -64,9 +85,9 @@ export function getRawPrompt(
   { url, sessionId }: ConnectionInfo,
   token: string | null,
 ): string {
-  const executeCmd = `execute-code.sh --url ${url} --session ${sessionId}`;
+  const executeCmd = `execute-code.sh --url ${shellQuote(url)} --session ${shellQuote(sessionId)}`;
   const tokenHint = token
-    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`${executeCmd} --token '${token}'\`.`
+    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`${executeCmd} --token ${shellQuote(token)}\`.`
     : "";
   return [
     "Use the /marimo-pair skill to pair-program on a running marimo notebook.",
