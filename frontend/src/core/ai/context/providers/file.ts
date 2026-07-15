@@ -10,8 +10,7 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { contextCallbacks } from "@/core/codemirror/ai/state";
 import type { EditRequests, FileInfo, RunRequests } from "@/core/network/types";
-import { deserializeBlob } from "@/utils/blob";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { fileDetailsToBlob } from "@/utils/blob";
 import { Logger } from "@/utils/Logger";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
@@ -219,33 +218,13 @@ export class FileContextProvider extends AIContextProvider<FileContextItem> {
 
         const mimeType = fileDetails.mimeType || "text/plain";
 
-        // Handle binary vs text files
-        let blob: Blob;
-        if (
-          mimeType.startsWith("text/") ||
-          mimeType.includes("json") ||
-          mimeType.includes("xml")
-        ) {
-          // Text files - create blob directly from contents
-          blob = new Blob([fileDetails.contents || ""], { type: mimeType });
-        } else {
-          // Binary files - use blob utility to decode base64
-          if (fileDetails.contents) {
-            try {
-              // Create data URL using utility and deserialize blob
-              const dataURL = base64ToDataURL(
-                fileDetails.contents as Base64String,
-                mimeType,
-              );
-              blob = deserializeBlob(dataURL);
-            } catch {
-              // Fallback to treating as text
-              blob = new Blob([fileDetails.contents], { type: mimeType });
-            }
-          } else {
-            blob = new Blob([""], { type: mimeType });
-          }
-        }
+        // The backend's `isBase64` flag authoritatively distinguishes binary
+        // (base64-encoded) from UTF-8 text contents.
+        const blob = fileDetailsToBlob({
+          contents: fileDetails.contents ?? "",
+          mimeType,
+          isBase64: fileDetails.isBase64 ?? false,
+        });
 
         const file = new File([blob], name, { type: mimeType });
         addAttachment(file);

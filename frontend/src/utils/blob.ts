@@ -1,5 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import type { DataURLString } from "./json/base64";
+import {
+  type Base64String,
+  base64ToDataURL,
+  type DataURLString,
+} from "./json/base64";
 
 export function serializeBlob<T>(blob: Blob): Promise<DataURLString> {
   return new Promise<DataURLString>((resolve, reject) => {
@@ -29,4 +33,23 @@ export function deserializeBlob(serializedBlob: DataURLString): Blob {
   // Create a new Blob from the array buffer
   const blob = new Blob([bytes], { type: mimeType });
   return blob;
+}
+
+/**
+ * Convert file details into a `Blob`, using the authoritative `isBase64` flag
+ * to decide between decoding base64 bytes and treating contents as UTF-8 text.
+ */
+export function fileDetailsToBlob({
+  contents,
+  mimeType,
+  isBase64,
+}: {
+  contents: string;
+  mimeType: string;
+  isBase64: boolean;
+}): Blob {
+  if (isBase64) {
+    return deserializeBlob(base64ToDataURL(contents as Base64String, mimeType));
+  }
+  return new Blob([contents], { type: mimeType });
 }
