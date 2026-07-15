@@ -197,6 +197,7 @@ def opengraph_metadata_template(
     app_config: _AppConfig,
     filename: str | None,
     filepath: str | None,
+    execute_opengraph_generators: bool = False,
 ) -> str:
     """Return OpenGraph `<meta>` tags for a notebook, or an empty string."""
     if not filepath:
@@ -221,6 +222,7 @@ def opengraph_metadata_template(
                 base_url=base_url,
                 mode=mode.value,
             ),
+            execute_generator=execute_opengraph_generators,
         )
     except Exception:
         return ""
@@ -277,6 +279,7 @@ def notebook_page_template(
     runtime_config: list[dict[str, Any]] | None = None,
     asset_url: str | None = None,
     html_head: str | None = None,
+    execute_opengraph_generators: bool = False,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
 
@@ -337,6 +340,7 @@ def notebook_page_template(
         app_config=app_config,
         filename=filename,
         filepath=filepath,
+        execute_opengraph_generators=execute_opengraph_generators,
     )
     if opengraph_tags:
         html = html.replace("</head>", f"{opengraph_tags}\n</head>")

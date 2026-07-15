@@ -54,7 +54,9 @@ For execution and sandbox options (and for Playwright installation instructions)
 
 ## Dynamic metadata
 
-For dynamic previews, you can provide a generator function in script metadata. Generators must be [top-level functions](../reusing_functions.md) (decorated with `@app.function`) and cannot depend on values defined in regular cells, so that they can be safely executed in the marimo CLI without running the whole notebook.
+For dynamic previews, you can provide a generator function in script metadata. Dynamic metadata executes Python while the server resolves previews, so enable it only for notebooks you trust. Run `marimo run --execute-opengraph-generators folder/`, or pass `execute_opengraph_generators=True` to `marimo.create_asgi_app()`.
+
+Generators must be [top-level functions](../reusing_functions.md). They run outside normal cell execution, so values defined in regular cells are unavailable at metadata resolution time.
 
 In script metadata, point `generator` at the name of a function defined in the notebook:
 
