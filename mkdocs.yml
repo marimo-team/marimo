@@ -274,6 +274,7 @@ nav:
           - Stacks: api/layouts/stacks.md
           - Stat: api/layouts/stat.md
           - Tree: api/layouts/tree.md
+      - SQL: api/sql.md
       - Plotting: api/plotting.md
       - Media:
           - Media: api/media/index.md

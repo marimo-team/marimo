@@ -17,6 +17,7 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | [markdown](markdown.md)      | Write markdown with `mo.md`                               |
 | [inputs](inputs/index.md)  | Connect sliders, dropdowns, tables, and more to Python    |
 | [layouts](layouts/index.md) | Customize outputs with accordions, tabs, stacks, and more |
+| [sql](sql.md)            | Execute SQL with `mo.sql`                                 |
 | [plotting](plotting.md)      | Output interactive plots                                  |
 | [media](media/index.md)   | Output media like images, audio, PDFs, and plain text     |
 | [diagrams](diagrams.md)      | Flow charts, graphs, statistic cards, and more            |
