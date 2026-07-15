@@ -188,6 +188,11 @@ class DirectoryScanner:
             folders: list[FileInfo] = []
 
             for entry in entries:
+                # Check the limit here, not just after adding a file: a
+                # sibling directory's recursion may have reached it.
+                if file_count[0] >= self.max_files:
+                    break
+
                 # Skip hidden files and directories
                 if entry.name.startswith("."):
                     continue
@@ -238,9 +243,6 @@ class DirectoryScanner:
                             files.append(file_info)
                             # Also add to partial results for timeout recovery
                             self.partial_results.append(file_info)
-                            # Check if we've reached the limit
-                            if file_count[0] >= self.max_files:
-                                break
                 except OSError as e:
                     LOGGER.debug(
                         "Error processing entry %s: %s", entry.path, e

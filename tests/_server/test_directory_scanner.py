@@ -118,6 +118,31 @@ class TestDirectoryScanner:
         files = DirectoryScanner(str(test_dir), max_files=5).scan()
         assert _count_files(files) == 5
 
+    def test_max_files_limit_recursion_at_boundary(
+        self, test_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A subdir recursion that reaches max_files must not let another
+        top-level file slip in. Forces the ordering that only flaked in CI."""
+        import marimo._server.files.directory_scanner as scanner_mod
+
+        for i in range(10):
+            _write(test_dir / f"app{i + 3}.py", MARIMO_APP)
+
+        real_scandir = os.scandir
+
+        def ordered_scandir(path: str):  # type: ignore[no-untyped-def]
+            entries = list(real_scandir(path))
+            dirs = [e for e in entries if e.is_dir()]
+            files = sorted(
+                (e for e in entries if not e.is_dir()), key=lambda e: e.name
+            )
+            # 4 files, then the nested dir (reaches the limit), then the rest.
+            return files[:4] + dirs + files[4:]
+
+        monkeypatch.setattr(scanner_mod.os, "scandir", ordered_scandir)
+        files = DirectoryScanner(str(test_dir), max_files=5).scan()
+        assert _count_files(files) == 5
+
     def test_skip_common_directories(self, test_dir: Path):
         skip_names = (
             "venv",
