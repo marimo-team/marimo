@@ -13,8 +13,19 @@ def to_camel_case(snake_str: str) -> str:
     if "_" not in snake_str:
         return snake_str
 
-    pascal_case = "".join(x.capitalize() for x in snake_str.lower().split("_"))
-    return snake_str[0].lower() + pascal_case[1:]
+    # Preserve leading underscores (e.g. "_private_key" -> "_privateKey").
+    # Building the camelCase name from `snake_str[0] + pascal_case[1:]` assumed
+    # the first character was the start of the first word; for a leading
+    # underscore it dropped the real first letter ("_foo" -> "_oo").
+    stripped = snake_str.lstrip("_")
+    leading_underscores = snake_str[: len(snake_str) - len(stripped)]
+
+    pascal_case = "".join(x.capitalize() for x in stripped.lower().split("_"))
+    if not pascal_case:
+        # snake_str was all underscores; leave it unchanged.
+        return snake_str
+    camel_case = pascal_case[0].lower() + pascal_case[1:]
+    return leading_underscores + camel_case
 
 
 def to_snake_case(string: str) -> str:

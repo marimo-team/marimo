@@ -5,6 +5,7 @@ import asyncio
 import os
 import sys
 from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -12,6 +13,19 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.local_modules import (
+    LocalWheelError,
+    resolve_notebook_local_modules,
+)
+from marimo._cli.export.local_wheels import (
+    WASM_WHEEL_DIR,
+    auto_wheel_dependencies,
+    build_local_module_wheels,
+    copy_local_wheels,
+    resolve_metadata_wheel_dependencies,
+    wheel_dependency_names,
+    with_wheel_dependencies,
+)
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -52,8 +66,15 @@ from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Protocol
 
     from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+
+    class _ExportWithCodeTransform(Protocol):
+        def __call__(
+            self, *, code_transform: Callable[[str], str]
+        ) -> ExportResult: ...
+
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
@@ -983,6 +1004,42 @@ def html_wasm(
 
     marimo_file = MarimoPath(name)
 
+    def export_with_local_wheels(
+        file_path: MarimoPath,
+        export_callback: _ExportWithCodeTransform,
+    ) -> ExportResult:
+        """Export with notebook-local wheels injected into PEP 723 metadata."""
+        metadata_wheels = resolve_metadata_wheel_dependencies(file_path)
+        metadata_wheel_names = wheel_dependency_names(metadata_wheels)
+        modules = tuple(
+            resolve_notebook_local_modules(
+                file_path.absolute_name,
+                exclude_names=metadata_wheel_names,
+            )
+        )
+        try:
+            with build_local_module_wheels(modules) as local_wheels:
+                wheel_dependencies = (
+                    *metadata_wheels,
+                    *auto_wheel_dependencies(local_wheels),
+                )
+                result = export_callback(
+                    code_transform=partial(
+                        with_wheel_dependencies,
+                        wheel_dependencies=wheel_dependencies,
+                    )
+                )
+                copy_local_wheels(
+                    out_dir,
+                    tuple(
+                        dependency.path for dependency in wheel_dependencies
+                    ),
+                    source_wheel_dir=file_path.path.parent / WASM_WHEEL_DIR,
+                )
+                return result
+        except LocalWheelError as error:
+            raise click.UsageError(str(error)) from error
+
     if execute:
         cli_args = parse_args(args)
 
@@ -996,7 +1053,11 @@ def html_wasm(
             pipe=lambda msg: echo(msg, err=True),
         )
 
-        def export_callback(file_path: MarimoPath) -> ExportResult:
+        def export_executed_wasm(
+            file_path: MarimoPath,
+            *,
+            code_transform: Callable[[str], str],
+        ) -> ExportResult:
             return asyncio_run(
                 run_app_then_export_as_wasm(
                     file_path,
@@ -1005,14 +1066,29 @@ def html_wasm(
                     cli_args=cli_args,
                     argv=list(args),
                     cache_export_dir=out_dir,
+                    code_transform=code_transform,
                 )
+            )
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            return export_with_local_wheels(
+                file_path,
+                partial(export_executed_wasm, file_path),
             )
 
         echo("Executing notebook...")
     else:
 
         def export_callback(file_path: MarimoPath) -> ExportResult:
-            return export_as_wasm(file_path, mode, show_code=show_code)
+            return export_with_local_wheels(
+                file_path,
+                partial(
+                    export_as_wasm,
+                    file_path,
+                    mode,
+                    show_code=show_code,
+                ),
+            )
 
     # Export assets first
     Exporter().export_assets(out_dir)
@@ -1045,7 +1121,13 @@ def html_wasm(
     outfile = out_dir / filename
     # NB. with --execute, the callback also bundles session caches into the
     # export's public/cache/.
-    watch_and_export(MarimoPath(name), outfile, watch, export_callback, force)
+    return watch_and_export(
+        MarimoPath(name),
+        outfile,
+        watch,
+        export_callback,
+        force,
+    )
 
 
 export.add_command(html)

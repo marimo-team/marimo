@@ -124,8 +124,23 @@ def test_workspace_files_in_run_mode(client: TestClient) -> None:
     session_manager.mode = SessionMode.RUN
 
     with tempfile.TemporaryDirectory() as temp_dir:
+        marker = Path(temp_dir) / "marker.txt"
         marimo_file = Path(temp_dir) / "notebook.py"
-        marimo_file.write_text("import marimo\napp = marimo.App()")
+        marimo_file.write_text(
+            f"""# /// script
+# [tool.marimo.opengraph]
+# title = "Static Title"
+# generator = "generate_opengraph"
+# ///
+import marimo
+app = marimo.App()
+with app.setup:
+    open({str(marker)!r}, "w").write("executed")
+def generate_opengraph(context, parent):
+    return {{"title": "Dynamic Title"}}
+""",
+            encoding="utf-8",
+        )
 
         non_marimo_file = Path(temp_dir) / "text.txt"
         non_marimo_file.write_text("This is not a marimo file")
@@ -145,6 +160,8 @@ def test_workspace_files_in_run_mode(client: TestClient) -> None:
         assert len(files) == 1
         assert body["root"] == temp_dir
         assert files[0]["path"] == marimo_file.name
+        assert files[0]["opengraph"]["title"] == "Static Title"
+        assert not marker.exists()
 
 
 @with_session(SESSION_ID)

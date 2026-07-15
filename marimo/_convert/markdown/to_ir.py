@@ -50,6 +50,7 @@ from marimo._schemas.serialization import (
     CellDef,
     Header,
     NotebookSerializationV1,
+    Violation,
 )
 
 if TYPE_CHECKING:
@@ -200,6 +201,7 @@ class SafeWrap(Generic[T]):
 
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     from marimo._ast.app_config import _AppConfig
+    from marimo._ast.parse import NON_MARIMO_MARKDOWN_VIOLATION
     from marimo._utils import yaml
     from marimo._utils.scripts import wrap_script_metadata
 
@@ -237,6 +239,17 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     else:
         header_value = None
 
+    # A markdown file is only recognized as a marimo notebook if it has at
+    # least one marimo code cell (a `{python}`/`{sql}`/`{.marimo}` fence) or
+    # marimo metadata in its frontmatter. Otherwise it is plain markdown, and
+    # lint/fix should leave it untouched (see `is_non_marimo_markdown`).
+    is_marimo = "marimo-version" in root.attrib or any(
+        child.tag == MARIMO_CODE for child in root
+    )
+    violations = (
+        [] if is_marimo else [Violation(NON_MARIMO_MARKDOWN_VIOLATION)]
+    )
+
     notebook = NotebookSerializationV1(
         app=AppInstantiation(options=config_only),
         cells=[
@@ -250,6 +263,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
             )
         ],
         header=Header(value=header_value) if header_value else None,
+        violations=violations,
     )
     return SafeWrap(notebook)
 

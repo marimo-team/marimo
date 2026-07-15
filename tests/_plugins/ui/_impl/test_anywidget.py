@@ -298,6 +298,55 @@ x = as_marimo_element.count
         assert ui_element.widget.value == 42
 
     @staticmethod
+    async def test_client_update_not_echoed_back() -> None:
+        """Client write → observer update is broadcast, the write is not.
+
+        A frontend change runs a Python observer that regenerates a
+        chart trait; only the observer's kernel-driven update may go
+        back out to clients.
+        """
+        from unittest.mock import patch
+
+        from marimo._plugins.ui._impl.anywidget.init import (
+            WIDGET_COMM_MANAGER,
+        )
+
+        class ChartWidget(_anywidget.AnyWidget):
+            _esm = ""
+            param = traitlets.Int(0).tag(sync=True)
+            chart = traitlets.Unicode("").tag(sync=True)
+
+            @traitlets.observe("param")
+            def _redraw(self, change) -> None:
+                self.chart = f"<svg>{change['new']}</svg>"
+
+        w = anywidget(ChartWidget())
+        model_id = WidgetModelId(w.widget._model_id)
+
+        with patch(
+            "marimo._plugins.ui._impl.comm.broadcast_notification"
+        ) as mock_broadcast:
+            WIDGET_COMM_MANAGER.receive_comm_message(
+                ModelCommand(
+                    model_id=model_id,
+                    message=ModelUpdateMessage(
+                        state={"param": 3}, buffer_paths=[]
+                    ),
+                    buffers=[],
+                )
+            )
+
+        assert w.widget.param == 3
+        updates = [
+            call.args[0].message.state
+            for call in mock_broadcast.call_args_list
+        ]
+        # The observer's chart refresh is broadcast...
+        assert {"chart": "<svg>3</svg>"} in updates
+        # ...the echo of the client's own write is not.
+        assert all("param" not in state for state in updates)
+
+    @staticmethod
     async def test_buffers() -> None:
         class BufferWidget(_anywidget.AnyWidget):
             _esm = ""

@@ -6,15 +6,6 @@ import type { ModelState } from "./types";
 type ModelEventCallback = Parameters<AnyModel<ModelState>["on"]>[1];
 
 /**
- * A listener registered through a model proxy (see the hydration
- * replay in `WidgetBinding.createView`).
- */
-export interface ProxyRegistration {
-  event: string;
-  callback: ModelEventCallback;
-}
-
-/**
  * Wrap a model so every `on()` call from inside `initialize` or `render`
  * is auto-tied to a lifetime `AbortSignal`. When the signal aborts,
  * every listener registered through the proxy is removed.
@@ -27,14 +18,11 @@ export interface ProxyRegistration {
  * The proxy is purely a host-side ergonomic helper. The widget author
  * still writes `model.on("change:foo", handler)` exactly as before; the
  * cleanup signal is supplied transparently.
- *
- * `onRegister`, when given, observes each `on()` registration.
  */
 // oxlint-disable-next-line marimo/prefer-object-params -- concise internal helper used at protocol call sites
 export function modelProxy<T extends ModelState>(
   model: AnyModel<T>,
   signal: AbortSignal,
-  onRegister?: (registration: ProxyRegistration) => void,
 ): AnyModel<T> {
   return {
     get(key) {
@@ -55,7 +43,6 @@ export function modelProxy<T extends ModelState>(
       signal.addEventListener("abort", () => model.off(name, callback), {
         once: true,
       });
-      onRegister?.({ event: name, callback });
     },
     off(name?: string | null, callback?: ModelEventCallback | null): void {
       model.off(name ?? null, callback ?? null);

@@ -362,6 +362,7 @@ def create_asgi_app(
     redirect_console_to_browser: bool = False,
     show_tracebacks: bool = False,
     html_head: str | None = None,
+    execute_opengraph_generators: bool = False,
 ) -> ASGIAppBuilder:
     """Public API to create an ASGI app that can serve multiple notebooks.
     This only works for application that are in Run mode.
@@ -384,6 +385,8 @@ def create_asgi_app(
             This is useful for adding global analytics scripts, custom stylesheets, meta tags, etc.
             When a notebook also has its own `html_head_file` config, the global `html_head` is injected first,
             followed by the per-notebook content.
+        execute_opengraph_generators (bool, optional): Execute notebook-defined OpenGraph generators while resolving metadata.
+            Enable this for notebooks from directories you trust.
 
     Returns:
         ASGIAppBuilder: A builder object to create multiple ASGI apps
@@ -562,6 +565,7 @@ def create_asgi_app(
                 isolate_apps=config_reader.experimental.get(
                     "isolate_apps", False
                 ),
+                execute_opengraph_generators=execute_opengraph_generators,
             )
             enable_auth = not AuthToken.is_empty(auth_token)
             app = create_starlette_app(

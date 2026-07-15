@@ -337,13 +337,12 @@ describe("WidgetBinding", () => {
       { el: document.createElement("div") },
       { signal: controller.signal },
     );
-    // Called once by the hydration replay at mount, once by the set.
     model.set("count", 1);
-    expect(onCount).toHaveBeenCalledTimes(2);
+    expect(onCount).toHaveBeenCalledTimes(1);
 
     controller.abort();
     model.set("count", 2);
-    expect(onCount).toHaveBeenCalledTimes(2);
+    expect(onCount).toHaveBeenCalledTimes(1);
   });
 
   it("should auto-clear initialize listeners on destroy", async () => {
@@ -366,30 +365,32 @@ describe("WidgetBinding", () => {
   });
 });
 
-describe("WidgetBinding hydration replay", () => {
-  it("replays current state to render listeners exactly once", async () => {
+describe("WidgetBinding render listeners", () => {
+  it("fire only for changes after mount, never for pre-existing state", async () => {
     const model = new Model<ModelState>({ count: 8 }, createMockComm());
-    const el = document.createElement("div");
+    const onCount = vi.fn();
+    const onAnyChange = vi.fn();
     const widgetDef = {
-      render: vi.fn(({ model, el }) => {
-        // A widget view that starts with a local default and relies on
-        // change events for hydration.
-        el.textContent = "count is 5";
-        model.on("change:count", () => {
-          el.textContent = `count is ${model.get("count")}`;
-        });
+      render: vi.fn(({ model }) => {
+        model.on("change:count", onCount);
+        model.on("change", onAnyChange);
       }),
     };
     const binding = await createBinding(widgetDef, model);
-
     const controller = new AbortController();
-    await binding.createView({ el }, { signal: controller.signal });
-    expect(el.textContent).toBe("count is 8");
+    await binding.createView(
+      { el: document.createElement("div") },
+      { signal: controller.signal },
+    );
+    expect(onCount).not.toHaveBeenCalled();
+    expect(onAnyChange).not.toHaveBeenCalled();
+
+    model.set("count", 9);
+    expect(onCount).toHaveBeenCalledTimes(1);
+    expect(onCount).toHaveBeenCalledWith(9);
   });
 
-  it("does not re-fire listeners of already-mounted views", async () => {
-    // Mounting view B must not double-paint view A: the replay is
-    // scoped to the listeners the new render attached.
+  it("mounting a second view does not fire the first view's listeners", async () => {
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
     const listeners: Array<ReturnType<typeof vi.fn>> = [];
     const widgetDef = {
@@ -406,52 +407,12 @@ describe("WidgetBinding hydration replay", () => {
       { el: document.createElement("div") },
       { signal: controller.signal },
     );
-    expect(listeners[0]).toHaveBeenCalledTimes(1);
-
     await binding.createView(
       { el: document.createElement("div") },
       { signal: controller.signal },
     );
-    // View B's listener hydrated once; view A's was left alone.
-    expect(listeners[1]).toHaveBeenCalledTimes(1);
-    expect(listeners[0]).toHaveBeenCalledTimes(1);
-  });
-
-  it("replays the any-change event to its listeners", async () => {
-    const model = new Model<ModelState>({ count: 1 }, createMockComm());
-    const onAnyChange = vi.fn();
-    const widgetDef = {
-      render: vi.fn(({ model }) => {
-        model.on("change", onAnyChange);
-      }),
-    };
-    const binding = await createBinding(widgetDef, model);
-    const controller = new AbortController();
-    await binding.createView(
-      { el: document.createElement("div") },
-      { signal: controller.signal },
-    );
-    expect(onAnyChange).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not replay initialize listeners", async () => {
-    // The guarantee is per-view: initialize listeners existed before
-    // any view, and replaying at them would fire once per mount.
-    const model = new Model<ModelState>({ count: 1 }, createMockComm());
-    const initListener = vi.fn();
-    const widgetDef = {
-      initialize: vi.fn(({ model }) => {
-        model.on("change:count", initListener);
-      }),
-      render: vi.fn(),
-    };
-    const binding = await createBinding(widgetDef, model);
-    const controller = new AbortController();
-    await binding.createView(
-      { el: document.createElement("div") },
-      { signal: controller.signal },
-    );
-    expect(initListener).not.toHaveBeenCalled();
+    expect(listeners[0]).not.toHaveBeenCalled();
+    expect(listeners[1]).not.toHaveBeenCalled();
   });
 
   it("clears the element before rendering into it", async () => {
