@@ -22,6 +22,9 @@ let bootstrapPromise: Promise<void> | undefined;
 
 /** Returns whether the current document can replace its app in this worker. */
 export function canReplaceApp(): boolean {
+  if (!document.querySelector(ISLAND_TAG_NAMES.ISLAND)) {
+    return false;
+  }
   return parseMarimoIslandApps(document, { materialize: false }).length === 1;
 }
 
@@ -37,7 +40,6 @@ export async function initialize(): Promise<void> {
     throw error;
   });
   await bootstrapPromise;
-  await new Promise((resolve) => setTimeout(resolve, 0));
   await bridge.initializeApps();
 }
 

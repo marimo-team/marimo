@@ -208,7 +208,9 @@ function handleMessage(
           setKernelState: Functions.NOOP,
           onError: Logger.error,
         });
-        defineCustomElement(ISLAND_TAG_NAMES.ISLAND, MarimoIslandElement);
+        if (!window.customElements?.get(ISLAND_TAG_NAMES.ISLAND)) {
+          defineCustomElement(ISLAND_TAG_NAMES.ISLAND, MarimoIslandElement);
+        }
         return;
 
       case "send-ui-element-message":
