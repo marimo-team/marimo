@@ -29,6 +29,11 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import pytest
+    from _pytest.nodes import Item, Node
+    from _pytest.python import Function, Module
+
+    class _LiveModule(Module):
+        def _set_globals(self, _marimo_globals: dict[str, Any]) -> None: ...
 
 
 @dataclass
@@ -146,7 +151,7 @@ def _global_scope_defs() -> set[str]:
 
 
 @functools.cache
-def _live_module_cls() -> Any:
+def _live_module_cls() -> type[_LiveModule]:
     """`pytest.Module` that collects from the kernel's live globals.
 
     The kernel has already executed the notebook's cells, so the live test
@@ -155,11 +160,12 @@ def _live_module_cls() -> Any:
 
     Defined lazily because pytest is an optional dependency.
     """
-    import pytest  # type: ignore
 
-    class _LiveModule(pytest.Module):
-        # Set per-instance immediately after `from_parent`.
-        _marimo_globals: dict[str, Any] = {}
+    class _LiveModuleImpl(_LiveModule):
+        _marimo_globals: dict[str, Any]
+
+        def _set_globals(self, _marimo_globals: dict[str, Any]) -> None:
+            self._marimo_globals = _marimo_globals
 
         def _getobj(self) -> Any:
             module = types.ModuleType(self.path.stem)
@@ -169,21 +175,21 @@ def _live_module_cls() -> Any:
             module.__dict__.update(self._marimo_globals)
             return module
 
-    return _LiveModule
+    return _LiveModuleImpl
 
 
 def _sub_function(
-    old_item: pytest.Item, parent: Any, fn: Callable[..., Any]
-) -> pytest.Item:
+    old_item: Function, parent: Any, fn: Callable[..., Any]
+) -> Function:
     # Directly execute the cell, since this means it's a toplevel function with no deps.
     # Or a cell where which we already wrapped in skip.
-    if isinstance(old_item.obj, Cell):  # type: ignore[attr-defined]
+    if isinstance(old_item.obj, Cell):
         return old_item
 
-    import pytest  # type: ignore
-    from _pytest.fixtures import FuncFixtureInfo  # type: ignore
+    import pytest
+    from _pytest.fixtures import FuncFixtureInfo
 
-    fixtureinfo = old_item._fixtureinfo  # type: ignore[attr-defined]
+    fixtureinfo = old_item._fixtureinfo
     param_names: set[str] = set()
 
     if hasattr(old_item, "callspec") and old_item.callspec:
@@ -257,7 +263,8 @@ class ReplaceStubPlugin:
         self.lcls = lcls
         self.defs = defs
         # When True, collect the kernel's live test objects from `lcls` instead
-        # of importing the (possibly stale) notebook from disk.
+        # of importing the (possibly stale) notebook from disk. This flag flips
+        # to false on failure of live collection.
         self.collect_live = collect_live
         # Notebook-global names (setup + top-level defs). Together with `defs`
         # they bound which fixtures stay visible during live collection; any
@@ -295,7 +302,7 @@ class ReplaceStubPlugin:
             return None
         try:
             module = _live_module_cls().from_parent(parent, path=module_path)
-            module._marimo_globals = self._live_module_globals()
+            module._set_globals(self._live_module_globals())
             return module
         except Exception:
             LOGGER.warning(
@@ -306,11 +313,11 @@ class ReplaceStubPlugin:
             self.collect_live = False
             return None
 
-    def _live_owner(self, item: Any) -> str | None:
+    def _live_owner(self, item: Item) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
-        import pytest  # type: ignore
+        import pytest
 
-        node = item
+        node: Node = item
         while node.parent is not None and not isinstance(
             node.parent, pytest.Module
         ):
@@ -321,7 +328,7 @@ class ReplaceStubPlugin:
         return name if isinstance(name, str) else None
 
     def pytest_collection_modifyitems(
-        self, items: list[Any], session: Any
+        self, items: list[pytest.Item], session: pytest.Session
     ) -> None:
         """Provided pytest has statically collected all the relevant tests:
         - Filter based on the expected defs of the cell context.
@@ -330,7 +337,7 @@ class ReplaceStubPlugin:
         """
         # Not official marimo dependencies
         # So don't import at the top level.
-        import pytest  # type: ignore
+        import pytest
 
         if self.collect_live:
             # Items were collected from the live kernel globals, so they are
@@ -372,6 +379,8 @@ class ReplaceStubPlugin:
         # Filter tests, and create new "Functions" with the relevant references
         # where needed.
         for item in items:
+            if not isinstance(item, pytest.Function):
+                continue
             head: Any = item
             path: list[str] = []
 
@@ -490,7 +499,7 @@ def run_pytest(
         "suite supported."
     )
 
-    import pytest  # type: ignore
+    import pytest
 
     if not notebook_path:
         # Translate name to python module
@@ -517,9 +526,7 @@ def run_pytest(
     # Ideally, --import-mode=importlib would be a great flag- however the
     # method is too brittle to handle absolute paths. As such, we default to
     # the normal behavior (in which pytest alters the system path).
-    plugin = ReplaceStubPlugin(
-        defs, lcls, collect_live=True, global_defs=global_defs
-    )
+    plugin = ReplaceStubPlugin(defs, lcls, global_defs=global_defs)
     try:
         # pytest in wasm doesn't seem to set environment variables correctly.
         # This work around is to prevent collision with non-wasm testing.
