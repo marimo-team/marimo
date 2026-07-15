@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -115,6 +116,13 @@ def pair() -> None:
     help="URL of the running marimo kernel.",
 )
 @click.option(
+    "--session",
+    "session",
+    default=None,
+    type=str,
+    help="ID of the specific notebook session to connect to.",
+)
+@click.option(
     "--claude",
     is_flag=True,
     default=False,
@@ -140,6 +148,7 @@ def pair() -> None:
 )
 def prompt(
     url: str,
+    session: str | None,
     claude: bool,
     codex: bool,
     opencode: bool,
@@ -154,9 +163,18 @@ def prompt(
         codex "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --codex)"
         opencode "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --opencode)"
 
+        # Connect to a specific notebook session
+        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --session 's_ab12cd' --claude)"
+
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
+    # The specific notebook the user wants to pair on, so agents don't have to
+    # guess when multiple sessions are open on the same server. Shell-quote the
+    # dynamic values since this command is meant to be copy-pasted into a shell
+    # and the url/session may contain metacharacters (e.g. `&` in a query).
+    session_flag = f" --session {shlex.quote(session)}" if session else ""
+    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{session_flag}"
     # Validate that the selected agents have the required skills
     selected_agents = {
         "claude": claude,
@@ -197,16 +215,18 @@ def prompt(
 
         token_hint = (
             f"\n\nAn auth token is stored at {token_file}. "
-            f"Pass it via `execute-code.sh --url '{url}' "
+            f"Pass it via `{execute_cmd} "
             f"--token \"$(cat '{token_file}')\"`."
         )
+
+    session_hint = f" (session {session})" if session else ""
 
     # Output the prompt to the wrapper agent CLI
     click.echo(
         "Use the /marimo-pair skill to pair-program on a running "
         "marimo notebook.\n\n"
-        f"Connect to the notebook at: {url}\n\n"
-        f"Use `execute-code.sh --url {url}` from the marimo-pair "
+        f"Connect to the notebook at: {url}{session_hint}\n\n"
+        f"Use `{execute_cmd}` from the marimo-pair "
         "skill to execute code in the notebook."
         f"{token_hint}\n\n"
         "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
