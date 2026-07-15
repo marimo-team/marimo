@@ -331,6 +331,23 @@ describe("parseIslandElement", () => {
       output: "<div>retained output</div>",
     });
   });
+
+  it("prefers new live source when an island element is reused", () => {
+    const element = createMockIslandElement({
+      code: 'print("new")',
+      innerHTML: "<div>new output</div>",
+    });
+    element.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    retainIslandSource(element, {
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    expect(parseIslandElement(element)).toEqual({
+      code: 'print("new")',
+      output: "<div>new output</div>",
+    });
+  });
 });
 
 describe("parseIslandElementsIntoApps", () => {

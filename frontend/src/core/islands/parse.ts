@@ -340,24 +340,20 @@ export function retainIslandSource(
 export function parseIslandElement(
   embed: HTMLElement,
 ): { output: string; code: string } | null {
-  const retained = retainedIslandSources.get(embed);
-  if (retained) {
-    return retained.code ? retained : null;
-  }
-
   const cellOutput = embed.querySelector<HTMLElement>(
     ISLAND_TAG_NAMES.CELL_OUTPUT,
   );
   const code = extractIslandCodeFromEmbed(embed);
 
-  if (!cellOutput || !code) {
-    return null;
+  if (cellOutput && code) {
+    return {
+      output: cellOutput.innerHTML,
+      code: code,
+    };
   }
 
-  return {
-    output: cellOutput.innerHTML,
-    code: code,
-  };
+  const retained = retainedIslandSources.get(embed);
+  return retained?.code ? retained : null;
 }
 
 export function createMarimoFile(app: {
