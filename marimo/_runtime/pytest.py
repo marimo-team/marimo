@@ -9,8 +9,6 @@ import types
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
-from marimo import _loggers
-from marimo._ast.cell import Cell
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
 from marimo._ast.variables import demangle_locals_in_text
 from marimo._cli.print import bold, green
@@ -19,18 +17,14 @@ from marimo._runtime.capture import capture_stdout
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.runtime import notebook_location
 
-LOGGER = _loggers.marimo_logger()
-
 MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
     from pathlib import Path
 
     import pytest
     from _pytest.nodes import Item, Node
-    from _pytest.python import Function
 
     class _UpdatesGlobals(Protocol):
         def _set_globals(self, _marimo_globals: dict[str, Any]) -> None: ...
@@ -178,73 +172,7 @@ def _live_module_cls() -> type[_LiveModule]:
             module.__dict__.update(self._marimo_globals)
             return module
 
-    return cast(type[_LiveModule], _LiveModuleImpl)
-
-
-def _sub_function(
-    old_item: Function, parent: Any, fn: Callable[..., Any]
-) -> Function:
-    # Directly execute the cell, since this means it's a toplevel function with no deps.
-    # Or a cell where which we already wrapped in skip.
-    if isinstance(old_item.obj, Cell):
-        return old_item
-
-    import pytest
-    from _pytest.fixtures import FuncFixtureInfo
-
-    fixtureinfo = old_item._fixtureinfo
-    param_names: set[str] = set()
-
-    if hasattr(old_item, "callspec") and old_item.callspec:
-        params: dict[str, Any] = old_item.callspec.params
-        param_names = set(params.keys())
-
-        def make_test_func(
-            func_JYWB: Callable[..., Any], param_dict: dict[str, Any]
-        ) -> Callable[[], Any]:
-            # note _JYWB is a suffix to easily detect in stack trace for
-            # removal.
-            # Also no functools.wraps(func) because we need the empty
-            # call signature
-            def test_wrapper(*args: Any, **kwargs: Any) -> Any:
-                return func_JYWB(*args, **kwargs, **param_dict)
-
-            # but copy attributes from the original function
-            test_wrapper.__name__ = func_JYWB.__name__
-            test_wrapper.__module__ = func_JYWB.__module__
-            return test_wrapper
-
-        fn = make_test_func(fn, params)
-
-        # Filter out parametrized args from fixtureinfo since they're baked in
-        fixtureinfo = FuncFixtureInfo(
-            argnames=tuple(
-                a for a in fixtureinfo.argnames if a not in param_names
-            ),
-            initialnames=tuple(
-                a for a in fixtureinfo.initialnames if a not in param_names
-            ),
-            names_closure=[
-                a for a in fixtureinfo.names_closure if a not in param_names
-            ],
-            name2fixturedefs={
-                k: v
-                for k, v in fixtureinfo.name2fixturedefs.items()
-                if k not in param_names
-            },
-        )
-
-    pyfn = pytest.Function.from_parent(
-        parent,
-        name=old_item.name,
-        callobj=fn,
-        fixtureinfo=fixtureinfo,  # Preserve fixture metadata (minus params)
-    )
-    # Attributes that need to be carried over.
-    for attr in ["keywords", "own_markers"]:
-        if hasattr(old_item, attr):
-            setattr(pyfn, attr, getattr(old_item, attr))
-    return pyfn
+    return cast("type[_LiveModule]", _LiveModuleImpl)
 
 
 class ReplaceStubPlugin:
@@ -255,7 +183,6 @@ class ReplaceStubPlugin:
         self,
         defs: set[str] | None = None,
         lcls: dict[str, Any] | None = None,
-        collect_live: bool = False,
         global_defs: set[str] | None = None,
     ) -> None:
         if lcls is None:
@@ -265,10 +192,6 @@ class ReplaceStubPlugin:
 
         self.lcls = lcls
         self.defs = defs
-        # When True, collect the kernel's live test objects from `lcls` instead
-        # of importing the (possibly stale) notebook from disk. This flag flips
-        # to false on failure of live collection.
-        self.collect_live = collect_live
         # Notebook-global names (setup + top-level defs). Together with `defs`
         # they bound which fixtures stay visible during live collection; any
         # fixture outside this scope belongs to a sibling cell and is hidden to
@@ -282,8 +205,8 @@ class ReplaceStubPlugin:
         Non-fixture names are kept wholesale so cross-cell variable refs and
         decorator values resolve. Fixtures are kept only when in scope (this
         run's `defs` or a notebook-global def); a sibling cell's fixture is
-        dropped so a test referencing it errors with "fixture not found", as it
-        does under disk collection's per-cell class scoping.
+        dropped so a test referencing it errors with "fixture not found",
+        preserving cell isolation.
         """
         scope = self.defs | self.global_defs
         return {
@@ -295,26 +218,10 @@ class ReplaceStubPlugin:
     def pytest_pycollect_makemodule(
         self, module_path: Any, parent: Any
     ) -> Any:
-        """Collect from the kernel's live globals rather than disk.
-
-        Returns None (deferring to pytest's normal disk import) unless live
-        collection is enabled, or on any failure building the live module — so
-        a future pytest change can at worst reintroduce the race, never crash.
-        """
-        if not self.collect_live:
-            return None
-        try:
-            module = _live_module_cls().from_parent(parent, path=module_path)
-            module._set_globals(self._live_module_globals())
-            return module
-        except Exception:
-            LOGGER.warning(
-                "Falling back to on-disk test collection; live collection "
-                "failed.",
-                exc_info=True,
-            )
-            self.collect_live = False
-            return None
+        """Collect from the kernel's live globals rather than disk."""
+        module = _live_module_cls().from_parent(parent, path=module_path)
+        module._set_globals(self._live_module_globals())
+        return module
 
     def _live_owner(self, item: Item) -> str | None:
         """Name of the module-level object (function/class) owning `item`."""
@@ -330,93 +237,17 @@ class ReplaceStubPlugin:
         name = getattr(node, "originalname", node.name)
         return name if isinstance(name, str) else None
 
-    def pytest_collection_modifyitems(
-        self, items: list[pytest.Item], session: pytest.Session
-    ) -> None:
-        """Provided pytest has statically collected all the relevant tests:
-        - Filter based on the expected defs of the cell context.
-        - Sub in the function references in scope opposed to the pytest
-          determined stubs.
+    def pytest_collection_modifyitems(self, items: list[pytest.Item]) -> None:
+        """Filter to just the items owned by this cell's defs.
+
+        Items were collected from the live kernel globals, so they are
+        already the runtime implementations with current markers, and the
+        in-scope fixtures are present in the synthetic module (see
+        `_live_module_globals`).
         """
-        # Not official marimo dependencies
-        # So don't import at the top level.
-        import pytest
-
-        if self.collect_live:
-            # Items were collected from the live kernel globals, so they are
-            # already the runtime implementations with current markers, and the
-            # in-scope fixtures are present in the synthetic module (see
-            # `_live_module_globals`).
-            items[:] = [
-                item for item in items if self._live_owner(item) in self.defs
-            ]
-            return
-
-        # Register cell-scoped fixtures before processing items
-        # Use names_closure (transitive deps) instead of just argnames
-        # to handle fixture dependency chains
-        fm = session._fixturemanager
-        registered_fixtures: set[str] = set()
-        for item in items:
-            if hasattr(item, "_fixtureinfo"):
-                for argname in item._fixtureinfo.names_closure:
-                    if (
-                        argname not in registered_fixtures
-                        and argname in self.lcls
-                        and _is_fixture(self.lcls[argname])
-                    ):
-                        obj = self.lcls[argname]
-                        marker = obj._pytestfixturefunction
-                        fm._register_fixture(
-                            name=argname,
-                            func=obj,
-                            nodeid="",  # Global visibility
-                            scope=marker.scope,
-                            params=marker.params,
-                            ids=marker.ids,
-                            autouse=marker.autouse,
-                        )
-                        registered_fixtures.add(argname)
-
-        to_collect = []
-        # Filter tests, and create new "Functions" with the relevant references
-        # where needed.
-        for item in items:
-            if not isinstance(item, pytest.Function):
-                continue
-            head: Any = item
-            path: list[str] = []
-
-            while isinstance(head.parent.parent, pytest.Class):
-                path.append(head.name)
-                head = head.parent
-
-            # Handle @app.class_definition classes (not wrapped in stub class)
-            # Check if head is a Function directly inside a Class whose name is in defs
-            if isinstance(head, pytest.Function) and isinstance(
-                head.parent, pytest.Class
-            ):
-                parent_name = getattr(
-                    head.parent, "originalname", head.parent.name
-                )
-                if parent_name in self.defs:
-                    path.append(head.name)
-                    head = head.parent
-
-            # For test name, helps keep names relative to the root.
-            parent: Any = item.parent
-            if not path:
-                parent = parent.parent
-
-            name: str = getattr(head, "originalname", head.name)
-            if name in self.defs:
-                value: Any = self.lcls[name]
-                for attr in reversed(path):
-                    if isinstance(value, type):
-                        value = value()
-                    value = getattr(value, attr)
-                to_collect.append(_sub_function(item, parent, value))
-        items[:] = to_collect
+        items[:] = [
+            item for item in items if self._live_owner(item) in self.defs
+        ]
 
     def pytest_terminal_summary(self, terminalreporter: Any) -> None:
         """Provide a clean summary of test results. Gives something like:
@@ -494,8 +325,8 @@ def run_pytest(
     notebook_path: Path | str | None = None,
     global_defs: set[str] | None = None,
 ) -> MarimoPytestResult:
-    # Collection reads the kernel's live globals (see ReplaceStubPlugin's
-    # collect_live path).
+    # Collection reads the kernel's live globals (see
+    # ReplaceStubPlugin.pytest_pycollect_makemodule).
     DependencyManager.pytest.require(
         "pytest is required for reactive "
         "testing. Please report to github if you would like a different testing "
