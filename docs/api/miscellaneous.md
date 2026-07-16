@@ -31,3 +31,7 @@ mo.inspect(my_dict, all=True)
 ```
 
 ::: marimo.inspect
+
+## Serving notebooks (ASGI)
+
+Use [`marimo.create_asgi_app`](create_asgi_app.md) to embed run-mode notebooks in an ASGI application.
