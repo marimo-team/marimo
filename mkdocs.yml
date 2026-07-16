@@ -297,6 +297,7 @@ nav:
       - Cell: api/cell.md
       - Watch: api/watch.md
       - Miscellaneous: api/miscellaneous.md
+      - create_asgi_app: api/create_asgi_app.md
   - Commands: cli.md
   - FAQ: faq.md
   - Readings & Videos: reading.md
