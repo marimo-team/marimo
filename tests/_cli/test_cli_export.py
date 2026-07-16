@@ -172,10 +172,11 @@ def test_local_wheel_path_preserves_file_url_netloc(tmp_path: Path) -> None:
         _local_wheel_path("file://server/share/pkg.whl", notebook)
         == Path("//server/share/pkg.whl").resolve()
     )
-    assert (
-        _local_wheel_path("file://localhost/tmp/pkg.whl", notebook)
-        == Path("/tmp/pkg.whl").resolve()
-    )
+    # "localhost" denotes the local machine, so it is stripped and treated
+    # the same as an empty authority.
+    assert _local_wheel_path(
+        "file://localhost/tmp/pkg.whl", notebook
+    ) == _local_wheel_path("file:///tmp/pkg.whl", notebook)
 
 
 def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
