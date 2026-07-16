@@ -474,9 +474,8 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
             frame.frame.f_locals[cls.__name__] = cls
             break
     else:
-        # If no frame matches the source file, fall back to using the relative
-        # position of this file (marimo/_ast/pytest.py) to the library root
-        # (marimo/) to find the first unforeseen path/symlink case.
+        # If no frame matches the notebook source, use the first frame outside
+        # the marimo package.
         library = Path(__file__).parent.parent
         for frame in frames:
             if library not in Path(frame.filename).parents:
