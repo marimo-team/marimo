@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
 
+from tests.mocks import snapshotter
+
 if TYPE_CHECKING:
     from marimo._runtime.pytest import run_pytest as _run_pytest_type
     from tests._runtime.script_data.contains_tests import app as _app_type
+
+snapshot = snapshotter(__file__)
 
 # Format: (passed, skipped, failed, errors)
 _DEF_COUNT = {
@@ -286,11 +291,10 @@ if __name__ == "__main__":
         nb.unlink(missing_ok=True)
 
     out = proc.stdout + proc.stderr
-    # The fixture-using test and both parametrized cases must be collected.
-    assert "test_uses_fixture" in out, out
-    assert "test_param[1]" in out, out
-    assert "test_param[2]" in out, out
-    assert "MarimoTestBlock" in out, out
+    # Sanitize the pid-suffixed filename and timing, which vary per run.
+    out = re.sub(r"_offline_collect_probe_\d+", "_offline_collect_probe", out)
+    out = re.sub(r"in [\d.]+s", "in Ns", out)
+    snapshot("offline_collection_inside_marimo_package.txt", out)
 
 
 def test_pytest_result_summary_includes_xfail() -> None:
