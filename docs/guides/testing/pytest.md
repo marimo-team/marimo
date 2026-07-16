@@ -158,29 +158,11 @@ FAILED test_notebook.py::test_fails - AssertionError: This test fails
 
 ## Using Pytest Fixtures
 
+marimo notebooks can define pytest fixtures, but **fixture resolution does not follow
+the same rules as ordinary notebooks cells**. The reliable pattern is to define
+fixtures **in the same cell as the tests that use them**.
 
-marimo supports pytest fixtures, with one limitation: fixtures defined in one cell cannot be used in another cell, unless the fixtures were defined in the setup cell.
-For this reason, we recommend defining (or importing) fixtures in your notebook's setup cell, or defining fixtures in a pytest `conftest.py` file.
-
-### Examples
-
-**Fixtures defined in the setup cell**:
-
-```python
-# test_notebook.py
-import marimo
-app = marimo.App()
-
-with app.setup:
-    from fixtures import db_connection, sample_data
-
-@app.cell
-def _(sample_data):
-    def test_data_loaded(sample_data):
-        assert len(sample_data) > 0
-```
-
-**Fixtures in the same cell as tests**:
+### Recommended: fixture and test in the same cell
 
 ```python
 @app.cell
@@ -203,7 +185,13 @@ def _(pytest):
         assert temp_file.read() == b"hello"
 ```
 
-**Class fixtures**:
+This works because pytest's static collector sees both the `@pytest.fixture` and the
+test function in the same nested scope in the exported notebook module.
+
+### Class fixtures (same cell)
+
+Class-scoped fixtures also work when the fixture methods and tests live on the same
+class in one cell:
 
 ```python
 @app.cell
@@ -224,17 +212,54 @@ def _(pytest):
             assert result == 1
 ```
 
-**`conftest.py` fixtures** work as expected - pytest discovers them automatically.
+### Shared helpers: plain Python modules
+
+For shared setup, put pure helper functions (not pytest fixtures) in a normal `.py`
+module and call them from each test:
+
+```python
+# helpers.py
+def sample_data():
+    return [1, 2, 3]
+
+
+# test_notebook.py
+@app.cell
+def _():
+    from helpers import sample_data
+
+    def test_data_loaded():
+        assert len(sample_data()) > 0
+```
+
+If you truly need **pytest fixtures**, keep defining `@pytest.fixture` next to the
+tests in the same cell (or in `conftest.py` *and* wire parameters carefully — see
+limitations below).
+
+### Patterns that usually fail
+
+!!! warning "Do not rely on these as "supported""
+
+    - **Importing fixtures in `app.setup` and listing them as cell refs.** Setup may
+      import the fixture *function*, but pytest still expects fixture *injection*.
+      Tests often receive a `FixtureFunctionDefinition` (or similar) instead of the
+      resolved value.
+    - **`conftest.py` fixtures without local parameters.** Even when pytest discovers
+      a fixture from `conftest.py`, marimo cell signatures still need names that the
+      notebook graph can provide. Tests that only list the fixture as a pytest
+      parameter can raise `NameError` at cell-definition time if that name is not a
+      cell reference. Prefer same-cell fixtures or plain helpers.
+
+### Why fixtures are special
 
 !!! info "Fixture Limitations"
 
     Fixtures defined in one cell **cannot** be used by tests in a different cell.
-    This is because pytest collects tests **statically** by parsing the notebook
-    file without executing it. During collection, pytest can see module-level
-    fixtures (from `conftest.py` or imported modules) and fixtures defined in the
-    same scope as the test, but it cannot see fixtures defined in other cells.
+    Pytest collects tests **statically** by parsing the notebook file without
+    executing marimo's runtime graph. During collection it can see fixtures defined
+    in the same scope as the test (and module-level fixtures in pure Python files),
+    but it cannot reconstruct fixtures that would only exist after other cells run.
 
-    **Why?** Running the entire notebook just for fixture discovery would be
-    expensive, and static analysis cannot determine which fixtures will be
-    available after cell execution since cell order is determined at runtime by
-    marimo's dependency graph.
+    Running the entire notebook solely for fixture discovery would be expensive, and
+    static analysis cannot know which fixture names become available after marimo
+    topological execution.
