@@ -7,7 +7,7 @@ import re
 import sys
 import types
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from marimo import _loggers
 from marimo._ast.cell import Cell
@@ -30,10 +30,12 @@ if TYPE_CHECKING:
 
     import pytest
     from _pytest.nodes import Item, Node
-    from _pytest.python import Function, Module
+    from _pytest.python import Function
 
-    class _LiveModule(Module):
+    class _UpdatesGlobals(Protocol):
         def _set_globals(self, _marimo_globals: dict[str, Any]) -> None: ...
+
+    class _LiveModule(pytest.Module, _UpdatesGlobals): ...
 
 
 @dataclass
@@ -160,8 +162,9 @@ def _live_module_cls() -> type[_LiveModule]:
 
     Defined lazily because pytest is an optional dependency.
     """
+    import pytest
 
-    class _LiveModuleImpl(_LiveModule):
+    class _LiveModuleImpl(pytest.Module):
         _marimo_globals: dict[str, Any]
 
         def _set_globals(self, _marimo_globals: dict[str, Any]) -> None:
@@ -175,7 +178,7 @@ def _live_module_cls() -> type[_LiveModule]:
             module.__dict__.update(self._marimo_globals)
             return module
 
-    return _LiveModuleImpl
+    return cast(type[_LiveModule], _LiveModuleImpl)
 
 
 def _sub_function(
