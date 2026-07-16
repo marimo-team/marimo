@@ -281,6 +281,8 @@ if __name__ == "__main__":
                 "-q",
                 "-p",
                 "no:cacheprovider",
+                "-p",
+                "no:inline_snapshot",
             ],
             capture_output=True,
             text=True,
