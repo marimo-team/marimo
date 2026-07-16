@@ -696,13 +696,19 @@ export function useCellEditorNavigationProps(
     });
   };
 
-  const handleEscape = () => {
+  // Handles the Escape key. Popup/selection cleanup always runs so that
+  // signature help and autocomplete popups are dismissed regardless of the
+  // enter_command_mode_on_escape setting. Only entering command mode is gated
+  // on `allowCommandMode`.
+  const handleEscape = (allowCommandMode = true) => {
     // If there is a text selection or autocomplete popup in the editor, we clear those and return.
-    // Subsequent 'Escapes' will exit to command mode.
+    // Subsequent 'Escapes' will exit to command mode (when allowed).
 
     if (!editorView.current) {
-      // If no editor, we can exit to command mode immediately
-      exitToCommandMode();
+      // If no editor and command mode is allowed, exit to command mode immediately
+      if (allowCommandMode) {
+        exitToCommandMode();
+      }
       return;
     }
 
@@ -728,7 +734,9 @@ export function useCellEditorNavigationProps(
       return;
     }
 
-    exitToCommandMode();
+    if (allowCommandMode) {
+      exitToCommandMode();
+    }
   };
 
   const { keyboardProps } = useKeyboard({
@@ -741,11 +749,12 @@ export function useCellEditorNavigationProps(
       } else {
         // For non-vim mode, regular Escape exits to command mode
         // Only if the configuration option is enabled
-        if (
-          evt.key === "Escape" &&
-          userConfig.keymap.enter_command_mode_on_escape !== false
-        ) {
-          handleEscape();
+        if (evt.key === "Escape") {
+          // Always run popup/selection cleanup; only gate command-mode entry
+          // on the configuration option.
+          const allowCommandMode =
+            userConfig.keymap.enter_command_mode_on_escape !== false;
+          handleEscape(allowCommandMode);
         }
       }
       evt.continuePropagation();
