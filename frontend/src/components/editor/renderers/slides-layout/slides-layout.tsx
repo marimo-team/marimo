@@ -3,6 +3,7 @@ import React, { useMemo, useState } from "react";
 import { useAtomValue } from "jotai";
 import { numColumnsAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { hasQueryParam, KnownQueryParams } from "@/core/constants";
 import { kioskModeAtom } from "@/core/mode";
 import type { ICellRendererProps } from "../types";
 import type { SlidesLayout } from "./types";
@@ -16,6 +17,8 @@ const LazySlidesComponent = React.lazy(
   () => import("../../../slides/reveal-component"),
 );
 
+const isPrintPdfMode = hasQueryParam(KnownQueryParams.printPdf);
+
 export const SlidesLayoutRenderer: React.FC<Props> = ({
   layout,
   setLayout,
@@ -25,7 +28,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   // Kiosk clients (e.g. reveal.js's speaker-view iframes) are read-only and
   // shouldn't show authoring chrome, so we collapse to the read-mode layout.
   const kioskMode = useAtomValue(kioskModeAtom);
-  const isReading = mode === "read" || kioskMode;
+  const isReading = mode === "read" || kioskMode || isPrintPdfMode;
   const numColumns = useAtomValue(numColumnsAtom);
   const isMultiColumn = numColumns > 1;
   const [activeCellId, setActiveCellId] = useState<CellId | null>(null);
@@ -61,6 +64,11 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   );
 
   if (isReading) {
+    // Print/PDF export: reveal.js rewrites slides into `.pdf-page` wrappers
+    // that must not be clipped by a fixed viewport or `overflow: hidden`.
+    if (isPrintPdfMode) {
+      return <div className="bg-background">{slides}</div>;
+    }
     // In kiosk mode (e.g. reveal.js's speaker-view iframes), anchor to the
     // iframe viewport with `dvh`/`dvw` so the deck resizes with the popup
     // window. The non-kiosk read mode keeps its 16:9 cap so the deck doesn't

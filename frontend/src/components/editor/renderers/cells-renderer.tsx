@@ -28,24 +28,32 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
     const { selectedLayout, layoutData } = useLayoutState();
     const kioskMode = useAtomValue(kioskModeAtom);
+    const params = new URLSearchParams(window.location.search);
+    const isPrintPdf = params.has(KnownQueryParams.printPdf);
+    // Print-pdf export loads as a kiosk client; treat it like kiosk for layout
+    // selection so we don't briefly render the edit notebook before the WS
+    // sets kioskMode.
+    const forceAppLayout = kioskMode || isPrintPdf;
 
     // Render children (the editable notebook) in edit mode, and in present
     // mode with the vertical layout: keeping the same tree across the
     // edit<->present toggle preserves cell output DOM (iframes, widgets).
     // Grid/slides layouts and kiosk mode swap to their layout renderer.
     if (
-      !kioskMode &&
+      !forceAppLayout &&
       (mode === "edit" || (mode === "present" && selectedLayout === "vertical"))
     ) {
       return children;
     }
 
-    // We allow overriding the layout type by url params when in 'read' mode,
-    // for example, forcing the 'slides' view.
+    // We allow overriding the layout type by url params when in 'read' mode
+    // or kiosk (e.g. slides PDF export), for example forcing the 'slides' view.
     // https://marimo.app/?slug=14ovyr8&mode=run&view-as=slides
     let finalLayout = selectedLayout;
-    const params = new URLSearchParams(window.location.search);
-    if (mode === "read" && params.has(KnownQueryParams.viewAs)) {
+    if (
+      (mode === "read" || forceAppLayout) &&
+      params.has(KnownQueryParams.viewAs)
+    ) {
       const viewAsOverride = params.get(KnownQueryParams.viewAs);
       if (OVERRIDABLE_LAYOUT_TYPES.includes(viewAsOverride as LayoutType)) {
         finalLayout = viewAsOverride as LayoutType;

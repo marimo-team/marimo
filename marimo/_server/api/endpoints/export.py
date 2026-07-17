@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 
 from starlette.authentication import requires
 from starlette.background import BackgroundTask
@@ -28,6 +29,7 @@ from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import asdict
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
+    get_code_mode_credentials,
     notify_server_missing_packages,
     parse_request,
 )
@@ -48,6 +50,7 @@ if TYPE_CHECKING:
     from starlette.requests import Request
 
     from marimo._schemas.serialization import NotebookSerializationV1
+    from marimo._types.ids import SessionId
 
 LOGGER = _loggers.marimo_logger()
 
@@ -55,6 +58,35 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 auto_exporter = AutoExporter()
+
+
+def build_slides_pdf_live_url(
+    *,
+    server_url: str,
+    session_id: SessionId,
+    file_key: str,
+    auth_token: str | None,
+    include_inputs: bool,
+) -> str:
+    """Build the kiosk + print-pdf URL for live slides PDF capture.
+
+    `file` is required — without it the edit server serves the home page
+    instead of the notebook (so reveal never mounts).
+    """
+    params: dict[str, str] = {
+        "file": file_key,
+        "session_id": str(session_id),
+        "kiosk": "true",
+        "show-chrome": "false",
+        "print-pdf": "true",
+        "view-as": "slides",
+    }
+    if auth_token is not None:
+        params["access_token"] = auth_token
+    if not include_inputs:
+        params["show-code"] = "false"
+    separator = "&" if "?" in server_url else "?"
+    return f"{server_url}{separator}{urlencode(params)}"
 
 
 def _export_markdown(
@@ -558,10 +590,30 @@ async def export_as_pdf(*, request: Request) -> Response:
 
     exporter = Exporter()
     if body.preset == "slides":
+        server_url, auth_token = get_code_mode_credentials(app_state, request)
+        # Prefer the session file key (same value the browser puts in ?file=).
+        file_key = (
+            session.initialization_id
+            or session.app_file_manager.filename
+            or ""
+        )
+        if not file_key:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail="File must have a name before exporting slides PDF",
+            )
+        live_page_url = build_slides_pdf_live_url(
+            server_url=server_url,
+            session_id=app_state.require_current_session_id(),
+            file_key=file_key,
+            auth_token=auth_token if app_state.enable_auth else None,
+            include_inputs=body.include_inputs,
+        )
         pdf_data = await exporter.export_as_slides_pdf(
             app=session.app_file_manager.app,
             session_view=session.session_view,
             include_inputs=body.include_inputs,
+            live_page_url=live_page_url,
         )
     else:
         pdf_data = exporter.export_as_pdf(

@@ -58,7 +58,24 @@ export const KnownQueryParams = {
    * Ignored for embedded islands, which infer the theme from their host page.
    */
   theme: "theme",
+  /**
+   * Initialize the slides deck in reveal.js print/PDF layout.
+   * Used by server-side slides PDF export (Playwright + page.pdf).
+   */
+  printPdf: "print-pdf",
 };
+
+/**
+ * Whether the current URL has the given query param. Safe to call outside a
+ * browser (returns `false` if `window.location` is unavailable).
+ */
+export function hasQueryParam(name: string): boolean {
+  try {
+    return new URL(window.location.href).searchParams.has(name);
+  } catch {
+    return false;
+  }
+}
 
 /**
  * CSS class names used throughout the application

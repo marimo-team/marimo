@@ -2,7 +2,7 @@
 
 import { lazy } from "react";
 import type { AppConfig, UserConfig } from "@/core/config/config-schema";
-import { KnownQueryParams } from "@/core/constants";
+import { hasQueryParam, KnownQueryParams } from "@/core/constants";
 import { EditApp } from "@/core/edit-app";
 import { AppChrome } from "../editor/chrome/wrapper/app-chrome";
 
@@ -15,10 +15,10 @@ interface Props {
   appConfig: AppConfig;
 }
 
-const hideChrome = (() => {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(KnownQueryParams.showChrome) === "false";
-})();
+const hideChrome =
+  new URL(window.location.href).searchParams.get(
+    KnownQueryParams.showChrome,
+  ) === "false" || hasQueryParam(KnownQueryParams.printPdf);
 
 const EditPage = (props: Props) => {
   if (hideChrome) {

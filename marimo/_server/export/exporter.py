@@ -622,12 +622,14 @@ class Exporter:
         png_fallbacks: Mapping[CellId_t, str] | None = None,
         include_inputs: bool = True,
         status_callback: PDFExportStatusCallback | None = None,
+        live_page_url: str | None = None,
     ) -> bytes | None:
         """Export a slides notebook as PDF using reveal.js + Playwright.
 
-        Converts to iPynb with Jupyter slideshow metadata, renders to
-        reveal.js HTML via nbconvert's SlidesExporter, then uses
-        Playwright (async API) to print to PDF via ?print-pdf mode.
+        When `live_page_url` is provided (UI/API export against a running
+        edit session), Playwright loads marimo's live slides deck in print
+        mode and captures `page.pdf()`. Otherwise (CLI), converts to ipynb
+        and uses nbconvert's SlidesExporter + `?print-pdf`.
 
         Must be called from an async context since Playwright's async API
         is required when running inside an asyncio event loop.
@@ -641,10 +643,25 @@ class Exporter:
             include_inputs: Whether to include code cell inputs.
             status_callback: Optional internal callback for CLI-only PDF
                 export stage updates.
+            live_page_url: Optional URL of the running notebook UI with
+                `print-pdf` / kiosk query params. When set, skips
+                nbconvert and prints the live deck.
 
         Returns:
             PDF data
         """
+        emit_pdf_export_status(
+            status_callback,
+            phase="render",
+            message="rendering slides PDF...",
+        )
+
+        if live_page_url is not None:
+            DependencyManager.playwright.require("for PDF export")
+            return await self._export_slides_as_pdf_from_live_page(
+                live_page_url
+            )
+
         DependencyManager.require_many(
             "for PDF export",
             DependencyManager.nbformat,
@@ -669,11 +686,6 @@ class Exporter:
                 notebook,
                 png_fallbacks=png_fallbacks,
             )
-        emit_pdf_export_status(
-            status_callback,
-            phase="render",
-            message="rendering slides PDF...",
-        )
         return await self._export_slides_as_pdf(notebook, include_inputs)
 
     @staticmethod
@@ -696,11 +708,208 @@ class Exporter:
         return "skip"
 
     @staticmethod
+    async def _export_slides_as_pdf_from_live_page(
+        page_url: str,
+    ) -> bytes | None:
+        """Print the live marimo slides deck via Playwright.
+
+        `page_url` must load the edit session in kiosk + print-pdf mode so
+        the frontend initializes reveal.js with `view: "print"` and sets
+        `window.__MARIMO_SLIDES_PDF_READY__` when layout is done.
+        """
+        from playwright.async_api import (  # type: ignore[import-not-found]
+            TimeoutError as PlaywrightTimeoutError,
+            async_playwright,
+        )
+
+        LOGGER.debug("Slides PDF: navigating to live deck %s", page_url)
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            try:
+                context = await browser.new_context(
+                    viewport={"width": 1280, "height": 720},
+                )
+                page = await context.new_page()
+                await page.emulate_media(reduced_motion="reduce")
+                await page.goto(page_url, wait_until="domcontentloaded")
+                # React root mounted
+                await page.wait_for_function(
+                    """() => {
+                      const root = document.getElementById("root");
+                      return Boolean(root && root.childElementCount > 0);
+                    }""",
+                    timeout=90_000,
+                )
+                # reveal.js print layout finished. Accept either our explicit
+                # flag or reveal's native `.pdf-page` / `print-pdf` markers so
+                # a missed event listener cannot hang the export.
+                try:
+                    await page.wait_for_function(
+                        """() => {
+                          if (window.__MARIMO_SLIDES_PDF_READY__ === true) {
+                            return true;
+                          }
+                          // Native reveal print marker — only after pages exist.
+                          return document.querySelector(".pdf-page") != null;
+                        }""",
+                        timeout=90_000,
+                    )
+                except PlaywrightTimeoutError:
+                    diagnostics = await page.evaluate(
+                        """() => ({
+                          url: location.href.split("&access_token=")[0],
+                          title: document.title,
+                          hasReveal: !!document.querySelector(".reveal"),
+                          pdfPages: document.querySelectorAll(".pdf-page").length,
+                          printPdfClass:
+                            document.documentElement.classList.contains(
+                              "print-pdf"
+                            ),
+                          flag: window.__MARIMO_SLIDES_PDF_READY__ === true,
+                          bodyText: (document.body?.innerText || "")
+                            .slice(0, 500),
+                        })"""
+                    )
+                    LOGGER.error(
+                        "Slides PDF: timed out waiting for print layout: %s",
+                        diagnostics,
+                    )
+                    raise
+                try:
+                    await page.wait_for_load_state(
+                        "networkidle", timeout=15_000
+                    )
+                except Exception:
+                    LOGGER.debug(
+                        "Slides PDF: networkidle wait timed out; continuing"
+                    )
+                pdf_data = await Exporter._print_reveal_page_to_pdf(page)
+            finally:
+                await browser.close()
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
+
+    @staticmethod
+    async def _print_reveal_page_to_pdf(page: Any) -> bytes:
+        """Apply reveal print CSS tweaks and return Chromium PDF bytes."""
+        # Webfonts (Lora etc.) often fail to embed in page.pdf(); wait, then
+        # force system fonts so slide text is actually painted.
+        try:
+            await page.wait_for_function(
+                "() => document.fonts ? document.fonts.status === 'loaded' : true",
+                timeout=5_000,
+            )
+        except Exception:
+            LOGGER.debug(
+                "Slides PDF: document.fonts wait timed out; continuing"
+            )
+
+        await page.add_style_tag(
+            content=(
+                # Avoid a trailing blank page from reveal's last-page break.
+                ".pdf-page:last-of-type {"
+                " page-break-after: auto !important;"
+                " break-after: auto !important;"
+                "}"
+                # After print view nests sections under `.pdf-page`, reveal's
+                # `.slides > section.present { display:block }` no longer
+                # matches — force every page section visible for Chromium PDF.
+                "html.print-pdf .reveal,"
+                "html.reveal-print .reveal {"
+                " overflow: visible !important;"
+                " height: auto !important;"
+                "}"
+                "html.print-pdf .reveal .slides .pdf-page > section,"
+                "html.print-pdf .reveal .slides .pdf-page > section[hidden],"
+                "html.reveal-print .reveal .slides .pdf-page > section,"
+                "html.reveal-print .reveal .slides .pdf-page > section[hidden] {"
+                " display: block !important;"
+                " visibility: visible !important;"
+                " opacity: 1 !important;"
+                "}"
+                # Dark-mode app chrome uses light prose colors; print pages are
+                # white, so force readable text for Chromium PDF.
+                "html.print-pdf, html.print-pdf body, html.print-pdf .reveal {"
+                " color: #111 !important;"
+                " background: #fff !important;"
+                " color-scheme: light !important;"
+                # System fonts embed reliably; webfonts often paint blank.
+                " --heading-font: Georgia, 'Times New Roman', Times, serif;"
+                " --text-font: system-ui, -apple-system, 'Segoe UI', Roboto,"
+                " Helvetica, Arial, sans-serif;"
+                " font-family: var(--text-font) !important;"
+                "}"
+                "html.print-pdf .reveal .prose,"
+                "html.print-pdf .reveal .mo-slide-content,"
+                "html.print-pdf .reveal :where(h1,h2,h3,h4,h5,h6,p,li,span) {"
+                " color: #111 !important;"
+                " -webkit-text-fill-color: #111 !important;"
+                " font-family: var(--text-font) !important;"
+                "}"
+                "html.print-pdf .reveal :where(h1,h2,h3,h4,h5,h6) {"
+                " font-family: var(--heading-font) !important;"
+                "}"
+                # Dev overlays must not create trailing blank pages.
+                "html.print-pdf .fixed.bottom-10,"
+                "html.print-pdf [data-react-scan],"
+                "html.print-pdf #react-scan-root {"
+                " display: none !important;"
+                "}"
+                # Neutralize global app print.css (padding / heading breaks).
+                "html.print-pdf #App {"
+                " padding: 0 !important;"
+                " margin: 0 !important;"
+                " overflow: visible !important;"
+                "}"
+                "html.print-pdf :is(h1,h2,h3,h4) {"
+                " break-after: auto !important;"
+                " page-break-after: auto !important;"
+                "}"
+                "html.print-pdf .reveal .slides .pdf-page {"
+                " width: 1280px !important;"
+                " height: 720px !important;"
+                " max-height: 720px !important;"
+                " overflow: hidden !important;"
+                " page-break-after: always;"
+                " break-after: page;"
+                "}"
+                "html.print-pdf .reveal .slides .pdf-page:last-of-type {"
+                " page-break-after: auto !important;"
+                " break-after: auto !important;"
+                "}"
+            )
+        )
+        # Reveal leaves `hidden` on inactive slides; remove it so Chromium PDF
+        # (and Tailwind's [hidden] preflight) cannot blank later pages. Page
+        # sizing, overlay hiding, and #App resets are handled by the injected
+        # CSS above.
+        await page.evaluate(
+            """() => {
+              document.querySelectorAll('.pdf-page > section').forEach(
+                (section) => section.removeAttribute('hidden')
+              );
+            }"""
+        )
+        # Match the frontend print slide size (1280x720) instead of relying on
+        # @page alone — prefer_css_page_size + slightly-tall wrappers was
+        # emitting blank interstitial pages.
+        pdf_data = await page.pdf(
+            print_background=True,
+            width="1280px",
+            height="720px",
+            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+        )
+        return cast(bytes, pdf_data)
+
+    @staticmethod
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
     ) -> bytes | None:
-        """Render slides notebook to PDF using Playwright async API."""
+        """Render slides notebook to PDF via nbconvert + Playwright (CLI)."""
         import os
         import tempfile
 
@@ -757,18 +966,7 @@ class Exporter:
                         """
                     )
                     await page.wait_for_timeout(300)
-                    await page.add_style_tag(
-                        content=(
-                            ".pdf-page:last-of-type {"
-                            " page-break-after: auto !important;"
-                            " break-after: auto !important;"
-                            "}"
-                        )
-                    )
-                    pdf_data = await page.pdf(
-                        print_background=True,
-                        prefer_css_page_size=True,
-                    )
+                    pdf_data = await Exporter._print_reveal_page_to_pdf(page)
                 finally:
                     await browser.close()
         finally:
