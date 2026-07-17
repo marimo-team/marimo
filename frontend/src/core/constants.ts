@@ -50,6 +50,12 @@ export const KnownQueryParams = {
    * If false, the chrome will be hidden.
    */
   showChrome: "show-chrome",
+  /**
+   * Override the display theme: `light`, `dark`, or `system`.
+   * Takes precedence over the notebook's saved `display.theme`.
+   * Ignored for embedded islands, which infer the theme from their host page.
+   */
+  theme: "theme",
 };
 
 /**
