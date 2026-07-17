@@ -18,9 +18,7 @@ export const FALLBACK_LOCALE = "en-US";
  * Some Chromium/Playwright builds report tags like `en-US@posix` that throw
  * `RangeError: Incorrect locale information provided` when passed to Intl.
  */
-export function normalizeBrowserLocale(
-  tag: string | null | undefined,
-): string {
+export function normalizeBrowserLocale(tag: string | null | undefined): string {
   if (!tag) {
     return FALLBACK_LOCALE;
   }
