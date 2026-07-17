@@ -1,3 +1,7 @@
+---
+description: "API reference for marimo.create_asgi_app — build ASGI apps that serve notebooks in run mode."
+---
+
 # create_asgi_app
 
 Build an ASGI application that serves one or more marimo notebooks in **run**
@@ -6,6 +10,13 @@ FastAPI, Starlette, uvicorn, or other ASGI stacks.
 
 For walkthroughs (auth, dynamic directories, mounting), see
 [Programmatic usage](../guides/deploying/programmatically.md).
+
+!!! note
+
+    Autodoc via `::: marimo.create_asgi_app` may fail in the public docs build
+    because the implementation lives under the private package
+    `marimo._server.asgi`, which mkdocstrings filters out (`!^_`). Signature and
+    notes below match the public re-export on `marimo.create_asgi_app`.
 
 ## Signature
 
@@ -73,5 +84,3 @@ api.mount("/", notebooks)
 - [Deploying programmatically](../guides/deploying/programmatically.md)
 - [Authentication](../guides/deploying/authentication.md)
 - [Open Graph metadata](../guides/publishing/opengraph.md)
-
-::: marimo.create_asgi_app
