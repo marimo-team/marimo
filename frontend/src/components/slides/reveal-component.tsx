@@ -563,6 +563,10 @@ const RevealSlidesComponent = ({
       transition: deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
       url: kioskUrl,
+      // reveal.js auto-switches to its scroll view for mobile.
+      // We disable this mode because it rewrites the slide DOM that
+      // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
+      scrollActivationWidth: 0,
     }),
     [width, height, deckTransition, kioskUrl],
   );
