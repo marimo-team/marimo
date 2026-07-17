@@ -29,7 +29,7 @@ export class DefaultWasmController implements WasmController {
   protected pyodide: PyodideInterface | null = null;
   private packageLoadQueue = Promise.resolve();
   private sessionGeneration = 0;
-  private stopCurrentSession: PyCallable | undefined;
+  private activeSessionStops = new Set<PyCallable>();
 
   get requirePyodide() {
     invariant(this.pyodide, "Pyodide not loaded");
@@ -160,23 +160,22 @@ export class DefaultWasmController implements WasmController {
         async def stop():
           nonlocal bridge, session, session_task
           task = session_task
-          try:
-            kernel_task = getattr(session, "kernel_task", None)
-            if kernel_task is None:
-              if task is not None:
-                task.cancel()
-            else:
-              kernel_task.stop()
+          kernel_task = getattr(session, "kernel_task", None)
+          if kernel_task is None:
             if task is not None:
-              try:
-                await task
-              except asyncio.CancelledError:
-                pass
-          finally:
-            session_task = None
-            session = None
-            bridge = None
-            gc.collect()
+              task.cancel()
+          else:
+            kernel_task.stop()
+          if task is not None:
+            await asyncio.gather(task, return_exceptions=True)
+          if bridge is not None:
+            bridge.session = None
+          task = None
+          kernel_task = None
+          session_task = None
+          session = None
+          bridge = None
+          gc.collect()
 
         with open("${nbFilename}", "r") as f:
           packages = session.find_packages(f.read())
@@ -207,8 +206,7 @@ export class DefaultWasmController implements WasmController {
     } finally {
       packagesProxy.destroy();
     }
-    this.stopCurrentSession?.destroy();
-    this.stopCurrentSession = stopSession;
+    this.activeSessionStops.add(stopSession);
 
     // Fire and forget:
     // Load notebook dependencies and instantiate the session
@@ -239,12 +237,19 @@ export class DefaultWasmController implements WasmController {
 
   async stopSession(): Promise<void> {
     this.sessionGeneration += 1;
-    const stop = this.stopCurrentSession;
-    this.stopCurrentSession = undefined;
-    try {
-      await stop?.();
-    } finally {
-      stop?.destroy();
+    const stops = [...this.activeSessionStops];
+    let firstFailure: unknown;
+    for (const stop of stops) {
+      try {
+        await stop();
+        this.activeSessionStops.delete(stop);
+        stop.destroy();
+      } catch (error) {
+        firstFailure ??= error;
+      }
+    }
+    if (firstFailure) {
+      throw firstFailure;
     }
   }
 

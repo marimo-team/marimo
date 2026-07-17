@@ -10,30 +10,43 @@ class TestController extends ReadonlyWasmController {
   }
 }
 
-function createPyodideStub() {
+function createSessionResources(
+  stopImplementation: () => Promise<void> = () => Promise.resolve(),
+) {
+  const bridge = { destroy: vi.fn() };
   const init = Object.assign(vi.fn(), { destroy: vi.fn() });
-  const stop = Object.assign(vi.fn().mockResolvedValue(undefined), {
+  const stop = Object.assign(vi.fn(stopImplementation), {
     destroy: vi.fn(),
   });
   const packages = { destroy: vi.fn(), toJs: () => [] };
-  const sessionResources = Object.assign([{}, init, packages, stop], {
+  const sessionResources = Object.assign([bridge, init, packages, stop], {
     destroy: vi.fn(),
   });
+
+  return { bridge, init, packages, sessionResources, stop };
+}
+
+function createPyodideStub(
+  sessions = Array.from({ length: 4 }, () => createSessionResources()),
+) {
+  const [first] = sessions;
+  if (!first) {
+    throw new Error("At least one session is required");
+  }
   const loadPackagesFromImports = vi.fn().mockResolvedValue(undefined);
   const pyodide = {
-    runPython: vi.fn(() => sessionResources),
+    runPython: vi
+      .fn()
+      .mockImplementation(() => sessions.shift()?.sessionResources),
     loadPackagesFromImports,
     loadedPackages: {},
     runPythonAsync: vi.fn(),
   } as unknown as PyodideInterface;
 
   return {
-    init,
+    ...first,
     loadPackagesFromImports,
-    packages,
     pyodide,
-    sessionResources,
-    stop,
   };
 }
 
@@ -92,5 +105,51 @@ describe("WASM controller session lifecycle", () => {
     );
     expect(loadedSources[1]).toContain("current_dependency");
     expect(loadedSources.join("\n")).not.toContain("superseded_dependency");
+  });
+
+  it("stops every session created for a multi-app page", async () => {
+    const first = createSessionResources();
+    const second = createSessionResources();
+    const { pyodide } = createPyodideStub([first, second]);
+    const controller = new TestController();
+    controller.setPyodide(pyodide);
+
+    await startSession(controller, "first");
+    await startSession(controller, "second");
+    second.bridge.destroy();
+
+    expect(first.stop.destroy).not.toHaveBeenCalled();
+
+    await controller.stopSession();
+
+    expect(first.stop).toHaveBeenCalledOnce();
+    expect(second.stop).toHaveBeenCalledOnce();
+    expect(first.stop.destroy).toHaveBeenCalledOnce();
+    expect(second.stop.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("continues stopping sessions after one stop fails", async () => {
+    const failure = new Error("stop failed");
+    const first = createSessionResources(() => Promise.reject(failure));
+    const second = createSessionResources();
+    const { pyodide } = createPyodideStub([first, second]);
+    const controller = new TestController();
+    controller.setPyodide(pyodide);
+
+    await startSession(controller, "first");
+    await startSession(controller, "second");
+
+    await expect(controller.stopSession()).rejects.toThrow("stop failed");
+    expect(first.stop).toHaveBeenCalledOnce();
+    expect(second.stop).toHaveBeenCalledOnce();
+    expect(first.stop.destroy).not.toHaveBeenCalled();
+    expect(second.stop.destroy).toHaveBeenCalledOnce();
+
+    first.stop.mockResolvedValueOnce(undefined);
+    await controller.stopSession();
+
+    expect(first.stop).toHaveBeenCalledTimes(2);
+    expect(first.stop.destroy).toHaveBeenCalledOnce();
+    expect(second.stop).toHaveBeenCalledOnce();
   });
 });
