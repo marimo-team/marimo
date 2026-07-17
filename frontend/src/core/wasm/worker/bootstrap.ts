@@ -13,7 +13,12 @@ import type { SerializedBridge, WasmController } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
 
 const MAKE_SNAPSHOT = false;
-type SessionResources = [PyProxy, PyCallable, PyProxy, PyCallable];
+type SessionResources = [
+  bridge: PyProxy,
+  init: PyCallable,
+  packages: PyProxy,
+  stop: PyCallable,
+];
 
 // This class initializes the wasm environment
 // We would like this initialization to be parallelizable
