@@ -339,16 +339,15 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32 or dtype == nw.Float64:
+            elif hasattr(dtype, "is_float") and dtype.is_float():
+                # Any float width (Float32/Float64, plus Float16 where the
+                # installed narwhals exposes it).
                 return float(value)
-            elif (
-                dtype == nw.Int16
-                or dtype == nw.Int32
-                or dtype == nw.Int64
-                or dtype == nw.UInt16
-                or dtype == nw.UInt32
-                or dtype == nw.UInt64
-            ):
+            elif hasattr(dtype, "is_integer") and dtype.is_integer():
+                # Any signed/unsigned integer width. Enumerating them by hand
+                # missed the 8- and 128-bit widths, so edits to Int8/UInt8/
+                # Int128/UInt128 columns fell through to str() below and
+                # silently coerced the whole column to object/string.
                 return int(value)
             elif (
                 dtype == nw.String

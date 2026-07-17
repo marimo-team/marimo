@@ -354,6 +354,40 @@ def test_apply_edits_dataframe():
 
 
 @pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+@pytest.mark.parametrize("dtype", ["int8", "uint8", "float16"])
+def test_apply_edits_dataframe_small_width_numeric_preserves_dtype(dtype):
+    # Editing a cell must not coerce a narrow numeric column to object/string.
+    import pandas as pd
+
+    df = pd.DataFrame({"A": pd.array([1, 2, 3], dtype=dtype)})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "5"}]
+    }
+    result = apply_edits(df.copy(), edits)
+    assert pd.api.types.is_numeric_dtype(result["A"])
+    assert result["A"].tolist() == [5, 2, 3]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_apply_edits_dataframe_polars_int8_preserves_dtype():
+    import polars as pl
+
+    df = pl.DataFrame({"A": pl.Series([1, 2, 3], dtype=pl.Int8)})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "5"}]
+    }
+    result = apply_edits(df.clone(), edits)
+    # The column stays integer (not coerced to String) even though the
+    # column-oriented round-trip widens the exact type to Int64.
+    assert result["A"].dtype.is_integer()
+    assert result["A"].to_list() == [5, 2, 3]
+
+
+@pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
 def test_data_editor_value_property():
@@ -962,6 +996,39 @@ class TestConvertValue:
         result = _convert_value("42", None, nw.UInt64)
         assert result == 42
         assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_int8(self):
+        """Test Int8 conversion with dtype."""
+        result = _convert_value("42", None, nw.Int8)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_uint8(self):
+        """Test UInt8 conversion with dtype."""
+        result = _convert_value("42", None, nw.UInt8)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_int128(self):
+        """Test Int128 conversion with dtype."""
+        result = _convert_value("42", None, nw.Int128)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_uint128(self):
+        """Test UInt128 conversion with dtype."""
+        result = _convert_value("42", None, nw.UInt128)
+        assert result == 42
+        assert isinstance(result, int)
+
+    def test_convert_value_with_dtype_float16(self):
+        """Test Float16 conversion with dtype."""
+        float16 = getattr(nw, "Float16", None)
+        if float16 is None:
+            pytest.skip("narwhals does not expose Float16")
+        result = _convert_value("3.5", None, float16)
+        assert result == 3.5
+        assert isinstance(result, float)
 
     def test_convert_value_with_dtype_string(self):
         """Test String conversion with dtype."""
