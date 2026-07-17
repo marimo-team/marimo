@@ -198,6 +198,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   const handleDeclineCompletion = () => {
     stop();
     setCompletion("");
+    setShowInputPrompt(true);
     inputRef.current?.view?.focus();
   };
 
