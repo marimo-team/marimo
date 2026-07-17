@@ -238,6 +238,7 @@ export class DefaultWasmController implements WasmController {
   async stopSession(): Promise<void> {
     this.sessionGeneration += 1;
     const stops = [...this.activeSessionStops];
+    let hasFailure = false;
     let firstFailure: unknown;
     for (const stop of stops) {
       try {
@@ -245,10 +246,13 @@ export class DefaultWasmController implements WasmController {
         this.activeSessionStops.delete(stop);
         stop.destroy();
       } catch (error) {
-        firstFailure ??= error;
+        if (!hasFailure) {
+          hasFailure = true;
+          firstFailure = error;
+        }
       }
     }
-    if (firstFailure) {
+    if (hasFailure) {
       throw firstFailure;
     }
   }

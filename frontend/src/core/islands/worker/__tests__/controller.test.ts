@@ -152,4 +152,22 @@ describe("WASM controller session lifecycle", () => {
     expect(first.stop.destroy).toHaveBeenCalledOnce();
     expect(second.stop).toHaveBeenCalledOnce();
   });
+
+  it("reports and retries a falsy stop failure", async () => {
+    const session = createSessionResources(() => Promise.reject(false));
+    const { pyodide } = createPyodideStub([session]);
+    const controller = new TestController();
+    controller.setPyodide(pyodide);
+
+    await startSession(controller, "current");
+
+    await expect(controller.stopSession()).rejects.toBe(false);
+    expect(session.stop.destroy).not.toHaveBeenCalled();
+
+    session.stop.mockResolvedValueOnce(undefined);
+    await controller.stopSession();
+
+    expect(session.stop).toHaveBeenCalledTimes(2);
+    expect(session.stop.destroy).toHaveBeenCalledOnce();
+  });
 });
