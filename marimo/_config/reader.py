@@ -50,6 +50,55 @@ def sanitize_pyproject_dict(
     return pyproject_dict
 
 
+# Top-level ``tool.marimo`` sections that notebook (PEP 723) inline metadata is
+# permitted to set. Notebook metadata is attacker-controllable (a notebook
+# author can put anything here) and is merged with the HIGHEST precedence over
+# the operator's own user config — so an untrusted notebook must not be able to
+# set any section that affects outbound traffic, credentials, or package
+# installation. Only cosmetic/editor sections are allowlisted.
+#
+# Notably EXCLUDED: ``ai`` (base_url → credential exfiltration), ``mcp``
+# (url → outbound beacon / exfiltration), ``completion`` (api_key/base_url),
+# ``secrets``, ``package_management``, ``server``, ``runtime`` (dotenv paths;
+# ``auto_instantiate`` is additionally stripped below), ``experimental``.
+ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
+    {
+        "formatting",
+        "save",
+        "display",
+        "keymap",
+        "diagnostics",
+        "lint",
+        "snippets",
+        "datasources",
+    }
+)
+
+
+def allowlist_script_config(
+    pyproject_dict: dict[str, Any], allowed_top: frozenset[str]
+) -> dict[str, Any]:
+    """Drop every ``tool.marimo.<key>`` section not in ``allowed_top``.
+
+    Notebook (PEP 723) metadata is attacker-controllable and is merged with the
+    highest precedence over the operator's user config, so only an explicit
+    safe set of cosmetic sections may pass through. Credential-affecting and
+    traffic-affecting sections (``ai``, ``mcp``, ``completion``, ``secrets``,
+    ``package_management``, ``server``, ``runtime``, ...) are dropped.
+    """
+    marimo = pyproject_dict.get("tool", {}).get("marimo", None)
+    if not isinstance(marimo, dict):
+        return pyproject_dict
+    for key in list(marimo.keys()):
+        if key not in allowed_top:
+            LOGGER.warning(
+                "tool.marimo.%s in script metadata is ignored for security reasons",
+                key,
+            )
+            del marimo[key]
+    return pyproject_dict
+
+
 def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
 ) -> PartialMarimoConfig | None:

