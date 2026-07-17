@@ -194,12 +194,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setCompletion("");
   };
 
-  // Reject discards the suggestion but keeps the prompt open for refinement.
   const handleDeclineCompletion = () => {
-    stop();
+    declineChange();
     setCompletion("");
-    setShowInputPrompt(true);
-    inputRef.current?.view?.focus();
   };
 
   const showCompletionBanner =
