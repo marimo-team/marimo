@@ -997,38 +997,23 @@ class TestConvertValue:
         assert result == 42
         assert isinstance(result, int)
 
-    def test_convert_value_with_dtype_int8(self):
-        """Test Int8 conversion with dtype."""
-        result = _convert_value("42", None, nw.Int8)
-        assert result == 42
-        assert isinstance(result, int)
-
-    def test_convert_value_with_dtype_uint8(self):
-        """Test UInt8 conversion with dtype."""
-        result = _convert_value("42", None, nw.UInt8)
-        assert result == 42
-        assert isinstance(result, int)
-
-    def test_convert_value_with_dtype_int128(self):
-        """Test Int128 conversion with dtype."""
-        result = _convert_value("42", None, nw.Int128)
-        assert result == 42
-        assert isinstance(result, int)
-
-    def test_convert_value_with_dtype_uint128(self):
-        """Test UInt128 conversion with dtype."""
-        result = _convert_value("42", None, nw.UInt128)
-        assert result == 42
-        assert isinstance(result, int)
-
-    def test_convert_value_with_dtype_float16(self):
-        """Test Float16 conversion with dtype."""
-        float16 = getattr(nw, "Float16", None)
-        if float16 is None:
-            pytest.skip("narwhals does not expose Float16")
-        result = _convert_value("3.5", None, float16)
-        assert result == 3.5
-        assert isinstance(result, float)
+    @pytest.mark.parametrize(
+        ("dtype", "value", "expected"),
+        [
+            (nw.Int8, "42", 42),
+            (nw.UInt8, "42", 42),
+            (nw.Int128, "42", 42),
+            (nw.UInt128, "42", 42),
+            # Float16 where narwhals exposes it, else any float width.
+            (getattr(nw, "Float16", nw.Float32), "3.5", 3.5),
+        ],
+    )
+    def test_convert_value_covers_narrow_numeric_widths(
+        self, dtype, value, expected
+    ):
+        result = _convert_value(value, None, dtype)
+        assert result == expected
+        assert isinstance(result, type(expected))
 
     def test_convert_value_with_dtype_string(self):
         """Test String conversion with dtype."""
