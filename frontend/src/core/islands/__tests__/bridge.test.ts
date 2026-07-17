@@ -48,6 +48,8 @@ const {
   mockReplaceSessionRequest,
   mockStopSessionRequest,
   mockStartSessionRequest,
+  mockMessageListeners,
+  mockStoreSet,
   mockParseMarimoIslandApps,
   mockCreateMarimoFile,
   mockGetMarimoExportContext,
@@ -57,6 +59,8 @@ const {
   mockReplaceSessionRequest: vi.fn(),
   mockStopSessionRequest: vi.fn(),
   mockStartSessionRequest: vi.fn(),
+  mockMessageListeners: new Map<string, (payload: never) => void>(),
+  mockStoreSet: vi.fn(),
   mockParseMarimoIslandApps: vi.fn<() => TestIslandApp[]>(() => []),
   mockCreateMarimoFile: vi.fn(),
   mockGetMarimoExportContext: vi.fn<() => TestExportContext | undefined>(
@@ -78,7 +82,11 @@ vi.mock("@/core/wasm/rpc", () => ({
         consumerReady: vi.fn(),
       },
     },
-    addMessageListener: vi.fn(),
+    addMessageListener: vi.fn(
+      (name: string, listener: (payload: never) => void) => {
+        mockMessageListeners.set(name, listener);
+      },
+    ),
   }),
 }));
 
@@ -103,10 +111,11 @@ vi.mock("@/core/meta/globals", () => ({
 }));
 
 // Mock the jotai store
-vi.mock("@/core/state/jotai", () => ({
+vi.mock("@/core/state/jotai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/core/state/jotai")>()),
   store: {
     get: vi.fn(),
-    set: vi.fn(),
+    set: mockStoreSet,
   },
 }));
 
@@ -121,18 +130,40 @@ describe("IslandsPyodideBridge", () => {
     mockParseMarimoIslandApps.mockReturnValue([]);
     mockCreateMarimoFile.mockReset();
     mockGetMarimoExportContext.mockReturnValue(undefined);
-    bridge = new IslandsPyodideBridge({ autoStartSessions: false });
+    mockMessageListeners.clear();
+    bridge = new IslandsPyodideBridge();
   });
 
-  function mockSingleApp(file = "generated app 1") {
-    mockParseMarimoIslandApps.mockReturnValue([
-      {
-        id: "app-1",
-        cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-      },
-    ]);
+  function signalWorkerReady() {
+    const listener = mockMessageListeners.get("ready");
+    if (!listener) {
+      throw new Error("Missing worker ready listener");
+    }
+    listener({} as never);
+  }
+
+  function app(id = "app-1"): TestIslandApp {
+    return {
+      id,
+      cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
+    };
+  }
+
+  function setSingleApp(file = "generated app 1", appId = "app-1") {
+    mockParseMarimoIslandApps.mockReturnValue([app(appId)]);
     mockCreateMarimoFile.mockReturnValue(file);
-    bridge.workerReady.resolve();
+  }
+
+  function mockSingleApp(file = "generated app 1", appId = "app-1") {
+    setSingleApp(file, appId);
+    signalWorkerReady();
+  }
+
+  function sendSlider() {
+    return bridge.sendComponentValues({
+      objectIds: [uiElementId("slider-1")],
+      values: [2],
+    });
   }
 
   async function initializeSingleApp() {
@@ -140,23 +171,17 @@ describe("IslandsPyodideBridge", () => {
     await bridge.initializeApps();
   }
 
-  describe("startSessionsForAllApps", () => {
+  describe("app initialization", () => {
     it("should prefer trusted export notebook code when there is exactly one reactive app", async () => {
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-1",
-          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-        },
-      ]);
+      mockParseMarimoIslandApps.mockReturnValue([app()]);
       mockGetMarimoExportContext.mockReturnValue({
         trusted: true,
         notebookCode:
           "import marimo\napp = marimo.App()\n@app.cell\ndef __():\n    x = 1\n    return",
       });
 
-      await (
-        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
-      ).startSessionsForAllApps();
+      signalWorkerReady();
+      await bridge.initializeApps();
 
       expect(mockCreateMarimoFile).not.toHaveBeenCalled();
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
@@ -167,11 +192,7 @@ describe("IslandsPyodideBridge", () => {
     });
 
     it("should ignore trusted export notebook code for a payload-backed app", async () => {
-      const payloadApp = {
-        id: "app-1",
-        payloadBacked: true,
-        cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-      };
+      const payloadApp = { ...app(), payloadBacked: true };
       mockParseMarimoIslandApps.mockReturnValue([payloadApp]);
       mockGetMarimoExportContext.mockReturnValue({
         trusted: true,
@@ -179,9 +200,8 @@ describe("IslandsPyodideBridge", () => {
       });
       mockCreateMarimoFile.mockReturnValue("generated payload app");
 
-      await (
-        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
-      ).startSessionsForAllApps();
+      signalWorkerReady();
+      await bridge.initializeApps();
 
       expect(mockCreateMarimoFile).toHaveBeenCalledWith(payloadApp);
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
@@ -192,16 +212,7 @@ describe("IslandsPyodideBridge", () => {
     });
 
     it("should keep synthesized per-app files for multiple reactive apps even when export context exists", async () => {
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-1",
-          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-        },
-        {
-          id: "app-2",
-          cells: [{ code: "y = 2", idx: 0, output: "<div>2</div>" }],
-        },
-      ]);
+      mockParseMarimoIslandApps.mockReturnValue([app(), app("app-2")]);
       mockGetMarimoExportContext.mockReturnValue({
         trusted: true,
         notebookCode: "full notebook should be ignored",
@@ -210,9 +221,8 @@ describe("IslandsPyodideBridge", () => {
         .mockReturnValueOnce("generated app 1")
         .mockReturnValueOnce("generated app 2");
 
-      await (
-        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
-      ).startSessionsForAllApps();
+      signalWorkerReady();
+      await bridge.initializeApps();
 
       expect(mockCreateMarimoFile).toHaveBeenCalledTimes(2);
       expect(mockStartSessionRequest).toHaveBeenNthCalledWith(1, {
@@ -226,10 +236,7 @@ describe("IslandsPyodideBridge", () => {
         sessionGeneration: 2,
       });
 
-      await bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
+      await sendSlider();
       await bridge.stopSession();
 
       expect(mockReplaceSessionRequest).not.toHaveBeenCalled();
@@ -248,17 +255,10 @@ describe("IslandsPyodideBridge", () => {
     });
 
     it("should synthesize a file for a single app when no trusted export context is present", async () => {
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-1",
-          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-        },
-      ]);
-      mockCreateMarimoFile.mockReturnValue("generated app 1");
+      setSingleApp();
 
-      await (
-        bridge as unknown as { startSessionsForAllApps(): Promise<void> }
-      ).startSessionsForAllApps();
+      signalWorkerReady();
+      await bridge.initializeApps();
 
       expect(mockCreateMarimoFile).toHaveBeenCalledTimes(1);
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
@@ -271,24 +271,15 @@ describe("IslandsPyodideBridge", () => {
 
   describe("app lifecycle", () => {
     it("holds controls until the first app session is ready", async () => {
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-1",
-          cells: [{ code: "x = 1", idx: 0, output: "<div>1</div>" }],
-        },
-      ]);
-      mockCreateMarimoFile.mockReturnValue("generated app 1");
+      setSingleApp();
 
       const initialization = bridge.initializeApps();
-      const control = bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
+      const control = sendSlider();
       await Promise.resolve();
 
       expect(mockBridge).not.toHaveBeenCalled();
 
-      bridge.workerReady.resolve();
+      signalWorkerReady();
       await Promise.all([initialization, control]);
       expect(mockBridge).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -303,10 +294,7 @@ describe("IslandsPyodideBridge", () => {
 
       await bridge.initializeApps();
       await bridge.initializeApps();
-      await bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
+      await sendSlider();
 
       expect(mockStartSessionRequest).toHaveBeenCalledOnce();
       expect(mockStartSessionRequest).toHaveBeenCalledWith({
@@ -330,6 +318,7 @@ describe("IslandsPyodideBridge", () => {
         code: "generated app 2",
         sessionGeneration: 2,
       });
+      expect(mockStoreSet).toHaveBeenCalledOnce();
     });
 
     it("stops the matching active app", async () => {
@@ -343,6 +332,38 @@ describe("IslandsPyodideBridge", () => {
       expect(mockStopSessionRequest).toHaveBeenCalledWith({
         appId: "app-1",
         sessionGeneration: 1,
+      });
+
+      mockBridge.mockClear();
+      const control = sendSlider();
+      await Promise.resolve();
+      expect(mockBridge).not.toHaveBeenCalled();
+
+      mockSingleApp("generated app 2");
+      await bridge.initializeApps();
+      await control;
+
+      expect(mockBridge).toHaveBeenCalledWith(
+        expect.objectContaining({ sessionGeneration: 2 }),
+      );
+    });
+
+    it("replaces the active session after stop fails", async () => {
+      mockSingleApp();
+      await bridge.initializeApps();
+      mockStopSessionRequest.mockRejectedValueOnce(new Error("stop failed"));
+
+      await expect(bridge.stopSession("app-1")).rejects.toThrow("stop failed");
+
+      mockSingleApp("generated app 2", "app-2");
+
+      await bridge.initializeApps();
+
+      expect(mockStartSessionRequest).toHaveBeenCalledOnce();
+      expect(mockReplaceSessionRequest).toHaveBeenCalledWith({
+        appId: "app-2",
+        code: "generated app 2",
+        sessionGeneration: 2,
       });
     });
 
@@ -361,17 +382,8 @@ describe("IslandsPyodideBridge", () => {
       await vi.waitFor(() =>
         expect(mockStopSessionRequest).toHaveBeenCalledOnce(),
       );
-      const control = bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-2",
-          cells: [{ code: "x = 2", idx: 0, output: "<div>2</div>" }],
-        },
-      ]);
-      mockCreateMarimoFile.mockReturnValue("generated app 2");
+      const control = sendSlider();
+      mockSingleApp("generated app 2", "app-2");
       const nextInitialization = bridge.initializeApps();
 
       finishStop();
@@ -398,9 +410,9 @@ describe("IslandsPyodideBridge", () => {
       );
       await bridge.initializeApps();
 
-      expect(mockReplaceSessionRequest).toHaveBeenCalledOnce();
-      expect(mockStartSessionRequest).toHaveBeenCalledTimes(2);
-      expect(mockStartSessionRequest).toHaveBeenLastCalledWith({
+      expect(mockStartSessionRequest).toHaveBeenCalledOnce();
+      expect(mockReplaceSessionRequest).toHaveBeenCalledTimes(2);
+      expect(mockReplaceSessionRequest).toHaveBeenLastCalledWith({
         appId: "app-1",
         code: "generated app 2",
         sessionGeneration: 3,
@@ -430,17 +442,8 @@ describe("IslandsPyodideBridge", () => {
       await vi.waitFor(() =>
         expect(mockReplaceSessionRequest).toHaveBeenCalledOnce(),
       );
-      const control = bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-2",
-          cells: [{ code: "x = 3", idx: 0, output: "<div>3</div>" }],
-        },
-      ]);
-      mockCreateMarimoFile.mockReturnValue("generated app 3");
+      const control = sendSlider();
+      mockSingleApp("generated app 3", "app-2");
       const thirdInitialization = bridge.initializeApps();
 
       expect(mockBridge).not.toHaveBeenCalled();
@@ -474,20 +477,11 @@ describe("IslandsPyodideBridge", () => {
       await vi.waitFor(() =>
         expect(mockReplaceSessionRequest).toHaveBeenCalledOnce(),
       );
-      const control = bridge.sendComponentValues({
-        objectIds: [uiElementId("slider-1")],
-        values: [2],
-      });
+      const control = sendSlider();
       failReplacement(new Error("replacement failed"));
       await expect(failedInitialization).rejects.toThrow("replacement failed");
 
-      mockParseMarimoIslandApps.mockReturnValue([
-        {
-          id: "app-2",
-          cells: [{ code: "x = 3", idx: 0, output: "<div>3</div>" }],
-        },
-      ]);
-      mockCreateMarimoFile.mockReturnValue("generated app 3");
+      mockSingleApp("generated app 3", "app-2");
       await Promise.all([bridge.initializeApps(), control]);
 
       expect(mockBridge).toHaveBeenCalledWith(

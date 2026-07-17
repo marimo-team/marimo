@@ -80,10 +80,9 @@ async function startSession(
       ...notebook,
       onMessage: messageBuffer.push,
     });
-    if (activeSession && !replace) {
+    if (activeSession) {
       (nextBridge as unknown as PyProxy).destroy();
     } else {
-      (activeSession?.bridge as unknown as PyProxy | undefined)?.destroy();
       activeSession = {
         appId: opts.appId,
         bridge: nextBridge,
@@ -101,9 +100,9 @@ async function startSession(
 
 async function stopActiveSession(): Promise<void> {
   const session = activeSession;
+  await self.controller.stopSession();
   activeSession = undefined;
   (session?.bridge as unknown as PyProxy | undefined)?.destroy();
-  await self.controller.stopSession();
 }
 
 function enqueueSession<T>(operation: () => Promise<T>): Promise<T> {
@@ -128,10 +127,10 @@ const requestHandler = createRPCRequestHandler({
     await enqueueSession(() => startSession(opts, true));
   },
 
-  stopSession: async (opts: { appId?: string; sessionGeneration: number }) => {
+  stopSession: async (opts: { appId: string; sessionGeneration: number }) => {
     await enqueueSession(async () => {
       if (
-        (opts.appId && activeSession?.appId !== opts.appId) ||
+        activeSession?.appId !== opts.appId ||
         activeSession?.sessionGeneration !== opts.sessionGeneration
       ) {
         return;
@@ -145,9 +144,9 @@ const requestHandler = createRPCRequestHandler({
    * Load packages
    */
   loadPackages: async (opts: {
-    appId?: string;
+    appId: string;
     code: string;
-    sessionGeneration?: number;
+    sessionGeneration: number;
   }) => {
     await pyodideReadyPromise; // Make sure loading is done
     await enqueueSession(async () => {
@@ -180,10 +179,10 @@ const requestHandler = createRPCRequestHandler({
    * Call a function on the bridge
    */
   bridge: async (opts: {
-    appId?: string;
+    appId: string;
     functionName: keyof RawBridge;
     payload: {} | undefined | null;
-    sessionGeneration?: number;
+    sessionGeneration: number;
   }) => {
     await pyodideReadyPromise; // Make sure loading is done
 
@@ -216,13 +215,12 @@ const requestHandler = createRPCRequestHandler({
 });
 
 function requireActiveBridge(opts: {
-  appId?: string;
-  sessionGeneration?: number;
+  appId: string;
+  sessionGeneration: number;
 }): SerializedBridge {
   const session = activeSession;
   if (
     !session ||
-    !opts.appId ||
     opts.appId !== session.appId ||
     opts.sessionGeneration !== session.sessionGeneration
   ) {

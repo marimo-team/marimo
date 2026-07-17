@@ -7,6 +7,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
+import { initialNotebookState, notebookAtom } from "../cells/cells";
 import type { CommandMessage, NotificationPayload } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
@@ -35,11 +36,6 @@ export interface IslandsBridgeConfig {
    * Optional root element for parsing islands (for testing)
    */
   root?: Document | Element;
-
-  /**
-   * Whether to auto-start sessions on worker ready (default: true)
-   */
-  autoStartSessions?: boolean;
 }
 
 interface AppSession {
@@ -57,8 +53,8 @@ interface AppSession {
  * @example
  * ```ts
  * const bridge = new IslandsPyodideBridge();
- * await bridge.initialized;
  * bridge.consumeMessages(message => console.log(message));
+ * await bridge.initializeApps();
  * ```
  */
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
@@ -68,19 +64,17 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     | undefined;
   private readonly store: typeof defaultStore;
   private readonly root: Document | Element;
-  private readonly autoStartSessions: boolean;
   private session: AppSession | undefined;
   private sessionReady = new Deferred<AppSession>();
   private nextSessionGeneration = 0;
   private appTransition = Promise.resolve();
+  private workerReady = new Deferred<void>();
 
   public initialized = new Deferred<void>();
-  public workerReady = new Deferred<void>();
 
   constructor(config: IslandsBridgeConfig = {}) {
     this.store = config.store || defaultStore;
     this.root = config.root || document;
-    this.autoStartSessions = config.autoStartSessions ?? true;
 
     try {
       const factory = config.workerFactory || new DefaultWorkerFactory();
@@ -100,9 +94,6 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private setupMessageListeners(): void {
     this.rpc.addMessageListener("ready", () => {
       this.workerReady.resolve();
-      if (this.autoStartSessions) {
-        void this.startSessionsForAllApps();
-      }
     });
 
     this.rpc.addMessageListener("initialized", () => {
@@ -127,23 +118,16 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     );
   }
 
-  /**
-   * Starts sessions for all apps found in the DOM
-   */
-  private startSessionsForAllApps(): Promise<void> {
-    return this.enqueueAppTransition(() => this.startApps(false));
-  }
-
   async initializeApps(): Promise<void> {
     await this.enqueueAppTransition(async () => {
       await this.workerReady.promise;
-      await this.startApps(true);
+      await this.startApps();
     });
   }
 
-  private async startApps(replaceSingleApp: boolean): Promise<void> {
+  private async startApps(): Promise<void> {
     const apps = parseMarimoIslandApps(this.root);
-    const managesSingleApp = replaceSingleApp && apps.length === 1;
+    const managesSingleApp = apps.length === 1;
     Logger.debug(
       `Starting sessions for ${apps.length} app(s):`,
       apps.map((a) => `${a.id} (${a.cells.length} cells)`),
@@ -173,6 +157,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       };
       const previousSession = this.session;
       const replacesSession = managesSingleApp && previousSession !== undefined;
+      if (replacesSession) {
+        this.store.set(notebookAtom, initialNotebookState());
+      }
       if (managesSingleApp || !previousSession) {
         if (managesSingleApp && this.sessionReady.status !== "pending") {
           this.sessionReady = new Deferred<AppSession>();
@@ -192,7 +179,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         }
       } catch (error) {
         if (this.session?.sessionGeneration === request.sessionGeneration) {
-          this.session = managesSingleApp ? undefined : previousSession;
+          this.session = previousSession;
         }
         Logger.error(`Failed to start session for app ${app.id}:`, error);
         if (managesSingleApp) {
@@ -208,15 +195,13 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       if (session?.code === undefined || (appId && session.appId !== appId)) {
         return;
       }
-      try {
-        await this.rpc.proxy.request.stopSession(
-          appId === undefined
-            ? { sessionGeneration: session.sessionGeneration }
-            : { appId, sessionGeneration: session.sessionGeneration },
-        );
-      } finally {
-        this.session = undefined;
-      }
+      await this.rpc.proxy.request.stopSession({
+        appId: session.appId,
+        sessionGeneration: session.sessionGeneration,
+      });
+      this.session = undefined;
+      this.sessionReady = new Deferred<AppSession>();
+      this.store.set(notebookAtom, initialNotebookState());
     });
   }
 
@@ -291,9 +276,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendRun: EditRequests["sendRun"] = async (request): Promise<null> => {
     const session = await this.getActiveSession();
     await this.rpc.proxy.request.loadPackages({
-      appId: session?.appId,
+      appId: session.appId,
       code: request.codes.join("\n"),
-      sessionGeneration: session?.sessionGeneration,
+      sessionGeneration: session.sessionGeneration,
     });
     await this.putControlRequest(
       {
@@ -378,12 +363,10 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   ): Promise<void> {
     session ??= await this.getActiveSession();
     await this.rpc.proxy.request.bridge({
+      appId: session.appId,
       functionName: "put_control_request",
       payload: operation,
-      ...(session && {
-        appId: session.appId,
-        sessionGeneration: session.sessionGeneration,
-      }),
+      sessionGeneration: session.sessionGeneration,
     });
   }
 
@@ -392,7 +375,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     const session = this.session;
     const ready = this.sessionReady;
     await transition;
-    return this.session ?? session ?? ready.promise;
+    return session ?? ready.promise;
   }
 
   /**
@@ -411,9 +394,7 @@ let globalBridgeInstance: IslandsPyodideBridge | null = null;
 
 export function getGlobalBridge(): IslandsPyodideBridge {
   if (!globalBridgeInstance) {
-    globalBridgeInstance = new IslandsPyodideBridge({
-      autoStartSessions: false,
-    });
+    globalBridgeInstance = new IslandsPyodideBridge();
   }
   return globalBridgeInstance;
 }
