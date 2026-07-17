@@ -2,6 +2,7 @@
 
 import {
   ISLAND_DATA_ATTRIBUTES,
+  ISLAND_SOURCE_CHANGED_EVENT,
   ISLAND_TAG_NAMES,
   ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
@@ -147,6 +148,7 @@ export function parseIslandElementsIntoApps(
     // Add data-cell-idx attribute to the island element
     if (materialize) {
       embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
+      embed.dispatchEvent(new Event(ISLAND_SOURCE_CHANGED_EVENT));
     }
   }
 
@@ -181,7 +183,7 @@ function parsePayloadBackedApps({
       }
       consumedEmbeds.add(embed);
       matchedPayloadCells.set(cell, embed);
-      if (materialize && !retainedPayloadCellIds.has(embed)) {
+      if (materialize) {
         materializeIslandPayload(embed, cell);
       }
       hasMatchedIsland = true;
@@ -244,6 +246,7 @@ function parsePayloadBackedApps({
         embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
         embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
         embed.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+        consumedEmbeds.add(embed);
       }
     }
   }
@@ -252,6 +255,12 @@ function parsePayloadBackedApps({
     const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
     return !appId || !payloadAppIds.has(appId);
   });
+
+  if (materialize) {
+    for (const embed of consumedEmbeds) {
+      embed.dispatchEvent(new Event(ISLAND_SOURCE_CHANGED_EVENT));
+    }
+  }
 
   return [
     ...apps.values(),
@@ -334,7 +343,11 @@ export function retainIslandSource(
   embed: HTMLElement,
   source: { output: string; code: string },
 ): void {
-  retainedIslandSources.set(embed, source);
+  if (source.code) {
+    retainedIslandSources.set(embed, source);
+  } else {
+    retainedIslandSources.delete(embed);
+  }
 }
 
 export function parseIslandElement(

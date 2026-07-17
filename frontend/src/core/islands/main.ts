@@ -14,7 +14,7 @@ import "iconify-icon";
 import { Logger } from "@/utils/Logger";
 import { initializeIslands } from "./bootstrap";
 import { getGlobalBridge } from "./bridge";
-import { ISLAND_TAG_NAMES } from "./constants";
+import { ISLAND_CSS_CLASSES, ISLAND_TAG_NAMES } from "./constants";
 import { parseMarimoIslandApps } from "./parse";
 
 const bridge = getGlobalBridge();
@@ -32,8 +32,14 @@ export function canReplaceApp(): boolean {
  * Mounts marimo custom elements and starts the apps in the current document.
  */
 export async function initialize(): Promise<void> {
-  if (!document.querySelector(ISLAND_TAG_NAMES.ISLAND)) {
+  const islands = document.querySelectorAll<HTMLElement>(
+    ISLAND_TAG_NAMES.ISLAND,
+  );
+  if (islands.length === 0) {
     return;
+  }
+  for (const island of islands) {
+    island.classList.add(ISLAND_CSS_CLASSES.NAMESPACE);
   }
   bootstrapPromise ??= initializeIslands({ bridge }).catch((error: unknown) => {
     bootstrapPromise = undefined;

@@ -108,14 +108,17 @@ export async function initializeIslands(
   // Loading indicator: dim islands while Pyodide initializes
   store.sub(shouldShowIslandsWarningIndicatorAtom, () => {
     const showing = store.get(shouldShowIslandsWarningIndicatorAtom);
+    const currentIslands = root.querySelectorAll<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
     if (showing) {
       toastIslandsLoading();
-      for (const island of islands) {
+      for (const island of currentIslands) {
         island.style.setProperty("opacity", "0.5");
       }
     } else {
       dismissIslandsLoadingToast();
-      for (const island of islands) {
+      for (const island of currentIslands) {
         island.style.removeProperty("opacity");
       }
     }
