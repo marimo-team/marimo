@@ -297,7 +297,6 @@ export class MarimoIslandElement extends HTMLElement {
    * Cleanup when element is removed from DOM
    */
   disconnectedCallback(): void {
-    this.connectionGeneration += 1;
     this.removeEventListener(
       ISLAND_SOURCE_CHANGED_EVENT,
       this.handleSourceChanged,
