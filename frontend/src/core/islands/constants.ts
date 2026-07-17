@@ -11,6 +11,7 @@ export const ISLAND_TAG_NAMES = {
 } as const;
 
 export const ISLANDS_JSON_SCRIPT_TYPE = "application/vnd.marimo.islands+json";
+export const ISLAND_SOURCE_CHANGED_EVENT = "marimo-island-source-changed";
 
 /**
  * Data attributes for islands

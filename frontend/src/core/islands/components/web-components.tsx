@@ -5,7 +5,7 @@ import { isValidElement, type JSX } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { notebookAtom } from "@/core/cells/cells";
+import { cellIdsAtom, notebookAtom } from "@/core/cells/cells";
 import { OBJECT_ID_ATTR } from "@/core/dom/ui-element-constants";
 import { UI_ELEMENT_REGISTRY } from "@/core/dom/uiregistry";
 import { LocaleProvider } from "@/core/i18n/locale-provider";
@@ -16,9 +16,10 @@ import { store } from "../../state/jotai";
 import {
   ISLAND_CSS_CLASSES,
   ISLAND_DATA_ATTRIBUTES,
+  ISLAND_SOURCE_CHANGED_EVENT,
   ISLAND_TAG_NAMES,
 } from "../constants";
-import { extractIslandCodeFromEmbed } from "../parse";
+import { extractIslandCodeFromEmbed, retainIslandSource } from "../parse";
 import { MarimoOutputWrapper } from "./output-wrapper";
 
 /**
@@ -28,7 +29,6 @@ export interface IslandRenderConfig {
   html: string;
   codeCallback: () => string;
   editor: JSX.Element | null;
-  cellId: CellId | undefined;
 }
 
 /**
@@ -38,7 +38,12 @@ export interface IslandRenderConfig {
  * functionality like re-running cells and copying code.
  */
 export class MarimoIslandElement extends HTMLElement {
+  private connectionGeneration = 0;
   private root?: Root;
+  private renderConfig?: IslandRenderConfig;
+  private runtimeAppId?: string;
+  private runtimeCellId?: CellId;
+  private unsubscribeCellIds?: () => void;
 
   public static readonly tagName = ISLAND_TAG_NAMES.ISLAND;
   public static readonly outputTagName = ISLAND_TAG_NAMES.CELL_OUTPUT;
@@ -72,6 +77,9 @@ export class MarimoIslandElement extends HTMLElement {
    * Returns undefined for non-reactive islands (they have no corresponding cell).
    */
   get cellId(): CellId | undefined {
+    if (!this.isReactive) {
+      return undefined;
+    }
     const cellId = this.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
     if (cellId) {
       return cellId as CellId;
@@ -94,11 +102,9 @@ export class MarimoIslandElement extends HTMLElement {
   /**
    * Looks up a cell ID from the notebook state by index
    */
-  private getCellIdFromIndex(idx: number): CellId {
+  private getCellIdFromIndex(idx: number): CellId | undefined {
     const { cellIds } = store.get(notebookAtom);
-    const cellId = cellIds.inOrderIds.at(idx);
-    invariant(cellId, `Missing cell ID at index ${idx}`);
-    return cellId;
+    return cellIds.inOrderIds.at(idx);
   }
 
   /**
@@ -110,16 +116,60 @@ export class MarimoIslandElement extends HTMLElement {
    * synchronously from there causes "unmount during render" warnings.
    */
   connectedCallback(): void {
-    // Capture config synchronously (before children get cleared by createRoot)
-    const config = this.extractRenderConfig();
+    const connectionGeneration = ++this.connectionGeneration;
+    this.addEventListener(
+      ISLAND_SOURCE_CHANGED_EVENT,
+      this.handleSourceChanged,
+    );
+    // Capture config synchronously (before children get cleared by createRoot).
+    // A reconnected element reuses the source captured on its first mount.
+    if (this.querySelector(MarimoIslandElement.outputTagName)) {
+      this.renderConfig = this.extractRenderConfig();
+    }
+    invariant(this.renderConfig, "Missing island render source");
+    this.runtimeAppId = this.appId;
+    this.runtimeCellId = this.hasAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)
+      ? this.cellId
+      : undefined;
+    this.syncCellIdsSubscription();
     queueMicrotask(() => {
       // Guard against disconnect between connectedCallback and microtask
-      if (!this.isConnected) {
+      if (
+        !this.isConnected ||
+        connectionGeneration !== this.connectionGeneration
+      ) {
         return;
       }
       this.root = ReactDOM.createRoot(this);
-      this.renderIsland(config);
+      this.renderIsland();
     });
+  }
+
+  private handleSourceChanged = (): void => {
+    if (this.querySelector(MarimoIslandElement.outputTagName)) {
+      this.renderConfig = this.extractRenderConfig();
+      this.querySelector(MarimoIslandElement.outputTagName)?.remove();
+      this.querySelector(MarimoIslandElement.codeTagName)?.remove();
+    }
+    this.runtimeCellId =
+      this.isReactive && this.runtimeAppId === this.appId
+        ? this.cellId
+        : undefined;
+    this.runtimeAppId = this.appId;
+    this.syncCellIdsSubscription();
+    this.renderIsland();
+  };
+
+  private syncCellIdsSubscription(): void {
+    if (this.isReactive) {
+      this.unsubscribeCellIds ??= store.sub(cellIdsAtom, () => {
+        this.runtimeCellId = this.cellId;
+        this.renderIsland();
+      });
+      return;
+    }
+    this.unsubscribeCellIds?.();
+    this.unsubscribeCellIds = undefined;
   }
 
   /**
@@ -130,7 +180,7 @@ export class MarimoIslandElement extends HTMLElement {
     const initialOutput = output.innerHTML;
     const optionalEditor = this.getOptionalEditor();
     const code = this.code;
-    const cellId = this.cellId;
+    retainIslandSource(this, { code, output: initialOutput });
 
     // Read objectId directly from the DOM before createRoot clears children.
     // optionalEditor is a <RenderHTML> wrapper, so its .props don't carry the
@@ -152,15 +202,19 @@ export class MarimoIslandElement extends HTMLElement {
       html: initialOutput,
       codeCallback,
       editor: optionalEditor,
-      cellId,
     };
   }
 
   /**
    * Renders the island with React
    */
-  private renderIsland(config: IslandRenderConfig): void {
-    const { html, codeCallback, editor, cellId } = config;
+  private renderIsland(): void {
+    const config = this.renderConfig;
+    if (!config) {
+      return;
+    }
+    const { html, codeCallback, editor } = config;
+    const cellId = this.runtimeCellId;
     const alwaysShowRun = !!editor;
     const trimmedHtml = html.trim();
     const isEmpty = trimmedHtml === "<span></span>" || trimmedHtml === "";
@@ -168,6 +222,7 @@ export class MarimoIslandElement extends HTMLElement {
 
     // Non-reactive islands have no cell in the kernel — just render static HTML
     if (!cellId) {
+      this.removeAttribute("data-status");
       this.root?.render(
         <ErrorBoundary>
           <Provider store={store}>
@@ -242,6 +297,12 @@ export class MarimoIslandElement extends HTMLElement {
    * Cleanup when element is removed from DOM
    */
   disconnectedCallback(): void {
+    this.removeEventListener(
+      ISLAND_SOURCE_CHANGED_EVENT,
+      this.handleSourceChanged,
+    );
+    this.unsubscribeCellIds?.();
+    this.unsubscribeCellIds = undefined;
     const root = this.root;
     this.root = undefined;
     // Defer unmount to avoid "unmount during render" race

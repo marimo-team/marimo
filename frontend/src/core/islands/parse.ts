@@ -2,6 +2,7 @@
 
 import {
   ISLAND_DATA_ATTRIBUTES,
+  ISLAND_SOURCE_CHANGED_EVENT,
   ISLAND_TAG_NAMES,
   ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
@@ -74,12 +75,15 @@ interface MarimoIslandPayloadCell {
   displayOutput: boolean;
 }
 
+const retainedPayloadCellIds = new WeakMap<HTMLElement, string>();
+
 /**
  * Parses marimo island apps from the DOM
  * @param root - Root element to search within (defaults to document)
  */
 export function parseMarimoIslandApps(
   root: Document | Element = document,
+  options: { materialize?: boolean } = {},
 ): MarimoIslandApp[] {
   const embeds = [
     ...root.querySelectorAll<HTMLElement>(ISLAND_TAG_NAMES.ISLAND),
@@ -90,11 +94,12 @@ export function parseMarimoIslandApps(
     return [];
   }
 
+  const materialize = options.materialize ?? true;
   if (payloads.length > 0) {
-    return parsePayloadBackedApps(embeds, payloads);
+    return parsePayloadBackedApps({ embeds, materialize, payloads });
   }
 
-  return parseIslandElementsIntoApps(embeds);
+  return parseIslandElementsIntoApps(embeds, materialize);
 }
 
 /**
@@ -103,6 +108,7 @@ export function parseMarimoIslandApps(
  */
 export function parseIslandElementsIntoApps(
   embeds: HTMLElement[],
+  materialize = true,
 ): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
 
@@ -140,16 +146,24 @@ export function parseIslandElementsIntoApps(
     });
 
     // Add data-cell-idx attribute to the island element
-    embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
+    if (materialize) {
+      embed.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
+      embed.dispatchEvent(new Event(ISLAND_SOURCE_CHANGED_EVENT));
+    }
   }
 
   return [...apps.values()];
 }
 
-function parsePayloadBackedApps(
-  embeds: HTMLElement[],
-  payloads: MarimoIslandPayload[],
-): MarimoIslandApp[] {
+function parsePayloadBackedApps({
+  embeds,
+  materialize,
+  payloads,
+}: {
+  embeds: HTMLElement[];
+  materialize: boolean;
+  payloads: MarimoIslandPayload[];
+}): MarimoIslandApp[] {
   const apps = new Map<string, MarimoIslandApp>();
   const matchedPayloadCells = new Map<MarimoIslandPayloadCell, HTMLElement>();
   const consumedEmbeds = new Set<HTMLElement>();
@@ -169,7 +183,9 @@ function parsePayloadBackedApps(
       }
       consumedEmbeds.add(embed);
       matchedPayloadCells.set(cell, embed);
-      materializeIslandPayload(embed, cell);
+      if (materialize) {
+        materializeIslandPayload(embed, cell);
+      }
       hasMatchedIsland = true;
     }
     // Only payloads matched to island anchors can start runtime apps.
@@ -215,7 +231,7 @@ function parsePayloadBackedApps(
         appCell.disabled = true;
       }
       app.cells.push(appCell);
-      if (cell.reactive) {
+      if (materialize && cell.reactive) {
         embed?.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
       }
     }
@@ -223,12 +239,15 @@ function parsePayloadBackedApps(
 
   // A supported payload is the runtime source for its app. Extra same-app DOM
   // islands are disconnected from runtime binding.
-  for (const embed of embeds) {
-    const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
-    if (appId && payloadAppIds.has(appId) && !consumedEmbeds.has(embed)) {
-      embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
-      embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
-      embed.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+  if (materialize) {
+    for (const embed of embeds) {
+      const appId = embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID);
+      if (appId && payloadAppIds.has(appId) && !consumedEmbeds.has(embed)) {
+        embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID);
+        embed.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
+        embed.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+        consumedEmbeds.add(embed);
+      }
     }
   }
 
@@ -237,7 +256,16 @@ function parsePayloadBackedApps(
     return !appId || !payloadAppIds.has(appId);
   });
 
-  return [...apps.values(), ...parseIslandElementsIntoApps(domOnlyEmbeds)];
+  if (materialize) {
+    for (const embed of consumedEmbeds) {
+      embed.dispatchEvent(new Event(ISLAND_SOURCE_CHANGED_EVENT));
+    }
+  }
+
+  return [
+    ...apps.values(),
+    ...parseIslandElementsIntoApps(domOnlyEmbeds, materialize),
+  ];
 }
 
 function findMatchingIsland({
@@ -257,7 +285,8 @@ function findMatchingIsland({
     }
     return (
       embed.getAttribute(ISLAND_DATA_ATTRIBUTES.APP_ID) === appId &&
-      embed.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID) === cell.cellId
+      (embed.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID) ??
+        retainedPayloadCellIds.get(embed)) === cell.cellId
     );
   });
 }
@@ -266,6 +295,7 @@ function materializeIslandPayload(
   embed: HTMLElement,
   cell: MarimoIslandPayloadCell,
 ): void {
+  retainedPayloadCellIds.set(embed, cell.cellId);
   embed.setAttribute(
     ISLAND_DATA_ATTRIBUTES.REACTIVE,
     JSON.stringify(cell.reactive),
@@ -304,6 +334,22 @@ function ensureIslandChild(embed: HTMLElement, tagName: string): HTMLElement {
  * @param embed - The island HTML element
  * @returns Cell data or null if invalid
  */
+const retainedIslandSources = new WeakMap<
+  HTMLElement,
+  { output: string; code: string }
+>();
+
+export function retainIslandSource(
+  embed: HTMLElement,
+  source: { output: string; code: string },
+): void {
+  if (source.code) {
+    retainedIslandSources.set(embed, source);
+  } else {
+    retainedIslandSources.delete(embed);
+  }
+}
+
 export function parseIslandElement(
   embed: HTMLElement,
 ): { output: string; code: string } | null {
@@ -312,14 +358,15 @@ export function parseIslandElement(
   );
   const code = extractIslandCodeFromEmbed(embed);
 
-  if (!cellOutput || !code) {
-    return null;
+  if (cellOutput && code) {
+    return {
+      output: cellOutput.innerHTML,
+      code: code,
+    };
   }
 
-  return {
-    output: cellOutput.innerHTML,
-    code: code,
-  };
+  const retained = retainedIslandSources.get(embed);
+  return retained?.code ? retained : null;
 }
 
 export function createMarimoFile(app: {
