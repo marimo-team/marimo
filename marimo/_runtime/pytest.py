@@ -7,7 +7,7 @@ import re
 import sys
 import types
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Protocol, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo._ast.pytest import MARIMO_TEST_STUB_NAME
 from marimo._ast.variables import demangle_locals_in_text
@@ -24,12 +24,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     import pytest
-    from _pytest.nodes import Item, Node
+    from _pytest.nodes import Collector, Item, Node
 
-    class _UpdatesGlobals(Protocol):
+    class _LiveModule(pytest.Module):
         def _set_globals(self, _marimo_globals: dict[str, Any]) -> None: ...
-
-    class _LiveModule(pytest.Module, _UpdatesGlobals): ...
 
 
 @dataclass
@@ -164,7 +162,7 @@ def _live_module_cls() -> type[_LiveModule]:
         def _set_globals(self, _marimo_globals: dict[str, Any]) -> None:
             self._marimo_globals = _marimo_globals
 
-        def _getobj(self) -> Any:
+        def _getobj(self) -> types.ModuleType:
             module = types.ModuleType(self.path.stem)
             module.__file__ = str(self.path)
             # Copy in: pytest mutates the module dict during collection, so we
@@ -216,8 +214,8 @@ class ReplaceStubPlugin:
         }
 
     def pytest_pycollect_makemodule(
-        self, module_path: Any, parent: Any
-    ) -> Any:
+        self, module_path: Path, parent: Collector
+    ) -> _LiveModule:
         """Collect from the kernel's live globals rather than disk."""
         module = _live_module_cls().from_parent(parent, path=module_path)
         module._set_globals(self._live_module_globals())
