@@ -226,7 +226,7 @@ export const AddCellWithAI: React.FC<{
 
   const handleAcceptCompletion = () => {
     clearStagedCells();
-    setInput("");
+    onClose();
   };
 
   const handleDeclineCompletion = () => {
