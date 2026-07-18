@@ -20,7 +20,31 @@ import { parseMarimoIslandApps } from "./parse";
 const bridge = getGlobalBridge();
 let bootstrapPromise: Promise<void> | undefined;
 
-/** Returns whether the current document can replace its app in this worker. */
+/**
+ * Public entry point for the islands bundle.
+ *
+ * Islands auto-initialize on load. Hosts that keep the browser realm alive
+ * across client-side navigation (retaining this worker and its Pyodide
+ * environment) can drive page transitions with:
+ *
+ * ```ts
+ * if (canReplaceApp()) {
+ *   await stopApp();
+ *   updatePage();
+ *   await initialize();
+ * }
+ * ```
+ *
+ * The retained lifecycle (`canReplaceApp`/`stopApp`) only applies to pages
+ * whose islands resolve to a single app; multi-app pages are not replaceable.
+ */
+
+/**
+ * Returns whether the current document can replace its app in this worker.
+ *
+ * True only when the document contains exactly one replaceable app. This is a
+ * read-only probe: it does not materialize island payloads or mutate the DOM.
+ */
 export function canReplaceApp(): boolean {
   if (!document.querySelector(ISLAND_TAG_NAMES.ISLAND)) {
     return false;
@@ -30,6 +54,10 @@ export function canReplaceApp(): boolean {
 
 /**
  * Mounts marimo custom elements and starts the apps in the current document.
+ *
+ * Safe to call repeatedly, including after client-side navigation: the worker
+ * bootstrap is memoized (and cleared if it fails, so a later call retries),
+ * while app discovery re-runs on every call to pick up the current DOM.
  */
 export async function initialize(): Promise<void> {
   const islands = document.querySelectorAll<HTMLElement>(
@@ -49,7 +77,13 @@ export async function initialize(): Promise<void> {
   await bridge.initializeApps();
 }
 
-/** Stops the matching active app session. */
+/**
+ * Stops the matching active app session.
+ *
+ * With no `appId`, stops the current retained single-app session; with an
+ * `appId`, stops it only if it matches the active app. No-op when there is no
+ * retained session to stop.
+ */
 export async function stopApp(appId?: string): Promise<void> {
   await bridge.stopSession(appId);
 }
