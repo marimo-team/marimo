@@ -1730,6 +1730,34 @@ def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
         ]
 
 
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(),
+    reason="pandas required for nested sample depth test",
+)
+def test_get_sample_values_nested_depth_limit() -> None:
+    """Deeply nested list/dict samples must finish quickly (#9378 / #9383)."""
+    import pandas as pd
+
+    def nest(depth: int) -> object:
+        v: object = "leaf"
+        for _ in range(depth):
+            v = {"k": v}
+        return v
+
+    df = pd.DataFrame({"deep": [nest(20)]})
+    manager = NarwhalsTableManager.from_dataframe(df)
+    t0 = time.perf_counter()
+    sample = manager.get_sample_values("deep")
+    elapsed = time.perf_counter() - t0
+    assert elapsed < 1.0, f"nested sample too slow: {elapsed:.3f}s"
+    assert len(sample) == 1
+    assert isinstance(sample[0], str)
+    # depth limit should stringify remaining nesting rather than exploding
+    assert "leaf" in sample[0] or sample[0].startswith("{")
+
+
+
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
     """Normalize None and NaN values for comparison."""
     out: list[tuple[Any, int]] = []

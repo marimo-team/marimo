@@ -699,12 +699,29 @@ class NarwhalsTableManager(
 
         # Sample 3 values from the column
         SAMPLE_SIZE = 3
+        # Cap nested list/dict serialization depth. Unbounded recursion (or
+        # even json.dumps on pathological nested structs) can stall dataset
+        # registration for deeply nested Polars Struct columns (#9378).
+        MAX_NESTING_DEPTH = 5
         try:
 
             def _json_default(o: Any) -> str:
                 if isinstance(o, Enum):
                     return o.name
                 return str(o)
+
+            def _with_depth_limit(value: Any, depth: int = 0) -> Any:
+                """Return a structure safe for json.dumps / display."""
+                if depth >= MAX_NESTING_DEPTH:
+                    return str(value)
+                if isinstance(value, list):
+                    return [_with_depth_limit(v, depth + 1) for v in value]
+                if isinstance(value, dict):
+                    return {
+                        k: _with_depth_limit(v, depth + 1)
+                        for k, v in value.items()
+                    }
+                return value
 
             def to_primitive(value: Any) -> str | int | float:
                 if isinstance(value, Enum):
@@ -713,7 +730,8 @@ class NarwhalsTableManager(
                     return value
                 if isinstance(value, (list, dict)):
                     try:
-                        return json.dumps(value, default=_json_default)
+                        limited = _with_depth_limit(value)
+                        return json.dumps(limited, default=_json_default)
                     except (TypeError, ValueError):
                         return str(value)
                 return str(value)
