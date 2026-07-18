@@ -1730,7 +1730,6 @@ def test_calculate_top_k_rows_with_all_special_floats(df: Any) -> None:
         ]
 
 
-
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(),
     reason="pandas required for nested sample depth test",
@@ -1755,7 +1754,6 @@ def test_get_sample_values_nested_depth_limit() -> None:
     assert isinstance(sample[0], str)
     # depth limit should stringify remaining nesting rather than exploding
     assert "leaf" in sample[0] or sample[0].startswith("{")
-
 
 
 def _normalize_result(result: list[tuple[Any, int]]) -> list[tuple[Any, int]]:
