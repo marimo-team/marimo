@@ -458,9 +458,20 @@ class DeprivateVisitor(ast.NodeTransformer):
         node.id = unmangle_local(node.id).name
         return node
 
+    def visit_TypeAlias(self, node: ast.TypeAlias) -> ast.TypeAlias:
+        # PEP 695 `type Alias = ...` stores the alias as an ast.Name on
+        # `node.name` (not a bare str). Only unmangle the identifier.
+        if isinstance(node.name, ast.Name):
+            node.name.id = unmangle_local(node.name.id).name
+        return cast(ast.TypeAlias, self.generic_visit(node))
+
     def generic_visit(self, node: ast.AST) -> ast.AST:
-        if hasattr(node, "name") and node.name:
-            node.name = unmangle_local(node.name).name
+        # Many statement nodes expose `name: str` (FunctionDef, ClassDef,
+        # ExceptHandler, …). Skip non-str values — e.g. TypeAlias.name is an
+        # ast.Name, and calling startswith on it raises AttributeError (#10192).
+        name = getattr(node, "name", None)
+        if isinstance(name, str) and name:
+            node.name = unmangle_local(name).name  # type: ignore[attr-defined]
         return super().generic_visit(node)
 
 

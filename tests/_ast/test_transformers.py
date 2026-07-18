@@ -362,6 +362,27 @@ def test_deprivate_visitor() -> None:
     assert "_cell_123_private_var" not in code_result
 
 
+def test_deprivate_visitor_type_alias() -> None:
+    """PEP 695 TypeAlias.name is ast.Name — must not call str methods (#10192)."""
+    code = "type Mode = str\nclass C:\n    x: Mode = 'a'\n"
+    tree = ast.parse(code)
+    result = DeprivateVisitor().visit(tree)
+    code_result = ast.unparse(result)
+    assert "type Mode" in code_result
+    assert "class C" in code_result
+
+
+def test_deprivate_visitor_mangled_type_alias() -> None:
+    """Mangled identifiers inside type aliases are deprivated."""
+    code = "type _cell_ab_Mode = _cell_ab_int_name"
+    tree = ast.parse(code)
+    # Hand-mangle Name target if the parser left a plain id
+    result = DeprivateVisitor().visit(tree)
+    code_result = ast.unparse(result)
+    assert "_cell_ab" not in code_result
+    assert "_Mode" in code_result or "Mode" in code_result
+
+
 def test_remove_returns() -> None:
     """Test the RemoveReturns transformer."""
     code = """
