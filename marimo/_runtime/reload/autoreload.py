@@ -317,6 +317,7 @@ class ModuleReloader:
                         # from a clean mtime baseline.
                         del self._skip[modname]
                         self.modules_mtimes.pop(modname, None)
+                        self.watcher_modules_mtimes.pop(modname, None)
                         self.stale_modules.discard(modname)
                         is_non_user = False
                 else:
