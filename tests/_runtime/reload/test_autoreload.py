@@ -554,6 +554,43 @@ class TestSkipCache:
         # Stale mtime is cleared so the next edit isn't masked by it.
         assert reloader.modules_mtimes.get(py_modname, 0) < 1e12
 
+    def test_watcher_mtimes_cleared_when_module_rebound(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        # The watcher tracks its own baselines in `watcher_modules_mtimes`.
+        # A rebind must clear that map too, otherwise a replacement file
+        # with an older mtime, and every subsequent edit to it, stays
+        # invisible to the watcher until its timestamp passes the previous
+        # file's.
+        sys.path.append(str(tmp_path))
+        user_file = tmp_path / pathlib.Path(py_modname + ".py")
+        user_file.write_text("x = 1")
+        user_mod = importlib.import_module(py_modname)
+
+        fake_installed = types.ModuleType(py_modname)
+        fake_installed.__file__ = os.path.join(
+            os.path.dirname(os.__file__), py_modname + ".py"
+        )
+        sys.modules[py_modname] = fake_installed
+
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False)
+        assert py_modname in reloader._skip
+        # Synthetic far-future baseline standing in for the old file's mtime.
+        reloader.watcher_modules_mtimes[py_modname] = 1e12
+
+        # Rebind to the real user module; check() detects the rebind and
+        # must drop the watcher's baseline along with its own.
+        sys.modules[py_modname] = user_mod
+        reloader.check(sys.modules, reload=False)
+        assert reloader.watcher_modules_mtimes.get(py_modname, 0) < 1e12
+
+        # The watcher records a clean baseline for the new file, so the
+        # next edit is detected instead of being masked by the old mtime.
+        reloader.check_for_watcher(sys.modules)
+        update_file(user_file, "x = 2")
+        assert any(m is user_mod for m in reloader.check_for_watcher(sys.modules))
+
     def test_normalized_path_cached_across_checks(self):
         # Regression guard: os.path.realpath is expensive (filesystem syscalls
         # per path component). _normalized_path caches it so repeated check()
