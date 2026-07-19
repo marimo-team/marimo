@@ -589,7 +589,9 @@ class TestSkipCache:
         # next edit is detected instead of being masked by the old mtime.
         reloader.check_for_watcher(sys.modules)
         update_file(user_file, "x = 2")
-        assert any(m is user_mod for m in reloader.check_for_watcher(sys.modules))
+        assert any(
+            m is user_mod for m in reloader.check_for_watcher(sys.modules)
+        )
 
     def test_normalized_path_cached_across_checks(self):
         # Regression guard: os.path.realpath is expensive (filesystem syscalls
