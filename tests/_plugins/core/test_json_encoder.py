@@ -779,6 +779,31 @@ def test_superjson_with_bytes() -> None:
     assert encoded == '"hello\x80\x81\x82"'
 
 
+@pytest.mark.requires("pint")
+def test_pint_quantity_encoding() -> None:
+    """Bare pint types encode as readable strings, not nested dicts/slots."""
+    import pint
+
+    quantity = pint.Quantity("1.5 meter")
+    encoded = encode_json_str(quantity)
+    assert encoded == '"1.5 meter"'
+    assert "_magnitude" not in encoded
+    assert "_units" not in encoded
+
+    unit = pint.Unit("second")
+    assert encode_json_str(unit) == '"second"'
+
+    units_container = quantity._units
+    encoded_units = encode_json_str(units_container)
+    assert encoded_units == '"meter"'
+    assert "_d" not in encoded_units
+    assert "_non_int_type" not in encoded_units
+
+    # Nested values also go through enc_hook (tables, SuperJson, UI args).
+    nested = encode_json_str({"q": quantity, "u": unit, "uc": units_container})
+    assert nested == '{"q":"1.5 meter","u":"second","uc":"meter"}'
+
+
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
