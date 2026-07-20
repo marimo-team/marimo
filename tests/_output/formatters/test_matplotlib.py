@@ -85,12 +85,12 @@ def _extract_png_dimensions(data_url: str) -> tuple[int, int]:
 
 @pytest.mark.skipif(not HAS_MPL, reason="optional dependencies not installed")
 @pytest.mark.parametrize("dpi", [72, 300])
-async def test_matplotlib_image_resolution_respects_dpi(
+async def test_matplotlib_image_resolution_uses_retina_scale(
     executing_kernel: Kernel,
     exec_req: ExecReqProvider,
     dpi: int,
 ) -> None:
-    """Test that the actual image resolution (pixels) scales with DPI."""
+    """Test that PNG output uses retina scaling without mutating DPI."""
     from marimo._output.formatters.formatters import register_formatters
 
     register_formatters(theme="light")
@@ -103,9 +103,11 @@ async def test_matplotlib_image_resolution_respects_dpi(
 
                 # Create an empty figure (no content) to isolate DPI effects
                 fig = plt.figure(figsize=(4, 3), dpi={dpi})
+                original_dpi = fig.dpi
 
                 # Get the formatted output
                 result = fig._mime_()
+                rendered_dpi = fig.dpi
                 """
             )
         ]
@@ -128,11 +130,14 @@ async def test_matplotlib_image_resolution_respects_dpi(
 
     # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.savefig.html
     pad_inches = 0.1
-    calc_width = round((4 + 2 * pad_inches) * dpi)
-    calc_height = round((3 + 2 * pad_inches) * dpi)
+    render_dpi = dpi * 2
+    calc_width = round((4 + 2 * pad_inches) * render_dpi)
+    calc_height = round((3 + 2 * pad_inches) * render_dpi)
 
     assert calc_width - 5 < width < calc_width + 5
     assert calc_height - 5 < height < calc_height + 5
+    assert executing_kernel.globals["original_dpi"] == dpi
+    assert executing_kernel.globals["rendered_dpi"] == dpi
 
     # Verify aspect ratio is preserved (4:3 ratio)
     aspect_ratio = width / height
