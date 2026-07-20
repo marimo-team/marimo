@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import sys
 
 import pytest
 
@@ -362,6 +363,10 @@ def test_deprivate_visitor() -> None:
     assert "_cell_123_private_var" not in code_result
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="PEP 695 `type` alias syntax requires Python 3.12+",
+)
 def test_deprivate_visitor_type_alias() -> None:
     """PEP 695 TypeAlias.name is ast.Name — must not call str methods (#10192)."""
     code = "type Mode = str\nclass C:\n    x: Mode = 'a'\n"
@@ -372,6 +377,10 @@ def test_deprivate_visitor_type_alias() -> None:
     assert "class C" in code_result
 
 
+@pytest.mark.skipif(
+    sys.version_info < (3, 12),
+    reason="PEP 695 `type` alias syntax requires Python 3.12+",
+)
 def test_deprivate_visitor_mangled_type_alias() -> None:
     """Mangled identifiers inside type aliases are deprivated."""
     code = "type _cell_ab_Mode = _cell_ab_int_name"
