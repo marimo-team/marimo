@@ -215,3 +215,30 @@ Available logs are:
 
 - `github-copilot-lsp.log`
 - `pylsp.log`
+
+## Why isn't module autoreload picking up my library edits?
+
+If you use **auto-reload** while developing a library **next to** a notebook
+(especially an **editable** install of marimo itself, or another package that
+is not under `site-packages`), two things are easy to miss:
+
+1. **Third-party packages are skipped on purpose.** Dependency analysis will
+   not crawl installs under `site-packages`, so changes deep inside those
+   packages will not invalidate notebook cells.
+2. **marimo never walks its own package tower.** Editable marimo checkouts
+   sit outside `site-packages`. Walking that tree with stdlib `modulefinder`
+   can fail on namespace packages (directories without `__init__.py`). Older
+   builds silently dropped that dependency chain; current marimo excludes the
+   `marimo` package from that crawl so editable installs stay stable.
+
+**What to do**
+
+- Prefer putting the code you are iterating on in ordinary project modules
+  (not under site-packages) that your notebook imports by name.
+- After upgrading marimo, restart the kernel if autoreload still looks stuck —
+  the module watcher caches failed dependency analyses for modules that
+  previously crashed the finder.
+- See [reactivity](reactivity.md) and runtime auto-reload settings in
+  [runtime configuration](configuration/runtime_configuration.md).
+
+
