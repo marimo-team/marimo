@@ -36,6 +36,11 @@ export async function downloadFile(path: string, name: string): Promise<void> {
     );
     downloadBlob(blob, name);
   } else {
-    downloadBlob(new Blob([details.contents || ""]), name);
+    downloadBlob(
+      new Blob([details.contents || ""], {
+        type: details.mimeType || "application/octet-stream",
+      }),
+      name,
+    );
   }
 }

@@ -168,6 +168,7 @@ def download_file(
         headers={
             **make_download_headers(file_path.name),
             "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
         },
     )
 
