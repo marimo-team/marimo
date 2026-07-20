@@ -1578,7 +1578,6 @@ def test_get_sample_values_nested_struct_is_bounded() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
-
 @pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
 def test_get_sample_values_branching_payload_is_bounded() -> None:
     """Wide branching nests must not explode work via str() at the depth cap."""
@@ -1587,9 +1586,7 @@ def test_get_sample_values_branching_payload_is_bounded() -> None:
     def branch(depth: int, width: int = 8) -> Any:
         if depth == 0:
             return {"leaf": "x" * 20, "n": 1}
-        return {
-            f"b{i}": branch(depth - 1, width) for i in range(width)
-        }
+        return {f"b{i}": branch(depth - 1, width) for i in range(width)}
 
     # width^depth without a real cap is enormous; with sentinel cap work is O(width^MAX).
     payload = branch(6, width=6)
