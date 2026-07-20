@@ -242,3 +242,37 @@ async def test_lazy_falls_back_to_appended_output_when_no_return(
     # Still no leak into the owning cell's output.
     for data in cell_output_data:
         assert "appended" not in data
+
+
+async def test_lazy_returns_interactive_widget_and_appends(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    # Regression guard for the real-world case (#9540): returning an
+    # interactive UI element from the deferred callable must still work, and
+    # a concurrent imperative append must not clobber the owning cell.
+    #
+    # Isolation must suppress only the owning cell's output broadcast, not the
+    # stream itself — swapping the stream for a no-op would drop the widget's
+    # model/comm notifications and bind the element to a dead stream.
+    await k.run(
+        [
+            exec_req.get(
+                textwrap.dedent(
+                    """
+                    import marimo as mo
+                    def _():
+                        mo.output.append("appended")
+                        return mo.ui.slider(0, 10)
+                    lazy = mo.lazy(_)
+                    """
+                )
+            ),
+        ]
+    )
+    payload, cell_output_data = await _invoke_only_function(k)
+    # The lazy widget renders the returned interactive element, not the append.
+    assert "marimo-slider" in payload.html
+    assert "appended" not in payload.html
+    # The imperative append must not clobber the owning cell's output.
+    for data in cell_output_data:
+        assert "appended" not in data

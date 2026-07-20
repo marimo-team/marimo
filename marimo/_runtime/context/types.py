@@ -70,6 +70,12 @@ class ExecutionContext:
     # outputs set imperatively via mo.output.append and associated functions
     output: CellOutputList = field(default_factory=CellOutputList)
     duckdb_connection: duckdb.DuckDBPyConnection | None = None
+    # When True, imperative `mo.output.*` writes still accumulate into
+    # `output` but their cell-op broadcasts to the owning cell are skipped.
+    # Used by `mo.lazy` to isolate a deferred render's imperative output
+    # without swapping the stream (which would also drop widget/model
+    # notifications like ModelOpen).
+    suppress_output_broadcast: bool = False
 
     @contextmanager
     def with_connection(

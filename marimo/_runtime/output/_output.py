@@ -19,6 +19,19 @@ def write_internal(cell_id: CellId_t, value: object) -> None:
     output = formatting.try_format(value)
     if output.traceback is not None:
         write_traceback(output.traceback)
+    try:
+        ctx = get_context()
+    except ContextNotInitializedError:
+        ctx = None
+    if (
+        ctx is not None
+        and ctx.execution_context is not None
+        and ctx.execution_context.suppress_output_broadcast
+    ):
+        # The imperative output has already been accumulated into
+        # execution_context.output; skip broadcasting it to the owning
+        # cell (e.g. during a `mo.lazy` deferred render).
+        return
     CellNotificationUtils.broadcast_output(
         channel=CellChannel.OUTPUT,
         mimetype=output.mimetype,

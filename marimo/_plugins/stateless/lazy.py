@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Final
 
 from marimo import _loggers
-from marimo._messaging.types import NoopStream
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import Html, is_non_interactive
 from marimo._output.rich_help import mddoc
@@ -156,9 +155,15 @@ def _isolated_imperative_output() -> Iterator[CellOutputList | None]:
     so imperative `mo.output.append`/`replace` calls inside it would otherwise
     broadcast to and overwrite that cell's output, hiding the lazy widget.
     While this context is active, such calls accumulate into a throwaway
-    `CellOutputList` and their broadcasts are dropped, letting the caller fold
-    the imperative output into the widget instead. Yields the accumulator, or
-    `None` when no interactive execution context is available.
+    `CellOutputList` and their cell-op broadcasts are suppressed, letting the
+    caller fold the imperative output into the widget instead.
+
+    Only the owning cell's *output* broadcast is suppressed (via
+    `execution_context.suppress_output_broadcast`); the stream itself is left
+    intact so widget/model notifications (e.g. `ModelOpen` emitted when a
+    `mo.ui.*` element is constructed inside the callable) are still delivered.
+    Yields the accumulator, or `None` when no interactive execution context is
+    available.
     """
     try:
         ctx = get_context()
@@ -172,15 +177,15 @@ def _isolated_imperative_output() -> Iterator[CellOutputList | None]:
         return
 
     original_output = exec_ctx.output
-    original_stream = ctx.stream
+    original_suppress = exec_ctx.suppress_output_broadcast
     isolated = CellOutputList()
     exec_ctx.output = isolated
-    ctx.stream = NoopStream()
+    exec_ctx.suppress_output_broadcast = True
     try:
         yield isolated
     finally:
         exec_ctx.output = original_output
-        ctx.stream = original_stream
+        exec_ctx.suppress_output_broadcast = original_suppress
 
 
 def _resolve_eagerly(element: object) -> Html | None:
