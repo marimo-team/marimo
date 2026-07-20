@@ -2344,9 +2344,9 @@ class TestPandasTableManager(unittest.TestCase):
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
 
-    @pytest.mark.requires("pint_pandas")
     def test_to_json_str_pint_pandas_series(self) -> None:
         """pint-pandas quantities display as readable strings in tables."""
+        pytest.importorskip("pint_pandas")
         import pandas as pd
         import pint_pandas  # noqa: F401 — registers pint dtypes with pandas
 
@@ -2374,12 +2374,10 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(series.to_frame(name="mixed"))
         json_data = json.loads(manager.to_json_str())
 
-        assert json_data == [
-            {"mixed": "1 second"},
-            {"mixed": "3 minute"},
-            {"mixed": "0.3 hour"},
-        ]
+        expected = [{"mixed": str(value)} for value in series]
+        assert json_data == expected
         assert all(isinstance(row["mixed"], str) for row in json_data)
+        assert all("_magnitude" not in row["mixed"] for row in json_data)
 
     def test_extension_column_needs_stringify_skips_json_primitives(
         self,
