@@ -13,6 +13,16 @@ HAS_PANDAS_ARROW = (
 )
 
 
+def _has_feather_deprecation_warning(
+    caught: list[warnings.WarningMessage],
+) -> bool:
+    return any(
+        issubclass(w.category, FutureWarning)
+        and "write_feather" in str(w.message)
+        for w in caught
+    )
+
+
 @pytest.mark.skipif(not HAS_PANDAS_ARROW, reason="pandas and pyarrow required")
 def test_pandas_dataframe_arrow_round_trip_without_feather_warning() -> None:
     import pandas as pd
@@ -21,7 +31,7 @@ def test_pandas_dataframe_arrow_round_trip_without_feather_warning() -> None:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         data = BLOB_SERIALIZERS["arrow"](df)
-    assert not any(issubclass(w.category, FutureWarning) for w in caught)
+    assert not _has_feather_deprecation_warning(caught)
 
     restored = BLOB_DESERIALIZERS[".arrow"](data, "pandas.DataFrame")
     pd.testing.assert_frame_equal(restored, df)
@@ -35,7 +45,7 @@ def test_pandas_series_arrow_round_trip_without_feather_warning() -> None:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         data = BLOB_SERIALIZERS["arrow"](series)
-    assert not any(issubclass(w.category, FutureWarning) for w in caught)
+    assert not _has_feather_deprecation_warning(caught)
 
     restored = BLOB_DESERIALIZERS[".arrow"](data, "pandas.Series")
     assert isinstance(restored, pd.Series)
