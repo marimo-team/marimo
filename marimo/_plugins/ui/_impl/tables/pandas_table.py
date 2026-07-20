@@ -37,6 +37,17 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _dataframe_to_arrow_ipc(df: pd.DataFrame) -> bytes:
+    """Serialize a pandas DataFrame to Arrow IPC bytes."""
+    import pyarrow as pa
+
+    out = io.BytesIO()
+    table = pa.Table.from_pandas(df)
+    with pa.ipc.new_file(out, table.schema) as writer:
+        writer.write_table(table)
+    return out.getvalue()
+
+
 def _trivial_range_index(index: pd.Index) -> bool:
     import pandas as pd
 
@@ -328,26 +339,21 @@ class PandasTableManagerFactory(TableManagerFactory):
                 return pd.api.types.infer_dtype(self._original_data[column])
 
             def to_arrow_ipc(self) -> bytes:
-                out = io.BytesIO()
+                import pyarrow as pa
+
                 try:
-                    self._original_data.to_feather(
-                        out, compression="uncompressed"
-                    )
+                    return _dataframe_to_arrow_ipc(self._original_data)
                 except Exception:
                     # Fall back: convert extension-type columns that
                     # PyArrow cannot handle (e.g. pint-pandas) to plain
-                    # values so the feather write can succeed.
-                    import pyarrow as pa
-
-                    out = io.BytesIO()
+                    # values so the IPC write can succeed.
                     df = self._original_data.copy()
                     for col in df.columns:
                         try:
                             pa.Array.from_pandas(df[col])
                         except Exception:
                             df[col] = df[col].astype(object).infer_objects()
-                    df.to_feather(out, compression="uncompressed")
-                return out.getvalue()
+                    return _dataframe_to_arrow_ipc(df)
 
             def apply_formatting(
                 self, format_mapping: FormatMapping | None
