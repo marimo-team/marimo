@@ -83,8 +83,10 @@ def _render_figure_mimebundle(
         data_url = build_data_url(mimetype="image/svg+xml", data=plot_bytes)
         return "image/svg+xml", data_url
 
-    dpi = fig.figure.dpi
-    fig.figure.savefig(buf, format="png", bbox_inches="tight", dpi=dpi)  # type: ignore[attr-defined]
+    render_dpi = fig.figure.dpi * 2
+    fig.figure.savefig(  # type: ignore[attr-defined]
+        buf, format="png", bbox_inches="tight", dpi=render_dpi
+    )
 
     png_bytes = buf.getvalue()
     plot_bytes = base64.b64encode(png_bytes)
@@ -97,13 +99,13 @@ def _render_figure_mimebundle(
         width, height = _extract_png_dimensions(png_bytes)
         # Normalize to a fixed 100 DPI reference for consistent display size
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.figure.Figure.html
-        factor = dpi / 100
+        display_factor = render_dpi / 100
         mimebundle = {
             "image/png": data_url,
             METADATA_KEY: {
                 "image/png": {
-                    "width": round(width / factor),
-                    "height": round(height / factor),
+                    "width": round(width / display_factor),
+                    "height": round(height / display_factor),
                 }
             },
         }
