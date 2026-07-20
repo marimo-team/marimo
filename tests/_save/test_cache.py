@@ -2084,6 +2084,43 @@ class TestCacheDecorator:
         } == {0}
 
     @staticmethod
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="PEP 695 `type` alias syntax requires Python 3.12+",
+    )
+    def test_cache_dataclass_with_type_alias(app) -> None:
+        """@mo.cache over a dataclass whose field uses a PEP 695 type alias."""
+
+        @app.cell
+        def __():
+            import marimo as mo
+
+            return (mo,)
+
+        @app.cell
+        def __(mo):
+            from dataclasses import dataclass
+            from typing import Literal
+
+            type Mode = Literal["auto", "manual"]
+
+            @dataclass
+            class Config:
+                mode: Mode = "auto"
+
+            @mo.cache
+            def build(mode: Mode = "auto") -> Config:
+                return Config(mode=mode)
+
+            cfg = build()
+            assert cfg.mode == "auto"
+            assert build.hits == 0
+            cfg2 = build()
+            assert cfg2 is cfg or cfg2 == cfg
+            assert build.hits == 1
+            return Config, Mode, build, cfg
+
+    @staticmethod
     def test_object_execution_hash(app) -> None:
         @app.cell
         def __():

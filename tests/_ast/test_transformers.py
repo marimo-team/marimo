@@ -368,7 +368,7 @@ def test_deprivate_visitor() -> None:
     reason="PEP 695 `type` alias syntax requires Python 3.12+",
 )
 def test_deprivate_visitor_type_alias() -> None:
-    """PEP 695 TypeAlias.name is ast.Name — must not call str methods (#10192)."""
+    """PEP 695 TypeAlias.name is ast.Name — must not call str methods."""
     code = "type Mode = str\nclass C:\n    x: Mode = 'a'\n"
     tree = ast.parse(code)
     result = DeprivateVisitor().visit(tree)

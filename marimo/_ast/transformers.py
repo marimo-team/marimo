@@ -467,11 +467,10 @@ class DeprivateVisitor(ast.NodeTransformer):
 
     def generic_visit(self, node: ast.AST) -> ast.AST:
         # Many statement nodes expose `name: str` (FunctionDef, ClassDef,
-        # ExceptHandler, …). Skip non-str values — e.g. TypeAlias.name is an
-        # ast.Name, and calling startswith on it raises AttributeError (#10192).
-        name = getattr(node, "name", None)
-        if isinstance(name, str) and name:
-            node.name = unmangle_local(name).name  # type: ignore[attr-defined]
+        # ExceptHandler, …). NB. Not always a string. e.g. TypeAlias.name is an
+        # ast.Name
+        if hasattr(node, "name") and isinstance(node.name or None, str):
+            node.name = unmangle_local(node.name).name  # type: ignore[attr-defined]
         return super().generic_visit(node)
 
 
