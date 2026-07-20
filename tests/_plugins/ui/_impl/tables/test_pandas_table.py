@@ -2413,28 +2413,30 @@ class TestPandasTableManager(unittest.TestCase):
         that PyArrow cannot convert (e.g. pint-pandas)."""
         import pyarrow as pa
 
+        from marimo._plugins.ui._impl.tables import pandas_table as pt
+
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
         manager = self.factory.create()(df)
 
-        # Make the first to_feather call raise, simulating an
-        # unsupported extension dtype.
-        original_to_feather = pd.DataFrame.to_feather
+        # Make the first IPC write raise, simulating an unsupported
+        # extension dtype.
+        original_write = pt._dataframe_to_arrow_ipc
 
         call_count = 0
 
-        def patched_to_feather(self_df, *args: Any, **kwargs: Any):
+        def patched_write(frame: pd.DataFrame) -> bytes:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise pa.lib.ArrowTypeError("unsupported extension type")
-            return original_to_feather(self_df, *args, **kwargs)
+            return original_write(frame)
 
-        with patch.object(pd.DataFrame, "to_feather", patched_to_feather):
+        with patch.object(pt, "_dataframe_to_arrow_ipc", patched_write):
             result = manager.to_arrow_ipc()
 
         assert isinstance(result, bytes)
         assert len(result) > 0
-        # Verify the result is valid IPC/feather data by reading it back
+        # Verify the result is valid Arrow IPC data by reading it back
         buf = pa.BufferReader(result)
         table = pa.ipc.open_file(buf).read_all()
         assert table.num_rows == 3

@@ -234,27 +234,40 @@ def _npy_dump(obj: Any) -> bytes:
     return buf.getvalue()
 
 
+def _pandas_to_arrow_ipc(df: Any) -> bytes:
+    # Use Arrow IPC directly; pyarrow.feather.write_feather
+    # (via DataFrame.to_feather) is deprecated as of 24.0.0.
+    import pyarrow as pa
+
+    buf = io.BytesIO()
+    table = pa.Table.from_pandas(df)
+    with pa.ipc.new_file(buf, table.schema) as writer:
+        writer.write_table(table)
+    return buf.getvalue()
+
+
 def _arrow_dump(obj: Any) -> bytes:
     # Duck-type dispatch:
     #   polars DataFrame  → write_ipc()
-    #   pandas DataFrame  → to_feather()
+    #   pandas DataFrame  → Arrow IPC via pyarrow.ipc
     #   Series (either)   → to_frame() first, then the appropriate DataFrame method
     # Fall back to pickle when pyarrow is absent so the cache write never fails.
     if not DependencyManager.pyarrow.has():
         return pickle.dumps(obj)
-    buf = io.BytesIO()
     if hasattr(obj, "write_ipc"):  # polars DataFrame
+        buf = io.BytesIO()
         obj.write_ipc(buf)
-    elif hasattr(obj, "to_feather"):  # pandas DataFrame
-        obj.to_feather(buf)
-    else:
-        # Series — promote to single-column DataFrame, then detect library
-        frame = obj.to_frame()
-        if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
-            frame.write_ipc(buf)
-        else:  # pandas Series → pandas DataFrame
-            frame.to_feather(buf)
-    return buf.getvalue()
+        return buf.getvalue()
+    if hasattr(obj, "to_feather"):  # pandas DataFrame
+        return _pandas_to_arrow_ipc(obj)
+    # Series — promote to single-column DataFrame, then detect library
+    frame = obj.to_frame()
+    if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
+        buf = io.BytesIO()
+        frame.write_ipc(buf)
+        return buf.getvalue()
+    # pandas Series → pandas DataFrame
+    return _pandas_to_arrow_ipc(frame)
 
 
 def _pt_dump(obj: Any) -> bytes:
