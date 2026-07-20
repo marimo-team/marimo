@@ -2344,9 +2344,9 @@ class TestPandasTableManager(unittest.TestCase):
         # MultiIndex should be preserved with original names
         assert list(result._original_data.index.names) == ["x", "level"]
 
+    @pytest.mark.requires("pint_pandas")
     def test_to_json_str_pint_pandas_series(self) -> None:
         """pint-pandas quantities display as readable strings in tables."""
-        pytest.importorskip("pint_pandas")
         import pandas as pd
         import pint_pandas  # noqa: F401 — registers pint dtypes with pandas
 
