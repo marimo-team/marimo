@@ -1578,6 +1578,40 @@ def test_get_sample_values_nested_struct_is_bounded() -> None:
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+
+@pytest.mark.skipif(not HAS_DEPS, reason="polars not installed")
+def test_get_sample_values_branching_payload_is_bounded() -> None:
+    """Wide branching nests must not explode work via str() at the depth cap."""
+    import polars as pl
+
+    def branch(depth: int, width: int = 8) -> Any:
+        if depth == 0:
+            return {"leaf": "x" * 20, "n": 1}
+        return {
+            f"b{i}": branch(depth - 1, width) for i in range(width)
+        }
+
+    # width^depth without a real cap is enormous; with sentinel cap work is O(width^MAX).
+    payload = branch(6, width=6)
+    df = pl.DataFrame({"payload": [payload, payload, payload]})
+    manager = NarwhalsTableManager.from_dataframe(
+        nw.from_native(df, eager_only=True)
+    )
+
+    t0 = time.perf_counter()
+    samples = manager.get_sample_values("payload")
+    elapsed = time.perf_counter() - t0
+
+    assert len(samples) == 3
+    assert elapsed < 1.0, (
+        f"get_sample_values took {elapsed:.2f}s (expected < 1s)"
+    )
+    for s in samples:
+        assert isinstance(s, str)
+        assert "..." in s
+        assert len(s) < 250_000
+
+
 def test_get_sample_values_nested_struct_is_json() -> None:
     import polars as pl
 

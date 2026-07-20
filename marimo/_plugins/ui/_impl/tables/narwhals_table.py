@@ -711,9 +711,16 @@ class NarwhalsTableManager(
                 return str(o)
 
             def _with_depth_limit(value: Any, depth: int = 0) -> Any:
-                """Return a structure safe for json.dumps / display."""
+                """Return a structure safe for json.dumps / display.
+
+                At max depth, emit a fixed sentinel rather than str(value):
+                str() on large list/dict trees still walks the full remaining
+                container (issue #9378 branching payloads).
+                """
                 if depth >= MAX_NESTING_DEPTH:
-                    return str(value)
+                    if isinstance(value, (list, dict)):
+                        return "..."
+                    return value
                 if isinstance(value, list):
                     return [_with_depth_limit(v, depth + 1) for v in value]
                 if isinstance(value, dict):
