@@ -339,16 +339,9 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32 or dtype == nw.Float64:
+            elif hasattr(dtype, "is_float") and dtype.is_float():
                 return float(value)
-            elif (
-                dtype == nw.Int16
-                or dtype == nw.Int32
-                or dtype == nw.Int64
-                or dtype == nw.UInt16
-                or dtype == nw.UInt32
-                or dtype == nw.UInt64
-            ):
+            elif hasattr(dtype, "is_integer") and dtype.is_integer():
                 return int(value)
             elif (
                 dtype == nw.String

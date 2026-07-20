@@ -354,6 +354,40 @@ def test_apply_edits_dataframe():
 
 
 @pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+@pytest.mark.parametrize("dtype", ["int8", "uint8", "float16"])
+def test_apply_edits_dataframe_small_width_numeric_preserves_dtype(dtype):
+    # Editing a cell must not coerce a narrow numeric column to object/string.
+    import pandas as pd
+
+    df = pd.DataFrame({"A": pd.array([1, 2, 3], dtype=dtype)})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "5"}]
+    }
+    result = apply_edits(df.copy(), edits)
+    assert pd.api.types.is_numeric_dtype(result["A"])
+    assert result["A"].tolist() == [5, 2, 3]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars not installed"
+)
+def test_apply_edits_dataframe_polars_int8_preserves_dtype():
+    import polars as pl
+
+    df = pl.DataFrame({"A": pl.Series([1, 2, 3], dtype=pl.Int8)})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "5"}]
+    }
+    result = apply_edits(df.clone(), edits)
+    # The column stays integer (not coerced to String) even though the
+    # column-oriented round-trip widens the exact type to Int64.
+    assert result["A"].dtype.is_integer()
+    assert result["A"].to_list() == [5, 2, 3]
+
+
+@pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
 def test_data_editor_value_property():
@@ -962,6 +996,24 @@ class TestConvertValue:
         result = _convert_value("42", None, nw.UInt64)
         assert result == 42
         assert isinstance(result, int)
+
+    @pytest.mark.parametrize(
+        ("dtype", "value", "expected"),
+        [
+            (nw.Int8, "42", 42),
+            (nw.UInt8, "42", 42),
+            (nw.Int128, "42", 42),
+            (nw.UInt128, "42", 42),
+            # Float16 where narwhals exposes it, else any float width.
+            (getattr(nw, "Float16", nw.Float32), "3.5", 3.5),
+        ],
+    )
+    def test_convert_value_covers_narrow_numeric_widths(
+        self, dtype, value, expected
+    ):
+        result = _convert_value(value, None, dtype)
+        assert result == expected
+        assert isinstance(result, type(expected))
 
     def test_convert_value_with_dtype_string(self):
         """Test String conversion with dtype."""
