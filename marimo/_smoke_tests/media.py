@@ -33,7 +33,7 @@ def _(mic, mo):
 
 @app.cell
 def _(mo):
-    # Note, chrome does not support cross-origin download, so this wont auto download until we proxy the download through the backend
+    # Note, chrome does not support cross-origin download, so this won't auto download until we proxy the download through the backend
     _src = "https://samplelib.com/lib/preview/mp3/sample-3s.mp3"
     mo.hstack(
         [
@@ -58,7 +58,7 @@ def _(BytesIO, base64, mo, requests):
     mo.vstack(
         [
             mo.image(src=_src, rounded=True, height=100),
-            # Note, chrome does not support cross-origin download, so this wont auto download until we proxy the download through the backend
+            # Note, chrome does not support cross-origin download, so this won't auto download until we proxy the download through the backend
             mo.download(data=_src, label="Download via URL"),
             mo.image(src=image_data, rounded=True, height=100),
             mo.download(

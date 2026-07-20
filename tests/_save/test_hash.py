@@ -1524,7 +1524,7 @@ class TestSideEffects:
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         # Actually doesn't test side effects, because there's
-        # no "context" level hash for functions. Placed here incase the
+        # no "context" level hash for functions. Placed here in case the
         # functionality does change in the future.
         await k.run(
             [

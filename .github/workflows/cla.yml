@@ -44,7 +44,7 @@ jobs:
           branch: "main"
           allowlist: bot*,copilot
 
-          # the followings are the optional inputs - If the optional inputs are not given, then default values will be taken
+          # the following are the optional inputs - If the optional inputs are not given, then default values will be taken
           remote-organization-name: marimo-team
           remote-repository-name: cla-signers
           lock-pullrequest-aftermerge: false #- if you don't want this bot to automatically lock the pull request after merging (default - true)

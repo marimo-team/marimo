@@ -1171,7 +1171,7 @@ def content_cache_attempt_from_base(
 
     # refine to values present
     refs = scoped_refs & previous_block.visitor.refs
-    # Required refs are made explicit incase the examined block does not
+    # Required refs are made explicit in case the examined block does not
     # specify them e.g.
     # @cache
     # def foo(x):
