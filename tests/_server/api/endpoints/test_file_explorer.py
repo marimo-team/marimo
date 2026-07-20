@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
@@ -13,6 +13,9 @@ from tests._server.mocks import get_session_manager, token_header
 
 if TYPE_CHECKING:
     from starlette.testclient import TestClient
+
+    from marimo._config.config import PartialMarimoConfig
+    from marimo._config.manager import UserConfigManager
 
 HEADERS = {
     **token_header("fake-token"),
@@ -449,3 +452,89 @@ def test_search_files_with_directory_and_file_filters(
     assert response.status_code == 200, response.text
     data_no_filter = response.json()
     assert data_no_filter["totalFound"] == 3
+
+
+def test_download_file_text(client: TestClient) -> None:
+    path = os.path.join(test_dir, "download_me.txt")
+    with open(path, "w") as f:
+        f.write("stream me")
+    response = client.get(
+        "/api/files/download", headers=HEADERS, params={"path": path}
+    )
+    assert response.status_code == 200, response.text
+    assert response.text == "stream me"
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("attachment")
+    assert "download_me.txt" in disposition
+    assert response.headers["x-content-type-options"] == "nosniff"
+    os.remove(path)
+
+
+def test_download_file_binary(client: TestClient) -> None:
+    raw_bytes = b"\xff\xfe\xfd\x00\x80marimo"
+    path = os.path.join(test_dir, "download_me.bin")
+    with open(path, "wb") as f:
+        f.write(raw_bytes)
+    response = client.get(
+        "/api/files/download", headers=HEADERS, params={"path": path}
+    )
+    assert response.status_code == 200, response.text
+    assert response.content == raw_bytes
+    assert response.headers["content-type"] == "application/octet-stream"
+    os.remove(path)
+
+
+def test_download_file_unicode_name(client: TestClient) -> None:
+    path = os.path.join(test_dir, "émoji 🎉.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("unicode")
+    response = client.get(
+        "/api/files/download", headers=HEADERS, params={"path": path}
+    )
+    assert response.status_code == 200, response.text
+    disposition = response.headers["content-disposition"]
+    assert disposition.startswith("attachment")
+    assert "filename*=UTF-8''" in disposition
+    os.remove(path)
+
+
+def test_download_directory_is_rejected(client: TestClient) -> None:
+    response = client.get(
+        "/api/files/download", headers=HEADERS, params={"path": test_dir}
+    )
+    assert response.status_code == 400, response.text
+
+
+def test_download_missing_file(client: TestClient) -> None:
+    response = client.get(
+        "/api/files/download",
+        headers=HEADERS,
+        params={"path": os.path.join(test_dir, "does_not_exist.txt")},
+    )
+    assert response.status_code == 404, response.text
+
+
+def test_download_requires_path_param(client: TestClient) -> None:
+    response = client.get("/api/files/download", headers=HEADERS)
+    assert response.status_code == 400, response.text
+
+
+def test_download_requires_auth(client: TestClient) -> None:
+    response = client.get(
+        "/api/files/download", params={"path": test_file_path}
+    )
+    assert response.status_code == 401, response.text
+
+
+def test_download_disabled_by_config(
+    client: TestClient, user_config_manager: UserConfigManager
+) -> None:
+    user_config_manager.save_config(
+        cast(
+            "PartialMarimoConfig", {"server": {"disable_file_downloads": True}}
+        )
+    )
+    response = client.get(
+        "/api/files/download", headers=HEADERS, params={"path": test_file_path}
+    )
+    assert response.status_code == 403, response.text
