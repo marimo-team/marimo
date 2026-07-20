@@ -256,13 +256,11 @@ const DEFAULT_HOT_KEY = {
     name: "Copy line(s) up",
     group: "Editing",
     key: "Alt-Shift-ArrowUp",
-    editable: false,
   },
   "cell.copyLineDown": {
     name: "Copy line(s) down",
     group: "Editing",
     key: "Alt-Shift-ArrowDown",
-    editable: false,
   },
 
   // Markdown
