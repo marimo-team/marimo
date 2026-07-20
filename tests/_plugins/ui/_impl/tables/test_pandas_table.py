@@ -2374,10 +2374,7 @@ class TestPandasTableManager(unittest.TestCase):
         manager = self.factory.create()(series.to_frame(name="mixed"))
         json_data = json.loads(manager.to_json_str())
 
-        expected = [{"mixed": str(value)} for value in series]
-        assert json_data == expected
-        assert all(isinstance(row["mixed"], str) for row in json_data)
-        assert all("_magnitude" not in row["mixed"] for row in json_data)
+        assert json_data == [{"mixed": str(value)} for value in series]
 
     def test_extension_column_needs_stringify_skips_json_primitives(
         self,
