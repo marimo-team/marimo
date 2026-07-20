@@ -38,11 +38,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def _dataframe_to_arrow_ipc(df: pd.DataFrame) -> bytes:
-    """Serialize a pandas DataFrame to Arrow IPC bytes.
-
-    Uses pyarrow.ipc directly; DataFrame.to_feather / pyarrow.feather
-    is deprecated as of pyarrow 24.0.0.
-    """
+    """Serialize a pandas DataFrame to Arrow IPC bytes."""
     import pyarrow as pa
 
     out = io.BytesIO()

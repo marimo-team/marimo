@@ -235,8 +235,6 @@ def _npy_dump(obj: Any) -> bytes:
 
 
 def _pandas_to_arrow_ipc(df: Any) -> bytes:
-    # Use Arrow IPC directly; pyarrow.feather.write_feather
-    # (via DataFrame.to_feather) is deprecated as of 24.0.0.
     import pyarrow as pa
 
     buf = io.BytesIO()
