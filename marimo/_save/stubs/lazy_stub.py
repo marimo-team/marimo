@@ -235,11 +235,16 @@ def _npy_dump(obj: Any) -> bytes:
 
 
 def _pandas_to_arrow_ipc(df: Any) -> bytes:
+    # Serialize via Arrow IPC. Prefer LZ4 when available so on-disk cache
+    # blobs stay compact.
     import pyarrow as pa
 
     buf = io.BytesIO()
     table = pa.Table.from_pandas(df)
-    with pa.ipc.new_file(buf, table.schema) as writer:
+    options = pa.ipc.IpcWriteOptions(
+        compression="lz4" if pa.Codec.is_available("lz4") else None
+    )
+    with pa.ipc.new_file(buf, table.schema, options=options) as writer:
         writer.write_table(table)
     return buf.getvalue()
 
