@@ -56,31 +56,62 @@ def _try_get_widget_model_id(value: Any) -> str | None:
     return None
 
 
+# Values that can never be or contain a widget, checked before anything
+# else. Large data traits (lists of records) are overwhelmingly made of
+# these, and probing every node with `getattr` made serialization time
+# linear in data size with a large constant (~400ms per 250k records).
+_LEAF_TYPES = (str, int, float, bool, bytes, type(None))
+
+
 def _replace_widget_refs(value: Any) -> Any:
     """Recursively replace anywidget instances with wire-format references.
 
     Walks dictionaries, lists, and tuples. Returns a new container when a
     replacement occurs and otherwise preserves the original container's
-    identity.
+    identity — containers are copied lazily, on the first replacement in
+    them, so widget-free subtrees cost no allocations.
     """
+    if isinstance(value, _LEAF_TYPES):
+        return value
+    # Plain containers cannot be widgets themselves (widgets are
+    # HasTraits / descriptor-carrying objects, never dict/list/tuple
+    # instances), so recurse into them without probing.
+    if isinstance(value, dict):
+        replaced_dict: dict[Any, Any] | None = None
+        for k, v in value.items():
+            if isinstance(v, _LEAF_TYPES):
+                continue
+            new = _replace_widget_refs(v)
+            if new is not v:
+                if replaced_dict is None:
+                    replaced_dict = dict(value)
+                replaced_dict[k] = new
+        return value if replaced_dict is None else replaced_dict
+    if isinstance(value, list):
+        replaced_list: list[Any] | None = None
+        for i, v in enumerate(value):
+            if isinstance(v, _LEAF_TYPES):
+                continue
+            new = _replace_widget_refs(v)
+            if new is not v:
+                if replaced_list is None:
+                    replaced_list = list(value)
+                replaced_list[i] = new
+        return value if replaced_list is None else replaced_list
+    if isinstance(value, tuple):
+        replaced_items: list[Any] | None = None
+        for i, v in enumerate(value):
+            if isinstance(v, _LEAF_TYPES):
+                continue
+            new = _replace_widget_refs(v)
+            if new is not v:
+                if replaced_items is None:
+                    replaced_items = list(value)
+                replaced_items[i] = new
+        return value if replaced_items is None else tuple(replaced_items)
     model_id = _try_get_widget_model_id(value)
     if model_id is not None:
         return f"{_WIDGET_REF_PREFIX}{model_id}"
-    if isinstance(value, dict):
-        replaced = {k: _replace_widget_refs(v) for k, v in value.items()}
-        if all(replaced[k] is value[k] for k in value):
-            return value
-        return replaced
-    if isinstance(value, list):
-        replaced_list = [_replace_widget_refs(v) for v in value]
-        if all(a is b for a, b in zip(replaced_list, value, strict=True)):
-            return value
-        return replaced_list
-    if isinstance(value, tuple):
-        replaced_tuple = tuple(_replace_widget_refs(v) for v in value)
-        if all(a is b for a, b in zip(replaced_tuple, value, strict=True)):
-            return value
-        return replaced_tuple
     return value
 
 
