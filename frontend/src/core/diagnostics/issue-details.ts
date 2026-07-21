@@ -75,6 +75,26 @@ export function markdownCodeFence(language: string, contents: string): string {
   return `${fence}${language}\n${contents}\n${fence}`;
 }
 
+/**
+ * GitHub returns HTTP 414 for issue-form URLs beyond roughly 8 KB, so prefill is
+ * skipped once the encoded body would push the URL past this conservative cap.
+ */
+export const MAX_PREFILL_URL_LENGTH = 6000;
+
+/**
+ * Build a bug-report URL with `issueDetails` prefilled into the form's `env`
+ * field. Falls back to `baseUrl` unchanged when the prefilled URL would exceed
+ * `MAX_PREFILL_URL_LENGTH`.
+ */
+export function buildBugReportUrl(
+  baseUrl: string,
+  issueDetails: string,
+): string {
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  const prefilled = `${baseUrl}${separator}env=${encodeURIComponent(issueDetails)}`;
+  return prefilled.length > MAX_PREFILL_URL_LENGTH ? baseUrl : prefilled;
+}
+
 function detailsSection(summary: string, body: string): string {
   return [
     "<details>",

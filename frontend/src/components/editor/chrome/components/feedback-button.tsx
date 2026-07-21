@@ -22,6 +22,7 @@ import { toast } from "@/components/ui/use-toast";
 import { notebookAtom } from "@/core/cells/cells";
 import { Constants } from "@/core/constants";
 import {
+  buildBugReportUrl,
   buildIssueDetails,
   createPartialEnvironment,
   type EnvironmentDiagnostics,
@@ -139,6 +140,16 @@ export const FeedbackModal: React.FC<{
 
   const [issueDetailsCopied, setIssueDetailsCopied] = useState(false);
 
+  const githubIssueUrl = useMemo(() => {
+    if (!environment) {
+      return Constants.bugReportUrl;
+    }
+    return buildBugReportUrl(
+      Constants.bugReportUrl,
+      buildIssueDetails({ environment, errors }),
+    );
+  }, [environment, errors]);
+
   const copyIssueDetails = async () => {
     if (!environment) {
       return;
@@ -191,12 +202,19 @@ export const FeedbackModal: React.FC<{
             {issueDetailsCopied ? "Copied!" : "Copy issue details"}
           </Button>
           <Button type="button" variant="outline" size="xs" asChild={true}>
-            <a href={Constants.bugReportUrl} target="_blank" rel="noreferrer">
+            <a href={githubIssueUrl} target="_blank" rel="noreferrer">
               <ExternalLinkIcon className="w-4 h-4 mr-2" />
               Open GitHub issue
             </a>
           </Button>
         </div>
+
+        {includeNotebook && (
+          <p className="text-xs text-muted-foreground">
+            The GitHub link prefills your environment only. Use Copy issue
+            details to include the full notebook source.
+          </p>
+        )}
 
         {environmentRequest.status === "pending" && (
           <div className="flex flex-col gap-2">

@@ -6,6 +6,7 @@ import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { Dialog } from "@/components/ui/dialog";
+import { Constants } from "@/core/constants";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { viewStateAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
@@ -196,5 +197,25 @@ describe("FeedbackModal issue reporting", () => {
     expect(
       screen.getByText("Connect the notebook to include its source."),
     ).toBeInTheDocument();
+  });
+
+  it("prefills the GitHub issue link with the environment once loaded", async () => {
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getEnvironmentInfo: vi.fn().mockResolvedValue(environment),
+      }),
+    );
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+
+    const link = screen.getByRole("link", { name: "Open GitHub issue" });
+    expect(link).toHaveAttribute("href", Constants.bugReportUrl);
+
+    await screen.findByText("Environment details");
+    await waitFor(() => {
+      const href = link.getAttribute("href") ?? "";
+      expect(href).toContain("&env=");
+      expect(href).toContain(encodeURIComponent('"marimo": "1.2.3"'));
+    });
   });
 });

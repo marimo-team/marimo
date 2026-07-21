@@ -5,10 +5,12 @@ import { cellId } from "@/__tests__/branded";
 import type { CellErrorEntry } from "@/core/errors/error-entries";
 import type { EnvironmentInfo } from "@/core/network/types";
 import {
+  buildBugReportUrl,
   buildIssueDetails,
   createPartialEnvironment,
   enrichEnvironment,
   markdownCodeFence,
+  MAX_PREFILL_URL_LENGTH,
 } from "../issue-details";
 
 const environment: EnvironmentInfo = {
@@ -140,5 +142,32 @@ describe("buildIssueDetails", () => {
     });
     expect(markdown).toContain("&lt;script&gt;.py");
     expect(markdown).not.toContain("<script>.py");
+  });
+});
+
+describe("buildBugReportUrl", () => {
+  const baseUrl =
+    "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml";
+
+  it("prefills the env field with the encoded issue details", () => {
+    const url = buildBugReportUrl(baseUrl, "hello world");
+    expect(url).toBe(`${baseUrl}&env=hello%20world`);
+  });
+
+  it("appends env with a query separator when the base URL has none", () => {
+    const url = buildBugReportUrl("https://example.com/new", "x");
+    expect(url).toBe("https://example.com/new?env=x");
+  });
+
+  it("encodes markdown so it survives as a single query param", () => {
+    const details = buildIssueDetails({ environment, errors: [] });
+    const url = buildBugReportUrl(baseUrl, details);
+    expect(url).toContain("&env=");
+    expect(new URL(url).searchParams.get("env")).toBe(details);
+  });
+
+  it("falls back to the plain base URL when the prefill exceeds the cap", () => {
+    const huge = "x".repeat(MAX_PREFILL_URL_LENGTH);
+    expect(buildBugReportUrl(baseUrl, huge)).toBe(baseUrl);
   });
 });
