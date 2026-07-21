@@ -1,10 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError
-
-import pytest
+from typing import TYPE_CHECKING
 
 from marimo import _version
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_get_version_from_marimo(monkeypatch: pytest.MonkeyPatch) -> None:
