@@ -95,6 +95,16 @@ describe("WidgetDefRegistry", () => {
     promise1.catch(() => undefined);
   });
 
+  it("should retry a new URL after invalidating the same hash", () => {
+    const promise1 = getModule(registry, "http://localhost/a.js", "same-hash");
+    registry.invalidate("same-hash");
+    const promise2 = getModule(registry, "http://localhost/b.js", "same-hash");
+
+    expect(promise1).not.toBe(promise2);
+    promise1.catch(() => undefined);
+    promise2.catch(() => undefined);
+  });
+
   it("should create different promises for different hashes", () => {
     const promise1 = getModule(registry, "http://localhost/a.js", "hash-a");
     const promise2 = getModule(registry, "http://localhost/b.js", "hash-b");
