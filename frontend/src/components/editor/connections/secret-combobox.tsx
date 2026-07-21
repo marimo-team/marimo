@@ -168,20 +168,6 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
               onValueChange={setSearch}
             />
             <CommandList className="max-h-60 overscroll-contain">
-              {value && (
-                <>
-                  <CommandGroup>
-                    <CommandItem
-                      value={`clear value ${trimmedSearch}`}
-                      onSelect={clearValue}
-                    >
-                      <XIcon className="mr-2 h-3.5 w-3.5" />
-                      Clear
-                    </CommandItem>
-                  </CommandGroup>
-                  <CommandSeparator />
-                </>
-              )}
               {showCustomValue && (
                 <CommandGroup>
                   <CommandItem
