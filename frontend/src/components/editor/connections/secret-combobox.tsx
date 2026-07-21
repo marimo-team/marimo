@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { ChevronDownIcon, KeyIcon, PlusCircleIcon } from "lucide-react";
+import { ChevronDownIcon, KeyIcon, PlusCircleIcon, XIcon } from "lucide-react";
 import React, { useState } from "react";
 import {
   Command,
@@ -105,6 +105,11 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
     setSearch("");
   };
 
+  const clearValue = () => {
+    onChange("");
+    setSearch("");
+  };
+
   return (
     <Popover
       modal={true} // own scroll lock so trackpad/wheel works inside the portaled list
@@ -141,7 +146,20 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
               <span className="text-muted-foreground">{placeholder}</span>
             )}
           </span>
-          <ChevronDownIcon className="ml-2 h-4 w-4 opacity-50 shrink-0" />
+          {value && (
+            <span
+              aria-label="Clear"
+              className="ml-1 shrink-0 rounded-sm p-0.5 hover:bg-muted cursor-pointer"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                clearValue();
+              }}
+            >
+              <XIcon className="h-3.5 w-3.5 opacity-50 hover:opacity-90" />
+            </span>
+          )}
+          <ChevronDownIcon className="ml-1 h-4 w-4 opacity-50 shrink-0" />
         </button>
       </PopoverTrigger>
       <PopoverContent
@@ -184,9 +202,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
                 }}
               >
                 <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
-                {trimmedSearch
-                  ? `Create secret "${trimmedSearch}"`
-                  : "Create a new secret"}
+                Create a new secret
               </CommandItem>
             </CommandGroup>
             {recommendedKeys.length > 0 && (
