@@ -175,6 +175,7 @@ export const FeedbackModal: React.FC<{
           <Button
             type="button"
             variant="default"
+            size="xs"
             disabled={
               !environment ||
               (includeNotebook && notebookSourceRequest.isFetching)
@@ -182,11 +183,14 @@ export const FeedbackModal: React.FC<{
             onClick={copyIssueDetails}
           >
             {issueDetailsCopied && (
-              <CheckIcon className="w-4 h-4 mr-2 text-(--grass-11)" />
+              <CheckIcon
+                className="w-4 h-4 mr-2 text-(--grass-11)"
+                color="white"
+              />
             )}
             {issueDetailsCopied ? "Copied!" : "Copy issue details"}
           </Button>
-          <Button type="button" variant="outline" asChild={true}>
+          <Button type="button" variant="outline" size="xs" asChild={true}>
             <a href={Constants.bugReportUrl} target="_blank" rel="noreferrer">
               <ExternalLinkIcon className="w-4 h-4 mr-2" />
               Open GitHub issue
