@@ -1,12 +1,16 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import mimetypes
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
 from starlette.exceptions import HTTPException
+from starlette.responses import FileResponse
 
 from marimo import _loggers
+from marimo._convert.common.filename import make_download_headers
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_multipart_request, parse_request
 from marimo._server.files.os_file_system import (
@@ -38,6 +42,7 @@ from marimo._server.models.models import (
     SuccessResponse,
 )
 from marimo._server.router import APIRouter
+from marimo._utils.http import HTTPException as MarimoHTTPException
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -101,6 +106,71 @@ async def file_details(
     """
     body = await parse_request(request, cls=FileDetailsRequest)
     return file_system.get_details(body.path)
+
+
+@router.get("/download")
+@requires("edit")
+def download_file(
+    *,
+    request: Request,
+) -> FileResponse:
+    """
+    parameters:
+        - in: query
+          name: path
+          required: true
+          schema:
+            type: string
+          description: Path of the file to download
+    responses:
+        200:
+            description: Stream the file as an attachment
+            content:
+                application/octet-stream:
+                    schema:
+                        type: string
+                        format: binary
+        400:
+            description: Path is missing or is a directory
+        403:
+            description: File downloads are disabled
+        404:
+            description: File not found
+    """
+    app_state = AppState(request)
+    server_config = app_state.config_manager.get_config().get("server", {})
+    # This endpoint serves raw file bytes, so its errors raise marimo's
+    # HTTPException, whose status code reaches the client unchanged. A Starlette
+    # 403 is globally converted to a 401 to prompt re-authentication; a
+    # downloads-disabled policy cannot be satisfied by re-auth, so it stays 403.
+    if server_config.get("disable_file_downloads", False):
+        raise MarimoHTTPException(
+            status_code=403, detail="File downloads are disabled"
+        )
+
+    path = app_state.query_params("path")
+    if not path:
+        raise MarimoHTTPException(status_code=400, detail="Missing path")
+    file_path = Path(path)
+    if file_path.is_dir():
+        raise MarimoHTTPException(
+            status_code=400, detail="Cannot download a directory"
+        )
+    if not file_path.is_file():
+        raise MarimoHTTPException(status_code=404, detail="File not found")
+
+    media_type = (
+        mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
+    )
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        headers={
+            **make_download_headers(file_path.name),
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @router.post("/create")

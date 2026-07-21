@@ -86,6 +86,35 @@ export class RuntimeManager {
     return baseUrl;
   }
 
+  /**
+   * Channels that cannot send custom headers (WebSockets, and browser
+   * navigations such as file downloads) carry the auth token as a query
+   * param instead, but only when cross-origin. Same-origin requests
+   * authenticate via the session cookie, which keeps the token out of
+   * browser history and logs; cross-origin cookies are blocked by browsers,
+   * so the access_token query param is the only option there.
+   */
+  private appendCrossOriginAuth(url: URL): URL {
+    if (!this.isSameOrigin && this.config.authToken) {
+      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
+    }
+    return url;
+  }
+
+  /**
+   * An HTTP URL for requests made by browser navigation (e.g. anchor-click
+   * downloads), which cannot attach auth headers.
+   */
+  formatNavigableHttpURL(path: string, searchParams?: URLSearchParams): URL {
+    const url = this.formatHttpURL({ path, searchParams });
+    // Drop any token inherited from the current page's query params; re-add it
+    // only when cross-origin. Same-origin downloads authenticate via the
+    // session cookie, so a token in the URL would needlessly leak into
+    // proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return this.appendCrossOriginAuth(url);
+  }
+
   formatWsURL(path: string, searchParams?: URLSearchParams): URL {
     // We don't restrict to known query parameters, since mo.query_params()
     // can accept arbitrary parameters.
@@ -94,16 +123,7 @@ export class RuntimeManager {
       searchParams,
       restrictToKnownQueryParams: false,
     });
-
-    // For cross-origin runtimes, pass the auth token as a query parameter.
-    // WebSocket connections cannot send custom headers (no Authorization
-    // header), and cross-origin cookies are blocked by browsers, so the
-    // access_token query param is the only way to authenticate.
-    if (!this.isSameOrigin && this.config.authToken) {
-      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
-    }
-
-    return asWsUrl(url.toString());
+    return asWsUrl(this.appendCrossOriginAuth(url).toString());
   }
 
   /**

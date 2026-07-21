@@ -6478,6 +6478,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileDeleteResponse'
           description: Delete a file or directory
+  /api/files/download:
+    get:
+      parameters:
+      - description: Path of the file to download
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: Stream the file as an attachment
+        400:
+          description: Path is missing or is a directory
+        403:
+          description: File downloads are disabled
+        404:
+          description: File not found
   /api/files/file_details:
     post:
       requestBody:
