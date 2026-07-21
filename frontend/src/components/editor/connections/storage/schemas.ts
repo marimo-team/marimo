@@ -12,6 +12,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Bucket",
           placeholder: "my-bucket",
+          optionRegex: "(bucket|s3.?bucket)",
         }),
       ),
     region: z
@@ -21,6 +22,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Region",
           placeholder: "us-east-1",
+          optionRegex: "(region|aws.?region)",
         }),
       ),
     access_key_id: z
@@ -30,7 +32,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Access Key ID",
           inputType: "password",
-          optionRegex: ".*access_key.*",
+          optionRegex: "(access.?key.?id|aws.?access.?key)",
         }),
       ),
     secret_access_key: z
@@ -40,7 +42,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Secret Access Key",
           inputType: "password",
-          optionRegex: ".*secret.*access.*",
+          optionRegex: "(secret.?access.?key|aws.?secret)",
         }),
       ),
     endpoint_url: z
@@ -50,6 +52,7 @@ export const S3StorageSchema = z
         FieldOptions.of({
           label: "Endpoint URL",
           placeholder: "https://s3.amazonaws.com",
+          optionRegex: "(endpoint|s3.?url|s3.?endpoint)",
         }),
       ),
   })
@@ -65,6 +68,7 @@ export const GCSStorageSchema = z
         FieldOptions.of({
           label: "Bucket",
           placeholder: "my-bucket",
+          optionRegex: "(bucket|gcs.?bucket|google.?bucket)",
         }),
       ),
     service_account_key: z
@@ -98,7 +102,7 @@ export const AzureStorageSchema = z
         FieldOptions.of({
           label: "Account Name",
           placeholder: "storageaccount",
-          optionRegex: ".*account.*",
+          optionRegex: "(azure.?account|account.?name|storage.?account)",
         }),
       ),
     account_key: z
@@ -108,7 +112,7 @@ export const AzureStorageSchema = z
         FieldOptions.of({
           label: "Account Key",
           inputType: "password",
-          optionRegex: ".*azure.*key.*",
+          optionRegex: "(azure.?key|account.?key|storage.?key)",
         }),
       ),
   })
@@ -142,7 +146,8 @@ export const CoreWeaveStorageSchema = z
         FieldOptions.of({
           label: "Access Key ID",
           inputType: "password",
-          optionRegex: ".*object_storage_key.*",
+          optionRegex:
+            "(access.?key.?id|object.?storage.?key|aws.?access.?key)",
         }),
       ),
     secret_access_key: z
@@ -152,7 +157,8 @@ export const CoreWeaveStorageSchema = z
         FieldOptions.of({
           label: "Secret Access Key",
           inputType: "password",
-          optionRegex: ".*object_storage_secret.*",
+          optionRegex:
+            "(secret.?access.?key|object.?storage.?secret|aws.?secret)",
         }),
       ),
   })
