@@ -210,7 +210,7 @@ describe("WidgetRegistry.getWidget", () => {
   });
 
   afterEach(() => {
-    getModuleSpy.mockRestore();
+    vi.restoreAllMocks();
   });
 
   it("binds an undisplayed widget from its ESM spec", async () => {
@@ -320,7 +320,6 @@ describe("WidgetRegistry.getWidget", () => {
       /missing a default export/,
     );
     expect(invalidateSpy).toHaveBeenCalledWith(SPEC.hash);
-    invalidateSpy.mockRestore();
   });
 
   it("rejects when the model never arrives", async () => {
