@@ -9,6 +9,7 @@ import type { JsonString } from "@/utils/json/base64";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
+  EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
   FileCopyRequest,
@@ -73,6 +74,7 @@ export interface RawBridge {
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
+  get_environment_info(): Promise<EnvironmentInfo>;
   format(request: FormatCellsRequest): Promise<FormatResponse>;
   save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
