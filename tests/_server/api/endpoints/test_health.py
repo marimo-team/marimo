@@ -149,6 +149,37 @@ def test_read_code(client: TestClient) -> None:
     assert response.json()["active"] == 1
 
 
+def test_environment_requires_read_auth(client: TestClient) -> None:
+    response = client.get("/api/environment")
+    assert response.status_code == 401, response.text
+
+
+def test_environment(client: TestClient) -> None:
+    expected = {
+        "marimo": "1.2.3",
+        "editable": False,
+        "location": "~/.venv/site-packages/marimo",
+        "OS": "Darwin",
+        "OS Version": "25.0",
+        "Processor": "arm",
+        "Python Version": "3.12.9",
+        "Locale": "en_US",
+        "Binaries": {"Browser": "--", "Node": "v22", "uv": "0.11"},
+        "Dependencies": {"click": "8.4.2"},
+        "Optional Dependencies": {"pandas": "3.0.0"},
+        "Experimental Flags": {},
+    }
+    with patch(
+        "marimo._server.api.endpoints.health.get_system_info",
+        return_value=expected,
+    ) as get_info:
+        response = client.get("/api/environment", headers=token_header())
+
+    assert response.status_code == 200, response.text
+    assert response.json() == expected
+    get_info.assert_called_once_with(redact_home=True)
+
+
 def test_usage_without_psutil(client: TestClient) -> None:
     """psutil may not be available on all platforms (e.g. Android/Termux)."""
     import sys

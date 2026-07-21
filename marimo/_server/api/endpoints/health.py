@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Literal, TypedDict
 
@@ -11,6 +12,7 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.deps import AppState
 from marimo._server.router import APIRouter
+from marimo._utils.diagnostics import get_system_info
 from marimo._utils.health import (
     get_cgroup_cpu_percent,
     get_cgroup_mem_stats,
@@ -128,6 +130,70 @@ async def version(request: Request) -> PlainTextResponse:
     """
     del request  # Unused
     return PlainTextResponse(__version__)
+
+
+@router.get("/api/environment")
+@requires("read")
+async def environment(request: Request) -> JSONResponse:
+    """
+    responses:
+        200:
+            description: Environment information for issue reporting
+            content:
+                application/json:
+                    schema:
+                        type: object
+                        properties:
+                            marimo:
+                                type: string
+                            editable:
+                                type: boolean
+                            location:
+                                type: string
+                            OS:
+                                type: string
+                            OS Version:
+                                type: string
+                            Processor:
+                                type: string
+                            Python Version:
+                                type: string
+                            Locale:
+                                type: string
+                            Binaries:
+                                type: object
+                                additionalProperties:
+                                    type: string
+                            Dependencies:
+                                type: object
+                                additionalProperties:
+                                    type: string
+                            Optional Dependencies:
+                                type: object
+                                additionalProperties:
+                                    type: string
+                            Experimental Flags:
+                                type: object
+                                additionalProperties: {}
+                        required:
+                            - marimo
+                            - editable
+                            - location
+                            - OS
+                            - OS Version
+                            - Processor
+                            - Python Version
+                            - Locale
+                            - Binaries
+                            - Dependencies
+                            - Optional Dependencies
+                            - Experimental Flags
+    """
+    del request  # Unused
+    # Collect off the event loop; the install-location and dependency scans
+    # touch the filesystem and can block.
+    info = await asyncio.to_thread(get_system_info, redact_home=True)
+    return JSONResponse(info)
 
 
 @router.get("/api/usage")
