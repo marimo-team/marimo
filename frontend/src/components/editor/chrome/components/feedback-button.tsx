@@ -5,16 +5,12 @@ import { Slot as SlotPrimitive } from "radix-ui";
 const Slot = SlotPrimitive.Slot;
 
 import { useAtomValue } from "jotai";
-import { CopyIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
-import React, { type PropsWithChildren, useMemo } from "react";
+import { CheckIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
+import React, { type PropsWithChildren, useMemo, useState } from "react";
+import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	DialogContent,
 	DialogDescription,
@@ -30,16 +26,53 @@ import {
 	createPartialEnvironment,
 	type EnvironmentDiagnostics,
 	enrichEnvironment,
+	type NotebookSource,
 } from "@/core/diagnostics/issue-details";
 import {
 	formatCellError,
 	getCellErrorEntries,
 } from "@/core/errors/error-entries";
+import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { getMarimoVersion } from "@/core/meta/globals";
+import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
+import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
+import { Logger } from "@/utils/Logger";
+
+const CollapsiblePreview: React.FC<{ content: string }> = ({ content }) => {
+	const [expanded, setExpanded] = useState(false);
+	return (
+		<div className="flex flex-col gap-1">
+			<div className="relative">
+				<pre
+					className={cn(
+						"text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap",
+						!expanded && "max-h-24 overflow-hidden",
+					)}
+				>
+					{content}
+				</pre>
+				{!expanded && (
+					<div className="pointer-events-none absolute inset-x-0 bottom-0 h-10 rounded-b bg-gradient-to-b from-transparent to-muted" />
+				)}
+			</div>
+			<Button
+				type="button"
+				variant="link"
+				size="xs"
+				className="self-start"
+				onClick={() => setExpanded((value) => !value)}
+			>
+				{expanded ? "Show less" : "Show more"}
+			</Button>
+		</div>
+	);
+};
 
 export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 	const { openModal, closeModal } = useImperativeModal();
@@ -54,7 +87,7 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 export const FeedbackModal: React.FC<{
 	onClose: () => void;
 }> = () => {
-	const { getEnvironmentInfo } = useRequestClient();
+	const { getEnvironmentInfo, readCode } = useRequestClient();
 	const environmentRequest = useAsyncData(
 		async () => getEnvironmentInfo(),
 		[getEnvironmentInfo],
@@ -63,6 +96,55 @@ export const FeedbackModal: React.FC<{
 	const notebook = useAtomValue(notebookAtom);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: recompute when the notebook changes
 	const errors = useMemo(() => getCellErrorEntries(store), [notebook]);
+
+	const cells = notebook.cellIds.inOrderIds.map(
+		(cellId) => notebook.cellData[cellId],
+	);
+	const codeAvailable = useNotebookCodeAvailable(cells);
+	const filename = useAtomValue(filenameAtom);
+	const connection = useAtomValue(connectionAtom);
+	const notebookSourceAvailable =
+		filename !== null &&
+		codeAvailable &&
+		connection.state === WebSocketState.OPEN;
+
+	const [includeNotebook, setIncludeNotebook] = useState(false);
+	const [notebookSource, setNotebookSource] = useState<NotebookSource>();
+	const [notebookStatus, setNotebookStatus] = useState<
+		"idle" | "loading" | "error" | "success"
+	>("idle");
+
+	const notebookSourceReason = notebookSourceAvailable
+		? undefined
+		: filename === null
+			? "Save the notebook first."
+			: !codeAvailable
+				? "Notebook source is hidden in this view."
+				: "Connect the notebook to include its source.";
+
+	const toggleNotebook = async (checked: boolean) => {
+		if (!checked) {
+			setIncludeNotebook(false);
+			setNotebookSource(undefined);
+			setNotebookStatus("idle");
+			return;
+		}
+		if (!notebookSourceAvailable || filename === null) {
+			return;
+		}
+		setIncludeNotebook(true);
+		setNotebookStatus("loading");
+		try {
+			const { contents } = await readCode();
+			setNotebookSource({ filename, contents });
+			setNotebookStatus("success");
+		} catch (error) {
+			Logger.warn("Failed to read notebook source for issue report", error);
+			setIncludeNotebook(false);
+			setNotebookSource(undefined);
+			setNotebookStatus("error");
+		}
+	};
 
 	const environment: EnvironmentDiagnostics | undefined =
 		environmentRequest.data
@@ -76,19 +158,21 @@ export const FeedbackModal: React.FC<{
 					)
 				: undefined;
 
-	const copyEnvironment = async () => {
-		if (!environment) {
-			return;
-		}
-		await copyToClipboard(JSON.stringify(environment, null, 2));
-		toast({ title: "Environment details copied" });
-	};
+	const [issueDetailsCopied, setIssueDetailsCopied] = useState(false);
 
 	const copyIssueDetails = async () => {
 		if (!environment) {
 			return;
 		}
-		await copyToClipboard(buildIssueDetails({ environment, errors }));
+		const notebookForReport =
+			includeNotebook && notebookStatus === "success"
+				? notebookSource
+				: undefined;
+		await copyToClipboard(
+			buildIssueDetails({ environment, errors, notebook: notebookForReport }),
+		);
+		setIssueDetailsCopied(true);
+		setTimeout(() => setIssueDetailsCopied(false), 2000);
 		toast({
 			title:
 				environmentRequest.status === "error"
@@ -113,10 +197,13 @@ export const FeedbackModal: React.FC<{
 					<Button
 						type="button"
 						variant="default"
-						disabled={!environment}
+						disabled={!environment || notebookStatus === "loading"}
 						onClick={copyIssueDetails}
 					>
-						Copy issue details
+						{issueDetailsCopied && (
+							<CheckIcon className="w-4 h-4 mr-2 text-(--grass-11)" />
+						)}
+						{issueDetailsCopied ? "Copied!" : "Copy issue details"}
 					</Button>
 					<Button type="button" variant="outline" asChild={true}>
 						<a href={Constants.bugReportUrl} target="_blank" rel="noreferrer">
@@ -153,42 +240,29 @@ export const FeedbackModal: React.FC<{
 				)}
 
 				{environment && (
-					<Accordion type="single" collapsible={true}>
-						<AccordionItem value="environment">
-							<div className="flex items-center justify-between">
-								<AccordionTrigger className="flex-1 py-2 text-sm">
-									Environment details
-								</AccordionTrigger>
-								<Button
-									type="button"
-									variant="text"
-									size="icon"
-									aria-label="Copy environment JSON"
-									onClick={copyEnvironment}
-								>
-									<CopyIcon className="w-3.5 h-3.5" />
-								</Button>
-							</div>
-							<AccordionContent forceMount={true}>
-								<pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">
-									{JSON.stringify(environment, null, 2)}
-								</pre>
-							</AccordionContent>
-						</AccordionItem>
+					<div className="flex flex-col gap-1">
+						<div className="flex items-center justify-between">
+							<span className="text-sm font-medium">Environment details</span>
+							<CopyClipboardIcon
+								className="w-3.5 h-3.5"
+								value={JSON.stringify(environment, null, 2)}
+								ariaLabel="Copy environment JSON"
+								toastTitle="Environment details copied"
+							/>
+						</div>
+						<CollapsiblePreview
+							content={JSON.stringify(environment, null, 2)}
+						/>
+					</div>
+				)}
 
-						{errors.length > 0 && (
-							<AccordionItem value="errors">
-								<AccordionTrigger className="py-2 text-sm">
-									Current errors
-								</AccordionTrigger>
-								<AccordionContent forceMount={true}>
-									<pre className="text-xs bg-muted rounded p-2 overflow-x-auto whitespace-pre-wrap">
-										{errors.map(formatCellError).join("\n\n---\n\n")}
-									</pre>
-								</AccordionContent>
-							</AccordionItem>
-						)}
-					</Accordion>
+				{environment && errors.length > 0 && (
+					<div className="flex flex-col gap-1">
+						<span className="text-sm font-medium">Current errors</span>
+						<CollapsiblePreview
+							content={errors.map(formatCellError).join("\n\n---\n\n")}
+						/>
+					</div>
 				)}
 
 				{environment && errors.length === 0 && (
@@ -196,6 +270,42 @@ export const FeedbackModal: React.FC<{
 						No current errors detected.
 					</span>
 				)}
+
+				<div className="flex flex-col gap-1">
+					<div className="flex items-start gap-2 text-sm">
+						<Checkbox
+							id="issue-include-notebook"
+							className="mt-0.5"
+							checked={includeNotebook}
+							disabled={!notebookSourceAvailable}
+							onCheckedChange={(checked) =>
+								void toggleNotebook(checked === true)
+							}
+							aria-label="Include full notebook source"
+						/>
+						<label htmlFor="issue-include-notebook">
+							Include full notebook source
+						</label>
+					</div>
+					<p className="text-xs text-muted-foreground ml-6">
+						Copies the entire saved Python source, including comments, literal
+						data, embedded credentials, and package metadata. Outputs and
+						external files are not included. Review it before posting.{" "}
+						<span className="font-bold">
+							For private notebooks, paste a minimal reproduction instead.
+						</span>
+					</p>
+					{notebookSourceReason && (
+						<span className="text-xs text-muted-foreground ml-6">
+							{notebookSourceReason}
+						</span>
+					)}
+					{notebookStatus === "error" && (
+						<span className="text-xs text-(--red-11) ml-6">
+							Notebook source could not be loaded.
+						</span>
+					)}
+				</div>
 
 				<div className="border-t pt-3">
 					<p className="text-sm text-muted-foreground">
