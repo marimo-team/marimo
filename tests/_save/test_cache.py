@@ -788,7 +788,6 @@ class TestAppCache:
         assert k.globals["X"] == 1
         assert k.globals["Y"] == 2
 
-
     @pytest.mark.skipif(
         sys.version_info < (3, 12),
         reason="PEP 695 `type` alias syntax requires Python 3.12+",
