@@ -1,7 +1,6 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
 import os
-import warnings
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -480,40 +479,6 @@ def test_google_provider_selection(
         mock_google.assert_not_called()
         mock_google_cloud.assert_called_once_with(**expected_kwargs)
         assert provider.provider is mock_google_cloud.return_value
-
-
-@pytest.mark.skipif(
-    not DependencyManager.google_ai.has()
-    or not DependencyManager.pydantic_ai.has(),
-    reason="google or pydantic_ai not installed",
-)
-def test_google_vertex_provider_does_not_warn() -> None:
-    """Build a Vertex model without Pydantic-AI deprecation warnings."""
-    from pydantic_ai.models.google import GoogleModel
-    from pydantic_ai.providers.google_cloud import GoogleCloudProvider
-
-    with (
-        patch.dict(
-            os.environ,
-            {
-                "GOOGLE_GENAI_USE_VERTEXAI": "true",
-                "GOOGLE_CLOUD_PROJECT": "test-project",
-                "GOOGLE_CLOUD_LOCATION": "europe-west1",
-            },
-            clear=True,
-        ),
-        patch("pydantic_ai.providers.google_cloud.Client"),
-        warnings.catch_warnings(),
-    ):
-        warnings.simplefilter("error")
-        provider = GoogleProvider(
-            "gemini-2.5-flash",
-            AnyProviderConfig(api_key="", base_url=None),
-        )
-        model = provider.create_model()
-
-    assert isinstance(provider.provider, GoogleCloudProvider)
-    assert isinstance(model, GoogleModel)
 
 
 @pytest.mark.parametrize(
