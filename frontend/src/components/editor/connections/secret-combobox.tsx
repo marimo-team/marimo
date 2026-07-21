@@ -4,7 +4,6 @@ import { ChevronDownIcon, KeyIcon, PlusCircleIcon } from "lucide-react";
 import React, { useState } from "react";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -79,15 +78,10 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   const [search, setSearch] = useState("");
 
   const trimmedSearch = search.trim();
-  const allKeys = [...recommendedKeys, ...otherKeys];
-  const searchMatchesExisting = allKeys.some(
-    (key) => key.toLowerCase() === trimmedSearch.toLowerCase(),
-  );
+  // Non-secret fields may commit a literal even when it collides with an
+  // existing secret key, so we intentionally don't filter out matches here.
   const showCustomValue =
-    !secretsOnly &&
-    trimmedSearch.length > 0 &&
-    !searchMatchesExisting &&
-    trimmedSearch !== value;
+    !secretsOnly && trimmedSearch.length > 0 && trimmedSearch !== value;
 
   const displayValue = (() => {
     if (!value) {
@@ -167,11 +161,6 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
             onValueChange={setSearch}
           />
           <CommandList className="max-h-60 overscroll-contain">
-            <CommandEmpty>
-              {trimmedSearch
-                ? `No matching secrets. Create a new one named "${trimmedSearch}".`
-                : "No secrets found."}
-            </CommandEmpty>
             {showCustomValue && (
               <CommandGroup>
                 <CommandItem

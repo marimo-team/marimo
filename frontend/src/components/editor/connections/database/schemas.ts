@@ -23,7 +23,7 @@ function tokenField(label?: string, required?: boolean) {
     FieldOptions.of({
       label: label || "Token",
       inputType: "password",
-      optionRegex: "(token|api.?key|access.?token|auth.?token|pat)",
+      optionRegex: "(token|api.?key|access.?token|auth.?token|(^|_)pat(_|$))",
     }),
   );
   return field;

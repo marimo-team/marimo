@@ -22,6 +22,8 @@ describe("partitionSecretKeys", () => {
     "OBJECT_STORAGE_SECRET",
     "DATABASE_URL",
     "SNOWFLAKE_PRIVATE_KEY_PASSPHRASE",
+    "PATH",
+    "GITHUB_PAT",
   ];
 
   test("returns all keys as other when regex is empty", () => {
@@ -111,6 +113,15 @@ describe("partitionSecretKeys", () => {
       "(uri|url|connection.?string|database.?url|jdbc)",
     );
     expect(recommended).toEqual(["DATABASE_URL"]);
+  });
+
+  test("recommends token keys and bounds PAT so PATH is excluded", () => {
+    const { recommended, other } = partitionSecretKeys(
+      keys,
+      "(token|api.?key|access.?token|auth.?token|(^|_)pat(_|$))",
+    );
+    expect(recommended).toEqual(["AWS_SESSION_TOKEN", "GITHUB_PAT"]);
+    expect(other).toContain("PATH");
   });
 
   test("recommends passphrase keys", () => {
