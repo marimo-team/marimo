@@ -1,9 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from pathlib import Path
+
 from marimo._cli.envinfo import (
     get_system_info,
 )
+from marimo._utils.diagnostics import abbreviate_home
 
 
 def test_get_node_version() -> None:
@@ -37,3 +40,30 @@ def test_get_system_info() -> None:
     assert "Binaries" in system_info
     assert "Dependencies" in system_info
     assert "Experimental Flags" in system_info
+
+
+def test_abbreviate_home() -> None:
+    assert (
+        abbreviate_home(
+            "/Users/example/.venv/lib/python3.12/site-packages/marimo",
+            home=Path("/Users/example"),
+        )
+        == "~/.venv/lib/python3.12/site-packages/marimo"
+    )
+
+
+def test_abbreviate_home_does_not_touch_other_paths() -> None:
+    assert (
+        abbreviate_home(
+            "/nix/store/marimo",
+            home=Path("/Users/example"),
+        )
+        == "/nix/store/marimo"
+    )
+
+
+def test_get_system_info_can_redact_location() -> None:
+    raw = get_system_info(redact_home=False)
+    redacted = get_system_info(redact_home=True)
+    assert raw.keys() == redacted.keys()
+    assert redacted["location"] == abbreviate_home(raw["location"])
