@@ -309,6 +309,7 @@ describe("WidgetRegistry.getWidget", () => {
   });
 
   it("rejects with the AFM error when the module has no usable exports", async () => {
+    const invalidateSpy = vi.spyOn(WIDGET_DEF_REGISTRY, "invalidate");
     getModuleSpy.mockResolvedValue({ notAWidget: true });
 
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
@@ -318,6 +319,8 @@ describe("WidgetRegistry.getWidget", () => {
     await expect(registry.getWidget(testId)).rejects.toThrow(
       /missing a default export/,
     );
+    expect(invalidateSpy).toHaveBeenCalledWith(SPEC.hash);
+    invalidateSpy.mockRestore();
   });
 
   it("rejects when the model never arrives", async () => {
