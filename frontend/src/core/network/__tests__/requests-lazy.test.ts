@@ -54,6 +54,24 @@ describe("createLazyRequests", () => {
     } as unknown as EditRequests & RunRequests;
   });
 
+  it("passes server-only requests through without starting a kernel", async () => {
+    const environment = { marimo: "1.2.3" };
+    mockDelegate.getEnvironmentInfo = vi
+      .fn()
+      .mockResolvedValue(environment) as EditRequests["getEnvironmentInfo"];
+
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await expect(lazyRequests.getEnvironmentInfo()).resolves.toEqual(
+      environment,
+    );
+    expect(mockInit).not.toHaveBeenCalled();
+    expect(mockDelegate.getEnvironmentInfo).toHaveBeenCalledOnce();
+  });
+
   it("should call init once before first request", async () => {
     const lazyRequests = createLazyRequests(
       mockDelegate,

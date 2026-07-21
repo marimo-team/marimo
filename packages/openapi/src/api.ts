@@ -649,6 +649,62 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/environment": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Environment information for issue reporting */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              Binaries: {
+                [key: string]: string;
+              };
+              Dependencies: {
+                [key: string]: string;
+              };
+              "Experimental Flags": {
+                [key: string]: unknown;
+              };
+              Locale: string;
+              OS: string;
+              "OS Version": string;
+              "Optional Dependencies": {
+                [key: string]: string;
+              };
+              Processor: string;
+              "Python Version": string;
+              editable: boolean;
+              location: string;
+              marimo: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/auto_export/html": {
     parameters: {
       query?: never;

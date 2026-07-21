@@ -16,6 +16,7 @@ import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import type {
   EditRequests,
+  EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
   FileCopyResponse,
@@ -629,6 +630,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   getUsageStats = throwNotImplemented;
+  getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "get_environment_info",
+      payload: undefined,
+    });
+    return response as EnvironmentInfo;
+  };
   openTutorial = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

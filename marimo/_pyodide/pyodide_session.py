@@ -245,6 +245,11 @@ class PyodideBridge:
         snippets = await read_snippets(self.session._initial_user_config)
         return self._dump(snippets)
 
+    def get_environment_info(self) -> str:
+        from marimo._utils.diagnostics import get_system_info
+
+        return self._dump(get_system_info(redact_home=True))
+
     async def format(self, request: str) -> str:
         parsed = self._parse(request, FormatCellsRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)

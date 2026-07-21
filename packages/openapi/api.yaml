@@ -6235,6 +6235,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/Snippets'
           description: Load the snippets for the documentation page
+  /api/environment:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  Binaries:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Experimental Flags:
+                    additionalProperties: {}
+                    type: object
+                  Locale:
+                    type: string
+                  OS:
+                    type: string
+                  OS Version:
+                    type: string
+                  Optional Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Processor:
+                    type: string
+                  Python Version:
+                    type: string
+                  editable:
+                    type: boolean
+                  location:
+                    type: string
+                  marimo:
+                    type: string
+                required:
+                - marimo
+                - editable
+                - location
+                - OS
+                - OS Version
+                - Processor
+                - Python Version
+                - Locale
+                - Binaries
+                - Dependencies
+                - Optional Dependencies
+                - Experimental Flags
+                type: object
+          description: Environment information for issue reporting
   /api/export/auto_export/html:
     post:
       parameters:

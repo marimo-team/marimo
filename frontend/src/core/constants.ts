@@ -3,6 +3,8 @@ export const Constants = {
   githubPage: "https://github.com/marimo-team/marimo",
   releasesPage: "https://github.com/marimo-team/marimo/releases",
   issuesPage: "https://github.com/marimo-team/marimo/issues",
+  bugReportUrl:
+    "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml",
   feedbackForm: "https://marimo.io/feedback",
   discordLink: "https://marimo.io/discord?ref=notebook",
   docsPage: "https://docs.marimo.io",
