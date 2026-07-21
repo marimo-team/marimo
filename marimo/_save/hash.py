@@ -10,7 +10,7 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from marimo._ast.transformers import DeprivateVisitor, get_hashable_ast
+from marimo._ast.transformers import DeprivateVisitor
 from marimo._ast.variables import (
     get_cell_from_local,
     if_local_then_mangle,
@@ -140,14 +140,6 @@ def hash_raw_module(
 def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
     return hash_module(cell.body, hash_type) + hash_module(
         cell.last_expr, hash_type
-    )
-
-
-def hash_function(
-    fn: Callable[..., Any], hash_type: str = DEFAULT_HASH
-) -> bytes:
-    return hash_raw_module(
-        DeprivateVisitor().visit(get_hashable_ast(fn)), hash_type
     )
 
 

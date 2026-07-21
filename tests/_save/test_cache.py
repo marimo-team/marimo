@@ -788,52 +788,6 @@ class TestAppCache:
         assert k.globals["X"] == 1
         assert k.globals["Y"] == 2
 
-    @pytest.mark.skipif(
-        sys.version_info < (3, 12),
-        reason="PEP 695 `type` alias syntax requires Python 3.12+",
-    )
-    async def test_cache_dataclass_with_type_alias(
-        self, any_kernel: Kernel
-    ) -> None:
-        """@mo.cache + dataclass field using PEP 695 type alias (#10192).
-
-        Keep the `type` statement inside executed cell source so the test
-        module itself parses on Python 3.10/3.11 (ruff target-version).
-        """
-        k = any_kernel
-        await k.run(
-            [
-                ExecuteCellCommand(
-                    cell_id="0",
-                    code=textwrap.dedent(
-                        """
-                        import marimo as mo
-                        from dataclasses import dataclass
-                        from typing import Literal
-
-                        type Mode = Literal["auto", "manual"]
-
-                        @dataclass
-                        class Config:
-                            mode: Mode = "auto"
-
-                        @mo.cache
-                        def build(mode: Mode = "auto") -> Config:
-                            return Config(mode=mode)
-
-                        cfg = build()
-                        assert cfg.mode == "auto"
-                        assert build.hits == 0
-                        cfg2 = build()
-                        assert cfg2 is cfg or cfg2 == cfg
-                        assert build.hits == 1
-                        """
-                    ),
-                ),
-            ]
-        )
-        assert k.errors == {}
-
 
 class TestStateCache:
     async def test_set_state_works_normally(
@@ -3524,6 +3478,63 @@ class TestAsyncCacheDecorator:
         assert k.globals["expensive_async_compute"].hits == 0, (
             "First execution should be a miss, deduplication doesn't count as hits"
         )
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="PEP 695 `type` alias syntax requires Python 3.12+",
+    )
+    async def test_cache_dataclass_with_type_alias(
+        self, any_kernel: Kernel
+    ) -> None:
+        """@mo.cache + dataclass field using PEP 695 type alias (#10192).
+
+        Keep the `type` statement inside executed cell source so the test
+        module itself parses on Python 3.10/3.11 (ruff target-version).
+        """
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="setup",
+                    code=textwrap.dedent(
+                        """
+                        import marimo as mo
+                        from dataclasses import dataclass
+                        from typing import Literal
+
+                        type Mode = Literal["auto", "manual"]
+                        """
+                    ),
+                ),
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                        @dataclass
+                        class Config:
+                            mode: Mode = "auto"
+                        """
+                    ),
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code=textwrap.dedent(
+                        """
+                        @mo.cache
+                        def build(mode: Mode = "auto") -> Config:
+                            return Config(mode=mode)
+
+                        cfg = build()
+                        cfg2 = build()
+                        """
+                    ),
+                ),
+            ]
+        )
+        assert k.errors == {}
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["cfg"].mode == "auto"
+        assert k.globals["build"].hits == 1
 
     async def test_async_cache_stale_task_different_loop(
         self, k: Kernel, exec_req: ExecReqProvider
