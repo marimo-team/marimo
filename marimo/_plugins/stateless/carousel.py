@@ -15,13 +15,10 @@ if TYPE_CHECKING:
 
 @mddoc
 class carousel(ContainerHtml):
-    """Create a carousel of items.
+    """An `Html` object representing a carousel of items.
 
     Args:
         items: A list of items.
-
-    Returns:
-        An `Html` object.
 
     Example:
         ```python3

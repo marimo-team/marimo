@@ -13,14 +13,12 @@ CalloutKind = Literal["neutral", "warn", "success", "info", "danger"]
 
 @mddoc
 class callout(ContainerHtml):
-    """Build a callout output.
+    """An `Html` callout object.
 
     Args:
         value: A value to render in the callout
         kind: The kind of callout (affects styling).
 
-    Returns:
-        Html (marimo.Html): An HTML object.
     """
 
     def __init__(

@@ -11,7 +11,7 @@ from marimo._plugins.stateless.lazy import lazy as lazy_ui
 
 @mddoc
 class accordion(ContainerHtml):
-    """Accordion of one or more items.
+    """An `Html` object representing an accordion of one or more items.
 
     Args:
         items: a dictionary of item names to item content; strings are
@@ -20,9 +20,6 @@ class accordion(ContainerHtml):
         lazy: a boolean, whether to lazily load the accordion content.
             This is a convenience that wraps each accordion in a `mo.lazy`
             component.
-
-    Returns:
-        An `Html` object.
 
     Example:
         ```python3

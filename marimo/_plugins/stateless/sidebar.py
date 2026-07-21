@@ -13,7 +13,7 @@ from marimo._plugins.stateless.flex import vstack
 
 @mddoc
 class sidebar(ContainerHtml):
-    """Displays content in a sidebar.
+    """An `Html` object that displays content in a sidebar.
 
     This is a special layout component that will display the content in a sidebar
     layout, rather than below/above the cell.
@@ -50,9 +50,6 @@ class sidebar(ContainerHtml):
         footer (object, optional): The content to display at the bottom of the sidebar.
         width (str, optional): The width of the sidebar when open. Can be any valid CSS width
             value (e.g. "300px", "20rem"). If not provided, defaults to the standard width.
-
-    Returns:
-        Html (marimo.Html): An Html object.
     """
 
     def __init__(

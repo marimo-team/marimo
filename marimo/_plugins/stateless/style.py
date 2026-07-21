@@ -11,7 +11,7 @@ from marimo._output.rich_help import mddoc
 
 @mddoc
 class style(ContainerHtml):
-    """Wrap an object in a styled container.
+    """An `Html` object representing an item wrapped in a styled div.
 
     Example:
         ```python
@@ -26,10 +26,6 @@ class style(ContainerHtml):
         **kwargs (Any): Additional CSS styles specified as keyword arguments.
             Underscores in keyword arguments are converted to hyphens
             (e.g., `max_height` becomes `max-height`).
-
-    Returns:
-        Html: An HTML object representing the item wrapped in a div
-                with the specified styles.
     """
 
     def __init__(
