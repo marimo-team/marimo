@@ -629,6 +629,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   getUsageStats = throwNotImplemented;
+  getEnvironmentInfo = throwNotImplemented;
   openTutorial = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

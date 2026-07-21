@@ -107,6 +107,8 @@ export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
+export type EnvironmentInfo =
+  paths["/api/environment"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
@@ -171,6 +173,7 @@ export interface EditRequests {
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
+  getEnvironmentInfo: () => Promise<EnvironmentInfo>;
   // Debugger
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;

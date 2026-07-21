@@ -46,6 +46,7 @@ export function createErrorToastingRequests(
     validateSQL: "Failed to validate SQL",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
+    getEnvironmentInfo: "", // No toast
     sendListFiles: "Failed to list files",
     sendSearchFiles: "Failed to search files",
     sendPdb: "Failed to start debug session",
