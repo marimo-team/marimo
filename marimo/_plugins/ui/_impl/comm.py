@@ -16,9 +16,6 @@ from marimo._messaging.notification import (
     ModelUpdate,
 )
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._plugins.ui._impl.anywidget.widget_ref import (
-    AnyWidgetStateSerializer,
-)
 from marimo._runtime.commands import (
     ModelCommand,
     ModelUpdateMessage,
@@ -210,10 +207,6 @@ class MarimoComm:
         LOGGER.debug("Opening comm %s", self.comm_id)
         data = dict(data or {})
         state = data.get("state", {})
-        self._state_serializer = AnyWidgetStateSerializer(state)
-        state = self._state_serializer.serialize(state)
-        if "state" in data:
-            data["state"] = state
         esm = state.get("_esm")
         self.esm_spec: EsmSpec | None = (
             EsmSpec.from_esm(esm) if isinstance(esm, str) and esm else None
@@ -257,9 +250,6 @@ class MarimoComm:
         LOGGER.debug("Sending comm message %s", self.comm_id)
         data = dict(data or {})
         state = data.get("state")
-        state = self._state_serializer.serialize(state)
-        if "state" in data:
-            data["state"] = state
         changed_spec: EsmSpec | None = None
         if isinstance(state, dict) and "_esm" in state:
             esm = state["_esm"]
