@@ -250,7 +250,6 @@ def _instrument_ai(provider: trace.TracerProvider) -> None:
         from pydantic_ai import Agent
         from pydantic_ai.models.instrumented import InstrumentationSettings
 
-        # Version 5 treats deferred tool calls as control flow, not errors.
         Agent.instrument_all(
             InstrumentationSettings(tracer_provider=provider, version=5)
         )

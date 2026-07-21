@@ -435,6 +435,8 @@ class TestInstrumentAI:
         ):
             _instrument_ai(provider)
 
+        # Verify version 5 is passed explicitly instead of relying on newer
+        # Pydantic-AI defaults.
         mock_settings.assert_called_once_with(
             tracer_provider=provider,
             version=5,
