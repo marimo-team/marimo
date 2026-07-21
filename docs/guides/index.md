@@ -39,5 +39,6 @@ These guides cover marimo's core concepts.
 | [Extending marimo](integrating_with_marimo/index.md)  | Rich displays of objects, custom UI plugins                |
 | [State management](state.md)                          | Advanced: mutable reactive state                           |
 | [Best practices](best_practices.md)                   | Best practices to help you get the most out of marimo      |
+| [Version control](version_control.md)                 | Gitignore patterns and when to commit `__marimo__`      |
 | [Debugging](debugging.md)                             | Interactive debugging with pdb, debugpy, and AI assistance |
 | [Troubleshooting](troubleshooting.md)                 | Troubleshooting notebooks                                  |

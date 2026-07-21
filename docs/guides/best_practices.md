@@ -74,3 +74,9 @@ for interactive elements](../guides/interactivity.md).
 Write cells whose outputs and behavior are the same
 when given the same inputs (references); such cells are called idempotent. This
 will help you avoid bugs and cache expensive intermediate computations.
+
+## Version control
+
+For git layout and `.gitignore` patterns (including `__marimo__/`), see
+[Version control](version_control.md).
+
