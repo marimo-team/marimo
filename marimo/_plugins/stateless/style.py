@@ -40,7 +40,7 @@ class style(ContainerHtml):
     ) -> None:
         # Initialize combined_style with style dict if provided,
         # otherwise empty dict
-        combined_style = style or {}
+        combined_style = style.copy() if style else {}
 
         # Add kwargs to combined_style, converting snake_case to kebab-case
         for key, value in kwargs.items():
