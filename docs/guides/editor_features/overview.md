@@ -72,9 +72,9 @@ mode](#command-mode) for notebook navigation.
 - `dd` - delete empty cell
 - `:w` - save notebook
 
-**Keep Escape from entering command mode:**
+**Escape without command mode:**
 
-Normally Escape exits the editor and enters command mode. Set this to `false` if you'd rather have Escape only dismiss completions and signature help:
+By default, `Esc` leaves the cell editor and enters command mode. Set the option below to `false` to keep `Esc` from switching modes; it will still close completions and signature help:
 
 /// tab | User config
 
