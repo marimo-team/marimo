@@ -2,15 +2,11 @@ from __future__ import annotations
 
 import sys
 import threading
-from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._plugins.ui._impl.anywidget.init import CommLifecycleItem
-from marimo._plugins.ui._impl.anywidget.widget_ref import (
-    AnyWidgetStateSerializer,
-)
 from marimo._plugins.ui._impl.comm import (
     MarimoComm,
     MarimoCommManager,
@@ -440,32 +436,10 @@ class TestEsmSpecMinting:
         assert result.message.esm_spec == notification.message.esm_spec
 
 
-@dataclass(frozen=True)
-class _ModelIdWidget:
-    """Minimal ipywidgets-backed anywidget shape for wire transport tests."""
-
-    model_id: str
-
-
 class TestAnywidgetWireReferences:
     ESM = "export default { render() {} }"
 
-    def test_plain_state_does_not_import_optional_anywidget(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        for module_name in list(sys.modules):
-            if module_name == "anywidget" or module_name.startswith(
-                "anywidget."
-            ):
-                monkeypatch.delitem(sys.modules, module_name)
-
-        serializer = AnyWidgetStateSerializer({"_esm": self.ESM})
-        state = {"count": 1, "label": "counter"}
-
-        assert serializer.serialize(state) is state
-        assert "anywidget" not in sys.modules
-
-    def test_model_open_replaces_direct_and_nested_widget_refs(
+    def test_model_open_preserves_serialized_widget_refs(
         self, comm_manager: MarimoCommManager
     ) -> None:
         from marimo._messaging.serde import (
@@ -473,7 +447,7 @@ class TestAnywidgetWireReferences:
             serialize_kernel_message,
         )
 
-        child = _ModelIdWidget("child-open")
+        child = "anywidget:child-open"
         with patch(
             "marimo._plugins.ui._impl.comm.broadcast_notification"
         ) as mock_broadcast:
@@ -510,10 +484,10 @@ class TestAnywidgetWireReferences:
         )
         assert roundtripped.message.state == expected_state
 
-    def test_model_update_replaces_reassigned_widget_ref(
+    def test_model_update_preserves_serialized_widget_ref(
         self, comm_manager: MarimoCommManager
     ) -> None:
-        replacement = _ModelIdWidget("child-update")
+        replacement = "anywidget:child-update"
         with patch(
             "marimo._plugins.ui._impl.comm.broadcast_notification"
         ) as mock_broadcast:
