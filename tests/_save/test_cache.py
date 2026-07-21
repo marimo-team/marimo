@@ -836,7 +836,6 @@ class TestAppCache:
 
 
 class TestStateCache:
-
     async def test_set_state_works_normally(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
