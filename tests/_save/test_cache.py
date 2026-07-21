@@ -789,7 +789,55 @@ class TestAppCache:
         assert k.globals["Y"] == 2
 
 
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="PEP 695 `type` alias syntax requires Python 3.12+",
+    )
+    async def test_cache_dataclass_with_type_alias(
+        self, any_kernel: Kernel
+    ) -> None:
+        """@mo.cache + dataclass field using PEP 695 type alias (#10192).
+
+        Keep the `type` statement inside executed cell source so the test
+        module itself parses on Python 3.10/3.11 (ruff target-version).
+        """
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=textwrap.dedent(
+                        """
+                        import marimo as mo
+                        from dataclasses import dataclass
+                        from typing import Literal
+
+                        type Mode = Literal["auto", "manual"]
+
+                        @dataclass
+                        class Config:
+                            mode: Mode = "auto"
+
+                        @mo.cache
+                        def build(mode: Mode = "auto") -> Config:
+                            return Config(mode=mode)
+
+                        cfg = build()
+                        assert cfg.mode == "auto"
+                        assert build.hits == 0
+                        cfg2 = build()
+                        assert cfg2 is cfg or cfg2 == cfg
+                        assert build.hits == 1
+                        """
+                    ),
+                ),
+            ]
+        )
+        assert k.errors == {}
+
+
 class TestStateCache:
+
     async def test_set_state_works_normally(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
@@ -2082,43 +2130,6 @@ class TestCacheDecorator:
             k.globals["impure"][1][0].hits,
             k.globals["impure"][2][0].hits,
         } == {0}
-
-    @staticmethod
-    @pytest.mark.skipif(
-        sys.version_info < (3, 12),
-        reason="PEP 695 `type` alias syntax requires Python 3.12+",
-    )
-    def test_cache_dataclass_with_type_alias(app) -> None:
-        """@mo.cache over a dataclass whose field uses a PEP 695 type alias."""
-
-        @app.cell
-        def __():
-            import marimo as mo
-
-            return (mo,)
-
-        @app.cell
-        def __(mo):
-            from dataclasses import dataclass
-            from typing import Literal
-
-            type Mode = Literal["auto", "manual"]
-
-            @dataclass
-            class Config:
-                mode: Mode = "auto"
-
-            @mo.cache
-            def build(mode: Mode = "auto") -> Config:
-                return Config(mode=mode)
-
-            cfg = build()
-            assert cfg.mode == "auto"
-            assert build.hits == 0
-            cfg2 = build()
-            assert cfg2 is cfg or cfg2 == cfg
-            assert build.hits == 1
-            return Config, Mode, build, cfg
 
     @staticmethod
     def test_object_execution_hash(app) -> None:
