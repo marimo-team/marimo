@@ -51,9 +51,9 @@ def get_default_locale() -> str:
     try:
         import locale
 
-        # getdefaultlocale is deprecated in 3.13+ and removed in 3.15
-        # Use getlocale() with LC_ALL as a fallback chain
-        loc = locale.getlocale(locale.LC_ALL)
+        # locale.getlocale does not accept LC_ALL, so query the default
+        # category and fall back to LC_MESSAGES and the locale env vars.
+        loc = locale.getlocale()
         if loc[0]:
             return loc[0]
         # Try LC_MESSAGES on Unix-like systems
@@ -90,8 +90,14 @@ def abbreviate_home(path: str, *, home: Path | None = None) -> str:
     Returns:
         str: The path with the home prefix replaced by `~`, or unchanged.
     """
-    home_path = (home or Path.home()).as_posix().rstrip("/")
     normalized = Path(path).as_posix()
+    if home is None:
+        try:
+            home = Path.home()
+        except RuntimeError:
+            # Home directory is undeterminable; leave the path unredacted.
+            return normalized
+    home_path = home.as_posix().rstrip("/")
     if normalized == home_path:
         return "~"
     if normalized.startswith(f"{home_path}/"):

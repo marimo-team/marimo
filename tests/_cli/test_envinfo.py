@@ -62,6 +62,14 @@ def test_abbreviate_home_does_not_touch_other_paths() -> None:
     )
 
 
+def test_abbreviate_home_when_home_undeterminable(monkeypatch) -> None:
+    def raise_runtime_error() -> Path:
+        raise RuntimeError("Could not determine home directory")
+
+    monkeypatch.setattr(Path, "home", raise_runtime_error)
+    assert abbreviate_home("/some/path/marimo") == "/some/path/marimo"
+
+
 def test_get_system_info_can_redact_location() -> None:
     raw = get_system_info(redact_home=False)
     redacted = get_system_info(redact_home=True)
