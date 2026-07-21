@@ -149,7 +149,7 @@ def test_read_code(client: TestClient) -> None:
     assert response.json()["active"] == 1
 
 
-def test_environment_requires_read_auth(client: TestClient) -> None:
+def test_environment_requires_edit_auth(client: TestClient) -> None:
     response = client.get("/api/environment")
     assert response.status_code == 401, response.text
 

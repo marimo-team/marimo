@@ -133,7 +133,7 @@ async def version(request: Request) -> PlainTextResponse:
 
 
 @router.get("/api/environment")
-@requires("read")
+@requires("edit")
 async def environment(request: Request) -> JSONResponse:
     """
     responses:

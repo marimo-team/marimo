@@ -48,21 +48,24 @@ describe("createPartialEnvironment", () => {
       "Server environment information unavailable",
     );
     expect(partial.marimo).toBe("1.2.3");
-    expect(partial.Binaries.Browser).toBe("Firefox/140");
+    expect(partial.Binaries?.Browser).toBe("Firefox/140");
     expect(partial.Locale).toBe("en_US");
     expect(partial["Environment Collection Error"]).toBe(
       "Server environment information unavailable",
     );
   });
 
-  it("falls back to a placeholder locale when empty", () => {
+  it("omits empty fields rather than filling placeholders", () => {
     const partial = createPartialEnvironment(
       "1.2.3",
       "Firefox/140",
       "",
       "boom",
     );
-    expect(partial.Locale).toBe("--");
+    expect(partial.Locale).toBeUndefined();
+    expect(partial.location).toBeUndefined();
+    expect(partial.OS).toBeUndefined();
+    expect(partial.Dependencies).toBeUndefined();
   });
 });
 

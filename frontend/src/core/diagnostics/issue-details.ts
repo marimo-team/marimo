@@ -6,12 +6,15 @@ import {
 } from "@/core/errors/error-entries";
 import type { EnvironmentInfo } from "@/core/network/types";
 import { Paths } from "@/utils/paths";
+import { Strings } from "@/utils/strings";
 
 /**
  * Environment information augmented with a client-side collection error, used
  * when the server environment request fails and only partial data is available.
+ * Fields are optional because a partial environment only carries what the
+ * client could determine without the server.
  */
-export type EnvironmentDiagnostics = EnvironmentInfo & {
+export type EnvironmentDiagnostics = Partial<EnvironmentInfo> & {
   "Environment Collection Error"?: string;
 };
 
@@ -53,17 +56,8 @@ export function createPartialEnvironment(
 ): EnvironmentDiagnostics {
   return {
     marimo: marimoVersion,
-    editable: false,
-    location: "--",
-    OS: "--",
-    "OS Version": "--",
-    Processor: "--",
-    "Python Version": "--",
-    Locale: locale || "--",
-    Binaries: { Browser: userAgent, Node: "--", uv: "--" },
-    Dependencies: {},
-    "Optional Dependencies": {},
-    "Experimental Flags": {},
+    Locale: locale || undefined,
+    Binaries: { Browser: userAgent },
     "Environment Collection Error": message,
   };
 }
@@ -81,17 +75,10 @@ export function markdownCodeFence(language: string, contents: string): string {
   return `${fence}${language}\n${contents}\n${fence}`;
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
 function detailsSection(summary: string, body: string): string {
   return [
     "<details>",
-    `<summary>${escapeHtml(summary)}</summary>`,
+    `<summary>${Strings.htmlEscape(summary) ?? ""}</summary>`,
     "",
     body,
     "",

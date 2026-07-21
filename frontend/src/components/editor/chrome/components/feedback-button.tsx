@@ -42,7 +42,6 @@ import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
-import { Logger } from "@/utils/Logger";
 
 const CollapsiblePreview: React.FC<{ content: string }> = ({ content }) => {
   const [expanded, setExpanded] = useState(false);
@@ -109,10 +108,6 @@ export const FeedbackModal: React.FC<{
     connection.state === WebSocketState.OPEN;
 
   const [includeNotebook, setIncludeNotebook] = useState(false);
-  const [notebookSource, setNotebookSource] = useState<NotebookSource>();
-  const [notebookStatus, setNotebookStatus] = useState<
-    "idle" | "loading" | "error" | "success"
-  >("idle");
 
   const notebookSourceReason = notebookSourceAvailable
     ? undefined
@@ -122,29 +117,13 @@ export const FeedbackModal: React.FC<{
         ? "Notebook source is hidden in this view."
         : "Connect the notebook to include its source.";
 
-  const toggleNotebook = async (checked: boolean) => {
-    if (!checked) {
-      setIncludeNotebook(false);
-      setNotebookSource(undefined);
-      setNotebookStatus("idle");
-      return;
+  const notebookSourceRequest = useAsyncData(async () => {
+    if (!includeNotebook || !notebookSourceAvailable || filename === null) {
+      return undefined;
     }
-    if (!notebookSourceAvailable || filename === null) {
-      return;
-    }
-    setIncludeNotebook(true);
-    setNotebookStatus("loading");
-    try {
-      const { contents } = await readCode();
-      setNotebookSource({ filename, contents });
-      setNotebookStatus("success");
-    } catch (error) {
-      Logger.warn("Failed to read notebook source for issue report", error);
-      setIncludeNotebook(false);
-      setNotebookSource(undefined);
-      setNotebookStatus("error");
-    }
-  };
+    const { contents } = await readCode();
+    return { filename, contents } satisfies NotebookSource;
+  }, [includeNotebook, notebookSourceAvailable, filename, readCode]);
 
   const environment: EnvironmentDiagnostics | undefined =
     environmentRequest.data
@@ -164,10 +143,9 @@ export const FeedbackModal: React.FC<{
     if (!environment) {
       return;
     }
-    const notebookForReport =
-      includeNotebook && notebookStatus === "success"
-        ? notebookSource
-        : undefined;
+    const notebookForReport = includeNotebook
+      ? notebookSourceRequest.data
+      : undefined;
     await copyToClipboard(
       buildIssueDetails({ environment, errors, notebook: notebookForReport }),
     );
@@ -197,7 +175,10 @@ export const FeedbackModal: React.FC<{
           <Button
             type="button"
             variant="default"
-            disabled={!environment || notebookStatus === "loading"}
+            disabled={
+              !environment ||
+              (includeNotebook && notebookSourceRequest.isFetching)
+            }
             onClick={copyIssueDetails}
           >
             {issueDetailsCopied && (
@@ -279,7 +260,7 @@ export const FeedbackModal: React.FC<{
               checked={includeNotebook}
               disabled={!notebookSourceAvailable}
               onCheckedChange={(checked) =>
-                void toggleNotebook(checked === true)
+                setIncludeNotebook(checked === true)
               }
               aria-label="Include full notebook source"
             />
@@ -300,7 +281,7 @@ export const FeedbackModal: React.FC<{
               {notebookSourceReason}
             </span>
           )}
-          {notebookStatus === "error" && (
+          {includeNotebook && notebookSourceRequest.status === "error" && (
             <span className="text-xs text-(--red-11) ml-6">
               Notebook source could not be loaded.
             </span>
