@@ -19,24 +19,23 @@ env:
 jobs:
   # Various jobs that can be triggered by comments
   create-test-release:
+    # NB: only the commenter's association is checked. The PR author's
+    # association says nothing about who is invoking this command.
     if: >
       (
-        github.event.issue.author_association == 'OWNER' ||
-        github.event.issue.author_association == 'COLLABORATOR' ||
-        github.event.issue.author_association == 'MEMBER' ||
         github.event.comment.author_association == 'OWNER' ||
         github.event.comment.author_association == 'COLLABORATOR' ||
         github.event.comment.author_association == 'MEMBER'
       ) &&
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '/marimo create-test-release')
-    name: 📤 Publish test release
+    name: 📦 Build test release
     runs-on: ubuntu-latest
-    environment: testpypi
+    # NB: no `environment:` or secrets/OIDC — this job runs PR-controlled
+    # build hooks (frontend build, pyproject patch, `uv build`).
     permissions:
       contents: read
       pull-requests: write
-      id-token: write
     defaults:
       run:
         shell: bash
@@ -86,19 +85,9 @@ jobs:
             console.log(`Comment created with ID: ${comment.data.id}`);
             return comment.data.id;
 
-      - name: 🔐 Fetch Doppler secrets
-        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
-        id: secrets
-        with:
-          auth-method: oidc
-          doppler-identity-id: ${{ vars.DOPPLER_IDENTITY_ID }}
-          doppler-project: marimo-oss
-          doppler-config: ci_test
-
       - name: 📦 Build frontend
+        # NB: no turbo-token — this step runs PR-controlled build hooks.
         uses: ./.github/actions/build-frontend
-        with:
-          turbo-token: ${{ steps.secrets.outputs.TURBO_TOKEN }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
@@ -132,11 +121,12 @@ jobs:
       - name: 📦 Validate wheel under 2mb
         run: ./scripts/validate_base_wheel_size.sh
 
-      - name: 📤 Upload to TestPyPI
-        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
+      - name: 📦 Upload wheel artifact for TestPyPI publish
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          verbose: true
-          repository-url: https://test.pypi.org/legacy/
+          name: wheel-test-release
+          path: dist/
+          retention-days: 1
 
       - name: 📦 Update package.json version from CLI
         working-directory: frontend
@@ -150,6 +140,28 @@ jobs:
           name: frontend-test-branch
           path: frontend/
           retention-days: 1
+
+  publish-test-release:
+    name: 📤 Publish wheel to TestPyPI
+    needs: create-test-release
+    runs-on: ubuntu-latest
+    environment: testpypi
+    # NB: no repo checkout — only the pre-built artifact is published.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: ⬇️ Download wheel artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wheel-test-release
+          path: dist/
+
+      - name: 📤 Upload to TestPyPI
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # release/v1
+        with:
+          verbose: true
+          repository-url: https://test.pypi.org/legacy/
 
   publish_wasm_test:
     name: 📤 Publish @marimo-team/frontend to npm
@@ -165,7 +177,7 @@ jobs:
 
   update_pr_comment:
     name: 📝 Update PR Comment
-    needs: [create-test-release, publish_wasm_test]
+    needs: [create-test-release, publish-test-release, publish_wasm_test]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -173,7 +185,7 @@ jobs:
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: 📝 Update PR Comment on Success
-        if: needs.publish_wasm_test.result == 'success'
+        if: needs.publish-test-release.result == 'success' && needs.publish_wasm_test.result == 'success'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         continue-on-error: true
         env:
@@ -196,7 +208,7 @@ jobs:
             }
 
       - name: 📝 Update PR Comment on Failure
-        if: needs.create-test-release.result == 'failure' || needs.publish_wasm_test.result == 'failure'
+        if: needs.create-test-release.result == 'failure' || needs.publish-test-release.result == 'failure' || needs.publish_wasm_test.result == 'failure'
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         continue-on-error: true
         env:
