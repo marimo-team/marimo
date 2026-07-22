@@ -23,6 +23,7 @@ them but just render their children in a certain way.
 | [`marimo.right`][marimo.right] | Right-align content |
 | [`marimo.routes`][marimo.routes] | Create page routing |
 | [`marimo.stat`][marimo.stat] | Display statistics |
+| [`marimo.style`][marimo.style] | Wrap content with CSS styles |
 | [`marimo.sidebar`][marimo.sidebar] | Create sidebars |
 | [`marimo.tree`][marimo.tree] | Create tree structures |
 | [`marimo.json`][marimo.json] | Create JSON structures |
