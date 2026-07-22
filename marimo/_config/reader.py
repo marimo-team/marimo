@@ -55,21 +55,16 @@ def sanitize_pyproject_dict(
 
 
 # Top-level ``tool.marimo`` sections that notebook (PEP 723) inline metadata is
-# permitted to set. Notebook metadata is attacker-controllable (a notebook
-# author can put anything here) and is merged with the HIGHEST precedence over
-# the operator's own user config — so an untrusted notebook must not be able to
-# set any section that affects outbound traffic, credentials, or package
-# installation. Only cosmetic/editor sections are allowlisted.
+# permitted to set. Notebook metadata is attacker-controllable and merged with
+# the HIGHEST precedence over the operator's own user config, so anything that
+# affects outbound traffic or credentials must stay excluded: ``ai`` (base_url
+# → credential exfiltration), ``mcp`` (url → outbound beacon), ``completion``
+# (api_key/base_url), ``secrets``, ``server``.
 #
-# Notably EXCLUDED: ``ai`` (base_url → credential exfiltration), ``mcp``
-# (url → outbound beacon / exfiltration), ``completion`` (api_key/base_url),
-# ``secrets``, ``server``.
-#
-# ``runtime`` and ``experimental`` are allowlisted at the section level, but
-# ``auto_instantiate`` and ``isolate_apps`` are additionally stripped below
-# (see the ``sanitize_pyproject_dict`` call site) since forcing either one
-# from notebook metadata changes what happens to the operator without an
-# explicit "run" action.
+# NB. ``runtime.auto_instantiate`` and ``experimental.isolate_apps`` are
+# additionally stripped even though their parent sections are allowed —
+# forcing either one changes what happens to the operator with no explicit
+# "run" action.
 ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
     {
         "formatting",
@@ -93,14 +88,7 @@ ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
 def allowlist_script_config(
     pyproject_dict: dict[str, Any], allowed_top: frozenset[str]
 ) -> dict[str, Any]:
-    """Drop every ``tool.marimo.<key>`` section not in ``allowed_top``.
-
-    Notebook (PEP 723) metadata is attacker-controllable and is merged with the
-    highest precedence over the operator's user config, so only an explicit
-    safe set of sections may pass through. Credential-affecting and
-    traffic-affecting sections (``ai``, ``mcp``, ``completion``, ``secrets``,
-    ``server``) are dropped.
-    """
+    """Drop every ``tool.marimo.<key>`` section not in ``allowed_top``."""
     marimo = pyproject_dict.get("tool", {}).get("marimo", None)
     if not isinstance(marimo, dict):
         return pyproject_dict

@@ -438,12 +438,6 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             if script_config is None:
                 return {}
 
-            # Notebook (PEP 723) metadata is attacker-controllable and is
-            # merged with the highest precedence over the operator's own user
-            # config. Drop every section that is not on the safe allowlist so a
-            # malicious notebook cannot override credential-affecting or
-            # traffic-affecting config (ai.*, mcp.*, completion.*, secrets.*,
-            # server.*).
             script_config = allowlist_script_config(
                 script_config, ALLOWED_SCRIPT_CONFIG_TOP_KEYS
             )

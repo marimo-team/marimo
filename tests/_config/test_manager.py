@@ -464,13 +464,8 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that runtime.auto_instantiate in script metadata is ignored.
-
-    The runtime section itself is allowlisted, but auto_instantiate is
-    additionally stripped: forcing it from notebook metadata would make the
-    notebook's own cells auto-run the instant the operator opens it, with no
-    explicit "run" action.
-    """
+    """runtime.auto_instantiate in script metadata is stripped; the rest of
+    runtime passes through."""
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
@@ -496,12 +491,9 @@ def test_script_config_manager_sanitizes_auto_instantiate(
         finally:
             logger.propagate = old_propagate
 
-    # auto_instantiate is stripped, but the rest of the runtime section
-    # (an allowlisted section) is honored.
     assert "auto_instantiate" not in config.get("runtime", {})
     assert config.get("runtime") == {"auto_reload": "lazy"}
     assert config.get("save") == {"autosave_delay": 2000}
-    # A warning should be logged for the stripped key.
     assert any(
         "auto_instantiate" in record.message and "ignored" in record.message
         for record in caplog.records
@@ -511,12 +503,8 @@ def test_script_config_manager_sanitizes_auto_instantiate(
 def test_script_config_manager_sanitizes_isolate_apps(
     tmp_path: Path,
 ) -> None:
-    """Test that experimental.isolate_apps in script metadata is ignored.
-
-    experimental is allowlisted, but isolate_apps is additionally stripped:
-    forcing it on would push the operator into the isolate_apps IPC code
-    path without their consent.
-    """
+    """experimental.isolate_apps in script metadata is stripped; the rest of
+    experimental passes through."""
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
@@ -537,15 +525,8 @@ def test_script_config_manager_sanitizes_isolate_apps(
 def test_script_config_manager_drops_credential_affecting_sections(
     tmp_path: Path,
 ) -> None:
-    """A notebook must not be able to override credential-affecting config.
-
-    Notebook (PEP 723) metadata is attacker-controllable and merged with the
-    highest precedence over the operator's own user config. Sections that
-    affect outbound traffic or credentials (ai, mcp, completion, secrets,
-    server) must be dropped so a malicious notebook cannot redirect AI/MCP
-    traffic or exfiltrate the operator's API keys. package_management has no
-    such vector (its only key picks pip/uv/poetry/etc.) and is allowlisted.
-    """
+    """ai/mcp/completion/secrets/server are dropped from script metadata;
+    package_management (no credential/traffic vector) passes through."""
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
@@ -571,13 +552,11 @@ def test_script_config_manager_drops_credential_affecting_sections(
 
     config = ScriptConfigManager(str(notebook_path)).get_config()
 
-    # Credential / traffic-affecting sections are dropped.
     assert "ai" not in config
     assert "mcp" not in config
     assert "completion" not in config
     assert "secrets" not in config
     assert "server" not in config
-    # Safe sections are still honored.
     assert config.get("formatting") == {"line_length": 79}
     assert config.get("package_management") == {"manager": "uv"}
 
