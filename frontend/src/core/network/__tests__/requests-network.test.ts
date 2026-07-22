@@ -114,6 +114,13 @@ describe("createNetworkRequests", () => {
       );
     });
 
+    it("getEnvironmentInfo should GET /api/environment", async () => {
+      const requests = createNetworkRequests();
+      await requests.getEnvironmentInfo();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
+    });
+
     it("exportAsIPYNB should call the new endpoint as text", async () => {
       const requests = createNetworkRequests();
       await requests.exportAsIPYNB({

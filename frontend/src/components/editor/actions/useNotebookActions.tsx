@@ -28,6 +28,7 @@ import {
   KeyboardIcon,
   LayoutTemplateIcon,
   LinkIcon,
+  MessageCircleQuestionIcon,
   MessagesSquareIcon,
   NotebookIcon,
   PanelLeftIcon,
@@ -44,6 +45,7 @@ import {
   settingDialogAtom,
   useOpenSettingsToTab,
 } from "@/components/app-config/state";
+import { FeedbackModal } from "@/components/editor/chrome/components/feedback-button";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
 import { GitHubIcon } from "@/components/icons/github";
 import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
@@ -641,6 +643,12 @@ export function useNotebookActions() {
       handle: () => setSettingsDialogOpen((open) => !open),
       redundant: true,
       additionalKeywords: ["preferences", "options", "configuration"],
+    },
+    {
+      icon: <MessageCircleQuestionIcon size={14} strokeWidth={1.5} />,
+      label: "Report an issue",
+      additionalKeywords: ["feedback", "bug", "issue", "report", "diagnostics"],
+      handle: () => openModal(<FeedbackModal onClose={closeModal} />),
     },
     {
       icon: <ExternalLinkIcon size={14} strokeWidth={1.5} />,

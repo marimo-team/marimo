@@ -80,6 +80,10 @@ class WidgetDefRegistry {
     return promise;
   }
 
+  invalidate(jsHash: string): void {
+    this.#cache.delete(jsHash);
+  }
+
   async #doImport(
     jsUrl: string,
     opts: { kernelAuthored?: boolean } = {},

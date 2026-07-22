@@ -65,7 +65,9 @@ def get_node_version() -> str | None:
             return stripped.split()[-1]
         else:
             return None
-    except FileNotFoundError:
+    except OSError:
+        # Missing binary, or a platform without subprocess (e.g. Emscripten,
+        # which raises OSError "Function not implemented").
         return None
 
 
@@ -87,7 +89,9 @@ def get_uv_version() -> str | None:
             return stripped.removeprefix("uv ")
         else:
             return None
-    except FileNotFoundError:
+    except OSError:
+        # Missing binary, or a platform without subprocess (e.g. Emscripten,
+        # which raises OSError "Function not implemented").
         return None
 
 

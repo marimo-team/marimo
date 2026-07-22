@@ -2348,6 +2348,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_to_json_str_pint_pandas_series(self) -> None:
         """pint-pandas quantities display as readable strings in tables."""
         import pandas as pd
+        import pint_pandas  # noqa: F401 — registers pint dtypes with pandas
 
         series = pd.Series([1, 2, 3, 4], dtype="pint[meter]")
         manager = self.factory.create()(series.to_frame(name="value"))
@@ -2356,6 +2357,24 @@ class TestPandasTableManager(unittest.TestCase):
 
         expected = [{"value": value} for value in series.astype(str)]
         assert json_data == expected
+
+    @pytest.mark.requires("pint")
+    def test_to_json_str_object_column_of_pint_quantities(self) -> None:
+        """Object columns of bare pint.Quantity stringify instead of nested dicts."""
+        import pandas as pd
+        import pint
+
+        series = pd.Series(
+            [
+                pint.Quantity("1 sec"),
+                pint.Quantity("3 min"),
+                pint.Quantity("0.3 hours"),
+            ]
+        )
+        manager = self.factory.create()(series.to_frame(name="mixed"))
+        json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"mixed": str(value)} for value in series]
 
     def test_extension_column_needs_stringify_skips_json_primitives(
         self,

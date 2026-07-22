@@ -238,6 +238,7 @@ typecheck = [
     "leafmap~=0.39.2",
     "panel>=1.5.3",
     "polars>=1.9.0",
+    "pytest>=9.0.2",
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",

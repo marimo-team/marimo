@@ -369,7 +369,7 @@ class Exporter:
                 file_url, max_inline_bytes=max_inline_bytes
             )
             if data_uri:
-                virtual_files[file_url] = data_uri
+                virtual_files[normalized_url.removeprefix(".")] = data_uri
 
         return virtual_files
 

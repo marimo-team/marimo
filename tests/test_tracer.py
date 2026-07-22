@@ -426,9 +426,21 @@ class TestInstrumentAI:
         from pydantic_ai.models.instrumented import InstrumentationSettings
 
         provider = MagicMock()
-        with patch("pydantic_ai.Agent.instrument_all") as mock_instrument:
+        with (
+            patch("pydantic_ai.Agent.instrument_all") as mock_instrument,
+            patch(
+                "pydantic_ai.models.instrumented.InstrumentationSettings",
+                wraps=InstrumentationSettings,
+            ) as mock_settings,
+        ):
             _instrument_ai(provider)
 
+        # Verify version 5 is passed explicitly instead of relying on newer
+        # Pydantic-AI defaults.
+        mock_settings.assert_called_once_with(
+            tracer_provider=provider,
+            version=5,
+        )
         mock_instrument.assert_called_once()
         settings = mock_instrument.call_args.args[0]
         assert isinstance(settings, InstrumentationSettings)

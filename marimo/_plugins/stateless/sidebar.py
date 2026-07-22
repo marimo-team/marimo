@@ -5,15 +5,15 @@ from typing import Any
 
 from marimo._output import md
 from marimo._output.formatting import as_html
-from marimo._output.hypertext import Html
+from marimo._output.hypertext import ContainerHtml, Html
 from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.flex import vstack
 
 
 @mddoc
-class sidebar(Html):
-    """Displays content in a sidebar.
+class sidebar(ContainerHtml):
+    """An `Html` object that displays content in a sidebar.
 
     This is a special layout component that will display the content in a sidebar
     layout, rather than below/above the cell.
@@ -50,9 +50,6 @@ class sidebar(Html):
         footer (object, optional): The content to display at the bottom of the sidebar.
         width (str, optional): The width of the sidebar when open. Can be any valid CSS width
             value (e.g. "300px", "20rem"). If not provided, defaults to the standard width.
-
-    Returns:
-        Html (marimo.Html): An Html object.
     """
 
     def __init__(
@@ -78,17 +75,23 @@ class sidebar(Html):
             item = vstack([item, footer], justify="space-between")
 
         # Build props
-        props: dict[str, Any] = {}
+        self._props: dict[str, Any] = {}
         if width is not None:
             # Width must be a string for JSON serialization
-            props["width"] = str(width)
+            self._props["width"] = str(width)
 
-        super().__init__(
-            build_stateless_plugin(
-                "marimo-sidebar",
-                props,
-                as_html(item).text,
-            )
+        # Retain a strong reference to the (processed) item so a wrapped UI
+        # element is not garbage collected. The UI element registry holds
+        # elements weakly and the slotted HTML only freezes their text, so
+        # without this the item -- and, for the list form, the vstack wrapping
+        # it -- would be collected and lose interactivity.
+        super().__init__([as_html(item)])
+
+    def _build_text(self) -> str:
+        return build_stateless_plugin(
+            "marimo-sidebar",
+            self._props,
+            self._children[0].text,
         )
 
     # Not supported

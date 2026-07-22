@@ -573,6 +573,7 @@ def test_export_as_html_includes_composed_widget_esm(
             ),
         )
 
+    assert f'"/{widget_url.removeprefix("./")}":' in html
     assert base64.b64encode(widget_code).decode("ascii") in html
 
 
