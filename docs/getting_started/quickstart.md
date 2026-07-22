@@ -39,6 +39,12 @@ marimo edit your_notebook.py
 (If `your_notebook.py` doesn't exist, marimo will create a blank notebook
 named `your_notebook.py`.)
 
+## Pair with AI
+
+Pair with AI agents like Claude Code, Codex, or OpenCode using [marimo
+pair](https://marimo.io/pair), which transforms marimo from a notebook into a
+collaborative canvas for computation that yields a reproducible software artifact.
+
 ## Deploy as apps
 
 Use `marimo run` to [serve your notebook as an app](../guides/apps.md), with
