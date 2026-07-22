@@ -78,7 +78,7 @@ click, replaces the raw Python file with an interactive notebook you can run,
 edit, and explore.
 
 marimo glance runs notebooks [with WebAssembly](../wasm.md), so not all notebooks will work.
-To run the notebook on a server, click "open in molab" in the bottom
+To run the notebook on a server, click "Open in molab" in the bottom
 left of the notebook.
 
 **Your code stays local.** The notebook source is packed into the page URL’s
