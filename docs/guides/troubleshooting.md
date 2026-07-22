@@ -215,3 +215,28 @@ Available logs are:
 
 - `github-copilot-lsp.log`
 - `pylsp.log`
+
+
+## Why are notebooks missing from the Workspace tree?
+
+When you launch marimo from a **broad root** (for example your home directory via `marimo edit ~`), the home-page **Workspace** tree is built by a server-side directory scan. That scan is intentionally bounded so opening a huge tree cannot hang the editor:
+
+| Limit | Default | Effect |
+|-------|---------|--------|
+| Max depth | **5** | Folders deeper than this are not descended into |
+| Max marimo files | **1000** | Further notebooks are ignored once the cap is hit |
+| Max scan time | **10 seconds** | Slow roots time out with a partial tree |
+
+Additionally, the scanner **skips**:
+
+- Hidden files/folders (names starting with `.`)
+- Symbolic links (avoids cycles and broken links)
+- Common bulk directories such as `venv`, `.venv`, `node_modules`, `__pycache__`, `.git`, build/dist caches, and similar
+
+There is currently **no warning** in the UI when a folder or notebook is omitted for these reasons — the entry simply does not appear. The same notebooks still open fine with a targeted path:
+
+```bash
+marimo edit path/to/your/project
+```
+
+If you need the home page to show a deep project tree, start marimo closer to that project (or from inside it) instead of from a parent that sits many directories above the notebooks.
