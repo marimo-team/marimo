@@ -20,7 +20,8 @@ minimumReleaseAgeExclude:
   - oxlint@1.58.0
   - "@oxlint/*"
   - lodash-es@4.18.1
-  - dompurify@3.4.0
+  # Renovate security update: dompurify@3.4.12
+  - dompurify@3.4.0 || 3.4.12
   - postcss@8.5.10
   - pyodide@314.0.0
 blockExoticSubdeps: true
