@@ -9,7 +9,7 @@ Both can be configured in the marimo editor.
 ## Notebook settings
 
 Notebook settings are specific to each notebook and are stored in the
-`notebook.py` file. These allows you to customize various aspects of your
+`notebook.py` file. This allows you to customize various aspects of your
 notebook, including:
 
 - Notebook width
