@@ -179,6 +179,7 @@ statically analyzing your code.
 **Batteries-included.** marimo comes with [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+a [PyCharm plugin](https://plugins.jetbrains.com/plugin/32416-marimo),
 an interactive dataframe viewer, and [many more](guides/editor_features/index.md)
 quality-of-life features.
 
