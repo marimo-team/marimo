@@ -54,14 +54,14 @@ def sanitize_pyproject_dict(
     return pyproject_dict
 
 
-# Top-level ``tool.marimo`` sections that notebook (PEP 723) inline metadata is
+# Top-level `tool.marimo` sections that notebook (PEP 723) inline metadata is
 # permitted to set. Notebook metadata is attacker-controllable and merged with
 # the HIGHEST precedence over the operator's own user config, so anything that
-# affects outbound traffic or credentials must stay excluded: ``ai`` (base_url
-# → credential exfiltration), ``mcp`` (url → outbound beacon), ``completion``
-# (api_key/base_url), ``secrets``, ``server``.
+# affects outbound traffic or credentials must stay excluded: `ai` (base_url
+# → credential exfiltration), `mcp` (url → outbound beacon), `completion`
+# (api_key/base_url), `secrets`, `server`.
 #
-# NB. ``runtime.auto_instantiate`` and ``experimental.isolate_apps`` are
+# NB. `runtime.auto_instantiate` and `experimental.isolate_apps` are
 # additionally stripped even though their parent sections are allowed —
 # forcing either one changes what happens to the operator with no explicit
 # "run" action.
@@ -88,7 +88,7 @@ ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
 def allowlist_script_config(
     pyproject_dict: dict[str, Any], allowed_top: frozenset[str]
 ) -> dict[str, Any]:
-    """Drop every ``tool.marimo.<key>`` section not in ``allowed_top``."""
+    """Drop every `tool.marimo.<key>` section not in `allowed_top`."""
     marimo = pyproject_dict.get("tool", {}).get("marimo", None)
     if not isinstance(marimo, dict):
         return pyproject_dict
