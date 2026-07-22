@@ -146,7 +146,7 @@ using the `marimo export` command.
 
 ### Preview notebook outputs on GitHub
 
-Check-in exported ipynb files to version control to view notebook outputs on GitHub.
+Check in exported ipynb files to version control to view notebook outputs on GitHub.
 
 You can also install the marimo glance
 [Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg)
