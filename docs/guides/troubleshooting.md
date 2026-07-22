@@ -205,13 +205,43 @@ marimo run --proxy example.com:8080
 
 ### Reading the logs
 
-marimo will output logs to `$XDG_CACHE_HOME/marimo/logs/*`. To view the logs, run:
+marimo writes rotating application logs under the platform log directory
+(typically `$XDG_CACHE_HOME/marimo/logs/` on Linux, or the equivalent cache
+path on macOS/Windows — see `marimo._utils.xdg.marimo_log_dir`).
+
+#### Application log (`marimo.log`)
+
+The main backend log is rotated **daily** and keeps about **7 days** of history.
+Unless you override `XDG_CACHE_HOME`, the default directory is
+`~/.cache/marimo/logs/` on Linux and macOS:
 
 ```bash
-cat $XDG_CACHE_HOME/marimo/logs/github-copilot-lsp.log
+less "${XDG_CACHE_HOME:-$HOME/.cache}/marimo/logs/marimo.log"
 ```
 
-Available logs are:
+Increase verbosity from any command with the global flag:
+
+```bash
+marimo edit notebook.py --log-level DEBUG
+# alias: -l DEBUG
+```
+
+Accepted levels: `DEBUG`, `INFO`, `WARN`, `ERROR`, `CRITICAL`.
+`--development-mode` (or `-d`) forces **DEBUG** and enables server autoreload.
+
+Console noise can be reduced with `--quiet` / `-q`. Use
+`--yes` / `-y` to auto-confirm prompts in scripts/CI.
+
+The on-disk file handler records at least **INFO** (and **DEBUG** when the
+global level is DEBUG). Transient LSP helpers use separate files in the same
+directory:
 
 - `github-copilot-lsp.log`
 - `pylsp.log`
+
+```bash
+cat "${XDG_CACHE_HOME:-$HOME/.cache}/marimo/logs/pylsp.log"
+```
+
+If an editor panel or kernel looks stuck, attach the latest `marimo.log` lines
+when opening a GitHub issue — they often show the failing request path.
