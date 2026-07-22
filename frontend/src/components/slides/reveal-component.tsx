@@ -127,18 +127,6 @@ function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   return dims;
 }
 
-/**
- * Trigger a resize event on the window
- * Vega elements need to be re-measured when the container width changes.
- */
-function triggerResize(deck: RevealApi | null) {
-  if (deck?.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")) {
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("resize"));
-    });
-  }
-}
-
 // The speaker view renders this via innerHTML with `white-space: normal`, so
 // we materialize `\n` as `<br>` and a lone `---` line as `<hr>`.
 const NotesAside = ({ text }: { text: string }) => {
@@ -688,7 +676,6 @@ const RevealSlidesComponent = ({
 
   const handleSlideChange = useEvent(() => {
     reportCurrentCell();
-    triggerResize(deckRef.current);
   });
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });

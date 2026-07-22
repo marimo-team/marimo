@@ -3,5 +3,7 @@
 import React from "react";
 
 export const LazyVegaEmbed = React.lazy(() =>
-  import("react-vega").then((m) => ({ default: m.VegaEmbed })),
+  import("./vega-embed-container").then((m) => ({
+    default: m.VegaEmbedContainer,
+  })),
 );
