@@ -6,7 +6,7 @@ export type FileRenderMode = "text" | "csv" | "media" | "unsupported";
 
 export function getFileRenderMode(
   mimeType: string | null | undefined,
-  isBase64: boolean,
+  isBase64: boolean | undefined,
 ): FileRenderMode {
   const mime = mimeType || "text/plain";
 
