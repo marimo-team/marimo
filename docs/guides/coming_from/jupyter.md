@@ -161,6 +161,15 @@ This supports:
 - **py:percent format**: If your script uses `# %%` cell markers, marimo will convert it to a multi-cell notebook (requires jupytext)
 - **Regular Python scripts**: Scripts without cell markers are converted to a single-cell notebook
 
+!!! note "`if __name__ == \"__main__\":` guards"
+
+    For plain (non-percent) scripts, marimo rewrites a **top-level**
+    `if __name__ == "__main__":` block into a `_main_()` helper so the entry
+    point still runs under marimo's execution model. The conversion only
+    rewrites a real statement-level guard — mentions of that text inside
+    string literals or comments are left alone. Guards with an `else:` branch
+    are not rewritten.
+
 For py:percent conversion with uv:
 
 ```bash
