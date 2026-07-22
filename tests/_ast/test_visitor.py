@@ -1056,6 +1056,14 @@ def test_no_alias_underscore_import_refs_not_mangled() -> None:
         ("from a.b import _c", {"_c"}),
         ("from a.b import _c, _d", {"_c", "_d"}),
         ("import _foo", {"_foo"}),
+        # A dotted import with an underscore root has no resolvable local
+        # name to mangle (`_private.submodule` is reached through the raw
+        # root binding) — the case that ruled out mangling imports
+        # wholesale.
+        (
+            "import _private.submodule\ny = _private.submodule.thing\n",
+            {"_private", "y"},
+        ),
         (
             "from a.b import _camera\nclass C(_camera.Observer):\n    pass\n",
             {"_camera", "C"},
