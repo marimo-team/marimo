@@ -6,7 +6,7 @@ notebooks using an LLM.
 For example, type
 
 ```bash
-marimo new "Plot an interactive 3D surface with matplotlib." 
+marimo new "Plot an interactive 3D surface with matplotlib."
 ```
 
 to open a freshly generated notebook in your browser.
@@ -24,4 +24,10 @@ our favorites:
 - [Dimensionality reduction](https://marimo.app/ai?q=Show+me+how+to+visualize+handwritten+digits+in+two+dimensions%2C+using+an+Altair+scatterplot.+Include+a+cell+that+shows+the+chart+value.+Make+the+chart+render+as+a+square.)
 - [Smooth a time series](https://marimo.app/ai?q=Show+me+how+to+smooth+time+series+data+and+plot+it.+Use+a+well-known+stock+dataset+and+make+it+interactive)
 - [Compute code complexity](https://marimo.app/ai?q=Build+a+tool+that+analyzes+Python+code+complexity+metrics+like+cyclomatic+complexity.+Let+me+input+code+snippets+and+see+visualizations+of+the+results.)
-- [Visualize sorting algorithms](https://marimo.app/ai?q=Plot+an+interesting+3D+surface+with+matplotlib.+Include+an+interactive+element+to+control+the+shape+of+the+surface.)
+- [Interactive 3D surfaces](https://marimo.app/ai?q=Plot+an+interesting+3D+surface+with+matplotlib.+Include+an+interactive+element+to+control+the+shape+of+the+surface.)
+
+!!! tip "Iterate with an agent"
+
+    `marimo new` gives you a one-shot starting point. To keep developing the
+    generated notebook with AI, pair an agent CLI like Claude Code on it using
+    [marimo pair](marimo_pair.md).

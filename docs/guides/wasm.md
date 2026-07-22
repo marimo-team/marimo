@@ -11,7 +11,7 @@ for short.
 
 !!! tip "Check for WebAssembly compatibility"
     Not all notebooks are compatible with WebAssembly. If you use coding agents
-    like Claude Code, you can use our [official skills](generate_with_ai/skills.md)
+    like Claude Code, you can use our [official skills](generate_with_ai/customize_your_agent.md#official-marimo-skills)
     to automatically check for WebAssembly compatibility of your notebooks.
 
 !!! tip "Sharing interactive previews of GitHub notebooks"
