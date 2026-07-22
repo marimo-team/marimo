@@ -443,13 +443,16 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             # config. Drop every section that is not on the safe allowlist so a
             # malicious notebook cannot override credential-affecting or
             # traffic-affecting config (ai.*, mcp.*, completion.*, secrets.*,
-            # package_management.*, server.*, runtime.*, ...).
+            # server.*).
             script_config = allowlist_script_config(
                 script_config, ALLOWED_SCRIPT_CONFIG_TOP_KEYS
             )
             script_config = sanitize_pyproject_dict(
                 script_config,
-                (("tool", "marimo", "runtime", "auto_instantiate"),),
+                (
+                    ("tool", "marimo", "runtime", "auto_instantiate"),
+                    ("tool", "marimo", "experimental", "isolate_apps"),
+                ),
             )
 
             marimo_config = get_marimo_config_from_pyproject_dict(

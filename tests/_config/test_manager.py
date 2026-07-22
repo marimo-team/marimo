@@ -464,17 +464,19 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that the runtime section in script metadata is ignored.
+    """Test that runtime.auto_instantiate in script metadata is ignored.
 
-    The runtime section (which includes auto_instantiate and dotenv paths) is
-    not on the allowlist of sections a notebook may set, so the whole section
-    is dropped from inline script metadata for security reasons.
+    The runtime section itself is allowlisted, but auto_instantiate is
+    additionally stripped: forcing it from notebook metadata would make the
+    notebook's own cells auto-run the instant the operator opens it, with no
+    explicit "run" action.
     """
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
     # [tool.marimo.runtime]
     # auto_instantiate = true
+    # auto_reload = "lazy"
     # [tool.marimo.save]
     # autosave_delay = 2000
     # ///
@@ -494,16 +496,42 @@ def test_script_config_manager_sanitizes_auto_instantiate(
         finally:
             logger.propagate = old_propagate
 
-    # The whole runtime section is dropped (it is not allowlisted).
-    assert "runtime" not in config
+    # auto_instantiate is stripped, but the rest of the runtime section
+    # (an allowlisted section) is honored.
     assert "auto_instantiate" not in config.get("runtime", {})
-    # Allowlisted cosmetic sections are still honored.
+    assert config.get("runtime") == {"auto_reload": "lazy"}
     assert config.get("save") == {"autosave_delay": 2000}
-    # A warning should be logged for the dropped section.
+    # A warning should be logged for the stripped key.
     assert any(
-        "runtime" in record.message and "ignored" in record.message
+        "auto_instantiate" in record.message and "ignored" in record.message
         for record in caplog.records
     )
+
+
+def test_script_config_manager_sanitizes_isolate_apps(
+    tmp_path: Path,
+) -> None:
+    """Test that experimental.isolate_apps in script metadata is ignored.
+
+    experimental is allowlisted, but isolate_apps is additionally stripped:
+    forcing it on would push the operator into the isolate_apps IPC code
+    path without their consent.
+    """
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.experimental]
+    # isolate_apps = true
+    # markdown = true
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    assert "isolate_apps" not in config.get("experimental", {})
+    assert config.get("experimental") == {"markdown": True}
 
 
 def test_script_config_manager_drops_credential_affecting_sections(
@@ -514,8 +542,9 @@ def test_script_config_manager_drops_credential_affecting_sections(
     Notebook (PEP 723) metadata is attacker-controllable and merged with the
     highest precedence over the operator's own user config. Sections that
     affect outbound traffic or credentials (ai, mcp, completion, secrets,
-    package_management, server) must be dropped so a malicious notebook cannot
-    redirect AI/MCP traffic or exfiltrate the operator's API keys.
+    server) must be dropped so a malicious notebook cannot redirect AI/MCP
+    traffic or exfiltrate the operator's API keys. package_management has no
+    such vector (its only key picks pip/uv/poetry/etc.) and is allowlisted.
     """
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
@@ -547,10 +576,10 @@ def test_script_config_manager_drops_credential_affecting_sections(
     assert "mcp" not in config
     assert "completion" not in config
     assert "secrets" not in config
-    assert "package_management" not in config
     assert "server" not in config
-    # Safe cosmetic sections are still honored.
+    # Safe sections are still honored.
     assert config.get("formatting") == {"line_length": 79}
+    assert config.get("package_management") == {"manager": "uv"}
 
 
 def test_script_config_manager_ai_base_url_does_not_override(

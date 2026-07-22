@@ -36,11 +36,15 @@ def sanitize_pyproject_dict(
     """Sanitize the pyproject.toml dictionary by removing specified keys."""
     for key_path in keys:
         current_level = pyproject_dict
+        missing_intermediate = False
         for key in key_path[:-1]:
             if key in current_level and isinstance(current_level[key], dict):
                 current_level = current_level[key]
             else:
-                return pyproject_dict
+                missing_intermediate = True
+                break
+        if missing_intermediate:
+            continue
         if current_level and key_path[-1] in current_level:
             LOGGER.warning(
                 "%s in script metadata is ignored for security reasons",
@@ -59,8 +63,13 @@ def sanitize_pyproject_dict(
 #
 # Notably EXCLUDED: ``ai`` (base_url → credential exfiltration), ``mcp``
 # (url → outbound beacon / exfiltration), ``completion`` (api_key/base_url),
-# ``secrets``, ``package_management``, ``server``, ``runtime`` (dotenv paths;
-# ``auto_instantiate`` is additionally stripped below), ``experimental``.
+# ``secrets``, ``server``.
+#
+# ``runtime`` and ``experimental`` are allowlisted at the section level, but
+# ``auto_instantiate`` and ``isolate_apps`` are additionally stripped below
+# (see the ``sanitize_pyproject_dict`` call site) since forcing either one
+# from notebook metadata changes what happens to the operator without an
+# explicit "run" action.
 ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
     {
         "formatting",
@@ -71,6 +80,12 @@ ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
         "lint",
         "snippets",
         "datasources",
+        "language_servers",
+        "sharing",
+        "venv",
+        "runtime",
+        "experimental",
+        "package_management",
     }
 )
 
@@ -82,9 +97,9 @@ def allowlist_script_config(
 
     Notebook (PEP 723) metadata is attacker-controllable and is merged with the
     highest precedence over the operator's user config, so only an explicit
-    safe set of cosmetic sections may pass through. Credential-affecting and
+    safe set of sections may pass through. Credential-affecting and
     traffic-affecting sections (``ai``, ``mcp``, ``completion``, ``secrets``,
-    ``package_management``, ``server``, ``runtime``, ...) are dropped.
+    ``server``) are dropped.
     """
     marimo = pyproject_dict.get("tool", {}).get("marimo", None)
     if not isinstance(marimo, dict):
