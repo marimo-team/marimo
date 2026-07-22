@@ -23,6 +23,8 @@ minimumReleaseAgeExclude:
   - dompurify@3.4.0
   - postcss@8.5.10
   - pyodide@314.0.0
+  # Renovate security update: js-cookie@3.0.7
+  - js-cookie@3.0.7
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
