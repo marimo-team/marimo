@@ -105,7 +105,14 @@ async def file_details(
                         $ref: "#/components/schemas/FileDetailsResponse"
     """
     body = await parse_request(request, cls=FileDetailsRequest)
-    return file_system.get_details(body.path)
+    if body.max_bytes is not None and body.max_bytes < 0:
+        raise HTTPException(
+            status_code=400,
+            detail="maxBytes must be non-negative",
+        )
+    # Only bound the read when the caller asks for it. The file preview is
+    # the sole caller that sets a limit; other consumers read in full.
+    return file_system.get_details(body.path, max_bytes=body.max_bytes)
 
 
 @router.get("/download")
@@ -239,8 +246,7 @@ async def delete_file_or_directory(
     """
     body = await parse_request(request, cls=FileDeleteRequest)
     try:
-        # TODO: Refactor this side-effect based validation to a dedicated validation.
-        file_system.get_details(body.path)
+        file_system.get_info(body.path)
         success = file_system.delete_file_or_directory(body.path)
         return FileDeleteResponse(success=success)
     except Exception as e:
@@ -270,8 +276,7 @@ async def copy_file_or_directory(
     """
     body = await parse_request(request, cls=FileCopyRequest)
     try:
-        # TODO: Refactor this side-effect based validation to a dedicated validation.
-        file_system.get_details(body.path)
+        file_system.get_info(body.path)
         info = file_system.copy_file_or_directory(body.path, body.new_path)
         return FileCopyResponse(success=True, info=info)
     except Exception as e:
@@ -301,8 +306,7 @@ async def move_file_or_directory(
     """
     body = await parse_request(request, cls=FileMoveRequest)
     try:
-        # TODO: Refactor this side-effect based validation to a dedicated validation.
-        file_system.get_details(body.path)
+        file_system.get_info(body.path)
         info = file_system.move_file_or_directory(body.path, body.new_path)
         return FileMoveResponse(success=True, info=info)
     except Exception as e:
@@ -333,8 +337,7 @@ async def update_file(
     app_state = AppState(request)
     body = await parse_request(request, cls=FileUpdateRequest)
     try:
-        # TODO: Refactor this side-effect based validation to a dedicated validation.
-        file_system.get_details(body.path)
+        file_system.get_info(body.path)
         info = file_system.update_file(body.path, body.contents)
 
         # Handle marimo notebook reload if there's an active session
@@ -369,8 +372,7 @@ async def open_file(
     """
     body = await parse_request(request, cls=FileOpenRequest)
     try:
-        # TODO: Refactor this side-effect based validation to a dedicated validation.
-        file_system.get_details(body.path)
+        file_system.get_info(body.path)
         success = file_system.open_in_editor(body.path, body.line_number)
         return SuccessResponse(success=success)
     except Exception as e:

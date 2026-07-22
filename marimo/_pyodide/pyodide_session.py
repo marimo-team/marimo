@@ -308,7 +308,10 @@ class PyodideBridge:
         request: str,
     ) -> str:
         body = self._parse(request, FileDetailsRequest)
-        response = self.file_system.get_details(body.path)
+        response = self.file_system.get_details(
+            body.path,
+            max_bytes=body.max_bytes,
+        )
         return self._dump(response)
 
     def create_file_or_directory(

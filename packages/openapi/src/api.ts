@@ -4719,6 +4719,8 @@ export interface components {
     };
     /** FileDetailsRequest */
     FileDetailsRequest: {
+      /** @default null */
+      maxBytes?: number | null;
       path: string;
     };
     /** FileDetailsResponse */
@@ -4728,6 +4730,8 @@ export interface components {
       file: components["schemas"]["FileInfo"];
       /** @default false */
       isBase64?: boolean;
+      /** @default false */
+      isTooLarge?: boolean;
       /** @default null */
       mimeType?: string | null;
     };
@@ -4744,6 +4748,8 @@ export interface components {
       /** @default null */
       opengraph?: null | components["schemas"]["OpenGraphMetadata"];
       path: string;
+      /** @default null */
+      size?: number | null;
     };
     /** FileListRequest */
     FileListRequest: {

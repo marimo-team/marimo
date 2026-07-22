@@ -18,6 +18,7 @@ class FileInfo(msgspec.Struct, rename="camel"):
     is_directory: bool
     is_marimo_file: bool
     last_modified: float | None = None
+    size: int | None = None
     children: list[FileInfo] = msgspec.field(default_factory=list)
     opengraph: OpenGraphMetadata | None = None
 
@@ -31,6 +32,8 @@ class FileListRequest(msgspec.Struct, rename="camel"):
 class FileDetailsRequest(msgspec.Struct, rename="camel"):
     # The path of the file or directory
     path: str
+    # Optional caller limit; the HTTP endpoint clamps this to its hard ceiling.
+    max_bytes: int | None = None
 
 
 class FileOpenRequest(msgspec.Struct, rename="camel"):
@@ -130,6 +133,7 @@ class FileDetailsResponse(msgspec.Struct, rename="camel"):
     contents: str | None = None
     mime_type: str | None = None
     is_base64: bool = False
+    is_too_large: bool = False
 
 
 class FileCreateResponse(BaseResponse):
