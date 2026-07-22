@@ -60,5 +60,5 @@ class FormatterFactory(abc.ABC):
             self.apply_theme(theme)
         except Exception as e:
             LOGGER.error(
-                f"Error applying theme {theme} fro {self.package_name()}: {e}"
+                f"Error applying theme {theme} for {self.package_name()}: {e}"
             )

@@ -106,7 +106,7 @@ async def test_disable_and_reenable_reload(
     exec_req: ExecReqProvider,
 ):
     # tests a bug in which after disabling the reloader, it couldn't be
-    # reenabled
+    # re-enabled
     k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
@@ -131,7 +131,7 @@ async def test_disable_and_reenable_reload(
     # TODO: Invesitigate flaky on minimal CI
     await asyncio.sleep(INTERVAL / 2)
 
-    # ... and reenable it
+    # ... and re-enable it
     config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(

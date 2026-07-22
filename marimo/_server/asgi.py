@@ -495,7 +495,7 @@ def create_asgi_app(
         "for running multiple notebooks with create_asgi_app()"
     )
 
-    # We call the entrypoint `root` instead of `filename` incase we want to
+    # We call the entrypoint `root` instead of `filename` in case we want to
     # support directories or code in the future
     class Builder(ASGIAppBuilder):
         def __init__(self) -> None:
