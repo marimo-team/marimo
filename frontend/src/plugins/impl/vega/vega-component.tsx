@@ -27,6 +27,7 @@ import { makeSelectable } from "./make-selectable";
 import { getSelectionParamNames, ParamNames } from "./params";
 import { resolveVegaSpecData } from "./resolve-data";
 import type { VegaLiteSpec } from "./types";
+import { useVegaContainerRemeasure } from "./use-vega-container-remeasure";
 import { getContainerWidth } from "./utils";
 
 // register arrow reader under type 'arrow'
@@ -276,6 +277,9 @@ const LoadedVegaComponent = ({
     onEmbed: handleNewView,
   });
 
+  const containerWidth = getContainerWidth(selectableSpec);
+  useVegaContainerRemeasure(vegaRef, containerWidth === "container");
+
   useEffect(() => {
     signalListeners.forEach(({ signalName, handler }) => {
       // Existing bug. TODO: Some signal listeners are invalid
@@ -310,10 +314,7 @@ const LoadedVegaComponent = ({
         // Capture the pointer down event to prevent the parent from handling it
         onPointerDown={Events.stopPropagation()}
       >
-        <div
-          ref={vegaRef}
-          data-container-width={getContainerWidth(selectableSpec)}
-        />
+        <div ref={vegaRef} data-container-width={containerWidth} />
         {renderHelpContent()}
       </div>
     </>
