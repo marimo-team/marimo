@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import type React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,7 +12,19 @@ import { store } from "@/core/state/jotai";
 import { FileViewer, MAX_FILE_PREVIEW_BYTES } from "../file-viewer";
 
 vi.mock("@/plugins/impl/code/LazyAnyLanguageCodeMirror", () => ({
-  LazyAnyLanguageCodeMirror: () => <div data-testid="code-editor" />,
+  LazyAnyLanguageCodeMirror: ({
+    value,
+    onChange,
+  }: {
+    value?: string;
+    onChange?: (value: string) => void;
+  }) => (
+    <textarea
+      data-testid="code-editor"
+      value={value ?? ""}
+      onChange={(evt) => onChange?.(evt.target.value)}
+    />
+  ),
 }));
 
 vi.mock("@/core/wasm/utils", () => ({ isWasm: () => false }));
@@ -92,5 +104,47 @@ describe("FileViewer bounded previews", () => {
       expect(screen.getByTestId("code-editor")).toBeInTheDocument();
     });
     expect(screen.queryByText(/too large to preview/i)).not.toBeInTheDocument();
+  });
+
+  it("preserves edits to an initially empty text file across remount", async () => {
+    const emptyFile: FileInfo = {
+      id: "/workspace/empty.txt",
+      path: "/workspace/empty.txt",
+      name: "empty.txt",
+      isDirectory: false,
+      isMarimoFile: false,
+      size: 0,
+    };
+    const response: FileDetailsResponse = {
+      file: emptyFile,
+      contents: "",
+      mimeType: "text/plain",
+      isBase64: false,
+      isTooLarge: false,
+    };
+    const client = MockRequestClient.create({
+      sendFileDetails: vi.fn().mockResolvedValue(response),
+    });
+    store.set(requestClientAtom, client);
+
+    const { unmount } = render(
+      <FileViewer file={emptyFile} onOpenNotebook={vi.fn()} />,
+      { wrapper },
+    );
+
+    const editor =
+      await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+    fireEvent.change(editor, { target: { value: "draft" } });
+    unmount();
+
+    render(<FileViewer file={emptyFile} onOpenNotebook={vi.fn()} />, {
+      wrapper,
+    });
+
+    const reopened =
+      await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+    await waitFor(() => {
+      expect(reopened.value).toBe("draft");
+    });
   });
 });

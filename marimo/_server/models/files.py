@@ -32,7 +32,7 @@ class FileListRequest(msgspec.Struct, rename="camel"):
 class FileDetailsRequest(msgspec.Struct, rename="camel"):
     # The path of the file or directory
     path: str
-    # Optional caller limit; the HTTP endpoint clamps this to its hard ceiling.
+    # Optional cap on bytes read from disk; unbounded when omitted.
     max_bytes: int | None = None
 
 

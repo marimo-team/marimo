@@ -57,7 +57,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       const mode = getFileRenderMode(details.mimeType, details.isBase64);
       if (!details.isTooLarge && mode === "text") {
         const contents = details.contents || "";
-        setInternalValue(unsavedContentsForFile.get(file.path) || contents);
+        setInternalValue(unsavedContentsForFile.get(file.path) ?? contents);
       }
       return details;
     }, [file.path]);
@@ -87,7 +87,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   useEffect(() => {
     return () => {
       if (
-        !data?.contents ||
+        data?.contents == null ||
         data.isTooLarge ||
         getFileRenderMode(data.mimeType, data.isBase64) !== "text"
       ) {
