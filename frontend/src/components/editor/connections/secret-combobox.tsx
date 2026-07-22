@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { ChevronDownIcon, KeyIcon, PlusCircleIcon, XIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useMemo } from "react";
 import {
   Command,
   CommandGroup,
@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { type Option, useSelectList } from "@/components/ui/select-core";
 import { cn } from "@/utils/cn";
 import { displaySecret, isSecret, prefixSecret } from "./secrets";
 
@@ -45,6 +46,8 @@ export function partitionSecretKeys(
   return { recommended, other };
 }
 
+type SecretSection = "recommended" | "other";
+
 interface SecretComboboxProps {
   value: string;
   onChange: (value: string) => void;
@@ -74,14 +77,48 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   onCreateSecret,
   className,
 }) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
+  const options = useMemo<Array<Option<string>>>(
+    () => [
+      ...recommendedKeys.map((key) => ({
+        value: key,
+        label: key,
+        data: { section: "recommended" as const satisfies SecretSection },
+      })),
+      ...otherKeys.map((key) => ({
+        value: key,
+        label: key,
+        data: { section: "other" as const satisfies SecretSection },
+      })),
+    ],
+    [recommendedKeys, otherKeys],
+  );
 
-  const trimmedSearch = search.trim();
+  // Field value is `secret("KEY")` or a literal; the list selects bare keys.
+  const selectedKey = isSecret(value) ? displaySecret(value) : null;
+
+  const list = useSelectList({
+    options,
+    value: selectedKey,
+    onChange: (next) => {
+      onChange(next == null ? "" : prefixSecret(next));
+    },
+    multiple: false,
+  });
+
+  const trimmedSearch = list.searchQuery.trim();
   // Non-secret fields may commit a literal even when it collides with an
   // existing secret key, so we intentionally don't filter out matches here.
   const showCustomValue =
     !secretsOnly && trimmedSearch.length > 0 && trimmedSearch !== value;
+
+  const sectionOf = (option: Option<string>): SecretSection =>
+    (option.data as { section: SecretSection }).section;
+  const recommendedVisible = list.visibleOptions.filter(
+    (option) => sectionOf(option) === "recommended",
+  );
+  const otherVisible = list.visibleOptions.filter(
+    (option) => sectionOf(option) === "other",
+  );
 
   const displayValue = (() => {
     if (!value) {
@@ -93,22 +130,14 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
     return value;
   })();
 
-  const selectSecret = (key: string) => {
-    onChange(prefixSecret(key));
-    setOpen(false);
-    setSearch("");
-  };
-
   const selectCustom = (custom: string) => {
     onChange(custom);
-    setOpen(false);
-    setSearch("");
+    list.setOpen(false);
   };
 
   const clearValue = () => {
     onChange("");
-    setSearch("");
-    setOpen(false);
+    list.setOpen(false);
   };
 
   return (
@@ -117,13 +146,8 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
     >
       <Popover
         modal={true} // own scroll lock so trackpad/wheel works inside the portaled list
-        open={open}
-        onOpenChange={(next) => {
-          setOpen(next);
-          if (!next) {
-            setSearch("");
-          }
-        }}
+        open={list.open}
+        onOpenChange={list.setOpen}
       >
         <PopoverTrigger asChild={true}>
           <button
@@ -134,7 +158,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
               "hover:shadow-sm-solid focus:outline-hidden focus:ring-1 focus:ring-ring focus:border-primary focus:shadow-md-solid",
               isSecret(value) && "bg-accent",
             )}
-            aria-expanded={open}
+            aria-expanded={list.open}
           >
             <span className="truncate flex-1 min-w-0 text-left flex items-center gap-1.5">
               {displayValue ? (
@@ -155,7 +179,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
           className="w-(--radix-popover-trigger-width) p-0"
           align="start"
         >
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput
               placeholder={
                 secretsOnly
@@ -164,8 +188,8 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
               }
               rootClassName="px-1 h-8"
               autoFocus={true}
-              value={search}
-              onValueChange={setSearch}
+              value={list.searchQuery}
+              onValueChange={list.setSearchQuery}
             />
             <CommandList className="max-h-60 overscroll-contain">
               {showCustomValue && (
@@ -181,12 +205,10 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
               {showCustomValue && <CommandSeparator />}
               <CommandGroup className="mt-0">
                 <CommandItem
-                  // Include search so this stays visible while filtering
-                  value={`create new secret ${trimmedSearch}`}
+                  value="create new secret"
                   onSelect={() => {
                     const suggestedValue = trimmedSearch || undefined;
-                    setOpen(false);
-                    setSearch("");
+                    list.setOpen(false);
                     onCreateSecret(suggestedValue);
                   }}
                 >
@@ -194,37 +216,39 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
                   Create a new secret
                 </CommandItem>
               </CommandGroup>
-              {recommendedKeys.length > 0 && (
+              {recommendedVisible.length > 0 && (
                 <>
                   <CommandSeparator className="mt-0" />
                   <CommandGroup heading="Recommended">
-                    {recommendedKeys.map((key) => (
+                    {recommendedVisible.map((option) => (
                       <CommandItem
-                        key={key}
-                        value={key}
-                        onSelect={() => selectSecret(key)}
+                        key={option.value}
+                        value={option.value}
+                        onSelect={() => list.toggle(option.value)}
                       >
                         <KeyIcon className="mr-2 h-3 w-3 opacity-70" />
-                        {key}
+                        {option.label}
                       </CommandItem>
                     ))}
                   </CommandGroup>
                 </>
               )}
-              {otherKeys.length > 0 && (
+              {otherVisible.length > 0 && (
                 <>
                   <CommandSeparator className="mt-0" />
                   <CommandGroup
-                    heading={recommendedKeys.length > 0 ? "Other" : undefined}
+                    heading={
+                      recommendedVisible.length > 0 ? "Other" : undefined
+                    }
                   >
-                    {otherKeys.map((key) => (
+                    {otherVisible.map((option) => (
                       <CommandItem
-                        key={key}
-                        value={key}
-                        onSelect={() => selectSecret(key)}
+                        key={option.value}
+                        value={option.value}
+                        onSelect={() => list.toggle(option.value)}
                       >
                         <KeyIcon className="mr-2 h-3 w-3 opacity-70" />
-                        {key}
+                        {option.label}
                       </CommandItem>
                     ))}
                   </CommandGroup>
