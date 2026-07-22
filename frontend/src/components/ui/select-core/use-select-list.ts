@@ -13,13 +13,8 @@ import {
 /** cmdk-style relevance score for `(label, query)`; any positive score matches. */
 type FilterFn = (label: string, query: string) => number;
 
-interface UseSelectListParams<V> {
+interface UseSelectListBaseParams<V> {
   options: Array<Option<V>>;
-  /** Current selection: an array when `multiple`, otherwise a single value or null. */
-  value: V[] | V | null;
-  onChange: (next: V[] | V | null) => void;
-  /** Multi-select when true; single-select (replace-on-pick) when false. */
-  multiple: boolean;
   /** Cap on multi-select size. At the cap, picking another drops the oldest. */
   maxSelections?: number;
   /** Single-select only: re-picking the current value clears it to null. */
@@ -28,6 +23,25 @@ interface UseSelectListParams<V> {
   filterFn?: FilterFn;
   /** Float the (frozen) selection to the top of the idle menu. */
   pinSelected?: boolean;
+}
+
+interface UseSelectListMultiParams<V> extends UseSelectListBaseParams<V> {
+  multiple: true;
+  value: V[] | null;
+  onChange: (next: V[]) => void;
+}
+
+interface UseSelectListSingleParams<V> extends UseSelectListBaseParams<V> {
+  multiple: false;
+  value: V | null;
+  onChange: (next: V | null) => void;
+}
+
+/** Implementation / wide signature for facades that forward a runtime `multiple`. */
+interface UseSelectListImplParams<V> extends UseSelectListBaseParams<V> {
+  multiple: boolean;
+  value: V[] | V | null;
+  onChange: (next: V[] | V | null) => void;
 }
 
 interface UseSelectListResult<V> {
@@ -265,11 +279,22 @@ function useBulk<V>({
 
 /**
  * Headless state for a searchable select list, shared across the multiselect,
- * dropdown, and top-K filter facades. Composes four focused concerns — search,
- * pinning/freeze, membership/toggle, and bulk actions — behind one entry point.
- * Pinning and bulk rows are opt-in so the single-select and top-K facades share
- * only what they need.
+ * dropdown, top-K filter, and custom Popover/Command facades. Composes search,
+ * pinning/freeze, membership/toggle, and bulk actions behind one entry point.
+ * Closing the menu clears the query; single-select `toggle` also dismisses.
+ * Pinning and bulk rows are opt-in so single-select facades share only what
+ * they need.
  */
+export function useSelectList<V>(
+  params: UseSelectListMultiParams<V>,
+): UseSelectListResult<V>;
+export function useSelectList<V>(
+  params: UseSelectListSingleParams<V>,
+): UseSelectListResult<V>;
+/** Wide form for facades that forward a runtime `multiple` flag. */
+export function useSelectList<V>(
+  params: UseSelectListImplParams<V>,
+): UseSelectListResult<V>;
 export function useSelectList<V>({
   options,
   value,
@@ -279,7 +304,7 @@ export function useSelectList<V>({
   allowSelectNone,
   filterFn = multiselectFilterFn,
   pinSelected = false,
-}: UseSelectListParams<V>): UseSelectListResult<V> {
+}: UseSelectListImplParams<V>): UseSelectListResult<V> {
   const selected = useMemo(() => new Set(asArray(value)), [value]);
 
   const labelByValue = useMemo(() => {
@@ -298,7 +323,13 @@ export function useSelectList<V>({
     filteredOptions,
   } = useSearch({ options, filterFn });
 
-  const { open, setOpen, repin, visibleOptions, pinnedCount } = usePinning({
+  const {
+    open,
+    setOpen: setOpenState,
+    repin,
+    visibleOptions,
+    pinnedCount,
+  } = usePinning({
     value,
     pinSelected,
     options,
@@ -306,7 +337,7 @@ export function useSelectList<V>({
     filteredOptions,
   });
 
-  const { isChecked, toggle } = useToggle({
+  const { isChecked, toggle: toggleSelection } = useToggle({
     value,
     onChange,
     multiple,
@@ -329,6 +360,23 @@ export function useSelectList<V>({
     setSearchQueryState(query);
     if (query === "") {
       repin();
+    }
+  };
+
+  // Reset the query when the menu closes so reopen starts idle (and pinned).
+  const setOpen = (nextOpen: boolean): void => {
+    setOpenState(nextOpen);
+    if (!nextOpen) {
+      setSearchQueryState("");
+    }
+  };
+
+  // Single-select menus dismiss on pick, matching Combobox. Multi stays open for
+  // further toggles.
+  const toggle = (candidate: V): void => {
+    toggleSelection(candidate);
+    if (!multiple) {
+      setOpen(false);
     }
   };
 
