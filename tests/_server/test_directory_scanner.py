@@ -214,3 +214,70 @@ class TestDirectoryScanner:
         for f in scanner.partial_results:
             assert not f.is_directory
             assert f.is_marimo_file
+
+    def test_max_depth_omits_deeper_notebooks(self, tmp_path: Path) -> None:
+        """Notebooks beyond max_depth are silently dropped (issue #10064).
+
+        Home-page workspace scans use DirectoryScanner with a shallow default
+        depth. When users open marimo from a broad root (e.g. $HOME), deeper
+        project notebooks vanish from the tree without warning.
+        """
+        # root /
+        #   shallow_app.py          (depth 0 file — always included)
+        #   d1/
+        #     mid_app.py            (depth 1 file — included when max_depth>=1)
+        #     d2/
+        #       deep_app.py         (depth 2 file — omitted when max_depth=1)
+        _write(tmp_path / "shallow_app.py", MARIMO_APP)
+        d1 = tmp_path / "d1"
+        d1.mkdir()
+        _write(d1 / "mid_app.py", MARIMO_APP)
+        d2 = d1 / "d2"
+        d2.mkdir()
+        _write(d2 / "deep_app.py", MARIMO_APP)
+
+        files = DirectoryScanner(str(tmp_path), max_depth=1).scan()
+        names = set(_file_names(files))
+        assert "shallow_app.py" in names
+        # nested folder at depth 0 should still appear with its mid app
+        nested = next(f for f in files if f.is_directory and f.name == "d1")
+        assert nested.children is not None
+        nested_names = {c.name for c in nested.children}
+        assert "mid_app.py" in nested_names
+        # depth-2 notebook must not appear anywhere
+        assert "deep_app.py" not in nested_names
+        assert "deep_app.py" not in names
+        assert "d2" not in nested_names
+
+    def test_max_depth_includes_notebook_at_limit(self, tmp_path: Path) -> None:
+        """A notebook whose enclosing folder is at max_depth is still found."""
+        # root/d1/d2/app.py with max_depth=2 → d2 is entered at depth=1 < 2? 
+        # recurse(dir, depth): folder children requested via recurse(path, depth+1)
+        # At folder d1 (depth of recurse for d1 is 1 when called from root depth 0+1).
+        # When depth==max_depth, subdirs are skipped (not entered).
+        # Files in the current directory are still collected when depth <= max_depth.
+        #
+        # Tree:
+        #   L1/app.py   — collected while recurse(L1) runs at depth=1, max_depth=1
+        #   L1/L2/app.py — L2 skipped because depth==max_depth when visiting L1
+        L1 = tmp_path / "L1"
+        L1.mkdir()
+        _write(L1 / "at_limit_app.py", MARIMO_APP)
+        L2 = L1 / "L2"
+        L2.mkdir()
+        _write(L2 / "beyond_app.py", MARIMO_APP)
+
+        files = DirectoryScanner(str(tmp_path), max_depth=1).scan()
+        # Collect all file names recursively
+        def all_names(nodes: list[FileInfo]) -> set[str]:
+            out: set[str] = set()
+            for n in nodes:
+                if n.is_directory:
+                    out |= all_names(n.children or [])
+                else:
+                    out.add(n.name)
+            return out
+
+        found = all_names(files)
+        assert "at_limit_app.py" in found
+        assert "beyond_app.py" not in found
