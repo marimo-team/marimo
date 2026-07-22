@@ -119,6 +119,13 @@ class Cache(msgspec.Struct, omit_defaults=True):
     ui_defs: list[str] = msgspec.field(default_factory=list)
 
 
+class BlobAsset(msgspec.Struct, frozen=True):
+    data: bytes
+    media_type: str | None = None
+    filename: str | None = None
+    metadata: dict[str, Any] = msgspec.field(default_factory=dict)
+
+
 # ---------------------------------------------------------------------------
 # Unified type-to-loader registry
 # ---------------------------------------------------------------------------
@@ -135,6 +142,7 @@ class Cache(msgspec.Struct, omit_defaults=True):
 #   "npy"     — numpy .npy blob
 #   "arrow"   — Arrow IPC .arrow blob (polars and pandas)
 #   "pt"      — torch .pt blob (torch.save / torch.load)
+#   "bin"     — media-typed bytes with export metadata
 LAZY_STUB_LOOKUP: dict[str, str] = {
     "builtins.int": "inline",
     "builtins.str": "inline",
@@ -160,6 +168,7 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     # Subclasses (e.g. torch.nn.Parameter) resolve here through the MRO
     # walk in maybe_update_lazy_stub; torch.save round-trips them intact.
     "torch.Tensor": "pt",
+    "marimo._save.stubs.lazy_stub.BlobAsset": "bin",
 }
 
 
@@ -213,11 +222,17 @@ def _pickle_load(data: bytes, type_hint: str | None = None) -> Any:
     return pickle.loads(data)
 
 
+def _bin_load(data: bytes, type_hint: str | None = None) -> BlobAsset:
+    del type_hint
+    return msgspec.msgpack.decode(data, type=BlobAsset)
+
+
 BLOB_DESERIALIZERS: dict[str, Callable[[bytes, str | None], Any]] = {
     ".pickle": _pickle_load,
     ".npy": _npy_load,
     ".arrow": _arrow_load,
     ".pt": _pt_load,
+    ".bin": _bin_load,
 }
 
 # ---------------------------------------------------------------------------
@@ -282,11 +297,18 @@ def _pt_dump(obj: Any) -> bytes:
     return buf.getvalue()
 
 
+def _bin_dump(obj: Any) -> bytes:
+    if not isinstance(obj, BlobAsset):
+        raise TypeError(f"expected BlobAsset, got {type(obj).__name__}")
+    return msgspec.msgpack.encode(obj)
+
+
 BLOB_SERIALIZERS: dict[str, Callable[[Any], bytes]] = {
     "pickle": pickle.dumps,
     "npy": _npy_dump,
     "arrow": _arrow_dump,
     "pt": _pt_dump,
+    "bin": _bin_dump,
 }
 
 # ---------------------------------------------------------------------------
