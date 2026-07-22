@@ -157,17 +157,18 @@ class NotebookDocument:
 
         _validate(tx.changes, self._cells)
 
-        staged = NotebookDocument(
-            [
-                structs_replace(
-                    cell,
-                    config=structs_replace(cell.config),
-                )
-                for cell in self._cells
-            ]
-        )
+        staged = NotebookDocument(self._cells)
+        owned_cell_ids: set[CellId_t] = set()
         for change in tx.changes:
+            if isinstance(change, (SetCode, SetName, SetConfig)):
+                if change.cell_id not in owned_cell_ids:
+                    staged._clone_cell(change.cell_id)
+                    owned_cell_ids.add(change.cell_id)
+
             staged._apply_change(change)
+
+            if isinstance(change, CreateCell):
+                owned_cell_ids.add(change.cell_id)
 
         next_version = self._version + 1
         applied = structs_replace(tx, version=next_version)
@@ -283,6 +284,14 @@ class NotebookDocument:
             if cell.id == cell_id:
                 return i
         raise KeyError(f"Cell {cell_id!r} not found in document")
+
+    def _clone_cell(self, cell_id: CellId_t) -> None:
+        idx = self._find_index(cell_id)
+        cell = self._cells[idx]
+        self._cells[idx] = structs_replace(
+            cell,
+            config=structs_replace(cell.config),
+        )
 
     def _find_cell(self, cell_id: CellId_t) -> NotebookCell:
         for cell in self._cells:

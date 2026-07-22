@@ -641,6 +641,49 @@ class TestValidation:
 
 
 class TestAtomicity:
+    def test_only_updated_cells_are_cloned(self) -> None:
+        doc = _doc("a", "b")
+        original_a = doc.get_cell(CellId_t("a"))
+        original_b = doc.get_cell(CellId_t("b"))
+
+        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="updated")))
+
+        updated_a = doc.get_cell(CellId_t("a"))
+        untouched_b = doc.get_cell(CellId_t("b"))
+        assert updated_a is not original_a
+        assert updated_a.config is not original_a.config
+        assert untouched_b is original_b
+        assert untouched_b.config is original_b.config
+
+    def test_each_existing_cell_is_cloned_at_most_once(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        doc = _doc("a")
+        cloned_ids: list[CellId_t] = []
+        original_clone_cell = NotebookDocument._clone_cell
+
+        def record_clone(staged: NotebookDocument, cell_id: CellId_t) -> None:
+            cloned_ids.append(cell_id)
+            original_clone_cell(staged, cell_id)
+
+        monkeypatch.setattr(NotebookDocument, "_clone_cell", record_clone)
+
+        doc.apply(
+            _tx(
+                SetCode(cell_id=CellId_t("a"), code="updated"),
+                SetName(cell_id=CellId_t("a"), name="renamed"),
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="new code",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                SetName(cell_id=CellId_t("new"), name="created"),
+            )
+        )
+
+        assert cloned_ids == [CellId_t("a")]
+
     def test_invalid_late_anchor_does_not_mutate_document(self) -> None:
         doc = _doc("a", "b")
         doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="original")))
