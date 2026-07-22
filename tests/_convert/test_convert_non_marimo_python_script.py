@@ -237,3 +237,64 @@ if __name__ == "__main__":
         ir = convert_non_marimo_python_script_to_notebook_ir(source)
         converted = MarimoConvert.from_ir(ir).to_py()
         snapshot_test("pypercent_with_main.py.txt", converted)
+
+
+class TestTransformMainBlocks:
+    """The main-guard transform must only fire on real top-level guards."""
+
+    def test_guard_inside_string_literal_is_untouched(self) -> None:
+        source = "GUARD = 'if __name__ == \"__main__\":'\nprint(GUARD)\n"
+        ir = convert_non_marimo_python_script_to_notebook_ir(source)
+        assert len(ir.cells) == 1
+        assert ir.cells[0].code.rstrip() == source.rstrip()
+
+    def test_guard_inside_comment_is_untouched(self) -> None:
+        source = (
+            '# code under if __name__ == "__main__": runs as a script\n'
+            "def main():\n"
+            "    return 1\n"
+        )
+        ir = convert_non_marimo_python_script_to_notebook_ir(source)
+        assert len(ir.cells) == 1
+        assert ir.cells[0].code.rstrip() == source.rstrip()
+
+    def test_real_guard_is_transformed(self) -> None:
+        source = (
+            "def main():\n"
+            "    return 1\n"
+            "\n"
+            'if __name__ == "__main__":\n'
+            "    main()\n"
+        )
+        ir = convert_non_marimo_python_script_to_notebook_ir(source)
+        assert len(ir.cells) == 1
+        code = ir.cells[0].code
+        assert "def _main_():" in code
+        assert "_main_()" in code
+        assert 'if __name__ == "__main__":' not in code
+
+    def test_single_quoted_guard_is_transformed(self) -> None:
+        source = "if __name__ == '__main__':\n    print('hi')\n"
+        ir = convert_non_marimo_python_script_to_notebook_ir(source)
+        assert "def _main_():" in ir.cells[0].code
+
+    def test_single_line_guard(self) -> None:
+        source = 'if __name__ == "__main__": print("one-liner")\n'
+        ir = convert_non_marimo_python_script_to_notebook_ir(source)
+        code = ir.cells[0].code
+        assert code.startswith("def _main_():")
+        assert code.rstrip().endswith("_main_()")
+
+    def test_converted_output_is_valid_python(self) -> None:
+        import ast as ast_mod
+
+        for source in (
+            "GUARD = 'if __name__ == \"__main__\":'\nprint(GUARD)\n",
+            '# mentions if __name__ == "__main__": in a comment\nx = 1\n',
+            'if __name__ == "__main__":\n    print("run")\n',
+        ):
+            converted = MarimoConvert.from_non_marimo_python_script(
+                source, aggressive=False
+            ).to_py()
+            ast_mod.parse(converted)
+            assert "_unparsable_cell" not in converted
