@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import re
 from inspect import cleandoc
 from textwrap import dedent
 
@@ -1005,6 +1006,20 @@ def test_underscore_as_imports_are_cell_local() -> None:
             "    return _private.md('x')\n",
             {f"{prefix}private", "f"},
         ),
+        # `from x import y as _p` referenced in nested scopes (class base,
+        # decorator, function body) must mangle the references too, so the
+        # cell-local definition and its uses stay consistent.
+        (
+            "from a.b import c as _private\nclass C(_private.X):\n    pass\n",
+            {f"{prefix}private", "C"},
+        ),
+        (
+            "from a.b import c as _also_private\n"
+            "@_also_private.deco\n"
+            "def f(x):\n"
+            "    return _also_private.g(x)\n",
+            {f"{prefix}also_private", "f"},
+        ),
     ]
     for source, expected_defs in cases:
         v = visitor.ScopedVisitor(mangle_prefix="cell_test")
@@ -1015,6 +1030,54 @@ def test_underscore_as_imports_are_cell_local() -> None:
         # The alias is rewritten to its mangled, cell-local form.
         assert prefix in unparsed, (
             f"alias was not mangled in {source!r}: {unparsed!r}"
+        )
+        # No reference to the raw alias survives unmangled: every mangled
+        # def has its raw counterpart fully rewritten (def *and* uses).
+        for mangled in expected_defs:
+            if not mangled.startswith(prefix):
+                continue
+            raw = "_" + mangled[len(prefix) :]
+            assert re.search(rf"\b{re.escape(raw)}\b", unparsed) is None, (
+                f"raw alias {raw!r} leaked unmangled in {source!r}: "
+                f"{unparsed!r}"
+            )
+
+
+def test_no_alias_underscore_import_refs_not_mangled() -> None:
+    # Regression for #9151: a no-alias underscore import (e.g.
+    # `from pkg import _camera`) defines the *raw* name, because the user
+    # can't control the package's module name. References to it inside a
+    # nested scope (class base, decorator, function body) must therefore
+    # stay raw too, otherwise they resolve to an undefined mangled name
+    # (`NameError: name '_cell_<id>_camera' is not defined`).
+    prefix = "_cell_test_"
+    cases = [
+        # (source, expected_defs)
+        ("from a.b import _c", {"_c"}),
+        ("from a.b import _c, _d", {"_c", "_d"}),
+        ("import _foo", {"_foo"}),
+        (
+            "from a.b import _camera\nclass C(_camera.Observer):\n    pass\n",
+            {"_camera", "C"},
+        ),
+        (
+            "from a.b import _camera\n"
+            "@_camera.deco\n"
+            "def f(x):\n"
+            "    return _camera.g(x)\n",
+            {"_camera", "f"},
+        ),
+    ]
+    for source, expected_defs in cases:
+        v = visitor.ScopedVisitor(mangle_prefix="cell_test")
+        mod = ast.parse(source)
+        v.visit(mod)
+        assert v.defs == expected_defs, source
+        unparsed = ast.unparse(mod)
+        # The raw import name is never mangled, neither at the definition
+        # nor at any (possibly nested) reference.
+        assert prefix not in unparsed, (
+            f"no-alias import was mangled in {source!r}: {unparsed!r}"
         )
 
 

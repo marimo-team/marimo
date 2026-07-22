@@ -972,16 +972,21 @@ class ScopedVisitor(ast.NodeVisitor):
             )
             for block in reversed(self.block_stack):
                 if block == self.block_stack[0]:
-                    # At top-level scope: mangle only if the mangled name is
-                    # already defined. When called from a nested scope
-                    # (len > 1), also mangle even if the top-level block
-                    # doesn't define it yet — this handles recursive calls to
-                    # underscore-prefixed functions, where the function name
-                    # isn't registered in the top-level block until after its
-                    # body is visited.
-                    if (
-                        block.is_defined(mangled_name)
-                        or len(self.block_stack) > 1
+                    # A local (underscore-prefixed) reference resolves
+                    # against the top-level block. Leave it raw only when
+                    # the raw name is a top-level definition, which happens
+                    # solely for no-alias underscore imports (`from pkg
+                    # import _c` — the user has no control over the
+                    # package's symbol name, so it is deliberately not
+                    # mangled). Everything else is mangled: names whose
+                    # mangled def exists, forward references (e.g. the body
+                    # of a recursive underscore-prefixed function, visited
+                    # before its name is registered), and references to
+                    # names this cell never defines — the latter guarantees
+                    # one cell's raw import can never leak into another
+                    # cell through the shared globals.
+                    if block.is_defined(mangled_name) or not block.is_defined(
+                        node.id
                     ):
                         node.id = mangled_name
                 elif block.is_defined(node.id):

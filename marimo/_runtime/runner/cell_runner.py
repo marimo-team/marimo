@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import asyncio
 import io
 import traceback
@@ -8,7 +9,11 @@ from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
-from marimo._ast.variables import unmangle_local
+from marimo._ast.variables import (
+    if_local_then_mangle,
+    is_local,
+    unmangle_local,
+)
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -57,6 +62,31 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
+
+
+def _find_aliased_import(code: str, name: str) -> str | None:
+    """If `code` imports `name`, return that import re-aliased publicly.
+
+    Builds the suggestion statement for the cell-local NameError hint,
+    e.g. `from ibis import _` -> "from ibis import _ as lib". Returns
+    None when `code` doesn't parse or doesn't import `name`.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    alias_name = name.lstrip("_") or "lib"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if (alias.asname or alias.name) == name:
+                    module = "." * node.level + (node.module or "")
+                    return f"from {module} import {alias.name} as {alias_name}"
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if (alias.asname or alias.name.split(".")[0]) == name:
+                    return f"import {alias.name} as {alias_name}"
+    return None
 
 
 def _should_broadcast_data() -> bool:
@@ -358,6 +388,61 @@ class Runner:
                 # Default to regular error for self reference in relaxed
                 # mode.
                 exception = unwrapped_exception
+        elif (
+            isinstance(unwrapped_exception, NameError)
+            and (local_name := getattr(unwrapped_exception, "name", None))
+            is not None
+            and is_local(local_name)
+        ):
+            # A cell-local (underscore-prefixed) name that never resolved.
+            # Such names are not graph definitions, so the MissingRef path
+            # above cannot blame a cell; find one that defines it as a
+            # temporary — either raw (no-alias underscore imports, which
+            # are deliberately left unmangled) or mangled (every other
+            # private). The failing reference may itself be mangled
+            # (`_cell_<id>_x`); unmangle so the message and the search use
+            # the name the user wrote. Prefer an import definition for the
+            # blame: `_` in particular is commonly both an imported API
+            # (`from ibis import _`) and a throwaway assignment in
+            # unrelated cells.
+            local_name, _ = unmangle_local(local_name)
+            defining_cell: CellId_t | None = None
+            aliased_import: str | None = None
+            for cid, other in self.graph.cells.items():
+                if cid == cell_id:
+                    continue
+                if (
+                    local_name in other.temporaries
+                    or if_local_then_mangle(local_name, cid)
+                    in other.temporaries
+                ):
+                    stmt = _find_aliased_import(other.code, local_name)
+                    if defining_cell is None or stmt is not None:
+                        defining_cell = cid
+                        aliased_import = stmt
+                    if stmt is not None:
+                        break
+            if defining_cell is not None:
+                if aliased_import is not None:
+                    remedy = (
+                        "To use it across cells, alias the import to a "
+                        "name without a leading underscore: "
+                        f"`{aliased_import}`."
+                    )
+                else:
+                    remedy = (
+                        "To use it across cells, remove the leading "
+                        "underscore."
+                    )
+                output = MarimoExceptionRaisedError(
+                    f"Name `{local_name}` is not defined. Names prefixed "
+                    "with an underscore are local to the cell that "
+                    f"defines them. {remedy} `{local_name}` is defined "
+                    "as a cell-local name in ",
+                    "NameError",
+                    defining_cell,
+                )
+                exception = output
         # Handle other special runtime errors.
         elif isinstance(
             unwrapped_exception,
