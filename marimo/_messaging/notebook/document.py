@@ -149,19 +149,33 @@ class NotebookDocument:
     def apply(self, tx: Transaction) -> Transaction:
         """Validate and apply *tx*, return it with `version` assigned.
 
-        Raises `ValueError` for validation failures and `KeyError`
-        when a change references a non-existent cell.
+        Raises `ValueError` when a change has an invalid target, anchor,
+        or intra-transaction conflict.
         """
         if not tx.changes:
             return structs_replace(tx, version=self._version)
 
         _validate(tx.changes, self._cells)
 
+        staged = NotebookDocument(
+            [
+                structs_replace(
+                    cell,
+                    config=structs_replace(cell.config),
+                )
+                for cell in self._cells
+            ]
+        )
         for change in tx.changes:
-            self._apply_change(change)
+            staged._apply_change(change)
 
-        self._version += 1
-        return structs_replace(tx, version=self._version)
+        next_version = self._version + 1
+        applied = structs_replace(tx, version=next_version)
+
+        # Commit only after staging and result construction both succeed.
+        self._cells = staged._cells
+        self._version = next_version
+        return applied
 
     def _apply_change(self, change: DocumentChange) -> None:
         # TODO: refactor to use match/case (min Python is 3.10) once
@@ -322,22 +336,32 @@ def notebook_document_context(
 def _validate(
     changes: tuple[DocumentChange, ...], cells: list[NotebookCell]
 ) -> None:
-    """Check for conflicting changes. Raises `ValueError`."""
-    existing_ids = {c.id for c in cells}
-    created: set[CellId_t] = set()
+    """Check targets, anchors, and conflicts. Raises `ValueError`."""
+    live_ids = {cell.id for cell in cells}
+    # Claimed IDs are never released within a transaction, preserving the
+    # rule that delete + recreate cannot reuse an ID in the same batch.
+    claimed_ids = set(live_ids)
     deleted: set[CellId_t] = set()
     updated: set[CellId_t] = set()
     moved: set[CellId_t] = set()
 
     for change in changes:
         if isinstance(change, CreateCell):
-            if change.cell_id in existing_ids or change.cell_id in created:
+            if change.cell_id in claimed_ids:
                 raise ValueError(f"Cell {change.cell_id!r} already exists")
             if change.before is not None and change.after is not None:
                 raise ValueError(
                     "CreateCell cannot specify both 'before' and 'after'"
                 )
-            created.add(change.cell_id)
+            anchor = (
+                change.before if change.before is not None else change.after
+            )
+            if anchor is not None and anchor not in live_ids:
+                raise ValueError(
+                    f"CreateCell anchor {anchor!r} does not exist"
+                )
+            live_ids.add(change.cell_id)
+            claimed_ids.add(change.cell_id)
 
         elif isinstance(change, DeleteCell):
             if change.cell_id in deleted:
@@ -354,7 +378,10 @@ def _validate(
                     f"Cannot delete cell {change.cell_id!r} that is also "
                     f"moved in the same transaction"
                 )
+            if change.cell_id not in live_ids:
+                raise ValueError(f"Cell {change.cell_id!r} does not exist")
             deleted.add(change.cell_id)
+            live_ids.remove(change.cell_id)
 
         elif isinstance(change, MoveCell):
             if change.cell_id in deleted:
@@ -362,12 +389,23 @@ def _validate(
                     f"Cannot move cell {change.cell_id!r} that is also "
                     f"deleted in the same transaction"
                 )
+            if change.cell_id not in live_ids:
+                raise ValueError(f"Cell {change.cell_id!r} does not exist")
             if change.before is not None and change.after is not None:
                 raise ValueError(
                     "MoveCell cannot specify both 'before' and 'after'"
                 )
-            if change.before is None and change.after is None:
+            anchor = (
+                change.before if change.before is not None else change.after
+            )
+            if anchor is None:
                 raise ValueError("MoveCell requires 'before' or 'after'")
+            if anchor == change.cell_id:
+                raise ValueError(
+                    f"MoveCell cannot anchor cell {change.cell_id!r} to itself"
+                )
+            if anchor not in live_ids:
+                raise ValueError(f"MoveCell anchor {anchor!r} does not exist")
             moved.add(change.cell_id)
 
         elif isinstance(change, ReorderCells):
@@ -379,6 +417,8 @@ def _validate(
                     f"Cannot update cell {change.cell_id!r} that is also "
                     f"deleted in the same transaction"
                 )
+            if change.cell_id not in live_ids:
+                raise ValueError(f"Cell {change.cell_id!r} does not exist")
             updated.add(change.cell_id)
 
         else:

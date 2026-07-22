@@ -42,6 +42,23 @@ def _ids(doc: NotebookDocument) -> list[str]:
     return [str(cid) for cid in doc.cell_ids]
 
 
+def _state(
+    doc: NotebookDocument,
+) -> list[tuple[CellId_t, str, str, int | None, bool, bool, int]]:
+    return [
+        (
+            cell.id,
+            cell.code,
+            cell.name,
+            cell.config.column,
+            cell.config.disabled,
+            cell.config.hide_code,
+            cell.version,
+        )
+        for cell in doc.cells
+    ]
+
+
 # ------------------------------------------------------------------
 # CreateCell
 # ------------------------------------------------------------------
@@ -148,6 +165,42 @@ class TestCreateCell:
         )
         assert _ids(doc) == snapshot(["a", "x", "y"])
 
+    def test_missing_after_anchor_raises(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(
+            ValueError,
+            match="CreateCell anchor 'missing' does not exist",
+        ):
+            doc.apply(
+                _tx(
+                    CreateCell(
+                        cell_id=CellId_t("new"),
+                        code="x",
+                        name="__",
+                        config=CellConfig(),
+                        after=CellId_t("missing"),
+                    )
+                )
+            )
+
+    def test_missing_before_anchor_raises(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(
+            ValueError,
+            match="CreateCell anchor 'missing' does not exist",
+        ):
+            doc.apply(
+                _tx(
+                    CreateCell(
+                        cell_id=CellId_t("new"),
+                        code="x",
+                        name="__",
+                        config=CellConfig(),
+                        before=CellId_t("missing"),
+                    )
+                )
+            )
+
     def test_duplicate_id_raises(self) -> None:
         doc = _doc("a")
         with pytest.raises(ValueError, match="already exists"):
@@ -251,7 +304,7 @@ class TestDeleteCell:
 
     def test_delete_not_found(self) -> None:
         doc = _doc("a")
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="Cell 'missing' does not exist"):
             doc.apply(_tx(DeleteCell(cell_id=CellId_t("missing"))))
 
 
@@ -276,6 +329,66 @@ class TestMoveCell:
         with pytest.raises(ValueError, match="before.*after"):
             doc.apply(_tx(MoveCell(cell_id=CellId_t("a"))))
 
+    def test_missing_cell_raises(self) -> None:
+        doc = _doc("a")
+        with pytest.raises(ValueError, match="Cell 'missing' does not exist"):
+            doc.apply(
+                _tx(
+                    MoveCell(
+                        cell_id=CellId_t("missing"),
+                        after=CellId_t("a"),
+                    )
+                )
+            )
+
+    def test_missing_anchor_raises(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(
+            ValueError,
+            match="MoveCell anchor 'missing' does not exist",
+        ):
+            doc.apply(
+                _tx(
+                    MoveCell(
+                        cell_id=CellId_t("a"),
+                        after=CellId_t("missing"),
+                    )
+                )
+            )
+
+    def test_self_anchor_raises(self) -> None:
+        doc = _doc("a", "b")
+        with pytest.raises(
+            ValueError,
+            match="MoveCell cannot anchor cell 'a' to itself",
+        ):
+            doc.apply(
+                _tx(
+                    MoveCell(
+                        cell_id=CellId_t("a"),
+                        after=CellId_t("a"),
+                    )
+                )
+            )
+
+    def test_anchor_created_earlier_in_batch(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(
+            _tx(
+                CreateCell(
+                    cell_id=CellId_t("new"),
+                    code="x",
+                    name="__",
+                    config=CellConfig(),
+                ),
+                MoveCell(
+                    cell_id=CellId_t("a"),
+                    after=CellId_t("new"),
+                ),
+            )
+        )
+        assert _ids(doc) == snapshot(["b", "new", "a"])
+
 
 # ------------------------------------------------------------------
 # SetCode
@@ -291,7 +404,7 @@ class TestSetCode:
 
     def test_not_found(self) -> None:
         doc = _doc("a")
-        with pytest.raises(KeyError):
+        with pytest.raises(ValueError, match="Cell 'missing' does not exist"):
             doc.apply(_tx(SetCode(cell_id=CellId_t("missing"), code="x")))
 
 
@@ -520,6 +633,80 @@ class TestValidation:
             )
         )
         assert _ids(doc) == snapshot(["a", "new"])
+
+
+# ------------------------------------------------------------------
+# Atomicity
+# ------------------------------------------------------------------
+
+
+class TestAtomicity:
+    def test_invalid_late_anchor_does_not_mutate_document(self) -> None:
+        doc = _doc("a", "b")
+        doc.apply(_tx(SetCode(cell_id=CellId_t("a"), code="original")))
+        before_state = _state(doc)
+        before_version = doc.version
+
+        with pytest.raises(
+            ValueError,
+            match="MoveCell anchor 'missing' does not exist",
+        ):
+            doc.apply(
+                _tx(
+                    SetName(cell_id=CellId_t("a"), name="renamed"),
+                    CreateCell(
+                        cell_id=CellId_t("new"),
+                        code="new code",
+                        name="__",
+                        config=CellConfig(disabled=True),
+                    ),
+                    MoveCell(
+                        cell_id=CellId_t("b"),
+                        after=CellId_t("missing"),
+                    ),
+                )
+            )
+
+        assert _state(doc) == before_state
+        assert doc.version == before_version
+
+    def test_unexpected_apply_failure_does_not_mutate_document(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        doc = _doc("a", "b")
+        before_state = _state(doc)
+        before_version = doc.version
+        original_apply_change = NotebookDocument._apply_change
+        applied_changes = 0
+
+        def fail_after_second_change(
+            staged: NotebookDocument, change: DocumentChange
+        ) -> None:
+            nonlocal applied_changes
+            original_apply_change(staged, change)
+            applied_changes += 1
+            if applied_changes == 2:
+                raise RuntimeError("injected apply failure")
+
+        monkeypatch.setattr(
+            NotebookDocument, "_apply_change", fail_after_second_change
+        )
+
+        with pytest.raises(RuntimeError, match="injected apply failure"):
+            doc.apply(
+                _tx(
+                    SetName(cell_id=CellId_t("a"), name="renamed"),
+                    CreateCell(
+                        cell_id=CellId_t("new"),
+                        code="new code",
+                        name="__",
+                        config=CellConfig(disabled=True),
+                    ),
+                )
+            )
+
+        assert _state(doc) == before_state
+        assert doc.version == before_version
 
 
 # ------------------------------------------------------------------
