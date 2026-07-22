@@ -125,8 +125,8 @@ augmented_df = df
 augmented_df["another_column"] = [3, 4]
 ```
 
-To learn how to write Pandas/Polars code in a functional style, 
-which is more amenable to marimo's execution model, check out 
+To learn how to write Pandas/Polars code in a functional style,
+which is more amenable to marimo's execution model, check out
 [this YouTube video](https://youtu.be/J0PJpdU7c4g).
 
 ## marimo's file format
@@ -136,12 +136,26 @@ with git, [execute them as scripts](../scripts.md), and import named
 cells into other Python files. However, it does mean that your notebook outputs
 (e.g., plots) are not stored in the file.
 
-If you'd like to keep a visual record of your notebook work, [enable
-the "Auto-download as HTML/IPYNB" setting](../configuration/index.md), which will
-periodically snapshot your notebook as HTML or IPYNB to a `__marimo__` folder in the
-notebook directory.
+### Store notebook outputs
 
-### Converting Jupyter notebooks to marimo notebooks
+To keep a visual record of your notebook work, [enable
+the "Auto-download as HTML/IPYNB" setting](../configuration/index.md), which will
+periodically snapshot your notebook as HTML or ipynb to a `__marimo__` folder
+in the notebook directory. You can also export to ipynb from marimo's CLI,
+using the `marimo export` command.
+
+### Preview notebook outputs on GitHub
+
+Check-in exported ipynb files to version control to view notebook outputs on GitHub.
+
+You can also install the marimo glance
+[Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg)
+or [FireFox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/)
+extensions to render live interactive previews of notebooks on GitHub, which
+can work well for inexpensive and self-contained notebooks. (The extension renders notebooks
+[with WebAssembly](../wasm.md), so not all notebooks will work.)
+
+### Convert Jupyter notebooks to marimo notebooks
 
 Convert Jupyter notebooks to marimo notebooks at the command-line:
 
@@ -149,7 +163,7 @@ Convert Jupyter notebooks to marimo notebooks at the command-line:
 marimo convert your_notebook.ipynb -o your_notebook.py
 ```
 
-### Converting Python scripts to marimo notebooks
+### Convert Python scripts to marimo notebooks
 
 marimo can also convert regular Python scripts to marimo notebooks:
 
@@ -167,7 +181,7 @@ For py:percent conversion with uv:
 uvx --with=jupytext marimo convert your_script.py -o your_notebook.py
 ```
 
-### Exporting marimo notebooks to Jupyter notebooks
+### Export marimo notebooks to Jupyter notebooks
 
 Export to an `ipynb` file with
 

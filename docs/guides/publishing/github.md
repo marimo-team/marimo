@@ -68,6 +68,27 @@ right corner:
   <img src="/_static/docs-notebook-settings-snapshotting.jpg" alt="Notebook settings dialog showing the Exporting outputs section with HTML and ipynb checkboxes" style="max-width: 700px; width: 100%;" />
 </picture>
 
+## Render live previews of notebooks with our browser extension
+
+Install the marimo glance browser extension for [Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg) or
+[Firefox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/) to see
+live previews of notebooks on GitHub and GitLab. The extension detects marimo
+notebooks and adds a button to the bottom right of the page, that, with one
+click, replaces the raw Python file with an interactive notebook you can run,
+edit, and explore.
+
+marimo glance runs notebooks [with WebAssembly](../wasm.md), so not all notebooks will work.
+To run the notebook on a server, click "open in molab" in the bottom
+left of the notebook.
+
+**Your code stays local.** The notebook source is packed into the page URL’s
+fragment and handed straight to the in-browser WebAssembly runtime. Browsers
+never send that fragment to any server, so your code — private repositories
+included — is never uploaded by the extension. The one exception is if you
+deliberately choose “Open in molab” from inside the notebook, which sends your
+code to molab to run and share there.
+
+
 ## Publish to GitHub Pages
 
 > For a simpler solution, use [molab's built in GitHub previewer](../molab.md#mirror-notebooks-from-github)
