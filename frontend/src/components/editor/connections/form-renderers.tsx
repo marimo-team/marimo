@@ -1,20 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { KeyIcon, PlusCircleIcon } from "lucide-react";
-import { createContext, type ReactNode, use } from "react";
+import { createContext, type ReactNode, use, useMemo } from "react";
 import { z } from "zod";
 import type { FormRenderer } from "@/components/forms/form";
 import { FieldOptions } from "@/components/forms/options";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   FormControl,
   FormDescription,
@@ -23,18 +13,15 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { NumberField } from "@/components/ui/number-field";
 import { SECRETS_REGISTRY } from "@/core/secrets/request-registry";
 import { useAsyncData } from "@/hooks/useAsyncData";
-import { partition } from "@/utils/arrays";
-import { cn } from "@/utils/cn";
 import { Functions } from "@/utils/functions";
 import {
   sortProviders,
   WriteSecretModal,
 } from "../chrome/panels/write-secret-modal";
-import { displaySecret, isSecret, prefixSecret } from "./secrets";
+import { partitionSecretKeys, SecretCombobox } from "./secret-combobox";
+import { prefixSecret } from "./secrets";
 
 interface SecretsContextType {
   providerNames: string[];
@@ -77,25 +64,23 @@ export const SecretsProvider = ({ children }: SecretsProviderProps) => {
     };
   }, []);
 
-  return (
-    <SecretsContext
-      value={{
-        secretKeys: data?.secretKeys || [],
-        providerNames: data?.providerNames || [],
-        loading: isPending,
-        error,
-        refreshSecrets: reload,
-      }}
-    >
-      {children}
-    </SecretsContext>
+  const value = useMemo(
+    () => ({
+      secretKeys: data?.secretKeys || [],
+      providerNames: data?.providerNames || [],
+      loading: isPending,
+      error,
+      refreshSecrets: reload,
+    }),
+    [data?.secretKeys, data?.providerNames, isPending, error, reload],
   );
+
+  return <SecretsContext value={value}>{children}</SecretsContext>;
 };
 
-export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
-  isMatch: (schema: z.ZodType): schema is z.ZodString | z.ZodNumber => {
-    // string or number with optionsRegex
-    if (schema instanceof z.ZodString || schema instanceof z.ZodNumber) {
+export const ENV_RENDERER: FormRenderer<z.ZodString> = {
+  isMatch: (schema: z.ZodType): schema is z.ZodString => {
+    if (schema instanceof z.ZodString) {
       const { optionRegex } = FieldOptions.parse(schema.description || "");
       return Boolean(optionRegex);
     }
@@ -109,12 +94,13 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
     const {
       label,
       description,
+      placeholder,
       optionRegex = "",
+      inputType,
     } = FieldOptions.parse(schema.description || "");
 
-    const [recommendedKeys, otherKeys] = partition(secretKeys, (key) =>
-      new RegExp(optionRegex, "i").test(key),
-    );
+    const secretsOnly = inputType === "password";
+    const { recommended, other } = partitionSecretKeys(secretKeys, optionRegex);
 
     return (
       <FormField
@@ -125,82 +111,28 @@ export const ENV_RENDERER: FormRenderer<z.ZodString | z.ZodNumber> = {
             <FormLabel>{label}</FormLabel>
             <FormDescription>{description}</FormDescription>
             <FormControl>
-              <div className="flex gap-2">
-                {schema instanceof z.ZodString ? (
-                  <Input
-                    {...field}
-                    value={displaySecret(field.value as string)}
-                    onChange={field.onChange}
-                    className={cn("flex-1")}
-                  />
-                ) : (
-                  <NumberField
-                    {...field}
-                    value={field.value as number}
-                    onChange={field.onChange}
-                    className="flex-1"
-                  />
-                )}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild={true}>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className={cn(
-                        isSecret(field.value as string) && "bg-accent",
-                      )}
-                    >
-                      <KeyIcon className="h-3 w-3" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent
-                    align="end"
-                    className="max-h-60 overflow-y-auto"
-                  >
-                    <DropdownMenuItem
-                      onSelect={() => {
-                        openModal(
-                          <WriteSecretModal
-                            providerNames={providerNames}
-                            onSuccess={(secretKey) => {
-                              refreshSecrets();
-                              field.onChange(prefixSecret(secretKey));
-                              closeModal();
-                            }}
-                            onClose={closeModal}
-                          />,
-                        );
+              <SecretCombobox
+                value={field.value ? String(field.value) : ""}
+                onChange={field.onChange}
+                placeholder={placeholder}
+                secretsOnly={secretsOnly}
+                recommendedKeys={recommended}
+                otherKeys={other}
+                onCreateSecret={(suggestedValue) => {
+                  openModal(
+                    <WriteSecretModal
+                      providerNames={providerNames}
+                      initialValue={suggestedValue}
+                      onSuccess={(secretKey) => {
+                        refreshSecrets();
+                        field.onChange(prefixSecret(secretKey));
+                        closeModal();
                       }}
-                    >
-                      <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
-                      Create a new secret
-                    </DropdownMenuItem>
-                    {recommendedKeys.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuLabel>Recommended</DropdownMenuLabel>
-                      </>
-                    )}
-                    {recommendedKeys.map((key) => (
-                      <DropdownMenuItem
-                        key={key}
-                        onSelect={() => field.onChange(prefixSecret(key))}
-                      >
-                        {displaySecret(key)}
-                      </DropdownMenuItem>
-                    ))}
-                    {otherKeys.length > 0 && <DropdownMenuSeparator />}
-                    {otherKeys.map((key) => (
-                      <DropdownMenuItem
-                        key={key}
-                        onSelect={() => field.onChange(prefixSecret(key))}
-                      >
-                        {displaySecret(key)}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                      onClose={closeModal}
+                    />,
+                  );
+                }}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>

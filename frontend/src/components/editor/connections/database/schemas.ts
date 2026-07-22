@@ -10,8 +10,7 @@ function passwordField() {
       FieldOptions.of({
         label: "Password",
         inputType: "password",
-        placeholder: "password",
-        optionRegex: ".*password.*",
+        optionRegex: "(password|passwd|pgpassword|db.?pass(word)?)",
       }),
     );
 }
@@ -24,8 +23,7 @@ function tokenField(label?: string, required?: boolean) {
     FieldOptions.of({
       label: label || "Token",
       inputType: "password",
-      placeholder: "token",
-      optionRegex: ".*token.*",
+      optionRegex: "(token|api.?key|access.?token|auth.?token|(^|_)pat(_|$))",
     }),
   );
   return field;
@@ -38,8 +36,7 @@ function warehouseNameField() {
     .describe(
       FieldOptions.of({
         label: "Warehouse Name",
-        placeholder: "warehouse",
-        optionRegex: ".*warehouse.*",
+        optionRegex: "(warehouse|snowflake.?warehouse)",
       }),
     );
 }
@@ -49,7 +46,10 @@ function uriField(label?: string, required?: boolean) {
   field = required ? field.nonempty() : field.optional();
 
   return field.describe(
-    FieldOptions.of({ label: label || "URI", optionRegex: ".*uri.*" }),
+    FieldOptions.of({
+      label: label || "URI",
+      optionRegex: "(uri|url|connection.?string|database.?url|jdbc)",
+    }),
   );
 }
 
@@ -60,8 +60,9 @@ function hostField(label?: string) {
     .describe(
       FieldOptions.of({
         label: label || "Host",
-        placeholder: "localhost",
-        optionRegex: ".*host.*",
+        // Exclude kubernetes/system host vars that match a naive "host" search.
+        optionRegex:
+          "^(?!.*(kubernetes|gpg)).*(host(name)?|pghost|db.?host|database.?host|mysql.?host|postgres.?host|server.?host)",
       }),
     );
 }
@@ -70,8 +71,7 @@ function databaseField() {
   return z.string().describe(
     FieldOptions.of({
       label: "Database",
-      placeholder: "db name",
-      optionRegex: ".*database.*",
+      optionRegex: "(database|db.?name|pgdatabase|^DB$|^DATABASE$)",
     }),
   );
 }
@@ -80,8 +80,7 @@ function schemaField() {
   return z.string().describe(
     FieldOptions.of({
       label: "Schema",
-      placeholder: "schema name",
-      optionRegex: ".*schema.*",
+      optionRegex: "(^SCHEMA$|db.?schema|postgres.?schema|pg.?schema|_SCHEMA$)",
     }),
   );
 }
@@ -93,8 +92,7 @@ function usernameField() {
     .describe(
       FieldOptions.of({
         label: "Username",
-        placeholder: "username",
-        optionRegex: ".*username.*",
+        optionRegex: "(username|pguser|db.?user|^USER$|_USER$)",
       }),
     );
 }
@@ -196,7 +194,7 @@ export const SnowflakeConnectionSchema = z
       .describe(
         FieldOptions.of({
           label: "Account",
-          optionRegex: ".*snowflake.*",
+          optionRegex: "(snowflake.?account|^SNOWFLAKE_ACCOUNT$|account.?id)",
         }),
       ),
     warehouse: z
@@ -205,7 +203,7 @@ export const SnowflakeConnectionSchema = z
       .describe(
         FieldOptions.of({
           label: "Warehouse",
-          optionRegex: ".*snowflake.*",
+          optionRegex: "(snowflake.?warehouse|warehouse)",
         }),
       ),
     database: databaseField(),
@@ -215,7 +213,7 @@ export const SnowflakeConnectionSchema = z
       .describe(
         FieldOptions.of({
           label: "Schema",
-          optionRegex: ".*snowflake.*",
+          optionRegex: "(snowflake.?schema|^SCHEMA$|_SCHEMA$)",
         }),
       ),
     role: z
@@ -256,7 +254,8 @@ export const SnowflakeConnectionSchema = z
               FieldOptions.of({
                 label: "Private Key Passphrase",
                 inputType: "password",
-                optionRegex: ".*passphrase.*",
+                optionRegex:
+                  "(passphrase|private.?key.?passphrase|key.?passphrase)",
               }),
             ),
         }),
@@ -283,7 +282,8 @@ export const BigQueryConnectionSchema = z
       .describe(
         FieldOptions.of({
           label: "Project ID",
-          optionRegex: ".*bigquery.*",
+          optionRegex:
+            "(bigquery.?project|gcp.?project|google.?cloud.?project|project.?id)",
         }),
       ),
     dataset: z
@@ -292,7 +292,7 @@ export const BigQueryConnectionSchema = z
       .describe(
         FieldOptions.of({
           label: "Dataset",
-          optionRegex: ".*bigquery.*",
+          optionRegex: "(bigquery.?dataset|dataset)",
         }),
       ),
     credentials_json: z
@@ -377,7 +377,7 @@ export const IcebergConnectionSchema = z.object({
             FieldOptions.of({
               label: "URI",
               placeholder: "https://",
-              optionRegex: ".*uri.*",
+              optionRegex: "(uri|url|connection.?string|database.?url|jdbc)",
             }),
           ),
         token: tokenField(),
@@ -392,7 +392,7 @@ export const IcebergConnectionSchema = z.object({
             FieldOptions.of({
               label: "URI",
               placeholder: "jdbc:iceberg://host:port/database",
-              optionRegex: ".*uri.*",
+              optionRegex: "(uri|url|connection.?string|database.?url|jdbc)",
             }),
           ),
       }),
@@ -419,7 +419,13 @@ export const IcebergConnectionSchema = z.object({
         "dynamodb.access-key-id": z
           .string()
           .optional()
-          .describe(FieldOptions.of({ label: "Access Key ID" })),
+          .describe(
+            FieldOptions.of({
+              label: "Access Key ID",
+              inputType: "password",
+              optionRegex: "(access.?key.?id|aws.?access.?key)",
+            }),
+          ),
         "dynamodb.secret-access-key": z
           .string()
           .optional()
@@ -427,6 +433,7 @@ export const IcebergConnectionSchema = z.object({
             FieldOptions.of({
               label: "Secret Access Key",
               inputType: "password",
+              optionRegex: "(secret.?access.?key|aws.?secret)",
             }),
           ),
         "dynamodb.session-token": z
@@ -436,6 +443,7 @@ export const IcebergConnectionSchema = z.object({
             FieldOptions.of({
               label: "Session Token",
               inputType: "password",
+              optionRegex: "(session.?token|aws.?session)",
             }),
           ),
       }),
@@ -484,7 +492,7 @@ export const RedshiftConnectionSchema = z
               FieldOptions.of({
                 label: "AWS Access Key ID",
                 inputType: "password",
-                optionRegex: ".*aws_access_key_id.*",
+                optionRegex: "(access.?key.?id|aws.?access.?key)",
               }),
             ),
           aws_secret_access_key: z
@@ -494,7 +502,7 @@ export const RedshiftConnectionSchema = z
               FieldOptions.of({
                 label: "AWS Secret Access Key",
                 inputType: "password",
-                optionRegex: ".*aws_secret_access_key.*",
+                optionRegex: "(secret.?access.?key|aws.?secret)",
               }),
             ),
           aws_session_token: z
@@ -504,7 +512,7 @@ export const RedshiftConnectionSchema = z
               FieldOptions.of({
                 label: "AWS Session Token",
                 inputType: "password",
-                optionRegex: ".*aws_session_token.*",
+                optionRegex: "(session.?token|aws.?session)",
               }),
             ),
         }),

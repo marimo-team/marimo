@@ -43,10 +43,11 @@ export const WriteSecretModal: React.FC<{
   providerNames: string[];
   onClose: () => void;
   onSuccess: (secretName: string) => void;
-}> = ({ providerNames, onClose, onSuccess }) => {
+  initialValue?: string;
+}> = ({ providerNames, onClose, onSuccess, initialValue }) => {
   const { writeSecret } = useRequestClient();
   const [key, setKey] = React.useState("");
-  const [value, setValue] = React.useState("");
+  const [value, setValue] = React.useState(initialValue || "");
   const [location, setLocation] = React.useState<string | undefined>(
     providerNames[0],
   );
