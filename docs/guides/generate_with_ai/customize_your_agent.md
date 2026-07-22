@@ -56,83 +56,19 @@ agent to a live notebook session.
 
 ### Write your own skills
 
-You can also define your own skills and let your agent use them when it
-thinks they're relevant. Store them in the `.agents/skills/` folder of your
-project, or in the `~/.agents/skills/` personal folder — a convention shared
-by many agents. Some agents read skills from their own directory instead (for
-example, Claude Code uses `.claude/skills/`); the [skills CLI](https://skills.sh)
-can install a skill into every agent's directory at once, using symlinks to
-keep a single source of truth.
+Skills are also worth writing yourself, to encode conventions the official
+collection can't know about such as an opinionated house plotting style, how to use internal data libraries,
+or preferred widget patterns. A skill is just a folder containing a `SKILL.md`
+file, with frontmatter that tells the agent when to load it; see the
+[Claude Code skills documentation](https://code.claude.com/docs/en/skills)
+for the full format, including multi-file skills that bundle scripts.
 
-As an example, here is a skill for generating
-[anywidget](../../api/inputs/anywidget.md#building-custom-ui-elements)
-components. Because anywidget is a fairly recent project, LLMs have been known
-to hallucinate when you try to generate custom widgets from scratch. This
-skill contains an example that helps prevent this behaviour and it also points
-out common failure scenarios that the LLM should avoid.
-
-```md
----
-name: anywidget-generator
-description: Generate anywidget components for marimo notebooks.
----
-
-When writing an anywidget use vanilla javascript in `_esm` and do not forget about `_css`. The css should look bespoke in light mode and dark mode. Keep the css small unless explicitly asked to go the extra mile. When you display the widget it must be wrapped via `widget = mo.ui.anywidget(OriginalAnywidget())`.
-
-<example title="Example anywidget implementation">
-import anywidget
-import traitlets
-
-
-class CounterWidget(anywidget.AnyWidget):
-    _esm = """
-    // Define the main render function
-    function render({ model, el }) {
-      let count = () => model.get("number");
-      let btn = document.createElement("button");
-      btn.innerHTML = `count is ${count()}`;
-      btn.addEventListener("click", () => {
-        model.set("number", count() + 1);
-        model.save_changes();
-      });
-      model.on("change:number", () => {
-        btn.innerHTML = `count is ${count()}`;
-      });
-      el.appendChild(btn);
-    }
-    // Important! We must export at the bottom here!
-    export default { render };
-    """
-    _css = """button{
-      font-size: 14px;
-    }"""
-    number = traitlets.Int(0).tag(sync=True)
-
-widget = mo.ui.anywidget(CounterWidget())
-widget
-
-# Grabbing the widget from another cell, `.value` is a dictionary.
-print(widget.value["number"])
-</example>
-
-When sharing the anywidget, keep the example minimal. No need to combine it with marimo ui elements unless explicitly stated to do so.
-```
-
-You would store this file in a path like
-`~/.agents/skills/anywidget-generator/SKILL.md`. The frontmatter gives the LLM
-just enough context to know when to trigger it and will only read the full
-prompt when it's needed.
-
-You can also choose to expand these skills by referring to a script that it
-can run; to learn more about that check the [multi-file documentation](https://code.claude.com/docs/en/skills#example:-multi-file-skill-structure).
-
-!!! tip "Reusing prompts in the marimo editor"
-
-    Instructions like the anywidget skill above also work with the marimo
-    editor's AI assistant: paste them into your
-    [custom rules](../editor_features/ai_completion.md#custom-rules), or start
-    a conversation with them. Be mindful that custom rules make every call to
-    the LLM more expensive because you're feeding it more tokens.
+Store your skills in the `.agents/skills/` folder of your project, or in
+`~/.agents/skills/` for personal skills — a convention shared by many agents.
+Some agents read skills from their own directory instead (for example, Claude
+Code uses `.claude/skills/`); the [skills CLI](https://skills.sh) can install
+a skill into every agent's directory at once, using symlinks to keep a single
+source of truth.
 
 ## Slash commands
 
