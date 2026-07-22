@@ -29,14 +29,18 @@ import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { CSSClasses, KnownQueryParams } from "@/core/constants";
-import type { MarimoError, OutputMessage } from "@/core/kernel/messages";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { kernelStateAtom } from "@/core/kernel/state";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
-import { isErrorMime } from "@/core/mime";
+import {
+  publishedCellClasses,
+  shouldHidePublishedCell,
+} from "@/core/cells/utils";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig } from "@/core/network/types";
@@ -361,12 +365,13 @@ const VerticalCell = memo(
     const className = cn(
       "marimo-cell",
       "hover-actions-parent empty:invisible",
-      {
-        published: published,
-        "has-error": errored,
-        stopped: stopped,
-        borderless: isPureMarkdown && !published,
-      },
+      published
+        ? publishedCellClasses({ errored, stopped })
+        : {
+            "has-error": errored,
+            stopped: stopped,
+            borderless: isPureMarkdown,
+          },
     );
 
     // Read mode and show code
@@ -384,6 +389,8 @@ const VerticalCell = memo(
 
       // Hide the code if it's pure markdown and there's an output, or if the code is empty
       const hideCode = shouldHideCode(code, output);
+      // Only unwrap SQL when the code will actually be rendered.
+      const display = hideCode ? null : getReadonlyCodeDisplay(code);
 
       return (
         <div
@@ -393,11 +400,12 @@ const VerticalCell = memo(
           {...cellDomProps(cellId, name)}
         >
           {cellOutputArea === "above" && outputArea}
-          {!hideCode && (
+          {display && (
             <div className="tray">
               <ReadonlyCode
-                initiallyHideCode={config.hide_code || kiosk}
-                code={code}
+                initiallyHideCode={config.hide_code}
+                code={display.code}
+                language={display.language}
               />
             </div>
           )}
@@ -415,19 +423,15 @@ const VerticalCell = memo(
       );
     }
 
-    const outputIsError = isErrorMime(output?.mimetype);
     // When show_tracebacks is enabled, show error outputs inline
     // instead of hiding them
-    const hasTraceback =
-      showErrorTracebacks &&
-      outputIsError &&
-      Array.isArray(output?.data) &&
-      output.data.some(
-        (e: MarimoError) =>
-          e.type === "exception" && "traceback" in e && e.traceback,
-      );
-    const hidden =
-      (errored || interrupted || stopped || outputIsError) && !hasTraceback;
+    const hidden = shouldHidePublishedCell({
+      errored,
+      interrupted,
+      stopped,
+      output,
+      showErrorTracebacks,
+    });
     if (hidden) {
       return null;
     }

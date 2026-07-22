@@ -57,6 +57,20 @@ def test_package_to_module() -> None:
     assert mgr.package_to_module("scikit-learn") == "sklearn"
 
 
+def test_package_to_module_is_normalized() -> None:
+    # PyPI package names are case-insensitive and treat runs of `-`, `_`, `.`
+    # as equivalent (PEP 503). uv normalizes names when it writes them into a
+    # notebook's script metadata (e.g. `Pillow` -> `pillow`), so the reverse
+    # mapping must still resolve them back to the correct module.
+    # Regression test for https://github.com/marimo-team/marimo/issues/9801
+    mgr = PipPackageManager()
+    assert mgr.package_to_module("Pillow") == "PIL"
+    assert mgr.package_to_module("pillow") == "PIL"
+    assert mgr.package_to_module("scikit-learn") == "sklearn"
+    assert mgr.package_to_module("Scikit-Learn") == "sklearn"
+    assert mgr.package_to_module("scikit_learn") == "sklearn"
+
+
 async def test_failed_install_returns_false() -> None:
     mgr = PipPackageManager()
     # almost surely does not exist

@@ -1,70 +1,96 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Completion } from "@codemirror/autocomplete";
-import { cellErrorsAtom } from "@/core/cells/cells";
-import type { CellId } from "@/core/cells/ids";
-import type { MarimoError } from "@/core/kernel/messages";
+import {
+  type CellErrorEntry,
+  describeError,
+  formatSingleError,
+  getCellErrorEntries,
+} from "@/core/errors/error-entries";
 import type { JotaiStore } from "@/core/state/jotai";
-import { logNever } from "@/utils/assertNever";
+import { parseHtmlContent } from "@/utils/dom";
 import { PluralWord } from "@/utils/pluralize";
 import { type AIContextItem, AIContextProvider } from "../registry";
 import { contextToXml } from "../utils";
 import { Sections } from "./common";
+import { formatDatasourceContextForCell } from "./datasource";
+
+export type ErrorContextItemData =
+  | {
+      type: "all-errors";
+      errors: CellErrorEntry[];
+    }
+  | {
+      type: "cell-error";
+      error: CellErrorEntry;
+    };
 
 export interface ErrorContextItem extends AIContextItem {
   type: "error";
-  data: {
-    type: "all-errors";
-    errors: {
-      cellId: CellId;
-      cellName: string;
-      errorData: MarimoError[];
-    }[];
-  };
+  data: ErrorContextItemData;
 }
 
-function describeError(error: MarimoError): string {
-  if (error.type === "setup-refs") {
-    return "The setup cell cannot have references";
+function formatCellErrorDetails(
+  entry: CellErrorEntry,
+  store: JotaiStore,
+): string {
+  const parts: string[] = [`Code:\n${entry.cellCode}`];
+
+  if (entry.tracebackHtml) {
+    parts.push(`Traceback:\n${parseHtmlContent(entry.tracebackHtml)}`);
   }
-  if (error.type === "cycle") {
-    return "This cell is in a cycle";
+
+  if (entry.errorData.length > 0) {
+    parts.push(
+      entry.errorData.map((error) => formatSingleError(error)).join("\n\n"),
+    );
   }
-  if (error.type === "multiple-defs") {
-    return `The variable '${error.name}' was defined by another cell`;
+
+  if (entry.errorData.some((error) => error.type === "sql-error")) {
+    const datasourceContext = formatDatasourceContextForCell(
+      entry.cellId,
+      store,
+    );
+    if (datasourceContext) {
+      parts.push(`Database schema:\n${datasourceContext}`);
+    }
   }
-  if (error.type === "import-star") {
-    return error.msg;
+
+  return parts.join("\n\n");
+}
+
+function formatCellErrorXml(entry: CellErrorEntry, store: JotaiStore): string {
+  return contextToXml({
+    type: "error",
+    data: {
+      name: entry.cellName || `Cell ${entry.cellId}`,
+      cellId: entry.cellId,
+    },
+    details: formatCellErrorDetails(entry, store),
+  });
+}
+
+function summarizeCellError(entry: CellErrorEntry): string {
+  if (entry.errorData.length === 1) {
+    return describeError(entry.errorData[0]);
   }
-  if (error.type === "ancestor-stopped") {
-    return error.msg;
+  if (entry.errorData.length > 1) {
+    return `${entry.errorData.length} errors`;
   }
-  if (error.type === "ancestor-prevented") {
-    return error.msg;
+  if (entry.tracebackHtml) {
+    const text = parseHtmlContent(entry.tracebackHtml).trim();
+    const firstLine = text
+      .split("\n")
+      .find((line) => line.trim())
+      ?.trim();
+    return firstLine || "traceback";
   }
-  if (error.type === "exception") {
-    return error.msg;
-  }
-  if (error.type === "strict-exception") {
-    return error.msg;
-  }
-  if (error.type === "interruption") {
-    return "This cell was interrupted and needs to be re-run";
-  }
-  if (error.type === "syntax") {
-    return error.msg;
-  }
-  if (error.type === "unknown") {
-    return error.msg;
-  }
-  if (error.type === "sql-error") {
-    return error.msg;
-  }
-  if (error.type === "internal") {
-    return error.msg || "An internal error occurred";
-  }
-  logNever(error);
-  return "Unknown error";
+  return "error";
+}
+
+function errorContextName(entry: CellErrorEntry): string {
+  const cellName = entry.cellName || `Cell ${entry.cellId}`;
+  return `Error: ${cellName}`;
 }
 
 const errorsTxt = new PluralWord("error", "errors");
@@ -80,39 +106,50 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
   }
 
   getItems(): ErrorContextItem[] {
-    const errors = this.store.get(cellErrorsAtom);
+    const errors = getCellErrorEntries(this.store);
+
     if (errors.length === 0) {
       return [];
     }
 
-    return [
+    const items: ErrorContextItem[] = [
       {
         uri: this.asURI("all"),
         name: "Errors",
         type: this.contextType,
         data: {
           type: "all-errors",
-          errors: errors.map((error) => ({
-            cellId: error.cellId,
-            cellName: error.cellName,
-            errorData: error.output.data,
-          })),
+          errors,
         },
         description: "All errors in the notebook",
       },
     ];
 
-    // TODO: maybe handle single errors or grouped by types
+    for (const error of errors) {
+      items.push({
+        uri: this.asURI(error.cellId),
+        name: errorContextName(error),
+        type: this.contextType,
+        data: {
+          type: "cell-error",
+          error,
+        },
+        description: summarizeCellError(error),
+      });
+    }
+
+    return items;
   }
 
   formatCompletion(item: ErrorContextItem): Completion {
     if (item.data.type === "all-errors") {
+      const errorCount = item.data.errors.length;
       return {
         label: "@Errors",
         displayLabel: "Errors",
-        detail: `${item.data.errors.length} ${errorsTxt.pluralize(item.data.errors.length)}`,
+        detail: `${errorCount} ${errorsTxt.pluralize(errorCount)}`,
         type: "error",
-        apply: "@Errors",
+        apply: "@error://all",
         section: Sections.ERROR,
         info: () => {
           const infoContainer = document.createElement("div");
@@ -136,13 +173,24 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
 
           const descriptionDiv = document.createElement("div");
           descriptionDiv.classList.add("text-sm", "text-muted-foreground");
-          descriptionDiv.textContent = `${item.data.errors.length} ${errorsTxt.pluralize(item.data.errors.length)}`;
+          descriptionDiv.textContent = `${errorCount} ${errorsTxt.pluralize(errorCount)}`;
           headerDiv.append(descriptionDiv);
 
           infoContainer.append(headerDiv);
 
           return infoContainer;
         },
+      };
+    }
+
+    if (item.data.type === "cell-error") {
+      const { error } = item.data;
+      return {
+        ...this.createBasicCompletion(item, {
+          detail: summarizeCellError(error),
+          type: "error",
+        }),
+        section: Sections.ERROR,
       };
     }
 
@@ -154,21 +202,11 @@ export class ErrorContextProvider extends AIContextProvider<ErrorContextItem> {
   }
 
   formatContext(item: ErrorContextItem): string {
-    const { data } = item;
+    const entries =
+      item.data.type === "all-errors" ? item.data.errors : [item.data.error];
 
-    const xmls = data.errors.map((err) => {
-      return contextToXml({
-        type: this.contextType,
-        data: {
-          name: err.cellName || `Cell ${err.cellId}`,
-          description: err.errorData
-            .map((err) => describeError(err))
-            .join("\n"),
-        },
-      });
-    });
-
-    const xml = xmls.join("\n\n");
-    return xml;
+    return entries
+      .map((entry) => formatCellErrorXml(entry, this.store))
+      .join("\n\n");
   }
 }

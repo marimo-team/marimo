@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from marimo._ast.variables import is_mangled_local
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.cell_output import CellChannel
@@ -329,26 +330,6 @@ class TestExecution:
 
         # Make sure the array and its child are updated
         assert k.globals["state"] == 5
-
-    async def test_set_local_var_ui_element_value(
-        self, any_kernel: Kernel
-    ) -> None:
-        k = any_kernel
-        await k.run([ExecuteCellCommand("0", "import marimo as mo")])
-        await k.run(
-            [ExecuteCellCommand("1", "_s = mo.ui.slider(0, 10, value=1); _s")]
-        )
-        # _s's name is mangled to _cell_1_s because it is local
-        assert k.globals["_cell_1_s"].value == 1
-
-        element_id = k.globals["_cell_1_s"]._id
-        # This shouldn't crash the kernel, and s's value should still be
-        # updated
-        await k.set_ui_element_value(
-            UpdateUIElementCommand.from_ids_and_values([(element_id, 5)]),
-            notify_frontend=False,
-        )
-        assert k.globals["_cell_1_s"].value == 5
 
     async def test_creation_with_ui_element_value(
         self, any_kernel: Kernel
@@ -1880,9 +1861,71 @@ except NameError:
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         await k.run([er := exec_req.get("_x = 1")])
-        assert k.globals[f"_cell_{er.cell_id}_x"] == 1
-        await k.run([ExecuteCellCommand(er.cell_id, "None")])
-        assert f"_cell_{er.cell_id}_x" not in k.globals
+        assert not any(is_mangled_local(name) for name in k.globals)
+
+    async def test_temporary_closed_over_by_function_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("_x = 1\ndef fn():\n    return _x")])
+        assert k.globals["fn"]() == 1
+
+    async def test_temporary_closed_over_by_lambda_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run([exec_req.get("_x = 1\nlam = lambda: _x")])
+        assert k.globals["lam"]() == 1
+
+    async def test_temporary_closed_over_by_class_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    "_x = 1\nclass C:\n    def m(self):\n        return _x"
+                )
+            ]
+        )
+        assert k.globals["C"]().m() == 1
+
+    async def test_transitive_temporary_closed_over_not_deleted(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # `foo` closes over the private helper `_helper`, which in turn closes
+        # over `_data`; both temporaries must survive for `foo` to be callable.
+        await k.run(
+            [
+                exec_req.get(
+                    "_data = 1\n"
+                    "def _helper():\n    return _data\n"
+                    "def foo():\n    return _helper()"
+                )
+            ]
+        )
+        assert k.globals["foo"]() == 1
+
+    async def test_temporary_last_expression_retained_as_output(
+        self, k: Kernel
+    ) -> None:
+        # A cell whose last expression is a temporary UI element: the temporary
+        # is deleted from globals, but the kernel should hang on to a reference.
+        # This is needed for RPCs in particular.
+        await k.run(
+            [ExecuteCellCommand(cell_id="0", code="import marimo as mo")]
+        )
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="_s = mo.ui.slider(0, 10, value=1); _s",
+                )
+            ]
+        )
+        # The temporary is gone from globals ...
+        assert not any(is_mangled_local(name) for name in k.globals)
+        # ... but the kernel retains it as the cell's output.
+        output = k.graph.cells["1"].output
+        assert isinstance(output, UIElement)
+        assert output.value == 1
 
     async def test_private_recursive_function(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
@@ -2771,6 +2814,28 @@ class TestStoredOutput:
         assert len(output_ops) > 0
         op_names = [op.get("op") for op in stream.operations]
         assert "missing-package-alert" in op_names
+
+    async def test_marimo_submodule_not_reported_as_missing(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A failed `import marimo.<x>` must not raise a missing-package alert.
+
+        marimo is always installed; a missing submodule can't be fixed by
+        installing marimo, so we never nudge callers (e.g. code_mode) to
+        install it.
+        """
+        k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
+
+        await k.run(
+            [
+                exec_req.get("import marimo.this_submodule_does_not_exist"),
+            ]
+        )
+
+        stream = MockStream(mocked_kernel.stream)
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" not in op_names
 
 
 class TestDisable:

@@ -7,12 +7,12 @@ from typing import TYPE_CHECKING
 from marimo._session.consumer_policy import initial_capabilities
 
 if TYPE_CHECKING:
-    from starlette.websockets import WebSocket
+    from starlette.requests import HTTPConnection
 
+    from marimo._server.api.endpoints.ws.session_handler import SessionHandler
     from marimo._server.api.endpoints.ws.ws_connection_validator import (
         ConnectionParams,
     )
-    from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
     from marimo._server.session_manager import SessionManager
     from marimo._session import Session
 
@@ -21,7 +21,7 @@ from starlette.websockets import WebSocketDisconnect
 from marimo import _loggers
 from marimo._messaging.types import NoopStream
 from marimo._runtime.params import QueryParams
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
 
@@ -59,14 +59,14 @@ class SessionConnector:
     def __init__(
         self,
         manager: SessionManager,
-        handler: WebSocketHandler,
+        handler: SessionHandler,
         params: ConnectionParams,
-        websocket: WebSocket,
+        connection: HTTPConnection,
     ):
         self.manager = manager
         self.handler = handler
         self.params = params
-        self.websocket = websocket
+        self.connection = connection
 
     def connect(self) -> tuple[Session, ConnectionType]:
         """Determine connection type and establish session connection.
@@ -130,7 +130,8 @@ class SessionConnector:
         if self.manager.mode is not SessionMode.EDIT:
             LOGGER.debug("Kiosk mode is only supported in edit mode")
             raise WebSocketDisconnect(
-                WebSocketCodes.FORBIDDEN, "MARIMO_KIOSK_NOT_ALLOWED"
+                WebSocketCodes.FORBIDDEN,
+                WebSocketCloseReason.KIOSK_NOT_ALLOWED,
             )
 
         # Try to find session by ID first
@@ -151,7 +152,7 @@ class SessionConnector:
                 self.params.file_key,
             )
             raise WebSocketDisconnect(
-                WebSocketCodes.NORMAL_CLOSE, "MARIMO_NO_SESSION"
+                WebSocketCodes.NORMAL_CLOSE, WebSocketCloseReason.NO_SESSION
             )
 
         LOGGER.debug("Connecting to kiosk session")
@@ -198,7 +199,7 @@ class SessionConnector:
     def _create_new_session(self) -> tuple[Session, ConnectionType]:
         """Create a new session.
 
-        Grabs query params from the websocket and creates a new session
+        Grabs query params from the connection and creates a new session
         with the session manager.
         """
 
@@ -224,9 +225,9 @@ class SessionConnector:
         return new_session, ConnectionType.NEW
 
     def _extract_query_params(self) -> QueryParams:
-        """Extract query params from the websocket, filtering ignored keys."""
+        """Extract query params from the connection, filtering ignored keys."""
         query_params = QueryParams({}, NoopStream())
-        for key, value in self.websocket.query_params.multi_items():
+        for key, value in self.connection.query_params.multi_items():
             if key not in QueryParams.IGNORED_KEYS:
                 query_params.append(key, value)
         return query_params
@@ -256,5 +257,5 @@ class SessionConnector:
                 values=[],
                 auto_run=True,
             ),
-            http_request=HTTPRequest.from_request(self.websocket),
+            http_request=HTTPRequest.from_request(self.connection),
         )

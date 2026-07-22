@@ -14,67 +14,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
-import { assertNever } from "@/utils/assertNever";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
-
-type AgentTab = "claude" | "codex" | "opencode" | "prompt";
-
-const TERMINAL_TABS = ["claude", "codex", "opencode"] as const;
-
-function getMarimoCommand(): string {
-  return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
-}
-
-function getTerminalCommand(
-  agent: Exclude<AgentTab, "prompt">,
-  url: string,
-  withToken: boolean,
-): string {
-  const tokenFlag = withToken ? " --with-token" : "";
-  const base = `${getMarimoCommand()} pair prompt --url '${url}'${tokenFlag}`;
-  switch (agent) {
-    case "claude":
-      return `claude "$(${base} --claude)"`;
-    case "codex":
-      return `codex "$(${base} --codex)"`;
-    case "opencode":
-      return `opencode --prompt "$(${base} --opencode)"`;
-    default:
-      assertNever(agent);
-  }
-}
-
-function getRawPrompt(url: string, token: string | null): string {
-  const tokenHint = token
-    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`execute-code.sh --url '${url}' --token '${token}'\`.`
-    : "";
-  return [
-    "Use the /marimo-pair skill to pair-program on a running marimo notebook.",
-    "",
-    `Connect to the notebook at: ${url}`,
-    "",
-    `Use \`execute-code.sh --url ${url}\` from the marimo-pair skill to execute code in the notebook.${tokenHint}`,
-    "",
-    "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.",
-  ].join("\n");
-}
-
-function maskToken(token: string): string {
-  if (token.length <= 4) {
-    return "****";
-  }
-  return `${"*".repeat(Math.min(token.length - 4, 8))}${token.slice(-4)}`;
-}
-
-const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
-
-const AGENT_LABELS: Record<AgentTab, string> = {
-  claude: "Claude",
-  codex: "Codex",
-  opencode: "OpenCode",
-  prompt: "Prompt",
-};
+import { getSessionId } from "@/core/kernel/session";
+import {
+  AGENT_LABELS,
+  AGENT_TABS,
+  type AgentTab,
+  type ConnectionInfo,
+  getRawPrompt,
+  getTerminalCommand,
+  maskToken,
+  SKILL_INSTALL,
+  TERMINAL_TABS,
+} from "./pair-with-agent-commands";
 
 function useAuthToken(): string | null {
   const [token, setToken] = useState<string | null>(null);
@@ -98,7 +51,10 @@ export const PairWithAgentModal: React.FC<{
   const runtimeManager = useRuntimeManager();
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
-  const remoteUrl = runtimeManager.httpURL.toString();
+  const connection: ConnectionInfo = {
+    url: runtimeManager.httpURL.toString(),
+    sessionId: getSessionId(),
+  };
 
   return (
     <DialogContent className="sm:max-w-2xl">
@@ -125,7 +81,7 @@ export const PairWithAgentModal: React.FC<{
           onValueChange={(v) => setActiveTab(v as AgentTab)}
         >
           <TabsList className="w-full">
-            {(["claude", "codex", "opencode", "prompt"] as const).map((tab) => (
+            {AGENT_TABS.map((tab) => (
               <TabsTrigger key={tab} value={tab} className="flex-1">
                 {AGENT_LABELS[tab]}
               </TabsTrigger>
@@ -147,7 +103,7 @@ export const PairWithAgentModal: React.FC<{
               </Step>
               <Step index={2} title="Run in your terminal">
                 <CommandBlock
-                  command={getTerminalCommand(tab, remoteUrl, hasToken)}
+                  command={getTerminalCommand(tab, connection, hasToken)}
                 />
               </Step>
               {hasToken && authToken && (
@@ -179,9 +135,9 @@ export const PairWithAgentModal: React.FC<{
               }
             >
               <CommandBlock
-                command={getRawPrompt(remoteUrl, authToken)}
+                command={getRawPrompt(connection, authToken)}
                 display={getRawPrompt(
-                  remoteUrl,
+                  connection,
                   authToken ? maskToken(authToken) : null,
                 )}
                 multiline={true}
@@ -234,7 +190,7 @@ const CommandBlock: React.FC<{
   if (multiline) {
     return (
       <div className="relative rounded-md bg-muted">
-        <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-words px-3 py-2 pr-10 font-mono text-xs select-all">
+        <pre className="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word px-3 py-2 pr-10 font-mono text-xs select-all">
           {display ?? command}
         </pre>
         <Tooltip content="Copied!" open={copied}>
@@ -257,7 +213,7 @@ const CommandBlock: React.FC<{
 
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-xs">
-      <code className="flex-1 select-all break-words">
+      <code className="flex-1 select-all wrap-break-word">
         {display ?? command}
       </code>
       <Tooltip content="Copied!" open={copied}>

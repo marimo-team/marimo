@@ -44,7 +44,11 @@ export const MockRequestClient = {
       validateSQL: vi.fn().mockResolvedValue({}),
       openFile: vi.fn().mockResolvedValue({}),
       getUsageStats: vi.fn().mockResolvedValue({}),
+      getEnvironmentInfo: vi
+        .fn()
+        .mockRejectedValue(new Error("Environment information unavailable")),
       sendPdb: vi.fn().mockResolvedValue({}),
+      sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
       sendSearchFiles: vi
         .fn()

@@ -120,6 +120,27 @@ def test_mask_secrets_empty() -> None:
     assert config["ai"]["openrouter"]["api_key"] == ""
 
 
+def test_mask_secrets_non_dict_values() -> None:
+    """mask_secrets must not crash when a secret path hits a non-dict value.
+
+    A malformed/partial config can place a non-dict where mask_secrets expects
+    to recurse into a dict. `bedrock=None` previously raised TypeError and
+    `custom_providers="oops"` raised AttributeError; valid providers must still
+    be masked.
+    """
+    config = PartialMarimoConfig(
+        ai={
+            "open_ai": {"api_key": "super_secret"},
+            "bedrock": None,
+            "custom_providers": "oops",
+        },
+    )
+    new_config = mask_secrets(config)
+    assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
+    assert new_config["ai"]["bedrock"] is None
+    assert new_config["ai"]["custom_providers"] == "oops"
+
+
 def test_remove_secret_placeholders() -> None:
     config = PartialMarimoConfig(
         ai={

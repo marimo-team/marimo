@@ -55,6 +55,7 @@ marimo run notebook.py
 | `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | Trace-specific OTLP endpoint; takes precedence over `OTEL_EXPORTER_OTLP_ENDPOINT` | _(unset)_ |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | OTLP protocol for all signals: `http/protobuf` or `grpc` | `http/protobuf` |
 | `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` | Trace-specific OTLP protocol; takes precedence over `OTEL_EXPORTER_OTLP_PROTOCOL` | _(unset)_ |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated `key=value` auth or routing headers for OTLP export | _(empty)_ |
 | `OTEL_SERVICE_NAME` | `service.name` resource attribute | `marimo` |
 | `OTEL_RESOURCE_ATTRIBUTES` | Comma-separated `key=value` pairs added to the resource | _(empty)_ |
 
@@ -86,6 +87,14 @@ resulting spans are linked as children of the caller's trace. No extra
 configuration is needed — propagation works automatically whenever tracing is
 enabled.
 
+Propagation also reaches the kernel, which runs in a separate process. The
+request headers travel with each control command, and `handle_message`
+re-attaches the extracted trace context before dispatching, so kernel spans
+(cell execution, dataset previews, function calls, etc.) become children of the
+originating request's trace. This lets a single distributed trace span an
+upstream app (e.g., a FastAPI gateway instrumented with Logfire), the marimo
+server, and the kernel — even when marimo is mounted as an ASGI sub-app.
+
 ## Profiling the kernel
 
 You can generate profiling statistics of the kernel in edit mode using the
@@ -99,3 +108,9 @@ If the notebook exits gracefully (i.e., is shut down manually), profiling
 statistics will be written to the profiles/ directory. You can then use
 standard tools to analyze the dumped statistics. To view flamegraphs,
 we recommend snakeviz or tuna (`uvx snakeviz path_to_profile`)
+
+## AI Tracing
+
+When `MARIMO_TRACING=true` and `pydantic_ai` is installed, marimo automatically calls
+`Agent.instrument_all()` at startup so pydantic-ai spans use the same
+`TracerProvider`.

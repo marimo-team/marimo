@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  type CSSProperties,
   startTransition,
   useEffect,
   useMemo,
@@ -16,6 +17,7 @@ import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
+import { outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
@@ -25,6 +27,7 @@ import { Logger } from "@/utils/Logger";
 import "./slides.css";
 import "./reveal-slides.css";
 import type {
+  DeckVerticalAlign,
   SlideConfig,
   SlidesLayout,
   SlideType,
@@ -38,6 +41,7 @@ import {
   type ComposedSubslide,
 } from "./compose-slides";
 import {
+  DEFAULT_DECK_VERTICAL_ALIGN,
   DEFAULT_DECK_TRANSITION,
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
@@ -291,16 +295,38 @@ export function useParkedPreview(options: {
   };
 }
 
+/**
+ * Margin style that positions a slide's content vertically within the
+ * full-height slide. The content is a flex item, so the vertical margins decide
+ * where the free space lands: `auto` on both sides centers it, while pinning one
+ * side to `0` pushes content to the top or bottom. The horizontal `20px` keeps
+ * content off the slide edges regardless of alignment.
+ */
+function resolveSlideContentStyle(
+  verticalAlign: DeckVerticalAlign | undefined,
+): CSSProperties {
+  switch (verticalAlign ?? DEFAULT_DECK_VERTICAL_ALIGN) {
+    case "top":
+      return { margin: "0 20px auto" };
+    case "bottom":
+      return { margin: "auto 20px 0" };
+    default:
+      return { margin: "auto 20px" };
+  }
+}
+
 const SubslideView = ({
   subslide,
   resolveShowCode,
   isEditable,
   slideConfigs,
+  contentStyle,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
   resolveShowCode: (cellId: CellId) => boolean;
   isEditable: boolean;
   slideConfigs: ReadonlyMap<CellId, SlideConfig>;
+  contentStyle: CSSProperties;
 }) => {
   const { slideLevel, cumulativeByBlock } = buildSubslideNotes(
     subslide,
@@ -320,9 +346,7 @@ const SubslideView = ({
               ? "mo-slide-content flex flex-col gap-3"
               : "mo-slide-content"
           }
-          style={{
-            margin: "auto 20px",
-          }}
+          style={contentStyle}
         >
           {subslide.blocks.map((block, i) => {
             const rendered = block.cells.map((cell) => {
@@ -333,6 +357,7 @@ const SubslideView = ({
                     cellId={cell.id}
                     status={cell.status}
                     output={cell.output}
+                    stale={outputIsStale(cell, false)}
                   />
                 );
               }
@@ -397,6 +422,7 @@ const ParkedPreviewContent = ({
       cellId={cell.id}
       status={cell.status}
       output={cell.output}
+      stale={outputIsStale(cell, false)}
     />
   );
 };
@@ -511,6 +537,10 @@ const RevealSlidesComponent = ({
   );
 
   const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
+  const slideContentStyle = resolveSlideContentStyle(
+    layout.deck?.verticalAlign,
+  );
+
   // Reveal's Notes plugin iframes the deck for the current/upcoming-slide
   // previews. We load the same URL but as a read-only kiosk client with the
   // app chrome hidden, which `<SlidesLayoutRenderer>` interprets the same as
@@ -533,6 +563,10 @@ const RevealSlidesComponent = ({
       transition: deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
       url: kioskUrl,
+      // reveal.js auto-switches to its scroll view for mobile.
+      // We disable this mode because it rewrites the slide DOM that
+      // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
+      scrollActivationWidth: 0,
     }),
     [width, height, deckTransition, kioskUrl],
   );
@@ -684,7 +718,7 @@ const RevealSlidesComponent = ({
       <div className="group relative" style={{ width, height }}>
         <Deck
           deckRef={deckRef}
-          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-none focus-visible:outline-none"
+          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-hidden focus-visible:outline-hidden"
           config={revealConfig}
           onReady={handleDeckReady}
           onSlideChange={handleSlideChange}
@@ -701,6 +735,7 @@ const RevealSlidesComponent = ({
                   resolveShowCode={resolveShowCode}
                   isEditable={isEditable}
                   slideConfigs={layout.cells}
+                  contentStyle={slideContentStyle}
                 />
               );
             }
@@ -714,6 +749,7 @@ const RevealSlidesComponent = ({
                       resolveShowCode={resolveShowCode}
                       isEditable={isEditable}
                       slideConfigs={layout.cells}
+                      contentStyle={slideContentStyle}
                     />
                   );
                 })}
@@ -740,7 +776,7 @@ const RevealSlidesComponent = ({
                     ? "mo-slide-content flex flex-col gap-3"
                     : "mo-slide-content"
                 }
-                style={{ margin: "auto 20px" }}
+                style={slideContentStyle}
               >
                 <ParkedPreviewContent
                   cell={parkedPreviewCell}

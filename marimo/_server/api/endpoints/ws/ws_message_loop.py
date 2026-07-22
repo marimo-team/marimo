@@ -33,6 +33,55 @@ KIOSK_EXCLUDED_OPERATIONS = {
 }
 
 
+def _should_filter_operation(op: str, *, is_kiosk: bool) -> bool:
+    """Determine if operation should be filtered based on kiosk mode.
+
+    Args:
+        op: Operation name to check
+        is_kiosk: Whether the connection is in kiosk (viewer) mode
+
+    Returns:
+        True if the operation should be filtered (not sent), False
+        otherwise.
+    """
+    if op in KIOSK_ONLY_OPERATIONS and not is_kiosk:
+        LOGGER.debug(
+            "Ignoring operation %s, not in kiosk mode",
+            op,
+        )
+        return True
+    if op in KIOSK_EXCLUDED_OPERATIONS and is_kiosk:
+        LOGGER.debug(
+            "Ignoring operation %s, in kiosk mode",
+            op,
+        )
+        return True
+    return False
+
+
+def prepare_wire_message(data: KernelMessage, *, is_kiosk: bool) -> str | None:
+    """Filter and serialize a kernel message for the frontend.
+
+    Shared by the WebSocket and SSE transports so both apply identical
+    kiosk filtering and produce identical wire payloads.
+
+    Returns:
+        The wire-format text, or None if the message is filtered out or
+        fails to serialize.
+    """
+    op: str = deserialize_kernel_notification_name(data)
+
+    if _should_filter_operation(op, is_kiosk=is_kiosk):
+        return None
+
+    try:
+        return format_wire_message(op, data)
+    except Exception as e:
+        LOGGER.error("Failed to deserialize message: %s", str(e))
+        LOGGER.error("Message: %s", data)
+        return None
+
+
 class WebSocketMessageLoop:
     """Handles the async message send/receive loops for WebSocket."""
 
@@ -75,17 +124,8 @@ class WebSocketMessageLoop:
         """Listen for messages from kernel and send to frontend."""
         while True:
             data = await self.message_queue.get()
-            op: str = deserialize_kernel_notification_name(data)
-
-            if self._should_filter_operation(op):
-                continue
-
-            # Serialize message
-            try:
-                text = format_wire_message(op, data)
-            except Exception as e:
-                LOGGER.error("Failed to deserialize message: %s", str(e))
-                LOGGER.error("Message: %s", data)
+            text = prepare_wire_message(data, is_kiosk=self.is_kiosk())
+            if text is None:
                 continue
 
             # Send to WebSocket
@@ -123,31 +163,6 @@ class WebSocketMessageLoop:
         except Exception as e:
             LOGGER.error("Error listening for disconnect: %s", str(e))
             raise
-
-    def _should_filter_operation(self, op: str) -> bool:
-        """Determine if operation should be filtered based on kiosk mode.
-
-        Args:
-            op: Operation name to check
-
-        Returns:
-            True if the operation should be filtered (not sent), False
-            otherwise.
-        """
-        kiosk = self.is_kiosk()
-        if op in KIOSK_ONLY_OPERATIONS and not kiosk:
-            LOGGER.debug(
-                "Ignoring operation %s, not in kiosk mode",
-                op,
-            )
-            return True
-        if op in KIOSK_EXCLUDED_OPERATIONS and kiosk:
-            LOGGER.debug(
-                "Ignoring operation %s, in kiosk mode",
-                op,
-            )
-            return True
-        return False
 
     def _cancel_messages_task(self) -> None:
         """Cancel the messages task."""

@@ -28,8 +28,8 @@ from marimo._runtime import commands, handlers, patches
 from marimo._runtime.commands import (
     AppMetadata,
     BatchableCommand,
-    CodeCompletionCommand,
     CommandMessage,
+    OutOfBandCommand,
     UpdateUserConfigCommand,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
@@ -91,8 +91,9 @@ class AsyncQueueManager:
         # set UI elements duplicated in another queue so they can be batched
         self.set_ui_element_queue = asyncio.Queue[BatchableCommand]()
 
-        # Code completion requests are sent through a separate queue
-        self.completion_queue = asyncio.Queue[commands.CodeCompletionCommand]()
+        # Off-main-loop commands (completions + breakpoints) go through a
+        # separate queue.
+        self.completion_queue = asyncio.Queue[commands.OutOfBandCommand]()
 
         # Input messages for the user's Python code are sent through the
         # input queue
@@ -243,6 +244,11 @@ class PyodideBridge:
     async def read_snippets(self) -> str:
         snippets = await read_snippets(self.session._initial_user_config)
         return self._dump(snippets)
+
+    def get_environment_info(self) -> str:
+        from marimo._utils.diagnostics import get_system_info
+
+        return self._dump(get_system_info(redact_home=True))
 
     async def format(self, request: str) -> str:
         parsed = self._parse(request, FormatCellsRequest)
@@ -425,7 +431,7 @@ def _dispose_pyodide_lifecycle_items(ctx: RuntimeContext) -> None:
 def _launch_pyodide_kernel(
     control_queue: asyncio.Queue[CommandMessage],
     set_ui_element_queue: asyncio.Queue[BatchableCommand],
-    completion_queue: asyncio.Queue[CodeCompletionCommand],
+    completion_queue: asyncio.Queue[OutOfBandCommand],
     input_queue: asyncio.Queue[str],
     on_message: Callable[[KernelMessage], None],
     session_mode: SessionMode,
@@ -441,8 +447,8 @@ def _launch_pyodide_kernel(
     from marimo._runtime.kernel_lifecycle import (
         KernelArgs,
         asyncio_queue_reader,
+        collapse_out_of_band,
         create_kernel,
-        drain_stale,
         listen_messages,
         teardown_kernel,
     )
@@ -483,12 +489,11 @@ def _launch_pyodide_kernel(
     if is_edit_mode:
         signal.signal(signal.SIGINT, handlers.construct_interrupt_handler())
 
-    async def listen_completion() -> None:
+    async def listen_out_of_band() -> None:
         while True:
-            request = drain_stale(
-                completion_queue, latest=await completion_queue.get()
-            )
-            kernel.code_completion(request, docstrings_limit=5)
+            first = await completion_queue.get()
+            for command in collapse_out_of_band(completion_queue, first=first):
+                kernel.dispatch_out_of_band(command, docstrings_limit=5)
 
     async def listen() -> None:
         try:
@@ -499,7 +504,7 @@ def _launch_pyodide_kernel(
                     set_ui_element_queue,
                     asyncio_queue_reader,
                 ),
-                listen_completion(),
+                listen_out_of_band(),
             )
         finally:
             try:

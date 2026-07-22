@@ -5,15 +5,15 @@ import type { Role } from "@marimo-team/llm-info";
 export function getTagColour(role: Role | "thinking"): string {
   switch (role) {
     case "chat":
-      return "bg-[var(--purple-3)] text-[var(--purple-11)]";
+      return "bg-(--purple-3) text-(--purple-11)";
     case "autocomplete":
-      return "bg-[var(--green-3)] text-[var(--green-11)]";
+      return "bg-(--green-3) text-(--green-11)";
     case "edit":
-      return "bg-[var(--blue-3)] text-[var(--blue-11)]";
+      return "bg-(--blue-3) text-(--blue-11)";
     case "thinking":
-      return "bg-[var(--purple-4)] text-[var(--purple-12)]";
+      return "bg-(--purple-4) text-(--purple-12)";
   }
-  return "bg-[var(--mauve-3)] text-[var(--mauve-11)]";
+  return "bg-(--mauve-3) text-(--mauve-11)";
 }
 
 export function getCurrentRoleTooltip(role: Role): string {

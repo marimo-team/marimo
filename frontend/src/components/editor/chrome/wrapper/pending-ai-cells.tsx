@@ -74,7 +74,7 @@ export const PendingAICells: React.FC = () => {
         <Button variant="ghost" size="icon" onClick={() => clickNext("up")}>
           <ChevronUp className="h-3.5 w-3.5" />
         </Button>
-        <span className="text-xs font-mono min-w-[3.5rem] text-center">
+        <span className="text-xs font-mono min-w-14 text-center">
           {currentIndex === null
             ? `${listStagedCells.length} pending`
             : `${currentIndex + 1} / ${listStagedCells.length}`}

@@ -9,16 +9,9 @@ import {
   vi,
 } from "vitest";
 import { TestUtils } from "@/__tests__/test-helpers";
-import {
-  getMarimoInternal,
-  handleWidgetMessage,
-  Model,
-  visibleForTesting,
-} from "../model";
-import type { WidgetModelId } from "../types";
-import { BINDING_MANAGER } from "../widget-binding";
-
-const { ModelManager } = visibleForTesting;
+import { getMarimoInternal, Model } from "../model";
+import { WidgetRegistry } from "../registry";
+import type { ModelState, WidgetModelId } from "../types";
 
 // Helper to create typed model IDs for tests
 const asModelId = (id: string): WidgetModelId => id as WidgetModelId;
@@ -38,7 +31,7 @@ vi.mock("@/core/static/static-state", () => ({
 }));
 
 // Helper to create a mock MarimoComm
-function createMockComm<T>() {
+function createMockComm() {
   return {
     sendUpdate: vi.fn().mockResolvedValue(undefined),
     sendCustomMessage: vi.fn().mockResolvedValue(undefined),
@@ -47,7 +40,7 @@ function createMockComm<T>() {
 
 describe("Model", () => {
   let model: Model<{ foo: string; bar: number }>;
-  let mockComm: ReturnType<typeof createMockComm<{ foo: string; bar: number }>>;
+  let mockComm: ReturnType<typeof createMockComm>;
 
   beforeEach(() => {
     mockComm = createMockComm();
@@ -211,13 +204,13 @@ describe("Model", () => {
 
   describe("widget_manager", () => {
     const childModelId = asModelId("test-id");
-    const childModel = new Model({ foo: "test" }, createMockComm());
-    const manager = new ModelManager(10);
+    const childModel = new Model<ModelState>({ foo: "test" }, createMockComm());
+    const manager = new WidgetRegistry(10);
     let previousModelManager = Model._modelManager;
 
     beforeAll(() => {
       previousModelManager = Model._modelManager;
-      manager.set(childModelId, childModel);
+      manager.setModel(childModelId, childModel);
       Model._modelManager = manager;
     });
 
@@ -301,149 +294,6 @@ describe("Model", () => {
       );
 
       expect(callback).toHaveBeenCalledWith(content, [buffer]);
-    });
-  });
-});
-
-describe("ModelManager", () => {
-  let modelManager = new ModelManager(50);
-  const testId = asModelId("test-id");
-
-  beforeEach(() => {
-    // Clear the model manager before each test
-    modelManager = new ModelManager(50);
-    mockSendModelValue.mockClear();
-  });
-
-  it("should set and get models", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
-    modelManager.set(testId, model);
-    const retrievedModel = await modelManager.get(testId);
-    expect(retrievedModel).toBe(model);
-  });
-
-  it("should handle model not found", async () => {
-    await expect(modelManager.get(asModelId("non-existent"))).rejects.toThrow(
-      "Model not found for key: non-existent",
-    );
-  });
-
-  it("should delete models", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
-    modelManager.set(testId, model);
-    modelManager.delete(testId);
-    await expect(modelManager.get(testId)).rejects.toThrow();
-  });
-
-  it("should handle widget messages", async () => {
-    await handleWidgetMessage(modelManager, {
-      model_id: testId,
-      message: {
-        method: "open",
-        state: { count: 0 },
-        buffer_paths: [],
-        buffers: [],
-      },
-    });
-    const model = await modelManager.get(testId);
-    expect(model.get("count")).toBe(0);
-
-    await handleWidgetMessage(modelManager, {
-      model_id: testId,
-      message: {
-        method: "update",
-        state: { count: 1 },
-        buffer_paths: [],
-        buffers: [],
-      },
-    });
-    expect(model.get("count")).toBe(1);
-  });
-
-  it("should handle custom messages", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
-    const callback = vi.fn();
-    model.on("msg:custom", callback);
-    modelManager.set(testId, model);
-
-    await handleWidgetMessage(modelManager, {
-      model_id: testId,
-      message: { method: "custom", content: { count: 1 }, buffers: [] },
-    });
-    expect(callback).toHaveBeenCalledWith({ count: 1 }, []);
-  });
-
-  it("should handle close messages", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
-    modelManager.set(testId, model);
-
-    await handleWidgetMessage(modelManager, {
-      model_id: testId,
-      message: { method: "close" },
-    });
-    await expect(modelManager.get(testId)).rejects.toThrow();
-  });
-
-  it("should destroy binding on close message", async () => {
-    const model = new Model({ count: 0 }, createMockComm());
-    modelManager.set(testId, model);
-
-    // Create a binding for this model
-    BINDING_MANAGER.getOrCreate(testId);
-    expect(BINDING_MANAGER.has(testId)).toBe(true);
-
-    await handleWidgetMessage(modelManager, {
-      model_id: testId,
-      message: { method: "close" },
-    });
-
-    expect(BINDING_MANAGER.has(testId)).toBe(false);
-  });
-
-  describe("static mode", () => {
-    beforeEach(() => {
-      mockIsStatic.mockReturnValue(true);
-    });
-
-    afterAll(() => {
-      mockIsStatic.mockReturnValue(false);
-    });
-
-    it("should create model with no-op comm in static mode", async () => {
-      await handleWidgetMessage(modelManager, {
-        model_id: testId,
-        message: {
-          method: "open",
-          state: { count: 42 },
-          buffer_paths: [],
-          buffers: [],
-        },
-      });
-
-      const model = await modelManager.get(testId);
-      expect(model.get("count")).toBe(42);
-
-      // save_changes should not call the real request client
-      model.set("count", 100);
-      model.save_changes();
-      expect(mockSendModelValue).not.toHaveBeenCalled();
-    });
-
-    it("should not throw on send in static mode", async () => {
-      await handleWidgetMessage(modelManager, {
-        model_id: testId,
-        message: {
-          method: "open",
-          state: { count: 0 },
-          buffer_paths: [],
-          buffers: [],
-        },
-      });
-
-      const model = await modelManager.get(testId);
-      // send() should silently no-op
-      await expect(model.send({ test: true })).resolves.toBeUndefined();
-      expect(mockSendModelValue).not.toHaveBeenCalled();
     });
   });
 });

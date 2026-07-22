@@ -248,11 +248,20 @@ class ServerConfig(TypedDict):
         inside its static assets directory.
     - `disable_file_downloads`: if true, the file download button will be
         hidden in the file explorer.
+    - `transport`: experimental. The transport used to stream kernel
+        messages to the frontend, typically set with the
+        `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
+        (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
+        server-sent events over HTTP, for deployments behind proxies or
+        services that do not support WebSockets. Terminal, LSP, and
+        real-time collaboration still require WebSockets; RTC is disabled
+        when using `"sse"`.
     """
 
     browser: Literal["default"] | str
     follow_symlink: bool
     disable_file_downloads: NotRequired[bool]
+    transport: NotRequired[Literal["websocket", "sse"]]
 
 
 @dataclass
@@ -267,7 +276,7 @@ class PackageManagementConfig(TypedDict):
     manager: Literal["pip", "rye", "uv", "poetry", "pixi"]
 
 
-CopilotMode = Literal["ask", "manual", "agent"]
+CopilotMode = Literal["ask", "manual", "agent", "code_mode"]
 
 
 @mddoc
@@ -600,6 +609,8 @@ class ExperimentalConfig(TypedDict, total=False):
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     isolate_apps: bool
+    debugger: bool  # Live frame-watching debugger (gutter breakpoints + pdb)
+    line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
     cache: CacheConfig

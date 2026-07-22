@@ -17,6 +17,7 @@ import {
 import { loroSyncAnnotation } from "@/core/codemirror/rtc/loro/sync";
 import type { KeymapConfig } from "@/core/config/config-schema";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import { getFeatureFlag } from "@/core/config/feature-flag";
 import { duplicateWithCtrlModifier } from "@/core/hotkeys/shortcuts";
 import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
@@ -25,6 +26,16 @@ import { formattingChangeEffect } from "../format";
 import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
 import { getEditorCodeAsPython } from "../language/utils";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
+import {
+  breakpointGutter,
+  debuggerLineHighlighter,
+} from "./debugger-decorations";
+import {
+  createActiveLineInfoAtom,
+  createCellBreakpointsAtom,
+  createDebuggerLineAtom,
+} from "./debugger-state";
+import { activeLineTimer } from "./line-timing-decorations";
 import {
   type CodemirrorCellActions,
   cellActionsState,
@@ -106,11 +117,8 @@ function cellKeymaps({
     keybindings.push(
       {
         key: hotkeys.getHotkey("cell.goToDefinition").key,
-        preventDefault: true,
-        stopPropagation: true,
         run: (ev) => {
-          goToDefinitionAtCursorPosition(ev);
-          return true;
+          return goToDefinitionAtCursorPosition(ev);
         },
       },
       {
@@ -423,6 +431,8 @@ export function cellBundle({
   cellActions: CodemirrorCellActions;
   keymapConfig: KeymapConfig;
 }): Extension[] {
+  const debuggerOn = getFeatureFlag("debugger");
+  const lineTimingOn = getFeatureFlag("line_timing");
   return [
     cellActionsState.of(cellActions),
     cellIdState.of(cellId),
@@ -431,6 +441,24 @@ export function cellBundle({
     errorLineHighlighter(
       createObservable(createTracebackInfoAtom(cellId), store),
     ),
+    // Experimental live debugger and line-timing highlight. Gated so there is
+    // no gutter/overhead when disabled. Both track the same active line; when
+    // both flags are on, the green timing highlight replaces the amber one.
+    debuggerOn
+      ? breakpointGutter(
+          cellId,
+          createObservable(createCellBreakpointsAtom(cellId), store),
+        )
+      : [],
+    lineTimingOn
+      ? activeLineTimer(
+          createObservable(createActiveLineInfoAtom(cellId), store),
+        )
+      : debuggerOn
+        ? debuggerLineHighlighter(
+            createObservable(createDebuggerLineAtom(cellId), store),
+          )
+        : [],
   ];
 }
 

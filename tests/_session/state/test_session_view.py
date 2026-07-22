@@ -21,6 +21,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EsmSpec,
     InstallingPackageAlertNotification,
     ModelClose,
     ModelCustom,
@@ -44,6 +45,9 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
+    ModelCommand,
+    ModelCustomMessage,
+    ModelUpdateMessage,
     UpdateUIElementCommand,
 )
 from marimo._session.state.session_view import ModelReplayState, SessionView
@@ -350,6 +354,111 @@ def test_model_multiple_models(session_view: SessionView) -> None:
     assert session_view.model_states[model_id2].state == {"key": "v2"}
 
 
+def _open_model(
+    session_view: SessionView,
+    model_id: WidgetModelId,
+    state: dict[str, Any],
+) -> None:
+    session_view.add_notification(
+        ModelLifecycleNotification(
+            model_id=model_id,
+            message=ModelOpen(state=state, buffer_paths=[], buffers=[]),
+        )
+    )
+
+
+def test_model_command_merges_into_replay(session_view: SessionView) -> None:
+    """A client's model write is recorded for reconnect replay."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0, "label": "hi"})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"count": 5}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {
+        "count": 5,
+        "label": "hi",
+    }
+
+
+def test_model_command_merges_buffers(session_view: SessionView) -> None:
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"img": None})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(
+                state={"img": None}, buffer_paths=[["img"]]
+            ),
+            buffers=[b"\x89PNG"],
+        )
+    )
+    assert session_view.model_states[model_id].buffers == {
+        ("img",): b"\x89PNG"
+    }
+
+
+def test_model_command_strips_code_and_style(
+    session_view: SessionView,
+) -> None:
+    """Replayed state reaches future viewers, so a client must not
+    be able to persist `_esm` or `_css` into it."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(
+                state={
+                    "_esm": "alert('pwned')",
+                    "_css": "body { display: none }",
+                    "count": 2,
+                },
+                buffer_paths=[],
+            ),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {"count": 2}
+
+
+def test_model_command_without_open_ignored(
+    session_view: SessionView,
+) -> None:
+    model_id = WidgetModelId("never_opened")
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelUpdateMessage(state={"count": 1}, buffer_paths=[]),
+            buffers=[],
+        )
+    )
+    assert model_id not in session_view.model_states
+
+
+def test_model_command_custom_message_ignored(
+    session_view: SessionView,
+) -> None:
+    """Custom messages are ephemeral — they never mutate replay state."""
+    model_id = WidgetModelId("test_model")
+    _open_model(session_view, model_id, {"count": 0})
+
+    session_view.add_control_request(
+        ModelCommand(
+            model_id=model_id,
+            message=ModelCustomMessage(content={"foo": "bar"}),
+            buffers=[],
+        )
+    )
+    assert session_view.model_states[model_id].state == {"count": 0}
+
+
 def test_get_model_notifications(session_view: SessionView) -> None:
     # Empty initially
     assert session_view.get_model_notifications() == []
@@ -426,6 +535,56 @@ class TestModelReplayState:
             ModelUpdate(state={"b": 99, "c": 3}, buffer_paths=[], buffers=[])
         )
         assert view.state == {"a": 1, "b": 99, "c": 3}
+
+    def test_esm_spec_round_trips(self) -> None:
+        """Late joiners must receive the spec from the original open."""
+        spec = EsmSpec(url="./@file/10-w.js", hash="abc123")
+        view = ModelReplayState.from_open(
+            WidgetModelId("m"),
+            ModelOpen(
+                state={"count": 1},
+                buffer_paths=[],
+                buffers=[],
+                esm_spec=spec,
+            ),
+        )
+        assert view.esm_spec == spec
+        assert view.to_notification().message.esm_spec == spec
+
+    def test_apply_update_preserves_spec_by_default(self) -> None:
+        """Ordinary state updates carry no spec and must not clear it."""
+        spec = EsmSpec(url="./@file/10-w.js", hash="abc123")
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={"count": 1},
+            buffers={},
+            esm_spec=spec,
+        )
+        view.apply_update(
+            ModelUpdate(state={"count": 2}, buffer_paths=[], buffers=[])
+        )
+        assert view.esm_spec == spec
+
+    def test_apply_update_with_spec_replaces_it(self) -> None:
+        """A spec on an update is an edit-mode hot reload; late joiners
+        must replay the new code, not the original open's."""
+        view = ModelReplayState(
+            model_id=WidgetModelId("m"),
+            state={},
+            buffers={},
+            esm_spec=EsmSpec(url="./@file/10-old.js", hash="old"),
+        )
+        new_spec = EsmSpec(url="./@file/10-new.js", hash="new")
+        view.apply_update(
+            ModelUpdate(
+                state={},
+                buffer_paths=[],
+                buffers=[],
+                esm_spec=new_spec,
+            )
+        )
+        assert view.esm_spec == new_spec
+        assert view.to_notification().message.esm_spec == new_spec
 
     def test_apply_update_replaces_buffer_for_updated_key(self) -> None:
         view = ModelReplayState(
@@ -1098,6 +1257,51 @@ def test_combine_console_outputs(
     assert session_view.cell_notifications[cell_id].console == [
         CellOutput.stdout("three")
     ]
+
+
+@patch("time.time", return_value=123)
+def test_explicit_empty_console_clears_mid_run(
+    time_mock: Any, session_view: SessionView
+) -> None:
+    """An explicit `console=[]` clears the session view, even while running."""
+    del time_mock
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput.stdout("secret"),
+            status="running",
+        )
+    )
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=CellOutput.stdout(" code"),
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == [
+        CellOutput.stdout("secret code"),
+    ]
+
+    # Explicit clear mid-run (status stays "running", no queued transition).
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=[],
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == []
+
+    # A subsequent status-only update (console unchanged) keeps it cleared.
+    session_view.add_notification(
+        CellNotification(
+            cell_id=cell_id,
+            console=None,
+            status="running",
+        )
+    )
+    assert session_view.cell_notifications[cell_id].console == []
 
 
 @patch("time.time", return_value=123)

@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""WebSocket message formatting utilities.
+"""Wire-format utilities for kernel messages sent to the frontend.
 
-This module handles the wire format for WebSocket transport:
-wrapping serialized notification data with operation metadata.
+Wraps serialized notification data with operation metadata. The wire
+format is shared by the WebSocket and SSE transports.
 """
 
 from __future__ import annotations
@@ -16,10 +16,9 @@ if TYPE_CHECKING:
 
 
 def format_wire_message(op: str, data: bytes) -> str:
-    """Format a serialized message for WebSocket transport.
+    """Format a serialized message for transport to the frontend.
 
-    Wraps serialized notification data with operation metadata
-    for the WebSocket wire protocol.
+    Wraps serialized notification data with operation metadata.
 
     Args:
         op: The operation name (e.g., "cell-op", "kernel-ready")
@@ -31,10 +30,10 @@ def format_wire_message(op: str, data: bytes) -> str:
     return f'{{"op": "{op}", "data": {data.decode("utf-8")}}}'
 
 
-def serialize_notification_for_websocket(
+def serialize_notification_for_wire(
     notification: NotificationMessage,
 ) -> str:
-    """Serialize and format a notification for WebSocket transport.
+    """Serialize and format a notification for transport to the frontend.
 
     Combines serialization and wire formatting into a single operation.
     Useful when you have a notification object and need the final wire format.

@@ -28,6 +28,8 @@
     "marimo/remove-event-listener-object": "error",
     "marimo/prefer-object-params": "warn",
     "marimo/atom-with-storage-args": "error",
+    "marimo/no-deprecated-tailwind-classes": "warn",
+    "marimo/no-removed-tailwind-classes": "error",
 
     // === Disabled category rules (too noisy / not applicable) ===
     "no-use-before-define": "off",

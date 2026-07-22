@@ -85,6 +85,7 @@ class SessionManager:
         watch: bool = False,
         sandbox_mode: SandboxMode | None = None,
         isolate_apps: bool = False,
+        execute_opengraph_generators: bool = False,
     ) -> None:
         # Core configuration
         self.workspace = workspace
@@ -98,6 +99,7 @@ class SessionManager:
         self.redirect_console_to_browser = redirect_console_to_browser
         self._config_manager = config_manager
         self.sandbox_mode = sandbox_mode
+        self.execute_opengraph_generators = execute_opengraph_generators
 
         # When running multiple apps, each app runs in an isolated  host
         # process, to avoid collisions in sys.modules and other Python global

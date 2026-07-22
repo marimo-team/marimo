@@ -1,0 +1,139 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import {
+  type CellErrorEntry,
+  formatCellError,
+} from "@/core/errors/error-entries";
+import type { EnvironmentInfo } from "@/core/network/types";
+import { Paths } from "@/utils/paths";
+import { Strings } from "@/utils/strings";
+
+/**
+ * Environment information augmented with a client-side collection error, used
+ * when the server environment request fails and only partial data is available.
+ * Fields are optional because a partial environment only carries what the
+ * client could determine without the server.
+ */
+export type EnvironmentDiagnostics = Partial<EnvironmentInfo> & {
+  "Environment Collection Error"?: string;
+};
+
+export interface NotebookSource {
+  filename: string;
+  contents: string;
+}
+
+export interface IssueDetailsInput {
+  environment: EnvironmentDiagnostics;
+  errors: CellErrorEntry[];
+  notebook?: NotebookSource;
+}
+
+/**
+ * Replace the server-detected browser with the active browser's user agent.
+ *
+ * The server cannot know which browser is driving the UI, so diagnostics
+ * generated from the modal reflect the live `navigator.userAgent` instead.
+ */
+export function enrichEnvironment(
+  environment: EnvironmentInfo,
+  userAgent: string,
+): EnvironmentInfo {
+  return {
+    ...environment,
+    Binaries: {
+      ...environment.Binaries,
+      Browser: userAgent,
+    },
+  };
+}
+
+export function createPartialEnvironment(
+  marimoVersion: string,
+  userAgent: string,
+  locale: string,
+  message: string,
+): EnvironmentDiagnostics {
+  return {
+    marimo: marimoVersion,
+    Locale: locale || undefined,
+    Binaries: { Browser: userAgent },
+    "Environment Collection Error": message,
+  };
+}
+
+/**
+ * Wrap `contents` in a Markdown code fence long enough to survive backtick runs
+ * inside it, so pasted diagnostics render as a single block on GitHub.
+ */
+export function markdownCodeFence(language: string, contents: string): string {
+  const longest = Math.max(
+    2,
+    ...Array.from(contents.matchAll(/`+/g), (match) => match[0].length),
+  );
+  const fence = "`".repeat(longest + 1);
+  return `${fence}${language}\n${contents}\n${fence}`;
+}
+
+/**
+ * GitHub returns HTTP 414 for issue-form URLs beyond roughly 8 KB, so prefill is
+ * skipped once the encoded body would push the URL past this conservative cap.
+ */
+export const MAX_PREFILL_URL_LENGTH = 6000;
+
+/**
+ * Build a bug-report URL with `issueDetails` prefilled into the form's `env`
+ * field. Falls back to `baseUrl` unchanged when the prefilled URL would exceed
+ * `MAX_PREFILL_URL_LENGTH`.
+ */
+export function buildBugReportUrl(
+  baseUrl: string,
+  issueDetails: string,
+): string {
+  const separator = baseUrl.includes("?") ? "&" : "?";
+  const prefilled = `${baseUrl}${separator}env=${encodeURIComponent(issueDetails)}`;
+  return prefilled.length > MAX_PREFILL_URL_LENGTH ? baseUrl : prefilled;
+}
+
+function detailsSection(summary: string, body: string): string {
+  return [
+    "<details>",
+    `<summary>${Strings.htmlEscape(summary) ?? ""}</summary>`,
+    "",
+    body,
+    "",
+    "</details>",
+  ].join("\n");
+}
+
+export function buildIssueDetails(input: IssueDetailsInput): string {
+  const sections = [
+    detailsSection(
+      "Environment",
+      markdownCodeFence("json", JSON.stringify(input.environment, null, 2)),
+    ),
+  ];
+
+  if (input.errors.length > 0) {
+    sections.push(
+      detailsSection(
+        "Current errors",
+        markdownCodeFence(
+          "text",
+          input.errors.map(formatCellError).join("\n\n---\n\n"),
+        ),
+      ),
+    );
+  }
+
+  if (input.notebook) {
+    sections.push(
+      detailsSection(
+        `Notebook source: ${Paths.basename(input.notebook.filename)}`,
+        markdownCodeFence("python", input.notebook.contents),
+      ),
+    );
+  }
+
+  return sections.join("\n\n");
+}

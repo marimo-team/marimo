@@ -9,7 +9,6 @@ import {
   DatabaseIcon,
   FileIcon,
   FileTextIcon,
-  GithubIcon,
   GraduationCapIcon,
   GridIcon,
   LayoutIcon,
@@ -17,10 +16,11 @@ import {
   MessagesSquareIcon,
   OrbitIcon,
   PackageIcon,
-  YoutubeIcon,
 } from "lucide-react";
 import type React from "react";
 import { MarkdownIcon } from "@/components/editor/cell/code/icons";
+import { GitHubIcon } from "@/components/icons/github";
+import { YouTubeIcon } from "@/components/icons/youtube";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -130,7 +130,7 @@ const RESOURCES = [
   {
     title: "GitHub",
     description: "View source code, report issues, or contribute",
-    icon: GithubIcon,
+    icon: GitHubIcon,
     url: Constants.githubPage,
   },
   {
@@ -148,7 +148,7 @@ const RESOURCES = [
   {
     title: "YouTube",
     description: "Watch tutorials and demos",
-    icon: YoutubeIcon,
+    icon: YouTubeIcon,
     url: Constants.youtube,
   },
   {

@@ -6,7 +6,9 @@ import { jotaiJsonStorage } from "@/utils/storage/jotai";
 
 const AI_PANEL_TAB_KEY = "marimo:chrome:ai-panel-tab";
 
-const aiPanelTabAtom = atomWithStorage<"chat" | "agents">(
+export type AiPanelTab = "chat" | "agents";
+
+export const aiPanelTabAtom = atomWithStorage<AiPanelTab>(
   AI_PANEL_TAB_KEY,
   "chat",
   jotaiJsonStorage,

@@ -3,12 +3,12 @@
 import { AlertTriangleIcon } from "lucide-react";
 import React from "react";
 import { FocusScope } from "react-aria";
-import { formatElapsedTime } from "@/components/editor/cell/CellStatus";
 import { CellLink } from "@/components/editor/links/cell-link";
 import { Button } from "@/components/ui/button";
 import type { CellId } from "@/core/cells/ids";
 import { usePendingDelete } from "@/core/cells/pending-delete-service";
 import { cn } from "@/utils/cn";
+import { formatElapsedTime } from "@/utils/time";
 
 export const PendingDeleteConfirmation: React.FC<{ cellId: CellId }> = ({
   cellId,

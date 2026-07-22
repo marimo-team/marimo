@@ -5,10 +5,19 @@ import json
 import sys
 import time
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._code_mode.screenshot_meta import (
+    SCREENSHOT_AUTH_TOKEN_KEY,
+    SCREENSHOT_SERVER_URL_KEY,
+)
+from marimo._messaging.notification import ConsumerCapabilities
+from marimo._runtime.commands import ExecuteCellsCommand
+from marimo._server.api.utils import enforce_consumer_capability
 from marimo._types.ids import CellId_t, SessionId
+from marimo._utils.http import HTTPException
 from marimo._utils.lists import first
 from tests._server.api.endpoints.ws_helpers import (
     HEADERS as WS_HEADERS,
@@ -247,10 +256,13 @@ class TestExecutionRoutes_EditMode:
         assert len(scratchpad_cmds) == 1, (
             f"expected one ExecuteScratchpadCommand, got {captured!r}"
         )
-        meta = scratchpad_cmds[0].request.meta
-        assert meta["screenshot_auth_token"] == "fake-token"
+        http_req = scratchpad_cmds[0].request
+        assert http_req is not None
         # Mock server uses host="localhost", port=1234, base_url=""
-        assert meta["screenshot_server_url"] == "http://localhost:1234"
+        assert http_req.meta[SCREENSHOT_SERVER_URL_KEY] == (
+            "http://localhost:1234"
+        )
+        assert http_req.meta[SCREENSHOT_AUTH_TOKEN_KEY] == "fake-token"
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -620,7 +632,7 @@ def test_takeover_transfers_edit_without_disconnect(
                         "resumed": True,
                         "consumer_capabilities": {
                             "edit": False,
-                            "interact": False,
+                            "interact": True,
                         },
                     }
                 ),
@@ -636,9 +648,34 @@ def test_takeover_transfers_edit_without_disconnect(
             vw = receive_until("consumer-capabilities", viewer)
             assert ed["data"]["consumer_capabilities"] == {
                 "edit": False,
-                "interact": False,
+                "interact": True,
             }
             assert vw["data"]["consumer_capabilities"] == {
                 "edit": True,
                 "interact": True,
             }
+
+
+def _app_state_for_consumer(caps: ConsumerCapabilities) -> object:
+    app_state = MagicMock()
+    app_state.require_current_session_id.return_value = "consumer-1"
+    session = app_state.require_current_session.return_value
+    session.room.get_consumer.return_value = object()
+    session.room.get_capabilities.return_value = caps
+    return app_state
+
+
+def test_enforce_consumer_capability_blocks_viewer() -> None:
+    # A default viewer is an interactor (edit=False); an edit-tier command is
+    # still refused.
+    app_state = _app_state_for_consumer(ConsumerCapabilities.INTERACTOR)
+    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    with pytest.raises(HTTPException) as exc_info:
+        enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]
+    assert exc_info.value.status_code == 403
+
+
+def test_enforce_consumer_capability_allows_editor() -> None:
+    app_state = _app_state_for_consumer(ConsumerCapabilities.EDITOR)
+    command = ExecuteCellsCommand(cell_ids=[], codes=[])
+    enforce_consumer_capability(app_state, command)  # type: ignore[arg-type]

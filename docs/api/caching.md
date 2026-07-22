@@ -30,7 +30,7 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 import marimo as mo
 
 @mo.persistent_cache
-def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray:
     ...
 ```
 

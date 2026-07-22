@@ -5,6 +5,7 @@ import { Provider } from "jotai";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
+import { viewStateAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { InstallPackageButton } from "../install-package-button";
@@ -48,6 +49,7 @@ describe("InstallPackageButton", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     store.set(requestClientAtom, MockRequestClient.create());
+    store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
   });
 
   it("should not render when packages is undefined", () => {
@@ -81,5 +83,14 @@ describe("InstallPackageButton", () => {
       { wrapper },
     );
     expect(screen.getByText("Install altair")).toBeInTheDocument();
+  });
+
+  it("should not render in read mode, where installs are not allowed", () => {
+    store.set(viewStateAtom, { mode: "read", cellAnchor: null });
+    const { container } = render(
+      <InstallPackageButton packages={["altair"]} />,
+      { wrapper },
+    );
+    expect(container.firstChild).toBeNull();
   });
 });

@@ -69,6 +69,34 @@ describe("DataTable", () => {
     expect(commonProps.rowSelection).toEqual(initialRowSelection);
   });
 
+  it("hides the search bar when showSearch is false", () => {
+    const columns: ColumnDef<TestData>[] = [
+      { accessorKey: "name", header: "Name" },
+    ];
+    const commonProps = {
+      data: [{ id: 1, name: "Test 1" }] as TestData[],
+      columns,
+      totalRows: 1,
+      totalColumns: 1,
+      pagination: false,
+      onSearchQueryChange: () => {},
+    };
+
+    const { rerender } = render(
+      <TooltipProvider>
+        <DataTable {...commonProps} showSearch={true} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByPlaceholderText("Search...")).not.toBeNull();
+
+    rerender(
+      <TooltipProvider>
+        <DataTable {...commonProps} showSearch={false} />
+      </TooltipProvider>,
+    );
+    expect(screen.queryByPlaceholderText("Search...")).toBeNull();
+  });
+
   it("shows the hoverTemplate text as a styled tooltip on hover", async () => {
     vi.useFakeTimers();
     interface RowData {

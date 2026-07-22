@@ -5,8 +5,8 @@ import { ISLAND_CSS_CLASSES, ISLAND_TAG_NAMES } from "@/core/islands/constants";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
-  MODEL_MANAGER,
-} from "@/plugins/impl/anywidget/model";
+  WIDGET_REGISTRY,
+} from "@/plugins/impl/anywidget/registry";
 import { initializePlugins } from "@/plugins/plugins";
 import { Functions } from "@/utils/functions";
 import {
@@ -108,14 +108,17 @@ export async function initializeIslands(
   // Loading indicator: dim islands while Pyodide initializes
   store.sub(shouldShowIslandsWarningIndicatorAtom, () => {
     const showing = store.get(shouldShowIslandsWarningIndicatorAtom);
+    const currentIslands = root.querySelectorAll<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
     if (showing) {
       toastIslandsLoading();
-      for (const island of islands) {
+      for (const island of currentIslands) {
         island.style.setProperty("opacity", "0.5");
       }
     } else {
       dismissIslandsLoadingToast();
-      for (const island of islands) {
+      for (const island of currentIslands) {
         island.style.removeProperty("opacity");
       }
     }
@@ -174,6 +177,7 @@ function handleMessage(
       case "completion-result":
       case "reload":
       case "focus-cell":
+      case "active-line":
       case "variables":
       case "variable-values":
       case "data-column-preview":
@@ -207,7 +211,9 @@ function handleMessage(
           setKernelState: Functions.NOOP,
           onError: Logger.error,
         });
-        defineCustomElement(ISLAND_TAG_NAMES.ISLAND, MarimoIslandElement);
+        if (!window.customElements?.get(ISLAND_TAG_NAMES.ISLAND)) {
+          defineCustomElement(ISLAND_TAG_NAMES.ISLAND, MarimoIslandElement);
+        }
         return;
 
       case "send-ui-element-message":
@@ -252,7 +258,7 @@ function handleMessage(
         return;
 
       case "model-lifecycle":
-        handleWidgetMessage(MODEL_MANAGER, msg.data);
+        handleWidgetMessage(WIDGET_REGISTRY, msg.data);
         return;
 
       case "consumer-capabilities":

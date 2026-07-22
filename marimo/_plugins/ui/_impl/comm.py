@@ -3,10 +3,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from marimo._loggers import marimo_logger
 from marimo._messaging.notification import (
+    EsmSpec,
     ModelClose,
     ModelCustom,
     ModelLifecycleNotification,
@@ -20,6 +21,10 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
 )
 from marimo._types.ids import WidgetModelId
+
+if TYPE_CHECKING:
+    from marimo._messaging.types import Stream
+    from marimo._runtime.context.utils import RunMode
 
 LOGGER = marimo_logger()
 
@@ -56,10 +61,19 @@ class MarimoCommManager:
             return (None, None)
 
         comm = self.comms[command.model_id]
+
+        # Clients may write widget state, never code or style: anything
+        # surviving this reaches `widget.set_state` and is echoed to
+        # peers. Filter by known-key list; other underscore traits are
+        # legitimate widget state.
+        message = command.message
+        if isinstance(message, ModelUpdateMessage):
+            for key in ("_esm", "_css"):
+                message.state.pop(key, None)
+
         comm.handle_msg(command.into_comm_payload())
 
         # For update messages, return ui_element_id and state for cell re-run
-        message = command.message
         if isinstance(message, ModelUpdateMessage) and comm.ui_element_id:
             return (comm.ui_element_id, message.state)
 
@@ -92,10 +106,14 @@ def _ensure_bytes(buf: object) -> bytes:
 def _create_model_message(
     data: dict[str, Any],
     buffers: list[Buffer],
+    esm_spec: EsmSpec | None = None,
 ) -> ModelMessage | None:
     """Create the appropriate ModelMessage based on the method field.
 
-    Returns None for methods that should be skipped (e.g., echo_update).
+    Returns None for methods that should be skipped, including
+    `echo_update`. `data` is the ipywidgets-shaped comm payload;
+    `esm_spec` is minted by the comm itself, never supplied by comm
+    callers.
     """
     bbuffers = [_ensure_bytes(b) for b in buffers]
     method = data.get("method", "update")
@@ -107,12 +125,14 @@ def _create_model_message(
             state=state,
             buffer_paths=buffer_paths,
             buffers=bbuffers,
+            esm_spec=esm_spec,
         )
     elif method == "update":
         return ModelUpdate(
             state=state,
             buffer_paths=buffer_paths,
             buffers=bbuffers,
+            esm_spec=esm_spec,
         )
     elif method == "custom":
         return ModelCustom(
@@ -120,7 +140,10 @@ def _create_model_message(
             buffers=bbuffers,
         )
     elif method == "echo_update":
-        # echo_update is for multi-client sync acknowledgment, skip it
+        # ipywidgets' acknowledgement of a client write. Broadcasting
+        # it would feed the write back into the sender's model,
+        # re-firing change listeners. Reconnect replay records client
+        # writes server-side instead (SessionView.add_control_request).
         return None
     else:
         LOGGER.warning("Unknown method: %s, skipping", method)
@@ -157,6 +180,17 @@ class MarimoComm:
         self.comm_manager = comm_manager
         self.target_name = target_name
         self.ui_element_id: str | None = None
+
+        # Library-owned callbacks (such as anywidget's file watcher) may send
+        # from a plain background thread, which has no marimo runtime context.
+        # Bind the comm to the session in which it was opened so those sends
+        # retain both their transport and edit/run policy.
+        from marimo._runtime.context import safe_get_context
+        from marimo._runtime.context.utils import get_mode
+
+        ctx = safe_get_context()
+        self._stream: Stream | None = ctx.stream if ctx is not None else None
+        self._mode: RunMode | None = get_mode()
         self._open(data=data, buffers=buffers)
 
     def _open(
@@ -164,17 +198,26 @@ class MarimoComm:
         data: DataType = None,
         buffers: BufferType = None,
     ) -> None:
-        """Open the comm and send initial state."""
+        """Open the comm and send initial state.
+
+        Mints the widget's ESM spec, kept on the comm so repr
+        formatters can reference this model without re-minting.
+        Traditional ipywidgets have no `_esm` and get no spec.
+        """
         LOGGER.debug("Opening comm %s", self.comm_id)
-        # Stash anywidget ESM info from the open state so it can be
-        # looked up later by model_id (used by repr_formatters to
-        # produce <marimo-anywidget> HTML).
-        state = (data or {}).get("state", {})
+        data = dict(data or {})
+        state = data.get("state", {})
         esm = state.get("_esm")
-        self.esm: str | None = esm if isinstance(esm, str) and esm else None
+        self.esm_spec: EsmSpec | None = (
+            EsmSpec.from_esm(esm) if isinstance(esm, str) and esm else None
+        )
+        if self.esm_spec is not None:
+            # Code travels only via the spec (see EsmSpec); copy the
+            # state dict since callers may still own it.
+            data["state"] = {k: v for k, v in state.items() if k != "_esm"}
         self.comm_manager.register_comm(self)
         try:
-            self._broadcast(data or {}, buffers or [])
+            self._broadcast(data, buffers or [], esm_spec=self.esm_spec)
             self._closed = False
         except Exception:
             self.comm_manager.unregister_comm(self)
@@ -197,10 +240,24 @@ class MarimoComm:
         metadata: MetadataType = None,
         buffers: BufferType = None,
     ) -> None:
-        """Send a message to the frontend (state update or custom message)."""
+        """Send a message to the frontend (state update or custom message).
+
+        An `_esm` change (e.g. anywidget's file watcher) becomes a
+        fresh spec on the update in edit sessions (hot reload) and is
+        dropped everywhere else, so a viewer's widget code is immutable.
+        """
         del metadata  # unused
         LOGGER.debug("Sending comm message %s", self.comm_id)
-        self._broadcast(data or {}, buffers or [])
+        data = dict(data or {})
+        state = data.get("state")
+        changed_spec: EsmSpec | None = None
+        if isinstance(state, dict) and "_esm" in state:
+            esm = state["_esm"]
+            data["state"] = {k: v for k, v in state.items() if k != "_esm"}
+            if self._mode == "edit" and isinstance(esm, str) and esm:
+                self.esm_spec = EsmSpec.from_esm(esm)
+                changed_spec = self.esm_spec
+        self._broadcast(data, buffers or [], esm_spec=changed_spec)
 
     def close(
         self,
@@ -220,7 +277,8 @@ class MarimoComm:
             ModelLifecycleNotification(
                 model_id=self.comm_id,
                 message=ModelClose(),
-            )
+            ),
+            stream=self._stream,
         )
 
         if not deleting:
@@ -229,16 +287,22 @@ class MarimoComm:
     def __del__(self) -> None:
         self.close(deleting=True)
 
-    def _broadcast(self, data: dict[str, Any], buffers: list[Buffer]) -> None:
+    def _broadcast(
+        self,
+        data: dict[str, Any],
+        buffers: list[Buffer],
+        esm_spec: EsmSpec | None = None,
+    ) -> None:
         """Broadcast a model lifecycle notification."""
-        message = _create_model_message(data, buffers)
+        message = _create_model_message(data, buffers, esm_spec=esm_spec)
         if message is None:
             return
         broadcast_notification(
             ModelLifecycleNotification(
                 model_id=self.comm_id,
                 message=message,
-            )
+            ),
+            stream=self._stream,
         )
 
     # This is the method that ipywidgets.widgets.Widget uses to respond to

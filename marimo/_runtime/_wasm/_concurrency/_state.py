@@ -82,7 +82,10 @@ def _reserved_thread_ids() -> set[int]:
     current = current_identity()
     if current is not None:
         _add_thread_ids(reserved, current)
-    for thread in live_threads:
+    for thread in list(live_threads):
+        if not thread.is_alive():
+            live_threads.discard(thread)
+            continue
         _add_thread_ids(reserved, thread)
 
     state = patch_state_value

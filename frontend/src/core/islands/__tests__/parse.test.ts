@@ -1,9 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   ISLAND_DATA_ATTRIBUTES,
   ISLAND_TAG_NAMES,
+  ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
+import { Logger } from "@/utils/Logger";
 import {
   createMarimoFile,
   extractIslandCodeFromEmbed,
@@ -12,8 +15,47 @@ import {
   parseIslandElement,
   parseIslandElementsIntoApps,
   parseMarimoIslandApps,
+  retainIslandSource,
 } from "../parse";
 import { createMockIslandElement, createMockIslands } from "./test-utils.tsx";
+
+function createPayloadCell(
+  overrides: Partial<{
+    cellId: string;
+    code: string;
+    outputHtml: string;
+    outputMimetype: string;
+    reactive: boolean;
+    displayCode: boolean;
+    displayOutput: boolean;
+  }> = {},
+) {
+  return {
+    cellId: "cell-1",
+    code: 'print("payload")',
+    outputHtml: "<div>payload</div>",
+    outputMimetype: "text/html",
+    reactive: true,
+    displayCode: false,
+    displayOutput: true,
+    ...overrides,
+  };
+}
+
+function appendPayload(
+  root: HTMLElement,
+  payload: {
+    schemaVersion: number;
+    appId: string;
+    cells: ReturnType<typeof createPayloadCell>[];
+  },
+) {
+  const script = document.createElement("script");
+  script.type = ISLANDS_JSON_SCRIPT_TYPE;
+  script.textContent = JSON.stringify(payload);
+  root.appendChild(script);
+  return script;
+}
 
 describe("createMarimoFile", () => {
   it("should return a string", () => {
@@ -86,6 +128,27 @@ describe("createMarimoFile", () => {
       @app.cell
       async def __():
           await asyncio.sleep(1)
+          return"
+    `);
+  });
+
+  it("should create disabled marimo cells", () => {
+    const app = {
+      cells: [{ code: "x = 0", disabled: true }, { code: "x = 1" }],
+    };
+
+    const result = createMarimoFile(app);
+
+    expect(result).toMatchInlineSnapshot(`
+      "import marimo
+      app = marimo.App()
+      @app.cell(disabled=True)
+      def __():
+          pass
+          return
+      @app.cell
+      def __():
+          x = 1
           return"
     `);
   });
@@ -255,6 +318,39 @@ describe("parseIslandElement", () => {
     const result = parseIslandElement(element);
 
     expect(result).toBeNull();
+  });
+
+  it("uses retained source after the custom element renders", () => {
+    const element = document.createElement(ISLAND_TAG_NAMES.ISLAND);
+    retainIslandSource(element, {
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    expect(parseIslandElement(element)).toEqual({
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    retainIslandSource(element, { code: "", output: "<div>static</div>" });
+    expect(parseIslandElement(element)).toBeNull();
+  });
+
+  it("prefers new live source when an island element is reused", () => {
+    const element = createMockIslandElement({
+      code: 'print("new")',
+      innerHTML: "<div>new output</div>",
+    });
+    element.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    retainIslandSource(element, {
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    expect(parseIslandElement(element)).toEqual({
+      code: 'print("new")',
+      output: "<div>new output</div>",
+    });
   });
 });
 
@@ -459,6 +555,7 @@ describe("parseMarimoIslandApps", () => {
 
   afterEach(() => {
     document.body.removeChild(container);
+    vi.restoreAllMocks();
   });
 
   it("should parse islands from document", () => {
@@ -527,5 +624,597 @@ describe("parseMarimoIslandApps", () => {
         },
       ]
     `);
+  });
+
+  it("should use supported JSON payload data for matched islands", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: "<div>dom</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([
+      {
+        id: "app1",
+        payloadBacked: true,
+        cells: [
+          {
+            cellId: "cell-1",
+            code: 'print("payload")',
+            idx: 0,
+            output: "<div>payload</div>",
+          },
+        ],
+      },
+    ]);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBeNull();
+    expect(extractIslandCodeFromEmbed(island)).toBe('print("payload")');
+    expect(island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)?.innerHTML).toBe(
+      "<div>payload</div>",
+    );
+  });
+
+  it("preserves payload-backed cells after a non-materializing capability probe", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "dom_code = True",
+      innerHTML: "<div>dom output</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell({ cellId: "cell-2" })],
+    });
+    const originalIsland = island.outerHTML;
+
+    const probed = parseMarimoIslandApps(container, { materialize: false });
+
+    expect(probed).toHaveLength(1);
+    expect(island.outerHTML).toBe(originalIsland);
+
+    expect(parseMarimoIslandApps(container)).toEqual(probed);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBeNull();
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+  });
+
+  it("refreshes a reused payload anchor when its content changes", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: "<div>dom output</div>",
+    });
+    island.insertAdjacentHTML(
+      "beforeend",
+      '<div data-marimo-element><marimo-code-editor data-initial-value="old"></marimo-code-editor></div>',
+    );
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    const script = appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+    parseMarimoIslandApps(container);
+
+    script.textContent = JSON.stringify({
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          code: 'print("updated")',
+          outputHtml: "<div>updated output</div>",
+        }),
+      ],
+    });
+
+    parseMarimoIslandApps(container);
+
+    expect(extractIslandCodeFromEmbed(island)).toBe('print("updated")');
+    expect(island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)?.innerHTML).toBe(
+      "<div>updated output</div>",
+    );
+    expect(
+      island
+        .querySelector(ISLAND_TAG_NAMES.CODE_EDITOR)
+        ?.getAttribute("data-initial-value"),
+    ).toBe(JSON.stringify('print("updated")'));
+  });
+
+  it("should parse Python-generated island payload snapshots", () => {
+    const html = readFileSync(
+      new URL(
+        "../../../../../tests/_islands/snapshots/html-payload.txt",
+        import.meta.url,
+      ).pathname.replace(/^\/@fs/, ""),
+      "utf8",
+    );
+    container.innerHTML = html;
+
+    const result = parseMarimoIslandApps(container);
+    const islands = container.querySelectorAll<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+
+    expect(result).toEqual([
+      {
+        id: "main",
+        payloadBacked: true,
+        cells: [
+          {
+            cellId: "Hbol",
+            code: "import marimo as mo",
+            idx: 0,
+            output: "",
+          },
+          {
+            cellId: "MJUe",
+            code: "mo.md('Hello, HTML!')",
+            idx: 1,
+            output: "",
+          },
+        ],
+      },
+    ]);
+    expect(islands[0].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBeNull();
+    expect(islands[1].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+    expect(islands[2].getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
+  });
+
+  it("should fall back to DOM islands for unsupported payload versions", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: "<div>dom</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 2,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([
+      {
+        id: "app1",
+        cells: [
+          {
+            code: 'print("dom")',
+            idx: 0,
+            output: "<div>dom</div>",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("should ignore payload scripts rendered inside island output", () => {
+    const nestedPayload = {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          code: "payload_code_should_not_run = True",
+          outputHtml: "<div>payload</div>",
+        }),
+      ],
+    };
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: `<div>dom</div><script type="${ISLANDS_JSON_SCRIPT_TYPE}">${JSON.stringify(nestedPayload)}</script>`,
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([
+      {
+        id: "app1",
+        cells: [
+          {
+            code: 'print("dom")',
+            idx: 0,
+            output: island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)
+              ?.innerHTML,
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("should use payload order for runtime cell indices", () => {
+    const second = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "second_dom = True",
+      innerHTML: "<div>second dom</div>",
+    });
+    const first = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "first_dom = True",
+      innerHTML: "<div>first dom</div>",
+    });
+    for (const island of [second, first]) {
+      island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+      container.appendChild(island);
+    }
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          cellId: "cell-1",
+          code: "first_payload = True",
+          outputHtml: "<div>first payload</div>",
+        }),
+        createPayloadCell({
+          cellId: "cell-2",
+          code: "second_payload = True",
+          outputHtml: "<div>second payload</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result[0].cells.map((cell) => cell.code)).toEqual([
+      "first_payload = True",
+      "second_payload = True",
+    ]);
+    expect(first.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+    expect(second.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
+  });
+
+  it("should include payload-only runtime cells", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "value",
+      innerHTML: "<div>value</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          cellId: "cell-1",
+          code: "import marimo as mo",
+          outputHtml: "",
+        }),
+        createPayloadCell({
+          cellId: "cell-2",
+          code: "mo.md('visible')",
+          outputHtml: "<div>visible</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result[0].cells.map((cell) => cell.code)).toEqual([
+      "import marimo as mo",
+      "mo.md('visible')",
+    ]);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
+  });
+
+  it("should bind payload-backed islands by runtime index after static cells", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "visible_dom = True",
+      innerHTML: "<div>visible dom</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          cellId: "cell-1",
+          code: "",
+          outputHtml: "<div>static</div>",
+          reactive: false,
+        }),
+        createPayloadCell({
+          cellId: "cell-2",
+          code: "visible_payload = True",
+          outputHtml: "<div>visible payload</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result[0].cells).toEqual([
+      {
+        cellId: "cell-1",
+        code: "",
+        disabled: true,
+        idx: 0,
+        output: "<div>static</div>",
+      },
+      {
+        cellId: "cell-2",
+        code: "visible_payload = True",
+        idx: 1,
+        output: "<div>visible payload</div>",
+      },
+    ]);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBeNull();
+  });
+
+  it("should fall back to DOM when no payload cell matches an island", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "dom-only",
+      code: "dom_only = True",
+      innerHTML: "<div>dom only</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    island.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          cellId: "payload-only",
+          code: "payload_only = True",
+          outputHtml: "<div>payload only</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([
+      {
+        id: "app1",
+        cells: [
+          {
+            code: "dom_only = True",
+            idx: 0,
+            output: "<div>dom only</div>",
+          },
+        ],
+      },
+    ]);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBe(
+      "dom-only",
+    );
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE)).toBe("true");
+  });
+
+  it("should ignore payloads without matching islands", () => {
+    const warn = vi.spyOn(Logger, "warn").mockImplementation(() => undefined);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([]);
+    expect(warn).toHaveBeenCalledWith("No embedded marimo apps found.");
+  });
+
+  it("should still parse DOM-only apps when another app has payload", () => {
+    const payloadIsland = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "payload_dom = True",
+      innerHTML: "<div>payload dom</div>",
+    });
+    const domIsland = createMockIslandElement({
+      appId: "app2",
+      code: "dom_app = True",
+      innerHTML: "<div>dom app</div>",
+    });
+    for (const island of [payloadIsland, domIsland]) {
+      island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+      container.appendChild(island);
+    }
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result.map((app) => app.id)).toEqual(["app1", "app2"]);
+    expect(result[0].cells[0].code).toBe('print("payload")');
+    expect(result[1].cells[0].code).toBe("dom_app = True");
+  });
+
+  it("should materialize non-reactive payload islands without runtime cells", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "static_dom = True",
+      innerHTML: "<div>static dom</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+    island.removeAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX);
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          code: "",
+          outputHtml: "<div>static payload</div>",
+          reactive: false,
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result).toEqual([]);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBeNull();
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBeNull();
+    expect(island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)?.innerHTML).toBe(
+      "<div>static payload</div>",
+    );
+  });
+
+  it("should keep non-reactive display code out of runtime cells", () => {
+    const staticIsland = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "x = 0",
+      innerHTML: "<div>static</div>",
+    });
+    const reactiveIsland = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "y = 1",
+      innerHTML: "<div>reactive</div>",
+    });
+    staticIsland.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "false");
+    reactiveIsland.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.append(staticIsland, reactiveIsland);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          cellId: "cell-1",
+          code: "x = 0",
+          outputHtml: "<div>static payload</div>",
+          reactive: false,
+          displayCode: true,
+        }),
+        createPayloadCell({
+          cellId: "cell-2",
+          code: "y = 1",
+          outputHtml: "<div>reactive payload</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+    const file = createMarimoFile(result[0]);
+
+    expect(result[0].cells).toEqual([
+      {
+        cellId: "cell-1",
+        code: "",
+        disabled: true,
+        idx: 0,
+        output: "<div>static payload</div>",
+      },
+      {
+        cellId: "cell-2",
+        code: "y = 1",
+        idx: 1,
+        output: "<div>reactive payload</div>",
+      },
+    ]);
+    expect(file).not.toContain("x = 0");
+    expect(file).toContain("@app.cell(disabled=True)\ndef __():\n    pass");
+    expect(reactiveIsland.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe(
+      "1",
+    );
+  });
+
+  it("should update editor initial values from payload code", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: "<div>dom</div>",
+    });
+    island.insertAdjacentHTML(
+      "beforeend",
+      '<div data-marimo-element><marimo-code-editor data-initial-value="\\"print(\\\\\\"dom\\\\\\")\\""></marimo-code-editor></div>',
+    );
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+
+    parseMarimoIslandApps(container);
+
+    expect(
+      island
+        .querySelector(ISLAND_TAG_NAMES.CODE_EDITOR)
+        ?.getAttribute("data-initial-value"),
+    ).toBe(JSON.stringify('print("payload")'));
+  });
+
+  it("should match duplicate cell ids by occurrence", () => {
+    const first = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "dom_first = True",
+      innerHTML: "<div>dom first</div>",
+    });
+    const second = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: "dom_second = True",
+      innerHTML: "<div>dom second</div>",
+    });
+    for (const island of [first, second]) {
+      island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+      container.appendChild(island);
+    }
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          code: "payload_first = True",
+          outputHtml: "<div>payload first</div>",
+        }),
+        createPayloadCell({
+          code: "payload_second = True",
+          outputHtml: "<div>payload second</div>",
+        }),
+      ],
+    });
+
+    const result = parseMarimoIslandApps(container);
+
+    expect(result[0].cells.map((cell) => cell.code)).toEqual([
+      "payload_first = True",
+      "payload_second = True",
+    ]);
+    expect(first.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+    expect(second.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("1");
   });
 });

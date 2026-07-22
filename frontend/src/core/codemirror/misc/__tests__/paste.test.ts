@@ -7,7 +7,7 @@ import {
   type CodemirrorCellActions,
   cellActionsState,
 } from "../../cells/state";
-import { extractCells, pasteBundle } from "../paste";
+import { extractCells, extractMarimoApp, pasteBundle } from "../paste";
 
 describe("extractCells", () => {
   it("returns empty array for non-marimo text", () => {
@@ -158,6 +158,154 @@ def _(mo, px):
     ]);
   });
 
+  it("preserves decorators on nested functions", () => {
+    const input = `
+@app.cell
+def _():
+    @functools.cache
+    def fib(n):
+        return n
+    return fib
+`;
+    expect(extractCells(input)).toEqual([
+      "@functools.cache\ndef fib(n):\n    return n",
+    ]);
+  });
+
+  it("preserves decorated methods inside a class", () => {
+    const input = `
+@app.cell
+def _():
+    class A:
+        @property
+        def x(self):
+            return self._x
+    return A
+`;
+    expect(extractCells(input)).toEqual([
+      "class A:\n    @property\n    def x(self):\n        return self._x",
+    ]);
+  });
+
+  it("handles async cells with multi-line args", () => {
+    const input = `
+@app.cell
+async def _(
+    a,
+    b,
+):
+    x = await foo(a, b)
+    return x
+`;
+    expect(extractCells(input)).toEqual(["x = await foo(a, b)"]);
+  });
+
+  it("strips multi-line returns using brackets", () => {
+    const input = `
+@app.cell
+def _():
+    a = 1
+    b = 2
+    return [
+        a,
+        b,
+    ]
+`;
+    expect(extractCells(input)).toEqual(["a = 1\nb = 2"]);
+  });
+
+  it("strips multi-line returns using braces", () => {
+    const input = `
+@app.cell
+def _():
+    a = 1
+    return {
+        "a": a,
+    }
+`;
+    expect(extractCells(input)).toEqual(["a = 1"]);
+  });
+
+  it("does not corrupt the following cell after a bracketed return", () => {
+    const input = `
+@app.cell
+def _():
+    a = 1
+    return [
+        a,
+    ]
+
+@app.cell
+def _():
+    b = 2
+    return b
+`;
+    expect(extractCells(input)).toEqual(["a = 1", "b = 2"]);
+  });
+
+  it("preserves comments in the cell body", () => {
+    const input = `
+@app.cell
+def _():
+    # leading comment
+    x = 1
+    return x
+`;
+    expect(extractCells(input)).toEqual(["# leading comment\nx = 1"]);
+  });
+
+  it("extracts the setup block separately from cells", () => {
+    const input = `
+import marimo
+app = marimo.App()
+
+with app.setup(hide_code=True):
+    import marimo as mo
+    import numpy as np
+    from numpy.linalg import eigh
+`;
+    expect(extractMarimoApp(input)).toEqual({
+      setup:
+        "import marimo as mo\nimport numpy as np\nfrom numpy.linalg import eigh",
+      cells: [],
+    });
+    // The convenience wrapper excludes the setup block.
+    expect(extractCells(input)).toEqual([]);
+  });
+
+  it("extracts @app.function definitions, keeping their return", () => {
+    const input = `
+@app.function
+def laplacian_matrix(adjacency_matrix):
+    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))
+    L = degree_matrix - adjacency_matrix
+    return L
+`;
+    expect(extractCells(input)).toEqual([
+      "def laplacian_matrix(adjacency_matrix):\n    degree_matrix = np.diag(np.sum(adjacency_matrix, axis=1))\n    L = degree_matrix - adjacency_matrix\n    return L",
+    ]);
+  });
+
+  it("extracts setup separately while keeping cells and functions in order", () => {
+    const input = `
+with app.setup:
+    import numpy as np
+
+@app.cell
+def _():
+    a = 1
+    return (a,)
+
+@app.function
+def double(x):
+    return x * 2
+`;
+    expect(extractMarimoApp(input)).toEqual({
+      setup: "import numpy as np",
+      cells: ["a = 1", "def double(x):\n    return x * 2"],
+    });
+  });
+
   it("handles cells with config", () => {
     const input = `
 @app.cell(hide_code=True, column=2)
@@ -253,5 +401,46 @@ def _():
     view.dom.dispatchEvent(event);
 
     expect(createManyBelow).not.toHaveBeenCalled();
+  });
+
+  it("routes the setup block to the setup cell, not a normal cell", () => {
+    const createManyBelow = vi.fn();
+    const addOrAppendSetupCell = vi.fn();
+    const extension = pasteBundle();
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "",
+        extensions: [
+          extension,
+          cellActionsState.of({
+            createManyBelow,
+            addOrAppendSetupCell,
+          } as never as CodemirrorCellActions),
+        ],
+      }),
+    });
+
+    const clipboardData = new MockDataTransfer();
+    clipboardData.setData(
+      "text/plain",
+      `
+with app.setup:
+    import numpy as np
+
+@app.cell
+def _():
+    x = 1
+    return x
+`,
+    );
+    const event = new MockClipboardEvent("paste", { clipboardData });
+
+    // HACK: manually add the paste event listener
+    // @ts-expect-error extension not typed
+    view.dom.onpaste = (evt) => extension[0].domEventHandlers.paste(evt, view);
+    view.dom.dispatchEvent(event);
+
+    expect(addOrAppendSetupCell).toHaveBeenCalledWith("import numpy as np");
+    expect(createManyBelow).toHaveBeenCalledWith(["x = 1"]);
   });
 });

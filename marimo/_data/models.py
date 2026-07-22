@@ -4,6 +4,8 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta  # noqa: TC003
 from typing import TYPE_CHECKING, Any, Literal
 
+import msgspec
+
 from marimo._types.ids import VariableName
 from marimo._utils.msgspec_basestruct import BaseStruct
 
@@ -88,16 +90,24 @@ class Schema(BaseStruct):
     """
     Represents a database schema and its tables.
 
+    A schema may itself contain nested child schemas, e.g. for catalogs with
+    hierarchical namespaces such as Iceberg (`top.nested.deep`).
+
     Attributes:
         name (str): The name of the schema.
         tables (List[DataTable]): Tables in this schema.
         tables_resolved (bool): True when `tables` has been enumerated
             False when table discovery was deferred. Defaults to True
+        child_schemas (List[Schema]): Nested child schemas (sub-namespaces).
+        child_schemas_resolved (bool): True when `child_schemas` has been
+            enumerated. False when discovery was deferred. Defaults to True
     """
 
     name: str
     tables: list[DataTable]
     tables_resolved: bool = True
+    child_schemas: list[Schema] = msgspec.field(default_factory=list)
+    child_schemas_resolved: bool = True
 
 
 class Database(BaseStruct):

@@ -20,6 +20,22 @@ globalThis.ResizeObserver ??= class {
   }
 } as never;
 
+// mock implementation because jsdom doesn't support IntersectionObserver
+globalThis.IntersectionObserver ??= class {
+  observe(_target: Element) {
+    /* noop */
+  }
+  unobserve(_target: Element) {
+    /* noop */
+  }
+  disconnect() {
+    /* noop */
+  }
+  takeRecords() {
+    return [];
+  }
+} as never;
+
 // Global setup for all tests
 beforeEach(() => {
   // Reset all mocks before each test

@@ -13,7 +13,7 @@ For interactive development, submit a job that runs `marimo edit` and connect vi
 Create a script (`run_marimo.sh`):
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=marimo
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 Submit as a job:
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=marimo-job
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -94,7 +94,7 @@ Add GPU resources to your SBATCH directives:
 
 /// tab | Interactive development
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=marimo
 #SBATCH --output=marimo-%j.out
 #SBATCH --partition=gpu
@@ -108,12 +108,12 @@ Add GPU resources to your SBATCH directives:
 python -m marimo edit notebook.py --headless --port 3000
 ```
 
-/// 
+///
 
 /// tab | Batch jobs
 
 ```bash
-#!/bin/bash
+#!/usr/bin/env bash
 #SBATCH --job-name=marimo-gpu
 #SBATCH --partition=gpu
 #SBATCH --gres=gpu:1

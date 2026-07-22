@@ -49,6 +49,18 @@
 .markdown h6 {
   font-weight: inherit;
   font-family: var(--heading-font);
+
+  /*
+  Anchor heading spacing to GitHub's markdown rhythm (Primer): a uniform
+  24px top / 16px bottom margin and 1.25 line-height across every level,
+  letting font-size — not margin — carry the hierarchy. Tailwind Typography's
+  prose defaults scale heading margins per-level up to ~2em (≈48px on h2),
+  which is tuned for long-form articles and reads as too airy in a notebook.
+  Ref: https://github.com/sindresorhus/github-markdown-css
+  */
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  line-height: 1.25;
 }
 
 .markdown hr {

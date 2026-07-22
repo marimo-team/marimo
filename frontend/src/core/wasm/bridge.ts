@@ -16,6 +16,7 @@ import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import type {
   EditRequests,
+  EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
   FileCopyResponse,
@@ -38,7 +39,7 @@ import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
-import { wasmInitializationAtom, wasmInitStatusAtom } from "./state";
+import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import type { SaveWorkerSchema } from "./worker/save-worker";
@@ -120,11 +121,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
       // By initializing after, we get hits on cached network requests
       this.saveRpc = this.getSaveWorker();
       this.setInterruptBuffer();
-      store.set(wasmInitStatusAtom, "ready");
+      store.set(wasmInitStateAtom, { kind: "ready" });
       this.initialized.resolve();
     });
     this.rpc.addMessageListener("initializingMessage", ({ message }) => {
-      store.set(wasmInitializationAtom, message);
+      // Only bump the progress label while still loading — if we've already
+      // reached "ready" or "error", a late message shouldn't roll us back.
+      const current = store.get(wasmInitStateAtom);
+      if (current.kind === "loading") {
+        store.set(wasmInitStateAtom, { kind: "loading", message });
+      }
     });
     this.rpc.addMessageListener("initializedError", ({ error }) => {
       // If already initialized, surface as a toast and leave the deferred /
@@ -138,7 +144,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         });
         return;
       }
-      store.set(wasmInitStatusAtom, "error");
+      store.set(wasmInitStateAtom, { kind: "error", message: error });
       this.initialized.reject(new Error(error));
     });
     this.rpc.addMessageListener("kernelMessage", ({ message }) => {
@@ -249,6 +255,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendPdb: EditRequests["sendPdb"] = async () => {
+    throwNotImplemented();
+  };
+
+  sendSetBreakpoints: EditRequests["sendSetBreakpoints"] = async () => {
     throwNotImplemented();
   };
 
@@ -620,6 +630,13 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   getUsageStats = throwNotImplemented;
+  getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "get_environment_info",
+      payload: undefined,
+    });
+    return response as EnvironmentInfo;
+  };
   openTutorial = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

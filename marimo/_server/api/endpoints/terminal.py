@@ -16,7 +16,7 @@ from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 from marimo import _loggers
 from marimo._server.api.auth import validate_auth
 from marimo._server.api.deps import AppState
-from marimo._server.codes import WebSocketCodes
+from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._server.router import APIRouter
 from marimo._session.model import SessionMode
 from marimo._utils.asyncio_utils import cancel_and_wait
@@ -114,6 +114,21 @@ def _create_process_cleanup_handler(
     """Create a cleanup handler for the child process and file descriptor."""
 
     def cleanup() -> None:
+        # Close the pty master *first*.
+        #
+        # child_pid is the session leader of the pty. If it is killed while the
+        # server still holds the master fd open -- and a foreground child (e.g.
+        # a coding agent or REPL) still holds the slave -- the kernel cannot
+        # finish revoking the shell's controlling terminal, so the shell never
+        # becomes a reapable zombie. The blocking os.waitpid() below would then
+        # hang the asyncio event loop forever (frozen server, Ctrl-C ignored).
+        # Closing the master is the hangup that lets the teardown complete, so
+        # the child reaps promptly.
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
         try:
             # Try graceful termination first
             os.kill(child_pid, signal.SIGTERM)
@@ -130,12 +145,6 @@ def _create_process_cleanup_handler(
                 pass
         except Exception as e:
             LOGGER.debug(f"Error during cleanup: {e}")
-
-        # Close the pty file descriptor
-        try:
-            os.close(fd)
-        except OSError:
-            pass
 
     return cleanup
 
@@ -354,7 +363,7 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
 
     if app_state.enable_auth and not validate_auth(websocket):
         await websocket.close(
-            WebSocketCodes.UNAUTHORIZED, "MARIMO_UNAUTHORIZED"
+            WebSocketCodes.UNAUTHORIZED, WebSocketCloseReason.UNAUTHORIZED
         )
         return
 
@@ -381,6 +390,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     try:
         import pty
 
+        # TODO(akshayka): Someone should clean this up to make it safe on
+        # macOS.
+        #
+        # NOTE: On macOS, pty.fork() is documented as unsafe when mixed with
+        # higher-level system APIs, and forking a multi-threaded process (as
+        # the server is) can segfault the child before it reaches execve().
+        # See https://docs.python.org/3/library/pty.html
         child_pid, fd = pty.fork()
         if child_pid == 0:
             # Child process - set up the shell environment

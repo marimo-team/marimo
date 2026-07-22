@@ -228,6 +228,9 @@ def og_thumbnail(*, request: Request) -> Response:
             base_url=app_state.base_url,
             mode=app_state.mode.value,
         ),
+        execute_generator=(
+            app_state.session_manager.execute_opengraph_generators
+        ),
     )
     title = opengraph.title or "marimo"
     image = opengraph.image
@@ -407,6 +410,9 @@ async def index(request: Request) -> Response:
             else None,
             asset_url=app_state.asset_url,
             html_head=app_state.html_head,
+            execute_opengraph_generators=(
+                app_state.session_manager.execute_opengraph_generators
+            ),
         )
 
         # Inject service worker registration with the notebook ID

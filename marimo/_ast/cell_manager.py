@@ -19,9 +19,9 @@ from marimo._ast.compiler import (
     ir_cell_factory,
     toplevel_cell_factory,
 )
+from marimo._ast.dedent import fixed_dedent
 from marimo._ast.models import CellData
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
-from marimo._ast.parse import fixed_dedent
 from marimo._ast.pytest import process_for_pytest
 from marimo._messaging.notebook.changes import (
     CreateCell,
@@ -370,6 +370,10 @@ class CellManager:
     def configs(self) -> Iterable[CellConfig]:
         """Get an iterator over all cell configurations.
 
+        The returned configs are owned by the document; treat them as read
+        only and change a cell's config with a SetConfig transaction rather
+        than mutating in place.
+
         Returns:
             Iterable[CellConfig]: Iterator yielding each cell's configuration
         """
@@ -432,6 +436,10 @@ class CellManager:
 
     def config_map(self) -> dict[CellId_t, CellConfig]:
         """Get a mapping of cell IDs to their configurations.
+
+        The returned configs are owned by the document; treat them as read
+        only and change a cell's config with a SetConfig transaction rather
+        than mutating in place.
 
         Returns:
             dict[CellId_t, CellConfig]: Dictionary mapping cell IDs to their configurations

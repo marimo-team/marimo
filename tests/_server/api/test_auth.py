@@ -53,6 +53,20 @@ async def test_custom_session_middleware_call_with_port():
     assert middleware.session_cookie == "session"
 
 
+def test_custom_session_middleware_secure_flag_default(app: Starlette):
+    # By default the session cookie is not marked Secure so it works over
+    # plain HTTP during local development.
+    middleware = CustomSessionMiddleware(app, "secret_key")
+    assert "secure" not in middleware.security_flags
+
+
+def test_custom_session_middleware_secure_flag_enabled(app: Starlette):
+    # https_only=True (wired from MARIMO_SESSION_COOKIE_SECURE) marks the
+    # session cookie as Secure.
+    middleware = CustomSessionMiddleware(app, "secret_key", https_only=True)
+    assert "secure" in middleware.security_flags
+
+
 def _app_with_base_url(base_url: str) -> Starlette:
     app = create_starlette_app(base_url=base_url, enable_auth=True)
     get_starlette_server_state_init(base_url=base_url).apply(app.state)
@@ -104,8 +118,8 @@ def create_connection(app: Starlette) -> HTTPConnection:
         {
             "type": "http",
             "app": app,
-            "headers": {},
-            "query_string": "",
+            "headers": [],
+            "query_string": b"",
             "method": "GET",
             "path": "/",
         }

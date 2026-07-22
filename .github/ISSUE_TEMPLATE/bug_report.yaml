@@ -30,15 +30,10 @@ body:
     id: env
     attributes:
       label: Environment
-      description: Paste the output of `marimo env`
-      value: |
-        <details>
-
-        ```
-        Replace this line with the output of marimo env. Leave the backticks in place.
-        ```
-
-        </details>
+      description: |
+        In marimo, open **Send feedback → Report an issue** and click **Copy issue details**, then paste below. Otherwise, paste the output of `marimo env`.
+      placeholder: |
+        Paste the copied issue details here; they render as collapsible sections. If you ran `marimo env` instead, paste its output.
     validations:
       required: true
   - type: textarea

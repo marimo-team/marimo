@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -238,6 +239,128 @@ class TestSetTracerProvider:
         provider = trace.get_tracer_provider()
         assert not hasattr(provider, "_active_span_processor")
 
+    def test_instruments_ai_with_built_provider(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        # Guards against dropping the _instrument_ai() call in
+        # _set_tracer_provider().
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+
+        from opentelemetry import trace
+
+        # Import while tracing is disabled to avoid import-time instrumentation.
+        import marimo._tracer as tracer_module
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+
+        with patch.object(tracer_module, "_instrument_ai") as mock_instrument:
+            tracer_module._set_tracer_provider()
+
+        mock_instrument.assert_called_once_with(trace.get_tracer_provider())
+
+
+@pytest.mark.requires("opentelemetry")
+class TestTracerResource:
+    def setup_method(self) -> None:
+        _reset_otel()
+
+    def teardown_method(self) -> None:
+        _reset_otel()
+
+    def test_default_service_name(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "marimo"
+
+    def test_service_name_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "my-marimo")
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "my-marimo"
+
+    def test_resource_attributes_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OTEL_SERVICE_NAME", raising=False)
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "deployment.environment=dev,service.version=1.2.3",
+        )
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "marimo"
+        assert resource.attributes["deployment.environment"] == "dev"
+        assert resource.attributes["service.version"] == "1.2.3"
+
+    def test_service_name_overrides_resource_attributes(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "from-env")
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "service.name=from-attrs",
+        )
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "from-env"
+
+    def test_explicit_service_name_with_unknown_service_prefix(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "unknown_service_prod")
+        monkeypatch.delenv("OTEL_RESOURCE_ATTRIBUTES", raising=False)
+
+        from marimo._tracer import _tracer_resource
+
+        resource = _tracer_resource()
+        assert resource.attributes["service.name"] == "unknown_service_prod"
+
+    def test_file_exporter_applies_resource(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_ENDPOINT", raising=False)
+        monkeypatch.delenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", raising=False)
+        monkeypatch.setenv("OTEL_SERVICE_NAME", "file-export-marimo")
+        monkeypatch.setenv(
+            "OTEL_RESOURCE_ATTRIBUTES",
+            "deployment.environment=test",
+        )
+
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import _set_tracer_provider
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        _set_tracer_provider()
+
+        provider = trace.get_tracer_provider()
+        assert isinstance(provider, TracerProvider)
+        assert (
+            provider.resource.attributes["service.name"]
+            == "file-export-marimo"
+        )
+        assert provider.resource.attributes["deployment.environment"] == "test"
+
 
 @pytest.mark.requires("opentelemetry")
 class TestCreateTracer:
@@ -262,3 +385,164 @@ class TestCreateTracer:
         monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
         tracer = create_tracer("test.real")
         assert not isinstance(tracer, MockTracer)
+
+
+class TestInstrumentAI:
+    """Tests for _instrument_ai() pydantic_ai instrumentation."""
+
+    def test_skips_when_pydantic_ai_not_installed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: False
+        )
+
+        # Inject a fake module so we can prove it's never touched.
+        fake_agent = MagicMock()
+        fake_module = MagicMock()
+        fake_module.Agent = fake_agent
+        monkeypatch.setitem(sys.modules, "pydantic_ai", fake_module)
+
+        _instrument_ai(MagicMock())
+
+        fake_agent.instrument_all.assert_not_called()
+
+    @pytest.mark.requires("pydantic_ai")
+    def test_instruments_when_pydantic_ai_installed(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: True
+        )
+
+        from pydantic_ai.models.instrumented import InstrumentationSettings
+
+        provider = MagicMock()
+        with (
+            patch("pydantic_ai.Agent.instrument_all") as mock_instrument,
+            patch(
+                "pydantic_ai.models.instrumented.InstrumentationSettings",
+                wraps=InstrumentationSettings,
+            ) as mock_settings,
+        ):
+            _instrument_ai(provider)
+
+        # Verify version 5 is passed explicitly instead of relying on newer
+        # Pydantic-AI defaults.
+        mock_settings.assert_called_once_with(
+            tracer_provider=provider,
+            version=5,
+        )
+        mock_instrument.assert_called_once()
+        settings = mock_instrument.call_args.args[0]
+        assert isinstance(settings, InstrumentationSettings)
+        # InstrumentationSettings builds its tracer from the provider rather
+        # than storing the provider itself, so assert the provider was used.
+        assert settings.tracer is provider.get_tracer.return_value
+
+    @pytest.mark.requires("pydantic_ai")
+    def test_swallows_exceptions(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from marimo._dependencies.dependencies import DependencyManager
+        from marimo._tracer import _instrument_ai
+
+        monkeypatch.setattr(
+            DependencyManager.pydantic_ai, "has", lambda *_, **__: True
+        )
+
+        # Should not raise even though instrument_all blows up.
+        with patch(
+            "pydantic_ai.Agent.instrument_all",
+            side_effect=RuntimeError("boom"),
+        ):
+            _instrument_ai(MagicMock())
+
+
+@pytest.mark.requires("opentelemetry")
+class TestAttachTraceContext:
+    """Tests for attach_trace_context() cross-process propagation."""
+
+    def setup_method(self) -> None:
+        _reset_otel()
+
+    def teardown_method(self) -> None:
+        _reset_otel()
+
+    def _traceparent_for(self, trace_id: int, span_id: int) -> str:
+        return f"00-{trace_id:032x}-{span_id:016x}-01"
+
+    def test_links_span_to_incoming_traceparent(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import attach_trace_context
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        trace.set_tracer_provider(TracerProvider())
+        tracer = trace.get_tracer("test")
+
+        trace_id = 0x0AF7651916CD43DD8448EB211C80319C
+        span_id = 0xB7AD6B7169203331
+        headers = {"traceparent": self._traceparent_for(trace_id, span_id)}
+
+        with attach_trace_context(headers):
+            with tracer.start_as_current_span("child") as span:
+                ctx = span.get_span_context()
+                # Child span inherits the incoming trace id and is parented to
+                # the incoming span.
+                assert ctx.trace_id == trace_id
+                assert span.parent is not None
+                assert span.parent.span_id == span_id
+
+    def test_noop_when_no_headers(self) -> None:
+        from marimo._tracer import attach_trace_context
+
+        # Should not raise and should be a pure no-op.
+        with attach_trace_context(None):
+            pass
+        with attach_trace_context({}):
+            pass
+
+    def test_noop_when_tracing_disabled(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from opentelemetry import trace
+        from opentelemetry.sdk.trace import TracerProvider
+
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._tracer import attach_trace_context
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", False)
+        trace.set_tracer_provider(TracerProvider())
+        tracer = trace.get_tracer("test")
+
+        headers = {
+            "traceparent": self._traceparent_for(
+                0x0AF7651916CD43DD8448EB211C80319C, 0xB7AD6B7169203331
+            )
+        }
+
+        with attach_trace_context(headers):
+            with tracer.start_as_current_span("child") as span:
+                # No context attached; the span starts a fresh, parentless
+                # trace.
+                assert (
+                    span.get_span_context().trace_id
+                    != 0x0AF7651916CD43DD8448EB211C80319C
+                )
+                assert span.parent is None

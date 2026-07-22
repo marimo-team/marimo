@@ -86,6 +86,35 @@ export class RuntimeManager {
     return baseUrl;
   }
 
+  /**
+   * Channels that cannot send custom headers (WebSockets, and browser
+   * navigations such as file downloads) carry the auth token as a query
+   * param instead, but only when cross-origin. Same-origin requests
+   * authenticate via the session cookie, which keeps the token out of
+   * browser history and logs; cross-origin cookies are blocked by browsers,
+   * so the access_token query param is the only option there.
+   */
+  private appendCrossOriginAuth(url: URL): URL {
+    if (!this.isSameOrigin && this.config.authToken) {
+      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
+    }
+    return url;
+  }
+
+  /**
+   * An HTTP URL for requests made by browser navigation (e.g. anchor-click
+   * downloads), which cannot attach auth headers.
+   */
+  formatNavigableHttpURL(path: string, searchParams?: URLSearchParams): URL {
+    const url = this.formatHttpURL({ path, searchParams });
+    // Drop any token inherited from the current page's query params; re-add it
+    // only when cross-origin. Same-origin downloads authenticate via the
+    // session cookie, so a token in the URL would needlessly leak into
+    // proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return this.appendCrossOriginAuth(url);
+  }
+
   formatWsURL(path: string, searchParams?: URLSearchParams): URL {
     // We don't restrict to known query parameters, since mo.query_params()
     // can accept arbitrary parameters.
@@ -94,56 +123,61 @@ export class RuntimeManager {
       searchParams,
       restrictToKnownQueryParams: false,
     });
+    return asWsUrl(this.appendCrossOriginAuth(url).toString());
+  }
 
-    // For cross-origin runtimes, pass the auth token as a query parameter.
-    // WebSocket connections cannot send custom headers (no Authorization
-    // header), and cross-origin cookies are blocked by browsers, so the
-    // access_token query param is the only way to authenticate.
-    if (!this.isSameOrigin && this.config.authToken) {
-      url.searchParams.set(KnownQueryParams.accessToken, this.config.authToken);
-    }
+  /**
+   * Search params for a session connection: the base URL's params, merged
+   * with the current page's, plus the session id.
+   */
+  private getSessionSearchParams(sessionId: SessionId): URLSearchParams {
+    const baseUrl = new URL(this.config.url);
+    const searchParams = new URLSearchParams(baseUrl.search);
 
-    return asWsUrl(url.toString());
+    // Merge in current page's query parameters
+    const currentParams = new URLSearchParams(window.location.search);
+    currentParams.forEach((value, key) => {
+      // Don't override base URL params
+      if (!searchParams.has(key)) {
+        searchParams.set(key, value);
+      }
+    });
+
+    searchParams.set(KnownQueryParams.sessionId, sessionId);
+    return searchParams;
   }
 
   /**
    * The WebSocket URL of the runtime.
    */
   getWsURL(sessionId: SessionId): URL {
-    const baseUrl = new URL(this.config.url);
-    const searchParams = new URLSearchParams(baseUrl.search);
+    return this.formatWsURL("/ws", this.getSessionSearchParams(sessionId));
+  }
 
-    // Merge in current page's query parameters
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.forEach((value, key) => {
-      // Don't override base URL params
-      if (!searchParams.has(key)) {
-        searchParams.set(key, value);
-      }
+  /**
+   * The SSE URL of the runtime; the http(s) alternative to `getWsURL`
+   * when `server.transport` is `"sse"`. Unlike WebSockets, SSE requests
+   * can send headers, so auth travels in the Authorization header
+   * (see `headers()`) instead of the URL.
+   */
+  getSseURL(sessionId: SessionId): URL {
+    const url = this.formatHttpURL({
+      path: "/sse",
+      searchParams: this.getSessionSearchParams(sessionId),
+      restrictToKnownQueryParams: false,
     });
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return this.formatWsURL("/ws", searchParams);
+    // The page URL can still carry access_token (merged in from the
+    // current page's params, before auth cleanup strips it); never
+    // forward it — a token in the URL leaks into proxy/server logs.
+    url.searchParams.delete(KnownQueryParams.accessToken);
+    return url;
   }
 
   /**
    * The WebSocket Sync URL of the runtime, for real-time updates.
    */
   getWsSyncURL(sessionId: SessionId): URL {
-    const baseUrl = new URL(this.config.url);
-    const searchParams = new URLSearchParams(baseUrl.search);
-
-    // Merge in current page's query parameters
-    const currentParams = new URLSearchParams(window.location.search);
-    currentParams.forEach((value, key) => {
-      // Don't override base URL params
-      if (!searchParams.has(key)) {
-        searchParams.set(key, value);
-      }
-    });
-
-    searchParams.set(KnownQueryParams.sessionId, sessionId);
-    return this.formatWsURL("/ws_sync", searchParams);
+    return this.formatWsURL("/ws_sync", this.getSessionSearchParams(sessionId));
   }
 
   /**

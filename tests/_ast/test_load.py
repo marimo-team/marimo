@@ -59,6 +59,30 @@ x = 1
     assert result.notebook.filename == str(notebook_path)
 
 
+def test_plain_markdown_status_is_invalid(tmp_path):
+    """Plain markdown (no marimo cells/metadata) is not a marimo notebook."""
+    notebook_path = tmp_path / "README.md"
+    notebook_path.write_text(
+        "# My Project\n\nJust prose with a ```python``` sample.\n",
+        encoding="utf-8",
+    )
+
+    result = load.get_notebook_status(str(notebook_path))
+
+    assert result.status == "invalid"
+
+
+def test_plain_markdown_still_bootstraps_via_load_app(tmp_path):
+    """`marimo edit README.md` must still open the prose, not an empty app."""
+    notebook_path = tmp_path / "README.md"
+    notebook_path.write_text("# My Project\n\nJust prose.\n", encoding="utf-8")
+
+    app = load.load_app(str(notebook_path))
+
+    assert app is not None
+    assert len(list(app._cell_manager.cell_ids())) >= 1
+
+
 @pytest.fixture
 def unified_load():
     """Uses the new unified load_app path with deserialization."""

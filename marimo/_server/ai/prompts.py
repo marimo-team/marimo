@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from marimo._config.config import CopilotMode
+from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
     Language,
@@ -43,6 +44,14 @@ language_rules_multiple_cells: dict[Language, list[str]] = {
         "The SQL must use the syntax of the database engine specified in the `engine` variable. If no engine, then use duckdb syntax.",
     ]
 }
+
+
+def format_context(context: AiCompletionContext) -> str:
+    return (
+        _format_plain_text(context.plain_text)
+        + _format_variables(context.variables)
+        + _format_schema_info(context.schema)
+    )
 
 
 def _format_schema_info(tables: list[SchemaTable] | None) -> str:
@@ -195,9 +204,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
 
     if context:
-        system_prompt += _format_plain_text(context.plain_text)
-        system_prompt += _format_variables(context.variables)
-        system_prompt += _format_schema_info(context.schema)
+        system_prompt += format_context(context)
 
     if other_cell_codes:
         system_prompt += "\n\n" + _tag(
@@ -263,6 +270,11 @@ def _get_mode_intro_message(mode: CopilotMode) -> str:
             "## Limitations\n"
             "- You must always explain to the user why you are using a tool before invoking it.\n"
         )
+    elif mode == "code_mode":
+        return (
+            f"{base_intro}"
+            "You are in code mode - you have access to the notebook's kernel and can execute code."
+        )
 
 
 def _get_session_info(session_id: SessionId) -> str:
@@ -272,19 +284,47 @@ def _get_session_info(session_id: SessionId) -> str:
     )
 
 
-def get_chat_system_prompt(
+def _single_cell_language_rules() -> str:
+    """Per-language rules for chat modes that emit one cell at a time."""
+    out = ""
+    for language in language_rules:
+        if not language_rules[language]:
+            continue
+        out += (
+            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
+        )
+    return out
+
+
+def _multi_cell_language_rules() -> str:
+    """Per-language rules for agent mode, which can insert multiple cells."""
+    out = ""
+    for lang in LANGUAGES:
+        rules = language_rules_multiple_cells.get(
+            lang, language_rules.get(lang, [])
+        )
+        if rules:
+            out += f"\n\n## Rules for {lang}:\n{_rules(rules)}"
+    return out
+
+
+def _common_chat_sections(
     *,
     custom_rules: str | None,
-    context: AiCompletionContext | None,
-    include_other_code: str,
-    mode: CopilotMode,
-    session_id: SessionId,
+    include_other_code: str | None,
 ) -> str:
-    system_prompt: str = f"""
-{_get_mode_intro_message(mode)}
-{_get_session_info(session_id)}
+    """Trailing sections shared by every chat mode."""
+    out = ""
+    if custom_rules and custom_rules.strip():
+        out += f"\n\n## Additional rules:\n{custom_rules}"
+    if include_other_code:
+        out += "\n\n" + _tag("code_from_other_cells", include_other_code)
+    return out
 
-Your goal is to do one of the following two things:
+
+# Static guide describing marimo's reactive model, UI elements, and examples.
+# Shared by all non-code-mode chat prompts.
+_NOTEBOOK_GUIDE = """Your goal is to do one of the following two things:
 
 1. Help users answer questions related to their notebook.
 2. Answer general-purpose questions unrelated to their particular notebook.
@@ -386,13 +426,13 @@ n_points  # Display the slider
 x = np.random.rand(n_points.value)
 y = np.random.rand(n_points.value)
 
-df = pl.DataFrame({{"x": x, "y": y}})
+df = pl.DataFrame({"x": x, "y": y})
 
 chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
     x=alt.X('x', title='X axis'),
     y=alt.Y('y', title='Y axis')
 ).properties(
-    title=f"Scatter plot with {{n_points.value}} points",
+    title=f"Scatter plot with {n_points.value} points",
     width=400,
     height=300
 )
@@ -400,42 +440,50 @@ chart = alt.Chart(df).mark_circle(opacity=0.7).encode(
 chart
 </example>"""
 
-    if mode == "agent":
-        # In agent-mode, we can add how to insert cells into the notebook.
-        for lang in LANGUAGES:
-            # check if multiple_cells rules are present for this language
-            rule_to_add = language_rules_multiple_cells.get(
-                lang, language_rules.get(lang, [])
-            )
-            if rule_to_add:
-                system_prompt += (
-                    f"\n\n## Rules for {lang}:\n{_rules(rule_to_add)}"
-                )
 
+def get_chat_system_prompt(
+    *,
+    custom_rules: str | None,
+    include_other_code: str,
+    mode: CopilotMode,
+    session_id: SessionId,
+) -> str:
+    # Code mode runs against the live kernel, so it leans on the marimo-pair
+    # skill instead of the static notebook guide.
+    if mode == "code_mode":
+        skill_md = load_skill("marimo-pair")
+        intro = _get_mode_intro_message(mode)
+        skill_section = (
+            "The following information explains how to work with marimo "
+            f"notebooks:\n\n{skill_md}"
+        )
+        system_prompt = f"{intro}\n\n{skill_section}"
+        system_prompt += _common_chat_sections(
+            custom_rules=custom_rules,
+            include_other_code=None,  # code mode can inspect code
+        )
+        system_prompt += "\nIf you are not aware of the current notebook code, inspect it first before answering any questions."
+        return system_prompt
+
+    system_prompt = (
+        f"\n{_get_mode_intro_message(mode)}\n{_get_session_info(session_id)}"
+        f"\n\n{_NOTEBOOK_GUIDE}"
+    )
+
+    if mode == "agent":
+        # Agent mode can emit multiple cells, so it gets the multi-cell rules
+        # plus guidance on how to wrap each cell type.
+        system_prompt += _multi_cell_language_rules()
         system_prompt += "\n\n## Rules for inserting cells:\n"
         system_prompt += 'For markdown cells, use `mo.md(f"""{content}""")`\n'
         system_prompt += 'For sql cells, use `mo.sql(f"""{content}""")`. If a database engine is specified, use `mo.sql(f"""{content}""", engine=engine)` instead.\n'
     else:
-        for language in language_rules:
-            if len(language_rules[language]) == 0:
-                continue
+        system_prompt += _single_cell_language_rules()
 
-            system_prompt += f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-
-    if custom_rules and custom_rules.strip():
-        system_prompt += f"\n\n## Additional rules:\n{custom_rules}"
-
-    if include_other_code:
-        system_prompt += "\n\n" + _tag(
-            "code_from_other_cells", include_other_code
-        )
-
-    if context:
-        system_prompt += _format_plain_text(context.plain_text)
-        system_prompt += _format_variables(context.variables)
-        system_prompt += _format_schema_info(context.schema)
-
-    return system_prompt
+    return system_prompt + _common_chat_sections(
+        custom_rules=custom_rules,
+        include_other_code=include_other_code,
+    )
 
 
 def _tag(text: str, children: str) -> str:

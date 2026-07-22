@@ -238,14 +238,14 @@ def _direct_reader_parity_cases() -> list[DirectReadParityCase]:
             options=(("delimiter", ";"), ("header", False)),
         ),
         DirectReadParityCase(
-            "parquet-file-glob",
+            "parquet-path-or-buffer",
             "read_parquet",
             RemoteFixture(
                 "https://datasets.marimo.app/cars.parquet",
                 ".parquet",
                 _parquet_bytes("SELECT 'ford' AS make"),
             ),
-            source_kwarg="file_glob",
+            source_kwarg="path_or_buffer",
         ),
         DirectReadParityCase(
             "json-path-or-buffer",
@@ -956,6 +956,40 @@ class TestDuckDBWasmSqlUtils:
                     """
                     SELECT make
                     FROM 'https://datasets.marimo.app/cars.csv'
+                    WHERE mpg > 20
+                    """,
+                    connection,
+                )
+                rows = relation.fetchall()
+        finally:
+            connection.close()
+
+        assert rows == [("ford",)]
+        fetch_url_bytes.assert_called_once_with(
+            "https://datasets.marimo.app/cars.csv"
+        )
+
+    @staticmethod
+    def test_wrapped_sql_rewrites_double_quoted_reader_url() -> None:
+        import duckdb
+
+        from marimo._sql.utils import wrapped_sql
+
+        connection = duckdb.connect(":memory:")
+        try:
+            with (
+                mock_pyodide(),
+                patch(
+                    "marimo._runtime._wasm._fetch.fetch_url_bytes",
+                    return_value=b"make,mpg\nford,25\ntoyota,18\n",
+                ) as fetch_url_bytes,
+            ):
+                relation = wrapped_sql(
+                    """
+                    SELECT make
+                    FROM read_csv(
+                        "https://datasets.marimo.app/cars.csv"
+                    )
                     WHERE mpg > 20
                     """,
                     connection,

@@ -1,7 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useSetAtom, useStore } from "jotai";
-import { ChevronDownIcon, SparklesIcon, WrenchIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  HatGlasses,
+  type LucideIcon,
+  SparklesIcon,
+  WrenchIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,7 +24,22 @@ import { aiFeaturesEnabledAtom } from "@/core/config/config";
 import { getAutoFixes } from "@/core/errors/errors";
 import type { MarimoError } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
+import { useOpenAiAssistant } from "../chrome/wrapper/useOpenAiAssistant";
 import { type FixMode, useFixMode } from "./fix-mode";
+
+export function buildFixInChatPrompt(
+  cellId: CellId | undefined,
+  fallbackErrorText?: string,
+): string {
+  if (cellId != null) {
+    return `@error://${cellId}\n\nPlease fix this error.`;
+  }
+  const errorText = fallbackErrorText?.trim();
+  if (errorText) {
+    return `My code gives the following error. Please fix it:\n\n${errorText}`;
+  }
+  return "Please fix this error.";
+}
 
 export const AutoFixButton = ({
   errors,
@@ -35,6 +57,7 @@ export const AutoFixButton = ({
     getAutoFixes(error, { aiEnabled: aiFeaturesEnabled }),
   );
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
+  const openAiAssistant = useOpenAiAssistant();
 
   if (autoFixes.length === 0) {
     return null;
@@ -67,6 +90,12 @@ export const AutoFixButton = ({
     editorView?.focus();
   };
 
+  const openAISidebar = () => {
+    openAiAssistant({
+      prompt: buildFixInChatPrompt(cellId),
+    });
+  };
+
   return (
     <div className={cn("my-2", className)}>
       {firstFix.fixType === "ai" ? (
@@ -74,6 +103,7 @@ export const AutoFixButton = ({
           tooltip={firstFix.description}
           openPrompt={() => handleFix(false)}
           applyAutofix={() => handleFix(true)}
+          openChat={openAISidebar}
         />
       ) : (
         <Tooltip content={firstFix.description} align="start">
@@ -92,22 +122,52 @@ export const AutoFixButton = ({
   );
 };
 
-const PromptIcon = SparklesIcon;
-const AutofixIcon = WrenchIcon;
+interface FixModeConfig {
+  Icon: LucideIcon;
+  title: string;
+  description: string;
+}
 
-const PromptTitle = "Suggest a prompt";
-const AutofixTitle = "Fix with AI";
+const MODE_CONFIG: Record<FixMode, FixModeConfig> = {
+  autofix: {
+    Icon: WrenchIcon,
+    title: "Inline AI Fix",
+    description: "Apply AI fixes inline in the cell",
+  },
+  chat: {
+    Icon: HatGlasses,
+    title: "Fix with AI assistant",
+    description: "Open the AI sidebar to fix",
+  },
+  prompt: {
+    Icon: SparklesIcon,
+    title: "Suggest a prompt",
+    description: "Edit the prompt before applying",
+  },
+};
+
+const FIX_MODES: FixMode[] = ["autofix", "prompt", "chat"];
 
 export const AIFixButton = ({
   tooltip,
   openPrompt,
   applyAutofix,
+  openChat,
 }: {
   tooltip: string;
   openPrompt: () => void;
   applyAutofix: () => void;
+  openChat: () => void;
 }) => {
   const { fixMode, setFixMode } = useFixMode();
+
+  let onAction = openPrompt;
+  if (fixMode === "chat") {
+    onAction = openChat;
+  } else if (fixMode === "autofix") {
+    onAction = applyAutofix;
+  }
+  const { Icon, title } = MODE_CONFIG[fixMode];
 
   return (
     <div className="flex">
@@ -116,14 +176,10 @@ export const AIFixButton = ({
           size="xs"
           variant="outline"
           className="font-normal rounded-r-none border-r-0"
-          onClick={fixMode === "prompt" ? openPrompt : applyAutofix}
+          onClick={onAction}
         >
-          {fixMode === "prompt" ? (
-            <PromptIcon className="h-3 w-3 mr-2 mb-0.5" />
-          ) : (
-            <AutofixIcon className="h-3 w-3 mr-2 mb-0.5" />
-          )}
-          {fixMode === "prompt" ? PromptTitle : AutofixTitle}
+          <Icon className="h-3 w-3 mr-2 mb-0.5" />
+          {title}
         </Button>
       </Tooltip>
       <DropdownMenu>
@@ -138,40 +194,38 @@ export const AIFixButton = ({
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuItem
-            className="flex items-center gap-2"
-            onClick={() => {
-              setFixMode(fixMode === "prompt" ? "autofix" : "prompt");
-            }}
-          >
-            <AiModeItem mode={fixMode === "prompt" ? "autofix" : "prompt"} />
-          </DropdownMenuItem>
+          {FIX_MODES.map((mode) => (
+            <DropdownMenuItem
+              key={mode}
+              className="flex items-center gap-2"
+              onClick={() => setFixMode(mode)}
+            >
+              <AiModeItem mode={mode} selected={mode === fixMode} />
+            </DropdownMenuItem>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>
   );
 };
 
-const AiModeItem = ({ mode }: { mode: FixMode }) => {
-  const icon =
-    mode === "prompt" ? (
-      <PromptIcon className="h-4 w-4" />
-    ) : (
-      <AutofixIcon className="h-4 w-4" />
-    );
-  const title = mode === "prompt" ? PromptTitle : AutofixTitle;
-  const description =
-    mode === "prompt"
-      ? "Edit the prompt before applying"
-      : "Apply AI fixes automatically";
+const AiModeItem = ({
+  mode,
+  selected,
+}: {
+  mode: FixMode;
+  selected: boolean;
+}) => {
+  const { Icon, title, description } = MODE_CONFIG[mode];
 
   return (
-    <div className="flex items-center gap-2">
-      {icon}
+    <div className="flex items-center gap-2 w-full">
+      <Icon className="h-4 w-4 shrink-0" />
       <div className="flex flex-col">
         <span className="font-medium">{title}</span>
         <span className="text-xs text-muted-foreground">{description}</span>
       </div>
+      {selected && <CheckIcon className="h-4 w-4 ml-auto shrink-0" />}
     </div>
   );
 };

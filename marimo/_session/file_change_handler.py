@@ -247,7 +247,11 @@ class FileChangeCoordinator:
         # mutates the existing document in place via ``apply()`` and
         # returns the stamped transaction, so we just relay it.
         try:
-            transaction, changed_cell_ids = session.app_file_manager.reload()
+            transaction, changed_cell_ids = (
+                session.app_file_manager.reload_and_mark_content_as_last_save(
+                    current_content
+                )
+            )
         except Exception as e:
             # If there are syntax errors, we just skip
             # and don't send the changes

@@ -4,9 +4,12 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import textwrap
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock, patch
+
+import pytest
 
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import (
@@ -21,6 +24,7 @@ from marimo._server.workspace import (
     SingleFileWorkspace,
 )
 from marimo._session.model import SessionMode
+from marimo._utils.http import HTTPException
 from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import (
     token_header,
@@ -237,6 +241,91 @@ def test_index_with_directory_run_mode(
         assert "<marimo-filename" in content
         assert '"mode": "gallery"' in content
         assert "<title>marimo</title>" in content
+
+
+def test_index_with_directory_respects_inline_theme(
+    client: TestClient, tmp_path: Path
+) -> None:
+    # Regression test for #10056: a directory workspace sends a relative file
+    # key, and its inline theme must still be applied.
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # [tool.marimo.display]
+            # theme = "dark"
+            # ///
+
+            import marimo
+
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                import marimo as mo
+                return
+
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        ).lstrip()
+    )
+
+    app_state = AppState.from_app(cast(Any, client.app))
+    app_state.session_manager.mode = SessionMode.RUN
+
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
+    ):
+        response = client.get("/?file=notebook.py", headers=token_header())
+        assert response.status_code == 200, response.text
+        assert '"theme": "dark"' in response.text
+
+
+def test_config_manager_at_file_directory_keys(
+    client: TestClient, tmp_path: Path
+) -> None:
+    # `config_manager_at_file` resolves relative directory-workspace keys
+    # before reading inline metadata, and must not swallow the workspace's
+    # path validation.
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # [tool.marimo.display]
+            # theme = "dark"
+            # ///
+
+            import marimo
+
+            app = marimo.App()
+            """
+        ).lstrip()
+    )
+
+    app_state = AppState(cast(Any, Mock(app=client.app)))
+
+    with workspace_scope(
+        client, DirectoryWorkspace(str(tmp_path), include_markdown=False)
+    ):
+        # Relative key resolves against the workspace and applies inline config.
+        resolved = app_state.config_manager_at_file("notebook.py").get_config()
+        assert resolved["display"]["theme"] == "dark"
+
+        # A missing/unsaved file (404) yields base config, no inline overrides.
+        missing = app_state.config_manager_at_file(
+            "does_not_exist.py"
+        ).get_config()
+        assert missing["display"]["theme"] != "dark"
+
+        # A rejected path (non-404, e.g. traversal) propagates rather than
+        # falling back to reading an unvalidated path.
+        with pytest.raises(HTTPException):
+            app_state.config_manager_at_file("../../../../etc/passwd")
 
 
 def test_favicon(client: TestClient) -> None:

@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     Literal,
     TypeVar,
+    cast,
     get_args,
 )
 from urllib.parse import parse_qs, urlparse
@@ -23,33 +24,45 @@ from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
     form_toolsets,
     generate_id,
+    profile_get,
 )
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._plugins.ui._impl.chat.chat import (
     AI_SDK_VERSION,
-    require_vercel_ai_sdk_support,
 )
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.constants import ANTHROPIC_DEFAULT_MAX_TOKENS
 from marimo._server.ai.ids import AiModelId, AiProviderId
 from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.ai.tracing import (
+    SpanInfo,
+    trace_completion,
+    trace_stream,
+)
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 from marimo._utils.http import HTTPStatus
+from marimo._utils.typing import override
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, AsyncIterator
+    from collections.abc import Sequence
 
     from openai import AsyncOpenAI
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
+    from pydantic_ai.capabilities import AbstractCapability
     from pydantic_ai.models import Model
-    from pydantic_ai.models.bedrock import BedrockConverseModel
+    from pydantic_ai.models.anthropic import AnthropicModelSettings
+    from pydantic_ai.models.bedrock import (
+        BedrockConverseModel,
+        BedrockModelSettings,
+    )
     from pydantic_ai.models.google import GoogleModel
     from pydantic_ai.models.openai import (
-        OpenAIChatModel,
         OpenAIResponsesModel,
         OpenAIResponsesModelSettings,
     )
+    from pydantic_ai.models.openrouter import OpenRouterModelSettings
+    from pydantic_ai.output import OutputSpec
     from pydantic_ai.providers import Provider
     from pydantic_ai.providers.anthropic import (
         AnthropicProvider as PydanticAnthropic,
@@ -57,11 +70,17 @@ if TYPE_CHECKING:
     from pydantic_ai.providers.bedrock import (
         BedrockProvider as PydanticBedrock,
     )
-    from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
+    from pydantic_ai.providers.google import (
+        BaseGoogleProvider as PydanticGoogleProvider,
+    )
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
+    from pydantic_ai.toolsets import AbstractToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from starlette.requests import Request
     from starlette.responses import StreamingResponse
+
+    from marimo._session import Session
 
 
 LOGGER = _loggers.marimo_logger()
@@ -69,19 +88,19 @@ LOGGER = _loggers.marimo_logger()
 
 @dataclass
 class StreamOptions:
+    span_info: SpanInfo
     text_only: bool = False
     format_stream: bool = False
     accept: str | None = None
 
 
-@dataclass
-class ActiveToolCall:
-    tool_call_id: str
-    tool_call_name: str
-    tool_call_args: str
+@dataclass(frozen=True)
+class BaseModelSettings:
+    max_tokens: int | None
+    thinking: ThinkingLevel | None
 
 
-ProviderT = TypeVar("ProviderT", bound="Provider[Any]")
+ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
 
 
 class PydanticProvider(ABC, Generic[ProviderT]):
@@ -105,52 +124,76 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             *(deps or []),
             source="server",
         )
-        require_vercel_ai_sdk_support()
 
-        self.model = model
-        self.config = config
-        self.provider = self.create_provider(config)
+        self.model: str = model
+        self.config: AnyProviderConfig = config
+        self.provider: ProviderT = self.create_provider(config)
 
     @abstractmethod
     def create_provider(self, config: AnyProviderConfig) -> ProviderT:
         """Create a provider for the given config."""
 
     @abstractmethod
-    def create_model(self, max_tokens: int | None) -> Model:
-        """Create a Pydantic AI model for the given max tokens."""
+    def create_model(self) -> Model:
+        """Create a Pydantic AI model."""
 
     def create_agent(
         self,
+        *,
+        name: str,
         max_tokens: int | None,
-        tools: list[ToolDefinition],
+        tools: list[ToolDefinition] | None = None,
+        toolsets: Sequence[AbstractToolset[None]] | None = None,
+        extra_capabilities: Sequence[AbstractCapability[None]] | None = None,
         system_prompt: str,
     ) -> Agent[None, DeferredToolRequests | str]:
-        """Create a Pydantic AI agent"""
+        """Create a Pydantic AI agent."""
         from pydantic_ai import Agent
 
-        model = self.create_model(max_tokens)
-        toolset, output_type = self._get_toolsets_and_output_type(tools)
-        return Agent(
-            model,
-            model_settings=self._build_agent_settings(model),
-            toolsets=[toolset] if tools else None,
-            instructions=system_prompt,
-            output_type=output_type,
+        model = self.create_model()
+        capabilities = self._build_agent_capabilities(model)
+        if extra_capabilities:
+            capabilities.extend(extra_capabilities)
+        agent_toolsets, output_type = self._resolve_agent_toolsets(
+            tools or [], toolsets
         )
 
-    def _build_agent_settings(self, model: Model) -> ModelSettings | None:
-        """Settings applied at agent level on every request."""
-        from pydantic_ai.settings import ModelSettings
+        return Agent(
+            model,
+            name=name,
+            model_settings=self._build_model_settings(model, max_tokens),
+            toolsets=agent_toolsets,
+            instructions=system_prompt,
+            capabilities=capabilities,
+            output_type=output_type,
+            deps_type=type(None),
+        )
 
+    def _build_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> ModelSettings | None:
+        """Settings applied at agent level on every request."""
+        values = self._base_model_settings(model, max_tokens)
+        settings: ModelSettings = {}
+
+        if values.max_tokens is not None:
+            settings["max_tokens"] = values.max_tokens
+        if values.thinking is not None:
+            settings["thinking"] = values.thinking
+        return settings
+
+    def _base_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> BaseModelSettings:
+        """Shared request setting values, before provider-specific keys."""
         thinking = self._default_thinking(model)
-        if thinking is None:
-            return None
-        if not (
-            model.profile.supports_thinking
-            or model.profile.thinking_always_enabled
+        if thinking is not None and not (
+            profile_get(model.profile, "supports_thinking", False)
+            or profile_get(model.profile, "thinking_always_enabled", False)
         ):
-            return None
-        return ModelSettings(thinking=thinking)
+            thinking = None
+
+        return BaseModelSettings(max_tokens=max_tokens, thinking=thinking)
 
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         """Default unified thinking flag. Return None to skip."""
@@ -169,26 +212,38 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int | None,
         additional_tools: list[ToolDefinition],
-        stream_options: StreamOptions | None = None,
+        stream_options: StreamOptions,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
+        tools = (self.config.tools or []) + additional_tools
+
+        agent = self.create_agent(
+            name=stream_options.span_info.endpoint,
+            max_tokens=max_tokens,
+            tools=tools,
+            system_prompt=system_prompt,
+        )
+        stream_options.span_info.tool_count = len(tools) + len(
+            agent.root_capability.capabilities
+        )
+
+        return self._vercel_streaming_response(agent, messages, stream_options)
+
+    def _vercel_streaming_response(
+        self,
+        agent: Agent[None, DeferredToolRequests | str],
+        messages: list[ServerUIMessage],
+        stream_options: StreamOptions,
+    ) -> StreamingResponse:
+        """Run `agent` over `messages` and return an AI SDK streaming response."""
         from pydantic_ai.ui.vercel_ai import VercelAIAdapter
         from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
-
-        tools = (self.config.tools or []) + additional_tools
-        agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
-        )
 
         run_input = SubmitMessage(
             id=generate_id("submit-message"),
             trigger="submit-message",
             messages=self.convert_messages(messages),
         )
-
-        # TODO: Text only and format stream are not supported yet
-        stream_options = stream_options or StreamOptions()
-
         adapter = VercelAIAdapter(
             agent=agent,
             run_input=run_input,
@@ -196,32 +251,8 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             sdk_version=AI_SDK_VERSION,
         )
         event_stream = adapter.run_stream()
+        event_stream = trace_stream(event_stream, stream_options.span_info)
         return adapter.streaming_response(event_stream)
-
-    async def stream_text(
-        self,
-        user_prompt: str,
-        messages: list[ServerUIMessage],
-        system_prompt: str,
-        max_tokens: int | None,
-        additional_tools: list[ToolDefinition],
-    ) -> AsyncGenerator[str]:
-        """Return a stream of text from the given messages."""
-        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
-
-        tools = (self.config.tools or []) + additional_tools
-        agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
-        )
-
-        async with agent.run_stream(
-            user_prompt=user_prompt,
-            message_history=VercelAIAdapter.load_messages(
-                self.convert_messages(messages)
-            ),
-        ) as result:
-            async for message in result.stream_text(delta=True):
-                yield message
 
     async def completion(
         self,
@@ -229,6 +260,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         system_prompt: str,
         max_tokens: int,
         additional_tools: list[ToolDefinition],
+        span_info: SpanInfo,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -236,18 +268,116 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         tools = (self.config.tools or []) + additional_tools
         agent = self.create_agent(
-            max_tokens=max_tokens, tools=tools, system_prompt=system_prompt
+            name=span_info.endpoint,
+            max_tokens=max_tokens,
+            tools=tools,
+            system_prompt=system_prompt,
         )
-        result = await agent.run(
-            user_prompt=None,
-            message_history=VercelAIAdapter.load_messages(messages),
+        span_info.tool_count = len(tools) + len(
+            agent.root_capability.capabilities
         )
+
+        with trace_completion(span_info):
+            result = await agent.run(
+                user_prompt=None,
+                message_history=VercelAIAdapter.load_messages(messages),
+            )
 
         return str(result.output)
 
+    async def stream_completion_harness(
+        self,
+        messages: list[ServerUIMessage],
+        *,
+        system_prompt: str,
+        session: Session,
+        request: Request,
+        max_tokens: int | None,
+        stream_options: StreamOptions,
+    ) -> StreamingResponse:
+        """Return code-mode streaming responses"""
+        from marimo._server.ai.tools.code_mode import (
+            build_execute_code_toolset,
+            references_capability,
+        )
+
+        agent = self.create_agent(
+            name=stream_options.span_info.endpoint,
+            max_tokens=max_tokens,
+            tools=[],
+            toolsets=[build_execute_code_toolset(session, request)],
+            extra_capabilities=references_capability(),
+            system_prompt=system_prompt,
+        )
+
+        # One for the execute code toolset, plus the agent's native capabilities
+        stream_options.span_info.tool_count = 1 + len(
+            agent.root_capability.capabilities
+        )
+
+        return self._vercel_streaming_response(agent, messages, stream_options)
+
+    def _build_agent_capabilities(
+        self, model: Model
+    ) -> list[AbstractCapability[None]]:
+        """
+        Build agent capabilities for the given model.
+
+        Referenced from https://pydantic.dev/docs/ai/core-concepts/capabilities#provider-adaptive-tools
+        """
+        from pydantic_ai.capabilities import WebFetch, WebSearch, XSearch
+        from pydantic_ai.native_tools import (
+            WebFetchTool,
+            WebSearchTool,
+            XSearchTool,
+        )
+
+        supported = profile_get(model.profile, "supported_native_tools", [])
+        LOGGER.debug(
+            "Supported native tools: %s for model: %s", supported, self.model
+        )
+        capabilities: list[AbstractCapability[None]] = []
+
+        if DependencyManager.duckduckgo_search.has():
+            capabilities.append(WebSearch(local="duckduckgo"))
+        elif WebSearchTool in supported:
+            capabilities.append(WebSearch())
+
+        if DependencyManager.markdownify.has():
+            capabilities.append(WebFetch(local=True))
+        elif WebFetchTool in supported:
+            capabilities.append(WebFetch())
+
+        if XSearchTool in supported:
+            capabilities.append(XSearch())
+
+        LOGGER.debug(
+            "Capabilities: %s for model: %s", capabilities, self.model
+        )
+        return capabilities
+
+    def _resolve_agent_toolsets(
+        self,
+        tools: list[ToolDefinition],
+        extra_toolsets: Sequence[AbstractToolset[None]] | None,
+    ) -> tuple[
+        list[AbstractToolset[None]] | None,
+        OutputSpec[str | DeferredToolRequests],
+    ]:
+        all_toolsets: list[AbstractToolset[None]] = []
+        if tools:
+            toolset, output_type = self._get_toolsets_and_output_type(tools)
+            all_toolsets.append(toolset)
+        else:
+            output_type = str
+
+        if extra_toolsets:
+            all_toolsets.extend(extra_toolsets)
+        return all_toolsets or None, output_type
+
     def _get_toolsets_and_output_type(
         self, tools: list[ToolDefinition]
-    ) -> tuple[FunctionToolset, list[Any] | type[str]]:
+    ) -> tuple[FunctionToolset, OutputSpec[str | DeferredToolRequests]]:
         from pydantic_ai import DeferredToolRequests
 
         tool_manager = get_tool_manager()
@@ -260,8 +390,11 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         return toolset, output_type
 
 
-class GoogleProvider(PydanticProvider["PydanticGoogle"]):
-    def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
+class GoogleProvider(PydanticProvider["PydanticGoogleProvider"]):
+    @override
+    def create_provider(
+        self, config: AnyProviderConfig
+    ) -> PydanticGoogleProvider:
         from pydantic_ai.providers.google import (
             GoogleProvider as PydanticGoogle,
         )
@@ -275,38 +408,34 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
             os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
         )
         if use_vertex:
+            from pydantic_ai.providers.google_cloud import (
+                GoogleCloudProvider as PydanticGoogleCloud,
+            )
+
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
             # Upstream (pydantic-ai) defaults to us-central1 if not set
             location = os.getenv("GOOGLE_CLOUD_LOCATION") or None
             if location is None:
-                LOGGER.info(
+                location_msg = (
                     "GOOGLE_CLOUD_LOCATION is not set. "
                     "The upstream provider will default to 'us-central1'. "
                     "Set this env var if your project has region restrictions."
                 )
-            # The type stubs don't have an overload that combines vertexai
-            # with project/location, but the runtime supports it
-            provider: PydanticGoogle = PydanticGoogle(  # type: ignore[call-overload]
-                vertexai=True,
+                LOGGER.info(location_msg)
+            return PydanticGoogleCloud(
                 project=project,
                 location=location,
             )
-        else:
-            # Try default initialization which may work with environment variables
-            provider = PydanticGoogle()
+
+        # Try default initialization which may work with environment variables
+        provider: PydanticGoogleProvider = PydanticGoogle()  # type: ignore[call-overload]
         return provider
 
-    def create_model(self, max_tokens: int | None) -> GoogleModel:
-        from pydantic_ai.models.google import GoogleModel, GoogleModelSettings
+    @override
+    def create_model(self) -> GoogleModel:
+        from pydantic_ai.models.google import GoogleModel
 
-        settings: GoogleModelSettings = (
-            {"max_tokens": max_tokens} if max_tokens is not None else {}
-        )
-        return GoogleModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=settings,
-        )
+        return GoogleModel(model_name=self.model, provider=self.provider)
 
 
 class OpenAIClientMixin:
@@ -396,6 +525,7 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
     # marimo wants reasoning summaries surfaced for display.
     DEFAULT_REASONING_SUMMARY: Literal["detailed", "concise", "auto"] = "auto"
 
+    @override
     def create_provider(self, config: AnyProviderConfig) -> PydanticOpenAI:
         from pydantic_ai.providers.openai import (
             OpenAIProvider as PydanticOpenAI,
@@ -404,31 +534,37 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
         client = self.get_openai_client(config)
         return PydanticOpenAI(openai_client=client)
 
-    def create_model(self, max_tokens: int | None) -> OpenAIResponsesModel:
+    @override
+    def create_model(self) -> OpenAIResponsesModel:
         from pydantic_ai.models.openai import (
             OpenAIResponsesModel,
         )
 
-        settings: OpenAIResponsesModelSettings = (
-            {"max_tokens": max_tokens} if max_tokens is not None else {}
-        )
         return OpenAIResponsesModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=settings,
+            model_name=self.model, provider=self.provider
         )
 
-    def _build_agent_settings(self, model: Model) -> ModelSettings | None:
+    @override
+    def _build_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> ModelSettings | None:
         # `reasoning.summary` is only valid for OpenAI reasoning models (gpt-5
         # and the o-series).
-        settings = super()._build_agent_settings(model)
-        if settings is not None and "thinking" in settings:
-            extra: OpenAIResponsesModelSettings = {
-                "openai_reasoning_summary": self.DEFAULT_REASONING_SUMMARY,
-            }
-            settings.update(extra)
+        values = self._base_model_settings(model, max_tokens)
+        settings: OpenAIResponsesModelSettings = {}
+
+        if values.max_tokens is not None:
+            settings["max_tokens"] = values.max_tokens
+
+        if values.thinking is not None:
+            settings["thinking"] = values.thinking
+            settings["openai_reasoning_summary"] = (
+                self.DEFAULT_REASONING_SUMMARY
+            )
+
         return settings
 
+    @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         # OpenAI-compatible third-party endpoints (custom base_url) may not
         # accept `reasoning_effort` even when the model name looks like a
@@ -444,6 +580,7 @@ class OpenAIProvider(OpenAIClientMixin, PydanticProvider["PydanticOpenAI"]):
 class AzureOpenAIProvider(OpenAIProvider):
     # Only custom Azure deployments support `reasoning_effort`, and we don't expose that config yet.
     # https://learn.microsoft.com/en-us/answers/questions/5519548/does-gpt-5-via-azure-support-reasoning-effort-and
+    @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         del model
         return None
@@ -467,6 +604,7 @@ class AzureOpenAIProvider(OpenAIProvider):
         endpoint = f"{parsed_url.scheme}://{parsed_url.hostname}"
         return api_version, deployment_name, endpoint
 
+    @override
     def get_openai_client(self, config: AnyProviderConfig) -> AsyncOpenAI:
         from openai import AsyncAzureOpenAI
 
@@ -524,7 +662,7 @@ def _normalize_base_url(base_url: str | None) -> str | None:
 
 def _try_infer_provider_class(
     provider_name: str,
-) -> type[Provider[Any]] | None:
+) -> type[Provider] | None:
     """Resolve a pydantic-ai provider class by name, or `None` if unknown."""
     from pydantic_ai.providers import infer_provider_class
 
@@ -546,8 +684,12 @@ def _openai_compatible_provider_names() -> tuple[
 
     # TypeAliasType objects; `.__value__` exposes the underlying Literal.
     return (
-        frozenset(get_args(OpenAIResponsesCompatibleProvider.__value__)),
-        frozenset(get_args(OpenAIChatCompatibleProvider.__value__)),
+        frozenset(
+            get_args(cast(object, OpenAIResponsesCompatibleProvider.__value__))
+        ),
+        frozenset(
+            get_args(cast(object, OpenAIChatCompatibleProvider.__value__))
+        ),
     )
 
 
@@ -587,7 +729,7 @@ def _infer_provider_name_from_base_url(base_url: str | None) -> str | None:
     return _known_provider_base_urls().get(normalized)
 
 
-class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
+class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
     """Support for custom providers which may or may not be OpenAI-compatible.
 
     Note:
@@ -596,20 +738,24 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         us create custom providers. They rely on env vars to be set.
     """
 
+    _responses_compatible: frozenset[str]
+    _chat_compatible: frozenset[str]
+
     def __init__(
         self,
         model_id: AiModelId,
         config: AnyProviderConfig,
         deps: list[Dependency] | None = None,
     ):
-        self._provider_name = model_id.provider
+        self._provider_name: AiProviderId = model_id.provider
         if _try_infer_provider_class(self._provider_name) is None:
             matched = _infer_provider_name_from_base_url(config.base_url)
             if matched is not None:
-                LOGGER.debug(
+                match_msg = (
                     f"Custom provider '{self._provider_name}' matched known "
-                    f"provider '{matched}' by base URL; using its profile."
+                    + f"provider '{matched}' by base URL; using its profile."
                 )
+                LOGGER.debug(match_msg)
                 self._provider_name = AiProviderId(matched)
         self._responses_compatible, self._chat_compatible = (
             _openai_compatible_provider_names()
@@ -628,7 +774,8 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         """Check if the provider supports the OpenAI Responses API. We currently default to Pydantic's inferred model"""
         return self._provider_name.lower() in self._responses_compatible
 
-    def create_provider(self, config: AnyProviderConfig) -> Provider[Any]:
+    @override
+    def create_provider(self, config: AnyProviderConfig) -> Provider:
         """Create a provider based on the provider name.
 
         1. Try to infer the provider class from the name
@@ -666,119 +813,93 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
         return self._create_custom_provider(provider_class, config)
 
     def _create_custom_provider(
-        self, provider_class: type[Provider[Any]], config: AnyProviderConfig
-    ) -> Provider[Any]:
-        """
-        Create a custom provider based on the provider class. These providers are not OpenAI-compatible.
-        Import on-demand to avoid requiring the provider packages to be installed.
-        """
+        self, provider_class: type[Provider], config: AnyProviderConfig
+    ) -> Provider:
+        """Instantiate a non-OpenAI-compatible pydantic-ai provider."""
 
         provider_name = provider_class.__name__
-        LOGGER.debug(f"Creating custom provider: {provider_name}")
+        LOGGER.debug("Creating custom provider: %s", provider_name)
 
-        if provider_name == "CerebrasProvider":
-            from pydantic_ai.providers.cerebras import CerebrasProvider
-
-            return CerebrasProvider(api_key=config.api_key)
-        if provider_name == "CohereProvider":
-            from pydantic_ai.providers.cohere import CohereProvider
-
-            return CohereProvider(api_key=config.api_key)
-        if provider_name == "GroqProvider":
-            from pydantic_ai.providers.groq import GroqProvider
-
-            return GroqProvider(
-                api_key=config.api_key, base_url=config.base_url
-            )
-        if provider_name == "HuggingFaceProvider":
-            from pydantic_ai.providers.huggingface import HuggingFaceProvider
-
-            if config.base_url:
-                return HuggingFaceProvider(
-                    api_key=config.api_key, base_url=config.base_url
-                )
-            return HuggingFaceProvider(api_key=config.api_key)
-        if provider_name == "MistralProvider":
-            from pydantic_ai.providers.mistral import MistralProvider
-
-            return MistralProvider(api_key=config.api_key)
-
-        LOGGER.warning(
-            f"Unknown provider: {provider_name}. Create a GitHub issue to request support."
-        )
-        # Try returning provider directly (use env vars)
+        kwargs: dict[str, str] = {}
         try:
-            return provider_class()
+            params = inspect.signature(provider_class).parameters
+            if "api_key" in params and config.api_key:
+                kwargs["api_key"] = config.api_key
+            if "base_url" in params and config.base_url:
+                kwargs["base_url"] = config.base_url
+        except (TypeError, ValueError):
+            LOGGER.debug(
+                "Could not inspect signature for provider %s", provider_name
+            )
+
+        try:
+            return provider_class(**kwargs)
         except Exception as e:
             from pydantic_ai.providers.openai import (
                 OpenAIProvider as PydanticOpenAI,
             )
 
-            LOGGER.warning(
-                f"Failed to create provider {provider_class.__name__}: {e}. "
+            fallback_msg = (
+                f"Failed to create provider {provider_name}: {e}. "
                 f"Falling back to OpenAIProvider."
             )
+            LOGGER.warning(fallback_msg)
             client = self.get_openai_client(config)
             return PydanticOpenAI(openai_client=client)
 
-    def create_model(self, max_tokens: int | None) -> OpenAIChatModel:
-        """Default to OpenAIChatModel"""
-
-        from pydantic_ai.models.openai import (
-            OpenAIChatModel,
-            OpenAIChatModelSettings,
-        )
-
-        settings: OpenAIChatModelSettings = (
-            {"max_tokens": max_tokens} if max_tokens is not None else {}
-        )
-        return OpenAIChatModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=settings,
-        )
-
-    def create_agent(
-        self,
-        max_tokens: int | None,
-        tools: list[ToolDefinition],
-        system_prompt: str,
-    ) -> Agent[None, DeferredToolRequests | str]:
-        """Create a Pydantic AI agent"""
-        from pydantic_ai import Agent, UserError
+    @override
+    def create_model(self) -> Model:
+        """
+        Infer the model from pydantic-ai's registry, falling back to a
+        generic OpenAI-compatible chat model.
+        """
+        from pydantic_ai import UserError
         from pydantic_ai.models import infer_model
+        from pydantic_ai.models.openai import OpenAIChatModel
 
         try:
-            model = infer_model(
+            return infer_model(
                 f"{self._provider_name}:{self.model}",
                 provider_factory=lambda _: self.provider,
             )
         except UserError:
-            LOGGER.debug(
+            model_not_found_msg = (
                 f"Model {self.model} not found in pydantic-ai's model registry. "
                 "Falling back to OpenAIChatModel."
             )
-            model = self.create_model(max_tokens)
+            LOGGER.debug(model_not_found_msg)
         except Exception as e:
             LOGGER.error(
                 f"Error creating model: {e}. Falling back to OpenAIChatModel."
             )
-            model = self.create_model(max_tokens)
 
-        agent_settings: ModelSettings = (
-            {"max_tokens": max_tokens} if max_tokens is not None else {}
-        )
-        agent_settings.update(self._build_agent_settings(model) or {})
+        return OpenAIChatModel(model_name=self.model, provider=self.provider)
 
-        toolset, output_type = self._get_toolsets_and_output_type(tools)
-        return Agent(
-            model,
-            model_settings=agent_settings,
-            toolsets=[toolset] if tools else None,
-            instructions=system_prompt,
-            output_type=output_type,
-        )
+    @override
+    def _build_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> ModelSettings:
+        values = self._base_model_settings(model, max_tokens)
+        model_settings: ModelSettings = {}
+        if values.max_tokens is not None:
+            model_settings["max_tokens"] = values.max_tokens
+        if values.thinking is not None:
+            model_settings["thinking"] = values.thinking
 
+        if self._provider_name == "openrouter":
+            openrouter_settings: OpenRouterModelSettings = {}
+            if values.max_tokens is not None:
+                openrouter_settings["max_tokens"] = values.max_tokens
+            if values.thinking is not None:
+                openrouter_settings["thinking"] = values.thinking
+            openrouter_settings["openrouter_cache_instructions"] = True
+            openrouter_settings["openrouter_cache_messages"] = True
+            openrouter_settings["openrouter_cache_tool_definitions"] = "1h"
+            return openrouter_settings
+
+        return model_settings
+
+    @override
     def _default_thinking(self, model: Model) -> ThinkingLevel | None:
         # Custom OpenAI-compatible endpoints (Together, vLLM, LM Studio, ...)
         # often don't honor `reasoning_effort`
@@ -788,15 +909,7 @@ class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider[Any]"]):
 
 
 class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
-    # Temperature of 0.2 was recommended for coding and data science in these links:
-    # https://community.openai.com/t/cheat-sheet-mastering-temperature-and-top-p-in-chatgpt-api/172683
-    # https://docs.anthropic.com/en/docs/test-and-evaluate/strengthen-guardrails/reduce-latency?utm_source=chatgpt.com
-    DEFAULT_TEMPERATURE = 0.2
-
-    # Extended thinking requires temperature of 1.
-    # https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking
-    DEFAULT_EXTENDED_THINKING_TEMPERATURE = 1
-
+    @override
     def create_provider(self, config: AnyProviderConfig) -> PydanticAnthropic:
         from pydantic_ai.providers.anthropic import (
             AnthropicProvider as PydanticAnthropic,
@@ -804,44 +917,32 @@ class AnthropicProvider(PydanticProvider["PydanticAnthropic"]):
 
         return PydanticAnthropic(api_key=config.api_key)
 
-    def create_model(self, max_tokens: int | None) -> Model:
-        from pydantic_ai.models.anthropic import (
-            AnthropicModel,
-            AnthropicModelSettings,
-        )
-        from pydantic_ai.profiles.anthropic import (
-            AnthropicModelProfile,
-            anthropic_model_profile,
-        )
+    @override
+    def create_model(self) -> Model:
+        from pydantic_ai.models.anthropic import AnthropicModel
 
-        settings: AnthropicModelSettings = {
-            "max_tokens": max_tokens
+        return AnthropicModel(model_name=self.model, provider=self.provider)
+
+    @override
+    def _build_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> AnthropicModelSettings:
+        # Anthropic provider needs to set the max tokens to 32768
+        # https://github.com/marimo-team/marimo/pull/9703
+        values = self._base_model_settings(
+            model,
+            max_tokens
             if max_tokens is not None
-            else ANTHROPIC_DEFAULT_MAX_TOKENS
-        }
-
-        # Anthropic extended thinking requires temperature=1; non-thinking
-        # models keep our default coding temperature. Some adaptive-only
-        # models (Opus 4.7+) reject sampling settings entirely — skip
-        # `temperature` for them so pydantic-ai doesn't drop it with a warning.
-        profile = AnthropicModelProfile.from_profile(
-            anthropic_model_profile(self.model)
+            else ANTHROPIC_DEFAULT_MAX_TOKENS,
         )
-        if not getattr(
-            profile, "anthropic_disallows_sampling_settings", False
-        ):
-            settings["temperature"] = (
-                self.DEFAULT_EXTENDED_THINKING_TEMPERATURE
-                if profile.supports_thinking
-                else self.DEFAULT_TEMPERATURE
-            )
+        settings: AnthropicModelSettings = {"anthropic_cache": True}
+        if values.max_tokens is not None:
+            settings["max_tokens"] = values.max_tokens
+        if values.thinking is not None:
+            settings["thinking"] = values.thinking
+        return settings
 
-        return AnthropicModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=settings,
-        )
-
+    @override
     def convert_messages(
         self, messages: list[ServerUIMessage]
     ) -> list[UIMessage]:
@@ -887,6 +988,7 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
                 detail="Error setting up AWS credentials",
             ) from e
 
+    @override
     def create_provider(self, config: AnyProviderConfig) -> PydanticBedrock:
         from pydantic_ai.providers.bedrock import (
             BedrockProvider as PydanticBedrock,
@@ -896,25 +998,34 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
         # For bedrock, the config sets the region name as the base_url
         return PydanticBedrock(region_name=config.base_url)
 
-    def create_model(self, max_tokens: int | None) -> BedrockConverseModel:
-        from pydantic_ai.models.bedrock import (
-            BedrockConverseModel,
-            BedrockModelSettings,
+    @override
+    def create_model(self) -> BedrockConverseModel:
+        from pydantic_ai.models.bedrock import BedrockConverseModel
+
+        return BedrockConverseModel(
+            model_name=self.model, provider=self.provider
         )
 
-        settings: BedrockModelSettings = (
-            {"max_tokens": max_tokens} if max_tokens is not None else {}
-        )
-        return BedrockConverseModel(
-            model_name=self.model,
-            provider=self.provider,
-            settings=settings,
-        )
+    @override
+    def _build_model_settings(
+        self, model: Model, max_tokens: int | None
+    ) -> BedrockModelSettings:
+        values = self._base_model_settings(model, max_tokens)
+        settings: BedrockModelSettings = {
+            "bedrock_cache_instructions": True,
+            "bedrock_cache_messages": True,
+            "bedrock_cache_tool_definitions": "1h",
+        }
+        if values.max_tokens is not None:
+            settings["max_tokens"] = values.max_tokens
+        if values.thinking is not None:
+            settings["thinking"] = values.thinking
+        return settings
 
 
 def get_completion_provider(
     config: AnyProviderConfig, model: str
-) -> PydanticProvider[Any]:
+) -> PydanticProvider[Provider]:
     model_id = AiModelId.from_model(model)
 
     if model_id.provider == "anthropic":
@@ -937,109 +1048,3 @@ def get_completion_provider(
         )
     else:
         return CustomProvider(model_id, config, [DependencyManager.openai])
-
-
-async def merge_backticks(
-    chunks: AsyncIterator[str],
-) -> AsyncGenerator[str, None]:
-    buffer: str | None = None
-
-    def only_whitespace_or_newlines(text: str) -> bool:
-        return all(char.isspace() or char == "\n" for char in text)
-
-    async for chunk in chunks:
-        if buffer is None:
-            buffer = chunk
-            continue
-
-        # Combine whitespace
-        if only_whitespace_or_newlines(buffer):
-            buffer += chunk
-            continue
-
-        # If buffer contains backticks, keep merging until we have no backticks,
-        # encounter a newline, or run out of chunks
-        if "`" in buffer:
-            buffer += chunk
-            # If we've hit a newline or no more backticks, yield the buffer
-            if "\n" in chunk or "`" not in buffer:
-                yield buffer
-                buffer = None
-        else:
-            # No backticks in buffer, yield it separately
-            yield buffer
-            buffer = chunk
-
-    # Return the last chunk if there's anything left
-    if buffer is not None:
-        yield buffer
-
-
-async def without_wrapping_backticks(
-    chunks: AsyncIterator[str],
-) -> AsyncGenerator[str, None]:
-    """
-    Removes the first and last backticks (```) from a stream of text chunks.
-
-    This function removes opening backticks (with optional language identifier)
-    from the start of the stream and closing backticks from the end of the stream.
-    It does not remove backticks that appear in the middle of the content.
-
-    Args:
-        chunks: An async iterator of text chunks
-
-    Yields:
-        Text chunks with the first and last backticks removed if they exist
-    """
-    # First, merge backticks across chunks to avoid split patterns
-    chunks = merge_backticks(chunks)
-
-    # Supported language identifiers
-    langs = ["python", "sql", "markdown"]
-
-    first_chunk = True
-    buffer: str | None = None
-    has_starting_backticks = False
-
-    async for chunk in chunks:
-        # Handle the first chunk
-        if first_chunk:
-            first_chunk = False
-            stripped_chunk = chunk.lstrip()
-            # Check for language-specific fences first
-            for lang in langs:
-                if stripped_chunk.startswith(f"```{lang}"):
-                    has_starting_backticks = True
-                    # Remove the starting backticks with lang
-                    chunk = stripped_chunk[3 + len(lang) :]
-                    # Also remove starting newline if present
-                    chunk = chunk.removeprefix("\n")
-                    break
-            # If no language-specific fence was found, check for plain backticks
-            else:
-                if stripped_chunk.startswith("```"):
-                    has_starting_backticks = True
-                    chunk = stripped_chunk[3:]  # Remove the starting backticks
-                    # Also remove starting newline if present
-                    chunk = chunk.removeprefix("\n")
-
-        # If we have a buffered chunk, yield it now
-        if buffer is not None:
-            yield buffer
-
-        # Store the current chunk as buffer for the next iteration
-        buffer = chunk
-
-    # Handle the last chunk
-    if buffer is not None:
-        # Some models add trailing space to the end of the response, so we strip to check for backticks
-        stripped_buffer = buffer.rstrip()
-        trailing_space = buffer[len(stripped_buffer) :]
-
-        # Remove ending newline if present
-        if has_starting_backticks:
-            if stripped_buffer.endswith("\n```"):
-                buffer = stripped_buffer[:-4] + trailing_space
-            elif stripped_buffer.endswith("```"):
-                buffer = stripped_buffer[:-3] + trailing_space
-        yield buffer

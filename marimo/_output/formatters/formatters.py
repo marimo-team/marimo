@@ -24,6 +24,7 @@ from marimo._output.formatters.df_formatters import (
     PyArrowFormatter,
     PySparkFormatter,
 )
+from marimo._output.formatters.flax_formatters import FlaxFormatter
 from marimo._output.formatters.formatter_factory import FormatterFactory
 from marimo._output.formatters.holoviews_formatters import HoloViewsFormatter
 from marimo._output.formatters.ipython_formatters import IPythonFormatter
@@ -80,6 +81,7 @@ THIRD_PARTY_FACTORIES: dict[str, FormatterFactory] = {
     OpenAIFormatter.package_name(): OpenAIFormatter(),
     TransformersFormatter.package_name(): TransformersFormatter(),
     PyTorchFormatter.package_name(): PyTorchFormatter(),
+    FlaxFormatter.package_name(): FlaxFormatter(),
 }
 
 # Formatters for builtin types and other things that don't require a
@@ -192,6 +194,14 @@ def register_formatters(theme: Theme = "light") -> None:
     UX at the cost of increased complexity that we have to maintain. In this
     case, the trade-off is worth it.
     """
+
+    # Descriptor-based anywidgets open their comm before formatting. Install
+    # the comm provider eagerly because local modules skip formatter hooks.
+    from marimo._plugins.ui._impl.anywidget.comm_provider import (
+        install_anywidget_comm_provider,
+    )
+
+    install_anywidget_comm_provider()
 
     # For modules that are already imported, register their formatters
     # immediately; their import hook wouldn't be triggered since they are

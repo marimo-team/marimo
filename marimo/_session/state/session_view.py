@@ -15,6 +15,7 @@ from marimo._messaging.notification import (
     CellNotification,
     DatasetsNotification,
     DataSourceConnectionsNotification,
+    EsmSpec,
     InstallingPackageAlertNotification,
     InterruptedNotification,
     ModelClose,
@@ -39,6 +40,8 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
+    ModelCommand,
+    ModelUpdateMessage,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -72,6 +75,7 @@ class ModelReplayState:
     model_id: WidgetModelId
     state: dict[str, Any]
     buffers: dict[BufferPath, bytes]
+    esm_spec: EsmSpec | None = None
 
     @staticmethod
     def from_open(model_id: WidgetModelId, msg: ModelOpen) -> ModelReplayState:
@@ -83,6 +87,7 @@ class ModelReplayState:
             model_id=model_id,
             state=dict(msg.state),
             buffers=buffers,
+            esm_spec=msg.esm_spec,
         )
 
     def apply_update(self, msg: ModelUpdate) -> None:
@@ -98,6 +103,10 @@ class ModelReplayState:
         self.state.update(msg.state)
         for path, buf in zip(msg.buffer_paths, msg.buffers, strict=False):
             self.buffers[tuple(path)] = buf
+        # A spec on an update is a hot reload; late joiners must replay
+        # the current code, not the original open's.
+        if msg.esm_spec is not None:
+            self.esm_spec = msg.esm_spec
 
     def to_notification(self) -> ModelLifecycleNotification:
         paths = list(self.buffers.keys())
@@ -108,6 +117,7 @@ class ModelReplayState:
                 state=dict(self.state),
                 buffer_paths=[list(p) for p in paths],
                 buffers=bufs,
+                esm_spec=self.esm_spec,
             ),
         )
 
@@ -221,6 +231,37 @@ class SessionView:
                 self._add_ui_value(object_id, value)
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
+        elif isinstance(request, ModelCommand):
+            self._apply_model_command(request)
+
+    def _apply_model_command(self, request: ModelCommand) -> None:
+        """Merge a client's model write into replay state.
+
+        The kernel does not echo client writes back (see
+        `_create_model_message` in `marimo._plugins.ui._impl.comm`), so
+        the command itself is the only record of frontend-driven trait
+        changes for reconnect replay.
+        """
+        message = request.message
+        if not isinstance(message, ModelUpdateMessage):
+            # Custom messages are ephemeral — never replayed.
+            return
+        view = self.model_states.get(request.model_id)
+        if view is None:
+            return
+        # Clients may write widget state, never code or style: replayed
+        # state reaches future viewers. Mirrors the kernel-side filter
+        # in MarimoCommManager.receive_comm_message.
+        state = {
+            k: v for k, v in message.state.items() if k not in ("_esm", "_css")
+        }
+        view.apply_update(
+            ModelUpdate(
+                state=state,
+                buffer_paths=message.buffer_paths,
+                buffers=request.buffers,
+            )
+        )
 
     def add_stdin(self, stdin: str) -> None:
         self._touch()
@@ -644,8 +685,14 @@ def merge_cell_notification(
     if current.status is None:
         current.status = previous.status
 
-    # If we went from queued to running, clear the console.
-    if current.status == "running" and previous.status == "queued":
+    # Reset the console on an explicit empty list (the `[]` clears contract,
+    # e.g. mo.output.clear_console()) or on queued -> running. Otherwise stale
+    # console output would persist in the session view.
+    explicit_clear = isinstance(current.console, list) and not current.console
+    queued_to_running = (
+        current.status == "running" and previous.status == "queued"
+    )
+    if explicit_clear or queued_to_running:
         current.console = []
     else:
         combined_console: list[CellOutput] = as_list(previous.console)

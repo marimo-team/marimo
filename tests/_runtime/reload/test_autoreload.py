@@ -554,6 +554,26 @@ class TestSkipCache:
         # Stale mtime is cleared so the next edit isn't masked by it.
         assert reloader.modules_mtimes.get(py_modname, 0) < 1e12
 
+    def test_normalized_path_cached_across_checks(self):
+        # Regression guard: os.path.realpath is expensive (filesystem syscalls
+        # per path component). _normalized_path caches it so repeated check()
+        # calls don't re-invoke realpath for the same __file__ string.
+        import marimo._runtime.reload.autoreload as autoreload_mod
+
+        autoreload_mod._normalized_path.cache_clear()
+
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        info_after_first = autoreload_mod._normalized_path.cache_info()
+        assert info_after_first.currsize > 0  # cache was populated
+
+        reloader.check(sys.modules, reload=False, skip_non_user_modules=True)
+        info_after_second = autoreload_mod._normalized_path.cache_info()
+        # No new cache entries on the second call — every path was already
+        # cached, so os.path.realpath was not re-invoked.
+        assert info_after_second.currsize == info_after_first.currsize
+        assert info_after_second.hits > info_after_first.hits
+
     def test_user_module_reload_still_works(
         self, tmp_path: pathlib.Path, py_modname: str
     ):

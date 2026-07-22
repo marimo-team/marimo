@@ -49,6 +49,7 @@ import {
   addContextCompletion,
   CONTEXT_TRIGGER,
 } from "@/components/editor/ai/completion-utils";
+import { pendingAiPromptAtom } from "@/core/ai/state";
 import {
   Select,
   SelectContent,
@@ -72,6 +73,7 @@ import {
   SendButton,
 } from "../chat-components";
 import { useFileState } from "../chat-utils";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -263,7 +265,7 @@ const LoadingIndicator = memo<LoadingIndicatorProps>(
     }
 
     return (
-      <div className="px-3 py-2 border-t bg-muted/30 flex-shrink-0">
+      <div className="px-3 py-2 border-t bg-muted/30 shrink-0">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <Spinner size="small" className="text-primary" />
@@ -305,6 +307,7 @@ interface PromptAreaProps {
   onModeChange?: (mode: string) => void;
   sessionModels?: SessionModelState | null;
   onModelChange?: (modelId: string) => void;
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -322,8 +325,8 @@ const PromptArea = memo<PromptAreaProps>(
     onModeChange,
     sessionModels,
     onModelChange,
+    inputRef,
   }) => {
-    const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
       if (!commands) {
         return undefined;
@@ -352,7 +355,7 @@ const PromptArea = memo<PromptAreaProps>(
     });
 
     return (
-      <div className="border-t bg-background flex-shrink-0">
+      <div className="border-t bg-background shrink-0">
         <div
           className={cn(
             "px-3 py-2 min-h-[80px]",
@@ -583,7 +586,7 @@ const ChatContent = memo<ChatContentProps>(
     };
 
     return (
-      <div className="flex-1 flex flex-col overflow-hidden flex-shrink-0 relative">
+      <div className="flex-1 flex flex-col overflow-hidden shrink-0 relative">
         {pendingPermission && (
           <div className="p-3 border-b">
             <PermissionRequest
@@ -660,6 +663,8 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const promptInputRef = useRef<ReactCodeMirrorRef | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
     null,
@@ -973,6 +978,34 @@ const AgentPanel: React.FC = () => {
     },
   );
 
+  // Consume a prompt queued by another part of the app (e.g. error auto-fix).
+  useEffect(() => {
+    if (
+      !activeSessionId ||
+      !agent ||
+      isLoading ||
+      connectionState.status !== "connected" ||
+      !pendingPrompt
+    ) {
+      return;
+    }
+    setPendingPrompt(null);
+    if (pendingPrompt.submit) {
+      void handlePromptSubmit(undefined, pendingPrompt.prompt);
+    } else {
+      setPromptValue(pendingPrompt.prompt);
+      focusInputAndMoveToEnd(promptInputRef);
+    }
+  }, [
+    activeSessionId,
+    agent,
+    isLoading,
+    connectionState.status,
+    pendingPrompt,
+    setPendingPrompt,
+    handlePromptSubmit,
+  ]);
+
   // Handler for stopping the current operation
   const handleStop = useEvent(async () => {
     if (!activeSessionId || !agent) {
@@ -1187,6 +1220,7 @@ const AgentPanel: React.FC = () => {
           onModeChange={handleModeChange}
           sessionModels={sessionModels}
           onModelChange={handleModelChange}
+          inputRef={promptInputRef}
         />
       </>
     );

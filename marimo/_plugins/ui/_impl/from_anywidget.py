@@ -13,14 +13,12 @@ from typing import (
     cast,
 )
 
-import marimo._output.data.data as mo_data
 from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
-from marimo._utils.code import hash_code
 from marimo._utils.methods import getcallable
 
 AnyWidgetState: TypeAlias = dict[str, Any]
@@ -142,7 +140,11 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     # Filter out system traits from the serialized state
     # This should include the binary data,
     # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
-    return {k: v for k, v in state.items() if k not in ignored_traits}
+    filtered = {k: v for k, v in state.items() if k not in ignored_traits}
+
+    # Trait serializers, such as anywidget's `WidgetTrait`, are responsible
+    # for converting Python values to their wire representation.
+    return cast(AnyWidgetState, filtered)
 
 
 def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:
@@ -190,10 +192,9 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         # This gets set to True in super().__init__()
         self._initialized = False
 
-        js: str = getattr(widget, "_esm", "")  # type: ignore [unused-ignore]
-        js_hash = hash_code(js)
-
-        # Trigger comm initialization early to ensure _model_id is set
+        # Trigger comm initialization early to ensure _model_id is set.
+        # Opening the comm broadcasts the widget's state and its ESM
+        # spec; the component only needs to say which model it displays.
         _ = widget.comm
 
         # Get the model_id from the widget (should always be set after comm init)
@@ -205,11 +206,7 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
             component_name="marimo-anywidget",
             initial_value=ModelIdRef(model_id=model_id),
             label=None,
-            args={
-                "js-url": mo_data.js(js).url if js else "",  # type: ignore [unused-ignore]
-                "js-hash": js_hash,
-                "model-id": model_id,
-            },
+            args={"model-id": model_id},
             on_change=None,
         )
 

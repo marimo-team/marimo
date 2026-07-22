@@ -37,6 +37,17 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 
+def _is_marimo_module(module_name: str) -> bool:
+    """True for marimo itself or any of its submodules.
+
+    A failed `import marimo.<submodule>` surfaces as a missing "marimo"
+    package, but marimo is always installed and the error can never be
+    fixed by installing it. Treating it as missing would nudge callers
+    (e.g. code_mode) to install marimo, so we always skip these.
+    """
+    return module_name == "marimo" or module_name.startswith("marimo.")
+
+
 class PackagesCallbacks:
     def __init__(self, kernel: Kernel):
         self._kernel = kernel
@@ -69,7 +80,8 @@ class PackagesCallbacks:
         packages = sorted(
             pkg
             for mod in missing_packages
-            if not self.package_manager.attempted_to_install(
+            if not _is_marimo_module(mod)
+            and not self.package_manager.attempted_to_install(
                 pkg := self.package_manager.module_to_package(mod)
             )
         )
@@ -137,11 +149,21 @@ class PackagesCallbacks:
 
         # Convert modules to packages
         for mod in missing_modules:
+            # marimo is always installed; a failed `import marimo.<x>` can't
+            # be fixed by installing marimo, so never report it as missing.
+            if _is_marimo_module(mod):
+                continue
             pkg = self.package_manager.module_to_package(mod)
             # filter out packages that we already attempted to install
             # to prevent an infinite loop
             if not self.package_manager.attempted_to_install(pkg):
                 missing_packages.add(pkg)
+
+        # Drop marimo itself if it slipped in via a package-name path
+        # (e.g. ManyModulesNotFoundError or a pip-install suggestion).
+        missing_packages = {
+            pkg for pkg in missing_packages if not _is_marimo_module(pkg)
+        }
 
         if not missing_packages:
             return

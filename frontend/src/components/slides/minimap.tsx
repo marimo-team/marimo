@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
+import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions, useCellIds } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import type { CellColumnId } from "@/utils/id-tree";
@@ -514,7 +515,7 @@ const SlideThumbnailRow = ({
       tabIndex={0}
       data-cell-id={cell.id}
       className={cn(
-        "relative shrink-0 appearance-none text-left p-0 bg-transparent outline-none",
+        "relative shrink-0 appearance-none text-left p-0 bg-transparent outline-hidden",
         className,
       )}
       style={rowStyle}
@@ -591,7 +592,7 @@ const InsertCellLine = ({
         data-testid="minimap-insert-cell"
         className={cn(
           "absolute left-0 right-0 z-30 flex h-3 items-center justify-center",
-          "opacity-0 transition-opacity hover:opacity-80 focus-visible:opacity-100 focus:outline-none",
+          "opacity-0 transition-opacity hover:opacity-80 focus-visible:opacity-100 focus:outline-hidden",
           position === "below"
             ? "bottom-0 translate-y-1/2"
             : "top-0 -translate-y-1/2",
@@ -670,7 +671,12 @@ const SlideThumbnailCard = ({
           {isNoOutput ? (
             <MiniCodePreview code={cell.code} />
           ) : (
-            <Slide cellId={cell.id} status={cell.status} output={cell.output} />
+            <Slide
+              cellId={cell.id}
+              status={cell.status}
+              output={cell.output}
+              stale={outputIsStale(cell, false)}
+            />
           )}
         </div>
       )}

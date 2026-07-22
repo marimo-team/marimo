@@ -285,9 +285,20 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await waitForConnectionOpen();
       return getClient().GET("/api/usage").then(handleResponse);
     },
+    getEnvironmentInfo: () => {
+      return getClient().GET("/api/environment").then(handleResponse);
+    },
     sendPdb: (request) => {
       return getClient()
         .POST("/api/kernel/pdb/pm", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    sendSetBreakpoints: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/breakpoints", {
           body: request,
           params: getParams(),
         })

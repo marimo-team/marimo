@@ -1,6 +1,4 @@
 ---
-title: Markdown
-marimo-version: 0.23.6
 author: Marimo Team
 description: >-
   Markdown is a lightweight markup language with plain text formatting syntax. `marimo`
@@ -16,7 +14,10 @@ pyproject: |-
       "pandas==2.3.3",
       "pyarrow==23.0.0",
   ]
+title: Markdown
+marimo-version: 0.23.13
 ---
+
 # Markdown file format
 
 By default, marimo notebooks are stored as pure Python files. However,
@@ -135,14 +136,10 @@ print("This code cell has a syntax error"
 and on notebook save, will annotate the cell for you:
 
 ````md
-```python {.marimo unparseable="true"}
-print("This code cell has a syntax error"
-```
-````
-
 ```python {.marimo unparsable="true"}
 print("This code cell has a syntax error"
 ```
+````
 
 ## Limitations of the markdown format
 

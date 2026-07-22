@@ -171,7 +171,9 @@ class NotebookDocument:
                 id=change.cell_id,
                 code=change.code,
                 name=change.name,
-                config=change.config,
+                # Own the config: copy on ingest so no two documents (or a
+                # document and its caller) ever share a mutable CellConfig.
+                config=structs_replace(change.config),
             )
             if change.after is not None:
                 idx = self._find_index(change.after)

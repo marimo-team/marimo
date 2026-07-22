@@ -24,11 +24,17 @@ from marimo._ast.cell import (
     ImportWorkspace,
     SourcePosition,
 )
+from marimo._ast.dedent import smart_dedent
 from marimo._ast.names import SETUP_CELL_NAME, TOPLEVEL_CELL_PREFIX
 from marimo._ast.pytest import has_fixture_decorator
 from marimo._ast.transformers import ContainedExtractWithBlock
 from marimo._ast.variables import is_local
-from marimo._ast.visitor import ImportData, Name, ScopedVisitor
+from marimo._ast.visitor import (
+    ImportData,
+    Name,
+    ScopedVisitor,
+    get_closure_refs,
+)
 from marimo._schemas.serialization import CellDef, ClassCell, FunctionCell
 from marimo._types.ids import CellId_t
 from marimo._utils.tmpdir import get_tmpdir
@@ -363,6 +369,11 @@ def compile_cell(
         for name in nonlocals
         if name in v.variable_data
     }
+    # Temporaries that closures depend on (transitively) must be retained even
+    # though they would otherwise be deleted after the cell runs. We use the
+    # unfiltered `v.variable_data` here so that references reachable only
+    # through private (temporary) closures are still found.
+    closed_over_temporaries = get_closure_refs(v.variable_data) & temporaries
 
     # If this cell is an import cell, we carry over any imports in
     # `carried_imports` that are also in this cell to the import workspace's
@@ -389,6 +400,7 @@ def compile_cell(
         refs=v.refs,
         sql_refs=v.sql_refs,
         temporaries=temporaries,
+        closed_over_temporaries=closed_over_temporaries,
         variable_data=variable_data,
         import_workspace=ImportWorkspace(
             is_import_block=is_import_block,
@@ -517,7 +529,7 @@ def context_cell_factory(
     end_line = end_node.end_lineno
     if start_node == end_node and lines[end_line - 1].strip() == "pass":
         end_line -= 1
-    cell_code = textwrap.dedent("\n".join(lines[entry_line:end_line])).rstrip()
+    cell_code = smart_dedent("\n".join(lines[entry_line:end_line])).rstrip()
 
     source_position = None
     if not anonymous_file:
@@ -550,7 +562,7 @@ def toplevel_cell_factory(
     definition. As such, signature and return type are important.
     """
     code, lnum = inspect.getsourcelines(obj)
-    function_code = textwrap.dedent("".join(code))
+    function_code = smart_dedent("".join(code))
 
     # We need to scrub through the initial decorator. Since we don't care about
     # indentation etc, easiest just to use AST.
@@ -559,9 +571,7 @@ def toplevel_cell_factory(
     try:
         decorator = tree.body[0].decorator_list.pop(0)  # type: ignore
         # NB. We don't unparse from the AST because it strips comments.
-        cell_code = textwrap.dedent(
-            "".join(code[decorator.end_lineno :])
-        ).strip()
+        cell_code = smart_dedent("".join(code[decorator.end_lineno :])).strip()
     except (IndexError, AttributeError) as e:
         raise ValueError(
             "Unexpected usage (expected decorated function)"
@@ -634,7 +644,7 @@ def cell_factory(
     signature, marimo will autofix them on save.
     """
     code, lnum = inspect.getsourcelines(f)
-    function_code = textwrap.dedent("".join(code))
+    function_code = smart_dedent("".join(code))
 
     extractor = parse.Extractor(contents=function_code)
     func_ast = parse.ast_parse(function_code).body[0]

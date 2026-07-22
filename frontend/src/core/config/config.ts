@@ -44,6 +44,16 @@ export const autoSaveConfigAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).save;
 });
 
+/**
+ * The transport used to stream kernel messages from the server.
+ * Experimental; configured via `server.transport`.
+ */
+export const connectionTransportTypeAtom = atom<"websocket" | "sse">((get) => {
+  return get(resolvedMarimoConfigAtom).server.transport === "sse"
+    ? "sse"
+    : "websocket";
+});
+
 export const aiAtom = atom((get) => {
   return get(resolvedMarimoConfigAtom).ai;
 });

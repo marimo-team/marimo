@@ -8,6 +8,7 @@ session) and can have multiple kiosk consumers.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -26,6 +27,17 @@ if TYPE_CHECKING:
     from marimo._session.consumer import SessionConsumer
 
 
+@dataclass
+class _ConsumerState:
+    """A consumer in a room and its current capabilities.
+
+    Capabilities are mutable: a takeover restamps them in place.
+    """
+
+    consumer: SessionConsumer
+    capabilities: ConsumerCapabilities
+
+
 class Room:
     """
     A room is a collection of SessionConsumers
@@ -35,7 +47,7 @@ class Room:
 
     def __init__(self) -> None:
         self.main_consumer: SessionConsumer | None = None
-        self.consumers: dict[SessionConsumer, ConsumerId] = {}
+        self.consumers: dict[ConsumerId, _ConsumerState] = {}
 
     @property
     def size(self) -> int:
@@ -45,12 +57,22 @@ class Room:
         self,
         consumer: SessionConsumer,
         *,
-        consumer_id: ConsumerId,
         # Whether the consumer is the main session consumer
         # We only allow one main consumer, the rest are kiosk consumers
         main: bool,
+        capabilities: ConsumerCapabilities | None = None,
     ) -> None:
-        self.consumers[consumer] = consumer_id
+        if capabilities is None:
+            # Non-main connections default to interactors (drive UI state, no
+            # edit). Pure read-only is opt-in, passed explicitly by the caller.
+            capabilities = (
+                ConsumerCapabilities.EDITOR
+                if main
+                else ConsumerCapabilities.INTERACTOR
+            )
+        self.consumers[consumer.consumer_id] = _ConsumerState(
+            consumer=consumer, capabilities=capabilities
+        )
         if main:
             assert self.main_consumer is None, (
                 "Main session consumer already exists"
@@ -58,25 +80,34 @@ class Room:
             self.main_consumer = consumer
 
     def remove_consumer(self, consumer: SessionConsumer) -> None:
-        if consumer not in self.consumers:
+        state = self.consumers.get(consumer.consumer_id)
+        if state is None:
             LOGGER.debug(
                 "Attempted to remove a consumer that was not in room."
             )
             return
 
+        if state.consumer is not consumer:
+            # A newer consumer re-registered under this id (reconnect or
+            # takeover race). Tear down the stale socket but leave the live
+            # registration intact.
+            consumer.on_detach()
+            return
+
         if consumer == self.main_consumer:
             self.main_consumer = None
-        self.consumers.pop(consumer)
+        self.consumers.pop(consumer.consumer_id)
         consumer.on_detach()
 
     def promote_consumer_to_main(self, consumer: SessionConsumer) -> None:
         """Promote a consumer to be the main consumer of the room.
 
-        Demotes the current main consumer (editor) to a regular consumer (reader).
-        Emits a targeted notification to each targeted consumer to inform capability change.
+        Demotes the current main consumer (editor) to an interactor
+        (`edit=False, interact=True`). Notifies each affected consumer of its
+        capability change.
         """
 
-        assert consumer in self.consumers, (
+        assert consumer.consumer_id in self.consumers, (
             "Consumer must be in the room to be promoted."
         )
         previous_main_consumer = self.main_consumer
@@ -88,10 +119,16 @@ class Room:
         self.main_consumer = consumer
 
         if previous_main_consumer is not None:
+            self.consumers[
+                previous_main_consumer.consumer_id
+            ].capabilities = ConsumerCapabilities.INTERACTOR
             self._notify_consumer_capability_change(
                 previous_main_consumer,
                 self.get_capabilities(previous_main_consumer),
             )
+        self.consumers[
+            consumer.consumer_id
+        ].capabilities = ConsumerCapabilities.EDITOR
         self._notify_consumer_capability_change(
             consumer, self.get_capabilities(consumer)
         )
@@ -99,15 +136,15 @@ class Room:
     def get_capabilities(
         self, consumer: SessionConsumer
     ) -> ConsumerCapabilities:
-        """Get the capabilities of a consumer based on its role in the room."""
-        is_editor = consumer is self.main_consumer
-        return ConsumerCapabilities(edit=is_editor, interact=is_editor)
+        """Get the stored capabilities of a consumer in this room."""
+        state = self.consumers.get(consumer.consumer_id)
+        if state is None:
+            return ConsumerCapabilities.VIEWER
+        return state.capabilities
 
     def get_consumer(self, consumer_id: ConsumerId) -> SessionConsumer | None:
-        for consumer, cid in self.consumers.items():
-            if cid == consumer_id:
-                return consumer
-        return None
+        state = self.consumers.get(consumer_id)
+        return state.consumer if state is not None else None
 
     def _notify_consumer_capability_change(
         self, consumer: SessionConsumer, capabilities: ConsumerCapabilities
@@ -126,7 +163,8 @@ class Room:
         except_consumer: ConsumerId | None,
     ) -> None:
         """Broadcast a notification to all consumers except the one specified."""
-        for consumer in self.consumers:
+        for state in self.consumers.values():
+            consumer = state.consumer
             if consumer.consumer_id == except_consumer:
                 continue
             if consumer.connection_state() == ConnectionState.OPEN:

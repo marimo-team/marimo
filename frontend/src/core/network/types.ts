@@ -66,6 +66,7 @@ export type ListDataSourceConnectionRequest =
   schemas["ListDataSourceConnectionRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
 export type DebugCellRequest = schemas["DebugCellRequest"];
+export type SetBreakpointsRequest = schemas["SetBreakpointsRequest"];
 export type ReadCodeResponse = schemas["ReadCodeResponse"];
 export type RecentFilesResponse = schemas["RecentFilesResponse"];
 export type RenameNotebookRequest = schemas["RenameNotebookRequest"];
@@ -106,6 +107,8 @@ export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
+export type EnvironmentInfo =
+  paths["/api/environment"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
@@ -170,8 +173,10 @@ export interface EditRequests {
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
+  getEnvironmentInfo: () => Promise<EnvironmentInfo>;
   // Debugger
   sendPdb: (request: DebugCellRequest) => Promise<null>;
+  sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;

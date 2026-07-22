@@ -995,6 +995,35 @@ class TestApp:
         assert cloned_impl.config.disabled is True
         assert original_impl.config.disabled is False
 
+    def test_app_clone_document_configs_are_independent(self) -> None:
+        """clone() must not alias cell configs between the two documents.
+
+        The cloned document owns its own CellConfig; mutating the original
+        document's config must not leak into the clone.
+        """
+        app = App()
+
+        @app.cell(disabled=True)
+        def __():
+            x = 1
+            return (x,)
+
+        clone = app.clone()
+
+        original_cm = InternalApp(app).cell_manager
+        cloned_cm = InternalApp(clone).cell_manager
+
+        original_id = list(original_cm.cell_ids())[0]
+        cloned_id = list(cloned_cm.cell_ids())[0]
+
+        original_config = original_cm.document.get_cell(original_id).config
+        cloned_config = cloned_cm.document.get_cell(cloned_id).config
+
+        assert original_config is not cloned_config
+
+        original_config.configure({"disabled": False})
+        assert cloned_cm.document.get_cell(cloned_id).config.disabled is True
+
     def test_to_py(self) -> None:
         """Test that InternalApp.to_py() returns the Python code representation."""
         app = App()

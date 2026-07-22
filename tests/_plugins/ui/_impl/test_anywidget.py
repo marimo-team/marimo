@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import gc
 import weakref
-from hashlib import md5
 
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._plugins.ui._impl.from_anywidget import (
     WeakCache,
     anywidget,
@@ -22,6 +22,7 @@ from marimo._runtime.commands import (
 )
 from marimo._runtime.runtime import Kernel
 from marimo._types.ids import WidgetModelId
+from marimo._utils.code import hash_code
 from tests.conftest import ExecReqProvider
 
 HAS_DEPS = (
@@ -201,10 +202,8 @@ x = as_marimo_element.count
         assert "model_id" in wrapped._initial_value_frontend
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
-        assert wrapped._component_args["js-url"] == ""
-        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
         assert isinstance(wrapped._component_args["model-id"], str)
-        assert len(wrapped._component_args) == 3
+        assert len(wrapped._component_args) == 1
 
     @staticmethod
     async def test_initialization_with_dataview() -> None:
@@ -216,10 +215,8 @@ x = as_marimo_element.count
         assert "model_id" in wrapped._initial_value_frontend
         assert len(wrapped._initial_value_frontend) == 1
         assert isinstance(wrapped._initial_value_frontend["model_id"], str)
-        assert wrapped._component_args["js-url"] == ""
-        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
         assert isinstance(wrapped._component_args["model-id"], str)
-        assert len(wrapped._component_args) == 3
+        assert len(wrapped._component_args) == 1
 
     @staticmethod
     async def test_custom_methods_and_attributes() -> None:
@@ -301,6 +298,55 @@ x = as_marimo_element.count
         assert ui_element.widget.value == 42
 
     @staticmethod
+    async def test_client_update_not_echoed_back() -> None:
+        """Client write → observer update is broadcast, the write is not.
+
+        A frontend change runs a Python observer that regenerates a
+        chart trait; only the observer's kernel-driven update may go
+        back out to clients.
+        """
+        from unittest.mock import patch
+
+        from marimo._plugins.ui._impl.anywidget.init import (
+            WIDGET_COMM_MANAGER,
+        )
+
+        class ChartWidget(_anywidget.AnyWidget):
+            _esm = ""
+            param = traitlets.Int(0).tag(sync=True)
+            chart = traitlets.Unicode("").tag(sync=True)
+
+            @traitlets.observe("param")
+            def _redraw(self, change) -> None:
+                self.chart = f"<svg>{change['new']}</svg>"
+
+        w = anywidget(ChartWidget())
+        model_id = WidgetModelId(w.widget._model_id)
+
+        with patch(
+            "marimo._plugins.ui._impl.comm.broadcast_notification"
+        ) as mock_broadcast:
+            WIDGET_COMM_MANAGER.receive_comm_message(
+                ModelCommand(
+                    model_id=model_id,
+                    message=ModelUpdateMessage(
+                        state={"param": 3}, buffer_paths=[]
+                    ),
+                    buffers=[],
+                )
+            )
+
+        assert w.widget.param == 3
+        updates = [
+            call.args[0].message.state
+            for call in mock_broadcast.call_args_list
+        ]
+        # The observer's chart refresh is broadcast...
+        assert {"chart": "<svg>3</svg>"} in updates
+        # ...the echo of the client's own write is not.
+        assert all("param" not in state for state in updates)
+
+    @staticmethod
     async def test_buffers() -> None:
         class BufferWidget(_anywidget.AnyWidget):
             _esm = ""
@@ -355,23 +401,29 @@ x = as_marimo_element.count
         assert "css" not in wrapped._component_args
 
     @staticmethod
-    async def test_js_hash() -> None:
+    async def test_esm_spec_hash() -> None:
+        # The component no longer carries the code hash; it lives on
+        # the ESM spec the comm minted at open.
         class JSWidget(_anywidget.AnyWidget):
             _esm = ""
             value = traitlets.Int(0).tag(sync=True)
 
         wrapped = anywidget(JSWidget())
-        assert wrapped._component_args["js-hash"] == md5(b"").hexdigest()
+        assert "js-hash" not in wrapped._component_args
+        comm = wrapped.widget.comm
+        assert isinstance(comm, MarimoComm)
+        # An empty `_esm` mints no spec at all.
+        assert comm.esm_spec is None
 
         class JSWidget2(_anywidget.AnyWidget):
             _esm = "function render({ model, el }) { el.innerHTML = 'hello'; }"
             value = traitlets.Int(0).tag(sync=True)
 
         wrapped2 = anywidget(JSWidget2())
-        assert (
-            wrapped2._component_args["js-hash"]
-            != wrapped._component_args["js-hash"]
-        )
+        comm2 = wrapped2.widget.comm
+        assert isinstance(comm2, MarimoComm)
+        assert comm2.esm_spec is not None
+        assert comm2.esm_spec.hash == hash_code(JSWidget2._esm)
 
     @staticmethod
     def test_state_merging() -> None:
@@ -505,6 +557,42 @@ x = as_marimo_element.count
         assert "layout" not in state
         assert "_model_module" not in state
         assert "_view_name" not in state
+
+    @staticmethod
+    async def test_trait_serialization_is_preserved() -> None:
+        """Widget references are serialized by the trait, not marimo."""
+
+        class Child(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            value = traitlets.Int(0).tag(sync=True)
+
+        def serialize_child(child: Child, _parent: object) -> str:
+            return f"anywidget:{child._model_id}"
+
+        class Parent(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            child = traitlets.Instance(Child).tag(
+                sync=True,
+                to_json=serialize_child,
+            )
+
+        child = Child(value=7)
+        parent = Parent(child=child)
+
+        state = get_anywidget_state(parent)
+        assert state["child"] == f"anywidget:{child._model_id}"
+
+    @staticmethod
+    async def test_state_without_widgets_passes_through() -> None:
+        """Plain state should pass through without another traversal."""
+
+        class Plain(_anywidget.AnyWidget):
+            _esm = "export default { render() {} }"
+            data = traitlets.Dict().tag(sync=True)
+
+        widget = Plain(data={"a": 1, "b": [2, 3], "c": {"d": "x"}})
+        state = get_anywidget_state(widget)
+        assert state["data"] == {"a": 1, "b": [2, 3], "c": {"d": "x"}}
 
     @staticmethod
     async def test_partial_state_updates() -> None:

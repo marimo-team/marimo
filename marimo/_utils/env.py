@@ -4,6 +4,18 @@ from __future__ import annotations
 import os
 
 
+def is_env_true(key: str, default: bool = False) -> bool:
+    """Return True if the env var `key` is set to a truthy value ("true"/"1").
+
+    Comparison is case-insensitive and ignores surrounding whitespace. Returns
+    `default` when the variable is unset.
+    """
+    value = os.environ.get(key)
+    if value is None:
+        return default
+    return value.strip().lower() in ("true", "1")
+
+
 def env_to_value(key: str) -> tuple[str | None | list[str] | bool] | None:
     """Return a typed value from environment variables."""
     if key in os.environ:

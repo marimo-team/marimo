@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import html
 import re
 from dataclasses import dataclass
 from typing import (
@@ -33,16 +34,27 @@ from marimo import _loggers
 from marimo._ast.cell import CellConfig
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._convert.common.format import markdown_to_marimo, sql_to_marimo
+from marimo._convert.markdown.flavor import (
+    _markdown_import_dialects,
+    default_markdown_flavor,
+)
+from marimo._convert.markdown.flavor.base import (
+    CodeCellBlock,
+    MarkdownFlavor,
+    MarkdownImportContext,
+    MarkdownImportDialect,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
     Header,
     NotebookSerializationV1,
+    Violation,
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -70,7 +82,10 @@ def extract_attribs(
         # .python.marimo disabled="true"
         inner = fence_start.group("attrs")
         if inner:
-            return dict(re.findall(r'(\w+)="([^"]*)"', inner))
+            return {
+                key: html.unescape(value)
+                for key, value in re.findall(r'(\w+)="([^"]*)"', inner)
+            }
     return {}
 
 
@@ -89,37 +104,25 @@ def _get_language(text: str) -> str:
     match = RE_NESTED_FENCE_START.match(header)
     if match and match.group("lang"):
         return str(match.group("lang"))
+    if match and match.group("attrs"):
+        attributes = str(match.group("attrs"))
+        for language in ("python", "sql", "markdown"):
+            if re.search(rf"(?:^|[.\s]){language}(?:[.\s]|$)", attributes):
+                return language
     return "python"
 
 
 def formatted_code_block(
     code: str,
     attributes: dict[str, str] | None = None,
-    is_qmd: bool = False,
+    flavor: MarkdownFlavor | None = None,
 ) -> str:
     """Wraps code in a fenced code block with marimo attributes."""
-    if attributes is None:
-        attributes = {}
+    if flavor is None:
+        flavor = default_markdown_flavor()
+    attributes = dict(attributes or {})
     language = attributes.pop("language", "python")
-    attribute_str = " ".join(
-        [""] + [f'{key}="{value}"' for key, value in attributes.items()]
-    )
-    guard = "```"
-    while guard in code:
-        guard += "`"
-
-    # Quarto executable syntax with claimsLanguage() support
-    # ```{marimo .python attr=...}
-    if is_qmd:
-        head = f"""{guard}{{marimo .{language}{attribute_str}}}"""
-    # Compatible with GitHub syntax highlighting
-    # ```python {.marimo attr=...}
-    elif DependencyManager.new_superfences.has_required_version(quiet=True):
-        head = f"""{guard}{language} {{.marimo{attribute_str}}}"""
-    # ```{.python.marimo attr=...}
-    else:
-        head = f"""{guard}{{.{language}.marimo{attribute_str}}}"""
-    return f"{head}\n{code}\n{guard}\n"
+    return flavor.render_code_cell(CodeCellBlock(code, language, attributes))
 
 
 def app_config_from_root(root: Element) -> dict[str, Any]:
@@ -198,6 +201,7 @@ class SafeWrap(Generic[T]):
 
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     from marimo._ast.app_config import _AppConfig
+    from marimo._ast.parse import NON_MARIMO_MARKDOWN_VIOLATION
     from marimo._utils import yaml
     from marimo._utils.scripts import wrap_script_metadata
 
@@ -235,6 +239,17 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     else:
         header_value = None
 
+    # A markdown file is only recognized as a marimo notebook if it has at
+    # least one marimo code cell (a `{python}`/`{sql}`/`{.marimo}` fence) or
+    # marimo metadata in its frontmatter. Otherwise it is plain markdown, and
+    # lint/fix should leave it untouched (see `is_non_marimo_markdown`).
+    is_marimo = "marimo-version" in root.attrib or any(
+        child.tag == MARIMO_CODE for child in root
+    )
+    violations = (
+        [] if is_marimo else [Violation(NON_MARIMO_MARKDOWN_VIOLATION)]
+    )
+
     notebook = NotebookSerializationV1(
         app=AppInstantiation(options=config_only),
         cells=[
@@ -248,6 +263,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
             )
         ],
         header=Header(value=header_value) if header_value else None,
+        violations=violations,
     )
     return SafeWrap(notebook)
 
@@ -302,12 +318,14 @@ class MarimoMdParser(IdentityParser):
         self,
         *args: Any,
         output_format: ConvertKeys = "marimo-ir",
+        import_dialects: Sequence[MarkdownImportDialect] = (),
         **kwargs: Any,
     ) -> None:
         super().__init__(
             *args, output_format=cast(Any, output_format), **kwargs
         )
         self.meta = {}
+        import_context = MarkdownImportContext()
         # Build here opposed to the parent class since there is intermediate
         # logic after the parser is built, and it is more clear here what is
         # registered.
@@ -318,6 +336,14 @@ class MarimoMdParser(IdentityParser):
         self.preprocessors.register(
             FrontMatterPreprocessor(self), "frontmatter", 100
         )
+        if import_dialects:
+            self.preprocessors.register(
+                MarkdownImportDialectPreprocessor(
+                    self, import_dialects, import_context
+                ),
+                "markdown-import-dialects",
+                99,
+            )
         fences_ext = SuperFencesCodeExtension()
         fences_ext.extendMarkdown(self)
         # TODO: Consider adding the admonition extension, and integrating it
@@ -381,6 +407,27 @@ class FrontMatterPreprocessor(Preprocessor):
             self.md.meta.update(meta)
 
         return doc.split("\n")
+
+
+class MarkdownImportDialectPreprocessor(Preprocessor):
+    """Normalize dialect-specific markdown before SuperFences parses it."""
+
+    def __init__(
+        self,
+        md: MarimoMdParser,
+        import_dialects: Sequence[MarkdownImportDialect],
+        context: MarkdownImportContext,
+    ) -> None:
+        super().__init__(md)
+        self.md: MarimoMdParser = md
+        self.import_dialects = import_dialects
+        self.context = context
+
+    def run(self, lines: list[str]) -> list[str]:
+        for dialect in self.import_dialects:
+            lines = dialect.preprocess(lines, self.context)
+        self.md.meta.update(self.context.metadata)
+        return lines
 
 
 class SanitizeProcessor(Preprocessor):
@@ -508,7 +555,10 @@ def convert_from_md_to_marimo_ir(
         return NotebookSerializationV1(
             app=AppInstantiation(options={}), filename=filepath
         )
-    notebook = MarimoMdParser(output_format="marimo-ir").convert(text)
+    notebook = MarimoMdParser(
+        output_format="marimo-ir",
+        import_dialects=_markdown_import_dialects(text, filepath),
+    ).convert(text)
     assert isinstance(notebook, NotebookSerializationV1)
     return NotebookSerializationV1(
         app=notebook.app,

@@ -23,6 +23,7 @@ import {
   PlusIcon,
   SparklesIcon,
   SettingsIcon,
+  CodeIcon,
 } from "lucide-react";
 import { memo, useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
@@ -44,6 +45,7 @@ import {
   type Chat,
   type ChatId,
   chatStateAtom,
+  pendingAiPromptAtom,
 } from "@/core/ai/state";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import {
@@ -66,6 +68,8 @@ import { PromptInput } from "../editor/ai/add-cell-with-ai";
 import {
   addContextCompletion,
   CONTEXT_TRIGGER,
+  isContextAttachment,
+  resolveChatContext,
 } from "../editor/ai/completion-utils";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { CopyClipboardIcon } from "../icons/copy-icon";
@@ -82,18 +86,52 @@ import {
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
 import {
-  buildCompletionRequestBody,
+  type ChatMessagePart,
   convertToFileUIPart,
   generateChatTitle,
   handleToolCall,
   hasPendingToolCalls,
+  hasUnresolvedToolCalls,
   isLastMessageReasoning,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
+  type QueuedUserMessage,
+  shouldFlushQueue,
   useFileState,
+  useMessageQueue,
 } from "./chat-utils";
+import { getCodes } from "@/core/codemirror/copilot/getCodes";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
+import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
+
+const QueuedMessageDisplay = memo(
+  ({ message }: { message: QueuedUserMessage }) => {
+    const textParts = message.parts.filter(
+      (p): p is TextUIPart => p.type === "text",
+    );
+    const content = textParts.map((p) => p.text).join("\n");
+    const fileParts = message.parts.filter(
+      (p): p is FileUIPart => p.type === "file",
+    );
+
+    return (
+      <div className="flex justify-end">
+        <div className="w-[95%] bg-background border border-dashed p-2 rounded-sm opacity-70">
+          {fileParts.map((filePart, idx) => (
+            <AttachmentRenderer attachment={filePart} key={idx} />
+          ))}
+          <div className="flex items-center justify-end gap-2 text-sm text-muted-foreground">
+            <span className="wrap-break-word">{content}</span>
+            <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  },
+);
+QueuedMessageDisplay.displayName = "QueuedMessageDisplay";
 
 interface ChatHeaderProps {
   onNewChat: () => void;
@@ -142,6 +180,7 @@ interface ChatMessageProps {
   onEdit: (index: number, newValue: string) => void;
   isStreamingReasoning: boolean;
   isLast: boolean;
+  isActive: boolean;
   addToolApprovalResponse?: ChatAddToolApproveResponseFunction;
 }
 
@@ -152,6 +191,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
     onEdit,
     isStreamingReasoning,
     isLast,
+    isActive,
     addToolApprovalResponse,
   }) => {
     const renderUserMessage = (message: UIMessage) => {
@@ -204,6 +244,7 @@ const ChatMessageDisplay: React.FC<ChatMessageProps> = memo(
             message,
             isStreamingReasoning,
             isLast,
+            isActive,
             addToolApprovalResponse,
           })}
         </div>
@@ -268,24 +309,29 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       {
         value: "ask",
         label: "Ask",
-        subtitle:
-          "Use AI with access to read-only tools like documentation search",
+        subtitle: "AI with access to read-only tools like documentation search",
         Icon: NotebookText,
       },
       {
         value: "agent",
-        label: "Agent (beta)",
-        subtitle: "Use AI with access to read and write tools",
+        label: "Agent",
+        subtitle: "AI with access to read and write tools",
         Icon: HatGlasses,
+      },
+      {
+        value: "code_mode",
+        label: "Code Mode (experimental)",
+        subtitle: "AI with access to the notebook's kernel. Use with caution.",
+        Icon: CodeIcon,
       },
     ];
 
     const isAttachmentSupported =
       PROVIDERS_THAT_SUPPORT_ATTACHMENTS.has(currentProvider);
 
-    const CurrentModeIcon = modeOptions.find(
-      (o) => o.value === currentMode,
-    )?.Icon;
+    const currentModeOption = modeOptions.find((o) => o.value === currentMode);
+    const CurrentModeIcon = currentModeOption?.Icon;
+    const CurrentModeLabel = currentModeOption?.label;
 
     return (
       <TooltipProvider>
@@ -294,7 +340,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             <Select value={currentMode} onValueChange={saveModeChange}>
               <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
                 {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span className="capitalize">{currentMode}</span>
+                <span>{CurrentModeLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -396,6 +442,7 @@ const ChatInput: React.FC<ChatInputProps> = memo(
       <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
         <div className={cn("px-2 py-3 flex-1", inputClassName)}>
           <PromptInput
+            className="max-h-[400px]"
             inputRef={inputRef}
             value={input}
             onChange={setInput}
@@ -470,14 +517,22 @@ const ChatPanel = () => {
 const ChatPanelBody = () => {
   const setChatState = useSetAtom(chatStateAtom);
   const [activeChat, setActiveChat] = useAtom(activeChatAtom);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const [input, setInput] = useState("");
   const [newThreadInput, setNewThreadInput] = useState("");
+  const [isScrolledToBottom, setIsScrolledToBottom] = useState(true);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
+  const {
+    messages: queuedMessages,
+    enqueue: enqueueUserMessage,
+    flushNext: flushNextQueuedMessage,
+    clear: clearQueuedMessages,
+    hasQueuedRef,
+  } = useMessageQueue();
   const newThreadInputRef = useRef<ReactCodeMirrorRef>(null);
   const newMessageInputRef = useRef<ReactCodeMirrorRef>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool, sendRun } = useRequestClient();
   const { openModal, closeModal } = useImperativeModal();
@@ -526,9 +581,10 @@ const ChatPanelBody = () => {
           );
         }
 
-        const completionBody = await buildCompletionRequestBody(
-          options.messages,
-        );
+        const completionBody = {
+          uiMessages: options.messages,
+          includeOtherCode: getCodes(""),
+        };
 
         // Call this here to ensure the value is not stale
         const chatMode = store.get(aiAtom)?.mode || DEFAULT_MODE;
@@ -544,7 +600,7 @@ const ChatPanelBody = () => {
         };
       },
     }),
-    onFinish: ({ messages }) => {
+    onFinish: ({ messages, isError, isAbort }) => {
       setChatState((prev) => {
         return replaceMessagesInChat({
           chatState: prev,
@@ -552,6 +608,7 @@ const ChatPanelBody = () => {
           messages: messages,
         });
       });
+      tryFlushQueuedMessages(messages, { isError, isAbort });
     },
     onToolCall: async ({ toolCall }) => {
       await handleToolCall({
@@ -570,28 +627,105 @@ const ChatPanelBody = () => {
     },
   });
 
+  const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
+    sendMessage({ role: "user", parts });
+  });
+
+  const tryFlushQueuedMessages = useEvent(
+    (
+      chatMessages: typeof messages,
+      opts: { isError: boolean; isAbort: boolean },
+    ) => {
+      if (!hasQueuedRef.current) {
+        return;
+      }
+      if (
+        shouldFlushQueue({
+          isError: opts.isError,
+          isAbort: opts.isAbort,
+          hasPendingToolCalls: hasPendingToolCalls(chatMessages),
+          hasUnresolvedToolCalls: hasUnresolvedToolCalls(chatMessages),
+        })
+      ) {
+        flushNextQueuedMessage(sendUserMessage);
+      }
+    },
+  );
+
   const isLoading = status === "submitted" || status === "streaming";
+  // Read via a ref so the queue-vs-send decision stays correct even when it is
+  // made after an `await` (e.g. resolving @-context), by which point the render
+  // closure's `isLoading` may be stale.
+  const isLoadingRef = useRef(isLoading);
+  isLoadingRef.current = isLoading;
+
+  const submitOrQueue = useEvent((parts: ChatMessagePart[]) => {
+    if (isLoadingRef.current || hasQueuedRef.current) {
+      enqueueUserMessage(parts);
+    } else {
+      sendUserMessage(parts);
+    }
+  });
+
+  const handleScroll = useEvent(() => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const hasOverflow = scrollHeight > clientHeight;
+    const isAtBottom = hasOverflow
+      ? Math.abs(scrollHeight - clientHeight - scrollTop) < 5
+      : true;
+    setIsScrolledToBottom(isAtBottom);
+  });
+
+  const scrollToBottom = useEvent((smooth = false) => {
+    const container = scrollContainerRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: smooth ? "smooth" : "auto",
+    });
+  });
 
   // Check if we're currently streaming reasoning in the latest message
   const isStreamingReasoning =
     isLoading && messages.length > 0 && isLastMessageReasoning(messages);
 
-  // Scroll to the latest chat message at the bottom
+  // Pin to the bottom while the user is already there.
   useEffect(() => {
-    const scrollToBottom = () => {
-      if (scrollContainerRef.current) {
-        const container = scrollContainerRef.current;
-        container.scrollTop = container.scrollHeight;
-      }
-    };
+    setIsScrolledToBottom(true);
+    clearQueuedMessages();
+  }, [activeChatId, clearQueuedMessages]);
 
-    requestAnimationFrame(scrollToBottom);
-  }, [activeChatId]);
+  useEffect(() => {
+    if (!isScrolledToBottom) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      scrollToBottom();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [messages, queuedMessages, isLoading, isScrolledToBottom, scrollToBottom]);
 
-  const createNewThread = async (
-    initialMessage: string,
-    initialAttachments?: File[],
-  ) => {
+  // Retry when tool parts resolve after the stream ends (e.g. assistant text
+  // trails a still-running tool call, so `onFinish` alone cannot flush).
+  useEffect(() => {
+    if (isLoading) {
+      return;
+    }
+    tryFlushQueuedMessages(messages, {
+      isError: error != null,
+      isAbort: false,
+    });
+  }, [messages, isLoading, error, tryFlushQueuedMessages]);
+
+  const startNewChatState = useEvent((initialMessage: string) => {
     const now = Date.now();
     const newChat: Chat = {
       id: chatId as ChatId,
@@ -601,42 +735,47 @@ const ChatPanelBody = () => {
       updatedAt: now,
     };
 
-    // Create new chat and set as active
     setChatState((prev) => {
       const newChats = new Map(prev.chats);
       newChats.set(newChat.id, newChat);
-      const newState = {
+      return {
         ...prev,
         chats: newChats,
         activeChatId: newChat.id,
       };
-      return newState;
     });
+  });
 
-    const fileParts =
-      initialAttachments && initialAttachments.length > 0
-        ? await convertToFileUIPart(initialAttachments)
-        : undefined;
+  const createNewThread = useEvent(
+    async (initialMessage: string, initialAttachments?: File[]) => {
+      startNewChatState(initialMessage);
 
-    // Trigger AI conversation with append
-    sendMessage({
-      role: "user",
-      parts: [
-        {
-          type: "text" as const,
-          text: initialMessage,
-        },
-        ...(fileParts ?? []),
-      ],
-    });
-    clearFiles();
-    setInput("");
-  };
+      const fileParts =
+        initialAttachments && initialAttachments.length > 0
+          ? await convertToFileUIPart(initialAttachments)
+          : undefined;
+      const { contextPart, attachments } =
+        await resolveChatContext(initialMessage);
+
+      sendMessage({
+        role: "user",
+        parts: [
+          { type: "text" as const, text: initialMessage },
+          ...(contextPart ? [contextPart] : []),
+          ...(fileParts ?? []),
+          ...attachments,
+        ],
+      });
+      clearFiles();
+      setInput("");
+    },
+  );
 
   const handleNewChat = useEvent(() => {
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
+    clearQueuedMessages();
     clearFiles();
   });
 
@@ -644,17 +783,31 @@ const ChatPanelBody = () => {
     openModal(<PairWithAgentModal onClose={closeModal} />);
   });
 
-  const handleMessageEdit = useEvent((index: number, newValue: string) => {
-    const editedMessage = messages[index];
-    const fileParts = editedMessage.parts?.filter((p) => p.type === "file");
+  const handleMessageEdit = useEvent(
+    async (index: number, newValue: string) => {
+      const editedMessage = messages[index];
+      // Keep the user's own uploaded files, but drop the previous @-context
+      // snapshot (data part + its attachments) so we can re-resolve a fresh,
+      // point-in-time snapshot from the edited text below.
+      const userFileParts =
+        editedMessage.parts?.filter(
+          (p) => p.type === "file" && !isContextAttachment(p),
+        ) ?? [];
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
-    const messageId = editedMessage.id;
-    sendMessage({
-      messageId: messageId, // replace the message
-      role: "user",
-      parts: [{ type: "text", text: newValue }, ...fileParts],
-    });
-  });
+      const messageId = editedMessage.id;
+      sendMessage({
+        messageId: messageId, // replace the message
+        role: "user",
+        parts: [
+          { type: "text", text: newValue },
+          ...(contextPart ? [contextPart] : []),
+          ...userFileParts,
+          ...attachments,
+        ],
+      });
+    },
+  );
 
   const handleChatInputSubmit = useEvent(
     async (e: KeyboardEvent | undefined, newValue: string): Promise<void> => {
@@ -665,12 +818,15 @@ const ChatPanelBody = () => {
         storePrompt(newMessageInputRef.current.view);
       }
       const fileParts = files ? await convertToFileUIPart(files) : undefined;
+      const { contextPart, attachments } = await resolveChatContext(newValue);
 
       e?.preventDefault();
-      sendMessage({
-        text: newValue,
-        files: fileParts,
-      });
+      submitOrQueue([
+        { type: "text", text: newValue },
+        ...(contextPart ? [contextPart] : []),
+        ...(fileParts ?? []),
+        ...attachments,
+      ]);
       setInput("");
       clearFiles();
     },
@@ -692,7 +848,42 @@ const ChatPanelBody = () => {
 
   const handleOnCloseThread = () => newThreadInputRef.current?.editor?.blur();
 
+  const submitPendingPrompt = useEvent(async (prompt: string) => {
+    if (activeChatId == null) {
+      startNewChatState(prompt);
+      // Starting a chat swaps the new-thread input for the regular input;
+      // carry over any draft the user had typed so it isn't lost.
+      setInput(newThreadInput);
+    }
+    const { contextPart, attachments } = await resolveChatContext(prompt);
+    submitOrQueue([
+      { type: "text", text: prompt },
+      ...(contextPart ? [contextPart] : []),
+      ...attachments,
+    ]);
+  });
+
   const isNewThread = messages.length === 0;
+
+  // Deliver a prompt queued elsewhere (e.g. error auto-fix) to the chat,
+  // appending to the active thread or starting one if none exists.
+  useEffect(() => {
+    if (!pendingPrompt) {
+      return;
+    }
+    setPendingPrompt(null);
+    const { prompt, submit } = pendingPrompt;
+    if (submit) {
+      void submitPendingPrompt(prompt);
+    } else if (isNewThread) {
+      setNewThreadInput(prompt);
+      focusInputAndMoveToEnd(newThreadInputRef);
+    } else {
+      setInput(prompt);
+      focusInputAndMoveToEnd(newMessageInputRef);
+    }
+  }, [pendingPrompt, setPendingPrompt, isNewThread, submitPendingPrompt]);
+
   const chatInput = isNewThread ? (
     <ChatInput
       key="new-thread-input"
@@ -749,48 +940,62 @@ const ChatPanelBody = () => {
         />
       </TooltipProvider>
 
-      <div
-        className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
-        ref={scrollContainerRef}
-      >
-        {isNewThread && (
-          <div className="flex flex-col gap-2">
-            <div className="rounded-md border bg-background">
-              {filesPills}
-              {chatInput}
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+        <div
+          className="flex-1 px-3 bg-(--slate-1) gap-4 py-3 flex flex-col overflow-y-auto"
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
+        >
+          {isNewThread && (
+            <div className="flex flex-col gap-2">
+              <div className="rounded-md border bg-background">
+                {filesPills}
+                {chatInput}
+              </div>
+              <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
             </div>
-            <PairWithAgentCallout onPairWithAgent={handlePairWithAgent} />
-          </div>
-        )}
+          )}
 
-        {messages.map((message, idx) => (
-          <ChatMessageDisplay
-            key={message.id}
-            message={message}
-            index={idx}
-            onEdit={handleMessageEdit}
-            isStreamingReasoning={isStreamingReasoning}
-            isLast={idx === messages.length - 1}
-            addToolApprovalResponse={addToolApprovalResponse}
-          />
-        ))}
+          {messages.map((message, idx) => (
+            <ChatMessageDisplay
+              key={message.id}
+              message={message}
+              index={idx}
+              onEdit={handleMessageEdit}
+              isStreamingReasoning={isStreamingReasoning}
+              isLast={idx === messages.length - 1}
+              isActive={isLoading}
+              addToolApprovalResponse={addToolApprovalResponse}
+            />
+          ))}
 
-        {isLoading && (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-4 w-4 animate-spin" />
-          </div>
-        )}
+          {queuedMessages.map((message) => (
+            <QueuedMessageDisplay key={message.id} message={message} />
+          ))}
 
-        {error && (
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <ErrorBanner error={error || new Error("Unknown error")} />
-            <Button variant="outline" size="sm" onClick={handleReload}>
-              Retry
-            </Button>
-          </div>
-        )}
+          {isLoading && (
+            <div className="flex justify-center py-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
+            </div>
+          )}
 
-        <div ref={messagesEndRef} />
+          {error && (
+            <div className="flex items-center justify-center space-x-2 mb-4">
+              <ErrorBanner error={error || new Error("Unknown error")} />
+              <Button variant="outline" size="sm" onClick={handleReload}>
+                Retry
+              </Button>
+            </div>
+          )}
+        </div>
+
+        <ScrollToBottomButton
+          isVisible={
+            !isScrolledToBottom &&
+            (messages.length > 0 || queuedMessages.length > 0)
+          }
+          onScrollToBottom={() => scrollToBottom(true)}
+        />
       </div>
 
       {isLoading && (

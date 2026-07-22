@@ -4,6 +4,8 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+from dataclasses import replace
+from functools import partial
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
@@ -11,6 +13,19 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
+from marimo._cli.export.local_modules import (
+    LocalWheelError,
+    resolve_notebook_local_modules,
+)
+from marimo._cli.export.local_wheels import (
+    WASM_WHEEL_DIR,
+    auto_wheel_dependencies,
+    build_local_module_wheels,
+    copy_local_wheels,
+    resolve_metadata_wheel_dependencies,
+    wheel_dependency_names,
+    with_wheel_dependencies,
+)
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -22,6 +37,11 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
+from marimo._convert.converters import MarimoConvert
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
@@ -29,7 +49,6 @@ from marimo._server.api.utils import parse_title
 from marimo._server.export import (
     ExportResult,
     export_as_ipynb,
-    export_as_md,
     export_as_script,
     export_as_wasm,
     notebook_uses_slides_layout,
@@ -47,6 +66,15 @@ from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Protocol
+
+    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+
+    class _ExportWithCodeTransform(Protocol):
+        def __call__(
+            self, *, code_transform: Callable[[str], str]
+        ) -> ExportResult: ...
+
 
 _watch_message = (
     "Watch notebook for changes and regenerate the output on modification. "
@@ -167,6 +195,39 @@ def watch_and_export(
             watcher.stop()
 
     asyncio_run(start())
+
+
+def _export_as_markdown(
+    path: MarimoPath,
+    *,
+    flavor: MarkdownFlavorName | None,
+    filename: str | None,
+) -> ExportResult:
+    if path.is_python():
+        converter = MarimoConvert.from_py(path.read_text(encoding="utf-8"))
+    elif path.is_markdown():
+        converter = MarimoConvert.from_md(path.read_text(encoding="utf-8"))
+    else:
+        raise click.ClickException(
+            f"Unsupported file type: {path.path.suffix}"
+        )
+
+    ir = replace(converter.ir, filename=path.short_name)
+    source_filename = ir.filename or path.short_name
+    export_filename = filename or source_filename
+    markdown_flavor = normalize_markdown_flavor(
+        flavor, filename=export_filename
+    )
+    return ExportResult(
+        contents=MarimoConvert.from_ir(ir).to_markdown(
+            filename=source_filename,
+            flavor=markdown_flavor,
+        ),
+        download_filename=markdown_output_filename(
+            export_filename, markdown_flavor
+        ),
+        did_error=False,
+    )
 
 
 @click.command(
@@ -353,7 +414,9 @@ Watch for changes and regenerate the script on modification:
     default=None,
     help=(
         "Output file to save the markdown to. "
-        "If not provided, markdown will be printed to stdout."
+        "If --flavor is omitted, this file's extension selects the "
+        "markdown flavor. If not provided, markdown will be printed to "
+        "stdout; shell redirection is not inspected for flavor inference."
     ),
 )
 @click.option(
@@ -362,6 +425,12 @@ Watch for changes and regenerate the script on modification:
     default=None,
     type=bool,
     help=_sandbox_message,
+)
+@click.option(
+    "--flavor",
+    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
+    default=None,
+    help="Markdown flavor to export.",
 )
 @click.option(
     "-f",
@@ -376,7 +445,12 @@ Watch for changes and regenerate the script on modification:
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 def md(
-    name: str, output: Path, watch: bool, sandbox: bool | None, force: bool
+    name: str,
+    output: Path,
+    watch: bool,
+    sandbox: bool | None,
+    flavor: MarkdownFlavorName | None,
+    force: bool,
 ) -> None:
     """
     Export a marimo notebook as a code fenced markdown document.
@@ -385,8 +459,10 @@ def md(
         run_in_sandbox(sys.argv[1:], name=name)
         return
 
+    filename = str(output) if output is not None else None
+
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_md(file_path)
+        return _export_as_markdown(file_path, flavor=flavor, filename=filename)
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -928,6 +1004,42 @@ def html_wasm(
 
     marimo_file = MarimoPath(name)
 
+    def export_with_local_wheels(
+        file_path: MarimoPath,
+        export_callback: _ExportWithCodeTransform,
+    ) -> ExportResult:
+        """Export with notebook-local wheels injected into PEP 723 metadata."""
+        metadata_wheels = resolve_metadata_wheel_dependencies(file_path)
+        metadata_wheel_names = wheel_dependency_names(metadata_wheels)
+        modules = tuple(
+            resolve_notebook_local_modules(
+                file_path.absolute_name,
+                exclude_names=metadata_wheel_names,
+            )
+        )
+        try:
+            with build_local_module_wheels(modules) as local_wheels:
+                wheel_dependencies = (
+                    *metadata_wheels,
+                    *auto_wheel_dependencies(local_wheels),
+                )
+                result = export_callback(
+                    code_transform=partial(
+                        with_wheel_dependencies,
+                        wheel_dependencies=wheel_dependencies,
+                    )
+                )
+                copy_local_wheels(
+                    out_dir,
+                    tuple(
+                        dependency.path for dependency in wheel_dependencies
+                    ),
+                    source_wheel_dir=file_path.path.parent / WASM_WHEEL_DIR,
+                )
+                return result
+        except LocalWheelError as error:
+            raise click.UsageError(str(error)) from error
+
     if execute:
         cli_args = parse_args(args)
 
@@ -941,7 +1053,11 @@ def html_wasm(
             pipe=lambda msg: echo(msg, err=True),
         )
 
-        def export_callback(file_path: MarimoPath) -> ExportResult:
+        def export_executed_wasm(
+            file_path: MarimoPath,
+            *,
+            code_transform: Callable[[str], str],
+        ) -> ExportResult:
             return asyncio_run(
                 run_app_then_export_as_wasm(
                     file_path,
@@ -949,14 +1065,30 @@ def html_wasm(
                     show_code=show_code,
                     cli_args=cli_args,
                     argv=list(args),
+                    cache_export_dir=out_dir,
+                    code_transform=code_transform,
                 )
+            )
+
+        def export_callback(file_path: MarimoPath) -> ExportResult:
+            return export_with_local_wheels(
+                file_path,
+                partial(export_executed_wasm, file_path),
             )
 
         echo("Executing notebook...")
     else:
 
         def export_callback(file_path: MarimoPath) -> ExportResult:
-            return export_as_wasm(file_path, mode, show_code=show_code)
+            return export_with_local_wheels(
+                file_path,
+                partial(
+                    export_as_wasm,
+                    file_path,
+                    mode,
+                    show_code=show_code,
+                ),
+            )
 
     # Export assets first
     Exporter().export_assets(out_dir)
@@ -987,8 +1119,14 @@ def html_wasm(
         create_cloudflare_files(parse_title(name), out_dir)
 
     outfile = out_dir / filename
+    # NB. with --execute, the callback also bundles session caches into the
+    # export's public/cache/.
     return watch_and_export(
-        MarimoPath(name), outfile, watch, export_callback, force
+        MarimoPath(name),
+        outfile,
+        watch,
+        export_callback,
+        force,
     )
 
 
