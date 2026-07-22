@@ -249,9 +249,11 @@ class TestDirectoryScanner:
         assert "deep_app.py" not in names
         assert "d2" not in nested_names
 
-    def test_max_depth_includes_notebook_at_limit(self, tmp_path: Path) -> None:
+    def test_max_depth_includes_notebook_at_limit(
+        self, tmp_path: Path
+    ) -> None:
         """A notebook whose enclosing folder is at max_depth is still found."""
-        # root/d1/d2/app.py with max_depth=2 → d2 is entered at depth=1 < 2? 
+        # root/d1/d2/app.py with max_depth=2 → d2 is entered at depth=1 < 2?
         # recurse(dir, depth): folder children requested via recurse(path, depth+1)
         # At folder d1 (depth of recurse for d1 is 1 when called from root depth 0+1).
         # When depth==max_depth, subdirs are skipped (not entered).
@@ -269,6 +271,7 @@ class TestDirectoryScanner:
 
         files = DirectoryScanner(str(tmp_path), max_depth=1).scan()
         # Collect all file names recursively
+
         def all_names(nodes: list[FileInfo]) -> set[str]:
             out: set[str] = set()
             for n in nodes:
