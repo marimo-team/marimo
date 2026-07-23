@@ -19,6 +19,15 @@ def test_callout_renders_child() -> None:
     assert "Important" in result.text
 
 
+def test_callout_with_title() -> None:
+    result = callout(Html("<p>Important</p>"), kind="warn", title="Heads up")
+    assert "Heads up" in result.text
+
+    # No title arg -> no title attribute in the rendered component.
+    result = callout(Html("<p>Important</p>"), kind="warn")
+    assert "data-title" not in result.text
+
+
 def test_callout_retains_strong_reference_to_child() -> None:
     # Regression test: callout() must keep a strong reference to its child so
     # that wrapped UI elements are not garbage collected (the UI registry holds

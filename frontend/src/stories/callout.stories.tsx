@@ -71,3 +71,15 @@ export const Success = {
 
   name: "success",
 };
+
+export const WithTitle = {
+  render: () => (
+    <CalloutOutput
+      html="<p>CalloutOutput with a title and <strong>HTML</strong></p>"
+      kind="warn"
+      title="Watch out"
+    />
+  ),
+
+  name: "with title",
+};
