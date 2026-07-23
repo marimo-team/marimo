@@ -48,6 +48,7 @@ const appToOptions = {
   "shutdown.py": { command: "edit", port: port() },
   // Run
   "components.py": { port: port(), command: "run" },
+  "nav_menu.py": { port: port(), command: "run" },
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "layout_grid_with_sidebar.py//run": { port: port(), command: "run" },
