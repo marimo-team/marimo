@@ -84,6 +84,11 @@ def _is_third_party_module(module: types.ModuleType) -> bool:
     return "site-packages" in pathlib.Path(filepath).parts
 
 
+def _is_marimo_internal_module_name(modname: str) -> bool:
+    """True for marimo and any marimo.* submodule name."""
+    return modname == "marimo" or modname.startswith("marimo.")
+
+
 # Cache for excluded modules to avoid recomputing on every check
 # Only caches most recent result to prevent memory bloat
 _excluded_modules_cache: tuple[frozenset[str], set[str]] | None = None
@@ -102,9 +107,14 @@ def _get_excluded_modules(modules: dict[str, types.ModuleType]) -> set[str]:
     result = {
         modname
         for modname in modules
-        if (m := modules.get(modname)) is not None
-        and _is_third_party_module(m)
+        if _is_marimo_internal_module_name(modname)
+        or (
+            (m := modules.get(modname)) is not None
+            and _is_third_party_module(m)
+        )
     }
+    # Always exclude the root package name even when absent from ``modules``.
+    result.add("marimo")
     _excluded_modules_cache = (cache_key, result)
     return result
 
