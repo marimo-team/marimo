@@ -45,11 +45,14 @@ async function loadPyodideAndPackages() {
 }
 
 const pyodideReadyPromise = loadPyodideAndPackages();
-const messageBuffer = new MessageBuffer(
-  (message: JsonString<NotificationPayload>) => {
-    rpc.send.kernelMessage({ message });
-  },
-);
+export interface IslandsKernelMessage {
+  message: JsonString<NotificationPayload>;
+  sessionGeneration: number;
+}
+
+const messageBuffer = new MessageBuffer<IslandsKernelMessage>((payload) => {
+  rpc.send.kernelMessage(payload);
+});
 interface SessionRequest {
   code: string;
   appId: string;
@@ -78,7 +81,12 @@ async function startSession(
     });
     const nextBridge = await self.controller.startSession({
       ...notebook,
-      onMessage: messageBuffer.push,
+      onMessage: (message) => {
+        messageBuffer.push({
+          message,
+          sessionGeneration: opts.sessionGeneration,
+        });
+      },
     });
     if (activeSession) {
       (nextBridge as unknown as PyProxy).destroy();
@@ -236,7 +244,7 @@ export type WorkerSchema = RPCSchema<
       // Emitted when the worker is ready
       ready: {};
       // Emitted when the kernel sends a message
-      kernelMessage: { message: JsonString<NotificationPayload> };
+      kernelMessage: IslandsKernelMessage;
       // Emitted when the Pyodide is initialized
       initialized: {};
       // Emitted when the Pyodide fails to initialize

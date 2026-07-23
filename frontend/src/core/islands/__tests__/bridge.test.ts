@@ -8,6 +8,8 @@ import {
   uiElementId,
   widgetModelId,
 } from "@/__tests__/branded";
+import { notebookAtom } from "@/core/cells/cells";
+import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
 
 type Base64String = components["schemas"]["Base64String"];
 interface TestIslandApp {
@@ -61,7 +63,12 @@ const {
   mockStartSessionRequest: vi.fn(),
   mockMessageListeners: new Map<string, (payload: never) => void>(),
   mockStoreSet: vi.fn(),
-  mockParseMarimoIslandApps: vi.fn<() => TestIslandApp[]>(() => []),
+  mockParseMarimoIslandApps: vi.fn<
+    (
+      root?: Document | Element,
+      options?: { materialize?: boolean },
+    ) => TestIslandApp[]
+  >(() => []),
   mockCreateMarimoFile: vi.fn(),
   mockGetMarimoExportContext: vi.fn<() => TestExportContext | undefined>(
     () => undefined,
@@ -235,6 +242,10 @@ describe("IslandsPyodideBridge", () => {
         code: "generated app 2",
         sessionGeneration: 2,
       });
+      expect(mockStoreSet).toHaveBeenCalledWith(
+        islandsPendingInitialRunsAtom,
+        new Set([1, 2]),
+      );
 
       await sendSlider();
       await bridge.stopSession();
@@ -309,7 +320,17 @@ describe("IslandsPyodideBridge", () => {
           sessionGeneration: 1,
         }),
       );
+      const events: string[] = [];
       mockCreateMarimoFile.mockReturnValue("generated app 2");
+      mockParseMarimoIslandApps.mockImplementation((_root, options) => {
+        events.push(options?.materialize === false ? "inspect" : "materialize");
+        return [app()];
+      });
+      mockStoreSet.mockImplementation((target) => {
+        if (target === islandsPendingInitialRunsAtom) {
+          events.push("reset");
+        }
+      });
       await bridge.initializeApps();
 
       expect(mockReplaceSessionRequest).toHaveBeenCalledOnce();
@@ -318,12 +339,17 @@ describe("IslandsPyodideBridge", () => {
         code: "generated app 2",
         sessionGeneration: 2,
       });
-      expect(mockStoreSet).toHaveBeenCalledOnce();
+      expect(mockStoreSet).toHaveBeenCalledWith(
+        islandsPendingInitialRunsAtom,
+        new Set([2]),
+      );
+      expect(events).toEqual(["inspect", "reset", "materialize"]);
     });
 
     it("stops the matching active app", async () => {
       mockSingleApp();
       await bridge.initializeApps();
+      mockStoreSet.mockClear();
 
       await bridge.stopSession("other-app");
       await bridge.stopSession("app-1");
@@ -333,6 +359,11 @@ describe("IslandsPyodideBridge", () => {
         appId: "app-1",
         sessionGeneration: 1,
       });
+      expect(mockStoreSet.mock.calls[0]).toEqual([
+        islandsPendingInitialRunsAtom,
+        null,
+      ]);
+      expect(mockStoreSet.mock.calls[1]?.[0]).toBe(notebookAtom);
 
       mockBridge.mockClear();
       const control = sendSlider();

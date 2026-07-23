@@ -42,6 +42,7 @@ import { store as defaultStore } from "../state/jotai";
 import type { IslandsPyodideBridge } from "./bridge";
 import { MarimoIslandElement } from "./components/web-components";
 import {
+  islandsPendingInitialRunsAtom,
   shouldShowIslandsWarningIndicatorAtom,
   userTriedToInteractWithIslandsAtom,
 } from "./state";
@@ -74,6 +75,7 @@ export async function initializeIslands(
   // Setup networking
   store.set(requestClientAtom, bridge);
   store.set(initialModeAtom, "read");
+  store.set(islandsPendingInitialRunsAtom, null);
 
   // Initialize plugins for rendering static HTML
   if (config.autoInitializePlugins !== false) {
@@ -129,10 +131,13 @@ export async function initializeIslands(
   // the envelope and the payload carry the op. The bridge types the message
   // as NotificationPayload (just {data}), but the actual wire format
   // includes the outer op too.
-  bridge.consumeMessages((message) => {
+  // Worker metadata identifies the session that emitted the message.
+  bridge.consumeMessages(({ message, sessionGeneration }) => {
     handleMessage(
       message as unknown as JsonString<IslandsNotificationMessage>,
       actions,
+      store,
+      sessionGeneration,
     );
   });
 
@@ -161,9 +166,12 @@ type IslandsNotificationMessage = {
  *
  * Wire format from Python: {"op": "<name>", "data": {"op": "<name>", ...}}
  */
+// oxlint-disable-next-line marimo/prefer-object-params
 function handleMessage(
   message: JsonString<IslandsNotificationMessage>,
   actions: NotebookActions,
+  store: Store,
+  sessionGeneration: number,
 ): void {
   try {
     const msg = jsonParseWithSpecialChar(message);
@@ -192,13 +200,23 @@ function handleMessage(
       case "storage-download-ready":
       case "secret-keys-result":
       case "startup-logs":
-      case "completed-run":
       case "interrupted":
       case "reconnected":
       case "cache-cleared":
       case "cache-info":
       case "kernel-startup-error":
       case "notebook-document-transaction":
+        return;
+
+      case "completed-run":
+        store.set(islandsPendingInitialRunsAtom, (pending) => {
+          if (!pending?.has(sessionGeneration)) {
+            return pending;
+          }
+          const next = new Set(pending);
+          next.delete(sessionGeneration);
+          return next;
+        });
         return;
 
       case "kernel-ready":

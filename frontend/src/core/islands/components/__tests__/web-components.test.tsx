@@ -19,6 +19,7 @@ import {
   ISLAND_TAG_NAMES,
   ISLANDS_JSON_SCRIPT_TYPE,
 } from "@/core/islands/constants";
+import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 import { parseMarimoIslandApps } from "../../parse";
@@ -37,6 +38,7 @@ afterAll(() => {
 
 beforeEach(() => {
   store.set(notebookAtom, MockNotebook.notebookState({ cellData: {} }));
+  store.set(islandsPendingInitialRunsAtom, new Set());
   store.set(requestClientAtom, MockRequestClient.create());
 });
 
@@ -46,6 +48,38 @@ afterEach(async () => {
 });
 
 describe("MarimoIslandElement lifecycle", () => {
+  it("keeps static output until the initial run completes", async () => {
+    store.set(islandsPendingInitialRunsAtom, new Set([1]));
+    setNotebook("runtime-cell", "runtime output");
+    const container = document.createElement("div");
+    container.innerHTML = `
+      <marimo-island
+        data-app-id="app-1"
+        data-cell-id="runtime-cell"
+        data-cell-idx="0"
+        data-reactive="true"
+      >
+        <marimo-cell-output><div>static output</div></marimo-cell-output>
+        <marimo-cell-code hidden>${encodeURIComponent("value = 1")}</marimo-cell-code>
+      </marimo-island>
+    `;
+
+    await actAndFlush(() => document.body.append(container));
+
+    const island = container.querySelector<HTMLElement>(
+      ISLAND_TAG_NAMES.ISLAND,
+    );
+    expect(island?.textContent).toContain("static output");
+    expect(island?.textContent).not.toContain("runtime output");
+
+    await actAndFlush(() => {
+      store.set(islandsPendingInitialRunsAtom, new Set());
+    });
+
+    expect(island?.textContent).toContain("runtime output");
+    expect(island?.textContent).not.toContain("static output");
+  });
+
   it("binds a reactive island after its runtime cell index is materialized", async () => {
     setNotebook("outgoing-cell", "outgoing runtime output");
     const container = document.createElement("div");
