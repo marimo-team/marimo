@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import queue as _queue
+import threading
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,6 +11,7 @@ import pytest
 
 from marimo._runtime.commands import (
     CodeCompletionCommand,
+    CommandMessage,
     ExecuteCellsCommand,
     ModelCommand,
     SetBreakpointsCommand,
@@ -22,6 +24,7 @@ from marimo._runtime.kernel_lifecycle import (
     drain_stale,
     listen_messages,
     make_control_enqueuer,
+    threaded_queue_reader,
 )
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
 
@@ -53,6 +56,29 @@ def _ui_update(
     return UpdateUIElementCommand(
         object_ids=[UIElementId(elem_id)], values=[value]
     )
+
+
+async def test_threaded_queue_reader_offloads_blocking_get(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    q: _queue.Queue[CommandMessage] = _queue.Queue()
+    command = StopKernelCommand()
+    q.put(command)
+
+    event_loop_thread = threading.current_thread()
+    reader_thread: threading.Thread | None = None
+    original_get = q.get
+
+    def tracked_get() -> CommandMessage:
+        nonlocal reader_thread
+        reader_thread = threading.current_thread()
+        return original_get()
+
+    monkeypatch.setattr(q, "get", tracked_get)
+
+    assert await threaded_queue_reader(q) is command
+    assert reader_thread is not None
+    assert reader_thread is not event_loop_thread
 
 
 async def test_listen_messages_exits_on_stop_command(
