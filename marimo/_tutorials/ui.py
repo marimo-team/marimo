@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.15"
 app = marimo.App()
 
 
@@ -123,7 +123,7 @@ def _(mo):
         See our [examples folder](https://github.com/marimo-team/marimo/tree/main/examples/ui) on GitHub for bite-sized notebooks showcasing all our UI elements. For
         a more detailed reference, see our [API docs](https://docs.marimo.io/api/inputs/).
         """
-    ).callout()
+    ).callout(kind="info", title="Examples and API reference")
     return
 
 

@@ -244,12 +244,14 @@ class Html(MIME):
         kind: Literal[
             "neutral", "danger", "warn", "success", "info"
         ] = "neutral",
+        title: str | None = None,
     ) -> Html:
         """Create a callout containing this HTML element.
 
-        A callout wraps your HTML element in a raised box, emphasizing its
-        importance. You can style the callout for different situations with the
-        `kind` argument.
+        A callout renders your HTML element in a flat, bordered box — the
+        same style as markdown admonitions — emphasizing its importance. You
+        can style the callout for different situations with the `kind`
+        argument, and optionally add a bold `title` line.
 
         Examples:
             ```python3
@@ -257,13 +259,15 @@ class Html(MIME):
             ```
 
             ```python3
-            mo.md("It's dangerous to go alone!").callout(kind="warn")
+            mo.md("It's dangerous to go alone!").callout(
+                kind="warn", title="Warning"
+            )
             ```
         """
 
         from marimo._plugins.stateless.callout import callout as _callout
 
-        return _callout(self, kind=kind)
+        return _callout(self, kind=kind, title=title)
 
     @mddoc
     def style(
