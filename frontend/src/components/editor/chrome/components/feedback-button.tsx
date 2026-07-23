@@ -5,7 +5,7 @@ import { Slot as SlotPrimitive } from "radix-ui";
 const Slot = SlotPrimitive.Slot;
 
 import { useAtomValue } from "jotai";
-import { CheckIcon, ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
+import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
 import React, { type PropsWithChildren, useMemo, useState } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
@@ -18,16 +18,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/components/ui/use-toast";
 import { notebookAtom } from "@/core/cells/cells";
 import { Constants } from "@/core/constants";
 import {
   buildBugReportUrl,
-  buildIssueDetails,
   createPartialEnvironment,
   type EnvironmentDiagnostics,
   enrichEnvironment,
-  type NotebookSource,
+  formatCodeSection,
+  formatEnvironmentSection,
+  formatErrorsSection,
 } from "@/core/diagnostics/issue-details";
 import {
   formatCellError,
@@ -41,8 +41,8 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { cn } from "@/utils/cn";
-import { copyToClipboard } from "@/utils/copy";
 
 const CollapsiblePreview: React.FC<{ content: string }> = ({ content }) => {
   const [expanded, setExpanded] = useState(false);
@@ -108,8 +108,6 @@ export const FeedbackModal: React.FC<{
     codeAvailable &&
     connection.state === WebSocketState.OPEN;
 
-  const [includeNotebook, setIncludeNotebook] = useState(false);
-
   const notebookSourceReason = notebookSourceAvailable
     ? undefined
     : filename === null
@@ -118,13 +116,14 @@ export const FeedbackModal: React.FC<{
         ? "Notebook source is hidden in this view."
         : "Connect the notebook to include its source.";
 
-  const notebookSourceRequest = useAsyncData(async () => {
-    if (!includeNotebook || !notebookSourceAvailable || filename === null) {
-      return undefined;
-    }
-    const { contents } = await readCode();
-    return { filename, contents } satisfies NotebookSource;
-  }, [includeNotebook, notebookSourceAvailable, filename, readCode]);
+  const [includeErrors, setIncludeErrors] = useLocalStorage(
+    "marimo:issue-report:include-errors",
+    false,
+  );
+  const [includeCode, setIncludeCode] = useLocalStorage(
+    "marimo:issue-report:include-code",
+    false,
+  );
 
   const environment: EnvironmentDiagnostics | undefined =
     environmentRequest.data
@@ -138,83 +137,120 @@ export const FeedbackModal: React.FC<{
           )
         : undefined;
 
-  const [issueDetailsCopied, setIssueDetailsCopied] = useState(false);
-
-  const githubIssueUrl = useMemo(() => {
-    if (!environment) {
-      return Constants.bugReportUrl;
+  const codeRequest = useAsyncData(async () => {
+    if (!includeCode || !notebookSourceAvailable) {
+      return undefined;
     }
-    return buildBugReportUrl(
-      Constants.bugReportUrl,
-      buildIssueDetails({ environment, errors }),
-    );
-  }, [environment, errors]);
+    const { contents } = await readCode();
+    return contents;
+  }, [includeCode, notebookSourceAvailable, readCode]);
 
-  const copyIssueDetails = async () => {
+  const { url: githubIssueUrl, omitted } = useMemo(() => {
     if (!environment) {
-      return;
+      return { url: Constants.bugReportUrl, omitted: [] as string[] };
     }
-    const notebookForReport = includeNotebook
-      ? notebookSourceRequest.data
-      : undefined;
-    await copyToClipboard(
-      buildIssueDetails({ environment, errors, notebook: notebookForReport }),
-    );
-    setIssueDetailsCopied(true);
-    setTimeout(() => setIssueDetailsCopied(false), 2000);
-    toast({
-      title:
-        environmentRequest.status === "error"
-          ? "Partial issue details copied"
-          : "Issue details copied",
-    });
-  };
+    const fields: Record<string, string> = {
+      env: formatEnvironmentSection(environment),
+    };
+    if (includeErrors && errors.length > 0) {
+      fields["bug-description"] = formatErrorsSection(errors);
+    }
+    if (includeCode && codeRequest.data) {
+      fields["reproduction-code"] = formatCodeSection(codeRequest.data);
+    }
+    return buildBugReportUrl(Constants.bugReportUrl, fields);
+  }, [environment, errors, includeErrors, includeCode, codeRequest.data]);
+
+  const omittedLabels = omitted
+    .map((field) =>
+      field === "bug-description"
+        ? "errors"
+        : field === "reproduction-code"
+          ? "code"
+          : field,
+    )
+    .join(", ");
 
   return (
     <DialogContent className="w-[540px] max-w-[90vw]">
       <DialogHeader>
         <DialogTitle>Report an issue</DialogTitle>
         <DialogDescription>
-          Copy your environment and any current errors to include in a GitHub
-          bug report. Nothing is uploaded automatically; review the details
-          before posting.
+          Open a GitHub bug report prefilled with your environment, and
+          optionally your current errors and notebook code. Nothing is uploaded
+          automatically; review the details before posting.
         </DialogDescription>
       </DialogHeader>
 
       <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto">
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-col gap-3">
           <Button
             type="button"
             variant="default"
             size="xs"
-            disabled={
-              !environment ||
-              (includeNotebook && notebookSourceRequest.isFetching)
-            }
-            onClick={copyIssueDetails}
+            asChild={true}
+            className="self-start"
           >
-            {issueDetailsCopied && (
-              <CheckIcon
-                className="w-4 h-4 mr-2 text-(--grass-11)"
-                color="white"
-              />
-            )}
-            {issueDetailsCopied ? "Copied!" : "Copy issue details"}
-          </Button>
-          <Button type="button" variant="outline" size="xs" asChild={true}>
             <a href={githubIssueUrl} target="_blank" rel="noreferrer">
               <ExternalLinkIcon className="w-4 h-4 mr-2" />
               Open GitHub issue
             </a>
           </Button>
-        </div>
 
-        {includeNotebook && (
-          <p className="text-xs text-muted-foreground">
-            The GitHub link prefills your environment only. Use Copy issue
-            details to include the full notebook source.
-          </p>
-        )}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-sm">
+              <Checkbox
+                id="issue-include-errors"
+                checked={includeErrors}
+                disabled={errors.length === 0}
+                onCheckedChange={(checked) =>
+                  setIncludeErrors(checked === true)
+                }
+                aria-label="Include errors"
+              />
+              <label htmlFor="issue-include-errors">Include errors</label>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2 text-sm">
+                <Checkbox
+                  id="issue-include-code"
+                  checked={includeCode}
+                  disabled={!notebookSourceAvailable}
+                  onCheckedChange={(checked) =>
+                    setIncludeCode(checked === true)
+                  }
+                  aria-label="Include notebook code"
+                />
+                <label htmlFor="issue-include-code">Include notebook code</label>
+              </div>
+              {notebookSourceReason && (
+                <span className="text-xs text-muted-foreground ml-6">
+                  {notebookSourceReason}
+                </span>
+              )}
+              {includeCode && codeRequest.status === "error" && (
+                <span className="text-xs text-(--red-11) ml-6">
+                  Notebook source could not be loaded.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {omittedLabels ? (
+            <div className="flex items-start gap-2 text-xs text-(--yellow-11)">
+              <TriangleAlertIcon className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+              <span>
+                Too large to prefill and left out of the link: {omittedLabels}.
+                Paste them into the issue manually.
+              </span>
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Your environment is always included.
+            </p>
+          )}
+        </div>
 
         {environmentRequest.status === "pending" && (
           <div className="flex flex-col gap-2">
@@ -261,7 +297,15 @@ export const FeedbackModal: React.FC<{
 
         {environment && errors.length > 0 && (
           <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">Current errors</span>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Errors</span>
+              <CopyClipboardIcon
+                className="w-3.5 h-3.5"
+                value={formatErrorsSection(errors)}
+                ariaLabel="Copy errors"
+                toastTitle="Errors copied"
+              />
+            </div>
             <CollapsiblePreview
               content={errors.map(formatCellError).join("\n\n---\n\n")}
             />
@@ -270,45 +314,9 @@ export const FeedbackModal: React.FC<{
 
         {environment && errors.length === 0 && (
           <span className="text-sm text-muted-foreground">
-            No current errors detected.
+            No errors detected.
           </span>
         )}
-
-        <div className="flex flex-col gap-1">
-          <div className="flex items-start gap-2 text-sm">
-            <Checkbox
-              id="issue-include-notebook"
-              className="mt-0.5"
-              checked={includeNotebook}
-              disabled={!notebookSourceAvailable}
-              onCheckedChange={(checked) =>
-                setIncludeNotebook(checked === true)
-              }
-              aria-label="Include full notebook source"
-            />
-            <label htmlFor="issue-include-notebook">
-              Include full notebook source
-            </label>
-          </div>
-          <p className="text-xs text-muted-foreground ml-6">
-            Copies the entire saved Python source, including comments, literal
-            data, embedded credentials, and package metadata. Outputs and
-            external files are not included. Review it before posting.{" "}
-            <span className="font-bold">
-              For private notebooks, paste a minimal reproduction instead.
-            </span>
-          </p>
-          {notebookSourceReason && (
-            <span className="text-xs text-muted-foreground ml-6">
-              {notebookSourceReason}
-            </span>
-          )}
-          {includeNotebook && notebookSourceRequest.status === "error" && (
-            <span className="text-xs text-(--red-11) ml-6">
-              Notebook source could not be loaded.
-            </span>
-          )}
-        </div>
 
         <div className="border-t pt-3">
           <p className="text-sm text-muted-foreground">

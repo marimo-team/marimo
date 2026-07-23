@@ -50,6 +50,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe("FeedbackModal issue reporting", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.clear();
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
     store.set(connectionAtom, { state: WebSocketState.OPEN });
@@ -87,7 +88,7 @@ describe("FeedbackModal issue reporting", () => {
     ).toBeInTheDocument();
   });
 
-  it("copies partial details when the environment request fails", async () => {
+  it("copies partial environment JSON when the environment request fails", async () => {
     store.set(
       requestClientAtom,
       MockRequestClient.create({
@@ -97,7 +98,9 @@ describe("FeedbackModal issue reporting", () => {
     render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
 
     await screen.findByText("Server environment information unavailable");
-    fireEvent.click(screen.getByRole("button", { name: "Copy issue details" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Copy environment JSON" }),
+    );
     await waitFor(() =>
       expect(copyModule.copyToClipboard).toHaveBeenCalledWith(
         expect.stringContaining("Environment Collection Error"),
@@ -125,10 +128,8 @@ describe("FeedbackModal issue reporting", () => {
     );
   });
 
-  it("includes notebook source only after explicit opt-in", async () => {
-    const readCode = vi.fn().mockResolvedValue({
-      contents: "secret = 'review before posting'",
-    });
+  it("prefills the notebook code after checking include code", async () => {
+    const readCode = vi.fn().mockResolvedValue({ contents: "import marimo" });
     store.set(
       requestClientAtom,
       MockRequestClient.create({
@@ -137,50 +138,24 @@ describe("FeedbackModal issue reporting", () => {
       }),
     );
     render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+    const link = screen.getByRole("link", { name: "Open GitHub issue" });
     await screen.findByText("Environment details");
 
     expect(readCode).not.toHaveBeenCalled();
+    expect(link.getAttribute("href") ?? "").not.toContain("reproduction-code=");
+
     fireEvent.click(
-      screen.getByRole("checkbox", { name: "Include full notebook source" }),
+      screen.getByRole("checkbox", { name: "Include notebook code" }),
     );
     await waitFor(() => expect(readCode).toHaveBeenCalledOnce());
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy issue details" }));
-    await waitFor(() =>
-      expect(copyModule.copyToClipboard).toHaveBeenCalledWith(
-        expect.stringContaining("Notebook source: example.py"),
-      ),
-    );
-  });
-
-  it("discards notebook source after unchecking", async () => {
-    const readCode = vi.fn().mockResolvedValue({ contents: "x = 1" });
-    store.set(
-      requestClientAtom,
-      MockRequestClient.create({
-        getEnvironmentInfo: vi.fn().mockResolvedValue(environment),
-        readCode,
-      }),
-    );
-    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
-    await screen.findByText("Environment details");
-
-    const checkbox = screen.getByRole("checkbox", {
-      name: "Include full notebook source",
+    await waitFor(() => {
+      const href = link.getAttribute("href") ?? "";
+      expect(href).toContain("reproduction-code=");
+      expect(href).toContain(encodeURIComponent("import marimo"));
     });
-    fireEvent.click(checkbox);
-    await waitFor(() => expect(readCode).toHaveBeenCalledOnce());
-    fireEvent.click(checkbox);
-
-    fireEvent.click(screen.getByRole("button", { name: "Copy issue details" }));
-    await waitFor(() =>
-      expect(copyModule.copyToClipboard).toHaveBeenCalledWith(
-        expect.not.stringContaining("Notebook source"),
-      ),
-    );
   });
 
-  it("disables the notebook option and explains why when disconnected", async () => {
+  it("disables include code and explains why when disconnected", async () => {
     store.set(connectionAtom, { state: WebSocketState.CONNECTING });
     store.set(
       requestClientAtom,
@@ -192,11 +167,26 @@ describe("FeedbackModal issue reporting", () => {
     await screen.findByText("Environment details");
 
     expect(
-      screen.getByRole("checkbox", { name: "Include full notebook source" }),
+      screen.getByRole("checkbox", { name: "Include notebook code" }),
     ).toBeDisabled();
     expect(
       screen.getByText("Connect the notebook to include its source."),
     ).toBeInTheDocument();
+  });
+
+  it("disables include errors when there are no errors", async () => {
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getEnvironmentInfo: vi.fn().mockResolvedValue(environment),
+      }),
+    );
+    render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
+    await screen.findByText("Environment details");
+
+    expect(
+      screen.getByRole("checkbox", { name: "Include errors" }),
+    ).toBeDisabled();
   });
 
   it("prefills the GitHub issue link with the environment once loaded", async () => {

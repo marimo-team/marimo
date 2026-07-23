@@ -5,7 +5,6 @@ import {
   formatCellError,
 } from "@/core/errors/error-entries";
 import type { EnvironmentInfo } from "@/core/network/types";
-import { Paths } from "@/utils/paths";
 import { Strings } from "@/utils/strings";
 
 /**
@@ -21,12 +20,6 @@ export type EnvironmentDiagnostics = Partial<EnvironmentInfo> & {
 export interface NotebookSource {
   filename: string;
   contents: string;
-}
-
-export interface IssueDetailsInput {
-  environment: EnvironmentDiagnostics;
-  errors: CellErrorEntry[];
-  notebook?: NotebookSource;
 }
 
 /**
@@ -82,17 +75,35 @@ export function markdownCodeFence(language: string, contents: string): string {
 export const MAX_PREFILL_URL_LENGTH = 6000;
 
 /**
- * Build a bug-report URL with `issueDetails` prefilled into the form's `env`
- * field. Falls back to `baseUrl` unchanged when the prefilled URL would exceed
- * `MAX_PREFILL_URL_LENGTH`.
+ * Build a bug-report URL with `fields` prefilled into the issue form, keyed by
+ * each field's template `id`. Fields are added greedily in order; any that
+ * would push the URL past `MAX_PREFILL_URL_LENGTH` are skipped and returned in
+ * `omitted`, so an oversized later field never discards the ones before it.
  */
 export function buildBugReportUrl(
   baseUrl: string,
-  issueDetails: string,
-): string {
+  fields: Record<string, string>,
+): { url: string; omitted: string[] } {
   const separator = baseUrl.includes("?") ? "&" : "?";
-  const prefilled = `${baseUrl}${separator}env=${encodeURIComponent(issueDetails)}`;
-  return prefilled.length > MAX_PREFILL_URL_LENGTH ? baseUrl : prefilled;
+  const omitted: string[] = [];
+  let url = baseUrl;
+  let added = 0;
+
+  for (const [key, value] of Object.entries(fields)) {
+    if (value.length === 0) {
+      continue;
+    }
+    const param = `${key}=${encodeURIComponent(value)}`;
+    const candidate = `${url}${added === 0 ? separator : "&"}${param}`;
+    if (candidate.length > MAX_PREFILL_URL_LENGTH) {
+      omitted.push(key);
+      continue;
+    }
+    url = candidate;
+    added += 1;
+  }
+
+  return { url, omitted };
 }
 
 function detailsSection(summary: string, body: string): string {
@@ -106,34 +117,34 @@ function detailsSection(summary: string, body: string): string {
   ].join("\n");
 }
 
-export function buildIssueDetails(input: IssueDetailsInput): string {
-  const sections = [
-    detailsSection(
-      "Environment",
-      markdownCodeFence("json", JSON.stringify(input.environment, null, 2)),
-    ),
-  ];
+/**
+ * Format the environment as a collapsible section for the issue form's
+ * `env` field.
+ */
+export function formatEnvironmentSection(
+  environment: EnvironmentDiagnostics,
+): string {
+  return detailsSection(
+    "Environment",
+    markdownCodeFence("json", JSON.stringify(environment, null, 2)),
+  );
+}
 
-  if (input.errors.length > 0) {
-    sections.push(
-      detailsSection(
-        "Current errors",
-        markdownCodeFence(
-          "text",
-          input.errors.map(formatCellError).join("\n\n---\n\n"),
-        ),
-      ),
-    );
-  }
+/**
+ * Format cell errors as a collapsible section for the issue form's
+ * `bug-description` field.
+ */
+export function formatErrorsSection(errors: CellErrorEntry[]): string {
+  return detailsSection(
+    "Errors",
+    markdownCodeFence("text", errors.map(formatCellError).join("\n\n---\n\n")),
+  );
+}
 
-  if (input.notebook) {
-    sections.push(
-      detailsSection(
-        `Notebook source: ${Paths.basename(input.notebook.filename)}`,
-        markdownCodeFence("python", input.notebook.contents),
-      ),
-    );
-  }
-
-  return sections.join("\n\n");
+/**
+ * Format notebook source as a collapsible section for the issue form's
+ * `reproduction-code` field.
+ */
+export function formatCodeSection(contents: string): string {
+  return detailsSection("Code", markdownCodeFence("python", contents));
 }
