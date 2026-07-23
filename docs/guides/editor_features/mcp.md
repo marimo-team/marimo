@@ -36,7 +36,7 @@ marimo edit notebook.py --mcp --no-token
 
 ## MCP Server
 
-marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks.
+marimo can expose its [AI tools](tools.md) through an MCP server endpoint, allowing external AI applications to interact with your notebooks. If your goal is to have a coding agent drive a live notebook, see [marimo pair](../generate_with_ai/marimo_pair.md) instead; the MCP server exposes lower-level, read-only tools.
 
 <video autoplay loop muted playsinline width="100%" height="100%" align="center">
   <source src="/_static/docs-mcp-server.mp4" type="video/mp4">

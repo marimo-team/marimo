@@ -3,6 +3,12 @@
 !!! warning "Experimental Feature"
     Agents are currently experimental and under active development. Features and APIs may change.
 
+!!! tip "Looking to pair an agent CLI with your notebook?"
+    Most users should start with [marimo pair](../generate_with_ai/marimo_pair.md),
+    which gives agent CLIs like Claude Code full access to your running notebook
+    from the terminal. The integration described on this page instead embeds an
+    agent inside the marimo editor's chat panel.
+
 marimo supports external AI agents that can interact with your codebase through the [Agent Client Protocol](https://agentclientprotocol.com/) (ACP). Agents can read and write marimo notebooks, helping you with coding tasks directly from the chat panel.
 
 <video autoplay muted loop playsinline width="100%" height="100%" align="center">
