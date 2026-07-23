@@ -359,8 +359,10 @@ async def execute_code(
         run_id = str(uuid4())
         try:
             listener = ScratchCellListener(run_id=run_id)
-            with session.scoped(listener):
-                async with session.scratchpad_lock:
+            # Ensure we take a lock on the scratchpad before scoping the
+            # listener. See #10035.
+            async with session.scratchpad_lock:
+                with session.scoped(listener):
                     http_req = HTTPRequest.from_request(request)
                     server_url, auth_token = get_code_mode_credentials(
                         app_state, request
