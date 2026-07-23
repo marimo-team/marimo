@@ -150,7 +150,7 @@ Check in exported ipynb files to version control to view notebook outputs on Git
 
 You can also install the marimo glance
 [Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg)
-or [FireFox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/)
+or [Firefox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/)
 extensions to render live interactive previews of notebooks on GitHub, which
 can work well for inexpensive and self-contained notebooks. (The extension renders notebooks
 [with WebAssembly](../wasm.md), so not all notebooks will work.)
