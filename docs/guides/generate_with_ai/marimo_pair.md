@@ -1,7 +1,7 @@
 # Collaborate with agents using marimo pair
 
 Give your agent CLIs (such as Claude Code, Codex, and OpenCode) full access to running marimo notebooks with the **[marimo
-pair](https://github.com/marimo-team/marimo-pair)** agent skill.
+pair](https://marimo.io/pair)** agent skill.
 
 marimo pair is the recommended way to collaborate on marimo notebooks with
 agents. It lets your agent read variables, test logic in a scratchpad, run
