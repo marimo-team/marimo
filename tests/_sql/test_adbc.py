@@ -425,6 +425,20 @@ def test_adbc_execute_native_returns_arrow_table(monkeypatch) -> None:
     assert cursor.did_close is True
 
 
+def test_adbc_is_compatible_rejects_fabricated_attributes() -> None:
+    # Objects with a permissive __getattr__ (e.g. pytorch-ignite metrics)
+    # resolve any attribute name, so they pass getattr-based duck typing
+    # and catalog introspection on them hangs. See #10213.
+    class FabricatingAttributes:
+        def __getattr__(self, name: str) -> object:
+            def _lazy(*_args: object, **_kwargs: object) -> object:
+                return FabricatingAttributes()
+
+            return _lazy
+
+    assert AdbcDBAPIEngine.is_compatible(FabricatingAttributes()) is False
+
+
 def test_adbc_is_compatible_does_not_create_cursor() -> None:
     conn = FakeAdbcDbApiConnection(
         cursor=FakeAdbcDbApiCursor(description=None),

@@ -58,6 +58,20 @@ def test_is_compatible() -> None:
     assert not isinstance(engine, EngineCatalog)
 
 
+def test_is_compatible_rejects_fabricated_attributes() -> None:
+    # Objects with a permissive __getattr__ (e.g. pytorch-ignite metrics)
+    # resolve any attribute name, so they pass getattr-based duck typing
+    # and catalog introspection on them hangs. See #10213.
+    class FabricatingAttributes:
+        def __getattr__(self, name: str) -> object:
+            def _lazy(*_args: object, **_kwargs: object) -> object:
+                return FabricatingAttributes()
+
+            return _lazy
+
+    assert not DBAPIEngine.is_compatible(FabricatingAttributes())
+
+
 def test_execute_native(dbapi_engine: DBAPIEngine) -> None:
     with patch.object(
         dbapi_engine, "sql_output_format", return_value="native"

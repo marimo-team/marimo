@@ -5,7 +5,7 @@ from types import ModuleType
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo import _loggers
-from marimo._sql.engines.types import QueryEngine
+from marimo._sql.engines.types import QueryEngine, fabricates_attributes
 from marimo._sql.utils import convert_to_output
 
 LOGGER = _loggers.marimo_logger()
@@ -110,6 +110,11 @@ class DBAPIEngine(QueryEngine[DBAPIConnection]):
         var_type = type(var)
         var_type_name = f"{var_type.__module__}.{var_type.__qualname__}"
         if var_type_name == "ibis.common.deferred.Deferred":
+            return False
+
+        # Objects with a permissive __getattr__ (e.g. pytorch-ignite metrics)
+        # pass any getattr-based check and hang catalog introspection. #10213
+        if fabricates_attributes(var):
             return False
 
         try:

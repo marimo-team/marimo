@@ -23,6 +23,28 @@ from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
 
+# Attribute that no real database connection defines; used to detect objects
+# that fabricate attributes via a permissive __getattr__.
+_MISSING_ATTRIBUTE_PROBE = "_marimo_does_not_exist_"
+
+
+def fabricates_attributes(var: Any) -> bool:
+    """Whether ``var`` fabricates attributes via a permissive ``__getattr__``.
+
+    Some objects return a new object for *any* attribute name (for example
+    pytorch-ignite metrics, which build lazy ``MetricsLambda`` graphs). Such
+    objects pass every ``getattr``-based duck-typing check, and catalog
+    introspection on them can hang. Genuine connection proxies that forward
+    ``__getattr__`` to an underlying connection are unaffected, since the
+    probe attribute does not exist there either.
+    """
+    try:
+        return getattr(var, _MISSING_ATTRIBUTE_PROBE, None) is not None
+    except Exception:
+        # A __getattr__ that raises something other than AttributeError is
+        # not a usable connection either.
+        return True
+
 
 @dataclass
 class InferenceConfig(ABC):
