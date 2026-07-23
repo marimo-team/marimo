@@ -31,9 +31,9 @@ body:
     attributes:
       label: Environment
       description: |
-        In marimo, open **Send feedback → Report an issue** and click **Copy issue details**, then paste below. Otherwise, paste the output of `marimo env`.
+        In marimo, open **Send feedback → Report an issue** and click **Open GitHub issue** to prefill this field, or copy the environment details with the copy icon and paste below. Otherwise, paste the output of `marimo env`.
       placeholder: |
-        Paste the copied issue details here; they render as collapsible sections. If you ran `marimo env` instead, paste its output.
+        Paste the copied environment details here; they render as a collapsible section. If you ran `marimo env` instead, paste its output.
     validations:
       required: true
   - type: textarea
