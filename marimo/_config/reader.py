@@ -86,14 +86,9 @@ ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
 
 
 def _get_tool_dict(pyproject_dict: dict[str, Any]) -> dict[str, Any]:
-    """Return the `tool` table, raising if it isn't one.
-
-    `tool` is a table per the pyproject.toml spec, but this dict may come
-    from a notebook's own untrusted inline PEP 723 metadata, so a hostile
-    `tool = "..."` must not be allowed to crash with a raw AttributeError
-    further down.
-    """
+    """Extract marimo tool definition."""
     tool = pyproject_dict.get("tool", {})
+    # NB tool _should_ be a table from pyproject standard.
     if not isinstance(tool, dict):
         raise ValueError(
             f"pyproject.toml/script metadata 'tool' must be a table, "
