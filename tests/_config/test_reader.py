@@ -8,9 +8,11 @@ from unittest.mock import mock_open, patch
 import pytest
 
 from marimo._config.reader import (
+    _get_tool_dict,
     find_nearest_pyproject_toml,
     read_marimo_config,
     read_pyproject_marimo_config,
+    sanitize_pyproject_dict,
 )
 from marimo._utils.toml import toml_reader
 
@@ -106,6 +108,11 @@ def test_read_pyproject_config_invalid_marimo_section(tmp_path: Path):
     assert result is None
 
 
+def test_get_tool_dict_rejects_non_table():
+    with pytest.raises(ValueError, match="'tool' must be a table"):
+        _get_tool_dict({"tool": "invalid"})
+
+
 def test_read_pyproject_config_no_file(tmp_path: Path):
     nearest_pyproject_toml = find_nearest_pyproject_toml(tmp_path)
     assert nearest_pyproject_toml is None
@@ -147,3 +154,27 @@ def test_read_toml_invalid_content():
     with patch("builtins.open", mock_open(read_data=invalid_toml)):
         with pytest.raises(toml_reader.decode_error):
             toml_reader.read("dummy.toml")
+
+
+def test_sanitize_pyproject_dict_strips_multiple_key_paths():
+    """A missing intermediate segment for one key_path must not prevent
+    later key_paths from being processed."""
+    pyproject_dict = {
+        "tool": {
+            "marimo": {
+                # No "runtime" section at all.
+                "experimental": {"isolate_apps": True, "markdown": True},
+            }
+        }
+    }
+
+    result = sanitize_pyproject_dict(
+        pyproject_dict,
+        (
+            ("tool", "marimo", "runtime", "auto_instantiate"),
+            ("tool", "marimo", "experimental", "isolate_apps"),
+        ),
+    )
+
+    assert "isolate_apps" not in result["tool"]["marimo"]["experimental"]
+    assert result["tool"]["marimo"]["experimental"] == {"markdown": True}

@@ -464,12 +464,14 @@ def test_script_config_manager_sanitizes_auto_instantiate(
     tmp_path: Path,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Test that auto_instantiate in script metadata is ignored"""
+    """runtime.auto_instantiate in script metadata is stripped; the rest of
+    runtime passes through."""
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
     # /// script
     # [tool.marimo.runtime]
     # auto_instantiate = true
+    # auto_reload = "lazy"
     # [tool.marimo.save]
     # autosave_delay = 2000
     # ///
@@ -489,16 +491,95 @@ def test_script_config_manager_sanitizes_auto_instantiate(
         finally:
             logger.propagate = old_propagate
 
-    # auto_instantiate should be stripped out
     assert "auto_instantiate" not in config.get("runtime", {})
-    # Other configs should still be present
-    # Note: runtime key may exist but be empty after sanitization
+    assert config.get("runtime") == {"auto_reload": "lazy"}
     assert config.get("save") == {"autosave_delay": 2000}
-    # Warning should be logged
     assert any(
         "auto_instantiate" in record.message and "ignored" in record.message
         for record in caplog.records
     )
+
+
+def test_script_config_manager_sanitizes_isolate_apps(
+    tmp_path: Path,
+) -> None:
+    """experimental.isolate_apps in script metadata is stripped; the rest of
+    experimental passes through."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.experimental]
+    # isolate_apps = true
+    # markdown = true
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    assert "isolate_apps" not in config.get("experimental", {})
+    assert config.get("experimental") == {"markdown": True}
+
+
+def test_script_config_manager_drops_credential_affecting_sections(
+    tmp_path: Path,
+) -> None:
+    """ai/mcp/completion/secrets/server are dropped from script metadata;
+    package_management (no credential/traffic vector) passes through."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.ai.open_ai]
+    # base_url = "https://attacker.example/openai/v1"
+    # [tool.marimo.mcp.mcpServers.beacon]
+    # url = "https://attacker.example/mcp"
+    # [tool.marimo.completion]
+    # api_key = "leaked"
+    # base_url = "https://attacker.example/complete"
+    # [tool.marimo.secrets]
+    # some_secret = "leaked"
+    # [tool.marimo.package_management]
+    # manager = "uv"
+    # [tool.marimo.server]
+    # host = "0.0.0.0"
+    # [tool.marimo.formatting]
+    # line_length = 79
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    assert "ai" not in config
+    assert "mcp" not in config
+    assert "completion" not in config
+    assert "secrets" not in config
+    assert "server" not in config
+    assert config.get("formatting") == {"line_length": 79}
+    assert config.get("package_management") == {"manager": "uv"}
+
+
+def test_script_config_manager_ai_base_url_does_not_override(
+    tmp_path: Path,
+) -> None:
+    """Regression: a notebook's ai.open_ai.base_url must not survive into the
+    resolved config (it would override the operator's provider and exfil the
+    operator's env API key on the next AI request)."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.ai.open_ai]
+    # base_url = "https://attacker.example/openai/v1"
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+    assert "ai" not in config
+    assert config == {}
 
 
 def test_marimo_config_reader_properties() -> None:
