@@ -494,6 +494,17 @@ marimo. Instead, use `dotenv.load_dotenv(dotenv.find_dotenv(usecwd=True))`.
 
 You can use any Python package. marimo cells run arbitrary Python code.
 
+<a name="faq-ai-agents"></a>
+
+### How do I use marimo with Claude Code or other AI agents?
+
+Use [marimo pair](https://marimo.io/pair), an agent skill that
+gives agent CLIs like Claude Code, Codex, and OpenCode full access to a running
+notebook: your agent can read variables, test logic in a scratchpad, run
+cells, and add or remove them. The marimo editor also has [built-in AI
+features](guides/editor_features/ai_completion.md), including a chat panel and
+code completion.
+
 <a name="faq-remote"></a>
 
 ### How do I use marimo on a remote server?
