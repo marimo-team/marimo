@@ -3,6 +3,7 @@ import type { JSX, PropsWithChildren } from "react";
 import React from "react";
 import { createPortal } from "react-dom";
 import { z } from "zod";
+import { withFullScreenAsRoot } from "@/components/ui/fullscreen";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -68,11 +69,13 @@ const HorizontalMenuGroup = ({
   const triggerRef = React.useRef<React.ComponentRef<
     typeof NavigationMenuTrigger
   > | null>(null);
+  const [open, setOpen] = React.useState(false);
 
   return (
     <NavigationMenuPrimitive.Root
       className="relative z-10 max-w-max flex-1 items-center justify-center"
       orientation="horizontal"
+      onValueChange={(value) => setOpen(value !== "")}
     >
       <NavigationMenuList>
         <NavigationMenuItem>
@@ -96,20 +99,37 @@ const HorizontalMenuGroup = ({
           </NavigationMenuContent>
         </NavigationMenuItem>
       </NavigationMenuList>
-      <NavigationMenuViewportPortal anchorRef={triggerRef}>
+      <NavigationMenuViewportPortal anchorRef={triggerRef} open={open}>
         <NavigationMenuViewport />
       </NavigationMenuViewportPortal>
     </NavigationMenuPrimitive.Root>
   );
 };
 
+// Portal into the fullscreen element (or VSCode output container) when
+// present; `position: fixed` elements portaled to document.body render
+// behind a fullscreened cell.
+const NavigationMenuPortal = withFullScreenAsRoot(
+  ({
+    container,
+    children,
+  }: PropsWithChildren<{
+    container?: Element | DocumentFragment | null;
+  }>) => createPortal(children, container ?? document.body),
+);
+
+const VIEWPORT_MARGIN = 8;
+
 const NavigationMenuViewportPortal = ({
   anchorRef,
+  open,
   children,
 }: PropsWithChildren<{
   anchorRef: React.RefObject<HTMLElement | null>;
+  open: boolean;
 }>): React.ReactElement | null => {
   const [position, setPosition] = React.useState<PortalPosition | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
 
   const updatePosition = React.useCallback(() => {
     if (!anchorRef.current) {
@@ -117,15 +137,26 @@ const NavigationMenuViewportPortal = ({
     }
 
     const rect = anchorRef.current.getBoundingClientRect();
+    // Clamp so a wide dropdown doesn't run off the right edge of the viewport.
+    const contentWidth =
+      contentRef.current?.firstElementChild?.scrollWidth ?? 0;
+    const maxLeft = window.innerWidth - contentWidth - VIEWPORT_MARGIN;
     setPosition({
-      left: rect.left,
+      left: Math.max(VIEWPORT_MARGIN, Math.min(rect.left, maxLeft)),
       top: rect.bottom,
     });
   }, [anchorRef]);
 
+  // Recompute whenever the menu opens: the trigger may have moved since mount
+  // due to layout shifts that emit no scroll/resize events. The rAF re-measures
+  // after the dropdown content has rendered, so clamping sees its real width.
   React.useLayoutEffect(() => {
     updatePosition();
-  }, [updatePosition]);
+    if (open) {
+      const raf = requestAnimationFrame(updatePosition);
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [open, updatePosition]);
 
   useResizeObserver({
     ref: anchorRef,
@@ -150,14 +181,16 @@ const NavigationMenuViewportPortal = ({
     return null;
   }
 
-  return createPortal(
-    <div
-      className="fixed z-50"
-      style={{ left: position.left, top: position.top }}
-    >
-      {children}
-    </div>,
-    document.body,
+  return (
+    <NavigationMenuPortal>
+      <div
+        ref={contentRef}
+        className="fixed z-50"
+        style={{ left: position.left, top: position.top }}
+      >
+        {children}
+      </div>
+    </NavigationMenuPortal>
   );
 };
 
@@ -301,23 +334,25 @@ const ListItem = React.forwardRef<
 >(({ className, label, children, ...props }, ref) => {
   return (
     <li>
-      <a
-        ref={ref}
-        className={cn(
-          "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
-          className,
-        )}
-        {...props}
-      >
-        <div className="text-base font-medium leading-none">
-          {renderHTML({ html: label })}
-        </div>
-        {children && (
-          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-            {children}
-          </p>
-        )}
-      </a>
+      <NavigationMenuLink asChild={true}>
+        <a
+          ref={ref}
+          className={cn(
+            "block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-hidden transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+            className,
+          )}
+          {...props}
+        >
+          <div className="text-base font-medium leading-none">
+            {renderHTML({ html: label })}
+          </div>
+          {children && (
+            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+              {children}
+            </p>
+          )}
+        </a>
+      </NavigationMenuLink>
     </li>
   );
 });
