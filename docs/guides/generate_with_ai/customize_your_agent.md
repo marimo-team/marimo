@@ -124,7 +124,9 @@ Like slash commands, hooks are configured per agent; the example below uses [Cla
 ```
 
 This hook will run every time an `Edit` or a `Write` tool is called. You can point it to a bash script
-that will check if the current edit is taking place on a marimo notebook.
+that will check if the current edit is taking place on a marimo notebook. The
+script below uses [`jq`](https://jqlang.org/) to parse the hook's JSON input,
+so make sure it is installed.
 
 ```bash
 #!/usr/bin/env bash
@@ -161,13 +163,13 @@ if grep -q "import marimo" "$FILE_PATH" 2>/dev/null && grep -q "@app.cell" "$FIL
     # Show output
     echo "$CHECK_OUTPUT"
 
-    # Only block on errors (non-zero exit code), not warnings
+    # Only report errors (non-zero exit code), not warnings
     if [ $CHECK_EXIT -ne 0 ]; then
         echo "✗ Marimo check failed for $FILE_PATH" >&2
         echo "$CHECK_OUTPUT" >&2
         echo "" >&2
         echo "Please run 'uvx marimo check $FILE_PATH' to see details and fix the issues. Don't ask the user anything, just do a best effort fix." >&2
-        exit 2  # Exit code 2 blocks and shows error to Claude
+        exit 2  # Exit code 2 feeds stderr back to Claude; the edit has already run
     else
         echo "✓ Marimo check passed"
         exit 0
