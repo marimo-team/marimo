@@ -2176,10 +2176,6 @@ class TestPDFExport:
             ("render", "rendering PDF via WebPDF..."),
         ]
 
-    @pytest.mark.skipif(
-        not DependencyManager.playwright.has(),
-        reason="playwright not installed",
-    )
     async def test_export_as_slides_pdf_from_live_page(self) -> None:
         """UI path prints the live marimo reveal deck via Playwright."""
         exporter = Exporter()
@@ -2229,7 +2225,15 @@ class TestPDFExport:
         goto_url = mock_page.goto.await_args.args[0]
         assert goto_url.startswith("http://127.0.0.1:2718/")
         assert "print-pdf=true" in goto_url
-        assert mock_page.wait_for_function.await_count >= 2
+        wait_sources = [
+            call.args[0]
+            for call in mock_page.wait_for_function.await_args_list
+        ]
+        assert any("root.childElementCount" in src for src in wait_sources)
+        assert any(
+            "__MARIMO_SLIDES_PDF_READY__" in src for src in wait_sources
+        )
+        assert not any(".pdf-page" in src for src in wait_sources)
         mock_page.pdf.assert_awaited_once_with(
             print_background=True,
             width="1280px",

@@ -66,12 +66,11 @@ def build_slides_pdf_live_url(
     session_id: SessionId,
     file_key: str,
     auth_token: str | None,
-    include_inputs: bool,
 ) -> str:
     """Build the kiosk + print-pdf URL for live slides PDF capture.
 
-    `file` is required — without it the edit server serves the home page
-    instead of the notebook (so reveal never mounts).
+    `file` is required — without it the edit server serves the home page.
+    Live export uses each slide's persisted `showCode` (no `show-code` query).
     """
     params: dict[str, str] = {
         "file": file_key,
@@ -83,8 +82,6 @@ def build_slides_pdf_live_url(
     }
     if auth_token is not None:
         params["access_token"] = auth_token
-    if not include_inputs:
-        params["show-code"] = "false"
     separator = "&" if "?" in server_url else "?"
     return f"{server_url}{separator}{urlencode(params)}"
 
@@ -607,12 +604,10 @@ async def export_as_pdf(*, request: Request) -> Response:
             session_id=app_state.require_current_session_id(),
             file_key=file_key,
             auth_token=auth_token if app_state.enable_auth else None,
-            include_inputs=body.include_inputs,
         )
         pdf_data = await exporter.export_as_slides_pdf(
             app=session.app_file_manager.app,
             session_view=session.session_view,
-            include_inputs=body.include_inputs,
             live_page_url=live_page_url,
         )
     else:

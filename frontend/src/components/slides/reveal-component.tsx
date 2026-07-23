@@ -65,27 +65,20 @@ import { useAtomValue } from "jotai";
 import RevealNotes from "reveal.js/plugin/notes";
 
 const ASPECT_RATIO = 16 / 9;
-/** Fixed slide size for print/PDF — avoid ResizeObserver racing reveal's print layout. */
+/** Fixed size so ResizeObserver cannot race reveal's print layout. */
 const PRINT_WIDTH = 1280;
 const PRINT_HEIGHT = 720;
 
 declare global {
   interface Window {
-    /** Set when reveal.js finishes print/PDF layout (Playwright wait target). */
+    /** Playwright wait target once print layout is finalized. */
     __MARIMO_SLIDES_PDF_READY__?: boolean;
   }
 }
 
 const isPrintPdfMode = hasQueryParam(KnownQueryParams.printPdf);
 
-/**
- * Skip all React updates after the initial mount.
- *
- * `@revealjs/react` calls `deck.sync()` on every render when the slide
- * fingerprint changes. Reveal's print view rewrites that DOM, so any
- * re-render during/after print activation can prevent `pdf-ready` from
- * ever firing.
- */
+// `@revealjs/react` sync() rewrites print DOM; freeze after first mount.
 const FreezeAfterMount = memo(
   function FreezeAfterMount({ children }: { children: ReactNode }) {
     return children;
@@ -93,15 +86,13 @@ const FreezeAfterMount = memo(
   () => true,
 );
 
-/**
- * After outputs look complete, wait this long for late WS messages before
- * freezing the deck tree for print.
- */
+/** Settle window for late WS outputs before freezing the print deck. */
 const PRINT_DECK_SETTLE_MS = 500;
-/** Don't block PDF export forever if some cell never receives an output. */
 const PRINT_DECK_MAX_WAIT_MS = 15_000;
-/** After unhiding print pages, wait for widgets to paint before pruning empties. */
+/** Let widgets paint after unhide before pruning empty `.pdf-page`s. */
 const PRINT_CONTENT_PAINT_MS = 800;
+/** Unblock Playwright if the mounted print deck never creates pages. */
+const PRINT_EMPTY_AFTER_MOUNT_MS = 2_000;
 
 function printPageHasContent(page: Element): boolean {
   const text = (page.textContent || "").replace(/\s+/g, " ").trim();
@@ -113,6 +104,40 @@ function printPageHasContent(page: Element): boolean {
       "img, svg, canvas, table, video, iframe, .vega-embed, .marimo-table",
     ) != null
   );
+}
+
+function signalSlidesPdfReady(pageCount: number): void {
+  document.documentElement.classList.add("marimo-slides-pdf-ready");
+  window.__MARIMO_SLIDES_PDF_READY__ = true;
+  Logger.log("Slides PDF: reveal print layout ready", { pageCount });
+}
+
+/** Gate for mounting the print deck (`wait` | `open` | `empty-ready`). */
+export function resolvePrintDeckGate(options: {
+  slideCellCount: number;
+  renderableCount: number;
+  busy: boolean;
+  elapsedMs: number;
+  stableForMs: number;
+  settleMs?: number;
+  maxWaitMs?: number;
+}): "wait" | "open" | "empty-ready" {
+  const settleMs = options.settleMs ?? PRINT_DECK_SETTLE_MS;
+  const maxWaitMs = options.maxWaitMs ?? PRINT_DECK_MAX_WAIT_MS;
+  const timedOut = options.elapsedMs >= maxWaitMs;
+
+  if (options.slideCellCount === 0) {
+    return timedOut ? "empty-ready" : "wait";
+  }
+  if (timedOut && options.renderableCount === 0) {
+    return "empty-ready";
+  }
+  const outputsStable =
+    options.renderableCount > 0 && options.stableForMs >= settleMs;
+  if (timedOut || (!options.busy && outputsStable)) {
+    return "open";
+  }
+  return "wait";
 }
 
 /**
@@ -363,11 +388,7 @@ const SubslideView = ({
   isEditable,
   slideConfigs,
   contentStyle,
-  /**
-   * Print/PDF: render fragment blocks inline (no `.fragment` wrapper) so
-   * reveal's print layout measures full content height and nothing stays at
-   * `opacity: 0` / gets clipped.
-   */
+  /** Inline fragments so reveal print measures full height (no opacity:0). */
   flattenFragments = false,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
@@ -511,8 +532,6 @@ const RevealSlidesComponent = ({
   const width = isPrintPdfMode ? PRINT_WIDTH : liveDims.width;
   const height = isPrintPdfMode ? PRINT_HEIGHT : liveDims.height;
   const isFullscreen = useFullScreenElement() != null;
-  // In print mode, delay mounting the Deck until cells exist and outputs have
-  // had a chance to replay — then freeze the tree so sync() cannot race print.
   const [printDeckGateOpen, setPrintDeckGateOpen] = useState(false);
   const [printGateTick, setPrintGateTick] = useState(0);
   const printGateStartedAtRef = useRef<number | null>(null);
@@ -528,14 +547,12 @@ const RevealSlidesComponent = ({
     [kioskMode],
   );
 
-  // Mount the print deck once non-skip outputs look stable. Cells that never
-  // produce output are omitted from the composed deck (via deckSlideType), so
-  // we only wait for a stable renderable count — not "every cell forever".
+  // Wait for stable outputs (or empty-ready) before mounting the print deck.
   useEffect(() => {
     if (!isPrintPdfMode || printDeckGateOpen) {
       return;
     }
-    if (slideCells.length === 0) {
+    if (window.__MARIMO_SLIDES_PDF_READY__) {
       return;
     }
     if (printGateStartedAtRef.current == null) {
@@ -556,16 +573,24 @@ const RevealSlidesComponent = ({
     }
 
     const elapsed = Date.now() - (printGateStartedAtRef.current ?? Date.now());
-    const timedOut = elapsed >= PRINT_DECK_MAX_WAIT_MS;
     const stableFor =
       printStableSinceRef.current == null
         ? 0
         : Date.now() - printStableSinceRef.current;
-    const outputsStable =
-      renderableCount > 0 && stableFor >= PRINT_DECK_SETTLE_MS;
+    const decision = resolvePrintDeckGate({
+      slideCellCount: slideCells.length,
+      renderableCount,
+      busy,
+      elapsedMs: elapsed,
+      stableForMs: stableFor,
+    });
 
-    if (timedOut || (!busy && outputsStable)) {
-      if (timedOut) {
+    if (decision === "empty-ready") {
+      signalSlidesPdfReady(0);
+      return;
+    }
+    if (decision === "open") {
+      if (elapsed >= PRINT_DECK_MAX_WAIT_MS) {
         Logger.warn(
           "Slides PDF: opening print deck after max wait with incomplete outputs",
           { renderableCount, busy },
@@ -675,13 +700,10 @@ const RevealSlidesComponent = ({
 
   const revealConfig: RevealConfig = useMemo(
     () => ({
-      // Print view needs a non-embedded deck so reveal can linearize slides
-      // into `.pdf-page` wrappers for Chromium's print pipeline.
+      // Non-embedded so reveal can linearize into `.pdf-page` wrappers.
       embedded: !isPrintPdfMode,
       width,
       height,
-      // Print: center the slide box on each PDF page (reveal only sets width
-      // on sections; our CSS forces full slide height for content layout).
       center: isPrintPdfMode,
       minScale: 0.2,
       maxScale: 2,
@@ -689,17 +711,12 @@ const RevealSlidesComponent = ({
       transition: isPrintPdfMode ? "none" : deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
       url: kioskUrl,
-      // reveal.js auto-switches to its scroll view for mobile.
-      // We disable this mode because it rewrites the slide DOM that
-      // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
+      // Disable mobile scroll view — it rewrites DOM `@revealjs/react` owns.
       scrollActivationWidth: 0,
       ...(isPrintPdfMode && {
         view: "print" as const,
-        // Print deck is flattened (no stacks / fragment wrappers), so each
-        // composed subslide is already one horizontal section / PDF page.
         pdfSeparateFragments: false,
-        // A slightly-tall slide must not split into a content page + blank
-        // overflow page in Chromium's PDF pipeline.
+        // Avoid blank overflow pages from slightly-tall slides.
         pdfMaxPagesPerSlide: 1,
       }),
     }),
@@ -766,36 +783,23 @@ const RevealSlidesComponent = ({
     printFinalizeStartedRef.current = true;
 
     const unhidePrintSections = () => {
-      // Reveal marks inactive slides with the `hidden` attribute for a11y.
-      // Print view moves those nodes under `.pdf-page` but leaves `hidden` set,
-      // and Tailwind preflight's `[hidden] { display: none !important }` then
-      // blanks every page after the initially-present slide in the PDF.
+      // Reveal leaves `hidden` on inactive slides; Tailwind then blanks them.
       document.querySelectorAll(".pdf-page > section").forEach((section) => {
         section.removeAttribute("hidden");
-        if (section instanceof HTMLElement) {
-          section.style.setProperty("display", "block", "important");
-        }
       });
     };
 
     const finalize = () => {
       unhidePrintSections();
-      // Print surfaces are white; drop dark-mode so inverted prose isn't
-      // white-on-white (Agenda / Thanks look blank otherwise).
+      // Print pages are white — drop dark mode to avoid white-on-white prose.
       document.documentElement.classList.remove("dark");
       document.documentElement.style.colorScheme = "light";
-      // Drop pages that never received visible content (failed UI widgets,
-      // output-less cells that still opened a subslide, etc.). Page sizing and
-      // one-sheet-per-wrapper are enforced by reveal-slides.css.
       for (const page of document.querySelectorAll(".pdf-page")) {
         if (!printPageHasContent(page)) {
           page.remove();
         }
       }
-      const pageCount = document.querySelectorAll(".pdf-page").length;
-      document.documentElement.classList.add("marimo-slides-pdf-ready");
-      window.__MARIMO_SLIDES_PDF_READY__ = true;
-      Logger.log("Slides PDF: reveal print layout ready", { pageCount });
+      signalSlidesPdfReady(document.querySelectorAll(".pdf-page").length);
     };
 
     unhidePrintSections();
@@ -828,10 +832,7 @@ const RevealSlidesComponent = ({
       return;
     }
 
-    // `@revealjs/react` calls `deck.sync()` / `syncSlide()` from a layout
-    // effect right after `initialize()` resolves. That undoes print view's
-    // `.pdf-page` rewrite and leaves only the present slide visible — so we
-    // no-op those APIs for the life of this print deck.
+    // sync() undoes print's `.pdf-page` rewrite — no-op for this deck's life.
     deck.sync = Functions.NOOP;
     const deckWithSlideSync = deck as RevealApi & {
       syncSlide?: (slide?: HTMLElement) => void;
@@ -840,9 +841,7 @@ const RevealSlidesComponent = ({
       deckWithSlideSync.syncSlide = Functions.NOOP;
     }
 
-    // Print view fires `pdf-ready` during initialize (before this handler).
-    // Wait a frame so the React layout-effect sync no-op has run, then confirm
-    // pages are still in the DOM before unblocking Playwright.
+    // `pdf-ready` may fire before this handler; rAF retries after sync no-op.
     deck.on("pdf-ready", markPdfReady);
     requestAnimationFrame(() => {
       if (document.querySelector(".pdf-page") != null) {
@@ -851,16 +850,24 @@ const RevealSlidesComponent = ({
     });
   });
 
-  // Backup poller: if pdf-ready was missed, still unblock Playwright once
-  // reveal has created `.pdf-page` wrappers (class `print-pdf` alone is too
-  // early — reveal adds it before pages are built).
+  // If `pdf-ready` was missed (or the deck is empty), still unblock Playwright.
   useEffect(() => {
     if (!isPrintPdfMode || !printDeckGateOpen) {
       return;
     }
+    const startedAt = Date.now();
     const timer = window.setInterval(() => {
+      if (window.__MARIMO_SLIDES_PDF_READY__) {
+        window.clearInterval(timer);
+        return;
+      }
       if (document.querySelectorAll(".pdf-page").length > 0) {
         markPdfReady();
+        window.clearInterval(timer);
+        return;
+      }
+      if (Date.now() - startedAt >= PRINT_EMPTY_AFTER_MOUNT_MS) {
+        signalSlidesPdfReady(0);
         window.clearInterval(timer);
       }
     }, 100);
@@ -951,11 +958,7 @@ const RevealSlidesComponent = ({
       plugins={deckPlugins}
     >
       {isPrintPdfMode
-        ? // Flatten stacks + fragments into top-level slides. Reveal's print
-          // view skips `section.stack` wrappers and measures height while
-          // `.fragment` nodes are still hidden — both of which drop nested /
-          // fragment content from the PDF. Omit subslides with no renderable
-          // output so we don't emit blank PDF pages.
+        ? // Flatten stacks/fragments; skip empty subslides (blank PDF pages).
           composition.stacks.flatMap((stack, h) =>
             stack.subslides
               .filter((sub) =>

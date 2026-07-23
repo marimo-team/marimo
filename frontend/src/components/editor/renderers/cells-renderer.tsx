@@ -30,9 +30,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     const kioskMode = useAtomValue(kioskModeAtom);
     const params = new URLSearchParams(window.location.search);
     const isPrintPdf = params.has(KnownQueryParams.printPdf);
-    // Print-pdf export loads as a kiosk client; treat it like kiosk for layout
-    // selection so we don't briefly render the edit notebook before the WS
-    // sets kioskMode.
+    // Treat print-pdf like kiosk so we don't flash the edit notebook first.
     const forceAppLayout = kioskMode || isPrintPdf;
 
     // Render children (the editable notebook) in edit mode, and in present

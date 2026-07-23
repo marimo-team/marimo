@@ -81,19 +81,14 @@
   margin-right: 0;
 }
 
-/* reveal.js print/PDF layout: let pages flow; hide interactive chrome. */
+/* reveal.js print/PDF: flowing pages, no interactive chrome. */
 html.print-pdf,
 html.reveal-print {
   background: #fff;
-  /* Print pages are always white; neutralize app dark mode so prose/invert
-   * text isn't white-on-white (short markdown slides look blank otherwise). */
+  /* White pages — neutralize dark mode (white-on-white prose). */
   color-scheme: light;
   color: #111;
-  /*
-   * Chromium's page.pdf() often fails to embed webfonts (e.g. Lora), which
-   * leaves slide text invisible while bullet glyphs still paint. Force
-   * system fonts that Chromium embeds reliably.
-   */
+  /* Chromium page.pdf() often fails to embed webfonts; force system fonts. */
   --heading-font: Georgia, "Times New Roman", Times, serif;
   --text-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
     sans-serif;
@@ -114,10 +109,7 @@ html.reveal-print body {
   color: #111 !important;
   font-family: var(--text-font) !important;
 }
-/*
- * Global app print.css adds #App padding and heading break-after:avoid-page,
- * which insert blank sheets into reveal's linear PDF layout. Neutralize them.
- */
+/* Neutralize app print.css padding / heading breaks that insert blank sheets. */
 html.print-pdf #App,
 html.reveal-print #App {
   padding: 0 !important;
@@ -136,11 +128,7 @@ html.reveal-print .reveal-viewport {
   height: auto !important;
   background-color: #fff;
 }
-/*
- * Reveal's bundled print CSS sets `.reveal { overflow: hidden }`, which clips
- * every `.pdf-page` after the first out of Chromium's print pipeline.
- * Use the dual html class + !important so we beat the bundled rule.
- */
+/* Beat reveal's `.reveal { overflow: hidden }` which clips later `.pdf-page`s. */
 html.print-pdf.reveal-print .reveal,
 html.print-pdf .reveal,
 html.reveal-print .reveal {
@@ -154,7 +142,7 @@ html.reveal-print .reveal .controls,
 html.reveal-print .reveal .progress {
   display: none !important;
 }
-/* Dev overlays (react-scan FPS, breakpoint badge) must not enter the PDF. */
+/* Dev overlays must not enter the PDF. */
 html.print-pdf .fixed.bottom-10,
 html.print-pdf [data-react-scan],
 html.print-pdf #react-scan-root {
@@ -162,14 +150,8 @@ html.print-pdf #react-scan-root {
 }
 
 /*
- * Reveal's print activator sizes each `.pdf-page` to the slide dimensions but
- * only sets `width` on the section — height collapses to content, which makes
- * PDF pages look like top-left document snippets. Force sections to fill the
- * page so `.mo-slide-content` vertical centering works like present mode.
- *
- * Keep each `.pdf-page` to exactly one printed sheet: taller wrappers (when
- * scrollHeight slightly exceeds the slide) otherwise emit blank interstitial
- * pages in Chromium's PDF pipeline.
+ * Force each `.pdf-page` to exactly 1280x720 — reveal only sets width, and
+ * taller wrappers emit blank interstitial pages in Chromium's PDF pipeline.
  */
 html.print-pdf .reveal .slides .pdf-page {
   background: #fff;
@@ -177,7 +159,6 @@ html.print-pdf .reveal .slides .pdf-page {
   box-shadow: none !important;
   visibility: visible !important;
   opacity: 1 !important;
-  /* Match @page / Playwright page.pdf size exactly (reveal uses height-1). */
   width: 1280px !important;
   height: 720px !important;
   max-height: 720px !important;
@@ -191,12 +172,7 @@ html.print-pdf .reveal .slides .pdf-page:last-of-type {
   page-break-after: auto !important;
   break-after: auto !important;
 }
-/*
- * After print view moves slides under `.pdf-page`, inactive sections still
- * carry reveal's a11y `hidden` attribute. Tailwind preflight maps that to
- * `display: none !important`, blanking every page after the first. Beat both
- * `[hidden]` and reveal's live-deck display rules.
- */
+/* Beat Tailwind `[hidden]` on inactive slides nested under `.pdf-page`. */
 html.print-pdf .reveal .slides .pdf-page > section,
 html.print-pdf .reveal .slides .pdf-page > section[hidden],
 html.reveal-print .reveal .slides .pdf-page > section,
@@ -260,7 +236,6 @@ html.print-pdf .reveal .prose :where(h1, h2, h3, h4, h5, h6, p, li, span, a, cod
   -webkit-text-fill-color: currentColor !important;
 }
 
-/* Belt-and-suspenders: never leave fragment steps invisible in PDF export. */
 html.print-pdf .reveal .fragment {
   opacity: 1 !important;
   visibility: visible !important;

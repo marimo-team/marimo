@@ -64,8 +64,7 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
   );
 
   if (isReading) {
-    // Print/PDF export: reveal.js rewrites slides into `.pdf-page` wrappers
-    // that must not be clipped by a fixed viewport or `overflow: hidden`.
+    // Print export: don't clip reveal's flowing `.pdf-page` wrappers.
     if (isPrintPdfMode) {
       return <div className="bg-background">{slides}</div>;
     }

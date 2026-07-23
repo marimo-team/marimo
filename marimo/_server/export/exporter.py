@@ -626,13 +626,9 @@ class Exporter:
     ) -> bytes | None:
         """Export a slides notebook as PDF using reveal.js + Playwright.
 
-        When `live_page_url` is provided (UI/API export against a running
-        edit session), Playwright loads marimo's live slides deck in print
-        mode and captures `page.pdf()`. Otherwise (CLI), converts to ipynb
-        and uses nbconvert's SlidesExporter + `?print-pdf`.
-
-        Must be called from an async context since Playwright's async API
-        is required when running inside an asyncio event loop.
+        With `live_page_url` (UI/API), prints the live deck. Otherwise (CLI),
+        uses nbconvert's SlidesExporter + `?print-pdf`. Must run in an async
+        context (Playwright async API).
 
         Args:
             app: The app to export
@@ -640,12 +636,12 @@ class Exporter:
                 are not included.
             png_fallbacks: Optional cell-id keyed image/png fallbacks to
                 inject into notebook outputs before conversion.
-            include_inputs: Whether to include code cell inputs.
+            include_inputs: Include code inputs on the CLI/nbconvert path.
+                Live UI export uses each slide's persisted `showCode`.
             status_callback: Optional internal callback for CLI-only PDF
                 export stage updates.
-            live_page_url: Optional URL of the running notebook UI with
-                `print-pdf` / kiosk query params. When set, skips
-                nbconvert and prints the live deck.
+            live_page_url: Running notebook URL with print-pdf/kiosk params.
+                When set, skips nbconvert and prints the live deck.
 
         Returns:
             PDF data
@@ -713,8 +709,7 @@ class Exporter:
     ) -> bytes | None:
         """Print the live marimo slides deck via Playwright.
 
-        `page_url` must load the edit session in kiosk + print-pdf mode so
-        the frontend initializes reveal.js with `view: "print"` and sets
+        `page_url` must be kiosk + print-pdf so the FE sets
         `window.__MARIMO_SLIDES_PDF_READY__` when layout is done.
         """
         from playwright.async_api import (  # type: ignore[import-not-found]
@@ -740,18 +735,10 @@ class Exporter:
                     }""",
                     timeout=90_000,
                 )
-                # reveal.js print layout finished. Accept either our explicit
-                # flag or reveal's native `.pdf-page` / `print-pdf` markers so
-                # a missed event listener cannot hang the export.
+                # Wait for FE finalize — bare `.pdf-page` races the paint window.
                 try:
                     await page.wait_for_function(
-                        """() => {
-                          if (window.__MARIMO_SLIDES_PDF_READY__ === true) {
-                            return true;
-                          }
-                          // Native reveal print marker — only after pages exist.
-                          return document.querySelector(".pdf-page") != null;
-                        }""",
+                        "() => window.__MARIMO_SLIDES_PDF_READY__ === true",
                         timeout=90_000,
                     )
                 except PlaywrightTimeoutError:
@@ -794,9 +781,11 @@ class Exporter:
 
     @staticmethod
     async def _print_reveal_page_to_pdf(page: Any) -> bytes:
-        """Apply reveal print CSS tweaks and return Chromium PDF bytes."""
-        # Webfonts (Lora etc.) often fail to embed in page.pdf(); wait, then
-        # force system fonts so slide text is actually painted.
+        """Capture Chromium PDF bytes for a reveal print layout.
+
+        Live styling lives in `reveal-slides.css`; this applies the shared
+        CLI/nbconvert safety net (page size, last-page break, unhide).
+        """
         try:
             await page.wait_for_function(
                 "() => document.fonts ? document.fonts.status === 'loaded' : true",
@@ -809,14 +798,10 @@ class Exporter:
 
         await page.add_style_tag(
             content=(
-                # Avoid a trailing blank page from reveal's last-page break.
                 ".pdf-page:last-of-type {"
                 " page-break-after: auto !important;"
                 " break-after: auto !important;"
                 "}"
-                # After print view nests sections under `.pdf-page`, reveal's
-                # `.slides > section.present { display:block }` no longer
-                # matches — force every page section visible for Chromium PDF.
                 "html.print-pdf .reveal,"
                 "html.reveal-print .reveal {"
                 " overflow: visible !important;"
@@ -830,45 +815,8 @@ class Exporter:
                 " visibility: visible !important;"
                 " opacity: 1 !important;"
                 "}"
-                # Dark-mode app chrome uses light prose colors; print pages are
-                # white, so force readable text for Chromium PDF.
-                "html.print-pdf, html.print-pdf body, html.print-pdf .reveal {"
-                " color: #111 !important;"
-                " background: #fff !important;"
-                " color-scheme: light !important;"
-                # System fonts embed reliably; webfonts often paint blank.
-                " --heading-font: Georgia, 'Times New Roman', Times, serif;"
-                " --text-font: system-ui, -apple-system, 'Segoe UI', Roboto,"
-                " Helvetica, Arial, sans-serif;"
-                " font-family: var(--text-font) !important;"
-                "}"
-                "html.print-pdf .reveal .prose,"
-                "html.print-pdf .reveal .mo-slide-content,"
-                "html.print-pdf .reveal :where(h1,h2,h3,h4,h5,h6,p,li,span) {"
-                " color: #111 !important;"
-                " -webkit-text-fill-color: #111 !important;"
-                " font-family: var(--text-font) !important;"
-                "}"
-                "html.print-pdf .reveal :where(h1,h2,h3,h4,h5,h6) {"
-                " font-family: var(--heading-font) !important;"
-                "}"
-                # Dev overlays must not create trailing blank pages.
-                "html.print-pdf .fixed.bottom-10,"
-                "html.print-pdf [data-react-scan],"
-                "html.print-pdf #react-scan-root {"
-                " display: none !important;"
-                "}"
-                # Neutralize global app print.css (padding / heading breaks).
-                "html.print-pdf #App {"
-                " padding: 0 !important;"
-                " margin: 0 !important;"
-                " overflow: visible !important;"
-                "}"
-                "html.print-pdf :is(h1,h2,h3,h4) {"
-                " break-after: auto !important;"
-                " page-break-after: auto !important;"
-                "}"
-                "html.print-pdf .reveal .slides .pdf-page {"
+                "html.print-pdf .reveal .slides .pdf-page,"
+                "html.reveal-print .reveal .slides .pdf-page {"
                 " width: 1280px !important;"
                 " height: 720px !important;"
                 " max-height: 720px !important;"
@@ -876,16 +824,9 @@ class Exporter:
                 " page-break-after: always;"
                 " break-after: page;"
                 "}"
-                "html.print-pdf .reveal .slides .pdf-page:last-of-type {"
-                " page-break-after: auto !important;"
-                " break-after: auto !important;"
-                "}"
             )
         )
-        # Reveal leaves `hidden` on inactive slides; remove it so Chromium PDF
-        # (and Tailwind's [hidden] preflight) cannot blank later pages. Page
-        # sizing, overlay hiding, and #App resets are handled by the injected
-        # CSS above.
+        # Reveal leaves `hidden` on inactive slides; remove so PDF isn't blank.
         await page.evaluate(
             """() => {
               document.querySelectorAll('.pdf-page > section').forEach(
@@ -893,9 +834,6 @@ class Exporter:
               );
             }"""
         )
-        # Match the frontend print slide size (1280x720) instead of relying on
-        # @page alone — prefer_css_page_size + slightly-tall wrappers was
-        # emitting blank interstitial pages.
         pdf_data = await page.pdf(
             print_background=True,
             width="1280px",

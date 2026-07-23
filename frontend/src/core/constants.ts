@@ -58,10 +58,7 @@ export const KnownQueryParams = {
    * Ignored for embedded islands, which infer the theme from their host page.
    */
   theme: "theme",
-  /**
-   * Initialize the slides deck in reveal.js print/PDF layout.
-   * Used by server-side slides PDF export (Playwright + page.pdf).
-   */
+  /** Reveal print/PDF layout for server-side slides PDF export. */
   printPdf: "print-pdf",
 };
 
