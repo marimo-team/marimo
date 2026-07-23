@@ -4978,12 +4978,17 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             index_urls: Alternative package index URLs. Primary index first,
+     *                         then extras. Honored by backends that support custom
+     *                         indexes (currently micropip); other backends ignore it.
      *             source: Where to install. "kernel" (default) dispatches to the kernel
      *                     subprocess; "server" installs directly into the server's Python
      *                     environment (sys.executable), used when the server itself needs
      *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -4998,6 +5003,8 @@ export interface components {
     };
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel

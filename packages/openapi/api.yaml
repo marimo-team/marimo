@@ -2316,12 +2316,20 @@ components:
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
         \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        index_urls: Alternative package index URLs. Primary index first,\n\
+        \                    then extras. Honored by backends that support custom\n\
+        \                    indexes (currently micropip); other backends ignore it.\n\
         \        source: Where to install. \"kernel\" (default) dispatches to the\
         \ kernel\n                subprocess; \"server\" installs directly into the\
         \ server's Python\n                environment (sys.executable), used when\
         \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
         \ auto-export in sandbox mode)."
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:
@@ -2344,6 +2352,11 @@ components:
       type: object
     InstallPackagesRequest:
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:

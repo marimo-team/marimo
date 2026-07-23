@@ -56,6 +56,37 @@ class PackagesCallbacks:
     def register(self, router: RequestRouter) -> None:
         router.register(InstallPackagesCommand, self._handle_install)
 
+    def _notebook_index_urls(self) -> list[str]:
+        """Read PEP 723 index config from the current notebook.
+
+        Returns a flat list with the primary `index-url` first, then any
+        `extra-index-url` entries, then `[[tool.uv.index]]` URLs.
+        Returns `[]` if there's no filename or no config — the receiving
+        backend will fall back to its default index.
+        """
+        filename = self._kernel.app_metadata.filename
+        if not filename:
+            return []
+        try:
+            from marimo._utils.inline_script_metadata import PyProjectReader
+
+            reader = PyProjectReader.from_filename(filename)
+        except Exception:
+            return []
+        urls: list[str] = []
+        if isinstance(reader.index_url, str) and reader.index_url:
+            urls.append(reader.index_url)
+        for extra in reader.extra_index_urls:
+            if isinstance(extra, str) and extra and extra not in urls:
+                urls.append(extra)
+        for entry in reader.index_configs:
+            if not isinstance(entry, dict):
+                continue
+            url = entry.get("url")
+            if isinstance(url, str) and url and url not in urls:
+                urls.append(url)
+        return urls
+
     async def _handle_install(self, request: InstallPackagesCommand) -> None:
         await self.install_missing_packages(request)
         broadcast_notification(CompletedRunNotification())
@@ -173,7 +204,9 @@ class PackagesCallbacks:
             version = {pkg: "" for pkg in packages}
             self._kernel.enqueue_control_request(
                 InstallPackagesCommand(
-                    manager=self.package_manager.name, versions=version
+                    manager=self.package_manager.name,
+                    versions=version,
+                    index_urls=self._notebook_index_urls(),
                 )
             )
         else:
@@ -249,34 +282,43 @@ class PackagesCallbacks:
 
             return log_callback
 
+        # Mark every still-installable package as "installing" up-front so the
+        # UI can render the batch state before any wheel completes.
         for pkg in missing_packages:
-            if self.package_manager.attempted_to_install(package=pkg):
-                # Already attempted an installation; it must have failed.
-                # Skip the installation.
-                continue
-            package_statuses[pkg] = "installing"
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses, source=request.source
-                )
+            if not self.package_manager.attempted_to_install(package=pkg):
+                package_statuses[pkg] = "installing"
+        broadcast_notification(
+            InstallingPackageAlertNotification(
+                packages=package_statuses, source=request.source
             )
-
-            # Send initial "start" log
-            broadcast_notification(
-                InstallingPackageAlertNotification(
-                    packages=package_statuses,
-                    logs={pkg: f"Installing {pkg}...\n"},
-                    log_status="start",
-                    source=request.source,
+        )
+        for pkg in missing_packages:
+            if package_statuses.get(pkg) == "installing":
+                broadcast_notification(
+                    InstallingPackageAlertNotification(
+                        packages=package_statuses,
+                        logs={pkg: f"Installing {pkg}...\n"},
+                        log_status="start",
+                        source=request.source,
+                    )
                 )
-            )
 
-            version = request.versions.get(pkg)
-            if await self.package_manager.install(
-                pkg, version=version, log_callback=create_log_callback(pkg)
-            ):
+        installable = [
+            pkg
+            for pkg in missing_packages
+            if not self.package_manager.attempted_to_install(package=pkg)
+        ]
+        versions: dict[str, str | None] = {
+            pkg: request.versions.get(pkg) for pkg in installable
+        }
+        async for pkg, success in self.package_manager.stream_install(
+            installable,
+            versions=versions,
+            index_urls=request.index_urls or None,
+            log_callback_factory=create_log_callback,
+        ):
+            if success:
                 package_statuses[pkg] = "installed"
-                # Send final "done" log
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,
@@ -289,7 +331,6 @@ class PackagesCallbacks:
                 package_statuses[pkg] = "failed"
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
-                # Send final "done" log with error
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,
