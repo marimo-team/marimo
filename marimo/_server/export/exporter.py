@@ -92,6 +92,46 @@ def _nbconvert_tag_remove_config() -> Config:
     return config
 
 
+# JupyterLab's stylesheet (shipped with nbconvert) styles the code input area
+# with `overflow: hidden` and leaves the `<pre>` at the default `white-space:
+# pre`. In JupyterLab that is fine because the editor scrolls; in a PDF there is
+# no scrolling, so long lines are clipped and the text is lost entirely.
+# Outputs already wrap (`.jp-OutputArea-output pre` sets `word-break`), so this
+# only targets the input area.
+#
+# `!important` is required because this is inlined ahead of the JupyterLab
+# rules; the slides PDF path overrides nbconvert styling the same way.
+WEBPDF_CODE_WRAP_CSS = """\
+/* marimo: wrap long code lines instead of clipping them (#9421) */
+.jp-InputArea-editor {
+  overflow: visible !important;
+}
+.jp-InputArea-editor .highlight pre {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+"""
+
+
+def _wrap_code_lines_preprocessor() -> Any:
+    """Nbconvert preprocessor that inlines `WEBPDF_CODE_WRAP_CSS`.
+
+    Preprocessors run after nbconvert populates `resources`, so appending here
+    is what gets the stylesheet into the rendered HTML.
+    """
+    from nbconvert.preprocessors import (  # type: ignore[import-not-found]
+        Preprocessor,
+    )
+
+    class WrapCodeLinesPreprocessor(Preprocessor):  # type: ignore[misc]
+        def preprocess(self, nb: Any, resources: Any) -> Any:
+            inlining = resources.setdefault("inlining", {})
+            inlining.setdefault("css", []).append(WEBPDF_CODE_WRAP_CSS)
+            return nb, resources
+
+    return WrapCodeLinesPreprocessor
+
+
 def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
     if sys.platform == "win32":
         # marimo installs the Selector policy during import. The spawned render
@@ -105,6 +145,9 @@ def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
     )
     web_exporter.exclude_input = not include_inputs
     web_exporter.allow_chromium_download = True
+    web_exporter.register_preprocessor(  # type: ignore[no-untyped-call]
+        _wrap_code_lines_preprocessor(), enabled=True
+    )
     pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
     return pdf_data
 

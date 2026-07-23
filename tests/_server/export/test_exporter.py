@@ -1653,6 +1653,53 @@ class TestPDFExport:
                 f"{exporter_cls.__name__} dropped the visible cell source"
             )
 
+    @pytest.mark.skipif(
+        not HAS_NBFORMAT or not DependencyManager.nbconvert.has(),
+        reason="nbformat and nbconvert are required to render ipynb",
+    )
+    def test_webpdf_inlines_code_wrapping_css(self) -> None:
+        """WebPDF export inlines CSS that wraps long code lines.
+
+        JupyterLab's stylesheet clips the code input area, so long lines were
+        silently truncated in the PDF instead of wrapping.
+
+        Regression test for marimo-team/marimo#9421.
+        """
+        import nbformat
+        from nbconvert import HTMLExporter
+
+        from marimo._server.export.exporter import (
+            WEBPDF_CODE_WRAP_CSS,
+            _nbconvert_tag_remove_config,
+            _wrap_code_lines_preprocessor,
+        )
+
+        notebook = nbformat.v4.new_notebook()
+        notebook.cells = [
+            nbformat.v4.new_code_cell(
+                "# a comment long enough to run past the printable width of a "
+                "PDF page and get clipped"
+            )
+        ]
+
+        # WebPDFExporter renders through the `webpdf` template; asserting on
+        # the HTML avoids needing Chromium in CI.
+        exporter = HTMLExporter(
+            config=_nbconvert_tag_remove_config(), template_name="webpdf"
+        )
+        rendered_without, _ = exporter.from_notebook_node(notebook)
+        assert WEBPDF_CODE_WRAP_CSS not in rendered_without
+
+        exporter.register_preprocessor(
+            _wrap_code_lines_preprocessor(), enabled=True
+        )
+        rendered, _ = exporter.from_notebook_node(notebook)
+
+        # The stylesheet must actually reach the document: a misresolved
+        # template or preprocessor fails silently, leaving the bug in place.
+        assert WEBPDF_CODE_WRAP_CSS in rendered
+        assert "white-space: pre-wrap !important" in rendered
+
     @pytest.mark.asyncio
     async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
         self,
