@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { act, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   shouldShowScrollHint,
   SlideScrollContainer,
@@ -73,23 +73,32 @@ describe("SlideScrollContainer", () => {
       return 0;
     });
     vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    global.ResizeObserver = class MockResizeObserver {
-      callback: ResizeObserverCallback;
-      observe = vi.fn();
-      unobserve = vi.fn();
-      disconnect = vi.fn();
+    vi.stubGlobal(
+      "ResizeObserver",
+      class MockResizeObserver {
+        callback: ResizeObserverCallback;
+        observe = vi.fn();
+        unobserve = vi.fn();
+        disconnect = vi.fn();
 
-      constructor(callback: ResizeObserverCallback) {
-        this.callback = callback;
-        resizeObservers.push(this);
-      }
-    } as unknown as typeof ResizeObserver;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          resizeObservers.push(this);
+        }
+      },
+    );
+    vi.stubGlobal(
+      "MutationObserver",
+      class MockMutationObserver {
+        observe = vi.fn();
+        disconnect = vi.fn();
+        takeRecords = vi.fn(() => []);
+      },
+    );
+  });
 
-    global.MutationObserver = class MockMutationObserver {
-      observe = vi.fn();
-      disconnect = vi.fn();
-      takeRecords = vi.fn(() => []);
-    } as unknown as typeof MutationObserver;
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   function stubOverflow(

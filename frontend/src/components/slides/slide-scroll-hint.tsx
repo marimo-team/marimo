@@ -86,6 +86,11 @@ export function useSlideScrollHint(
             resizeObserver.observe(node);
           }
         }
+        for (const node of mutation.removedNodes) {
+          if (node instanceof Element) {
+            resizeObserver.unobserve(node);
+          }
+        }
       }
       update();
     });
