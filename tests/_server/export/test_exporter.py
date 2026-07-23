@@ -1666,12 +1666,11 @@ class TestPDFExport:
         Regression test for marimo-team/marimo#9421.
         """
         import nbformat
-        from nbconvert import HTMLExporter
+        from nbconvert import WebPDFExporter
 
         from marimo._server.export.exporter import (
             WEBPDF_CODE_WRAP_CSS,
-            _inline_code_wrap_css,
-            _nbconvert_tag_remove_config,
+            _render_webpdf_with_nbconvert,
         )
 
         notebook = nbformat.v4.new_notebook()
@@ -1682,21 +1681,29 @@ class TestPDFExport:
             )
         ]
 
-        # WebPDFExporter renders through the `webpdf` template; asserting on
-        # the HTML avoids needing Chromium in CI.
-        exporter = HTMLExporter(
-            config=_nbconvert_tag_remove_config(), template_name="webpdf"
-        )
-        rendered_without, _ = exporter.from_notebook_node(notebook)
-        assert WEBPDF_CODE_WRAP_CSS not in rendered_without
+        # `run_playwright` receives the fully rendered HTML, so stubbing it
+        # captures what Chromium would have been handed without needing a
+        # browser. Going through `_render_webpdf_with_nbconvert` means the
+        # test fails if the production code stops registering the
+        # preprocessor.
+        rendered: list[str] = []
 
-        exporter.register_preprocessor(_inline_code_wrap_css, enabled=True)
-        rendered, _ = exporter.from_notebook_node(notebook)
+        def fake_run_playwright(self: Any, html: str) -> bytes:
+            del self
+            rendered.append(html)
+            return b"mock_pdf_data"
 
-        # The stylesheet must actually reach the document: a misresolved
-        # template or preprocessor fails silently, leaving the bug in place.
-        assert WEBPDF_CODE_WRAP_CSS in rendered
-        assert "white-space: pre-wrap !important" in rendered
+        with patch.object(
+            WebPDFExporter, "run_playwright", fake_run_playwright
+        ):
+            pdf_data = _render_webpdf_with_nbconvert(
+                notebook, include_inputs=True
+            )
+
+        assert pdf_data == b"mock_pdf_data"
+        assert len(rendered) == 1
+        assert WEBPDF_CODE_WRAP_CSS in rendered[0]
+        assert "white-space: pre-wrap !important" in rendered[0]
 
     @pytest.mark.asyncio
     async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
