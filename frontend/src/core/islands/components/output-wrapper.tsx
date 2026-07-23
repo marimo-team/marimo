@@ -15,6 +15,7 @@ import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import type { CellRuntimeState } from "@/core/cells/types";
 import { ISLAND_TAG_NAMES } from "../constants";
+import { islandsHydratedAtom } from "../state";
 import { IslandControls } from "./IslandControls";
 import { useIslandControls } from "./useIslandControls";
 
@@ -64,6 +65,7 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
     [cellId],
   );
   const runtime = useAtomValue(selectAtom(notebookAtom, selector));
+  const isHydrated = useAtomValue(islandsHydratedAtom);
 
   // Sync cell status to the host <marimo-island> element as a data attribute
   // so downstream consumers can style based on status (e.g. [data-status="running"])
@@ -71,7 +73,8 @@ export const MarimoOutputWrapper: React.FC<MarimoOutputWrapperProps> = ({
   useSyncStatusToIsland(wrapperRef, status);
 
   // If no runtime yet, show static content
-  if (!runtime?.output) {
+  // Keep static content mounted while the initial run is pending.
+  if (!isHydrated || !runtime?.output) {
     return (
       <div ref={wrapperRef} className="relative min-h-6 empty:hidden">
         {children}

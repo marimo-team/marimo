@@ -11,6 +11,15 @@ import { atom } from "jotai";
  */
 export const islandsInitializedAtom = atom<boolean | string>(false);
 
+/** Pending initial session generations. Null waits for a session to start. */
+export const islandsPendingInitialRunsAtom = atom<ReadonlySet<number> | null>(
+  new Set<number>(),
+);
+
+export const islandsHydratedAtom = atom(
+  (get) => get(islandsPendingInitialRunsAtom)?.size === 0,
+);
+
 /**
  * Whether the user has tried to interact with the islands.
  */

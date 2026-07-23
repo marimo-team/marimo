@@ -4,17 +4,16 @@
 import { getWorkerRPC } from "@/core/wasm/rpc";
 import { Deferred } from "@/utils/Deferred";
 import { throwNotImplemented } from "@/utils/functions";
-import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "@/utils/Logger";
 import { generateUUID } from "@/utils/uuid";
 import { initialNotebookState, notebookAtom } from "../cells/cells";
-import type { CommandMessage, NotificationPayload } from "../kernel/messages";
+import type { CommandMessage } from "../kernel/messages";
 import type { EditRequests, RunRequests } from "../network/types";
 import { store as defaultStore } from "../state/jotai";
 import { getMarimoExportContext } from "../static/export-context";
 import { createMarimoFile, parseMarimoIslandApps } from "./parse";
-import { islandsInitializedAtom } from "./state";
-import type { WorkerSchema } from "./worker/worker";
+import { islandsInitializedAtom, islandsPendingInitialRunsAtom } from "./state";
+import type { IslandsKernelMessage, WorkerSchema } from "./worker/worker";
 import type { WorkerFactory } from "./worker-factory";
 import { DefaultWorkerFactory } from "./worker-factory";
 
@@ -60,7 +59,7 @@ interface AppSession {
 export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private rpc: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private messageConsumer:
-    | ((message: JsonString<NotificationPayload>) => void)
+    | ((message: IslandsKernelMessage) => void)
     | undefined;
   private readonly store: typeof defaultStore;
   private readonly root: Document | Element;
@@ -110,12 +109,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    this.rpc.addMessageListener(
-      "kernelMessage",
-      ({ message }: { message: JsonString<NotificationPayload> }) => {
-        this.messageConsumer?.(message);
-      },
-    );
+    this.rpc.addMessageListener("kernelMessage", (message) => {
+      this.messageConsumer?.(message);
+    });
   }
 
   async initializeApps(): Promise<void> {
@@ -126,7 +122,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   }
 
   private async startApps(): Promise<void> {
-    const apps = parseMarimoIslandApps(this.root);
+    const apps = parseMarimoIslandApps(this.root, { materialize: false });
     const managesSingleApp = apps.length === 1;
     Logger.debug(
       `Starting sessions for ${apps.length} app(s):`,
@@ -140,15 +136,27 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         ? getMarimoExportContext()
         : undefined;
     const notebookCode = exportContext?.notebookCode;
+    const singleApp = managesSingleApp ? apps[0] : undefined;
+    const singleAppFile = singleApp
+      ? notebookCode || createMarimoFile(singleApp)
+      : undefined;
+    if (
+      singleApp &&
+      this.session?.appId === singleApp.id &&
+      this.session.code === singleAppFile
+    ) {
+      parseMarimoIslandApps(this.root);
+      return;
+    }
+    if (apps.length > 0) {
+      this.store.set(
+        islandsPendingInitialRunsAtom,
+        new Set(apps.map((_, index) => this.nextSessionGeneration + index + 1)),
+      );
+    }
+    parseMarimoIslandApps(this.root);
     for (const app of apps) {
-      const file = notebookCode || createMarimoFile(app);
-      if (
-        managesSingleApp &&
-        this.session?.appId === app.id &&
-        this.session.code === file
-      ) {
-        return;
-      }
+      const file = singleAppFile || createMarimoFile(app);
       Logger.debug(`App ${app.id} marimo file:\n`, file);
       const request = {
         code: file,
@@ -199,6 +207,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         appId: session.appId,
         sessionGeneration: session.sessionGeneration,
       });
+      this.store.set(islandsPendingInitialRunsAtom, null);
       this.session = undefined;
       this.sessionReady = new Deferred<AppSession>();
       this.store.set(notebookAtom, initialNotebookState());
@@ -225,9 +234,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   /**
    * Sets up a consumer for kernel messages
    */
-  consumeMessages(
-    consumer: (message: JsonString<NotificationPayload>) => void,
-  ): void {
+  consumeMessages(consumer: (message: IslandsKernelMessage) => void): void {
     this.messageConsumer = consumer;
     this.rpc.proxy.send.consumerReady({});
   }
