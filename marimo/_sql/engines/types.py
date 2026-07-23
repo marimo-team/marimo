@@ -29,13 +29,13 @@ _MISSING_ATTRIBUTE_PROBE = "_marimo_does_not_exist_"
 
 
 def fabricates_attributes(var: Any) -> bool:
-    """Whether ``var`` fabricates attributes via a permissive ``__getattr__``.
+    """Whether `var` fabricates attributes via a permissive `__getattr__`.
 
     Some objects return a new object for *any* attribute name (for example
-    pytorch-ignite metrics, which build lazy ``MetricsLambda`` graphs). Such
-    objects pass every ``getattr``-based duck-typing check, and catalog
+    pytorch-ignite metrics, which build lazy `MetricsLambda` graphs). Such
+    objects pass every `getattr`-based duck-typing check, and catalog
     introspection on them can hang. Genuine connection proxies that forward
-    ``__getattr__`` to an underlying connection are unaffected, since the
+    `__getattr__` to an underlying connection are unaffected, since the
     probe attribute does not exist there either.
     """
     try:
