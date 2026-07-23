@@ -1111,6 +1111,62 @@ class TestCacheDecorator:
         assert k.stdout.messages.count("ran") == 1
         assert k.globals["foo"].hits == 3
 
+    async def test_lru_cache_underscore_alias(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Regression: `import marimo as _private` (underscore alias) used to
+        # blow up cache hashing because mangled scope keys (`_cell_<id>__private`)
+        # don't match the unmangled-ref lookup used during the cache attempt.
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import marimo as _private
+
+                    @_private.lru_cache(maxsize=128)
+                    def f(x):
+                        return x * 2
+
+                    a = f(1)
+                    b = f(1)
+                    c = f(2)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["a"] == 2
+        assert k.globals["b"] == 2
+        assert k.globals["c"] == 4
+        # Second `f(1)` should hit the cache.
+        assert k.globals["f"].hits == 1
+
+    async def test_cache_underscore_alias(
+        self, k: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        await k.run(
+            [
+                exec_req.get(
+                    """
+                    import marimo as _private
+
+                    @_private.cache
+                    def f(x):
+                        return x * 3
+
+                    a = f(1)
+                    b = f(1)
+                    """
+                ),
+            ]
+        )
+
+        assert not k.stderr.messages, k.stderr
+        assert k.globals["a"] == 3
+        assert k.globals["b"] == 3
+        assert k.globals["f"].hits == 1
+
     async def test_persistent_cache(
         self, k: Kernel, exec_req: ExecReqProvider
     ) -> None:

@@ -872,6 +872,127 @@ except NameError:
         assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
 
+    async def test_underscore_prefixed_import_in_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        # An underscore-prefixed `as` alias is cell-local (mangled), but
+        # must still resolve when used within the same cell, including in
+        # a nested decorator/body scope.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "import marimo as _mo\n"
+                        "@_mo.cache\n"
+                        "def f(x):\n"
+                        "    return _mo.md(str(x))\n"
+                        "msg = f(1)"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        # The alias is cell-local, so it never leaks into globals.
+        assert "_mo" not in k.globals
+        assert "1" in k.globals["msg"].text
+
+    async def test_underscore_prefixed_import_across_cells_no_conflict(
+        self, k: Kernel
+    ) -> None:
+        # Underscore-prefixed `as` aliases are cell-local/private: two
+        # cells may each `import sys as _sys` without triggering a
+        # MultipleDefinitionError. Each cell sees its own mangled binding.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import sys as _sys; a = _sys.maxsize",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="import sys as _sys; b = _sys.maxsize",
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["a"] == sys.maxsize
+        assert k.globals["b"] == sys.maxsize
+        # The private alias is not promoted to a graph def.
+        assert "_sys" not in k.globals
+
+    async def test_no_alias_underscore_import_nested_scope(
+        self, any_kernel: Kernel
+    ) -> None:
+        # Regression for #9151 (MO-5835): a no-alias underscore import
+        # (`from pkg import _name`) keeps its raw name — the user cannot
+        # control the package's symbol name — so references to it in
+        # nested scopes (function bodies, decorators, class bases) must
+        # stay raw as well, not be mangled to `_cell_<id>_name`.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "from marimo import _ast\n"
+                        "top = _ast.__name__\n"
+                        "def g():\n"
+                        "    return _ast.__name__\n"
+                        "nested = g()"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["top"] == "marimo._ast"
+        assert k.globals["nested"] == "marimo._ast"
+
+    async def test_no_alias_underscore_import_is_cell_local(
+        self, k: Kernel
+    ) -> None:
+        # MO-5949: a no-alias underscore import keeps its raw name but is
+        # still cell-local — it never becomes a graph definition, so other
+        # cells cannot read it.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="from marimo import _ast\na = _ast.__name__",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="b = _ast.__name__",
+                ),
+            ]
+        )
+        assert k.globals["a"] == "marimo._ast"
+        # The import is not shared: the other cell fails with a NameError.
+        assert "b" not in k.globals
+
+    async def test_underscore_import_public_alias_is_shared(
+        self, k: Kernel
+    ) -> None:
+        # MO-5949: aliasing an underscore-prefixed import to a name
+        # without a leading underscore makes it a regular, shared
+        # definition usable across cells.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="from marimo import _ast as ast_mod",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="c = ast_mod.__name__",
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["c"] == "marimo._ast"
+        assert "ast_mod" in k.globals
+
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel
     ) -> None:
@@ -3824,6 +3945,66 @@ class TestErrorHandling:
         # the helper degrades to the base message; see test_tracebacks.py.
         if sys.version_info >= (3, 13):
             assert "Did you mean: 'aaa'?" in errors[0].msg
+
+    async def test_name_error_private_import_hint(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        # MO-6804 / #10223: referencing another cell's underscore import
+        # (`from ibis import _`) fails because such names are cell-local.
+        # The bare Python NameError is misleading; marimo should explain
+        # the privacy rule and suggest aliasing the import.
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    "import sys, types\n"
+                    "_mod = types.ModuleType('fakelib')\n"
+                    "_mod._ = 42\n"
+                    "sys.modules['fakelib'] = _mod\n"
+                    "ready = True"
+                ),
+                exec_req.get("ready\nfrom fakelib import _"),
+                exec_req.get("res = _ + 1"),
+            ]
+        )
+        assert "res" not in k.globals
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].exception_type == "NameError"
+        assert "local to the cell" in errors[0].msg
+        assert "`from fakelib import _ as lib`" in errors[0].msg
+        # Blames the importing cell.
+        assert errors[0].raising_cell is not None
+
+    async def test_name_error_private_variable_hint(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Referencing another cell's private (underscore-prefixed)
+        # variable produces a hint about the privacy rule rather than a
+        # bare NameError with a mangled name.
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("_x = 1"),
+                exec_req.get("y = _x"),
+            ]
+        )
+        assert "y" not in k.globals
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].exception_type == "NameError"
+        # The message shows the name as written, not the mangled form.
+        assert "Name `_x` is not defined" in errors[0].msg
+        assert "remove the leading underscore" in errors[0].msg
+        assert errors[0].raising_cell is not None
 
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider
