@@ -222,7 +222,9 @@ export const FeedbackModal: React.FC<{
                   }
                   aria-label="Include notebook code"
                 />
-                <label htmlFor="issue-include-code">Include notebook code</label>
+                <label htmlFor="issue-include-code">
+                  Include notebook code
+                </label>
               </div>
               {notebookSourceReason && (
                 <span className="text-xs text-muted-foreground ml-6">
