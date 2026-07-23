@@ -58,6 +58,35 @@ def test_is_compatible() -> None:
     assert not isinstance(engine, EngineCatalog)
 
 
+def test_is_compatible_rejects_fabricated_attributes() -> None:
+    # Catch-all __getattr__ (e.g. ignite metrics) must not match.
+    class FabricatingAttributes:
+        def __getattr__(self, name: str) -> object:
+            def _lazy(*_args: object, **_kwargs: object) -> object:
+                return FabricatingAttributes()
+
+            return _lazy
+
+    assert not DBAPIEngine.is_compatible(FabricatingAttributes())
+
+
+def test_is_compatible_accepts_getattr_forwarding_proxy() -> None:
+    """Proxies that forward __getattr__ to a real connection still match."""
+
+    class ForwardingProxy:
+        def __init__(self, inner: sqlite3.Connection) -> None:
+            object.__setattr__(self, "_inner", inner)
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(self._inner, name)
+
+    conn = sqlite3.connect(":memory:")
+    try:
+        assert DBAPIEngine.is_compatible(ForwardingProxy(conn))
+    finally:
+        conn.close()
+
+
 def test_execute_native(dbapi_engine: DBAPIEngine) -> None:
     with patch.object(
         dbapi_engine, "sql_output_format", return_value="native"
