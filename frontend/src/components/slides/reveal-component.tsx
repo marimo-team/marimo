@@ -14,6 +14,7 @@ import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
+import { SlideScrollContainer } from "@/components/slides/slide-scroll-hint";
 import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -327,7 +328,7 @@ const SubslideView = ({
 
   return (
     <Slide>
-      <div className="h-full w-full overflow-auto flex">
+      <SlideScrollContainer>
         <div
           className={
             anyCodeShown
@@ -367,7 +368,7 @@ const SubslideView = ({
             return <ReactFragment key={i}>{rendered}</ReactFragment>;
           })}
         </div>
-      </div>
+      </SlideScrollContainer>
       {/* Outside any `.fragment`: shown only before any fragment is revealed. */}
       {slideLevel && <NotesAside text={slideLevel} />}
     </Slide>
