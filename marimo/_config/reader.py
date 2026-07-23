@@ -85,11 +85,28 @@ ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
 )
 
 
+def _get_tool_dict(pyproject_dict: dict[str, Any]) -> dict[str, Any]:
+    """Return the `tool` table, raising if it isn't one.
+
+    `tool` is a table per the pyproject.toml spec, but this dict may come
+    from a notebook's own untrusted inline PEP 723 metadata, so a hostile
+    `tool = "..."` must not be allowed to crash with a raw AttributeError
+    further down.
+    """
+    tool = pyproject_dict.get("tool", {})
+    if not isinstance(tool, dict):
+        raise ValueError(
+            f"pyproject.toml/script metadata 'tool' must be a table, "
+            f"got {type(tool).__name__}"
+        )
+    return tool
+
+
 def allowlist_script_config(
     pyproject_dict: dict[str, Any], allowed_top: frozenset[str]
 ) -> dict[str, Any]:
     """Drop every `tool.marimo.<key>` section not in `allowed_top`."""
-    marimo = pyproject_dict.get("tool", {}).get("marimo", None)
+    marimo = _get_tool_dict(pyproject_dict).get("marimo", None)
     if not isinstance(marimo, dict):
         return pyproject_dict
     for key in list(marimo.keys()):
@@ -106,7 +123,7 @@ def get_marimo_config_from_pyproject_dict(
     pyproject_dict: dict[str, Any],
 ) -> PartialMarimoConfig | None:
     """Get the marimo config from a pyproject.toml dictionary."""
-    marimo_tool_config = pyproject_dict.get("tool", {}).get("marimo", None)
+    marimo_tool_config = _get_tool_dict(pyproject_dict).get("marimo", None)
     if marimo_tool_config is None:
         return None
     if not isinstance(marimo_tool_config, dict):

@@ -8,6 +8,7 @@ from unittest.mock import mock_open, patch
 import pytest
 
 from marimo._config.reader import (
+    _get_tool_dict,
     find_nearest_pyproject_toml,
     read_marimo_config,
     read_pyproject_marimo_config,
@@ -105,6 +106,11 @@ def test_read_pyproject_config_invalid_marimo_section(tmp_path: Path):
     assert nearest_pyproject_toml is not None
     result = read_pyproject_marimo_config(nearest_pyproject_toml)
     assert result is None
+
+
+def test_get_tool_dict_rejects_non_table():
+    with pytest.raises(ValueError, match="'tool' must be a table"):
+        _get_tool_dict({"tool": "invalid"})
 
 
 def test_read_pyproject_config_no_file(tmp_path: Path):
