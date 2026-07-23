@@ -482,3 +482,17 @@ def test_variables_without_datasource_engine() -> None:
     variables = [("deferred_for_test", deferred_for_test)]
     engines = get_engines_from_variables(variables)
     assert not engines
+
+
+def test_fabricated_attributes_not_treated_as_engine() -> None:
+    # Catch-all __getattr__ (e.g. ignite metrics) must not match.
+    class FabricatingAttributes:
+        def __getattr__(self, name: str) -> object:
+            def _lazy(*_args: object, **_kwargs: object) -> object:
+                return FabricatingAttributes()
+
+            return _lazy
+
+    variables = [(VariableName("metric"), FabricatingAttributes())]
+    engines = get_engines_from_variables(variables)
+    assert not engines
