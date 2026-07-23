@@ -25,6 +25,7 @@ NO_SCHEMA_NAME = ""
 
 # Probe name that no real DB connection defines.
 _MISSING_ATTRIBUTE_PROBE = "_marimo_does_not_exist_"
+_MISSING_ATTRIBUTE_SENTINEL = object()
 
 
 def fabricates_attributes(var: Any) -> bool:
@@ -32,10 +33,15 @@ def fabricates_attributes(var: Any) -> bool:
 
     Used to reject objects (e.g. ignite metrics) that pass every getattr-based
     duck-type check. Prefer this over `getattr_static` so connection proxies
-    that forward `__getattr__` still work. See https://github.com/marimo-team/marimo/issues/10213.
+    that forward `__getattr__` still work.
+
+    See https://github.com/marimo-team/marimo/issues/10213.
     """
     try:
-        return getattr(var, _MISSING_ATTRIBUTE_PROBE, None) is not None
+        return (
+            getattr(var, _MISSING_ATTRIBUTE_PROBE, _MISSING_ATTRIBUTE_SENTINEL)
+            is not _MISSING_ATTRIBUTE_SENTINEL
+        )
     except Exception:
         # Not a usable connection if __getattr__ raises unexpectedly.
         return True

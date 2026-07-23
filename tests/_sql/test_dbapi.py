@@ -70,6 +70,33 @@ def test_is_compatible_rejects_fabricated_attributes() -> None:
     assert not DBAPIEngine.is_compatible(FabricatingAttributes())
 
 
+def test_is_compatible_rejects_getattr_returning_none() -> None:
+    # Fabricators that return None for unknown names still invent the attr.
+    class FabricatesNone:
+        def __getattr__(self, name: str) -> None:
+            return None
+
+        def cursor(self) -> object:
+            return self
+
+        def commit(self) -> None:
+            return None
+
+        def rollback(self) -> None:
+            return None
+
+        def close(self) -> None:
+            return None
+
+        def execute(self, *_args: object, **_kwargs: object) -> None:
+            return None
+
+        def fetchall(self) -> list[object]:
+            return []
+
+    assert not DBAPIEngine.is_compatible(FabricatesNone())
+
+
 def test_is_compatible_accepts_getattr_forwarding_proxy() -> None:
     """Proxies that forward __getattr__ to a real connection still match."""
 
