@@ -567,7 +567,7 @@ Here are a few ways to preview notebooks on GitHub:
 [Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg) or
 [Firefox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/), which
 lets you replace a notebook's raw Python source on GitHub or GitLab with an
-interactive notebook in one click.
+interactive notebook in one click. The marimo glance extension only works for notebooks compatible with [WebAssembly](guides/wasm.md).
 3. Use [molab's built-in GitHub previewer](guides/molab.md#mirror-notebooks-from-github).
 
 
