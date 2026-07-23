@@ -366,8 +366,13 @@ def _convert_value(
                     # If it's not a string or list, wrap it in a list
                     return [value]
             else:
-                LOGGER.warning(f"Unsupported dtype: {dtype}")
-                return str(value)
+                # narwhals maps some pandas extension dtypes (notably
+                # float16) to nw.Unknown. Stringifying here would coerce the
+                # whole column to object; fall through to the original-value
+                # coercion below, which keeps the column numeric.
+                LOGGER.debug(
+                    "Unhandled dtype %s; coercing from original value", dtype
+                )
 
         if original_value is None:
             return value

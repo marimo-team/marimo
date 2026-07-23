@@ -1015,6 +1015,17 @@ class TestConvertValue:
         assert result == expected
         assert isinstance(result, type(expected))
 
+    def test_convert_value_unknown_dtype_coerces_from_original(self):
+        """An Unknown dtype (e.g. pandas float16) must not stringify.
+
+        narwhals reports some pandas extension dtypes as nw.Unknown; the
+        conversion should fall back to the original value's type instead of
+        coercing the column to object/string.
+        """
+        result = _convert_value("5.5", 1.0, nw.Unknown)
+        assert result == 5.5
+        assert isinstance(result, float)
+
     def test_convert_value_with_dtype_string(self):
         """Test String conversion with dtype."""
         result = _convert_value(42, None, nw.String)
