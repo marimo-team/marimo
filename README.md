@@ -54,7 +54,7 @@ and deployable as apps.
 - 🧩 **reusable:** [import functions and classes](https://docs.marimo.io/guides/reusing_functions/) from one notebook to another
 - 🧪 **testable:** [run pytest](https://docs.marimo.io/guides/testing/) on notebooks
 - ⌨️ **a modern editor**: [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot), [AI assistants](https://docs.marimo.io/guides/editor_features/ai_completion.html), vim keybindings, variable explorer, and [more](https://docs.marimo.io/guides/editor_features/index.html)
-- 🧑‍💻 **use your favorite editor**: run in [VS Code or Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), or edit in neovim, Zed, [or any other text editor](https://docs.marimo.io/guides/editor_features/watching/)
+- 🧑‍💻 **use your favorite editor**: run in [VS Code/Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) or [PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo), or edit in neovim, Zed, [or any other text editor](https://docs.marimo.io/guides/editor_features/watching/)
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -140,6 +140,7 @@ statically analyzing your code.
 **Batteries-included.** marimo comes with GitHub Copilot, AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+a [PyCharm plugin](https://plugins.jetbrains.com/plugin/32416-marimo),
 an interactive dataframe viewer, and [many more](https://docs.marimo.io/guides/editor_features/index.html)
 quality-of-life features.
 

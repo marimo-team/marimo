@@ -7,13 +7,14 @@ the marimo editor or running application. This lets you edit your notebook
 using an editor of your choice, like neovim, VSCode, Cursor, or PyCharm, and
 have the changes automatically reflected in your browser.
 
-/// admonition | Prefer VS Code/Cursor? Try our extension!
+/// admonition | Use our editor extensions
     type: tip
 
 This guide teaches you how to use marimo with arbitrary text editors.
-If you use VS Code or Cursor, you might prefer using [our
-extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo), which provides a first-class experience for editing and
-running marimo notebooks.
+If you use VS Code, Cursor, or PyCharm, you might prefer using our [VS Code
+extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)
+or [PyCharm plugin](https://plugins.jetbrains.com/plugin/32416-marimo), which
+provide first-class experiences for editing and running marimo notebooks.
 ///
 
 ## marimo's file format

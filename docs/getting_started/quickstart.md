@@ -162,9 +162,9 @@ Use [molab](https://molab.marimo.io/notebooks), a cloud-based marimo notebook
 service similar to Google Colab, to create and share notebook links
 ([docs](../guides/molab.md)).
 
-## VS Code/Cursor extension
+## Editor extensions
 
-You can edit and run marimo notebooks in VS Code or Cursor using our
+**VS Code/Cursor.** You can edit and run marimo notebooks in VS Code or Cursor using our
 extension; this provides a user interface that's similar to VS Code
 Jupyter, but with marimo's reactive execution, interactive elements,
 built-in package management, Git-friendly file format, and more.
@@ -174,3 +174,9 @@ Install the extension by searching "marimo" in the extensions sidebar
 or from the [VS Code marketplace site](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/BOzK-XBK8A4?si=Bj_Hjuz46jGqMIrt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+**PyCharm.** Our [PyCharm
+plugin](https://plugins.jetbrains.com/plugin/32416-marimo), available on the
+JetBrains Marketplace, brings the full marimo editor inside PyCharm, letting you open, edit, and
+run notebooks without leaving your IDE.
+
