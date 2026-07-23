@@ -1670,8 +1670,8 @@ class TestPDFExport:
 
         from marimo._server.export.exporter import (
             WEBPDF_CODE_WRAP_CSS,
+            _inline_code_wrap_css,
             _nbconvert_tag_remove_config,
-            _wrap_code_lines_preprocessor,
         )
 
         notebook = nbformat.v4.new_notebook()
@@ -1690,9 +1690,7 @@ class TestPDFExport:
         rendered_without, _ = exporter.from_notebook_node(notebook)
         assert WEBPDF_CODE_WRAP_CSS not in rendered_without
 
-        exporter.register_preprocessor(
-            _wrap_code_lines_preprocessor(), enabled=True
-        )
+        exporter.register_preprocessor(_inline_code_wrap_css, enabled=True)
         rendered, _ = exporter.from_notebook_node(notebook)
 
         # The stylesheet must actually reach the document: a misresolved
@@ -1851,6 +1849,10 @@ class TestPDFExport:
                 class WebPDFExporter:
                     def __init__(self, config):
                         self.config = config
+                        self.preprocessors = []
+
+                    def register_preprocessor(self, preprocessor, enabled=False):
+                        self.preprocessors.append((preprocessor, enabled))
 
                     def from_notebook_node(self, notebook):
                         return b"mock_webpdf_data", {}

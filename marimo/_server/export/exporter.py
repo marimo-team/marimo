@@ -113,23 +113,15 @@ WEBPDF_CODE_WRAP_CSS = """\
 """
 
 
-def _wrap_code_lines_preprocessor() -> Any:
-    """Nbconvert preprocessor that inlines `WEBPDF_CODE_WRAP_CSS`.
+def _inline_code_wrap_css(nb: Any, resources: Any) -> tuple[Any, Any]:
+    """Inline `WEBPDF_CODE_WRAP_CSS`, as an nbconvert preprocessor.
 
     Preprocessors run after nbconvert populates `resources`, so appending here
     is what gets the stylesheet into the rendered HTML.
     """
-    from nbconvert.preprocessors import (  # type: ignore[import-not-found]
-        Preprocessor,
-    )
-
-    class WrapCodeLinesPreprocessor(Preprocessor):  # type: ignore[misc]
-        def preprocess(self, nb: Any, resources: Any) -> Any:
-            inlining = resources.setdefault("inlining", {})
-            inlining.setdefault("css", []).append(WEBPDF_CODE_WRAP_CSS)
-            return nb, resources
-
-    return WrapCodeLinesPreprocessor
+    inlining = resources.setdefault("inlining", {})
+    inlining.setdefault("css", []).append(WEBPDF_CODE_WRAP_CSS)
+    return nb, resources
 
 
 def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
@@ -146,7 +138,7 @@ def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
     web_exporter.exclude_input = not include_inputs
     web_exporter.allow_chromium_download = True
     web_exporter.register_preprocessor(  # type: ignore[no-untyped-call]
-        _wrap_code_lines_preprocessor(), enabled=True
+        _inline_code_wrap_css, enabled=True
     )
     pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
     return pdf_data
