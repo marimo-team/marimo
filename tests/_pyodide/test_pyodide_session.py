@@ -879,6 +879,34 @@ def test_pyodide_bridge_file_details(
     assert response["file"]["path"] == str(test_file)
 
 
+def test_pyodide_bridge_file_details_honors_limit(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+) -> None:
+    test_file = tmp_path / "large.txt"
+    test_file.write_bytes(b"12345")
+
+    request_json = json.dumps({"path": str(test_file), "maxBytes": 4})
+    response = json.loads(pyodide_bridge.file_details(request_json))
+
+    assert response["contents"] is None
+    assert response["isTooLarge"] is True
+
+
+def test_pyodide_bridge_file_details_without_limit_is_unrestricted(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+) -> None:
+    test_file = tmp_path / "download.bin"
+    test_file.write_bytes(b"12345")
+
+    request_json = json.dumps({"path": str(test_file)})
+    response = json.loads(pyodide_bridge.file_details(request_json))
+
+    assert response["contents"] == "12345"
+    assert response["isTooLarge"] is False
+
+
 def test_pyodide_bridge_create_file(
     pyodide_bridge: PyodideBridge,
     tmp_path: Path,

@@ -17,13 +17,23 @@ class FileSystem(ABC):
         """List files and directories in a given path."""
 
     @abstractmethod
+    def get_info(self, path: str) -> FileInfo:
+        """Get metadata without materializing file contents for a response."""
+
+    @abstractmethod
     def get_details(
         self,
         path: str,
         encoding: str | None = None,
         contents: str | None = None,
+        max_bytes: int | None = None,
     ) -> FileDetailsResponse:
-        """Get details of a specific file or directory. If contents is provided, use it instead of reading from disk."""
+        """Get file details and optionally bound content reads.
+
+        If `contents` is provided, use it instead of reading from disk. If
+        `max_bytes` is provided and disk content exceeds it, return metadata
+        with `is_too_large=True` and no contents.
+        """
 
     @abstractmethod
     def open_file(self, path: str, encoding: str | None = None) -> str | bytes:

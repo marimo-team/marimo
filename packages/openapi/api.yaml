@@ -1902,6 +1902,11 @@ components:
       type: object
     FileDetailsRequest:
       properties:
+        maxBytes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         path:
           type: string
       required:
@@ -1918,6 +1923,9 @@ components:
         file:
           $ref: '#/components/schemas/FileInfo'
         isBase64:
+          default: false
+          type: boolean
+        isTooLarge:
           default: false
           type: boolean
         mimeType:
@@ -1956,6 +1964,11 @@ components:
           default: null
         path:
           type: string
+        size:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
       required:
       - id
       - path

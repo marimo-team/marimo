@@ -191,7 +191,9 @@ export interface EditRequests {
     request: FileMoveRequest,
   ) => Promise<FileMoveResponse>;
   sendUpdateFile: (request: FileUpdateRequest) => Promise<FileUpdateResponse>;
-  sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
+  sendFileDetails: (
+    request: FileDetailsRequest,
+  ) => Promise<FileDetailsResponse>;
   // Homepage requests
   openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;

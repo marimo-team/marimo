@@ -73,6 +73,62 @@ def test_file_details_binary(client: TestClient) -> None:
     os.remove(bin_path)
 
 
+def test_file_details_caps_oversized_file_when_limited(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "large.txt"
+    path.write_bytes(b"12345")
+
+    response = client.post(
+        "/api/files/file_details",
+        headers=HEADERS,
+        json={"path": str(path), "maxBytes": 4},
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["contents"] is None
+    assert data["isBase64"] is False
+    assert data["isTooLarge"] is True
+    assert data["file"]["size"] == 5
+
+
+def test_file_details_is_unbounded_without_limit(
+    client: TestClient,
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "large.txt"
+    path.write_bytes(b"12345")
+
+    response = client.post(
+        "/api/files/file_details",
+        headers=HEADERS,
+        json={"path": str(path)},
+    )
+
+    assert response.status_code == 200, response.text
+    data = response.json()
+    assert data["contents"] == "12345"
+    assert data["isTooLarge"] is False
+
+
+def test_file_details_rejects_negative_limit(
+    client: TestClient, tmp_path: Path
+) -> None:
+    path = tmp_path / "small.txt"
+    path.write_text("ok", encoding="utf-8")
+
+    response = client.post(
+        "/api/files/file_details",
+        headers=HEADERS,
+        json={"path": str(path), "maxBytes": -1},
+    )
+
+    assert response.status_code == 400, response.text
+    assert response.json()["detail"] == "maxBytes must be non-negative"
+
+
 def test_create_and_delete_file_or_directory(client: TestClient) -> None:
     # Create a file with no contents (empty file)
     response = client.post(
