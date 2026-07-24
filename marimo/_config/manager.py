@@ -446,6 +446,7 @@ class ScriptConfigManager(PartialMarimoConfigReader):
                 (
                     ("tool", "marimo", "runtime", "auto_instantiate"),
                     ("tool", "marimo", "experimental", "isolate_apps"),
+                    ("tool", "marimo", "display", "custom_css"),
                 ),
             )
 

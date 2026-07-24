@@ -522,6 +522,28 @@ def test_script_config_manager_sanitizes_isolate_apps(
     assert config.get("experimental") == {"markdown": True}
 
 
+def test_script_config_manager_sanitizes_custom_css(
+    tmp_path: Path,
+) -> None:
+    """display.custom_css in script metadata is stripped; the rest of display
+    passes through."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.display]
+    # custom_css = ["/etc/passwd"]
+    # theme = "dark"
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    assert "custom_css" not in config.get("display", {})
+    assert config.get("display") == {"theme": "dark"}
+
+
 def test_script_config_manager_drops_credential_affecting_sections(
     tmp_path: Path,
 ) -> None:
