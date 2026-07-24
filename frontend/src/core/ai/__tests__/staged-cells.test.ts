@@ -419,7 +419,7 @@ describe("onStream", () => {
     expect(mockUpdateCellEditor).not.toHaveBeenCalled();
   });
 
-  it("should create cells when text-delta is received and a stream has been created", () => {
+  it("should buffer text without fences and create cell on stop", () => {
     const { result } = renderHook(() => useStagedCells(store));
     result.current.onStream({ type: "text-start", id: "test-id" });
 
@@ -433,6 +433,12 @@ describe("onStream", () => {
       delta: "some code",
     });
 
+    // Cell should NOT be created yet — waiting for a fence or stream end
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+
+    // When the stream ends, the buffered code is flushed as a cell
+    result.current.onStream({ type: "text-end", id: "test-id" });
+
     expect(mockCreateNewCell).toHaveBeenCalledWith({
       cellId: "__end__",
       code: "some code",
@@ -441,7 +447,50 @@ describe("onStream", () => {
     });
   });
 
-  it("should handle delta chunks", () => {
+  it("should not create cell from preamble when fence appears later", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
+
+    const mockCellId = cellId("mock-cell-id");
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    // Preamble text without fence — should be buffered
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "I'll create a fibonacci function.\n\n",
+    });
+
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+
+    // Now fence arrives — cell should be created with only the code
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "```python\nsome code",
+    });
+
+    expect(mockCreateNewCell).toHaveBeenCalledWith({
+      cellId: "__end__",
+      code: "some code",
+      before: false,
+      newCellId: "mock-cell-id",
+    });
+
+    // More code arrives — cell should be updated
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "\nmore code\n```",
+    });
+
+    expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
+      mockCellHandle.current.editorViewOrNull,
+      "some code\nmore code",
+    );
+  });
+
+  it("should handle delta chunks with fences", () => {
     const { result } = renderHook(() => useStagedCells(store));
     result.current.onStream({ type: "text-start", id: "test-id" });
 
@@ -451,12 +500,12 @@ describe("onStream", () => {
     result.current.onStream({
       type: "text-delta",
       id: "test-id",
-      delta: "``",
+      delta: "```python\nsome code",
     });
 
     expect(mockCreateNewCell).toHaveBeenCalledWith({
       cellId: "__end__",
-      code: "``",
+      code: "some code",
       before: false,
       newCellId: "mock-cell-id",
     });
@@ -464,19 +513,40 @@ describe("onStream", () => {
     result.current.onStream({
       type: "text-delta",
       id: "test-id",
-      delta: "```python\nsome code",
+      delta: "\n```",
     });
+  });
 
-    // Now the cell is recognized and only some code is seen
-    expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-      mockCellHandle.current.editorViewOrNull,
-      "some code",
-    );
+  it("should buffer partial fence and create cell when fence completes", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "text-start", id: "test-id" });
 
+    const mockCellId = cellId("mock-cell-id");
+    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+
+    // Chunk 1: partial fence (just two backticks)
     result.current.onStream({
       type: "text-delta",
       id: "test-id",
-      delta: "\n```",
+      delta: "``",
+    });
+
+    // Cell should NOT be created — fence is incomplete
+    expect(mockCreateNewCell).not.toHaveBeenCalled();
+
+    // Chunk 2: fence completes + code
+    result.current.onStream({
+      type: "text-delta",
+      id: "test-id",
+      delta: "`python\nsome code",
+    });
+
+    // NOW cell is created with actual code
+    expect(mockCreateNewCell).toHaveBeenCalledWith({
+      cellId: "__end__",
+      code: "some code",
+      before: false,
+      newCellId: "mock-cell-id",
     });
   });
 });
