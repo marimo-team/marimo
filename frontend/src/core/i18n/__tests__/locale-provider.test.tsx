@@ -8,11 +8,7 @@ import {
   defaultUserConfig,
   parseUserConfig,
 } from "@/core/config/config-schema";
-import {
-  FALLBACK_LOCALE,
-  normalizeBrowserLocale,
-  safeLocale,
-} from "../locale";
+import { FALLBACK_LOCALE, normalizeBrowserLocale, safeLocale } from "../locale";
 import { LocaleProvider } from "../locale-provider";
 
 // Mock react-aria-components I18nProvider
