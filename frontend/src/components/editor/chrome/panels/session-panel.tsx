@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue } from "jotai";
-import { atomWithStorage } from "jotai/utils";
 import { DatabaseIcon, VariableIcon } from "lucide-react";
 import React, { useCallback } from "react";
 import {
@@ -13,26 +12,16 @@ import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
-import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import {
   PanelAccordionContent,
   PanelAccordionItem,
   PanelAccordionTrigger,
   PanelBadge,
 } from "./components";
-
-type OpenSections = "variables" | "datasources";
-
-interface SessionPanelState {
-  openSections: OpenSections[];
-  hasUserInteracted: boolean;
-}
-
-const sessionPanelAtom = atomWithStorage<SessionPanelState>(
-  "marimo:session-panel:state",
-  { openSections: ["variables"], hasUserInteracted: false },
-  jotaiJsonStorage,
-);
+import {
+  sessionPanelAtom,
+  type SessionPanelSection,
+} from "./panel-accordion-state";
 
 const SessionPanel: React.FC = () => {
   const variables = useVariables();
@@ -50,7 +39,7 @@ const SessionPanel: React.FC = () => {
       : state.openSections;
 
   const handleValueChange = useCallback(
-    (value: OpenSections[]) => {
+    (value: SessionPanelSection[]) => {
       setState({
         openSections: value,
         hasUserInteracted: true,
