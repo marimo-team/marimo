@@ -13,6 +13,7 @@ import type {
   ValueCounts,
 } from "../types";
 import {
+  DEFAULT_CHART_HEIGHT,
   getDataSpecAndSourceName,
   getLegacyBooleanSpec,
   getLegacyNumericSpec,
@@ -193,7 +194,7 @@ export class ColumnChartSpecModel<T> {
           domain: false,
         },
       },
-      height: 100,
+      height: DEFAULT_CHART_HEIGHT,
     } as TopLevelFacetedUnitSpec;
   }
 
@@ -426,7 +427,7 @@ export class ColumnChartSpecModel<T> {
           stats?.max,
         ].filter(
           (value): value is number =>
-            typeof value === "number" && !Number.isNaN(value),
+            typeof value === "number" && Number.isFinite(value),
         );
 
         const histogram: TopLevelFacetedUnitSpec = {

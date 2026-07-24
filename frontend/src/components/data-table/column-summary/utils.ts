@@ -15,10 +15,11 @@ export function isValidBinValue(value: BinValue): boolean {
   if (bin_start == null || bin_end == null) {
     return false;
   }
-  if (typeof bin_start === "number" && Number.isNaN(bin_start)) {
+  // Reject NaN and ±Infinity; they break quantitative/temporal encodings.
+  if (typeof bin_start === "number" && !Number.isFinite(bin_start)) {
     return false;
   }
-  if (typeof bin_end === "number" && Number.isNaN(bin_end)) {
+  if (typeof bin_end === "number" && !Number.isFinite(bin_end)) {
     return false;
   }
   return true;

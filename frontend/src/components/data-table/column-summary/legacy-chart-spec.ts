@@ -17,6 +17,11 @@ import {
   isDataURLString,
 } from "@/utils/json/base64";
 
+// Height (px) of the fallback/legacy summary charts. The invisible full-height
+// hover layer's `y2` must match this so it covers the whole plot; shared with
+// `createBase` so the two can't drift apart.
+export const DEFAULT_CHART_HEIGHT = 100;
+
 export function getLegacyNumericSpec(
   column: string,
   format: string,
@@ -71,7 +76,7 @@ export function getLegacyNumericSpec(
             value: 0,
           },
           y2: {
-            value: 100,
+            value: DEFAULT_CHART_HEIGHT,
           },
           tooltip: [
             {
@@ -154,7 +159,7 @@ export function getLegacyTemporalSpec(
             scale: scale,
           },
           y: { value: 0 },
-          y2: { value: 100 },
+          y2: { value: DEFAULT_CHART_HEIGHT },
           tooltip: [
             {
               // Can also use column, but this is more explicit
