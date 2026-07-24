@@ -52,7 +52,7 @@ class MarimoPath:
             return False
 
     def is_valid(self) -> bool:
-        return self.is_python() or self.is_markdown()
+        return self.is_python() or self.is_markdown() or self.is_ipynb()
 
     def is_python(self) -> bool:
         return self.path.suffix == ".py"
@@ -60,6 +60,9 @@ class MarimoPath:
     def is_markdown(self) -> bool:
         allowed = {".md", ".markdown", ".qmd"}
         return self.path.suffix in allowed
+
+    def is_ipynb(self) -> bool:
+        return self.path.suffix == ".ipynb"
 
     def rename(self, new_path: Path) -> None:
         if self.strict:

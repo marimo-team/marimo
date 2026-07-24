@@ -168,6 +168,8 @@ test = [
     "pillow>=9",
     "zstandard>=0.21.0",
     "cffi>=1.16.0",
+    # ipynb serializer round-trip tests
+    "nbformat>=5.10.4",
 ]
 
 test-optional = [

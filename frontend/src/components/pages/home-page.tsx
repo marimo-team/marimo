@@ -378,6 +378,8 @@ const Node = ({ node, style }: NodeRendererProps<FileInfo>) => {
         ? Paths.rest(node.data.path, root)
         : node.data.path;
 
+    // TODO: When .ipynb support is added to the home page, determine
+    // if it should show a different icon/badge (or the markdown icon).
     const isMarkdown =
       relativePath.endsWith(".md") || relativePath.endsWith(".qmd");
     const isRunning = runningNotebooks.has(relativePath);

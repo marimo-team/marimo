@@ -146,9 +146,6 @@ class OSFileSystem(FileSystem):
         )
 
     def _is_marimo_file(self, path: str) -> bool:
-        file_path = Path(path)
-        if file_path.suffix not in (".py", ".md", ".qmd"):
-            return False
 
         from marimo._server.files.directory_scanner import is_marimo_app
 
@@ -202,6 +199,12 @@ class OSFileSystem(FileSystem):
             converter = MarimoConvert.from_ir(ir)
             if full_path.suffix in (".md", ".qmd"):
                 notebook_code = converter.to_markdown(full_path.name)
+            elif full_path.suffix == ".ipynb":
+                from marimo._session.notebook.serializer import (
+                    IpynbNotebookSerializer,
+                )
+
+                notebook_code = IpynbNotebookSerializer().serialize(ir)
             else:
                 notebook_code = converter.to_py()
             full_path.write_text(notebook_code, encoding="utf-8")

@@ -53,7 +53,7 @@ def get_gist_src_url(url: str) -> str:
     # by getting the raw_url from api.github.com
     path_parts = urllib.parse.urlparse(url).path.strip("/").split("/")
     if "raw" in path_parts:
-        if not path_parts[-1].endswith((".py", ".md")):
+        if not path_parts[-1].endswith((".py", ".md", ".ipynb")):
             raise ValueError("No python or markdown files found in the Gist")
         return url
     else:
@@ -67,12 +67,12 @@ def get_gist_src_url(url: str) -> str:
         if not files_dict:
             raise ValueError("No files found in the Gist")
 
-        py_or_md_url_generator = (
+        py_md_ipynb_url_generator = (
             file_info["raw_url"]
             for filename, file_info in files_dict.items()
-            if filename.lower().endswith((".py", ".md"))
+            if filename.lower().endswith((".py", ".md", ".ipynb"))
         )
-        raw_url = next(py_or_md_url_generator, "")
+        raw_url = next(py_md_ipynb_url_generator, "")
 
         if raw_url == "":
             raise ValueError("No python or markdown files found in the Gist")
@@ -217,7 +217,11 @@ class StaticNotebookReader(FileReader):
 
 class GitHubSourceReader(FileReader):
     def can_read(self, name: str) -> bool:
-        return is_github_src(name, ext=".py") or is_github_src(name, ext=".md")
+        return (
+            is_github_src(name, ext=".py")
+            or is_github_src(name, ext=".md")
+            or is_github_src(name, ext=".ipynb")
+        )
 
     def read(self, name: str) -> tuple[str, str]:
         url = get_github_src_url(name)
@@ -313,14 +317,31 @@ class LocalFileHandler(FileHandler):
             return name, None
 
         if path.suffix == ".ipynb":
-            prefix = str(path)[: -len(".ipynb")]
-            raise click.ClickException(
-                f"Invalid NAME - {name} is not a Python file.\n\n"
-                f"  {green('Tip:')} Convert {name} to a marimo notebook with"
-                "\n\n"
-                f"    marimo convert {name} -o {prefix}.py\n\n"
-                f"  then open with marimo edit {prefix}.py"
+            if not path.exists():
+                if self.allow_new_file:
+                    return name, None
+                raise click.ClickException(
+                    f"Invalid NAME - {name} does not exist"
+                )
+            # Verify the ipynb can be loaded by the registered serializer
+            from marimo._session.notebook.serializer import (
+                IpynbNotebookSerializer,
             )
+
+            try:
+                IpynbNotebookSerializer().deserialize(
+                    path.read_text(encoding="utf-8")
+                )
+            except Exception:
+                prefix = str(path)[: -len(".ipynb")]
+                raise click.ClickException(
+                    f"Invalid NAME - {name} is not a valid Jupyter notebook.\n\n"
+                    f"  {green('Tip:')} Convert {name} to a marimo notebook with"
+                    "\n\n"
+                    f"    marimo convert {name} -o {prefix}.py\n\n"
+                    f"  then open with marimo edit {prefix}.py"
+                )
+            return name, None
 
         if path.suffix == ".html":
             reader = StaticNotebookReader()
@@ -391,7 +412,7 @@ class RemoteFileHandler(FileHandler):
         LOGGER.info("Creating temporary file")
         path_to_app = Path(temp_dir.name) / name
         # If doesn't end in .py, add it
-        if path_to_app.suffix not in (".py", ".md", ".qmd"):
+        if path_to_app.suffix not in (".py", ".md", ".qmd", ".ipynb"):
             if "__generated_with" in content:
                 path_to_app = path_to_app.with_suffix(".py")
             elif "marimo-version" in content:
