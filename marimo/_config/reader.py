@@ -61,10 +61,12 @@ def sanitize_pyproject_dict(
 # → credential exfiltration), `mcp` (url → outbound beacon), `completion`
 # (api_key/base_url), `secrets`, `server`.
 #
-# NB. `runtime.auto_instantiate` and `experimental.isolate_apps` are
-# additionally stripped even though their parent sections are allowed —
-# forcing either one changes what happens to the operator with no explicit
-# "run" action.
+# NB. `runtime.auto_instantiate`, `experimental.isolate_apps`, and
+# `display.custom_css` are additionally stripped even though their parent
+# sections are allowed — forcing `auto_instantiate`/`isolate_apps` changes
+# what happens to the operator with no explicit "run" action, and
+# `custom_css` points to files that are read and inlined into the served
+# HTML before cell execution.
 ALLOWED_SCRIPT_CONFIG_TOP_KEYS: frozenset[str] = frozenset(
     {
         "formatting",
