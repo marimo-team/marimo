@@ -6,7 +6,7 @@ overrides:
   react: "^19.2.4"
   react-dom: "^19.2.4"
   vite: "npm:rolldown-vite@7.3.1"
-  form-data: ">=4.0.5"
+  form-data: ">=4.0.6"
 patchedDependencies:
   html-to-image@1.11.13: patches/html-to-image@1.11.13.patch
 peerDependencyRules:
@@ -28,6 +28,8 @@ minimumReleaseAgeExclude:
   - js-cookie@3.0.7
   # Renovate security update: ws@8.21.0
   - ws@8.21.0
+  # Renovate security update: form-data@4.0.6
+  - form-data@4.0.6
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
