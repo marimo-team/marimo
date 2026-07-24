@@ -1,8 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { defaultKeymap as originalDefaultKeymap } from "@codemirror/commands";
+import {
+  copyLineDown,
+  copyLineUp,
+  defaultKeymap as originalDefaultKeymap,
+} from "@codemirror/commands";
 import { describe, expect, it } from "vitest";
-import { HotkeyProvider } from "@/core/hotkeys/hotkeys";
+import {
+  HotkeyProvider,
+  OverridingHotkeyProvider,
+} from "@/core/hotkeys/hotkeys";
 import { visibleForTesting } from "../keymaps";
 
 const { defaultKeymap, defaultVimKeymap, overrideKeymap, OVERRIDDEN_COMMANDS } =
@@ -40,4 +47,26 @@ describe("keymaps", () => {
       expect(keys.some((k) => k.run === command)).toBe(true);
     }
   });
+
+  it.each([
+    ["cell.copyLineUp", copyLineUp, "Alt-Shift-ArrowUp"],
+    ["cell.copyLineDown", copyLineDown, "Alt-Shift-ArrowDown"],
+  ] as const)(
+    "%s is bound to the configured hotkey, not CodeMirror's default",
+    (action, command, defaultKey) => {
+      // Without an override, the binding matches CodeMirror's default key.
+      expect(
+        overrideKeymap(HotkeyProvider.create()).find((k) => k.run === command)
+          ?.key,
+      ).toBe(defaultKey);
+
+      // With an override, the binding follows the user's configured key.
+      // This is what `editable: true` on these hotkeys promises.
+      expect(
+        overrideKeymap(
+          new OverridingHotkeyProvider({ [action]: "Ctrl-d" }),
+        ).find((k) => k.run === command)?.key,
+      ).toBe("Ctrl-d");
+    },
+  );
 });
