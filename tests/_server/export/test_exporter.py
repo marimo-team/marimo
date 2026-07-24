@@ -1653,6 +1653,62 @@ class TestPDFExport:
                 f"{exporter_cls.__name__} dropped the visible cell source"
             )
 
+    @pytest.mark.skipif(
+        not HAS_NBFORMAT or not DependencyManager.nbconvert.has(),
+        reason="nbformat and nbconvert are required to render ipynb",
+    )
+    def test_webpdf_inlines_code_wrapping_css(self) -> None:
+        """WebPDF export inlines CSS that wraps long code lines.
+
+        JupyterLab's stylesheet clips the code input area, so long lines were
+        silently truncated in the PDF instead of wrapping.
+
+        Regression test for marimo-team/marimo#9421.
+        """
+        import nbformat
+        from nbconvert import WebPDFExporter
+
+        from marimo._server.export.exporter import (
+            _render_webpdf_with_nbconvert,
+        )
+
+        notebook = nbformat.v4.new_notebook()
+        notebook.cells = [
+            nbformat.v4.new_code_cell(
+                "# a comment long enough to run past the printable width of a "
+                "PDF page and get clipped"
+            )
+        ]
+
+        # `run_playwright` receives the fully rendered HTML, so stubbing it
+        # captures what Chromium would have been handed without needing a
+        # browser. Going through `_render_webpdf_with_nbconvert` means the
+        # test fails if the production code stops registering the
+        # preprocessor.
+        rendered: list[str] = []
+
+        def fake_run_playwright(self: Any, html: str) -> bytes:
+            del self
+            rendered.append(html)
+            return b"mock_pdf_data"
+
+        with patch.object(
+            WebPDFExporter, "run_playwright", fake_run_playwright
+        ):
+            pdf_data = _render_webpdf_with_nbconvert(
+                notebook, include_inputs=True
+            )
+
+        assert pdf_data == b"mock_pdf_data"
+        assert len(rendered) == 1
+        # Assert on the distinctive selector and properties rather than the
+        # whole CSS constant, so the test is not brittle to nbconvert
+        # whitespace/comment handling when inlining the stylesheet.
+        html = rendered[0]
+        assert ".jp-InputArea-editor .highlight pre" in html
+        assert "white-space: pre-wrap !important" in html
+        assert "overflow-wrap: anywhere !important" in html
+
     @pytest.mark.asyncio
     async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
         self,
@@ -1804,6 +1860,10 @@ class TestPDFExport:
                 class WebPDFExporter:
                     def __init__(self, config):
                         self.config = config
+                        self.preprocessors = []
+
+                    def register_preprocessor(self, preprocessor, enabled=False):
+                        self.preprocessors.append((preprocessor, enabled))
 
                     def from_notebook_node(self, notebook):
                         return b"mock_webpdf_data", {}
