@@ -22,7 +22,8 @@ minimumReleaseAgeExclude:
   - lodash-es@4.18.1
   # Renovate security update: dompurify@3.4.12
   - dompurify@3.4.0 || 3.4.12
-  - postcss@8.5.10
+  # Renovate security update: postcss@8.5.12
+  - postcss@8.5.10 || 8.5.12
   - pyodide@314.0.0
   # Renovate security update: js-cookie@3.0.7
   - js-cookie@3.0.7
