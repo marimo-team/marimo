@@ -83,9 +83,13 @@ function useScrollHint(
     resizeObserver.observe(content);
 
     // Fragments reveal via class changes (opacity/visibility, no layout shift),
-    // which the ResizeObserver can't see, so re-check on class mutations.
-    const fragmentObserver = new MutationObserver(update);
-    fragmentObserver.observe(content, {
+    // which the ResizeObserver can't see, so re-check on class mutations. Only
+    // attach on slides that have fragments to avoid reacting to unrelated class
+    // churn (e.g. animating widgets) on the common non-fragment slide.
+    const fragmentObserver = content.querySelector(".fragment")
+      ? new MutationObserver(update)
+      : null;
+    fragmentObserver?.observe(content, {
       subtree: true,
       attributes: true,
       attributeFilter: ["class"],
@@ -96,7 +100,7 @@ function useScrollHint(
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
-      fragmentObserver.disconnect();
+      fragmentObserver?.disconnect();
       el.removeEventListener("scroll", update);
     };
   }, [scrollRef, contentRef]);
