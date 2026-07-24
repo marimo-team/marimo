@@ -189,6 +189,7 @@ nav:
           - Papermill: guides/coming_from/papermill.md
           - Streamlit: guides/coming_from/streamlit.md
       - Best practices: guides/best_practices.md
+      - Version control: guides/version_control.md
       - Debugging: guides/debugging.md
       - Linting:
           - Lint Rules: guides/lint_rules/index.md
