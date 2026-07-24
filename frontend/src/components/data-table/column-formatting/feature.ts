@@ -10,7 +10,7 @@ import {
   type Updater,
 } from "@tanstack/react-table";
 import type { DataType } from "@/core/kernel/messages";
-import { normalizeBrowserLocale } from "@/core/i18n/locale-provider";
+import { normalizeBrowserLocale } from "@/core/i18n/locale";
 import { logNever } from "@/utils/assertNever";
 import {
   prettyEngineeringNumber,

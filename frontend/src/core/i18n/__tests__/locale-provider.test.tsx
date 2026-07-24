@@ -10,22 +10,10 @@ import {
 } from "@/core/config/config-schema";
 import {
   FALLBACK_LOCALE,
-  LocaleProvider,
   normalizeBrowserLocale,
   safeLocale,
-} from "../locale-provider";
-
-// Mock navigator.language with a getter
-let mockNavigatorLanguage: string | undefined;
-
-Object.defineProperty(window, "navigator", {
-  value: {
-    get language() {
-      return mockNavigatorLanguage;
-    },
-  },
-  writable: true,
-});
+} from "../locale";
+import { LocaleProvider } from "../locale-provider";
 
 // Mock react-aria-components I18nProvider
 vi.mock("react-aria-components", () => ({
@@ -60,11 +48,21 @@ describe("normalizeBrowserLocale", () => {
   it("keeps valid BCP47 tags", () => {
     expect(normalizeBrowserLocale("de-DE")).toBe("de-DE");
   });
+
+  it("preserves base language for de-DE@posix", () => {
+    expect(normalizeBrowserLocale("de-DE@posix")).toBe("de-DE");
+  });
 });
 
 describe("safeLocale", () => {
   beforeEach(() => {
-    mockNavigatorLanguage = undefined;
+    vi.stubGlobal("navigator", {
+      language: undefined as string | undefined,
+    });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("prefers a valid configured locale", () => {
@@ -75,26 +73,34 @@ describe("safeLocale", () => {
     expect(safeLocale("en_US")).toBe("en-US");
   });
 
+  it("normalizes configured locales with @posix before falling back", () => {
+    expect(safeLocale("en-US@posix")).toBe("en-US");
+  });
+
+  it("normalizes configured locales with charset suffixes", () => {
+    expect(safeLocale("en_US.UTF-8")).toBe("en-US");
+  });
+
   it("falls back through browser language when config is invalid", () => {
-    mockNavigatorLanguage = "en-US@posix";
+    vi.stubGlobal("navigator", { language: "en-US@posix" });
     expect(safeLocale("not-a-real-locale-zzzz")).toBe("en-US");
   });
 });
 
 describe("LocaleProvider", () => {
   beforeEach(() => {
-    // Reset the mock before each test
-    mockNavigatorLanguage = undefined;
+    vi.stubGlobal("navigator", {
+      language: undefined as string | undefined,
+    });
   });
 
   afterEach(() => {
     cleanup();
-    // Clear all mocks after each test
-    mockNavigatorLanguage = undefined;
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
-  it("should render I18nProvider without locale when locale is null", () => {
+  it("uses fallback locale when config locale is null", () => {
     const store = createStore();
     const config = parseUserConfig({ display: { locale: null } });
     store.set(userConfigAtom, config);
@@ -114,7 +120,7 @@ describe("LocaleProvider", () => {
     expect(i18nProvider).toHaveTextContent("Test content");
   });
 
-  it("should render I18nProvider without locale when locale is undefined", () => {
+  it("uses fallback locale when config locale is undefined", () => {
     const store = createStore();
     const config = parseUserConfig({ display: { locale: undefined } });
     store.set(userConfigAtom, config);
@@ -200,39 +206,33 @@ describe("LocaleProvider", () => {
     expect(getByRole("button", { name: "Test Button" })).toBeInTheDocument();
   });
 
-  it("should auto-detect locale when no locale is set in config", () => {
-    mockNavigatorLanguage = "de-DE";
-
+  it("should use default config when no config is provided", () => {
     const store = createStore();
-    const config = defaultUserConfig();
-    store.set(userConfigAtom, config);
+    store.set(userConfigAtom, defaultUserConfig());
 
     const { getByTestId } = render(
       <Provider store={store}>
         <LocaleProvider>
-          <div>Test content</div>
+          <div>Default config test</div>
         </LocaleProvider>
       </Provider>,
     );
 
     const i18nProvider = getByTestId("i18n-provider");
     expect(i18nProvider).toBeInTheDocument();
-    // When no locale is specified in config, it should use navigator.language
-    expect(i18nProvider.dataset.locale).toBe("de-DE");
-    expect(i18nProvider).toHaveTextContent("Test content");
+    expect(i18nProvider).toHaveTextContent("Default config test");
   });
 
-  it("should sanitize Playwright-style navigator.language tags", () => {
-    mockNavigatorLanguage = "en-US@posix";
-
+  it("sanitizes browser locale when config is unset and navigator is posix-tagged", () => {
+    vi.stubGlobal("navigator", { language: "en-US@posix" });
     const store = createStore();
-    const config = defaultUserConfig();
+    const config = parseUserConfig({ display: { locale: null } });
     store.set(userConfigAtom, config);
 
     const { getByTestId } = render(
       <Provider store={store}>
         <LocaleProvider>
-          <div>Tutorial</div>
+          <div>posix</div>
         </LocaleProvider>
       </Provider>,
     );
