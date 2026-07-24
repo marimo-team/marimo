@@ -28,6 +28,8 @@ minimumReleaseAgeExclude:
   - js-cookie@3.0.7
   # Renovate security update: ws@8.21.0
   - ws@8.21.0
+  # Renovate security update: mermaid@11.15.0
+  - mermaid@11.15.0
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
