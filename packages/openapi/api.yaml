@@ -2660,9 +2660,13 @@ components:
         \ one of `\"default\"` or `\"vim\"`\n    - `overrides`: a dict of keymap actions\
         \ to their keymap override\n    - `vimrc`: path to a vimrc file to load keymaps\
         \ from\n    - `destructive_delete`: if `True`, allows deleting cells with\
-        \ content."
+        \ content.\n    - `enter_command_mode_on_escape`: if `True`, pressing Escape\
+        \ in the editor\n      will enter command mode. Set to `False` to disable\
+        \ this behavior."
       properties:
         destructive_delete:
+          type: boolean
+        enter_command_mode_on_escape:
           type: boolean
         overrides:
           additionalProperties:
