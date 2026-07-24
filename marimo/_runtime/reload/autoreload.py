@@ -207,8 +207,13 @@ class ModuleReloader:
         # module shadowing an installed package).
         self._skip: dict[str, str | None] = {}
 
+        # module-name -> mtime(module modification timestamps) tracked independently of `modules_mtimes`.
+        # Used only by `check_for_watcher` to avoid race conditions between the watcher and the AutoreloadManager
+        self.watcher_modules_mtimes: dict[str, float] = {}
+
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
+        self.check_for_watcher(modules=sys.modules)
 
     def _is_user_module(self, module: types.ModuleType) -> bool:
         """True for modules whose source lives outside stdlib/site-packages.
@@ -312,6 +317,7 @@ class ModuleReloader:
                         # from a clean mtime baseline.
                         del self._skip[modname]
                         self.modules_mtimes.pop(modname, None)
+                        self.watcher_modules_mtimes.pop(modname, None)
                         self.stale_modules.discard(modname)
                         is_non_user = False
                 else:
@@ -380,6 +386,41 @@ class ModuleReloader:
         return self._module_dependency_finder.find_dependencies(
             module, excludes
         )
+
+    def check_for_watcher(
+        self, modules: dict[str, types.ModuleType]
+    ) -> set[types.ModuleType]:
+        """Like `check(..., reload=False)`, but tracks mtimes in
+        `watcher_mtimes` instead of `modules_mtimes`.
+
+        `ModuleWatcher`'s background thread calls this
+        to find modules that changed since it last looked, in order to
+        compute *transitive* staleness via `_depends_on` in
+        `module_watcher.py`. It needs its own method to still call the check
+        but to avoid the race condition and all the cells update correctly
+        """
+        with self.lock:
+            modified_modules: set[types.ModuleType] = set()
+            for modname in list(modules.keys()):
+                m = modules.get(modname, None)
+                if m is None:
+                    continue
+
+                module_mtime = self.filename_and_mtime(m)
+                if module_mtime is None:
+                    continue
+                pymtime = module_mtime.mtime
+
+                existing_mtime = self.watcher_modules_mtimes.get(modname)
+                if existing_mtime is None:
+                    self.watcher_modules_mtimes[modname] = pymtime
+                    continue
+                if pymtime <= existing_mtime:
+                    continue
+
+                self.watcher_modules_mtimes[modname] = pymtime
+                modified_modules.add(m)
+            return modified_modules
 
 
 def update_function(old: object, new: object) -> None:
