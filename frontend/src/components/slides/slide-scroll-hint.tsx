@@ -31,6 +31,21 @@ export function shouldShowScrollHint(options: {
 }
 
 /**
+ * Measure only up to the first unrevealed fragment so
+ * the hint reflects currently revealed content, not future fragment steps.
+ */
+function measureRevealedHeight(el: HTMLElement): number {
+  const firstUnrevealed = el.querySelector<HTMLElement>(
+    ".fragment:not(.visible)",
+  );
+  if (!firstUnrevealed) {
+    return el.scrollHeight;
+  }
+  const fragmentTop = firstUnrevealed.getBoundingClientRect().top;
+  return fragmentTop - el.getBoundingClientRect().top + el.scrollTop;
+}
+
+/**
  * Tracks whether a scroll container is overflowing at the top, so we can
  * surface a scroll affordance.
  */
@@ -53,7 +68,7 @@ function useScrollHint(
       frame = requestAnimationFrame(() => {
         setShowHint(
           shouldShowScrollHint({
-            scrollHeight: el.scrollHeight,
+            scrollHeight: measureRevealedHeight(el),
             clientHeight: el.clientHeight,
             scrollTop: el.scrollTop,
           }),
@@ -67,11 +82,21 @@ function useScrollHint(
     resizeObserver.observe(el);
     resizeObserver.observe(content);
 
+    // Fragments reveal via class changes (opacity/visibility, no layout shift),
+    // which the ResizeObserver can't see, so re-check on class mutations.
+    const fragmentObserver = new MutationObserver(update);
+    fragmentObserver.observe(content, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
     el.addEventListener("scroll", update, { passive: true });
 
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
+      fragmentObserver.disconnect();
       el.removeEventListener("scroll", update);
     };
   }, [scrollRef, contentRef]);
@@ -119,10 +144,10 @@ export const SlideScrollContainer = ({
     <div className={cn("relative h-full w-full", className)}>
       <div
         ref={scrollRef}
-        className="h-full w-full overflow-auto flex"
+        className="h-full w-full overflow-auto"
         data-testid="slide-scroll-container"
       >
-        <div ref={contentRef} className="flex w-full">
+        <div ref={contentRef} className="flex w-full min-h-full">
           {children}
         </div>
       </div>
