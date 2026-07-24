@@ -568,12 +568,20 @@ def superreload(
             continue
 
         new_refs = []
+        kept_old_obj = None
         for old_ref in old_objects[key]:
             old_obj = old_ref()
             if old_obj is None:
                 continue
             new_refs.append(old_ref)
             update_generic(old_obj, new_obj)
+            kept_old_obj = old_obj
+
+        # Keep the updated old object in the module namespace so that
+        # dependent modules (e.g. `from enums import Fruits`) still refer
+        # to the same class/function instances after reload.
+        if kept_old_obj is not None:
+            module.__dict__[name] = kept_old_obj
 
         if new_refs:
             old_objects[key] = new_refs

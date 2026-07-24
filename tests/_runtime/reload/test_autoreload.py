@@ -866,6 +866,73 @@ class TestIsinstance2:
         assert isinstance2(func1, "not_func", types.FunctionType) is False
 
 
+def test_reload_enum_across_dependent_modules(
+    tmp_path: pathlib.Path, py_modname: str
+):
+    """Reloading a module with an Enum must not break equality in dependents.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/9808
+    """
+    sys.path.append(str(tmp_path))
+    enums_name = f"{py_modname}_enums"
+    utils_name = f"{py_modname}_utils"
+    enums_file = tmp_path / f"{enums_name}.py"
+    utils_file = tmp_path / f"{utils_name}.py"
+
+    enums_file.write_text(
+        textwrap.dedent(
+            """
+            from enum import Enum
+
+            class Fruits(Enum):
+                APPLE = "apple"
+                BANANA = "banana"
+                ORANGE = "orange"
+
+            class A:
+                a = "A"
+            """
+        )
+    )
+    utils_file.write_text(
+        textwrap.dedent(
+            f"""
+            from {enums_name} import Fruits
+
+            def is_orange(fruit: Fruits):
+                return fruit == Fruits.ORANGE
+            """
+        )
+    )
+
+    enums_mod = importlib.import_module(enums_name)
+    utils_mod = importlib.import_module(utils_name)
+    reloader = ModuleReloader()
+    reloader.check(sys.modules, reload=False)
+
+    assert utils_mod.is_orange(enums_mod.Fruits.ORANGE) is True
+
+    update_file(
+        enums_file,
+        """
+        from enum import Enum
+
+        class Fruits(Enum):
+            APPLE = "apple"
+            BANANA = "banana"
+            ORANGE = "orange"
+
+        class A:
+            a = "B"
+        """,
+    )
+    reloader.check(sys.modules, reload=True)
+
+    assert utils_mod.Fruits is enums_mod.Fruits
+    assert utils_mod.is_orange(enums_mod.Fruits.ORANGE) is True
+    assert enums_mod.A.a == "B"
+
+
 class TestSuperreload:
     """Tests for superreload function"""
 
