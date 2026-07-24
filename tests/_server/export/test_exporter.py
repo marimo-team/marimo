@@ -1669,7 +1669,6 @@ class TestPDFExport:
         from nbconvert import WebPDFExporter
 
         from marimo._server.export.exporter import (
-            WEBPDF_CODE_WRAP_CSS,
             _render_webpdf_with_nbconvert,
         )
 
@@ -1702,8 +1701,13 @@ class TestPDFExport:
 
         assert pdf_data == b"mock_pdf_data"
         assert len(rendered) == 1
-        assert WEBPDF_CODE_WRAP_CSS in rendered[0]
-        assert "white-space: pre-wrap !important" in rendered[0]
+        # Assert on the distinctive selector and properties rather than the
+        # whole CSS constant, so the test is not brittle to nbconvert
+        # whitespace/comment handling when inlining the stylesheet.
+        html = rendered[0]
+        assert ".jp-InputArea-editor .highlight pre" in html
+        assert "white-space: pre-wrap !important" in html
+        assert "overflow-wrap: anywhere !important" in html
 
     @pytest.mark.asyncio
     async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
