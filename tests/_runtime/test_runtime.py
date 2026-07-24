@@ -3360,13 +3360,17 @@ class TestAsyncIO:
 
     @staticmethod
     @pytest.mark.xfail(
-        condition=sys.platform == "win32"
-        or sys.platform == "darwin"
-        or sys.version_info >= (3, 14),
+        condition=(
+            sys.platform == "win32"
+            or sys.platform == "darwin"
+            or sys.version_info >= (3, 14)
+        )
+        and not DependencyManager.cloudpickle.has(),
         reason=(
-            "Bug in interaction with multiprocessing on Windows, macOS; "
-            "doesn't work in Jupyter either. Seems to have issue in 3.14 "
-            "as well (pool doesn't copy vars from patched module correctly)."
+            "Functions defined in the kernel's synthetic __main__ module can't "
+            "be sent to subprocesses started with the 'spawn' method (the "
+            "default on Windows/macOS, and on Linux from 3.14) unless "
+            "cloudpickle is installed to serialize them by value. See #9717."
         ),
     )
     async def test_run_in_processpool_executor(

@@ -213,6 +213,62 @@ def create_main_module(
     return _module
 
 
+_PATCHED_MP_REDUCTION = False
+
+
+def patch_multiprocessing_reduction() -> None:
+    """Make objects defined in the kernel's `__main__` module picklable by value.
+
+    marimo runs cells by `exec`-ing them in a synthetic module that is
+    registered as `sys.modules["__main__"]`. Functions and classes defined this
+    way pickle fine within the kernel process, but the standard library pickles
+    them *by reference* (as `__main__.<name>`). When such an object is sent to a
+    subprocess started with the `spawn` method — the default on macOS and
+    Windows, and on Linux from Python 3.14 — the child interpreter has its own
+    empty `__main__`/`__mp_main__` and cannot resolve the name, raising
+    `AttributeError: Can't get attribute '<name>' on <module '__mp_main__'>`.
+
+    Registering a `cloudpickle`-backed reducer makes these objects serialize by
+    value so they survive the trip. cloudpickle keeps genuinely importable
+    objects as by-reference, so this does not change behavior for anything that
+    already pickles correctly across processes.
+
+    No-op if `cloudpickle` is not installed.
+    """
+    global _PATCHED_MP_REDUCTION
+    if _PATCHED_MP_REDUCTION:
+        return
+
+    if not DependencyManager.cloudpickle.has():
+        return
+
+    from multiprocessing.reduction import ForkingPickler
+
+    import cloudpickle  # type: ignore[import-untyped]
+
+    def _reducer_override(self: Any, obj: Any) -> Any:  # noqa: ARG001
+        # Functions and classes defined in a cell live in the synthetic
+        # __main__ module; route them through cloudpickle so spawned
+        # subprocesses can reconstruct them by value. Everything else falls
+        # through to the default machinery by returning NotImplemented.
+        #
+        # `reducer_override` is used rather than `ForkingPickler.register`
+        # because pickle handles functions and classes through its built-in
+        # `save_global` dispatch, which bypasses the reducer dispatch table.
+        if isinstance(obj, (types.FunctionType, type)) and (
+            getattr(obj, "__module__", None) == "__main__"
+        ):
+            return cloudpickle.loads, (cloudpickle.dumps(obj),)
+        return NotImplemented
+
+    # Patch the method onto the existing class (rather than swapping the class)
+    # so that modules which imported `ForkingPickler` at import time — e.g.
+    # `multiprocessing.queues` — pick up the change too. `dumps` constructs a
+    # fresh pickler per call, so the override takes effect immediately.
+    ForkingPickler.reducer_override = _reducer_override  # type: ignore[assignment,method-assign]
+    _PATCHED_MP_REDUCTION = True
+
+
 def patch_main_module(
     file: str | None,
     input_override: Callable[[Any], str] | None,
@@ -224,6 +280,7 @@ def patch_main_module(
     - Loads some overrides and mocks into globals
     """
     _module = create_main_module(file, input_override, doc=doc)
+    patch_multiprocessing_reduction()
 
     # TODO(akshayka): In run mode, this can introduce races between different
     # kernel threads, since they each share sys.modules. Unfortunately, Python
