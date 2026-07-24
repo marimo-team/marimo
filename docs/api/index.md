@@ -32,3 +32,4 @@ Use the marimo library in marimo notebooks (`import marimo as mo`) to
 | [cell](cell.md)          | Run cells defined in another notebook                     |
 | [watch](watch.md)         | Reactively respond to file changes on disk          |
 | [miscellaneous](miscellaneous.md) | Miscellaneous utilities                                   |
+| [create_asgi_app](create_asgi_app.md) | Build ASGI apps that serve notebooks in run mode |
