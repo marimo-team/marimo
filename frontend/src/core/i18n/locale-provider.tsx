@@ -65,8 +65,10 @@ export function isValidLocale(locale: string): boolean {
 }
 
 export function safeLocale(locale: string | null | undefined): string {
+  // Always return a BCP 47 tag. isValidLocale accepts underscore forms
+  // (e.g. en_US) for validation only — I18nProvider/Intl need hyphens.
   if (locale && isValidLocale(locale)) {
-    return locale;
+    return normalizeBrowserLocale(locale);
   }
   return normalizeBrowserLocale(
     typeof navigator !== "undefined" ? navigator.language : undefined,

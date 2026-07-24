@@ -71,6 +71,10 @@ describe("safeLocale", () => {
     expect(safeLocale("fr-FR")).toBe("fr-FR");
   });
 
+  it("canonicalizes underscore configured locales for I18nProvider", () => {
+    expect(safeLocale("en_US")).toBe("en-US");
+  });
+
   it("falls back through browser language when config is invalid", () => {
     mockNavigatorLanguage = "en-US@posix";
     expect(safeLocale("not-a-real-locale-zzzz")).toBe("en-US");
