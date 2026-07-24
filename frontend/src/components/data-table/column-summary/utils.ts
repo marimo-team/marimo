@@ -32,9 +32,11 @@ export function getPartialTimeTooltip(
     return {};
   }
 
-  // Find non-null value
+  // Find first valid bin. `isValidBinValue` guarantees a non-null, finite
+  // start, so only bail when no valid bin exists (nullish, not falsy — a
+  // numeric `0` / epoch timestamp is a legitimate value).
   const value = values.find((v) => isValidBinValue(v))?.bin_start;
-  if (!value) {
+  if (value == null) {
     return {};
   }
 
