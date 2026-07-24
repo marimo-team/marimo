@@ -8,19 +8,8 @@ import {
   defaultUserConfig,
   parseUserConfig,
 } from "@/core/config/config-schema";
+import { FALLBACK_LOCALE } from "../locale";
 import { LocaleProvider } from "../locale-provider";
-
-// Mock navigator.language with a getter
-let mockNavigatorLanguage: string | undefined;
-
-Object.defineProperty(window, "navigator", {
-  value: {
-    get language() {
-      return mockNavigatorLanguage;
-    },
-  },
-  writable: true,
-});
 
 // Mock react-aria-components I18nProvider
 vi.mock("react-aria-components", () => ({
@@ -37,143 +26,90 @@ vi.mock("react-aria-components", () => ({
   ),
 }));
 
+function renderWithLocale(configLocale: string | null | undefined) {
+  const store = createStore();
+  store.set(
+    userConfigAtom,
+    parseUserConfig({ display: { locale: configLocale } }),
+  );
+  return render(
+    <Provider store={store}>
+      <LocaleProvider>
+        <div>Test content</div>
+      </LocaleProvider>
+    </Provider>,
+  );
+}
+
 describe("LocaleProvider", () => {
   beforeEach(() => {
-    // Reset the mock before each test
-    mockNavigatorLanguage = undefined;
+    vi.stubGlobal("navigator", { language: undefined as string | undefined });
   });
 
   afterEach(() => {
     cleanup();
-    // Clear all mocks after each test
-    mockNavigatorLanguage = undefined;
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
 
-  it("should render I18nProvider without locale when locale is null", () => {
-    const store = createStore();
-    const config = parseUserConfig({ display: { locale: null } });
-    store.set(userConfigAtom, config);
+  it("passes a valid configured locale through unchanged", () => {
+    const { getByTestId } = renderWithLocale("es-ES");
+    expect(getByTestId("i18n-provider").dataset.locale).toBe("es-ES");
+  });
 
+  it("prefers the browser locale when config is unset", () => {
+    vi.stubGlobal("navigator", { language: "de-DE" });
+    const { getByTestId } = renderWithLocale(null);
+    expect(getByTestId("i18n-provider").dataset.locale).toBe("de-DE");
+  });
+
+  it.each([null, undefined])(
+    "falls back to %s config + unusable browser locale",
+    (configLocale) => {
+      const { getByTestId } = renderWithLocale(configLocale);
+      expect(getByTestId("i18n-provider").dataset.locale).toBe(FALLBACK_LOCALE);
+    },
+  );
+
+  it("sanitizes a POSIX-tagged browser locale (issue #9938)", () => {
+    vi.stubGlobal("navigator", { language: "en-US@posix" });
+    const { getByTestId } = renderWithLocale(null);
+    expect(getByTestId("i18n-provider").dataset.locale).toBe("en-US");
+  });
+
+  it("falls back to the browser locale when the configured locale is unusable", () => {
+    vi.stubGlobal("navigator", { language: "de-DE" });
+    const { getByTestId } = renderWithLocale("@@@");
+    expect(getByTestId("i18n-provider").dataset.locale).toBe("de-DE");
+  });
+
+  it("resolves a concrete locale for the default config", () => {
+    vi.stubGlobal("navigator", { language: "fr-FR" });
+    const store = createStore();
+    store.set(userConfigAtom, defaultUserConfig());
     const { getByTestId } = render(
       <Provider store={store}>
         <LocaleProvider>
-          <div>Test content</div>
+          <div>Default config test</div>
         </LocaleProvider>
       </Provider>,
     );
-
-    const i18nProvider = getByTestId("i18n-provider");
-    expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.dataset.locale).toBe(undefined);
-    expect(i18nProvider).toHaveTextContent("Test content");
+    expect(getByTestId("i18n-provider").dataset.locale).toBe("fr-FR");
   });
 
-  it("should render I18nProvider without locale when locale is undefined", () => {
+  it("renders children", () => {
     const store = createStore();
-    const config = parseUserConfig({ display: { locale: undefined } });
-    store.set(userConfigAtom, config);
-
-    const { getByTestId } = render(
+    store.set(
+      userConfigAtom,
+      parseUserConfig({ display: { locale: "en-US" } }),
+    );
+    const { getByRole } = render(
       <Provider store={store}>
         <LocaleProvider>
-          <div>Test content</div>
+          <button type="button">Test Button</button>
         </LocaleProvider>
       </Provider>,
     );
-
-    const i18nProvider = getByTestId("i18n-provider");
-    expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.dataset.locale).toBe(undefined);
-    expect(i18nProvider).toHaveTextContent("Test content");
-  });
-
-  it("should render I18nProvider with locale when locale is provided", () => {
-    const store = createStore();
-    const testLocale = "es-ES";
-    const config = parseUserConfig({ display: { locale: testLocale } });
-    store.set(userConfigAtom, config);
-
-    const { getByTestId } = render(
-      <Provider store={store}>
-        <LocaleProvider>
-          <div>Test content</div>
-        </LocaleProvider>
-      </Provider>,
-    );
-
-    const i18nProvider = getByTestId("i18n-provider");
-    expect(i18nProvider).toBeInTheDocument();
-    expect(i18nProvider.dataset.locale).toBe(testLocale);
-    expect(i18nProvider).toHaveTextContent("Test content");
-  });
-
-  it("should render I18nProvider with different locale values", () => {
-    const testCases = ["en-US", "fr-FR", "de-DE", "ja-JP"];
-
-    testCases.forEach((locale) => {
-      const store = createStore();
-      const config = parseUserConfig({ display: { locale } });
-      store.set(userConfigAtom, config);
-
-      const { getByTestId } = render(
-        <Provider store={store}>
-          <LocaleProvider>
-            <div>Test content for {locale}</div>
-          </LocaleProvider>
-        </Provider>,
-      );
-
-      const i18nProvider = getByTestId("i18n-provider");
-      expect(i18nProvider.dataset.locale).toBe(locale);
-      expect(i18nProvider).toHaveTextContent(`Test content for ${locale}`);
-
-      // Clean up after each iteration
-      cleanup();
-    });
-  });
-
-  it("should render children correctly", () => {
-    const store = createStore();
-    const config = parseUserConfig({ display: { locale: "en-US" } });
-    store.set(userConfigAtom, config);
-
-    const { getByText, getByRole } = render(
-      <Provider store={store}>
-        <LocaleProvider>
-          <div>
-            <h1>Test Heading</h1>
-            <p>Test paragraph</p>
-            <button type="button">Test Button</button>
-          </div>
-        </LocaleProvider>
-      </Provider>,
-    );
-
-    expect(getByText("Test Heading")).toBeInTheDocument();
-    expect(getByText("Test paragraph")).toBeInTheDocument();
     expect(getByRole("button", { name: "Test Button" })).toBeInTheDocument();
-  });
-
-  it("should auto-detect locale when no locale is set in config", () => {
-    mockNavigatorLanguage = "de-DE";
-
-    const store = createStore();
-    const config = defaultUserConfig();
-    store.set(userConfigAtom, config);
-
-    const { getByTestId } = render(
-      <Provider store={store}>
-        <LocaleProvider>
-          <div>Test content</div>
-        </LocaleProvider>
-      </Provider>,
-    );
-
-    const i18nProvider = getByTestId("i18n-provider");
-    expect(i18nProvider).toBeInTheDocument();
-    // When no locale is specified in config, it should use navigator.language
-    expect(i18nProvider.dataset.locale).toBe("de-DE");
-    expect(i18nProvider).toHaveTextContent("Test content");
   });
 });
