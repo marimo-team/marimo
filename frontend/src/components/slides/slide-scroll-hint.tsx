@@ -23,42 +23,27 @@ export function shouldShowScrollHint(options: {
   scrollHeight: number;
   clientHeight: number;
   scrollTop: number;
-  overflowTolerance?: number;
-  topThreshold?: number;
 }): boolean {
-  const {
-    scrollHeight,
-    clientHeight,
-    scrollTop,
-    overflowTolerance = OVERFLOW_TOLERANCE_PX,
-    topThreshold = TOP_THRESHOLD_PX,
-  } = options;
-  const overflowing = scrollHeight > clientHeight + overflowTolerance;
-  const atTop = scrollTop <= topThreshold;
+  const { scrollHeight, clientHeight, scrollTop } = options;
+  const overflowing = scrollHeight > clientHeight + OVERFLOW_TOLERANCE_PX;
+  const atTop = scrollTop <= TOP_THRESHOLD_PX;
   return overflowing && atTop;
-}
-
-function readShowHint(el: HTMLElement): boolean {
-  return shouldShowScrollHint({
-    scrollHeight: el.scrollHeight,
-    clientHeight: el.clientHeight,
-    scrollTop: el.scrollTop,
-  });
 }
 
 /**
  * Tracks whether a scroll container is overflowing at the top, so we can
- * surface a scroll affordance. Observes the container and its children so
- * late-loading content (images, charts) still flips the hint on.
+ * surface a scroll affordance.
  */
-export function useSlideScrollHint(
-  ref: RefObject<HTMLElement | null>,
+function useScrollHint(
+  scrollRef: RefObject<HTMLElement | null>,
+  contentRef: RefObject<HTMLElement | null>,
 ): boolean {
   const [showHint, setShowHint] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
-    if (!el) {
+    const el = scrollRef.current;
+    const content = contentRef.current;
+    if (!el || !content) {
       return;
     }
 
@@ -66,7 +51,13 @@ export function useSlideScrollHint(
     const update = () => {
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => {
-        setShowHint(readShowHint(el));
+        setShowHint(
+          shouldShowScrollHint({
+            scrollHeight: el.scrollHeight,
+            clientHeight: el.clientHeight,
+            scrollTop: el.scrollTop,
+          }),
+        );
       });
     };
 
@@ -74,37 +65,16 @@ export function useSlideScrollHint(
 
     const resizeObserver = new ResizeObserver(update);
     resizeObserver.observe(el);
-    for (const child of el.children) {
-      resizeObserver.observe(child);
-    }
-
-    // Re-attach when React swaps children (e.g. fragments reveal, code toggle).
-    const mutationObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node instanceof Element) {
-            resizeObserver.observe(node);
-          }
-        }
-        for (const node of mutation.removedNodes) {
-          if (node instanceof Element) {
-            resizeObserver.unobserve(node);
-          }
-        }
-      }
-      update();
-    });
-    mutationObserver.observe(el, { childList: true });
+    resizeObserver.observe(content);
 
     el.addEventListener("scroll", update, { passive: true });
 
     return () => {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
-      mutationObserver.disconnect();
       el.removeEventListener("scroll", update);
     };
-  }, [ref]);
+  }, [scrollRef, contentRef]);
 
   return showHint;
 }
@@ -142,7 +112,8 @@ export const SlideScrollContainer = ({
   className?: string;
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const showHint = useSlideScrollHint(scrollRef);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const showHint = useScrollHint(scrollRef, contentRef);
 
   return (
     <div className={cn("relative h-full w-full", className)}>
@@ -151,7 +122,9 @@ export const SlideScrollContainer = ({
         className="h-full w-full overflow-auto flex"
         data-testid="slide-scroll-container"
       >
-        {children}
+        <div ref={contentRef} className="flex w-full">
+          {children}
+        </div>
       </div>
       {showHint && <ScrollHintOverlay />}
     </div>
