@@ -2,9 +2,27 @@
 
 import type { StringFieldDef } from "vega-lite/types_unstable/channeldef.js";
 import { Logger } from "@/utils/Logger";
-import type { BinValues } from "../types";
+import type { BinValue, BinValues } from "../types";
 
 const READABLE_TIME_FORMAT = "%-I:%M:%S %p"; // e.g., 1:02:30 AM (no leading zero on hour)
+
+/**
+ * True when a bin has finite, non-null start/end suitable for quantitative /
+ * temporal encodings. Rejects nulls and NaN (all-NaN hist garbage).
+ */
+export function isValidBinValue(value: BinValue): boolean {
+  const { bin_start, bin_end } = value;
+  if (bin_start == null || bin_end == null) {
+    return false;
+  }
+  if (typeof bin_start === "number" && Number.isNaN(bin_start)) {
+    return false;
+  }
+  if (typeof bin_end === "number" && Number.isNaN(bin_end)) {
+    return false;
+  }
+  return true;
+}
 
 export function getPartialTimeTooltip(
   values: BinValues,
@@ -14,7 +32,7 @@ export function getPartialTimeTooltip(
   }
 
   // Find non-null value
-  const value = values.find((v) => v.bin_start !== null)?.bin_start;
+  const value = values.find((v) => isValidBinValue(v))?.bin_start;
   if (!value) {
     return {};
   }
@@ -89,9 +107,7 @@ export function calculateBinStep(values: BinValues) {
     return 1;
   }
 
-  const validValues = values.filter(
-    (v) => v.bin_start !== null && v.bin_end !== null,
-  );
+  const validValues = values.filter(isValidBinValue);
 
   if (validValues.length === 0) {
     return 1;

@@ -47,7 +47,8 @@ export function getLegacyNumericSpec(
         },
       },
 
-      // Tooltip layer
+      // Full-height invisible hit targets (pixel coords). Avoid
+      // `y: { aggregate: "max" }` without a field — Vega drops it (#10303).
       {
         mark: {
           type: "bar",
@@ -67,9 +68,10 @@ export function getLegacyNumericSpec(
             },
           },
           y: {
-            aggregate: "max",
-            type: "quantitative",
-            axis: null,
+            value: 0,
+          },
+          y2: {
+            value: 100,
           },
           tooltip: [
             {
@@ -136,8 +138,8 @@ export function getLegacyTemporalSpec(
         },
       },
 
-      // 0 opacity full-height bars with tooltips, since it is too hard to trigger
-      // the tooltip for very small bars.
+      // Full-height invisible hit targets (pixel coords). Avoid
+      // `y: { aggregate: "max" }` without a field — Vega drops it (#10303).
       {
         mark: {
           type: "bar",
@@ -151,7 +153,8 @@ export function getLegacyTemporalSpec(
             bin: true,
             scale: scale,
           },
-          y: { aggregate: "max", type: "quantitative", axis: null },
+          y: { value: 0 },
+          y2: { value: 100 },
           tooltip: [
             {
               // Can also use column, but this is more explicit

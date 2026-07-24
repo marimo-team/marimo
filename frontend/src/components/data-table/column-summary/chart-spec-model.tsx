@@ -19,7 +19,11 @@ import {
   getLegacyTemporalSpec,
   getScale,
 } from "./legacy-chart-spec";
-import { calculateBinStep, getPartialTimeTooltip } from "./utils";
+import {
+  calculateBinStep,
+  getPartialTimeTooltip,
+  isValidBinValue,
+} from "./utils";
 
 // We rely on vega's built-in binning to determine bar widths.
 const MAX_BAR_HEIGHT = 20; // px
@@ -33,6 +37,81 @@ const CONCAT_NULL_BAR_WIDTH = 5;
 const BAR_COLOR = mint.mint11;
 const UNHOVERED_BAR_OPACITY = 0.6;
 const NULL_BAR_COLOR = orange.orange11;
+
+// Full-height invisible hit targets (pixel coords). Do not use
+// `y: { aggregate: "max" }` without a field — Vega drops it (console warning)
+// and `aggregate: "max"` *with* a field shrinks the hit area to the bar
+// height, which causes hover flicker on short integer bars (#10303).
+const FULL_HEIGHT_TOOLTIP_Y = {
+  y: { value: 0 },
+  y2: { value: CONCAT_CHART_HEIGHT },
+};
+
+const NULLS_TOOLTIP = [
+  {
+    field: "count",
+    type: "quantitative" as const,
+    title: "nulls",
+    format: ",d",
+  },
+];
+
+/** Visible null bar + full-height invisible tooltip / hover layer. */
+function buildNullBarSpec(opts: {
+  width: number;
+  filterNullOnly?: boolean;
+}): TopLevelFacetedUnitSpec {
+  return {
+    height: CONCAT_CHART_HEIGHT,
+    width: opts.width,
+    // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
+    layer: [
+      {
+        mark: {
+          type: "bar",
+          color: NULL_BAR_COLOR,
+        },
+        encoding: {
+          x: {
+            field: "bin_start",
+            type: "nominal",
+            axis: null,
+          },
+          y: {
+            field: "count",
+            type: "quantitative",
+            axis: null,
+          },
+        },
+      },
+      {
+        mark: {
+          type: "bar",
+          opacity: 0,
+        },
+        encoding: {
+          x: {
+            field: "bin_start",
+            type: "nominal",
+            axis: null,
+          },
+          ...FULL_HEIGHT_TOOLTIP_Y,
+          tooltip: NULLS_TOOLTIP,
+        },
+      },
+    ],
+    ...(opts.filterNullOnly
+      ? {
+          transform: [
+            {
+              filter:
+                "datum['bin_start'] === null && datum['bin_end'] === null",
+            },
+          ],
+        }
+      : {}),
+  };
+}
 
 export class ColumnChartSpecModel<T> {
   private columnStats = new Map<ColumnName, Partial<ColumnHeaderStats>>();
@@ -122,22 +201,28 @@ export class ColumnChartSpecModel<T> {
     const binValues = this.columnBinValues.get(column);
     const valueCounts = this.columnValueCounts.get(column);
     const hasValueCounts = valueCounts && valueCounts.length > 0;
+    const stats = this.columnStats.get(column);
+    const nullCount = typeof stats?.nulls === "number" ? stats.nulls : 0;
+
+    // Never mutate stored bin values; filter NaN/null junk from hist edge cases.
+    const validBins = (binValues ?? []).filter(isValidBinValue);
 
     let data = this.dataSpec as TopLevelFacetedUnitSpec["data"];
-    const stats = this.columnStats.get(column);
-
     if (hasValueCounts) {
       data = { values: valueCounts, name: "value_counts" };
-    } else {
-      // Bin values can be empty if all values are nulls
-      if (stats?.nulls) {
-        binValues?.push({
-          bin_start: null,
-          bin_end: null,
-          count: stats.nulls as number,
-        });
-      }
-      data = { values: binValues, name: "bin_values" };
+    } else if (binValues !== undefined) {
+      const binsForChart =
+        nullCount > 0
+          ? [
+              ...validBins,
+              {
+                bin_start: null,
+                bin_end: null,
+                count: nullCount,
+              },
+            ]
+          : validBins;
+      data = { values: binsForChart, name: "bin_values" };
     }
 
     const base = this.createBase(data);
@@ -158,17 +243,26 @@ export class ColumnChartSpecModel<T> {
       case "date":
       case "datetime":
       case "time": {
-        if (!binValues) {
+        if (binValues === undefined) {
           const legacyBase = this.createBase(this.legacyDataSpec);
           const scale = getScale(this.legacySourceName);
           return getLegacyTemporalSpec(column, type, legacyBase, scale);
         }
 
-        const tooltip = getPartialTimeTooltip(binValues || []);
-        const singleValue = binValues?.length === 1;
+        if (validBins.length === 0) {
+          if (nullCount === 0) {
+            return null;
+          }
+          return {
+            ...base,
+            ...buildNullBarSpec({ width: CONCAT_CHART_WIDTH }),
+          };
+        }
 
-        // Single value charts can be displayed as a full bar
-        if (singleValue) {
+        const tooltip = getPartialTimeTooltip(validBins);
+
+        // Single non-null bin, no nulls — full-width bar
+        if (validBins.length === 1 && nullCount === 0) {
           return {
             ...base,
             mark: { type: "bar", color: BAR_COLOR },
@@ -251,7 +345,7 @@ export class ColumnChartSpecModel<T> {
               },
             },
 
-            // Invisible tooltip layer
+            // Invisible full-height tooltip / hover layer
             {
               mark: {
                 type: "bar",
@@ -265,11 +359,7 @@ export class ColumnChartSpecModel<T> {
                   type: "ordinal",
                   axis: null,
                 },
-                y: {
-                  aggregate: "max",
-                  type: "quantitative",
-                  axis: null,
-                },
+                ...FULL_HEIGHT_TOOLTIP_Y,
                 tooltip: [
                   {
                     field: "bin_start",
@@ -305,16 +395,55 @@ export class ColumnChartSpecModel<T> {
         // Create a histogram spec that properly handles null values
         const format = type === "integer" ? ",d" : ".2f";
 
-        if (!binValues) {
+        if (binValues === undefined) {
           const legacyBase = this.createBase(this.legacyDataSpec);
           return getLegacyNumericSpec(column, format, legacyBase);
         }
 
-        const binStep = calculateBinStep(binValues || []);
+        if (validBins.length === 0) {
+          if (nullCount === 0) {
+            return null;
+          }
+          // All-null: null bar only (no empty quantitative histogram) — #10303
+          return {
+            ...base,
+            ...buildNullBarSpec({ width: CONCAT_CHART_WIDTH }),
+          };
+        }
+
+        const nullBar = buildNullBarSpec({
+          width: CONCAT_NULL_BAR_WIDTH,
+          filterNullOnly: true,
+        });
+
+        const binStep = calculateBinStep(validBins);
+        const axisTickValues = [
+          stats?.min,
+          stats?.p25,
+          stats?.median,
+          stats?.p75,
+          stats?.p95,
+          stats?.max,
+        ].filter(
+          (value): value is number =>
+            typeof value === "number" && !Number.isNaN(value),
+        );
 
         const histogram: TopLevelFacetedUnitSpec = {
           height: CONCAT_CHART_HEIGHT,
           width: CONCAT_CHART_WIDTH,
+          // When hconcat shares data with a null bin, exclude it from the
+          // quantitative histogram so Vega does not warn on null extents.
+          ...(nullCount > 0
+            ? {
+                transform: [
+                  {
+                    filter:
+                      "datum['bin_start'] !== null && datum['bin_end'] !== null",
+                  },
+                ],
+              }
+            : {}),
           // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
           layer: [
             {
@@ -349,7 +478,7 @@ export class ColumnChartSpecModel<T> {
               },
             },
 
-            // Tooltip layer
+            // Full-height tooltip / hover layer (covers short bars + inter-bar gaps)
             {
               mark: {
                 type: "bar",
@@ -376,25 +505,13 @@ export class ColumnChartSpecModel<T> {
                     labelOpacity: 0.5,
                     labelExpr:
                       "(datum.value >= 10000 || datum.value <= -10000) ? format(datum.value, '.2e') : format(datum.value, '.2~f')",
-                    // TODO: Tick count provides a better UI, but it did not work
-                    values: [
-                      stats?.min,
-                      stats?.p25,
-                      stats?.median,
-                      stats?.p75,
-                      stats?.p95,
-                      stats?.max,
-                    ].filter((value): value is number => value !== undefined),
+                    values: axisTickValues,
                   },
                 },
                 x2: {
                   field: "bin_end_extended",
                 },
-                y: {
-                  aggregate: "max",
-                  type: "quantitative",
-                  axis: null,
-                },
+                ...FULL_HEIGHT_TOOLTIP_Y,
                 tooltip: [
                   {
                     field: "bin_range",
@@ -424,68 +541,10 @@ export class ColumnChartSpecModel<T> {
           ],
         };
 
-        const nullBar: TopLevelFacetedUnitSpec = {
-          height: CONCAT_CHART_HEIGHT,
-          width: CONCAT_NULL_BAR_WIDTH,
-          // @ts-expect-error 'layer' property not in TopLevelFacetedUnitSpec
-          layer: [
-            {
-              mark: {
-                type: "bar",
-                color: NULL_BAR_COLOR,
-              },
-              encoding: {
-                x: {
-                  field: "bin_start",
-                  type: "nominal",
-                  axis: null,
-                },
-                y: {
-                  field: "count",
-                  type: "quantitative",
-                  axis: null,
-                },
-              },
-            },
-            {
-              mark: {
-                type: "bar",
-                opacity: 0,
-              },
-              encoding: {
-                x: {
-                  field: "bin_start",
-                  type: "nominal",
-                  axis: null,
-                },
-                y: {
-                  aggregate: "max",
-                  type: "quantitative",
-                  axis: null,
-                },
-                tooltip: [
-                  {
-                    field: "count",
-                    type: "quantitative",
-                    title: "nulls",
-                    format: ",d",
-                  },
-                ],
-              },
-            },
-          ],
-          transform: [
-            {
-              filter:
-                "datum['bin_start'] === null && datum['bin_end'] === null",
-            },
-          ],
-        };
-
         let chart: TopLevelFacetedUnitSpec = histogram;
         let numericBase = base;
 
-        if (stats?.nulls) {
+        if (nullCount > 0) {
           numericBase = {
             ...base,
             config: {
@@ -508,7 +567,7 @@ export class ColumnChartSpecModel<T> {
         }
 
         return {
-          ...numericBase, // Assuming base contains shared configurations
+          ...numericBase,
           ...chart,
         };
       }
@@ -684,7 +743,7 @@ export class ColumnChartSpecModel<T> {
             {
               name: "hover_bar",
               select: {
-                type: "point",
+                type: "point" as const,
                 on: "mouseover",
                 clear: "mouseout",
               },
