@@ -622,15 +622,13 @@ class Exporter:
         png_fallbacks: Mapping[CellId_t, str] | None = None,
         include_inputs: bool = True,
         status_callback: PDFExportStatusCallback | None = None,
+        live_page_url: str | None = None,
     ) -> bytes | None:
         """Export a slides notebook as PDF using reveal.js + Playwright.
 
-        Converts to iPynb with Jupyter slideshow metadata, renders to
-        reveal.js HTML via nbconvert's SlidesExporter, then uses
-        Playwright (async API) to print to PDF via ?print-pdf mode.
-
-        Must be called from an async context since Playwright's async API
-        is required when running inside an asyncio event loop.
+        With `live_page_url` (UI/API), prints the live deck. Otherwise (CLI),
+        uses nbconvert's SlidesExporter + `?print-pdf`. Must run in an async
+        context (Playwright async API).
 
         Args:
             app: The app to export
@@ -638,13 +636,28 @@ class Exporter:
                 are not included.
             png_fallbacks: Optional cell-id keyed image/png fallbacks to
                 inject into notebook outputs before conversion.
-            include_inputs: Whether to include code cell inputs.
+            include_inputs: Include code inputs on the CLI/nbconvert path.
+                Live UI export uses each slide's persisted `showCode`.
             status_callback: Optional internal callback for CLI-only PDF
                 export stage updates.
+            live_page_url: Running notebook URL with print-pdf/kiosk params.
+                When set, skips nbconvert and prints the live deck.
 
         Returns:
             PDF data
         """
+        emit_pdf_export_status(
+            status_callback,
+            phase="render",
+            message="rendering slides PDF...",
+        )
+
+        if live_page_url is not None:
+            DependencyManager.playwright.require("for PDF export")
+            return await self._export_slides_as_pdf_from_live_page(
+                live_page_url
+            )
+
         DependencyManager.require_many(
             "for PDF export",
             DependencyManager.nbformat,
@@ -669,11 +682,6 @@ class Exporter:
                 notebook,
                 png_fallbacks=png_fallbacks,
             )
-        emit_pdf_export_status(
-            status_callback,
-            phase="render",
-            message="rendering slides PDF...",
-        )
         return await self._export_slides_as_pdf(notebook, include_inputs)
 
     @staticmethod
@@ -696,11 +704,150 @@ class Exporter:
         return "skip"
 
     @staticmethod
+    async def _export_slides_as_pdf_from_live_page(
+        page_url: str,
+    ) -> bytes | None:
+        """Print the live marimo slides deck via Playwright.
+
+        `page_url` must be kiosk + print-pdf so the FE sets
+        `window.__MARIMO_SLIDES_PDF_READY__` when layout is done.
+        """
+        from playwright.async_api import (  # type: ignore[import-not-found]
+            TimeoutError as PlaywrightTimeoutError,
+            async_playwright,
+        )
+
+        LOGGER.debug("Slides PDF: navigating to live deck %s", page_url)
+        async with async_playwright() as playwright:
+            browser = await playwright.chromium.launch()
+            try:
+                context = await browser.new_context(
+                    viewport={"width": 1280, "height": 720},
+                )
+                page = await context.new_page()
+                await page.emulate_media(reduced_motion="reduce")
+                await page.goto(page_url, wait_until="domcontentloaded")
+                # React root mounted
+                await page.wait_for_function(
+                    """() => {
+                      const root = document.getElementById("root");
+                      return Boolean(root && root.childElementCount > 0);
+                    }""",
+                    timeout=90_000,
+                )
+                # Wait for FE finalize — bare `.pdf-page` races the paint window.
+                try:
+                    await page.wait_for_function(
+                        "() => window.__MARIMO_SLIDES_PDF_READY__ === true",
+                        timeout=90_000,
+                    )
+                except PlaywrightTimeoutError:
+                    diagnostics = await page.evaluate(
+                        """() => ({
+                          url: location.href.split("&access_token=")[0],
+                          title: document.title,
+                          hasReveal: !!document.querySelector(".reveal"),
+                          pdfPages: document.querySelectorAll(".pdf-page").length,
+                          printPdfClass:
+                            document.documentElement.classList.contains(
+                              "print-pdf"
+                            ),
+                          flag: window.__MARIMO_SLIDES_PDF_READY__ === true,
+                          bodyText: (document.body?.innerText || "")
+                            .slice(0, 500),
+                        })"""
+                    )
+                    LOGGER.error(
+                        "Slides PDF: timed out waiting for print layout: %s",
+                        diagnostics,
+                    )
+                    raise
+                try:
+                    await page.wait_for_load_state(
+                        "networkidle", timeout=15_000
+                    )
+                except Exception:
+                    LOGGER.debug(
+                        "Slides PDF: networkidle wait timed out; continuing"
+                    )
+                pdf_data = await Exporter._print_reveal_page_to_pdf(page)
+            finally:
+                await browser.close()
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
+
+    @staticmethod
+    async def _print_reveal_page_to_pdf(page: Any) -> bytes:
+        """Capture Chromium PDF bytes for a reveal print layout.
+
+        Live styling lives in `reveal-slides.css`; this applies the shared
+        CLI/nbconvert safety net (page size, last-page break, unhide).
+        """
+        try:
+            await page.wait_for_function(
+                "() => document.fonts ? document.fonts.status === 'loaded' : true",
+                timeout=5_000,
+            )
+        except Exception:
+            LOGGER.debug(
+                "Slides PDF: document.fonts wait timed out; continuing"
+            )
+
+        await page.add_style_tag(
+            content=(
+                ".pdf-page:last-of-type {"
+                " page-break-after: auto !important;"
+                " break-after: auto !important;"
+                "}"
+                "html.print-pdf .reveal,"
+                "html.reveal-print .reveal {"
+                " overflow: visible !important;"
+                " height: auto !important;"
+                "}"
+                "html.print-pdf .reveal .slides .pdf-page > section,"
+                "html.print-pdf .reveal .slides .pdf-page > section[hidden],"
+                "html.reveal-print .reveal .slides .pdf-page > section,"
+                "html.reveal-print .reveal .slides .pdf-page > section[hidden] {"
+                " display: block !important;"
+                " visibility: visible !important;"
+                " opacity: 1 !important;"
+                "}"
+                "html.print-pdf .reveal .slides .pdf-page,"
+                "html.reveal-print .reveal .slides .pdf-page {"
+                " width: 1280px !important;"
+                " height: 720px !important;"
+                " max-height: 720px !important;"
+                " overflow: hidden !important;"
+                " page-break-after: always;"
+                " break-after: page;"
+                "}"
+            )
+        )
+        # Reveal leaves `hidden` on inactive slides; remove so PDF isn't blank.
+        await page.evaluate(
+            """() => {
+              document.querySelectorAll('.pdf-page > section').forEach(
+                (section) => section.removeAttribute('hidden')
+              );
+            }"""
+        )
+        pdf_data = await page.pdf(
+            print_background=True,
+            width="1280px",
+            height="720px",
+            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+        )
+        return cast(bytes, pdf_data)
+
+    @staticmethod
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
     ) -> bytes | None:
-        """Render slides notebook to PDF using Playwright async API."""
+        """Render slides notebook to PDF via nbconvert + Playwright (CLI)."""
         import os
         import tempfile
 
@@ -757,18 +904,7 @@ class Exporter:
                         """
                     )
                     await page.wait_for_timeout(300)
-                    await page.add_style_tag(
-                        content=(
-                            ".pdf-page:last-of-type {"
-                            " page-break-after: auto !important;"
-                            " break-after: auto !important;"
-                            "}"
-                        )
-                    )
-                    pdf_data = await page.pdf(
-                        print_background=True,
-                        prefer_css_page_size=True,
-                    )
+                    pdf_data = await Exporter._print_reveal_page_to_pdf(page)
                 finally:
                     await browser.close()
         finally:

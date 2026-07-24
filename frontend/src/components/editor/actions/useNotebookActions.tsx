@@ -456,7 +456,7 @@ export function useNotebookActions() {
             ) : (
               <LayoutTemplateIcon size={14} strokeWidth={1.5} />
             ),
-          label: "Toggle app view",
+          label: `Toggle app view (${selectedLayout})`,
           hotkey: "global.hideCode",
           handle: () => {
             togglePresenting();
@@ -464,13 +464,15 @@ export function useNotebookActions() {
         },
         ...LAYOUT_TYPES.map((type, idx) => {
           const Icon = getLayoutIcon(type);
+          const isPresentingAsLayout =
+            viewState.mode === "present" && selectedLayout === type;
           return {
             divider: idx === 0,
             label: displayLayoutName(type),
             icon: <Icon size={14} strokeWidth={1.5} />,
             rightElement: (
               <div className="w-8 flex justify-end">
-                {selectedLayout === type && <CheckIcon size={14} />}
+                {isPresentingAsLayout && <CheckIcon size={14} />}
               </div>
             ),
             handle: () => {

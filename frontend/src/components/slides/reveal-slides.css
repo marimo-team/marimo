@@ -80,3 +80,164 @@
 .reveal .marimo-cell .cm-panels {
   margin-right: 0;
 }
+
+/* reveal.js print/PDF: flowing pages, no interactive chrome. */
+html.print-pdf,
+html.reveal-print {
+  background: #fff;
+  /* White pages — neutralize dark mode (white-on-white prose). */
+  color-scheme: light;
+  color: #111;
+  /* Chromium page.pdf() often fails to embed webfonts; force system fonts. */
+  --heading-font: Georgia, "Times New Roman", Times, serif;
+  --text-font: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+  --monospace-font: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-family: var(--text-font);
+}
+html.print-pdf.dark,
+html.dark.print-pdf {
+  color-scheme: light;
+  color: #111;
+}
+html.print-pdf body,
+html.reveal-print body {
+  overflow: visible !important;
+  height: auto !important;
+  background: #fff !important;
+  color: #111 !important;
+  font-family: var(--text-font) !important;
+}
+/* Neutralize app print.css padding / heading breaks that insert blank sheets. */
+html.print-pdf #App,
+html.reveal-print #App {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  height: auto !important;
+}
+html.print-pdf :is(h1, h2, h3, h4),
+html.reveal-print :is(h1, h2, h3, h4) {
+  break-after: auto !important;
+  page-break-after: auto !important;
+}
+html.print-pdf .reveal-viewport,
+html.reveal-print .reveal-viewport {
+  overflow: visible !important;
+  height: auto !important;
+  background-color: #fff;
+}
+/* Beat reveal's `.reveal { overflow: hidden }` which clips later `.pdf-page`s. */
+html.print-pdf.reveal-print .reveal,
+html.print-pdf .reveal,
+html.reveal-print .reveal {
+  overflow: visible !important;
+  height: auto !important;
+  font-family: var(--text-font) !important;
+}
+html.print-pdf .reveal .controls,
+html.print-pdf .reveal .progress,
+html.reveal-print .reveal .controls,
+html.reveal-print .reveal .progress {
+  display: none !important;
+}
+/* Dev overlays must not enter the PDF. */
+html.print-pdf .fixed.bottom-10,
+html.print-pdf [data-react-scan],
+html.print-pdf #react-scan-root {
+  display: none !important;
+}
+
+/*
+ * Force each `.pdf-page` to exactly 1280x720 — reveal only sets width, and
+ * taller wrappers emit blank interstitial pages in Chromium's PDF pipeline.
+ */
+html.print-pdf .reveal .slides .pdf-page {
+  background: #fff;
+  border: 0 !important;
+  box-shadow: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 1280px !important;
+  height: 720px !important;
+  max-height: 720px !important;
+  page-break-after: always;
+  break-after: page;
+  page-break-inside: avoid;
+  break-inside: avoid;
+  overflow: hidden !important;
+}
+html.print-pdf .reveal .slides .pdf-page:last-of-type {
+  page-break-after: auto !important;
+  break-after: auto !important;
+}
+/* Beat Tailwind `[hidden]` on inactive slides nested under `.pdf-page`. */
+html.print-pdf .reveal .slides .pdf-page > section,
+html.print-pdf .reveal .slides .pdf-page > section[hidden],
+html.reveal-print .reveal .slides .pdf-page > section,
+html.reveal-print .reveal .slides .pdf-page > section[hidden] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+html.print-pdf .reveal .slides .pdf-page > section:not(.stack) {
+  height: 100% !important;
+  max-height: 100% !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  padding: 2rem !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+  background: #fff;
+}
+html.print-pdf .reveal .mo-slide-content {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  visibility: visible !important;
+  opacity: 1 !important;
+  color: #111 !important;
+  font-family: var(--text-font) !important;
+}
+html.print-pdf .reveal .mo-slide-content .output {
+  max-width: 100%;
+}
+html.print-pdf .reveal :where(h1, h2, h3, h4, h5, h6) {
+  font-family: var(--heading-font) !important;
+  color: #111 !important;
+  -webkit-text-fill-color: #111 !important;
+}
+html.print-pdf .reveal :where(code, pre, kbd, samp) {
+  font-family: var(--monospace-font) !important;
+  color: #111 !important;
+  -webkit-text-fill-color: #111 !important;
+}
+/* Beat `dark:prose-invert` / theme tokens on printed markdown. */
+html.print-pdf .reveal .prose,
+html.print-pdf .reveal .prose-invert,
+html.print-pdf.dark .reveal .prose,
+html.dark.print-pdf .reveal .prose {
+  color: #111 !important;
+  font-family: var(--text-font) !important;
+  --tw-prose-body: #111;
+  --tw-prose-headings: #111;
+  --tw-prose-bold: #111;
+  --tw-prose-links: #111;
+  --tw-prose-bullets: #111;
+  --tw-prose-counters: #111;
+  --tw-prose-quotes: #333;
+  --tw-prose-code: #111;
+}
+html.print-pdf .reveal .prose :where(h1, h2, h3, h4, h5, h6, p, li, span, a, code, strong, em) {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+
+html.print-pdf .reveal .fragment {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+}

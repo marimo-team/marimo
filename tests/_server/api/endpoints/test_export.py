@@ -903,19 +903,12 @@ def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
     assert call_kwargs["png_fallbacks"] == {}
 
 
-@pytest.mark.xfail(
-    reason="endpoint does not yet wire up collect_pdf_png_fallbacks",
-    strict=True,
-)
-@pytest.mark.skipif(
-    not DependencyManager.nbformat.has()
-    or not DependencyManager.nbconvert.has(),
-    reason="nbformat or nbconvert not installed",
-)
 @with_session(SESSION_ID)
 def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
-    """Test PDF export endpoint routes slides preset to slides exporter."""
+    """Test PDF export endpoint routes slides preset to live-deck exporter."""
     from unittest.mock import AsyncMock, MagicMock, patch
+
+    from marimo._server.api.endpoints.export import build_slides_pdf_live_url
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
@@ -926,31 +919,46 @@ def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
         return_value=b"mock_slides_content"
     )
 
-    with (
-        patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
-        ),
-        patch(
-            "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
-            AsyncMock(return_value={"1": "data:image/png;base64,ZmFrZQ=="}),
-        ),
+    with patch(
+        "marimo._server.api.endpoints.export.Exporter",
+        return_value=mock_exporter,
     ):
         response = client.post(
             "/api/export/pdf",
             headers=HEADERS,
-            json={"webpdf": False, "preset": "slides"},
+            json={
+                "webpdf": False,
+                "preset": "slides",
+                "includeInputs": True,
+            },
         )
 
     assert response.status_code == 200
     assert response.content == b"mock_slides_content"
     mock_exporter.export_as_slides_pdf.assert_awaited_once()
     call_kwargs = mock_exporter.export_as_slides_pdf.await_args.kwargs
-    assert call_kwargs["include_inputs"] is False
-    assert call_kwargs["png_fallbacks"] == {
-        "1": "data:image/png;base64,ZmFrZQ=="
-    }
+    live_url = call_kwargs["live_page_url"]
+    assert isinstance(live_url, str)
+    assert "print-pdf=true" in live_url
+    assert "kiosk=true" in live_url
+    assert "view-as=slides" in live_url
+    assert "show-chrome=false" in live_url
+    assert f"session_id={SESSION_ID}" in live_url
+    assert "file=" in live_url
+    assert "show-code=" not in live_url
     mock_exporter.export_as_pdf.assert_not_called()
+
+    # Helper builds the same shape of URL the endpoint should pass through.
+    sample = build_slides_pdf_live_url(
+        server_url="http://127.0.0.1:2718",
+        session_id=SESSION_ID,
+        file_key="notebooks/demo.py",
+        auth_token="tok",
+    )
+    assert sample.startswith("http://127.0.0.1:2718?")
+    assert "access_token=tok" in sample
+    assert "file=notebooks%2Fdemo.py" in sample
+    assert "show-code=" not in sample
 
 
 @pytest.mark.xfail(

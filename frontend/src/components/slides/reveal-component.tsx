@@ -2,6 +2,8 @@
 
 import {
   type CSSProperties,
+  type ReactNode,
+  memo,
   startTransition,
   useEffect,
   useMemo,
@@ -23,9 +25,11 @@ import type { RuntimeCell } from "@/core/cells/types";
 import type { RevealApi, RevealConfig } from "reveal.js";
 import { useEventListener } from "@/hooks/useEventListener";
 import { Events } from "@/utils/events";
+import { Functions } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import "./slides.css";
 import "./reveal-slides.css";
+import { hasRenderableOutput } from "../editor/renderers/slides-layout/compute-slide-cells";
 import type {
   DeckVerticalAlign,
   SlideConfig,
@@ -53,6 +57,7 @@ import {
 import { SlideNotesEditor } from "./slide-notes-editor";
 import { buildSubslideNotes, NOTES_DIVIDER } from "./slide-notes";
 import { cn } from "@/utils/cn";
+import { hasQueryParam, KnownQueryParams } from "@/core/constants";
 import { isIslands } from "@/core/islands/utils";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
@@ -60,6 +65,80 @@ import { useAtomValue } from "jotai";
 import RevealNotes from "reveal.js/plugin/notes";
 
 const ASPECT_RATIO = 16 / 9;
+/** Fixed size so ResizeObserver cannot race reveal's print layout. */
+const PRINT_WIDTH = 1280;
+const PRINT_HEIGHT = 720;
+
+declare global {
+  interface Window {
+    /** Playwright wait target once print layout is finalized. */
+    __MARIMO_SLIDES_PDF_READY__?: boolean;
+  }
+}
+
+const isPrintPdfMode = hasQueryParam(KnownQueryParams.printPdf);
+
+// `@revealjs/react` sync() rewrites print DOM; freeze after first mount.
+const FreezeAfterMount = memo(
+  function FreezeAfterMount({ children }: { children: ReactNode }) {
+    return children;
+  },
+  () => true,
+);
+
+/** Settle window for late WS outputs before freezing the print deck. */
+const PRINT_DECK_SETTLE_MS = 500;
+const PRINT_DECK_MAX_WAIT_MS = 15_000;
+/** Let widgets paint after unhide before pruning empty `.pdf-page`s. */
+const PRINT_CONTENT_PAINT_MS = 800;
+/** Unblock Playwright if the mounted print deck never creates pages. */
+const PRINT_EMPTY_AFTER_MOUNT_MS = 2_000;
+
+function printPageHasContent(page: Element): boolean {
+  const text = (page.textContent || "").replace(/\s+/g, " ").trim();
+  if (text.length > 0) {
+    return true;
+  }
+  return (
+    page.querySelector(
+      "img, svg, canvas, table, video, iframe, .vega-embed, .marimo-table",
+    ) != null
+  );
+}
+
+function signalSlidesPdfReady(pageCount: number): void {
+  document.documentElement.classList.add("marimo-slides-pdf-ready");
+  window.__MARIMO_SLIDES_PDF_READY__ = true;
+  Logger.log("Slides PDF: reveal print layout ready", { pageCount });
+}
+
+/** Gate for mounting the print deck (`wait` | `open` | `empty-ready`). */
+export function resolvePrintDeckGate(options: {
+  slideCellCount: number;
+  renderableCount: number;
+  busy: boolean;
+  elapsedMs: number;
+  stableForMs: number;
+  settleMs?: number;
+  maxWaitMs?: number;
+}): "wait" | "open" | "empty-ready" {
+  const settleMs = options.settleMs ?? PRINT_DECK_SETTLE_MS;
+  const maxWaitMs = options.maxWaitMs ?? PRINT_DECK_MAX_WAIT_MS;
+  const timedOut = options.elapsedMs >= maxWaitMs;
+
+  if (options.slideCellCount === 0) {
+    return timedOut ? "empty-ready" : "wait";
+  }
+  if (timedOut && options.renderableCount === 0) {
+    return "empty-ready";
+  }
+  const outputsStable =
+    options.renderableCount > 0 && options.stableForMs >= settleMs;
+  if (timedOut || (!options.busy && outputsStable)) {
+    return "open";
+  }
+  return "wait";
+}
 
 /**
  * reveal.js caches the last visited vertical index on each stack and can
@@ -309,12 +388,15 @@ const SubslideView = ({
   isEditable,
   slideConfigs,
   contentStyle,
+  /** Inline fragments so reveal print measures full height (no opacity:0). */
+  flattenFragments = false,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
   resolveShowCode: (cellId: CellId) => boolean;
   isEditable: boolean;
   slideConfigs: ReadonlyMap<CellId, SlideConfig>;
   contentStyle: CSSProperties;
+  flattenFragments?: boolean;
 }) => {
   const { slideLevel, cumulativeByBlock } = buildSubslideNotes(
     subslide,
@@ -327,7 +409,12 @@ const SubslideView = ({
 
   return (
     <Slide>
-      <div className="h-full w-full overflow-auto flex">
+      <div
+        className={cn(
+          "h-full w-full flex",
+          isPrintPdfMode ? "overflow-hidden" : "overflow-auto",
+        )}
+      >
         <div
           className={
             anyCodeShown
@@ -355,7 +442,7 @@ const SubslideView = ({
                 <SlideCellReadOnlyView key={cell.id} cell={cell} />
               );
             });
-            if (block.isFragment) {
+            if (block.isFragment && !flattenFragments) {
               const cumulative = cumulativeByBlock.get(i);
               return (
                 <Fragment key={i} as="div">
@@ -441,16 +528,87 @@ const RevealSlidesComponent = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const deckRef = useRef<RevealApi | null>(null);
-  const { width, height } = useSlideDimensions(containerRef);
+  const liveDims = useSlideDimensions(containerRef);
+  const width = isPrintPdfMode ? PRINT_WIDTH : liveDims.width;
+  const height = isPrintPdfMode ? PRINT_HEIGHT : liveDims.height;
   const isFullscreen = useFullScreenElement() != null;
+  const [printDeckGateOpen, setPrintDeckGateOpen] = useState(false);
+  const [printGateTick, setPrintGateTick] = useState(0);
+  const printGateStartedAtRef = useRef<number | null>(null);
+  const printRenderableCountRef = useRef(-1);
+  const printStableSinceRef = useRef<number | null>(null);
+  const printFinalizeStartedRef = useRef(false);
 
   // Skip the Notes plugin inside reveal's own speaker-view iframes so pressing
   // `S` there doesn't try to spawn another popup.
   const kioskMode = useAtomValue(kioskModeAtom);
   const deckPlugins = useMemo(
-    () => (kioskMode ? [] : [RevealNotes]),
+    () => (kioskMode || isPrintPdfMode ? [] : [RevealNotes]),
     [kioskMode],
   );
+
+  // Wait for stable outputs (or empty-ready) before mounting the print deck.
+  useEffect(() => {
+    if (!isPrintPdfMode || printDeckGateOpen) {
+      return;
+    }
+    if (window.__MARIMO_SLIDES_PDF_READY__) {
+      return;
+    }
+    if (printGateStartedAtRef.current == null) {
+      printGateStartedAtRef.current = Date.now();
+    }
+
+    const busy = slideCells.some(
+      (cell) => cell.status === "running" || cell.status === "queued",
+    );
+    const renderableCount = slideCells.filter((cell) => {
+      const type = layout.cells.get(cell.id)?.type ?? DEFAULT_SLIDE_TYPE;
+      return type !== "skip" && hasRenderableOutput(cell);
+    }).length;
+
+    if (renderableCount !== printRenderableCountRef.current) {
+      printRenderableCountRef.current = renderableCount;
+      printStableSinceRef.current = Date.now();
+    }
+
+    const elapsed = Date.now() - (printGateStartedAtRef.current ?? Date.now());
+    const stableFor =
+      printStableSinceRef.current == null
+        ? 0
+        : Date.now() - printStableSinceRef.current;
+    const decision = resolvePrintDeckGate({
+      slideCellCount: slideCells.length,
+      renderableCount,
+      busy,
+      elapsedMs: elapsed,
+      stableForMs: stableFor,
+    });
+
+    if (decision === "empty-ready") {
+      signalSlidesPdfReady(0);
+      return;
+    }
+    if (decision === "open") {
+      if (elapsed >= PRINT_DECK_MAX_WAIT_MS) {
+        Logger.warn(
+          "Slides PDF: opening print deck after max wait with incomplete outputs",
+          { renderableCount, busy },
+        );
+      }
+      setPrintDeckGateOpen(true);
+      return;
+    }
+
+    const waitMs = Math.min(
+      busy ? 250 : Math.max(PRINT_DECK_SETTLE_MS - stableFor, 50),
+      Math.max(PRINT_DECK_MAX_WAIT_MS - elapsed, 50),
+    );
+    const timer = window.setTimeout(() => {
+      setPrintGateTick((tick) => tick + 1);
+    }, waitMs);
+    return () => window.clearTimeout(timer);
+  }, [slideCells, layout.cells, printDeckGateOpen, printGateTick]);
 
   // Store the state of the code toggle for each cell
   // This acts like a 'peek' at the code.
@@ -542,19 +700,25 @@ const RevealSlidesComponent = ({
 
   const revealConfig: RevealConfig = useMemo(
     () => ({
-      embedded: true,
+      // Non-embedded so reveal can linearize into `.pdf-page` wrappers.
+      embedded: !isPrintPdfMode,
       width,
       height,
-      center: false,
+      center: isPrintPdfMode,
       minScale: 0.2,
       maxScale: 2,
-      transition: deckTransition,
+      margin: isPrintPdfMode ? 0 : 0.04,
+      transition: isPrintPdfMode ? "none" : deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
       url: kioskUrl,
-      // reveal.js auto-switches to its scroll view for mobile.
-      // We disable this mode because it rewrites the slide DOM that
-      // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
+      // Disable mobile scroll view — it rewrites DOM `@revealjs/react` owns.
       scrollActivationWidth: 0,
+      ...(isPrintPdfMode && {
+        view: "print" as const,
+        pdfSeparateFragments: false,
+        // Avoid blank overflow pages from slightly-tall slides.
+        pdfMaxPagesPerSlide: 1,
+      }),
     }),
     [width, height, deckTransition, kioskUrl],
   );
@@ -575,6 +739,9 @@ const RevealSlidesComponent = ({
   });
 
   useEffect(() => {
+    if (isPrintPdfMode) {
+      return;
+    }
     const deck = deckRef.current;
     if (deck == null) {
       return;
@@ -606,29 +773,106 @@ const RevealSlidesComponent = ({
     );
   });
 
+  const markPdfReady = useEvent(() => {
+    if (window.__MARIMO_SLIDES_PDF_READY__ || printFinalizeStartedRef.current) {
+      return;
+    }
+    if (document.querySelector(".pdf-page") == null) {
+      return;
+    }
+    printFinalizeStartedRef.current = true;
+
+    const unhidePrintSections = () => {
+      // Reveal leaves `hidden` on inactive slides; Tailwind then blanks them.
+      document.querySelectorAll(".pdf-page > section").forEach((section) => {
+        section.removeAttribute("hidden");
+      });
+    };
+
+    const finalize = () => {
+      unhidePrintSections();
+      // Print pages are white — drop dark mode to avoid white-on-white prose.
+      document.documentElement.classList.remove("dark");
+      document.documentElement.style.colorScheme = "light";
+      for (const page of document.querySelectorAll(".pdf-page")) {
+        if (!printPageHasContent(page)) {
+          page.remove();
+        }
+      }
+      signalSlidesPdfReady(document.querySelectorAll(".pdf-page").length);
+    };
+
+    unhidePrintSections();
+    window.setTimeout(finalize, PRINT_CONTENT_PAINT_MS);
+  });
+
   const handleDeckReady = useEvent((deck: RevealApi) => {
-    navigateDeckToActiveCell(deck);
-    if (codeToggleEnabled) {
-      deck.addKeyBinding(
-        {
-          keyCode: 67,
-          key: "C",
-          description: "Toggle code editor",
-        },
-        toggleShowCode,
-      );
+    if (!isPrintPdfMode) {
+      navigateDeckToActiveCell(deck);
+      if (codeToggleEnabled) {
+        deck.addKeyBinding(
+          {
+            keyCode: 67,
+            key: "C",
+            description: "Toggle code editor",
+          },
+          toggleShowCode,
+        );
+      }
+
+      // Reveal listens for `keydown` on `document` and bails when
+      // `document.activeElement` is an input/contenteditable (e.g. the speaker
+      // notes textarea below the deck). Park focus on the deck wrapper so arrow
+      // keys reliably advance slides without the user having to click first.
+      const revealEl = deck.getSlidesElement()?.closest(".reveal");
+      if (revealEl instanceof HTMLElement) {
+        revealEl.tabIndex = -1;
+        revealEl.focus({ preventScroll: true });
+      }
+      return;
     }
 
-    // Reveal listens for `keydown` on `document` and bails when
-    // `document.activeElement` is an input/contenteditable (e.g. the speaker
-    // notes textarea below the deck). Park focus on the deck wrapper so arrow
-    // keys reliably advance slides without the user having to click first.
-    const revealEl = deck.getSlidesElement()?.closest(".reveal");
-    if (revealEl instanceof HTMLElement) {
-      revealEl.tabIndex = -1;
-      revealEl.focus({ preventScroll: true });
+    // sync() undoes print's `.pdf-page` rewrite — no-op for this deck's life.
+    deck.sync = Functions.NOOP;
+    const deckWithSlideSync = deck as RevealApi & {
+      syncSlide?: (slide?: HTMLElement) => void;
+    };
+    if (typeof deckWithSlideSync.syncSlide === "function") {
+      deckWithSlideSync.syncSlide = Functions.NOOP;
     }
+
+    // `pdf-ready` may fire before this handler; rAF retries after sync no-op.
+    deck.on("pdf-ready", markPdfReady);
+    requestAnimationFrame(() => {
+      if (document.querySelector(".pdf-page") != null) {
+        markPdfReady();
+      }
+    });
   });
+
+  // If `pdf-ready` was missed (or the deck is empty), still unblock Playwright.
+  useEffect(() => {
+    if (!isPrintPdfMode || !printDeckGateOpen) {
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      if (window.__MARIMO_SLIDES_PDF_READY__) {
+        window.clearInterval(timer);
+        return;
+      }
+      if (document.querySelectorAll(".pdf-page").length > 0) {
+        markPdfReady();
+        window.clearInterval(timer);
+        return;
+      }
+      if (Date.now() - startedAt >= PRINT_EMPTY_AFTER_MOUNT_MS) {
+        signalSlidesPdfReady(0);
+        window.clearInterval(timer);
+      }
+    }, 100);
+    return () => window.clearInterval(timer);
+  }, [printDeckGateOpen, markPdfReady]);
 
   // Forward the deck's current cell to the parent, except while a parked
   // preview is parked: every reveal.js event during that window is an echo
@@ -697,23 +941,44 @@ const RevealSlidesComponent = ({
     showCode: parkedShowCode,
   });
 
-  const slideArea = (
-    <div
-      ref={containerRef}
-      className="h-full w-full min-w-0 flex items-center justify-center overflow-hidden"
+  const deckTree = (
+    <Deck
+      deckRef={deckRef}
+      className={cn(
+        "w-full bg-background mo-slides-theme prose-slides focus:outline-hidden focus-visible:outline-hidden",
+        isPrintPdfMode
+          ? "border-0 rounded-none"
+          : "aspect-video overflow-hidden border rounded",
+      )}
+      config={revealConfig}
+      onReady={handleDeckReady}
+      onSlideChange={handleSlideChange}
+      onFragmentShown={reportCurrentCell}
+      onFragmentHidden={reportCurrentCell}
+      plugins={deckPlugins}
     >
-      <div className="group relative" style={{ width, height }}>
-        <Deck
-          deckRef={deckRef}
-          className="aspect-video w-full overflow-hidden border rounded bg-background mo-slides-theme prose-slides focus:outline-hidden focus-visible:outline-hidden"
-          config={revealConfig}
-          onReady={handleDeckReady}
-          onSlideChange={handleSlideChange}
-          onFragmentShown={reportCurrentCell}
-          onFragmentHidden={reportCurrentCell}
-          plugins={deckPlugins}
-        >
-          {composition.stacks.map((stack, h) => {
+      {isPrintPdfMode
+        ? // Flatten stacks/fragments; skip empty subslides (blank PDF pages).
+          composition.stacks.flatMap((stack, h) =>
+            stack.subslides
+              .filter((sub) =>
+                sub.blocks.some((block) =>
+                  block.cells.some((cell) => hasRenderableOutput(cell)),
+                ),
+              )
+              .map((sub, v) => (
+                <SubslideView
+                  key={`${h}-${v}`}
+                  subslide={sub}
+                  resolveShowCode={resolveShowCode}
+                  isEditable={false}
+                  slideConfigs={layout.cells}
+                  contentStyle={slideContentStyle}
+                  flattenFragments={true}
+                />
+              )),
+          )
+        : composition.stacks.map((stack, h) => {
             if (stack.subslides.length === 1) {
               return (
                 <SubslideView
@@ -743,8 +1008,31 @@ const RevealSlidesComponent = ({
               </Stack>
             );
           })}
-        </Deck>
-        {parkedPreviewCell && (
+    </Deck>
+  );
+
+  const shouldRenderDeck = !isPrintPdfMode || printDeckGateOpen;
+
+  const slideArea = (
+    <div
+      ref={containerRef}
+      className={
+        isPrintPdfMode
+          ? "w-full min-w-0"
+          : "h-full w-full min-w-0 flex items-center justify-center overflow-hidden"
+      }
+    >
+      <div
+        className={cn("group relative", !isPrintPdfMode && "h-full")}
+        style={isPrintPdfMode ? undefined : { width, height }}
+      >
+        {shouldRenderDeck &&
+          (isPrintPdfMode ? (
+            <FreezeAfterMount>{deckTree}</FreezeAfterMount>
+          ) : (
+            deckTree
+          ))}
+        {!isPrintPdfMode && parkedPreviewCell && (
           <div
             key={parkedPreviewCell.id}
             className="absolute inset-0 z-10 border rounded bg-background flex flex-col overflow-hidden"
@@ -775,63 +1063,65 @@ const RevealSlidesComponent = ({
             </div>
           </div>
         )}
-        <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
-          {codeToggleEnabled && (
-            <Tooltip
-              content={
-                codeAlwaysShown
-                  ? "Code is always shown for this slide"
-                  : cellShowsCode
-                    ? "Hide code (C)"
-                    : "Show code (C)"
-              }
-            >
+        {!isPrintPdfMode && (
+          <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-70 text-muted-foreground transition-opacity">
+            {codeToggleEnabled && (
+              <Tooltip
+                content={
+                  codeAlwaysShown
+                    ? "Code is always shown for this slide"
+                    : cellShowsCode
+                      ? "Hide code (C)"
+                      : "Show code (C)"
+                }
+              >
+                <Button
+                  data-testid="marimo-plugin-slides-toggle-code"
+                  variant="ghost"
+                  size="icon"
+                  // Stay hoverable (no `disabled` attr) so the tooltip can
+                  // explain why the toggle is inert when code is pinned on.
+                  className={cn(
+                    "text-muted-foreground h-7 w-7",
+                    cellShowsCode && "text-foreground bg-muted",
+                    codeAlwaysShown && "opacity-50 cursor-not-allowed",
+                  )}
+                  aria-pressed={cellShowsCode}
+                  aria-disabled={codeAlwaysShown}
+                  aria-label={
+                    codeAlwaysShown
+                      ? "Code always shown"
+                      : cellShowsCode
+                        ? "Hide code"
+                        : "Show code"
+                  }
+                  onClick={toggleShowCode}
+                >
+                  <CodeIcon className="h-4 w-4" />
+                </Button>
+              </Tooltip>
+            )}
+            <Tooltip content="Fullscreen (F)">
               <Button
-                data-testid="marimo-plugin-slides-toggle-code"
+                data-testid="marimo-plugin-slides-fullscreen"
                 variant="ghost"
                 size="icon"
-                // Stay hoverable (no `disabled` attr) so the tooltip can
-                // explain why the toggle is inert when code is pinned on.
-                className={cn(
-                  "text-muted-foreground h-7 w-7",
-                  cellShowsCode && "text-foreground bg-muted",
-                  codeAlwaysShown && "opacity-50 cursor-not-allowed",
-                )}
-                aria-pressed={cellShowsCode}
-                aria-disabled={codeAlwaysShown}
-                aria-label={
-                  codeAlwaysShown
-                    ? "Code always shown"
-                    : cellShowsCode
-                      ? "Hide code"
-                      : "Show code"
-                }
-                onClick={toggleShowCode}
+                className="text-muted-foreground h-7 w-7"
+                aria-label="Enter fullscreen"
+                onClick={() => {
+                  deckRef.current
+                    ?.getViewportElement()
+                    ?.requestFullscreen()
+                    .catch((error) => {
+                      Logger.error("Failed to request fullscreen", error);
+                    });
+                }}
               >
-                <CodeIcon className="h-4 w-4" />
+                <ExpandIcon className="h-4 w-4" />
               </Button>
             </Tooltip>
-          )}
-          <Tooltip content="Fullscreen (F)">
-            <Button
-              data-testid="marimo-plugin-slides-fullscreen"
-              variant="ghost"
-              size="icon"
-              className="text-muted-foreground h-7 w-7"
-              aria-label="Enter fullscreen"
-              onClick={() => {
-                deckRef.current
-                  ?.getViewportElement()
-                  ?.requestFullscreen()
-                  .catch((error) => {
-                    Logger.error("Failed to request fullscreen", error);
-                  });
-              }}
-            >
-              <ExpandIcon className="h-4 w-4" />
-            </Button>
-          </Tooltip>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

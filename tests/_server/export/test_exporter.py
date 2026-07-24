@@ -2176,6 +2176,71 @@ class TestPDFExport:
             ("render", "rendering PDF via WebPDF..."),
         ]
 
+    async def test_export_as_slides_pdf_from_live_page(self) -> None:
+        """UI path prints the live marimo reveal deck via Playwright."""
+        exporter = Exporter()
+
+        mock_page = AsyncMock()
+        mock_page.pdf.return_value = b"mock_live_slides_pdf"
+        mock_context = AsyncMock()
+        mock_context.new_page.return_value = mock_page
+        mock_browser = AsyncMock()
+        mock_browser.new_context.return_value = mock_context
+        mock_playwright_instance = AsyncMock()
+        mock_playwright_instance.chromium.launch.return_value = mock_browser
+        mock_playwright_cm = AsyncMock()
+        mock_playwright_cm.__aenter__.return_value = mock_playwright_instance
+        mock_playwright_cm.__aexit__.return_value = False
+        mock_async_playwright = MagicMock(return_value=mock_playwright_cm)
+        mock_playwright_async = MagicMock()
+        mock_playwright_async.async_playwright = mock_async_playwright
+
+        orig_playwright = sys.modules.get("playwright.async_api")
+        try:
+            sys.modules["playwright.async_api"] = mock_playwright_async
+            with patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ):
+                events: list[PDFExportStatusEvent] = []
+                result = await exporter.export_as_slides_pdf(
+                    app=InternalApp(App()),
+                    session_view=None,
+                    live_page_url=(
+                        "http://127.0.0.1:2718/?session_id=abc"
+                        "&kiosk=true&print-pdf=true&view-as=slides"
+                    ),
+                    status_callback=events.append,
+                )
+        finally:
+            if orig_playwright is not None:
+                sys.modules["playwright.async_api"] = orig_playwright
+            else:
+                sys.modules.pop("playwright.async_api", None)
+
+        assert result == b"mock_live_slides_pdf"
+        assert [(event.phase, event.message) for event in events] == [
+            ("render", "rendering slides PDF...")
+        ]
+        mock_page.goto.assert_awaited_once()
+        goto_url = mock_page.goto.await_args.args[0]
+        assert goto_url.startswith("http://127.0.0.1:2718/")
+        assert "print-pdf=true" in goto_url
+        wait_sources = [
+            call.args[0]
+            for call in mock_page.wait_for_function.await_args_list
+        ]
+        assert any("root.childElementCount" in src for src in wait_sources)
+        assert any(
+            "__MARIMO_SLIDES_PDF_READY__" in src for src in wait_sources
+        )
+        assert not any(".pdf-page" in src for src in wait_sources)
+        mock_page.pdf.assert_awaited_once_with(
+            print_background=True,
+            width="1280px",
+            height="720px",
+            margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
+        )
+
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has(),
         reason="nbformat not installed",
@@ -2272,7 +2337,9 @@ class TestPDFExport:
             mock_page.add_style_tag.assert_called_once()
             mock_page.pdf.assert_called_once_with(
                 print_background=True,
-                prefer_css_page_size=True,
+                width="1280px",
+                height="720px",
+                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
             )
         finally:
             if orig_nbconvert is not None:
@@ -2366,7 +2433,9 @@ class TestPDFExport:
             assert set(slide_types) == {"skip"}
             mock_page.pdf.assert_called_once_with(
                 print_background=True,
-                prefer_css_page_size=True,
+                width="1280px",
+                height="720px",
+                margin={"top": "0", "right": "0", "bottom": "0", "left": "0"},
             )
         finally:
             if orig_nbconvert is not None:

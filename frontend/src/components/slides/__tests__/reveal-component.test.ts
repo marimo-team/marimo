@@ -9,6 +9,7 @@ import type { SlideConfig } from "../../editor/renderers/slides-layout/types";
 import {
   deckSlideType,
   parkedRendersSource,
+  resolvePrintDeckGate,
   shouldShowCode,
   useParkedPreview,
 } from "../reveal-component";
@@ -23,6 +24,89 @@ const cells = (
 // The hook only reads `cell.id`, so a minimal stub is enough. Cast is confined
 // to this test helper (see `@/__tests__/branded` for the same rationale).
 const cell = (id: CellId): RuntimeCell => ({ id }) as RuntimeCell;
+
+describe("resolvePrintDeckGate", () => {
+  it("waits while the notebook still has no cells", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 0,
+        renderableCount: 0,
+        busy: false,
+        elapsedMs: 1_000,
+        stableForMs: 0,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("wait");
+  });
+
+  it("signals empty-ready after max wait with no cells (avoids Playwright hang)", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 0,
+        renderableCount: 0,
+        busy: false,
+        elapsedMs: 15_000,
+        stableForMs: 0,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("empty-ready");
+  });
+
+  it("signals empty-ready after max wait with zero renderable outputs", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 3,
+        renderableCount: 0,
+        busy: false,
+        elapsedMs: 15_000,
+        stableForMs: 0,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("empty-ready");
+  });
+
+  it("opens once renderable outputs are stable and idle", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 2,
+        renderableCount: 2,
+        busy: false,
+        elapsedMs: 800,
+        stableForMs: 500,
+        settleMs: 500,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("open");
+  });
+
+  it("waits while cells are still running", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 2,
+        renderableCount: 2,
+        busy: true,
+        elapsedMs: 800,
+        stableForMs: 500,
+        settleMs: 500,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("wait");
+  });
+
+  it("opens after max wait even with incomplete outputs", () => {
+    expect(
+      resolvePrintDeckGate({
+        slideCellCount: 2,
+        renderableCount: 1,
+        busy: true,
+        elapsedMs: 15_000,
+        stableForMs: 100,
+        settleMs: 500,
+        maxWaitMs: 15_000,
+      }),
+    ).toBe("open");
+  });
+});
 
 describe("shouldShowCode", () => {
   it("is off when the code toggle is unavailable, regardless of config/override", () => {
