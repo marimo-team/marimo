@@ -10,6 +10,7 @@ import {
 } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
+import type { IslandsKernelMessage } from "../worker/worker";
 
 type Base64String = components["schemas"]["Base64String"];
 interface TestIslandApp {
@@ -173,6 +174,19 @@ describe("IslandsPyodideBridge", () => {
     });
   }
 
+  function sendKernelMessage(sessionGeneration: number) {
+    const listener = mockMessageListeners.get("kernelMessage");
+    if (!listener) {
+      throw new Error("Missing kernel message listener");
+    }
+    const message = {
+      message: "" as IslandsKernelMessage["message"],
+      sessionGeneration,
+    };
+    listener(message as never);
+    return message;
+  }
+
   async function initializeSingleApp() {
     mockSingleApp();
     await bridge.initializeApps();
@@ -281,6 +295,80 @@ describe("IslandsPyodideBridge", () => {
   });
 
   describe("app lifecycle", () => {
+    it("ignores messages after a session yields ownership", async () => {
+      const consumeMessage = vi.fn();
+      bridge.consumeMessages(consumeMessage);
+      mockSingleApp();
+      await bridge.initializeApps();
+
+      const firstMessage = sendKernelMessage(1);
+      let finishReplacement!: () => void;
+      mockReplaceSessionRequest.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finishReplacement = resolve;
+        }),
+      );
+      setSingleApp("generated app 2");
+      const replacement = bridge.initializeApps();
+      await vi.waitFor(() =>
+        expect(mockReplaceSessionRequest).toHaveBeenCalledOnce(),
+      );
+      sendKernelMessage(1);
+      const currentMessage = sendKernelMessage(2);
+
+      expect(consumeMessage.mock.calls).toEqual([
+        [firstMessage],
+        [currentMessage],
+      ]);
+
+      finishReplacement();
+      await replacement;
+    });
+
+    it("ignores messages while their session is stopping", async () => {
+      const consumeMessage = vi.fn();
+      bridge.consumeMessages(consumeMessage);
+      mockSingleApp();
+      await bridge.initializeApps();
+      let finishStop!: () => void;
+      mockStopSessionRequest.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          finishStop = resolve;
+        }),
+      );
+
+      const stop = bridge.stopSession();
+      await vi.waitFor(() =>
+        expect(mockStopSessionRequest).toHaveBeenCalledOnce(),
+      );
+      sendKernelMessage(1);
+
+      expect(consumeMessage).not.toHaveBeenCalled();
+
+      finishStop();
+      await stop;
+    });
+
+    it("forwards messages from every app in a multi-app document", async () => {
+      const consumeMessage = vi.fn();
+      bridge.consumeMessages(consumeMessage);
+      mockParseMarimoIslandApps.mockReturnValue([app(), app("app-2")]);
+      mockCreateMarimoFile
+        .mockReturnValueOnce("generated app 1")
+        .mockReturnValueOnce("generated app 2");
+      signalWorkerReady();
+
+      await bridge.initializeApps();
+      const firstMessage = sendKernelMessage(1);
+      const secondMessage = sendKernelMessage(2);
+      sendKernelMessage(3);
+
+      expect(consumeMessage.mock.calls).toEqual([
+        [firstMessage],
+        [secondMessage],
+      ]);
+    });
+
     it("holds controls until the first app session is ready", async () => {
       setSingleApp();
 

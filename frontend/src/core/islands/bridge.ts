@@ -66,6 +66,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   private session: AppSession | undefined;
   private sessionReady = new Deferred<AppSession>();
   private nextSessionGeneration = 0;
+  private readonly activeSessionGenerations = new Set<number>();
   private appTransition = Promise.resolve();
   private workerReady = new Deferred<void>();
 
@@ -110,6 +111,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
     );
 
     this.rpc.addMessageListener("kernelMessage", (message) => {
+      // A stopped session can still have messages in transit after the next
+      // app takes ownership of the shared frontend state.
+      if (!this.activeSessionGenerations.has(message.sessionGeneration)) {
+        return;
+      }
       this.messageConsumer?.(message);
     });
   }
@@ -149,6 +155,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       return;
     }
     if (apps.length > 0) {
+      this.activeSessionGenerations.clear();
       this.store.set(
         islandsPendingInitialRunsAtom,
         new Set(apps.map((_, index) => this.nextSessionGeneration + index + 1)),
@@ -165,6 +172,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       };
       const previousSession = this.session;
       const replacesSession = managesSingleApp && previousSession !== undefined;
+      this.activeSessionGenerations.add(request.sessionGeneration);
       if (replacesSession) {
         this.store.set(notebookAtom, initialNotebookState());
       }
@@ -186,6 +194,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
           this.sessionReady.resolve(this.session);
         }
       } catch (error) {
+        this.activeSessionGenerations.delete(request.sessionGeneration);
         if (this.session?.sessionGeneration === request.sessionGeneration) {
           this.session = previousSession;
         }
@@ -203,6 +212,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
       if (session?.code === undefined || (appId && session.appId !== appId)) {
         return;
       }
+      this.activeSessionGenerations.delete(session.sessionGeneration);
       await this.rpc.proxy.request.stopSession({
         appId: session.appId,
         sessionGeneration: session.sessionGeneration,
