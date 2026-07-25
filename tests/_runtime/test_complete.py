@@ -25,6 +25,7 @@ from marimo._runtime.complete import (
     _get_completion_options,
     _get_completions,
     _get_docstring,
+    _is_import_context,
     _maybe_get_key_options,
     _resolve_chained_key_path,
     complete,
@@ -1237,3 +1238,65 @@ def test_polars_concat_attribute_completion() -> None:
 
     names = [completion.name for completion in completions]
     assert "with_columns" in names
+
+
+@pytest.mark.parametrize(
+    ("document", "expected"),
+    [
+        ("from dataclasses import ", True),
+        ("from dataclasses import dataclass, ", True),
+        ("import ", True),
+        ("import math, ", True),
+        ("from ", True),
+        ("from marimo._runtime import ", True),
+        ("from dataclasses import (\n    ", True),
+        ("from dataclasses import (\n    dataclass,\n    ", True),
+        ("1, ", False),
+        ("a = ", False),
+        ("mo.ui.slider(start=1, ", False),
+        ("x = import_func()", False),
+        ('print("import ")', False),
+        ("foo = 1\nfrom dataclasses import ", True),
+        ("foo = 1\nimport ", True),
+    ],
+)
+def test_is_import_context(document: str, expected: bool) -> None:
+    assert _is_import_context(document) is expected
+
+
+@pytest.mark.parametrize(
+    "document",
+    [
+        "from dataclasses import ",
+        "import ",
+        "from ",
+        "from dataclasses import dataclass, ",
+    ],
+)
+def test_import_completion_with_trailing_whitespace(document: str) -> None:
+    """Explicit completion activates for import statements with whitespace prefix.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/10140:
+    empty prefix completions (prefix_length == 0) were previously discarded when
+    last_char was not a dot or slash trigger, missing valid import options.
+    """
+    stream = CaptureStream()
+    cmd = CodeCompletionCommand(
+        id="req1", document=document, cell_id=CellId_t("cell1")
+    )
+    graph = mock.MagicMock()
+    graph.lock = mock.MagicMock()
+    graph.cells = {}
+
+    complete(
+        request=cmd,
+        graph=graph,
+        glbls={},
+        glbls_lock=threading.RLock(),
+        stream=stream,
+    )
+
+    assert len(stream.messages) == 1
+    notification = deserialize_kernel_message(stream.messages[0])
+    assert isinstance(notification, CompletionResultNotification)
+    assert len(notification.options) > 0

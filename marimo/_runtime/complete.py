@@ -99,6 +99,43 @@ def _contains_math_syntax(text: str) -> bool:
     )
 
 
+def _is_import_context(document: str) -> bool:
+    """Return True if the document ends in an import statement context.
+
+    In import statements (e.g. `import `, `from foo import `, `from foo import bar,`),
+    an empty completion prefix (prefix_length == 0) is valid and expected.
+    """
+    if not document:
+        return False
+    try:
+        import parso  # jedi dependency
+
+        module = parso.parse(document)  # type: ignore[no-untyped-call]
+        children = [c for c in module.children if c.type != "endmarker"]
+        if not children:
+            return False
+        last_child = children[-1]
+        if last_child.type in ("import_from", "import_name", "import_stmt"):
+            return True
+
+        def get_leaves(node: Any) -> list[Any]:
+            if hasattr(node, "children"):
+                leaves: list[Any] = []
+                for child in node.children:
+                    leaves.extend(get_leaves(child))
+                return leaves
+            else:
+                return [node]
+
+        leaves = get_leaves(last_child)
+        tokens = [leaf.value for leaf in leaves if leaf.type != "endmarker"]
+        if tokens and tokens[0] in ("import", "from"):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 @lru_cache(maxsize=DOC_CACHE_SIZE)
 def _build_docstring_cached(
     completion_type: str,
@@ -733,8 +770,13 @@ def complete(
                 bool(completions) and completions[0].type == "path"
             )
 
-        if prefix_length == 0 and request.document and not is_trigger_char:
-            # Empty prefix, not dot notation; don't complete ...
+        if (
+            prefix_length == 0
+            and request.document
+            and not is_trigger_char
+            and not _is_import_context(request.document)
+        ):
+            # Empty prefix, not dot notation or import context; don't complete ...
             completions = []
 
             # Get docstring in function context. A bit of a hack, since
