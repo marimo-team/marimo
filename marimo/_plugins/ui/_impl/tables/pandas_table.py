@@ -298,8 +298,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                         if _extension_column_needs_stringify(result[col]):
                             # Extension arrays with rich Python values (e.g.
                             # pint-pandas) serialize to nested dicts via
-                            # to_dict; stringify to preserve display.
-                            result[col] = result[col].astype(str)
+                            # to_dict; stringify to preserve display while keeping
+                            # missing values as None so they serialize to null.
+                            series = result[col]
+                            stringified = series.astype(str).astype(object)
+                            result[col] = stringified.where(
+                                series.notna(), None
+                            )
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
