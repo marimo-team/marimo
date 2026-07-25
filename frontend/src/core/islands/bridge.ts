@@ -197,6 +197,11 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
         this.activeSessionGenerations.delete(request.sessionGeneration);
         if (this.session?.sessionGeneration === request.sessionGeneration) {
           this.session = previousSession;
+          if (previousSession) {
+            this.activeSessionGenerations.add(
+              previousSession.sessionGeneration,
+            );
+          }
         }
         Logger.error(`Failed to start session for app ${app.id}:`, error);
         if (managesSingleApp) {

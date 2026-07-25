@@ -325,6 +325,25 @@ describe("IslandsPyodideBridge", () => {
       await replacement;
     });
 
+    it("restores message ownership when replacement fails", async () => {
+      const consumeMessage = vi.fn();
+      bridge.consumeMessages(consumeMessage);
+      mockSingleApp();
+      await bridge.initializeApps();
+      mockReplaceSessionRequest.mockRejectedValueOnce(
+        new Error("replacement failed"),
+      );
+      setSingleApp("generated app 2");
+
+      await expect(bridge.initializeApps()).rejects.toThrow(
+        "replacement failed",
+      );
+      const previousMessage = sendKernelMessage(1);
+      sendKernelMessage(2);
+
+      expect(consumeMessage.mock.calls).toEqual([[previousMessage]]);
+    });
+
     it("ignores messages while their session is stopping", async () => {
       const consumeMessage = vi.fn();
       bridge.consumeMessages(consumeMessage);
