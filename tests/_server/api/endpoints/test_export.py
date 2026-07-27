@@ -827,21 +827,19 @@ def test_update_cell_outputs_empty_request(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_export_pdf_endpoint(client: TestClient) -> None:
     """Test PDF export endpoint."""
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import AsyncMock, patch
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
 
-    # Mock the exporter to avoid needing LaTeX/Chromium
-    mock_exporter = MagicMock()
-    mock_exporter.export_as_pdf.return_value = b"mock_pdf_content"
+    render_pdf_mock = AsyncMock(return_value=b"mock_pdf_content")
     collect_mock = AsyncMock(return_value={})
 
     with (
         patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
         ),
         patch(
             "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
@@ -857,7 +855,7 @@ def test_export_pdf_endpoint(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.content == b"mock_pdf_content"
     assert response.headers["content-type"] == "application/pdf"
-    render_request = mock_exporter.export_as_pdf.call_args.args[0]
+    render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
     assert render_request.options.include_inputs is False
     if collect_mock.await_count == 0:
@@ -879,21 +877,19 @@ def test_export_pdf_endpoint(client: TestClient) -> None:
 @with_session(SESSION_ID)
 def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
     """Test PDF export endpoint with webpdf mode."""
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import AsyncMock, patch
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
 
-    # Mock the exporter to avoid needing Chromium
-    mock_exporter = MagicMock()
-    mock_exporter.export_as_pdf.return_value = b"mock_webpdf_content"
+    render_pdf_mock = AsyncMock(return_value=b"mock_webpdf_content")
     collect_mock = AsyncMock(return_value={})
 
     with (
         patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
         ),
         patch(
             "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
@@ -909,8 +905,8 @@ def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.content == b"mock_webpdf_content"
     # Verify webpdf=True was passed to exporter
-    mock_exporter.export_as_pdf.assert_called_once()
-    render_request = mock_exporter.export_as_pdf.call_args.args[0]
+    render_pdf_mock.assert_awaited_once()
+    render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
     assert render_request.options.webpdf is True
     assert render_request.options.include_inputs is False
@@ -931,26 +927,24 @@ def test_export_pdf_endpoint_webpdf_mode(client: TestClient) -> None:
     reason="nbformat or nbconvert not installed",
 )
 @with_session(SESSION_ID)
-def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
-    """Test PDF export endpoint routes slides preset to slides exporter."""
-    from unittest.mock import AsyncMock, MagicMock, patch
+def test_export_pdf_endpoint_preserves_slides_preset(
+    client: TestClient,
+) -> None:
+    from unittest.mock import AsyncMock, patch
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
 
-    mock_exporter = MagicMock()
-    mock_exporter.export_as_slides_pdf = AsyncMock(
-        return_value=b"mock_slides_content"
-    )
+    render_pdf_mock = AsyncMock(return_value=b"mock_slides_content")
     collect_mock = AsyncMock(
         return_value={"1": "data:image/png;base64,ZmFrZQ=="}
     )
 
     with (
         patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
         ),
         patch(
             "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
@@ -965,9 +959,10 @@ def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.content == b"mock_slides_content"
-    mock_exporter.export_as_slides_pdf.assert_awaited_once()
-    render_request = mock_exporter.export_as_slides_pdf.await_args.args[0]
+    render_pdf_mock.assert_awaited_once()
+    render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
+    assert render_request.options.preset == "slides"
     assert render_request.options.include_inputs is False
     if collect_mock.await_count == 0:
         raise _CollectorNotWired
@@ -975,7 +970,6 @@ def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
     assert render_request.png_fallbacks == {
         "1": "data:image/png;base64,ZmFrZQ=="
     }
-    mock_exporter.export_as_pdf.assert_not_called()
 
 
 @pytest.mark.xfail(
@@ -992,7 +986,7 @@ def test_export_pdf_endpoint_slides_preset(client: TestClient) -> None:
 def test_export_pdf_endpoint_live_raster_uses_live_server_mode(
     client: TestClient,
 ) -> None:
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import AsyncMock, patch
     from urllib.parse import parse_qs, urlparse
 
     session = get_session_manager(client).get_session(SESSION_ID)
@@ -1000,13 +994,12 @@ def test_export_pdf_endpoint_live_raster_uses_live_server_mode(
     session.app_file_manager.filename = "/tmp/test.py"
 
     collect_mock = AsyncMock(return_value={})
-    mock_exporter = MagicMock()
-    mock_exporter.export_as_pdf.return_value = b"mock_pdf_content"
+    render_pdf_mock = AsyncMock(return_value=b"mock_pdf_content")
 
     with (
         patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
         ),
         patch(
             "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
@@ -1020,7 +1013,7 @@ def test_export_pdf_endpoint_live_raster_uses_live_server_mode(
         )
 
     assert response.status_code == 200
-    render_request = mock_exporter.export_as_pdf.call_args.args[0]
+    render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
     if collect_mock.await_count == 0:
         raise _CollectorNotWired
@@ -1043,20 +1036,18 @@ def test_export_pdf_endpoint_returns_error_on_failure(
     client: TestClient,
 ) -> None:
     """Test PDF export endpoint returns error when export fails."""
-    from unittest.mock import AsyncMock, MagicMock, patch
+    from unittest.mock import AsyncMock, patch
 
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
 
-    # Mock the exporter to return None (failure case)
-    mock_exporter = MagicMock()
-    mock_exporter.export_as_pdf.return_value = None
+    render_pdf_mock = AsyncMock(return_value=None)
 
     with (
         patch(
-            "marimo._server.api.endpoints.export.Exporter",
-            return_value=mock_exporter,
+            "marimo._server.api.endpoints.export.render_pdf",
+            render_pdf_mock,
         ),
         patch(
             "marimo._export._pdf_raster.collect_pdf_png_fallbacks",

@@ -23,6 +23,7 @@ from marimo._export.exporter import (
     Exporter,
     export_markdown as render_markdown,
     export_script as render_script,
+    render_pdf,
 )
 from marimo._export.requests import (
     CacheBundleRequest,
@@ -268,8 +269,8 @@ async def export_pdf(
 
         if (
             session_view is not None
-            and request.options.rasterization is not None
-            and request.options.rasterization.enabled
+            and request.rasterization is not None
+            and request.rasterization.enabled
         ):
             from marimo._export._pdf_raster import (
                 collect_pdf_png_fallbacks,
@@ -281,7 +282,7 @@ async def export_pdf(
                     session_view=session_view,
                     filename=request.path.short_name,
                     filepath=request.path.absolute_name,
-                    options=request.options.rasterization,
+                    options=request.rasterization,
                     live_page_url=request.live_page_url,
                     status_callback=request.status_callback,
                 )
@@ -291,7 +292,6 @@ async def export_pdf(
         phase="prepare",
         message="serializing notebook for PDF rendering...",
     )
-    exporter = Exporter()
     render_request = PDFExportRequest(
         app=file_manager.app,
         session_view=session_view,
@@ -299,10 +299,7 @@ async def export_pdf(
         options=request.options,
         status_callback=request.status_callback,
     )
-    if request.options.preset == "slides":
-        pdf_data = await exporter.export_as_slides_pdf(render_request)
-    else:
-        pdf_data = exporter.export_as_pdf(render_request)
+    pdf_data = await render_pdf(render_request)
     if pdf_data is not None:
         emit_pdf_export_status(
             request.status_callback,

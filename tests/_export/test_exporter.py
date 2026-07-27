@@ -20,7 +20,7 @@ from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._export._status import PDFExportStatusEvent
-from marimo._export.exporter import Exporter
+from marimo._export.exporter import Exporter, render_pdf
 from marimo._export.file import (
     export_html,
     export_ipynb,
@@ -54,6 +54,7 @@ from marimo._schemas.export import (
     ExportAsHTMLRequest,
 )
 from marimo._schemas.export_options import (
+    ExportPDFPreset,
     HTMLExportOptions,
     IPYNBExportOptions,
     MarkdownExportOptions,
@@ -150,7 +151,7 @@ def _pdf_export_request(
     webpdf: bool = False,
     include_inputs: bool = True,
     status_callback: Any = None,
-    preset: Any = "document",
+    preset: ExportPDFPreset = "document",
 ) -> PDFExportRequest:
     return PDFExportRequest(
         app=app,
@@ -1565,6 +1566,46 @@ def test_export_html_skips_oversized_virtual_files(
 
 
 class TestPDFExport:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("preset", "expected"),
+        [("document", b"document"), ("slides", b"slides")],
+    )
+    async def test_render_pdf_dispatches_by_preset(
+        self,
+        preset: ExportPDFPreset,
+        expected: bytes,
+        session_view: SessionView,
+    ) -> None:
+        request = _pdf_export_request(
+            app=InternalApp(App()),
+            session_view=session_view,
+            preset=preset,
+        )
+        with (
+            patch.object(
+                Exporter,
+                "export_as_pdf",
+                autospec=True,
+                return_value=b"document",
+            ) as document_export,
+            patch.object(
+                Exporter,
+                "export_as_slides_pdf",
+                autospec=True,
+                return_value=b"slides",
+            ) as slides_export,
+        ):
+            result = await render_pdf(request)
+
+        assert result == expected
+        if preset == "document":
+            assert document_export.call_args.args[1] is request
+            slides_export.assert_not_awaited()
+        else:
+            document_export.assert_not_called()
+            assert slides_export.await_args.args[1] is request
+
     def test_export_as_pdf_requires_dependencies(
         self,
         session_view: SessionView,
@@ -1664,8 +1705,10 @@ class TestPDFExport:
                     path=MarimoPath(temp_marimo_file),
                     options=PDFExportOptions(
                         webpdf=True,
-                        rasterization=PDFRasterizationOptions(enabled=True),
+                        preset="document",
+                        include_inputs=False,
                     ),
+                    rasterization=PDFRasterizationOptions(enabled=True),
                     execution=NotebookExecutionOptions(
                         cli_args={},
                         argv=None,
@@ -1742,8 +1785,10 @@ class TestPDFExport:
                     path=MarimoPath(temp_marimo_file),
                     options=PDFExportOptions(
                         webpdf=False,
-                        rasterization=PDFRasterizationOptions(enabled=False),
+                        preset="document",
+                        include_inputs=False,
                     ),
+                    rasterization=PDFRasterizationOptions(enabled=False),
                     status_callback=events.append,
                 )
             )
@@ -1845,8 +1890,10 @@ class TestPDFExport:
                     path=MarimoPath(temp_marimo_file),
                     options=PDFExportOptions(
                         webpdf=False,
-                        rasterization=PDFRasterizationOptions(enabled=False),
+                        preset="document",
+                        include_inputs=False,
                     ),
+                    rasterization=PDFRasterizationOptions(enabled=False),
                     status_callback=failing_status_callback,
                 )
             )

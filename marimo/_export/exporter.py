@@ -840,6 +840,13 @@ class Exporter:
         return False
 
 
+async def render_pdf(request: PDFExportRequest) -> bytes | None:
+    exporter = Exporter()
+    if request.options.preset == "slides":
+        return await exporter.export_as_slides_pdf(request)
+    return exporter.export_as_pdf(request)
+
+
 class AutoExporter:
     def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks

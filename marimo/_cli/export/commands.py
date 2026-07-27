@@ -840,8 +840,8 @@ def pdf(
                             webpdf=webpdf,
                             preset=export_as or "document",
                             include_inputs=include_inputs,
-                            rasterization=rasterization_options,
                         ),
+                        rasterization=rasterization_options,
                         execution=(
                             NotebookExecutionOptions(
                                 cli_args=cli_args,

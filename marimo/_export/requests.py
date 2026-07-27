@@ -164,6 +164,7 @@ class WASMFileExportRequest:
 class PDFFileExportRequest:
     path: MarimoPath
     options: PDFExportOptions
+    rasterization: PDFRasterizationOptions | None = None
     execution: NotebookExecutionOptions | None = None
     live_page_url: LivePageURLProvider | None = None
     status_callback: PDFExportStatusCallback | None = None

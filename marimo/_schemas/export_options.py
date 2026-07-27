@@ -58,6 +58,5 @@ class PDFRasterizationOptions:
 @dataclass(frozen=True, kw_only=True)
 class PDFExportOptions:
     webpdf: bool
-    preset: ExportPDFPreset = "document"
-    include_inputs: bool = False
-    rasterization: PDFRasterizationOptions | None = None
+    preset: ExportPDFPreset
+    include_inputs: bool

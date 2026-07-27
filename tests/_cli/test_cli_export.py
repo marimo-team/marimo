@@ -1500,8 +1500,8 @@ class TestExportPDF:
         assert "For --as=slides, prefer --raster-server=live" in result.output
         assert mock_run_app.await_count == 1
         request = mock_run_app.await_args.args[0]
-        assert request.options.rasterization is not None
-        assert request.options.rasterization.server_mode == "static"
+        assert request.rasterization is not None
+        assert request.rasterization.server_mode == "static"
 
     @staticmethod
     def test_export_pdf_defers_live_server_startup(

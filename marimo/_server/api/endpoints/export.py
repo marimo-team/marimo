@@ -24,6 +24,7 @@ from marimo._export.exporter import (
     Exporter,
     export_markdown,
     export_script,
+    render_pdf,
 )
 from marimo._export.requests import (
     HTMLExportRequest,
@@ -586,7 +587,6 @@ async def export_as_pdf(*, request: Request) -> Response:
             detail="File must have a name before exporting",
         )
 
-    exporter = Exporter()
     export_request = PDFExportRequest(
         app=session.app_file_manager.app,
         session_view=session.session_view,
@@ -596,10 +596,7 @@ async def export_as_pdf(*, request: Request) -> Response:
             include_inputs=body.include_inputs,
         ),
     )
-    if body.preset == "slides":
-        pdf_data = await exporter.export_as_slides_pdf(export_request)
-    else:
-        pdf_data = exporter.export_as_pdf(export_request)
+    pdf_data = await render_pdf(export_request)
     if pdf_data is None:
         raise HTTPException(
             status_code=HTTPStatus.SERVER_ERROR, detail="Failed to export PDF"
