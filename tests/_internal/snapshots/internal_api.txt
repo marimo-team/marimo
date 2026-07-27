@@ -44,6 +44,15 @@ config
   get_default_config_manager
 converters
   MarimoConvert
+export
+  Exporter
+  HTMLExportOptions
+  HTMLExportRequest
+  IPYNBExportOptions
+  IPYNBExportRequest
+  NotebookExportSnapshot
+  serialize_notebook_snapshot
+  to_html_export_options
 ids
   CellId_t
   ConsumerId
