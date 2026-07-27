@@ -12,12 +12,17 @@ import {
   type ViewUpdate,
 } from "@codemirror/view";
 import {
+  aliasColumnCompletionSource,
+  createCteCompletionSource,
   defaultSqlHoverTheme,
   NodeSqlParser,
   type NodeSqlParserResult,
+  QueryContextAnalyzer,
   type SupportedDialects as ParserDialects,
   type SqlParseError,
   sqlExtension,
+  SqlStructureAnalyzer,
+  unqualifiedColumnCompletionSource,
 } from "@marimo-team/codemirror-sql";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
 import { type SQLMetadata, SQLParser } from "@marimo-team/smart-cells";
@@ -142,6 +147,7 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     _placeholderType: PlaceholderType,
     lspConfig: LSPConfig & { diagnostics: DiagnosticsConfig },
   ): Extension[] {
+    const analysis = createSQLAnalysis();
     const extensions = [
       // This can be updated with a dispatch effect
       sqlConfigCompartment.of(sql({ dialect: DEFAULT_DIALECT })),
@@ -167,6 +173,10 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
           variableCompletionSource,
           // Completions for dialect keywords
           customKeywordCompletionSource(),
+          // Completions based on the current query
+          analysis.cteCompletionSource,
+          analysis.aliasCompletionSource,
+          analysis.columnCompletionSource,
         ],
       }),
     ];
@@ -185,10 +195,23 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
 
       extensions.push(
         sqlExtension({
+          schema: getSchema,
           enableLinting: true,
           linterConfig: {
             delay: 250, // Delay before running validation
             parser: parser,
+            // CustomSqlParser performs backend DuckDB validation in validateSql.
+            perStatement: false,
+          },
+          enableSemanticLinting: true,
+          semanticLinterConfig: {
+            parser: analysis.parser,
+            structureAnalyzer: analysis.structureAnalyzer,
+            severity: {
+              unknownTable: "off",
+              unknownColumn: "warning",
+              ambiguousColumn: "warning",
+            },
           },
           enableGutterMarkers: true,
           gutterConfig: {
@@ -198,13 +221,20 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
             parser: parser,
           },
           hoverConfig: {
-            schema: getSchema, // Use the same schema as autocomplete
             hoverTime: 300, // 300ms hover delay
             enableKeywords: true, // Show keyword information
             enableTables: true, // Show table information
             enableColumns: true, // Show column information
-            parser: parser,
+            parser: analysis.parser,
+            contextAnalyzer: analysis.contextAnalyzer,
             theme: defaultSqlHoverTheme(theme),
+          },
+          enableNavigation: true,
+          navigationConfig: {
+            contextAnalyzer: analysis.contextAnalyzer,
+            keymap: false,
+            parser: analysis.parser,
+            structureAnalyzer: analysis.structureAnalyzer,
           },
         }),
         EditorView.updateListener.of((update) => {
@@ -220,6 +250,123 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
     }
 
     return extensions;
+  }
+}
+
+function createSQLAnalysis() {
+  const parser = new NodeSqlParser({
+    getParserOptions: (state: EditorState) => {
+      return {
+        database: guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT,
+      };
+    },
+  });
+  const contextAnalyzer = new DialectAwareQueryContextAnalyzer(parser);
+  const structureAnalyzer = new DialectAwareSqlStructureAnalyzer(parser);
+
+  return {
+    parser,
+    contextAnalyzer,
+    structureAnalyzer,
+    cteCompletionSource: createCteCompletionSource({
+      parser,
+      contextAnalyzer,
+      structureAnalyzer,
+    }),
+    aliasCompletionSource: aliasColumnCompletionSource({
+      schema: getSchema,
+      parser,
+      contextAnalyzer,
+    }),
+    columnCompletionSource: unqualifiedColumnCompletionSource({
+      schema: getSchema,
+      parser,
+      contextAnalyzer,
+    }),
+  };
+}
+
+function getAnalysisDialect(state: EditorState): ParserDialects {
+  return guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT;
+}
+
+class DialectAwareQueryContextAnalyzer extends QueryContextAnalyzer {
+  private readonly analyzers = new Map<ParserDialects, QueryContextAnalyzer>();
+  private readonly analysisParser: NodeSqlParser;
+
+  constructor(analysisParser: NodeSqlParser) {
+    super(analysisParser);
+    this.analysisParser = analysisParser;
+  }
+
+  override getContext(
+    sql: string,
+    opts: { state: EditorState },
+  ): ReturnType<QueryContextAnalyzer["getContext"]> {
+    return this.getAnalyzer(opts.state).getContext(sql, opts);
+  }
+
+  override clearCache(): void {
+    for (const analyzer of this.analyzers.values()) {
+      analyzer.clearCache();
+    }
+  }
+
+  private getAnalyzer(state: EditorState): QueryContextAnalyzer {
+    const dialect = getAnalysisDialect(state);
+    let analyzer = this.analyzers.get(dialect);
+    if (!analyzer) {
+      analyzer = new QueryContextAnalyzer(this.analysisParser);
+      this.analyzers.set(dialect, analyzer);
+    }
+    return analyzer;
+  }
+}
+
+class DialectAwareSqlStructureAnalyzer extends SqlStructureAnalyzer {
+  private readonly analyzers = new Map<ParserDialects, SqlStructureAnalyzer>();
+  private readonly analysisParser: NodeSqlParser;
+
+  constructor(analysisParser: NodeSqlParser) {
+    super(analysisParser);
+    this.analysisParser = analysisParser;
+  }
+
+  override analyzeDocument(
+    state: EditorState,
+  ): ReturnType<SqlStructureAnalyzer["analyzeDocument"]> {
+    return this.getAnalyzer(state).analyzeDocument(state);
+  }
+
+  override getStatementAtPosition(
+    state: EditorState,
+    position: number,
+  ): ReturnType<SqlStructureAnalyzer["getStatementAtPosition"]> {
+    return this.getAnalyzer(state).getStatementAtPosition(state, position);
+  }
+
+  override getStatementsInRange(
+    state: EditorState,
+    from: number,
+    to: number,
+  ): ReturnType<SqlStructureAnalyzer["getStatementsInRange"]> {
+    return this.getAnalyzer(state).getStatementsInRange(state, from, to);
+  }
+
+  override clearCache(): void {
+    for (const analyzer of this.analyzers.values()) {
+      analyzer.clearCache();
+    }
+  }
+
+  private getAnalyzer(state: EditorState): SqlStructureAnalyzer {
+    const dialect = getAnalysisDialect(state);
+    let analyzer = this.analyzers.get(dialect);
+    if (!analyzer) {
+      analyzer = new SqlStructureAnalyzer(this.analysisParser);
+      this.analyzers.set(dialect, analyzer);
+    }
+    return analyzer;
   }
 }
 
@@ -344,7 +491,56 @@ function getSchema(view: EditorView): SQLNamespace {
     return {};
   }
 
+  if (!isNamespaceMap(config.schema)) {
+    return config.schema;
+  }
+
+  const defaultSchema = config.defaultSchema;
+  const defaultSchemaNamespace = defaultSchema
+    ? config.schema[defaultSchema]
+    : undefined;
+
+  // The completion schema contains both default-schema and fully qualified
+  // paths. Promote default-schema tables so unqualified references resolve to
+  // one exact match instead of appearing ambiguous.
+  if (
+    defaultSchemaNamespace &&
+    !Array.isArray(defaultSchemaNamespace) &&
+    typeof defaultSchemaNamespace === "object" &&
+    "children" in defaultSchemaNamespace &&
+    isNamespaceMap(defaultSchemaNamespace.children)
+  ) {
+    return {
+      ...config.schema,
+      ...defaultSchemaNamespace.children,
+    };
+  }
+
   return config.schema;
+}
+
+function isNamespaceMap(
+  namespace: SQLNamespace,
+): namespace is Record<string, SQLNamespace> {
+  if (Array.isArray(namespace)) {
+    return false;
+  }
+
+  if (!("self" in namespace) || !("children" in namespace)) {
+    return true;
+  }
+
+  // A self/children wrapper stores a Completion in `self`. A table or schema
+  // literally named "self" stores another namespace there.
+  const self = namespace.self;
+  const isSelfChildrenWrapper =
+    typeof self === "object" &&
+    self !== null &&
+    !Array.isArray(self) &&
+    "label" in self &&
+    typeof self.label === "string";
+
+  return !isSelfChildrenWrapper;
 }
 
 function guessParserDialect(state: EditorState): ParserDialects | null {
@@ -529,3 +725,8 @@ async function validateSQL(
   }
   return result;
 }
+
+export const exportedForTesting = {
+  createSQLAnalysis,
+  CustomSqlParser,
+};
