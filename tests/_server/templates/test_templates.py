@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Literal
 from unittest.mock import patch
 
+import marimo._templates as templates
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import (
     MarimoConfig,
@@ -28,7 +29,6 @@ from marimo._schemas.session import (
     NotebookSessionV1,
     StreamOutput,
 )
-from marimo._server.templates import templates
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._utils.code import hash_code

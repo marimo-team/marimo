@@ -22,9 +22,9 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._server.sse import format_sse_event
 from marimo._session.extensions.types import EventAwareExtension
+from marimo._session.requests import InstantiateNotebookRequest
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator

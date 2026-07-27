@@ -22,8 +22,8 @@ from marimo import _loggers
 from marimo._messaging.types import NoopStream
 from marimo._runtime.params import QueryParams
 from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
-from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._session.model import ConnectionState, SessionMode
+from marimo._session.requests import InstantiateNotebookRequest
 
 LOGGER = _loggers.marimo_logger()
 

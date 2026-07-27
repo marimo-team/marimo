@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from contextlib import contextmanager
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Any
 from unittest.mock import AsyncMock, patch
 
 from marimo._ast.app import App, InternalApp
+from marimo._export import _pdf_raster
+from marimo._export.requests import PDFRasterizationRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
-from marimo._server.export import _pdf_raster
+from marimo._schemas.export_options import PDFRasterizationOptions
 from marimo._session.state.session_view import SessionView
 
 
@@ -160,22 +163,23 @@ def test_collect_pdf_png_fallbacks_mixed_targets_use_static_by_default() -> (
             ),
             patch.object(
                 _pdf_raster,
-                "_capture_pngs_from_live_page",
+                "_collect_live_captures",
                 live_capture_mock,
             ),
             patch(
-                "marimo._server.export.exporter.Exporter.export_as_html",
+                "marimo._export.exporter.Exporter.export_as_html",
                 side_effect=_fake_export_as_html,
             ),
         ):
             return await _pdf_raster.collect_pdf_png_fallbacks(
-                app=app,
-                session_view=session_view,
-                filename="demo.py",
-                filepath="demo.py",
-                argv=["--arg", "value"],
-                options=_pdf_raster.PDFRasterizationOptions(),
-                status_callback=events.append,
+                PDFRasterizationRequest(
+                    app=app,
+                    session_view=session_view,
+                    filename="demo.py",
+                    filepath="demo.py",
+                    options=PDFRasterizationOptions(),
+                    status_callback=events.append,
+                )
             )
 
     captures = asyncio.run(_run())
@@ -258,20 +262,22 @@ def test_collect_pdf_png_fallbacks_static_only_uses_static_capture() -> None:
             ),
             patch.object(
                 _pdf_raster,
-                "_capture_pngs_from_live_page",
+                "_collect_live_captures",
                 live_capture_mock,
             ),
             patch(
-                "marimo._server.export.exporter.Exporter.export_as_html",
+                "marimo._export.exporter.Exporter.export_as_html",
                 side_effect=_fake_export_as_html,
             ),
         ):
             return await _pdf_raster.collect_pdf_png_fallbacks(
-                app=app,
-                session_view=session_view,
-                filename="demo.py",
-                filepath="demo.py",
-                options=_pdf_raster.PDFRasterizationOptions(),
+                PDFRasterizationRequest(
+                    app=app,
+                    session_view=session_view,
+                    filename="demo.py",
+                    filepath="demo.py",
+                    options=PDFRasterizationOptions(),
+                )
             )
 
     captures = asyncio.run(_run())
@@ -305,15 +311,13 @@ def test_collect_pdf_png_fallbacks_live_mode_uses_live_capture() -> None:
 
     async def _capture_live(
         *,
-        filepath: str,
+        page_url: str,
         targets: list[_pdf_raster._RasterTarget],
         scale: float,
-        argv: list[str] | None,
         status_callback: Any = None,
     ) -> dict[str, str]:
-        del filepath
+        assert page_url == "http://127.0.0.1:1234/demo"
         del scale
-        del argv
         del status_callback
         assert [target.cell_id for target in targets] == ["2", "1"]
         return {
@@ -321,27 +325,32 @@ def test_collect_pdf_png_fallbacks_live_mode_uses_live_capture() -> None:
             "1": "data:image/png;base64,bGl2ZTE=",
         }
 
+    @contextmanager
+    def _live_page_url() -> Any:
+        yield "http://127.0.0.1:1234/demo"
+
     async def _run() -> dict[str, str]:
         with (
             patch.object(
                 _pdf_raster,
-                "_capture_pngs_from_page",
+                "_collect_static_captures",
                 static_capture_mock,
             ),
             patch.object(
                 _pdf_raster,
-                "_capture_pngs_from_live_page",
+                "_capture_pngs_from_page",
                 side_effect=_capture_live,
             ),
         ):
             return await _pdf_raster.collect_pdf_png_fallbacks(
-                app=app,
-                session_view=session_view,
-                filename="demo.py",
-                filepath="demo.py",
-                options=_pdf_raster.PDFRasterizationOptions(
-                    server_mode="live"
-                ),
+                PDFRasterizationRequest(
+                    app=app,
+                    session_view=session_view,
+                    filename="demo.py",
+                    filepath="demo.py",
+                    options=PDFRasterizationOptions(server_mode="live"),
+                    live_page_url=_live_page_url,
+                )
             )
 
     captures = asyncio.run(_run())
@@ -350,6 +359,34 @@ def test_collect_pdf_png_fallbacks_live_mode_uses_live_capture() -> None:
         "2": "data:image/png;base64,bGl2ZTI=",
     }
     static_capture_mock.assert_not_awaited()
+
+
+def test_collect_pdf_png_fallbacks_does_not_open_live_page_without_targets() -> (
+    None
+):
+    opened = False
+
+    @contextmanager
+    def _live_page_url() -> Any:
+        nonlocal opened
+        opened = True
+        yield "http://127.0.0.1:1234/demo"
+
+    captures = asyncio.run(
+        _pdf_raster.collect_pdf_png_fallbacks(
+            PDFRasterizationRequest(
+                app=InternalApp(App()),
+                session_view=SessionView(),
+                filename="demo.py",
+                filepath="demo.py",
+                options=PDFRasterizationOptions(server_mode="live"),
+                live_page_url=_live_page_url,
+            )
+        )
+    )
+
+    assert captures == {}
+    assert opened is False
 
 
 def test_wait_for_target_ready_uses_settle_wait_for_dynamic_targets() -> None:

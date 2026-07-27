@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
 
-from marimo._server.export._raster_mime import MIME_TYPES_REPLACED_BY_PNG
+from marimo._export._raster_mime import MIME_TYPES_REPLACED_BY_PNG
 from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:

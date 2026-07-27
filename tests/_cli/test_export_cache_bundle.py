@@ -13,13 +13,18 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING
 
+from marimo._cli.export.output import STDOUT
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._export.file import bundle_cache_export
+from marimo._export.requests import CacheBundleRequest
 from marimo._save.stores.file import export_manifest_name
-from marimo._server.export import bundle_cache_export
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import notebook_output_dir
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+    import pytest
 
 
 def _notebook(tmp_path: Path) -> MarimoPath:
@@ -45,8 +50,34 @@ def test_no_manifest_is_a_noop(tmp_path: Path) -> None:
     _cache_dir(tmp_path)  # cache dir exists, but no manifest was written
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(_notebook(tmp_path), out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(
+            notebook_path=_notebook(tmp_path),
+            output_directory=out_dir,
+        )
+    )
     assert not (out_dir / "public" / "cache").exists()
+
+
+def test_no_manifest_respects_cli_quiet(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _cache_dir(tmp_path)
+    out_dir = tmp_path / "dist"
+    out_dir.mkdir()
+    monkeypatch.setattr(GLOBAL_SETTINGS, "QUIET", True)
+
+    bundle_cache_export(
+        CacheBundleRequest(
+            notebook_path=_notebook(tmp_path),
+            output_directory=out_dir,
+            stdout=STDOUT,
+        )
+    )
+
+    assert capsys.readouterr().out == ""
 
 
 def test_keys_copied(tmp_path: Path) -> None:
@@ -59,7 +90,9 @@ def test_keys_copied(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     dst = out_dir / "public" / "cache"
     assert (dst / "lazy" / "E_abc.jsonl").read_bytes() == b"manifest-line\n"
@@ -74,7 +107,9 @@ def test_missing_listed_file_skipped(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     dst = out_dir / "public" / "cache"
     assert (dst / "present.bin").exists()
@@ -91,7 +126,9 @@ def test_keys_outside_session_not_bundled(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     dst = out_dir / "public" / "cache"
     assert (dst / "mine.bin").exists()
@@ -107,7 +144,9 @@ def test_corrupt_manifest_is_a_noop(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     assert not (out_dir / "public" / "cache").exists()
 
@@ -123,7 +162,9 @@ def test_non_string_key_skipped(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     dst = out_dir / "public" / "cache"
     assert (dst / "ok.bin").read_bytes() == b"ok"
@@ -141,7 +182,9 @@ def test_path_traversal_key_rejected(tmp_path: Path) -> None:
 
     out_dir = tmp_path / "dist"
     out_dir.mkdir()
-    bundle_cache_export(nb, out_dir)
+    bundle_cache_export(
+        CacheBundleRequest(notebook_path=nb, output_directory=out_dir)
+    )
 
     dst = out_dir / "public" / "cache"
     assert (dst / "ok.bin").exists()

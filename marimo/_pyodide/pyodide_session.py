@@ -14,7 +14,9 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._export.exporter import Exporter, export_markdown
+from marimo._export.requests import HTMLExportRequest, MarkdownExportRequest
+from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
@@ -33,9 +35,14 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._server.export.exporter import Exporter
+from marimo._schemas.export import (
+    ExportAsHTMLRequest,
+    to_html_export_options,
+)
+from marimo._schemas.export_options import (
+    MarkdownExportOptions,
+)
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -387,19 +394,33 @@ class PyodideBridge:
 
     def export_html(self, request: str) -> str:
         parsed = self._parse(request, ExportAsHTMLRequest)
+        app = self.session.app_manager.app
         html, _filename = Exporter().export_as_html(
-            app=self.session.app_manager.app,
-            filename=self.session.app_manager.filename,
-            session_view=self.session.session_view,
-            display_config=self.session._initial_user_config["display"],
-            request=parsed,
+            HTMLExportRequest(
+                filename=self.session.app_manager.filename,
+                app_code=app.to_py(),
+                app_config=app.config,
+                snapshot=serialize_notebook_snapshot(
+                    app,
+                    self.session.session_view,
+                    drop_virtual_file_outputs=False,
+                    include_model_notifications=True,
+                ),
+                display_config=self.session._initial_user_config["display"],
+                options=to_html_export_options(parsed),
+            )
         )
         return json.dumps(html)
 
     def export_markdown(self, request: str) -> str:
         del request
-        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
-        return json.dumps(md)
+        result = export_markdown(
+            MarkdownExportRequest(
+                notebook=self.session.app_manager.app.to_ir(),
+                options=MarkdownExportOptions(),
+            )
+        )
+        return json.dumps(result.text)
 
     def _parse(self, request: str, cls: type[T]) -> T:
         return parse_raw(request, cls)

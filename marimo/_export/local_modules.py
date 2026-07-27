@@ -28,7 +28,6 @@ from operator import attrgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
-from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.uv import find_uv_bin
 
@@ -41,6 +40,10 @@ _RUFF_GRAPH_TIMEOUT_SECONDS = 120
 
 
 class LocalWheelError(Exception):
+    pass
+
+
+class UVNotFoundError(LocalWheelError):
     pass
 
 
@@ -243,11 +246,9 @@ def _ruff_graph_command(
 def _uv_bin() -> str:
     uv_bin = find_uv_bin()
     if uv_bin == "uv" and not DependencyManager.which("uv"):
-        raise MarimoCLIMissingDependencyError(
+        raise UVNotFoundError(
             "uv must be installed to resolve local imports for "
-            "html-wasm export.",
-            "uv",
-            additional_tip="Install uv from https://github.com/astral-sh/uv",
+            "html-wasm export."
         )
     return uv_bin
 

@@ -11,24 +11,27 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 from marimo import _loggers
 from marimo._config.config import DisplayConfig
 from marimo._config.manager import get_default_config_manager
-from marimo._server.export._html_asset_server import HtmlAssetServer
-from marimo._server.export._live_notebook_server import LiveNotebookServer
-from marimo._server.export._raster_mime import (
+from marimo._export._html_asset_server import HtmlAssetServer
+from marimo._export._raster_mime import (
     TEXT_HTML,
     TEXT_MARKDOWN,
     TEXT_PLAIN,
     VEGA_MIME_TYPES,
 )
-from marimo._server.export._status import emit_pdf_export_status
-from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._export._status import emit_pdf_export_status
+from marimo._export.requests import (
+    HTMLExportRequest,
+    PDFRasterizationRequest,
+)
+from marimo._export.serialization import serialize_notebook_snapshot
+from marimo._schemas.export_options import HTMLExportOptions
 from marimo._types.ids import CellId_t
 from marimo._utils.paths import marimo_package_path
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from marimo._ast.app import InternalApp
-    from marimo._server.export._status import PDFExportStatusCallback
+    from marimo._export._status import PDFExportStatusCallback
     from marimo._session.state.session_view import SessionView
 
 LOGGER = _loggers.marimo_logger()
@@ -74,13 +77,6 @@ WAIT_FOR_NEXT_PAINT = r"""
   requestAnimationFrame(() => requestAnimationFrame(resolve));
 })
 """
-
-
-@dataclass(frozen=True)
-class PDFRasterizationOptions:
-    enabled: bool = True
-    scale: float = 4.0
-    server_mode: str = "static"
 
 
 CaptureExpectation = Literal["anywidget", "vega"]
@@ -328,22 +324,17 @@ def _to_data_url(image: bytes) -> str:
 
 async def _collect_static_captures(
     *,
-    app: InternalApp,
-    session_view: SessionView,
-    filename: str | None,
-    filepath: str | None,
-    options: PDFRasterizationOptions,
+    request: PDFRasterizationRequest,
     static_targets: list[_RasterTarget],
-    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture PNG fallbacks from exported static HTML for non-live targets."""
 
-    from marimo._server.export.exporter import Exporter
+    from marimo._export.exporter import Exporter
 
     LOGGER.debug(
         "Raster capture static phase: %s target(s), scale=%s",
         len(static_targets),
-        options.scale,
+        request.options.scale,
     )
 
     static_dir = marimo_package_path() / "_static"
@@ -352,27 +343,34 @@ async def _collect_static_captures(
         route="/__marimo_pdf_raster__.html",
     ) as server:
         capture_view = _promote_component_markup_for_capture(
-            session_view,
+            request.session_view,
             static_targets,
         )
         html, _download_filename = Exporter().export_as_html(
-            filename=filename,
-            app=app,
-            session_view=capture_view,
-            display_config=_to_display_config(filepath),
-            request=ExportAsHTMLRequest(
-                download=False,
-                files=[],
-                include_code=True,
-                asset_url=server.base_url,
+            HTMLExportRequest(
+                filename=request.filename,
+                app_code=request.app.to_py(),
+                app_config=request.app.config,
+                snapshot=serialize_notebook_snapshot(
+                    request.app,
+                    capture_view,
+                    drop_virtual_file_outputs=False,
+                    include_model_notifications=True,
+                ),
+                display_config=_to_display_config(request.filepath),
+                options=HTMLExportOptions(
+                    files=(),
+                    include_code=True,
+                    asset_url=server.base_url,
+                ),
             ),
         )
         server.set_html(html)
         captures = await _capture_pngs_from_page(
             page_url=server.page_url,
             targets=static_targets,
-            scale=options.scale,
-            status_callback=status_callback,
+            scale=request.options.scale,
+            status_callback=request.status_callback,
         )
         LOGGER.debug(
             "Raster capture static phase complete: %s/%s captured",
@@ -384,32 +382,29 @@ async def _collect_static_captures(
 
 async def _collect_live_captures(
     *,
-    filepath: str | None,
-    argv: list[str] | None,
-    options: PDFRasterizationOptions,
+    request: PDFRasterizationRequest,
     live_targets: list[_RasterTarget],
-    status_callback: PDFExportStatusCallback | None = None,
 ) -> dict[CellId_t, str]:
     """Capture PNG fallbacks from a live notebook runtime when required."""
 
-    if not filepath:
+    if request.live_page_url is None:
         LOGGER.debug(
-            "Raster capture live phase skipped: no filepath provided."
+            "Raster capture live phase skipped: no page URL provided."
         )
         return {}
 
     LOGGER.debug(
         "Raster capture live phase: %s target(s), scale=%s",
         len(live_targets),
-        options.scale,
+        request.options.scale,
     )
-    captures = await _capture_pngs_from_live_page(
-        filepath=filepath,
-        targets=live_targets,
-        scale=options.scale,
-        argv=argv,
-        status_callback=status_callback,
-    )
+    with request.live_page_url() as page_url:
+        captures = await _capture_pngs_from_page(
+            page_url=page_url,
+            targets=live_targets,
+            scale=request.options.scale,
+            status_callback=request.status_callback,
+        )
     LOGGER.debug(
         "Raster capture live phase complete: %s/%s captured",
         len(captures),
@@ -419,34 +414,27 @@ async def _collect_live_captures(
 
 
 async def collect_pdf_png_fallbacks(
-    *,
-    app: InternalApp,
-    session_view: SessionView,
-    filename: str | None,
-    filepath: str | None,
-    argv: list[str] | None = None,
-    options: PDFRasterizationOptions,
-    status_callback: PDFExportStatusCallback | None = None,
+    request: PDFRasterizationRequest,
 ) -> dict[CellId_t, str]:
     """Collect per-cell PNG fallbacks to inject before nbconvert PDF export."""
 
-    if not options.enabled:
+    if not request.options.enabled:
         LOGGER.debug("Raster capture disabled by options.")
         return {}
 
-    targets = _collect_raster_targets(session_view)
+    targets = _collect_raster_targets(request.session_view)
     if not targets:
         LOGGER.debug("Raster capture skipped: no eligible outputs found.")
         return {}
 
     targets = _sort_targets_by_notebook_order(
-        list(app.cell_manager.cell_ids()), targets
+        list(request.app.cell_manager.cell_ids()), targets
     )
-    server_mode = options.server_mode.lower()
+    server_mode = request.options.server_mode.lower()
     if server_mode not in {"static", "live"}:
         LOGGER.warning(
             "Unknown raster server mode '%s'; defaulting to static.",
-            options.server_mode,
+            request.options.server_mode,
         )
         server_mode = "static"
 
@@ -459,10 +447,10 @@ async def collect_pdf_png_fallbacks(
         "Rasterizing %s component(s) for PDF [mode=%s, scale=%s].",
         len(targets),
         server_mode,
-        options.scale,
+        request.options.scale,
     )
     emit_pdf_export_status(
-        status_callback,
+        request.status_callback,
         phase="raster",
         message="rasterizing interactive outputs...",
         total=len(targets),
@@ -471,22 +459,14 @@ async def collect_pdf_png_fallbacks(
     if server_mode == "live":
         LOGGER.debug("Raster capture strategy: live-only.")
         captures = await _collect_live_captures(
-            filepath=filepath,
-            argv=argv,
-            options=options,
+            request=request,
             live_targets=targets,
-            status_callback=status_callback,
         )
     else:
         LOGGER.debug("Raster capture strategy: static-only.")
         captures = await _collect_static_captures(
-            app=app,
-            session_view=session_view,
-            filename=filename,
-            filepath=filepath,
-            options=options,
+            request=request,
             static_targets=targets,
-            status_callback=status_callback,
         )
 
     LOGGER.debug(
@@ -708,22 +688,3 @@ async def _capture_pngs_from_page(
         len(targets),
     )
     return captures
-
-
-async def _capture_pngs_from_live_page(
-    *,
-    filepath: str,
-    targets: list[_RasterTarget],
-    scale: float,
-    argv: list[str] | None,
-    status_callback: PDFExportStatusCallback | None = None,
-) -> dict[CellId_t, str]:
-    """Capture outputs by running notebook in a live marimo server process."""
-
-    with LiveNotebookServer(filepath=filepath, argv=argv) as server:
-        return await _capture_pngs_from_page(
-            page_url=server.page_url,
-            targets=targets,
-            scale=scale,
-            status_callback=status_callback,
-        )

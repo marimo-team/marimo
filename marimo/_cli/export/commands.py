@@ -4,28 +4,16 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
-from dataclasses import replace
+from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, cast, get_args
 
 import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export.cloudflare import create_cloudflare_files
-from marimo._cli.export.local_modules import (
-    LocalWheelError,
-    resolve_notebook_local_modules,
-)
-from marimo._cli.export.local_wheels import (
-    WASM_WHEEL_DIR,
-    auto_wheel_dependencies,
-    build_local_module_wheels,
-    copy_local_wheels,
-    resolve_metadata_wheel_dependencies,
-    wheel_dependency_names,
-    with_wheel_dependencies,
-)
+from marimo._cli.export.output import STDERR, STDOUT
 from marimo._cli.export.session import session
 from marimo._cli.export.thumbnail import thumbnail
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
@@ -37,38 +25,67 @@ from marimo._cli.print import (
 )
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
-from marimo._convert.converters import MarimoConvert
-from marimo._convert.markdown.flavor import (
-    markdown_output_filename,
-    normalize_markdown_flavor,
-)
+from marimo._convert.common.filename import parse_title
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
-from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
-from marimo._server.api.utils import parse_title
-from marimo._server.export import (
-    ExportResult,
-    export_as_ipynb,
-    export_as_script,
-    export_as_wasm,
+from marimo._export._status import PDFExportStatusEvent
+from marimo._export.exporter import Exporter
+from marimo._export.file import (
+    export_html,
+    export_ipynb,
+    export_markdown,
+    export_pdf,
+    export_script,
+    export_wasm,
     notebook_uses_slides_layout,
-    run_app_then_export_as_html,
-    run_app_then_export_as_ipynb,
-    run_app_then_export_as_pdf,
-    run_app_then_export_as_wasm,
 )
-from marimo._server.export._status import PDFExportStatusEvent
-from marimo._server.export.exporter import Exporter
+from marimo._export.local_modules import (
+    LocalWheelError,
+    UVNotFoundError,
+    resolve_notebook_local_modules,
+)
+from marimo._export.local_wheels import (
+    WASM_WHEEL_DIR,
+    auto_wheel_dependencies,
+    build_local_module_wheels,
+    copy_local_wheels,
+    resolve_metadata_wheel_dependencies,
+    wheel_dependency_names,
+    with_wheel_dependencies,
+)
+from marimo._export.requests import (
+    ExportResult,
+    HTMLFileExportRequest,
+    IPYNBFileExportRequest,
+    MarkdownFileExportRequest,
+    NotebookExecutionOptions,
+    PDFFileExportRequest,
+    ScriptFileExportRequest,
+    WASMFileExportRequest,
+)
+from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
+from marimo._schemas.export_options import (
+    ExportPDFPreset,
+    HTMLExportOptions,
+    IPYNBExportOptions,
+    IPYNBSortMode,
+    MarkdownExportOptions,
+    PDFExportOptions,
+    PDFRasterizationOptions,
+    PDFRasterServer,
+    WASMExportOptions,
+    WASMMode,
+)
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Iterator
     from typing import Protocol
-
-    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 
     class _ExportWithCodeTransform(Protocol):
         def __call__(
@@ -107,6 +124,17 @@ class _PDFExportCLIReporter:
             else:
                 message = f"{message}{progress}"
         echo(f"{green('Exporting PDF', bold=True)}: {message}", err=True)
+
+
+@contextmanager
+def _live_notebook_page_url(
+    filepath: str,
+    argv: tuple[str, ...],
+) -> Iterator[str]:
+    from marimo._cli.export.live_notebook_server import LiveNotebookServer
+
+    with LiveNotebookServer(filepath=filepath, argv=list(argv)) as server:
+        yield server.page_url
 
 
 def watch_and_export(
@@ -197,39 +225,6 @@ def watch_and_export(
     asyncio_run(start())
 
 
-def _export_as_markdown(
-    path: MarimoPath,
-    *,
-    flavor: MarkdownFlavorName | None,
-    filename: str | None,
-) -> ExportResult:
-    if path.is_python():
-        converter = MarimoConvert.from_py(path.read_text(encoding="utf-8"))
-    elif path.is_markdown():
-        converter = MarimoConvert.from_md(path.read_text(encoding="utf-8"))
-    else:
-        raise click.ClickException(
-            f"Unsupported file type: {path.path.suffix}"
-        )
-
-    ir = replace(converter.ir, filename=path.short_name)
-    source_filename = ir.filename or path.short_name
-    export_filename = filename or source_filename
-    markdown_flavor = normalize_markdown_flavor(
-        flavor, filename=export_filename
-    )
-    return ExportResult(
-        contents=MarimoConvert.from_ir(ir).to_markdown(
-            filename=source_filename,
-            flavor=markdown_flavor,
-        ),
-        download_filename=markdown_output_filename(
-            export_filename, markdown_flavor
-        ),
-        did_error=False,
-    )
-
-
 @click.command(
     cls=ColoredCommand,
     help="""Run a notebook and export it as an HTML file.
@@ -307,11 +302,19 @@ def html(
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         return asyncio_run(
-            run_app_then_export_as_html(
-                file_path,
-                include_code=include_code,
-                cli_args=cli_args,
-                argv=list(args),
+            export_html(
+                HTMLFileExportRequest(
+                    path=file_path,
+                    options=HTMLExportOptions(
+                        files=(),
+                        include_code=include_code,
+                    ),
+                    execution=NotebookExecutionOptions(
+                        cli_args=cli_args,
+                        argv=list(args),
+                        stderr=STDERR,
+                    ),
+                )
             )
         )
 
@@ -380,7 +383,10 @@ def script(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_as_script(file_path)
+        try:
+            return export_script(ScriptFileExportRequest(path=file_path))
+        except UnsupportedAsyncCodeError as error:
+            raise click.ClickException(str(error)) from None
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -428,7 +434,7 @@ Watch for changes and regenerate the script on modification:
 )
 @click.option(
     "--flavor",
-    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
+    type=click.Choice(get_args(MarkdownFlavorName)),
     default=None,
     help="Markdown flavor to export.",
 )
@@ -462,7 +468,15 @@ def md(
     filename = str(output) if output is not None else None
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return _export_as_markdown(file_path, flavor=flavor, filename=filename)
+        return export_markdown(
+            MarkdownFileExportRequest(
+                path=file_path,
+                options=MarkdownExportOptions(
+                    flavor=flavor,
+                    filename=filename,
+                ),
+            )
+        )
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -491,7 +505,7 @@ Requires nbformat to be installed.
 )
 @click.option(
     "--sort",
-    type=click.Choice(["top-down", "topological"]),
+    type=click.Choice(get_args(IPYNBSortMode)),
     default="topological",
     help="Sort cells top-down or in topological order.",
 )
@@ -541,7 +555,7 @@ def ipynb(
     name: str,
     output: Path,
     watch: bool,
-    sort: Literal["top-down", "topological"],
+    sort: IPYNBSortMode,
     include_outputs: bool,
     sandbox: bool | None,
     force: bool,
@@ -574,16 +588,24 @@ def ipynb(
     cli_args = parse_args(args) if include_outputs else {}
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        if include_outputs:
-            return asyncio_run(
-                run_app_then_export_as_ipynb(
-                    file_path,
-                    sort_mode=sort,
-                    cli_args=cli_args,
-                    argv=list(args),
+        return asyncio_run(
+            export_ipynb(
+                IPYNBFileExportRequest(
+                    path=file_path,
+                    options=IPYNBExportOptions(sort_mode=sort),
+                    execution=(
+                        NotebookExecutionOptions(
+                            cli_args=cli_args,
+                            argv=list(args),
+                            stderr=STDERR,
+                        )
+                        if include_outputs
+                        else None
+                    ),
+                    stderr=STDERR,
                 )
             )
-        return export_as_ipynb(file_path, sort_mode=sort)
+        )
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
@@ -647,7 +669,7 @@ Requires nbformat and nbconvert to be installed.
 )
 @click.option(
     "--raster-server",
-    type=click.Choice(["static", "live"], case_sensitive=False),
+    type=click.Choice(get_args(PDFRasterServer), case_sensitive=False),
     default="static",
     help=(
         "Server mode used for raster capture. Use 'static' (default) for "
@@ -658,7 +680,7 @@ Requires nbformat and nbconvert to be installed.
 @click.option(
     "--as",
     "export_as",
-    type=click.Choice(["document", "slides"]),
+    type=click.Choice(get_args(ExportPDFPreset)),
     default=None,
     help=(
         "PDF export preset. Use `slides` for reveal.js slide-style output. "
@@ -710,7 +732,7 @@ def pdf(
     rasterize_outputs: bool,
     raster_scale: float,
     raster_server: str,
-    export_as: Literal["document", "slides"] | None,
+    export_as: ExportPDFPreset | None,
     sandbox: bool | None,
     force: bool,
     args: tuple[str],
@@ -798,30 +820,49 @@ def pdf(
                 ) from None
             raise
 
-    from marimo._server.export._pdf_raster import PDFRasterizationOptions
-
+    raster_server_mode = cast(PDFRasterServer, raster_server)
     rasterization_options = PDFRasterizationOptions(
         enabled=rasterization_enabled,
         scale=raster_scale,
-        server_mode=raster_server,
+        server_mode=raster_server_mode,
     )
     report_status = _PDFExportCLIReporter()
 
     def export_callback(
         file_path: MarimoPath,
-    ) -> tuple[bytes | None, bool]:
+    ) -> ExportResult:
         try:
-            return asyncio_run(
-                run_app_then_export_as_pdf(
-                    file_path,
-                    include_outputs=include_outputs,
-                    include_inputs=include_inputs,
-                    webpdf=webpdf,
-                    export_as=export_as,
-                    cli_args=cli_args,
-                    argv=list(args) if include_outputs else None,
-                    rasterization_options=rasterization_options,
-                    status_callback=report_status,
+            result = asyncio_run(
+                export_pdf(
+                    PDFFileExportRequest(
+                        path=file_path,
+                        options=PDFExportOptions(
+                            webpdf=webpdf,
+                            preset=export_as or "document",
+                            include_inputs=include_inputs,
+                        ),
+                        rasterization=rasterization_options,
+                        execution=(
+                            NotebookExecutionOptions(
+                                cli_args=cli_args,
+                                argv=list(args),
+                                stderr=STDERR,
+                            )
+                            if include_outputs
+                            else None
+                        ),
+                        live_page_url=(
+                            partial(
+                                _live_notebook_page_url,
+                                file_path.absolute_name,
+                                args,
+                            )
+                            if rasterization_enabled
+                            and raster_server == "live"
+                            else None
+                        ),
+                        status_callback=report_status,
+                    )
                 )
             )
         except ModuleNotFoundError as e:
@@ -834,22 +875,15 @@ def pdf(
             raise
         except Exception as e:
             raise click.ClickException(f"Failed to export PDF: {e}") from None
-
-    def export_callback_impl(file_path: MarimoPath) -> ExportResult:
-        pdf_bytes, did_error = export_callback(file_path)
-        if pdf_bytes is None:
+        if result is None:
             raise click.ClickException("Failed to export PDF.")
-        return ExportResult(
-            contents=pdf_bytes,
-            download_filename=str(output),
-            did_error=did_error,
-        )
+        return result
 
     return watch_and_export(
         MarimoPath(name),
         output,
         watch,
-        export_callback_impl,
+        export_callback,
         force,
         initial_export_in_watch=True,
     )
@@ -885,7 +919,7 @@ and cannot be opened directly from the file system (e.g. file://).
 )
 @click.option(
     "--mode",
-    type=click.Choice(["edit", "run"]),
+    type=click.Choice(get_args(WASMMode)),
     default="run",
     help="Whether the notebook code should be editable or readonly.",
     required=True,
@@ -943,7 +977,7 @@ and cannot be opened directly from the file system (e.g. file://).
 def html_wasm(
     name: str,
     output: Path,
-    mode: Literal["edit", "run"],
+    mode: WASMMode,
     watch: bool,
     show_code: bool,
     include_cloudflare: bool,
@@ -1011,12 +1045,22 @@ def html_wasm(
         """Export with notebook-local wheels injected into PEP 723 metadata."""
         metadata_wheels = resolve_metadata_wheel_dependencies(file_path)
         metadata_wheel_names = wheel_dependency_names(metadata_wheels)
-        modules = tuple(
-            resolve_notebook_local_modules(
-                file_path.absolute_name,
-                exclude_names=metadata_wheel_names,
+        try:
+            modules = tuple(
+                resolve_notebook_local_modules(
+                    file_path.absolute_name,
+                    exclude_names=metadata_wheel_names,
+                )
             )
-        )
+        except UVNotFoundError as error:
+            raise MarimoCLIMissingDependencyError(
+                str(error),
+                "uv",
+                additional_tip=(
+                    "Install uv from https://github.com/astral-sh/uv"
+                ),
+            ) from error
+
         try:
             with build_local_module_wheels(modules) as local_wheels:
                 wheel_dependencies = (
@@ -1040,6 +1084,8 @@ def html_wasm(
         except LocalWheelError as error:
             raise click.UsageError(str(error)) from error
 
+    wasm_options = WASMExportOptions(mode=mode, show_code=show_code)
+
     if execute:
         cli_args = parse_args(args)
 
@@ -1059,14 +1105,19 @@ def html_wasm(
             code_transform: Callable[[str], str],
         ) -> ExportResult:
             return asyncio_run(
-                run_app_then_export_as_wasm(
-                    file_path,
-                    mode=mode,
-                    show_code=show_code,
-                    cli_args=cli_args,
-                    argv=list(args),
-                    cache_export_dir=out_dir,
-                    code_transform=code_transform,
+                export_wasm(
+                    WASMFileExportRequest(
+                        path=file_path,
+                        options=wasm_options,
+                        execution=NotebookExecutionOptions(
+                            cli_args=cli_args,
+                            argv=list(args),
+                            stderr=STDERR,
+                        ),
+                        cache_export_dir=out_dir,
+                        code_transform=code_transform,
+                        stdout=STDOUT,
+                    )
                 )
             )
 
@@ -1079,15 +1130,26 @@ def html_wasm(
         echo("Executing notebook...")
     else:
 
+        def export_unexecuted_wasm(
+            file_path: MarimoPath,
+            *,
+            code_transform: Callable[[str], str],
+        ) -> ExportResult:
+            return asyncio_run(
+                export_wasm(
+                    WASMFileExportRequest(
+                        path=file_path,
+                        options=wasm_options,
+                        code_transform=code_transform,
+                        stdout=STDOUT,
+                    )
+                )
+            )
+
         def export_callback(file_path: MarimoPath) -> ExportResult:
             return export_with_local_wheels(
                 file_path,
-                partial(
-                    export_as_wasm,
-                    file_path,
-                    mode,
-                    show_code=show_code,
-                ),
+                partial(export_unexecuted_wasm, file_path),
             )
 
     # Export assets first

@@ -30,13 +30,11 @@ from marimo._server.models.models import (
     DebugCellRequest,
     ExecuteCellsRequest,
     ExecuteScratchpadRequest,
-    InstantiateNotebookRequest,
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
     SetBreakpointsRequest,
     SuccessResponse,
-    UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.sse import wait_for_http_disconnect
@@ -45,6 +43,10 @@ from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
     TakeoverDecision,
     can_take_over_editing,
+)
+from marimo._session.requests import (
+    InstantiateNotebookRequest,
+    UpdateUIElementValuesRequest,
 )
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId

@@ -12,12 +12,12 @@ from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
+from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
 from marimo._messaging.notification import ModelLifecycleNotification
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
-from marimo._server.api.utils import parse_title
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file

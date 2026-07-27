@@ -7,12 +7,12 @@ import pytest
 
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
-from marimo._server.templates.templates import (
+from marimo._server.tokens import SkewProtectionToken
+from marimo._templates import (
     _get_mount_config,
     _html_escape,
     json_script,
 )
-from marimo._server.tokens import SkewProtectionToken
 from tests.mocks import EDGE_CASE_FILENAMES
 
 

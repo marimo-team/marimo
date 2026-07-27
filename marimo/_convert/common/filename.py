@@ -2,7 +2,20 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from urllib.parse import quote
+
+
+def parse_title(filepath: str | None) -> str:
+    """
+    Create a title from a filename.
+    """
+    if filepath is None:
+        return "marimo"
+
+    # filename is used as title, except basename and suffix are
+    # stripped and underscores are replaced with spaces
+    return Path(filepath).stem.replace("_", " ")
 
 
 def get_filename(filename: str | None, default: str = "notebook.py") -> str:
