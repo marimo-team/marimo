@@ -23,8 +23,8 @@ from marimo._schemas.islands import (
     MarimoIslandPayload,
 )
 from marimo._schemas.serialization import NotebookSerialization
-from marimo._server.templates.templates import json_script
 from marimo._session.notebook import AppFileManager, load_notebook
+from marimo._templates import json_script
 from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
@@ -454,17 +454,26 @@ class MarimoIslandGenerator:
 
         - App: The built app.
         """
-        from marimo._server.export import run_app_until_completion
+        from marimo._export.file import run_notebook
+        from marimo._export.requests import (
+            NotebookExecutionOptions,
+            RunNotebookRequest,
+        )
 
         if self.has_run:
             raise ValueError("You can only call build() once")
 
-        (session, did_error) = await run_app_until_completion(
-            file_manager=AppFileManager.from_app(
-                self._app, filename=self._source_filename
-            ),
-            cli_args={},
-            argv=None,
+        session, did_error = await run_notebook(
+            RunNotebookRequest(
+                file_manager=AppFileManager.from_app(
+                    self._app,
+                    filename=self._source_filename,
+                ),
+                options=NotebookExecutionOptions(
+                    cli_args={},
+                    argv=None,
+                ),
+            )
         )
         del did_error
         self.has_run = True

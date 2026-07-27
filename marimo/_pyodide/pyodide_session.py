@@ -15,6 +15,9 @@ from marimo._config.config import (
     merge_default_config,
 )
 from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._export.exporter import Exporter
+from marimo._export.requests import HTMLExportRequest
+from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
@@ -33,9 +36,9 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._server.export.exporter import Exporter
+from marimo._schemas.export import ExportAsHTMLRequest
+from marimo._schemas.export_options import HTMLExportOptions
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -387,12 +390,25 @@ class PyodideBridge:
 
     def export_html(self, request: str) -> str:
         parsed = self._parse(request, ExportAsHTMLRequest)
+        app = self.session.app_manager.app
         html, _filename = Exporter().export_as_html(
-            app=self.session.app_manager.app,
-            filename=self.session.app_manager.filename,
-            session_view=self.session.session_view,
-            display_config=self.session._initial_user_config["display"],
-            request=parsed,
+            HTMLExportRequest(
+                filename=self.session.app_manager.filename,
+                app_code=app.to_py(),
+                app_config=app.config,
+                snapshot=serialize_notebook_snapshot(
+                    app,
+                    self.session.session_view,
+                    drop_virtual_file_outputs=False,
+                    include_model_notifications=True,
+                ),
+                display_config=self.session._initial_user_config["display"],
+                options=HTMLExportOptions(
+                    files=tuple(parsed.files),
+                    include_code=parsed.include_code,
+                    asset_url=parsed.asset_url,
+                ),
+            )
         )
         return json.dumps(html)
 
