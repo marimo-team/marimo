@@ -927,7 +927,7 @@ export interface paths {
             [name: string]: unknown;
           };
           content: {
-            "application/x-ipynb+json": string;
+            "text/plain": string;
           };
         };
         /** @description File must be saved before downloading */

@@ -270,7 +270,7 @@ def test_export_ipynb(client: TestClient) -> None:
         "inline; filename*=UTF-8''"
     )
     assert response.headers["content-disposition"].endswith(".ipynb")
-    assert response.headers["content-type"] == "application/x-ipynb+json"
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
 
 
 @with_read_session(SESSION_ID)

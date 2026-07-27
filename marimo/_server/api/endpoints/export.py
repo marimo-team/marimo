@@ -356,7 +356,7 @@ async def export_as_ipynb(
         200:
             description: Export the notebook as IPYNB
             content:
-                application/x-ipynb+json:
+                text/plain:
                     schema:
                         type: string
         400:
@@ -387,7 +387,6 @@ async def export_as_ipynb(
     # Download the IPYNB
     return PlainTextResponse(
         content=ipynb,
-        media_type="application/x-ipynb+json",
         headers=make_export_headers(filename, download=body.download),
     )
 

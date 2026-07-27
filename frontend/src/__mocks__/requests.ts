@@ -72,7 +72,7 @@ export const MockRequestClient = {
       exportAsIPYNB: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.ipynb",
-        mediaType: "application/x-ipynb+json",
+        mediaType: "text/plain; charset=utf-8",
       }),
       exportAsMarkdown: vi.fn().mockResolvedValue({
         contents: "",
