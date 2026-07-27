@@ -30,7 +30,6 @@ from marimo._runtime.commands import (
     HTTPRequest,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._server.models.models import InstantiateNotebookRequest
 from marimo._server.scratchpad import (
     ScratchCellListener,
     _format_console,
@@ -40,6 +39,7 @@ from marimo._server.scratchpad import (
     run_scratchpad_code,
     snapshot_for_scratchpad,
 )
+from marimo._session.requests import InstantiateNotebookRequest
 
 if TYPE_CHECKING:
     from collections.abc import Iterator

@@ -165,7 +165,7 @@ class TestInstantiateNotebookRequest:
 
     def test_instantiate_request_with_codes(self) -> None:
         """InstantiateNotebookRequest should accept optional codes field."""
-        from marimo._server.models.models import InstantiateNotebookRequest
+        from marimo._session.requests import InstantiateNotebookRequest
 
         # Without codes
         request = InstantiateNotebookRequest(
@@ -192,7 +192,7 @@ class TestInstantiateNotebookRequest:
         in the test environment).
         """
         del client
-        from marimo._server.models.models import InstantiateNotebookRequest
+        from marimo._session.requests import InstantiateNotebookRequest
 
         # Test that the model accepts codes
         request_with_codes = InstantiateNotebookRequest(

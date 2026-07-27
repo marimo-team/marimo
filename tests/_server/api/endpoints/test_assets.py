@@ -11,12 +11,12 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from marimo._convert.common.filename import parse_title
 from marimo._server.api.deps import AppState
 from marimo._server.api.endpoints.assets import (
     DEFAULT_NOTEBOOK_NAME,
     _inject_service_worker,
 )
-from marimo._server.api.utils import parse_title
 from marimo._server.workspace import (
     DirectoryWorkspace,
     EmptyWorkspace,
