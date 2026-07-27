@@ -1,0 +1,63 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal
+
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
+from marimo._messaging.notification import ModelLifecycleNotification
+from marimo._schemas.export import ExportPDFPreset
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
+
+IPYNBSortMode = Literal["top-down", "topological"]
+PDFRasterServer = Literal["static", "live"]
+WASMMode = Literal["edit", "run"]
+
+
+@dataclass(frozen=True)
+class NotebookExportSnapshot:
+    notebook: NotebookV1
+    session: NotebookSessionV1
+    model_notifications: tuple[ModelLifecycleNotification, ...] = ()
+
+
+@dataclass(frozen=True)
+class HTMLExportOptions:
+    files: tuple[str, ...]
+    include_code: bool
+    asset_url: str | None = None
+
+
+@dataclass(frozen=True)
+class MarkdownExportOptions:
+    flavor: MarkdownFlavorName | None = None
+    filename: str | None = None
+    source_filename: str | None = None
+
+
+@dataclass(frozen=True)
+class WASMExportOptions:
+    mode: WASMMode
+    show_code: bool
+    asset_url: str | None = None
+
+
+@dataclass(frozen=True)
+class IPYNBExportOptions:
+    sort_mode: IPYNBSortMode
+
+
+@dataclass(frozen=True)
+class PDFRasterizationOptions:
+    enabled: bool = True
+    scale: float = 4.0
+    server_mode: PDFRasterServer = "static"
+
+
+@dataclass(frozen=True)
+class PDFExportOptions:
+    webpdf: bool
+    preset: ExportPDFPreset = "document"
+    include_inputs: bool = False
+    rasterization: PDFRasterizationOptions | None = None
