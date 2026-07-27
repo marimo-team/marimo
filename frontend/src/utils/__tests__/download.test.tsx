@@ -604,5 +604,6 @@ describe("downloadByURL", () => {
     expect(downloadedBlob?.type).toBe("text/plain; charset=utf-8");
     expect(await downloadedBlob?.text()).toBe("notebook");
     expect(mockAnchor.download).toBe("résumé.qmd");
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:export");
   });
 });
