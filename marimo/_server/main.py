@@ -94,6 +94,7 @@ def create_starlette_app(
                 allow_credentials=allow_credentials,
                 allow_methods=["*"],
                 allow_headers=["*"],
+                expose_headers=["Content-Disposition"],
             ),
         ]
     )

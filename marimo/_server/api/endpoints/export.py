@@ -17,6 +17,7 @@ from marimo import _loggers
 from marimo._convert.common.filename import (
     get_download_filename,
     make_download_headers,
+    make_export_headers,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.exporter import (
@@ -131,15 +132,10 @@ async def export_as_html(
         )
     )
 
-    if body.download:
-        headers = make_download_headers(filename)
-    else:
-        headers = {}
-
     # Download the HTML
     return HTMLResponse(
         content=html,
-        headers=headers,
+        headers=make_export_headers(filename, download=body.download),
     )
 
 
@@ -329,15 +325,12 @@ async def export_as_markdown(
         )
     )
 
-    if body.download:
-        headers = make_download_headers(result.download_filename)
-    else:
-        headers = {}
-
     # Download the Markdown
     return PlainTextResponse(
         content=result.text,
-        headers=headers,
+        headers=make_export_headers(
+            result.download_filename, download=body.download
+        ),
     )
 
 
@@ -363,7 +356,7 @@ async def export_as_ipynb(
         200:
             description: Export the notebook as IPYNB
             content:
-                text/plain:
+                application/x-ipynb+json:
                     schema:
                         type: string
         400:
@@ -387,18 +380,15 @@ async def export_as_ipynb(
         )
     )
 
-    if body.download:
-        filename = get_download_filename(
-            session.app_file_manager.filename, "ipynb"
-        )
-        headers = make_download_headers(filename)
-    else:
-        headers = {}
+    filename = get_download_filename(
+        session.app_file_manager.filename, "ipynb"
+    )
 
     # Download the IPYNB
     return PlainTextResponse(
         content=ipynb,
-        headers=headers,
+        media_type="application/x-ipynb+json",
+        headers=make_export_headers(filename, download=body.download),
     )
 
 

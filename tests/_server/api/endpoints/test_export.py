@@ -52,7 +52,7 @@ def test_export_html(client: TestClient) -> None:
     session.app_file_manager.filename = "test.py"
     response = client.post(
         "/api/export/html",
-        headers=HEADERS,
+        headers={**HEADERS, "Origin": "localhost"},
         json={
             "download": False,
             "files": [],
@@ -62,6 +62,13 @@ def test_export_html(client: TestClient) -> None:
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' not in body
     assert CODE in body
+    assert (
+        response.headers["content-disposition"]
+        == "inline; filename*=UTF-8''test.html"
+    )
+    assert response.headers["content-type"] == "text/html; charset=utf-8"
+    exposed_headers = response.headers["access-control-expose-headers"].lower()
+    assert "content-disposition" in exposed_headers
 
 
 @with_session(SESSION_ID)
@@ -219,7 +226,7 @@ def test_export_markdown(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
-def test_export_markdown_download_uses_qmd_filename(
+def test_export_markdown_uses_qmd_filename(
     client: TestClient, *, temp_marimo_file: str
 ) -> None:
     qmd_path = Path(temp_marimo_file).with_suffix(".qmd")
@@ -232,13 +239,15 @@ def test_export_markdown_download_uses_qmd_filename(
         "/api/export/markdown",
         headers=HEADERS,
         json={
-            "download": True,
+            "download": False,
         },
     )
 
     assert response.status_code == 200
     assert "```{marimo .python" in response.text
+    assert response.headers["Content-Disposition"].startswith("inline;")
     assert qmd_path.name in response.headers["Content-Disposition"]
+    assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 @pytest.mark.skipif(
@@ -257,6 +266,11 @@ def test_export_ipynb(client: TestClient) -> None:
     ipynb_json = json.loads(response.text)
     assert "cells" in ipynb_json
     assert ipynb_json["nbformat"] == 4
+    assert response.headers["content-disposition"].startswith(
+        "inline; filename*=UTF-8''"
+    )
+    assert response.headers["content-disposition"].endswith(".ipynb")
+    assert response.headers["content-type"] == "application/x-ipynb+json"
 
 
 @with_read_session(SESSION_ID)
@@ -855,6 +869,10 @@ def test_export_pdf_endpoint(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.content == b"mock_pdf_content"
     assert response.headers["content-type"] == "application/pdf"
+    assert (
+        response.headers["content-disposition"]
+        == "attachment; filename*=UTF-8''test.pdf"
+    )
     render_request = render_pdf_mock.await_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
     assert render_request.options.include_inputs is False

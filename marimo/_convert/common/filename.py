@@ -55,3 +55,12 @@ def make_download_headers(filename: str) -> dict[str, str]:
             f"attachment; filename*=UTF-8''{encoded_filename}"
         )
     }
+
+
+def make_export_headers(filename: str, *, download: bool) -> dict[str, str]:
+    if download:
+        return make_download_headers(filename)
+    encoded_filename = quote(filename, safe="")
+    return {
+        "Content-Disposition": f"inline; filename*=UTF-8''{encoded_filename}"
+    }
