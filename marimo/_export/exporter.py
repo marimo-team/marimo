@@ -7,10 +7,9 @@ import mimetypes
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
-from marimo._ast.app import InternalApp
 from marimo._ast.names import DEFAULT_CELL_NAME
 from marimo._config.config import (
     DEFAULT_CONFIG,
@@ -28,29 +27,38 @@ from marimo._convert.common.filename import (
     get_download_filename,
     get_filename,
 )
+from marimo._convert.converters import MarimoConvert
 from marimo._convert.ipynb.from_ir import (
     NBCONVERT_REMOVE_INPUT_TAG,
     convert_from_ir_to_ipynb,
 )
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
+from marimo._convert.script import convert_from_ir_to_script
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._export._status import emit_pdf_export_status
+from marimo._export.requests import (
+    ExportResult,
+    HTMLExportRequest,
+    IPYNBExportRequest,
+    MarkdownExportRequest,
+    PDFExportRequest,
+    ScriptExportRequest,
+    WASMExportRequest,
+)
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._messaging.notification import ModelOpen
 from marimo._runtime.virtual_file import read_virtual_file
+from marimo._schemas.export_options import IPYNBExportOptions
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
-from marimo._server.export._status import emit_pdf_export_status
-from marimo._server.models.export import ExportAsHTMLRequest
-from marimo._server.templates.templates import (
+from marimo._server.tokens import SkewProtectionToken
+from marimo._templates import (
     static_notebook_template,
     wasm_notebook_template,
 )
-from marimo._server.tokens import SkewProtectionToken
-from marimo._session.state.serialize import (
-    serialize_notebook,
-    serialize_session_view,
-)
-from marimo._session.state.session_view import SessionView
-from marimo._types.ids import CellId_t
 from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
@@ -59,11 +67,9 @@ from marimo._utils.paths import marimo_package_path, notebook_output_dir
 from marimo._version import __version__
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, Mapping
+    from collections.abc import Iterator
 
     from traitlets.config import Config
-
-    from marimo._server.export._status import PDFExportStatusCallback
 
 LOGGER = _loggers.marimo_logger()
 
@@ -127,6 +133,35 @@ def _render_webpdf(notebook: Any, include_inputs: bool) -> Any:
         ).result()
 
 
+def export_script(request: ScriptExportRequest) -> ExportResult:
+    return ExportResult(
+        contents=convert_from_ir_to_script(request.notebook),
+        download_filename=get_download_filename(
+            request.notebook.filename, "script.py"
+        ),
+        did_error=False,
+    )
+
+
+def export_markdown(request: MarkdownExportRequest) -> ExportResult:
+    source_filename = (
+        request.options.source_filename or request.notebook.filename
+    )
+    export_filename = request.options.filename or source_filename
+    flavor = normalize_markdown_flavor(
+        request.options.flavor,
+        filename=export_filename or "notebook.md",
+    )
+    return ExportResult(
+        contents=MarimoConvert.from_ir(request.notebook).to_markdown(
+            filename=source_filename,
+            flavor=flavor,
+        ),
+        download_filename=markdown_output_filename(export_filename, flavor),
+        did_error=False,
+    )
+
+
 class Exporter:
     # Virtual file URL format constants
     _VIRTUAL_FILE_PATTERN = "./@file/"
@@ -134,27 +169,19 @@ class Exporter:
 
     def export_as_html(
         self,
-        *,
-        filename: str | None,
-        app: InternalApp,
-        session_view: SessionView,
-        display_config: DisplayConfig,
-        request: ExportAsHTMLRequest,
-        sharing_config: SharingConfig | None = None,
+        request: HTMLExportRequest,
     ) -> tuple[str, str]:
         index_html = get_html_contents()
-        filename = get_filename(filename)
+        filename = get_filename(request.filename)
 
         # Configure notebook with display and sharing settings
-        config = self._prepare_display_config(display_config, sharing_config)
+        config = self._prepare_display_config(
+            request.display_config, request.sharing_config
+        )
 
         # Serialize notebook state
-        session_snapshot = serialize_session_view(
-            session_view,
-            cell_ids=app.cell_manager.cell_ids(),
-            drop_virtual_file_outputs=False,
-        )
-        notebook_snapshot = serialize_notebook(session_view, app.cell_manager)
+        session_snapshot = deep_copy(request.snapshot.session)
+        notebook_snapshot = deep_copy(request.snapshot.notebook)
 
         # Replace virtual files in HTML outputs with data URIs
         session_snapshot, replaced_files = self._inline_virtual_files(
@@ -168,18 +195,21 @@ class Exporter:
         public_dir = Path(filename).resolve().parent / "public"
         self._inline_public_files(session_snapshot, public_dir)
 
-        app_code = app.to_py()
+        app_code = request.app_code
 
         # Prepare code for export
         code = self._prepare_code(
-            request.include_code, app_code, notebook_snapshot, session_snapshot
+            request.options.include_code,
+            app_code,
+            notebook_snapshot,
+            session_snapshot,
         )
 
         # Build fallback virtual_files dict for files not in HTML outputs.
         # Widget ESM referenced only by model notifications (e.g. a
         # composed child never displayed on its own) appears in no HTML
         # output, so the inline pass above cannot see it.
-        model_notifications = session_view.get_model_notifications()
+        model_notifications = list(request.snapshot.model_notifications)
         esm_urls = [
             self._normalize_virtual_file_url(n.message.esm_spec.url)
             for n in model_notifications
@@ -187,7 +217,7 @@ class Exporter:
             and n.message.esm_spec is not None
         ]
         virtual_files = self._build_virtual_files_dict(
-            [*request.files, *esm_urls],
+            [*request.options.files, *esm_urls],
             replaced_files,
             max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
         )
@@ -199,7 +229,7 @@ class Exporter:
             user_config=config,
             config_overrides={},
             server_token=SkewProtectionToken("static"),
-            app_config=app.config,
+            app_config=request.app_config,
             filepath=filename,
             code=code,
             code_hash=code_hash,
@@ -207,7 +237,7 @@ class Exporter:
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
             model_notifications=model_notifications,
-            asset_url=request.asset_url,
+            asset_url=request.options.asset_url,
         )
 
         download_filename = get_download_filename(filename, "html")
@@ -437,35 +467,26 @@ class Exporter:
 
     def export_as_ipynb(
         self,
-        app: InternalApp,
-        *,
-        sort_mode: Literal["top-down", "topological"],
-        session_view: SessionView | None = None,
+        request: IPYNBExportRequest,
     ) -> str:
         """Export notebook as .ipynb, optionally including outputs if session_view provided."""
         return convert_from_ir_to_ipynb(
-            app, sort_mode=sort_mode, session_view=session_view
+            request.app,
+            sort_mode=request.options.sort_mode,
+            session_view=request.session_view,
         )
 
     def export_as_wasm(
         self,
-        *,
-        app: InternalApp,
-        filename: str | None,
-        display_config: DisplayConfig,
-        code: str,
-        mode: Literal["edit", "run"],
-        show_code: bool,
-        asset_url: str | None = None,
-        session_snapshot: NotebookSessionV1 | None = None,
-        notebook_snapshot: NotebookV1 | None = None,
-        sharing_config: SharingConfig | None = None,
+        request: WASMExportRequest,
     ) -> tuple[str, str]:
         """Export notebook as a WASM-powered standalone HTML file."""
         index_html = get_html_contents()
-        filename = get_filename(filename)
+        filename = get_filename(request.filename)
 
-        config = self._prepare_display_config(display_config, sharing_config)
+        config = self._prepare_display_config(
+            request.display_config, request.sharing_config
+        )
         # Remove autosave
         config["save"]["autosave"] = "off"
 
@@ -473,15 +494,15 @@ class Exporter:
             html=index_html,
             version=__version__,
             filename=filename,
-            mode=mode,
+            mode=request.options.mode,
             user_config=config,
             config_overrides={},
-            app_config=app.config,
-            code=code,
-            asset_url=asset_url,
-            show_code=show_code,
-            session_snapshot=session_snapshot,
-            notebook_snapshot=notebook_snapshot,
+            app_config=request.app_config,
+            code=request.code,
+            asset_url=request.options.asset_url,
+            show_code=request.options.show_code,
+            session_snapshot=request.session_snapshot,
+            notebook_snapshot=request.notebook_snapshot,
         )
 
         download_filename = get_download_filename(filename, "wasm.html")
@@ -490,27 +511,12 @@ class Exporter:
 
     def export_as_pdf(
         self,
-        *,
-        app: InternalApp,
-        session_view: SessionView | None,
-        png_fallbacks: Mapping[CellId_t, str] | None = None,
-        webpdf: bool,
-        include_inputs: bool = True,
-        status_callback: PDFExportStatusCallback | None = None,
+        request: PDFExportRequest,
     ) -> bytes | None:
         """Export notebook as a PDF.
 
         Args:
-            app: The app to export
-            session_view: The session view to export. If None, outputs are not included.
-            png_fallbacks: Optional cell-id keyed image/png fallbacks to
-                inject into notebook outputs before nbconvert.
-            include_inputs: Whether to include code cell inputs in the export.
-            status_callback: Optional internal callback for CLI-only PDF
-                export stage updates.
-            webpdf: If False, tries standard PDF export (pandoc + TeX) first,
-                falling back to webpdf on failure. If True, uses webpdf
-                directly.
+            request: Notebook data, PDF options, and optional rendered outputs.
 
         Returns:
             PDF data
@@ -528,20 +534,24 @@ class Exporter:
         )
 
         ipynb_json_str = self.export_as_ipynb(
-            app=app, sort_mode="top-down", session_view=session_view
+            IPYNBExportRequest(
+                app=request.app,
+                options=IPYNBExportOptions(sort_mode="top-down"),
+                session_view=request.session_view,
+            )
         )
 
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
-        if png_fallbacks:
-            from marimo._server.export._nbformat_png_fallbacks import (
+        if request.png_fallbacks:
+            from marimo._export._nbformat_png_fallbacks import (
                 inject_png_fallbacks_into_notebook,
             )
 
             inject_png_fallbacks_into_notebook(
                 notebook,
-                png_fallbacks=png_fallbacks,
+                png_fallbacks=request.png_fallbacks,
             )
 
         # Try standard PDF export first (requires pandoc + TeX)
@@ -555,28 +565,28 @@ class Exporter:
 
         def _emit_webpdf_fallback_status() -> None:
             emit_pdf_export_status(
-                status_callback,
+                request.status_callback,
                 phase="render_fallback",
                 message=(
                     "standard PDF export failed; falling back to WebPDF..."
                 ),
             )
 
-        if not webpdf:
+        if not request.options.webpdf:
             try:
                 from nbconvert import (  # type: ignore[import-not-found]
                     PDFExporter,
                 )
 
                 emit_pdf_export_status(
-                    status_callback,
+                    request.status_callback,
                     phase="render",
                     message="rendering PDF via standard exporter...",
                 )
                 exporter = PDFExporter(  # type: ignore[no-untyped-call]
                     config=_nbconvert_tag_remove_config(),
                 )
-                exporter.exclude_input = not include_inputs
+                exporter.exclude_input = not request.options.include_inputs
                 pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
                 if isinstance(pdf_data, bytes):
                     return pdf_data
@@ -603,11 +613,11 @@ class Exporter:
                 )
 
         emit_pdf_export_status(
-            status_callback,
+            request.status_callback,
             phase="render",
             message="rendering PDF via WebPDF...",
         )
-        pdf_data = _render_webpdf(notebook, include_inputs)
+        pdf_data = _render_webpdf(notebook, request.options.include_inputs)
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -616,12 +626,7 @@ class Exporter:
 
     async def export_as_slides_pdf(
         self,
-        *,
-        app: InternalApp,
-        session_view: SessionView | None,
-        png_fallbacks: Mapping[CellId_t, str] | None = None,
-        include_inputs: bool = True,
-        status_callback: PDFExportStatusCallback | None = None,
+        request: PDFExportRequest,
     ) -> bytes | None:
         """Export a slides notebook as PDF using reveal.js + Playwright.
 
@@ -633,14 +638,7 @@ class Exporter:
         is required when running inside an asyncio event loop.
 
         Args:
-            app: The app to export
-            session_view: The session view to export. If None, outputs
-                are not included.
-            png_fallbacks: Optional cell-id keyed image/png fallbacks to
-                inject into notebook outputs before conversion.
-            include_inputs: Whether to include code cell inputs.
-            status_callback: Optional internal callback for CLI-only PDF
-                export stage updates.
+            request: Notebook data, PDF options, and optional rendered outputs.
 
         Returns:
             PDF data
@@ -654,27 +652,33 @@ class Exporter:
         )
 
         ipynb_json_str = self.export_as_ipynb(
-            app=app, sort_mode="top-down", session_view=session_view
+            IPYNBExportRequest(
+                app=request.app,
+                options=IPYNBExportOptions(sort_mode="top-down"),
+                session_view=request.session_view,
+            )
         )
 
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
-        if png_fallbacks:
-            from marimo._server.export._nbformat_png_fallbacks import (
+        if request.png_fallbacks:
+            from marimo._export._nbformat_png_fallbacks import (
                 inject_png_fallbacks_into_notebook,
             )
 
             inject_png_fallbacks_into_notebook(
                 notebook,
-                png_fallbacks=png_fallbacks,
+                png_fallbacks=request.png_fallbacks,
             )
         emit_pdf_export_status(
-            status_callback,
+            request.status_callback,
             phase="render",
             message="rendering slides PDF...",
         )
-        return await self._export_slides_as_pdf(notebook, include_inputs)
+        return await self._export_slides_as_pdf(
+            notebook, request.options.include_inputs
+        )
 
     @staticmethod
     def _to_file_uri(path: str) -> str:
