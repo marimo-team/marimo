@@ -78,6 +78,16 @@ export const viewStateAtom = atom<ViewState>({
 
 export const initialModeAtom = atom<AppMode | undefined>(undefined);
 
+/**
+ * Whether the current page hosts a notebook, and so connects to a kernel.
+ * False for non-notebook pages (home, gallery), which are served without a
+ * session.
+ */
+export function isNotebookPage(): boolean {
+  const mode = store.get(initialModeAtom);
+  return mode !== "home" && mode !== "gallery";
+}
+
 export const kioskModeAtom = atom<boolean>(false);
 
 /**
