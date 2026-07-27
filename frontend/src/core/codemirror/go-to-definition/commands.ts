@@ -4,6 +4,7 @@ import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree, TreeCursor } from "@lezer/common";
+import { scrollOwningCellIntoView } from "../utils";
 
 const SCOPE_CREATING_NODES = new Set([
   "FunctionDefinition",
@@ -44,6 +45,8 @@ function goToPosition(view: EditorView, from: number): void {
         y: "center",
       }),
     });
+
+    scrollOwningCellIntoView(view);
   });
 }
 

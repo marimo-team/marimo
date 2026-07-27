@@ -20,6 +20,28 @@ vi.mock("@/core/cells/cells", () => ({
   getAllEditorViews: () => mockGetAllEditorViews(),
 }));
 
+/**
+ * A view stub that only carries what navigate needs: the state it searches, a
+ * dispatch to assert on, and a `dom` inside a `.marimo-cell` so the horizontal
+ * scroll for columns mode has something to walk up to.
+ */
+function createMockView(state: EditorState): EditorView {
+  const cell = document.createElement("div");
+  cell.className = "marimo-cell";
+  // jsdom doesn't implement scrollIntoView.
+  cell.scrollIntoView = vi.fn();
+  const dom = document.createElement("div");
+  cell.append(dom);
+
+  return {
+    state,
+    dom,
+    // Don't actually apply changes; it's complex to mock properly and the
+    // assertions only care that dispatch was called.
+    dispatch: vi.fn(),
+  } as unknown as EditorView;
+}
+
 describe("navigate", () => {
   let view1: EditorView;
   let view2: EditorView;
@@ -36,20 +58,8 @@ describe("navigate", () => {
     });
 
     // Create mock views that track dispatch calls
-    view1 = {
-      state: state1,
-      dispatch: vi.fn(() => {
-        // Mock dispatch - in real tests we just need to verify it was called
-        // Don't actually apply changes as it's complex to mock properly
-      }),
-    } as unknown as EditorView;
-
-    view2 = {
-      state: state2,
-      dispatch: vi.fn(() => {
-        // Mock dispatch - in real tests we just need to verify it was called
-      }),
-    } as unknown as EditorView;
+    view1 = createMockView(state1);
+    view2 = createMockView(state2);
 
     mockViews = [view1, view2];
     mockGetAllEditorViews.mockReturnValue(mockViews);
@@ -234,6 +244,21 @@ describe("navigate", () => {
 
       expect(result).toBe(false);
     });
+
+    // https://github.com/marimo-team/marimo/issues/10222
+    it("should scroll the cell owning the match into view", async () => {
+      const cell = view1.dom.closest(".marimo-cell");
+      invariant(cell, "mock view should be inside a cell");
+
+      expect(findNext()).toBeTruthy();
+
+      // The scroll is deferred a frame.
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+
+      expect(cell.scrollIntoView).toHaveBeenCalledWith(
+        expect.objectContaining({ inline: "nearest" }),
+      );
+    });
   });
 
   describe("findPrev", () => {
@@ -319,10 +344,7 @@ describe("navigate", () => {
         extensions: [EditorState.readOnly.of(true)],
       });
 
-      const readOnlyView = {
-        state: readOnlyState,
-        dispatch: vi.fn(),
-      } as unknown as EditorView;
+      const readOnlyView = createMockView(readOnlyState);
 
       // Replace view1 with read-only view temporarily
       mockGetAllEditorViews.mockReturnValueOnce([readOnlyView, view2]);
@@ -568,10 +590,7 @@ describe("navigate", () => {
         doc: Text.of(["hello world hello there hello"]),
       });
 
-      const testView = {
-        state: testDoc,
-        dispatch: vi.fn(),
-      } as unknown as EditorView;
+      const testView = createMockView(testDoc);
 
       mockGetAllEditorViews.mockReturnValue([testView]);
 
@@ -613,10 +632,7 @@ describe("navigate", () => {
         doc: Text.of([""]),
       });
 
-      const emptyView = {
-        state: emptyState,
-        dispatch: vi.fn(),
-      } as unknown as EditorView;
+      const emptyView = createMockView(emptyState);
 
       mockGetAllEditorViews.mockReturnValue([emptyView]);
 
@@ -629,10 +645,7 @@ describe("navigate", () => {
         doc: Text.of(["orphan content"]),
       });
 
-      const orphanView = {
-        state: orphanState,
-        dispatch: vi.fn(),
-      } as unknown as EditorView;
+      const orphanView = createMockView(orphanState);
 
       store.set(findReplaceAtom, {
         type: "setCurrentView",

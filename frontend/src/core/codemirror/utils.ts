@@ -52,6 +52,36 @@ export function focusInputAndMoveToEnd(
   });
 }
 
+/**
+ * Bring the cell that owns `view` into view horizontally.
+ *
+ * `EditorView.scrollIntoView` can't do this in columns mode: it treats any
+ * ancestor whose `scrollWidth` exceeds its `clientWidth` as a scroll
+ * container, and the `overflow: visible` wrappers around a column satisfy
+ * that test while ignoring `scrollLeft`, so the target rect gets clamped
+ * before the walk reaches the app's real scroll container. The browser's own
+ * `scrollIntoView` only considers genuine scrolling boxes.
+ *
+ * The deferral matters: CodeMirror settles its own scroll a frame later and
+ * would otherwise clamp us straight back.
+ *
+ * https://github.com/marimo-team/marimo/issues/10222
+ */
+export function scrollOwningCellIntoView(view: EditorView): void {
+  const cell = view.dom.closest(".marimo-cell");
+  if (!cell) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    cell.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
+}
+
 export function isInVimMode(ev: EditorView): boolean {
   return getCM(ev)?.state.vim != null;
 }

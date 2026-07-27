@@ -3,14 +3,14 @@
 import { python } from "@codemirror/lang-python";
 import { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { goToVariableDefinition } from "../commands";
 
 async function tick(): Promise<void> {
   await new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
-function createEditor(content: string) {
+function createEditor(content: string, parent: HTMLElement = document.body) {
   const state = EditorState.create({
     doc: content,
     extensions: [python()],
@@ -18,7 +18,7 @@ function createEditor(content: string) {
 
   const view = new EditorView({
     state,
-    parent: document.body,
+    parent,
   });
 
   return view;
@@ -382,6 +382,27 @@ print('myVar')`);
       print('myVar')
       "
     `);
+  });
+
+  // https://github.com/marimo-team/marimo/issues/10222
+  test("scrolls the cell owning the definition into view", async () => {
+    const cell = document.createElement("div");
+    cell.className = "marimo-cell";
+    // jsdom doesn't implement scrollIntoView.
+    cell.scrollIntoView = vi.fn();
+    document.body.append(cell);
+
+    view = createEditor("myVar = 10\nprint(myVar)", cell);
+    expect(goToVariableDefinition(view, "myVar")).toBe(true);
+    // One frame for the jump, one for the scroll it defers.
+    await tick();
+    await tick();
+
+    expect(cell.scrollIntoView).toHaveBeenCalledWith(
+      expect.objectContaining({ inline: "nearest" }),
+    );
+
+    cell.remove();
   });
 });
 

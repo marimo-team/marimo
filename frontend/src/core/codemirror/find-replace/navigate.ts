@@ -6,6 +6,7 @@ import { EditorView } from "@codemirror/view";
 import { getAllEditorViews } from "@/core/cells/cells";
 import { replaceEditorContent } from "@/core/codemirror/replace-editor-content";
 import { store } from "@/core/state/jotai";
+import { scrollOwningCellIntoView } from "../utils";
 import { asQueryCreator, type QueryType } from "./query";
 import { findReplaceAtom } from "./state";
 
@@ -85,6 +86,7 @@ const findInDirection = (direction: "next" | "prev") =>
         effects: [EditorView.scrollIntoView(selection.main, { y: "center" })],
         userEvent: "select.search",
       });
+      scrollOwningCellIntoView(view);
       store.set(findReplaceAtom, {
         type: "setCurrentView",
         view,
