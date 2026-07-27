@@ -491,13 +491,14 @@ function getSchema(view: EditorView): SQLNamespace {
     return {};
   }
 
-  if (!isNamespaceMap(config.schema)) {
-    return config.schema;
+  const schema = config.schema;
+  if (!isNamespaceMap(schema)) {
+    return schema;
   }
 
   const defaultSchema = config.defaultSchema;
   const defaultSchemaNamespace = defaultSchema
-    ? config.schema[defaultSchema]
+    ? schema[defaultSchema]
     : undefined;
 
   // The completion schema contains both default-schema and fully qualified
@@ -511,12 +512,16 @@ function getSchema(view: EditorView): SQLNamespace {
     isNamespaceMap(defaultSchemaNamespace.children)
   ) {
     return {
-      ...config.schema,
-      ...defaultSchemaNamespace.children,
+      ...schema,
+      ...Object.fromEntries(
+        Object.entries(defaultSchemaNamespace.children).filter(
+          ([name]) => !(name in schema),
+        ),
+      ),
     };
   }
 
-  return config.schema;
+  return schema;
 }
 
 function isNamespaceMap(
@@ -729,4 +734,5 @@ async function validateSQL(
 export const exportedForTesting = {
   createSQLAnalysis,
   CustomSqlParser,
+  getSchema,
 };

@@ -754,6 +754,66 @@ describe("SQL analysis features", () => {
     view.destroy();
   });
 
+  it("preserves top-level namespaces when promoting default-schema tables", () => {
+    const connection = createConnection(["id"]);
+    const database = connection.databases[0]!;
+    const publicSchema = database.schemas[0]!;
+    const usersTable = publicSchema.tables[0]!;
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [
+          TEST_ENGINE,
+          {
+            ...connection,
+            databases: [
+              {
+                ...database,
+                schemas: [
+                  {
+                    ...publicSchema,
+                    tables: [
+                      ...publicSchema.tables,
+                      { ...usersTable, name: "analytics" },
+                      { ...usersTable, name: "test_db" },
+                    ],
+                  },
+                  {
+                    name: "analytics",
+                    tables: [{ ...usersTable, name: "events" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      ]),
+      latestEngineSelected: TEST_ENGINE,
+    });
+    const state = EditorState.create({
+      extensions: [languageMetadataField.init(() => metadata)],
+    });
+    const view = new EditorView({ state });
+
+    expect(exportedForTesting.getSchema(view)).toMatchObject({
+      analytics: {
+        self: { label: "analytics", type: "schema" },
+        children: {
+          events: { self: { label: "events", type: "table" } },
+        },
+      },
+      public: {
+        children: {
+          analytics: { self: { label: "analytics", type: "table" } },
+          test_db: { self: { label: "test_db", type: "table" } },
+        },
+      },
+      test_db: {
+        self: { label: "test_db", type: "database" },
+      },
+    });
+    view.destroy();
+  });
+
   it("resolves a table literally named self", async () => {
     store.set(datasetsAtom, {
       tables: [
