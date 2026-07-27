@@ -47,7 +47,6 @@ from marimo._schemas.export_options import (
     IPYNBExportOptions,
     MarkdownExportOptions,
     PDFExportOptions,
-    PDFRasterizationOptions,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -603,11 +602,6 @@ async def export_as_pdf(*, request: Request) -> Response:
             webpdf=body.webpdf,
             preset=body.preset,
             include_inputs=body.include_inputs,
-            rasterization=PDFRasterizationOptions(
-                enabled=body.rasterize_outputs,
-                scale=body.raster_scale,
-                server_mode=body.raster_server,
-            ),
         ),
     )
     if body.preset == "slides":

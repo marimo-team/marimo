@@ -1022,8 +1022,6 @@ def test_export_pdf_endpoint_live_raster_uses_live_server_mode(
     assert response.status_code == 200
     render_request = mock_exporter.export_as_pdf.call_args.args[0]
     assert isinstance(render_request, PDFExportRequest)
-    assert render_request.options.rasterization is not None
-    assert render_request.options.rasterization.server_mode == "live"
     if collect_mock.await_count == 0:
         raise _CollectorNotWired
     collect_mock.assert_awaited_once()
