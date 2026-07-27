@@ -23,6 +23,13 @@ export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
+
+export interface ExportedFile<T extends BlobPart = BlobPart> {
+  contents: T;
+  filename: string;
+  mediaType: string;
+}
+
 export type FileCopyRequest = schemas["FileCopyRequest"];
 export type FileCopyResponse = schemas["FileCopyResponse"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
@@ -205,10 +212,14 @@ export interface EditRequests {
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
-  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
-  exportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<string>;
-  exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
-  exportAsPDF: (request: ExportAsPDFRequest) => Promise<Blob>;
+  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<ExportedFile<string>>;
+  exportAsIPYNB: (
+    request: ExportAsIPYNBRequest,
+  ) => Promise<ExportedFile<string>>;
+  exportAsMarkdown: (
+    request: ExportAsMarkdownRequest,
+  ) => Promise<ExportedFile<string>>;
+  exportAsPDF: (request: ExportAsPDFRequest) => Promise<ExportedFile<Blob>>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
   autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
   autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;

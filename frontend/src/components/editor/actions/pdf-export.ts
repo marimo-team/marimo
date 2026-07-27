@@ -2,7 +2,6 @@
 
 type Preset = "document" | "slides";
 type DownloadPDF = (opts: {
-  filename: string;
   webpdf: boolean;
   preset: Preset;
   includeInputs: boolean;
@@ -10,14 +9,12 @@ type DownloadPDF = (opts: {
 }) => Promise<void>;
 
 export async function runServerSidePDFDownload(opts: {
-  filename: string;
   preset: Preset;
   downloadPDF: DownloadPDF;
 }): Promise<void> {
-  const { filename, preset, downloadPDF } = opts;
+  const { preset, downloadPDF } = opts;
 
   await downloadPDF({
-    filename,
     webpdf: false,
     preset,
     includeInputs: true,

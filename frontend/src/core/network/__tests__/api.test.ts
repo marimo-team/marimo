@@ -94,4 +94,46 @@ describe("API", () => {
       }),
     ).rejects.toBeInstanceOf(HTTPError);
   });
+
+  it("preserves export metadata from response headers", async () => {
+    const response = new Response("markdown", {
+      headers: {
+        "Content-Disposition":
+          "attachment; filename*=UTF-8''r%C3%A9sum%C3%A9.qmd",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse({ data: "markdown", response }),
+    ).resolves.toEqual({
+      contents: "markdown",
+      filename: "résumé.qmd",
+      mediaType: "text/plain; charset=utf-8",
+    });
+  });
+
+  it("rejects export responses without a filename", async () => {
+    await expect(
+      API.handleExportResponse({
+        data: "markdown",
+        response: new Response(null, {
+          headers: { "Content-Type": "text/plain" },
+        }),
+      }),
+    ).rejects.toThrow("Export response is missing a filename");
+  });
+
+  it("rejects export responses without a media type", async () => {
+    await expect(
+      API.handleExportResponse({
+        data: "markdown",
+        response: new Response(null, {
+          headers: {
+            "Content-Disposition": "attachment; filename*=UTF-8''notebook.md",
+          },
+        }),
+      }),
+    ).rejects.toThrow("Export response is missing a media type");
+  });
 });

@@ -19,7 +19,7 @@ function multipartInit(formData: FormData) {
   };
 }
 
-const { handleResponse, handleResponseReturnNull } = API;
+const { handleExportResponse, handleResponse, handleResponseReturnNull } = API;
 
 export function createNetworkRequests(): EditRequests & RunRequests {
   const getClient = once(() => {
@@ -412,7 +412,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then(handleExportResponse);
     },
     exportAsMarkdown: async (request) => {
       return getClient()
@@ -421,7 +421,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then(handleExportResponse);
     },
     exportAsIPYNB: async (request) => {
       return getClient()
@@ -430,7 +430,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then(handleExportResponse);
     },
     exportAsPDF: async (request) => {
       return getClient()
@@ -439,7 +439,7 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "blob",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then(handleExportResponse);
     },
     autoExportAsHTML: async (request) => {
       return getClient()

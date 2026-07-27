@@ -6,6 +6,7 @@ import { Logger } from "../../utils/Logger";
 import { Strings } from "../../utils/strings";
 import { getRuntimeManager } from "../runtime/config";
 import type { RuntimeManager } from "../runtime/runtime";
+import type { ExportedFile } from "./types";
 
 function getBaseUriWithoutQueryParams(): string {
   // Remove query params and hash
@@ -13,6 +14,15 @@ function getBaseUriWithoutQueryParams(): string {
   url.search = "";
   url.hash = "";
   return url.toString();
+}
+
+function getExportFilename(response: Response): string {
+  const contentDisposition = response.headers.get("Content-Disposition");
+  const match = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i);
+  if (!match) {
+    throw new Error("Export response is missing a filename");
+  }
+  return decodeURIComponent(match[1]);
 }
 
 /**
@@ -118,6 +128,23 @@ export const API = {
       );
     }
     return Promise.resolve(response.data as T);
+  },
+  handleExportResponse: async <T extends BlobPart>(response: {
+    data?: T | undefined;
+    error?: Record<string, unknown>;
+    response: Response;
+  }): Promise<ExportedFile<T>> => {
+    const contents = await API.handleResponse<T>(response);
+    const mediaType = response.response.headers.get("Content-Type");
+    if (!mediaType) {
+      throw new Error("Export response is missing a media type");
+    }
+
+    return {
+      contents,
+      filename: getExportFilename(response.response),
+      mediaType,
+    };
   },
   handleResponseReturnNull: (response: {
     error?: Record<string, unknown>;

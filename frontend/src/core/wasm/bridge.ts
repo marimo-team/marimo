@@ -19,6 +19,7 @@ import type {
   EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportedFile,
   FileCopyResponse,
   FileCreateResponse,
   FileDeleteResponse,
@@ -520,7 +521,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       functionName: "export_html",
       payload: request,
     });
-    return response as string;
+    return response as ExportedFile<string>;
   };
 
   exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
@@ -530,7 +531,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
       functionName: "export_markdown",
       payload: request,
     });
-    return response as string;
+    return response as ExportedFile<string>;
   };
 
   previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (

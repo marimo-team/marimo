@@ -8,6 +8,7 @@ import {
   downloadAsPDF,
   downloadByURL,
   downloadCellOutputAsImage,
+  downloadExportedFile,
   downloadHTMLAsImage,
   getImageDataUrlForCell,
   withLoadingToast,
@@ -195,7 +196,6 @@ describe("downloadAsPDF", () => {
 
     await expect(
       downloadAsPDF({
-        filename: "path/to/notebook.py",
         webpdf: false,
         preset: "slides",
       }),
@@ -572,6 +572,7 @@ describe("downloadByURL", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("should create anchor, set attributes, click, and remove", () => {
@@ -582,5 +583,26 @@ describe("downloadByURL", () => {
     expect(mockAnchor.download).toBe("filename.png");
     expect(mockAnchor.click).toHaveBeenCalled();
     expect(mockAnchor.remove).toHaveBeenCalled();
+  });
+
+  it("downloads an exported file with its returned metadata", async () => {
+    let downloadedBlob: Blob | undefined;
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn((blob: Blob) => {
+        downloadedBlob = blob;
+        return "blob:export";
+      }),
+      revokeObjectURL: vi.fn(),
+    });
+
+    downloadExportedFile({
+      contents: "notebook",
+      filename: "résumé.qmd",
+      mediaType: "text/plain; charset=utf-8",
+    });
+
+    expect(downloadedBlob?.type).toBe("text/plain; charset=utf-8");
+    expect(await downloadedBlob?.text()).toBe("notebook");
+    expect(mockAnchor.download).toBe("résumé.qmd");
   });
 });

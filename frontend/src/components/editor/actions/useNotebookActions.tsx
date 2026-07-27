@@ -83,6 +83,7 @@ import {
   ADD_PRINTING_CLASS,
   downloadAsPDF,
   downloadBlob,
+  downloadExportedFile,
   downloadHTMLAsImage,
   withLoadingToast,
 } from "@/utils/download";
@@ -197,7 +198,6 @@ export function useNotebookActions() {
         updateCellOutputs,
       });
       await runServerSidePDFDownload({
-        filename,
         preset,
         downloadPDF: downloadAsPDF,
       });
@@ -231,11 +231,8 @@ export function useNotebookActions() {
         takeScreenshots: () => takeScreenshots({ progress }),
         updateCellOutputs,
       });
-      const ipynb = await exportAsIPYNB({ download: false });
-      downloadBlob(
-        new Blob([ipynb], { type: "application/x-ipynb+json" }),
-        Filenames.toIPYNB(document.title),
-      );
+      const exportedFile = await exportAsIPYNB({ download: false });
+      downloadExportedFile(exportedFile);
     };
 
     await withLoadingToast("Downloading IPYNB...", runDownload);
@@ -255,7 +252,7 @@ export function useNotebookActions() {
               toastNotebookMustBeNamed();
               return;
             }
-            await downloadAsHTML({ filename, includeCode: true });
+            await downloadAsHTML({ includeCode: true });
           },
         },
         {
@@ -266,7 +263,7 @@ export function useNotebookActions() {
               toastNotebookMustBeNamed();
               return;
             }
-            await downloadAsHTML({ filename, includeCode: false });
+            await downloadAsHTML({ includeCode: false });
           },
         },
         {
@@ -275,11 +272,8 @@ export function useNotebookActions() {
           ),
           label: "Download as Markdown",
           handle: async () => {
-            const md = await exportAsMarkdown({ download: false });
-            downloadBlob(
-              new Blob([md], { type: "text/plain" }),
-              Filenames.toMarkdown(document.title),
-            );
+            const exportedFile = await exportAsMarkdown({ download: false });
+            downloadExportedFile(exportedFile);
           },
         },
         {

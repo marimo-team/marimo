@@ -1034,11 +1034,12 @@ def test_pyodide_bridge_export_html(
     )
 
     result = pyodide_bridge.export_html(request_json)
-    html = json.loads(result)
+    exported_file = json.loads(result)
 
-    assert isinstance(html, str)
+    assert exported_file["filename"] == "test.html"
+    assert exported_file["mediaType"] == "text/html; charset=utf-8"
     # HTML should contain marimo-related content
-    assert len(html) > 0
+    assert len(exported_file["contents"]) > 0
 
 
 def test_pyodide_bridge_export_markdown(
@@ -1046,10 +1047,11 @@ def test_pyodide_bridge_export_markdown(
 ) -> None:
     """Test exporting markdown through the bridge."""
     result = pyodide_bridge.export_markdown("{}")
-    markdown = json.loads(result)
+    exported_file = json.loads(result)
 
-    assert isinstance(markdown, str)
-    assert len(markdown) > 0
+    assert exported_file["filename"] == "test.md"
+    assert exported_file["mediaType"] == "text/plain; charset=utf-8"
+    assert len(exported_file["contents"]) > 0
 
 
 async def test_pyodide_bridge_read_snippets(
