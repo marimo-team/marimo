@@ -515,7 +515,7 @@ function getSchema(view: EditorView): SQLNamespace {
       ...schema,
       ...Object.fromEntries(
         Object.entries(defaultSchemaNamespace.children).filter(
-          ([name]) => !(name in schema),
+          ([name]) => !Object.hasOwn(schema, name),
         ),
       ),
     };
