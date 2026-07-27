@@ -233,11 +233,11 @@ def _generate_server_api_schema() -> dict[str, Any]:
     from marimo._metadata import opengraph
     from marimo._runtime import commands
     from marimo._runtime.packages.package_manager import PackageDescription
+    from marimo._schemas import export
     from marimo._server.ai.tools.types import ToolDefinition
     from marimo._server.api.router import build_routes
     from marimo._server.models import (
         completion,
-        export,
         files,
         home,
         lsp,
@@ -245,6 +245,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages,
         secrets,
     )
+    from marimo._session import requests as session_requests
     from marimo._snippets import snippets
 
     MODELS = [
@@ -429,7 +430,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.FormatResponse,
         models.GetCacheInfoRequest,
         models.InstallPackagesRequest,
-        models.InstantiateNotebookRequest,
+        session_requests.InstantiateNotebookRequest,
         models.InvokeAiToolRequest,
         models.InvokeAiToolResponse,
         models.InvokeFunctionRequest,
@@ -457,7 +458,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         models.UpdateCellConfigRequest,
         models.NotebookDocumentTransactionRequest,
         models.FocusCellRequest,
-        models.UpdateUIElementValuesRequest,
+        session_requests.UpdateUIElementValuesRequest,
         models.UpdateUIElementRequest,
         models.UpdateUserConfigRequest,
         models.ModelRequest,
@@ -752,8 +753,8 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
 
     from marimo._ast.app_config import _AppConfig
     from marimo._config.config import DEFAULT_CONFIG
-    from marimo._server.templates.templates import static_notebook_template
     from marimo._server.tokens import SkewProtectionToken
+    from marimo._templates import static_notebook_template
     from marimo._utils.paths import marimo_package_path
 
     if TYPE_CHECKING:
@@ -762,7 +763,12 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
     try:
         # Run the notebook to get actual outputs
         click.echo(f"Running notebook {file_path.name}...")
-        from marimo._server.export import run_app_until_completion
+        from marimo._cli.export.output import STDERR
+        from marimo._export.file import run_notebook
+        from marimo._export.requests import (
+            NotebookExecutionOptions,
+            RunNotebookRequest,
+        )
         from marimo._server.utils import asyncio_run
         from marimo._session.notebook import load_notebook
         from marimo._session.state.serialize import (
@@ -776,10 +782,15 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
 
         # Run the notebook to completion and get session view
         session_view, did_error = asyncio_run(
-            run_app_until_completion(
-                file_manager,
-                cli_args={},
-                argv=None,
+            run_notebook(
+                RunNotebookRequest(
+                    file_manager=file_manager,
+                    options=NotebookExecutionOptions(
+                        cli_args={},
+                        argv=None,
+                        stderr=STDERR,
+                    ),
+                )
             )
         )
         if did_error:

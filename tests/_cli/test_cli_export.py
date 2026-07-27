@@ -19,9 +19,9 @@ from click.testing import CliRunner, Result
 
 from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
-from marimo._cli.export.local_modules import _ruff_import_graph
-from marimo._cli.export.local_wheels import _local_wheel_path
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._export.local_modules import _ruff_import_graph
+from marimo._export.local_wheels import _local_wheel_path
 from marimo._output.utils import uri_decode_component
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
@@ -190,11 +190,11 @@ def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
     )
     with (
         mock.patch(
-            "marimo._cli.export.local_modules._ruff_graph_command",
+            "marimo._export.local_modules._ruff_graph_command",
             return_value=("ruff",),
         ),
         mock.patch(
-            "marimo._cli.export.local_modules.subprocess.run",
+            "marimo._export.local_modules.subprocess.run",
             return_value=result,
         ),
     ):
@@ -1214,7 +1214,7 @@ class TestExportIpynb:
     def test_export_ipynb_cli_args_passed_to_export(
         self, temp_marimo_file_with_md: str
     ) -> None:
-        from marimo._server.export import ExportResult
+        from marimo._export.requests import ExportResult
 
         fake_result = ExportResult(
             contents="{}", download_filename="test.ipynb", did_error=False
@@ -1225,7 +1225,7 @@ class TestExportIpynb:
             return fake_result
 
         with mock.patch(
-            "marimo._cli.export.commands.run_app_then_export_as_ipynb",
+            "marimo._cli.export.commands.export_ipynb",
             side_effect=fake_export,
         ) as mock_export:
             p = _run_export(
@@ -1241,12 +1241,13 @@ class TestExportIpynb:
             _assert_success(p)
 
             mock_export.assert_called_once()
-            call_kwargs = mock_export.call_args
-            assert call_kwargs.kwargs["cli_args"] == {
+            request = mock_export.call_args.args[0]
+            assert request.execution is not None
+            assert request.execution.cli_args == {
                 "arg1": "foo",
                 "arg2": "bar",
             }
-            assert call_kwargs.kwargs["argv"] == [
+            assert request.execution.argv == [
                 "--arg1",
                 "foo",
                 "--arg2",
@@ -1411,17 +1412,24 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "out.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="out.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
                 "marimo._cli.export.commands.DependencyManager.require_many"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1441,8 +1449,8 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert output_file.read_bytes() == b"mock_pdf"
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["export_as"] == "slides"
+        request = mock_run_app.await_args.args[0]
+        assert request.options.preset == "slides"
 
     @staticmethod
     def test_export_pdf_slides_shows_live_raster_recommendation(
@@ -1452,10 +1460,17 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "slides-tip.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="slides-tip.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
@@ -1465,7 +1480,7 @@ class TestExportPDF:
                 "marimo._cli.export.commands.DependencyManager.playwright.require"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1484,8 +1499,95 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert "For --as=slides, prefer --raster-server=live" in result.output
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["rasterization_options"].server_mode == "static"
+        request = mock_run_app.await_args.args[0]
+        assert request.options.rasterization is not None
+        assert request.options.rasterization.server_mode == "static"
+
+    @staticmethod
+    def test_export_pdf_defers_live_server_startup(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
+
+        output_file = tmp_path / "live.pdf"
+        mock_export = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="live.pdf",
+                did_error=False,
+            )
+        )
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.DependencyManager.playwright.require"
+            ),
+            patch(
+                "marimo._cli.export.commands.export_pdf",
+                mock_export,
+            ),
+            patch(
+                "marimo._cli.export.live_notebook_server.LiveNotebookServer"
+            ) as live_server,
+        ):
+            result = CliRunner().invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--raster-server",
+                    "live",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        request = mock_export.await_args.args[0]
+        assert request.live_page_url is not None
+        live_server.assert_not_called()
+
+    @staticmethod
+    def test_export_pdf_reports_empty_result_once(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.export_pdf",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            result = CliRunner().invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(tmp_path / "empty.pdf"),
+                    "--no-include-outputs",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code != 0
+        assert "Failed to export PDF." in result.output
+        assert (
+            "Failed to export PDF: Failed to export PDF." not in result.output
+        )
 
     @staticmethod
     def test_export_pdf_shows_slides_hint_when_preset_missing(
@@ -1495,10 +1597,17 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "hint.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="hint.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
@@ -1509,7 +1618,7 @@ class TestExportPDF:
                 return_value=True,
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1527,8 +1636,8 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert "Use --as=slides for slide-style PDF export." in result.output
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["export_as"] is None
+        request = mock_run_app.await_args.args[0]
+        assert request.options.preset == "document"
 
     @staticmethod
     def test_export_pdf_reports_stage_status_updates(
@@ -1538,16 +1647,16 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
-        from marimo._server.export._status import PDFExportStatusEvent
+        from marimo._export._status import PDFExportStatusEvent
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "status.pdf"
         runner = CliRunner()
 
-        async def fake_run_app(
-            *args: Any, **kwargs: Any
-        ) -> tuple[bytes, bool]:
-            del args
-            status_callback = kwargs["status_callback"]
+        async def fake_run_app(*args: Any, **kwargs: Any) -> ExportResult:
+            del kwargs
+            request = args[0]
+            status_callback = request.status_callback
             status_callback(
                 PDFExportStatusEvent(
                     phase="execute",
@@ -1580,7 +1689,11 @@ class TestExportPDF:
                     message="done.",
                 )
             )
-            return b"mock_pdf", False
+            return ExportResult(
+                contents=b"mock_pdf",
+                download_filename="status.pdf",
+                did_error=False,
+            )
 
         mock_run_app = AsyncMock(side_effect=fake_run_app)
 
@@ -1592,7 +1705,7 @@ class TestExportPDF:
                 "marimo._cli.export.commands.DependencyManager.playwright.require"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
