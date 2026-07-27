@@ -32,7 +32,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, unquote, urlparse
 from urllib.request import url2pathname
 
-from marimo._cli.export.local_modules import (
+from marimo._export.local_modules import (
     LocalModule,
     LocalWheelError,
     module_python_files,
