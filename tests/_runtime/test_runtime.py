@@ -3512,6 +3512,43 @@ class TestSQL:
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
+    async def test_sql_table_with_special_char_name_is_dropped(
+        self, k: Kernel
+    ) -> None:
+        # Regression test for #10338: an in-memory table whose name needs
+        # quoting (e.g. a hyphen) must still be cleaned up. The name was
+        # previously interpolated raw, producing invalid SQL
+        # (`DROP TABLE IF EXISTS memory.main.manual-holdings`).
+        import duckdb
+
+        def table_exists() -> bool:
+            return (
+                duckdb.execute(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_name = 'manual-holdings'"
+                ).fetchone()[0]
+                > 0
+            )
+
+        await k.run(
+            [
+                ExecuteCellCommand(cell_id="0", code="import marimo as mo"),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code=(
+                        'mo.sql(\'CREATE OR REPLACE TABLE "manual-holdings" '
+                        "AS SELECT 1 AS a')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert table_exists()
+
+        # Deleting the defining cell triggers cleanup of the in-memory table.
+        await k.delete_cell(DeleteCellCommand(cell_id="1"))
+        assert not table_exists()
+
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
             [
