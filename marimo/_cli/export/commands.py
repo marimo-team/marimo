@@ -7,7 +7,7 @@ import sys
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, cast, get_args
 
 import click
 
@@ -26,6 +26,7 @@ from marimo._cli.print import (
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.common.filename import parse_title
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -66,13 +67,16 @@ from marimo._export.requests import (
 )
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
 from marimo._schemas.export_options import (
+    ExportPDFPreset,
     HTMLExportOptions,
     IPYNBExportOptions,
+    IPYNBSortMode,
     MarkdownExportOptions,
     PDFExportOptions,
     PDFRasterizationOptions,
     PDFRasterServer,
     WASMExportOptions,
+    WASMMode,
 )
 from marimo._server.utils import asyncio_run
 from marimo._utils.file_watcher import FileWatcher
@@ -82,8 +86,6 @@ from marimo._utils.paths import maybe_make_dirs
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from typing import Protocol
-
-    from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 
     class _ExportWithCodeTransform(Protocol):
         def __call__(
@@ -432,7 +434,7 @@ Watch for changes and regenerate the script on modification:
 )
 @click.option(
     "--flavor",
-    type=click.Choice(["pymdown", "qmd", "mystmd", "mdx"]),
+    type=click.Choice(get_args(MarkdownFlavorName)),
     default=None,
     help="Markdown flavor to export.",
 )
@@ -503,7 +505,7 @@ Requires nbformat to be installed.
 )
 @click.option(
     "--sort",
-    type=click.Choice(["top-down", "topological"]),
+    type=click.Choice(get_args(IPYNBSortMode)),
     default="topological",
     help="Sort cells top-down or in topological order.",
 )
@@ -553,7 +555,7 @@ def ipynb(
     name: str,
     output: Path,
     watch: bool,
-    sort: Literal["top-down", "topological"],
+    sort: IPYNBSortMode,
     include_outputs: bool,
     sandbox: bool | None,
     force: bool,
@@ -667,7 +669,7 @@ Requires nbformat and nbconvert to be installed.
 )
 @click.option(
     "--raster-server",
-    type=click.Choice(["static", "live"], case_sensitive=False),
+    type=click.Choice(get_args(PDFRasterServer), case_sensitive=False),
     default="static",
     help=(
         "Server mode used for raster capture. Use 'static' (default) for "
@@ -678,7 +680,7 @@ Requires nbformat and nbconvert to be installed.
 @click.option(
     "--as",
     "export_as",
-    type=click.Choice(["document", "slides"]),
+    type=click.Choice(get_args(ExportPDFPreset)),
     default=None,
     help=(
         "PDF export preset. Use `slides` for reveal.js slide-style output. "
@@ -730,7 +732,7 @@ def pdf(
     rasterize_outputs: bool,
     raster_scale: float,
     raster_server: str,
-    export_as: Literal["document", "slides"] | None,
+    export_as: ExportPDFPreset | None,
     sandbox: bool | None,
     force: bool,
     args: tuple[str],
@@ -917,7 +919,7 @@ and cannot be opened directly from the file system (e.g. file://).
 )
 @click.option(
     "--mode",
-    type=click.Choice(["edit", "run"]),
+    type=click.Choice(get_args(WASMMode)),
     default="run",
     help="Whether the notebook code should be editable or readonly.",
     required=True,
@@ -975,7 +977,7 @@ and cannot be opened directly from the file system (e.g. file://).
 def html_wasm(
     name: str,
     output: Path,
-    mode: Literal["edit", "run"],
+    mode: WASMMode,
     watch: bool,
     show_code: bool,
     include_cloudflare: bool,
@@ -1082,6 +1084,8 @@ def html_wasm(
         except LocalWheelError as error:
             raise click.UsageError(str(error)) from error
 
+    wasm_options = WASMExportOptions(mode=mode, show_code=show_code)
+
     if execute:
         cli_args = parse_args(args)
 
@@ -1104,10 +1108,7 @@ def html_wasm(
                 export_wasm(
                     WASMFileExportRequest(
                         path=file_path,
-                        options=WASMExportOptions(
-                            mode=mode,
-                            show_code=show_code,
-                        ),
+                        options=wasm_options,
                         execution=NotebookExecutionOptions(
                             cli_args=cli_args,
                             argv=list(args),
@@ -1138,10 +1139,7 @@ def html_wasm(
                 export_wasm(
                     WASMFileExportRequest(
                         path=file_path,
-                        options=WASMExportOptions(
-                            mode=mode,
-                            show_code=show_code,
-                        ),
+                        options=wasm_options,
                         code_transform=code_transform,
                         stdout=STDOUT,
                     )

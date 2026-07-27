@@ -41,9 +41,9 @@ from marimo._schemas.export import (
     ExportAsPDFRequest,
     ExportAsScriptRequest,
     UpdateCellOutputsRequest,
+    to_html_export_options,
 )
 from marimo._schemas.export_options import (
-    HTMLExportOptions,
     IPYNBExportOptions,
     MarkdownExportOptions,
     PDFExportOptions,
@@ -125,11 +125,7 @@ async def export_as_html(
                 include_model_notifications=True,
             ),
             display_config=resolved_config["display"],
-            options=HTMLExportOptions(
-                files=tuple(body.files),
-                include_code=body.include_code,
-                asset_url=body.asset_url,
-            ),
+            options=to_html_export_options(body),
             sharing_config=resolved_config.get("sharing"),
         )
     )
@@ -212,11 +208,7 @@ async def auto_export_as_html(
                     include_model_notifications=True,
                 ),
                 display_config=session.config_manager.get_config()["display"],
-                options=HTMLExportOptions(
-                    files=tuple(body.files),
-                    include_code=body.include_code,
-                    asset_url=body.asset_url,
-                ),
+                options=to_html_export_options(body),
             )
         )
 

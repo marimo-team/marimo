@@ -1,11 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
-
 import msgspec
 
 from marimo._messaging.mimetypes import MimeBundleTuple
+from marimo._schemas.export_options import (
+    ExportPDFPreset,
+    HTMLExportOptions,
+    PDFRasterServer,
+)
 from marimo._types.ids import CellId_t
 
 
@@ -14,6 +17,16 @@ class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
     files: list[str]
     include_code: bool
     asset_url: str | None = None
+
+
+def to_html_export_options(
+    request: ExportAsHTMLRequest,
+) -> HTMLExportOptions:
+    return HTMLExportOptions(
+        files=tuple(request.files),
+        include_code=request.include_code,
+        asset_url=request.asset_url,
+    )
 
 
 class ExportAsScriptRequest(msgspec.Struct, rename="camel"):
@@ -28,16 +41,13 @@ class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
     download: bool
 
 
-ExportPDFPreset = Literal["document", "slides"]
-
-
 class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
     webpdf: bool
     preset: ExportPDFPreset = "document"
     include_inputs: bool = False
     rasterize_outputs: bool = True
     raster_scale: float = 4.0
-    raster_server: Literal["static", "live"] = "static"
+    raster_server: PDFRasterServer = "static"
 
 
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):

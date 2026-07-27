@@ -37,7 +37,7 @@ class TextWriter(Protocol):
     def write(self, value: str, /) -> object: ...
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ExportResult:
     contents: bytes | str
     download_filename: str
@@ -58,18 +58,18 @@ class ExportResult:
         return self.contents.decode("utf-8")
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ScriptExportRequest:
     notebook: NotebookSerialization
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MarkdownExportRequest:
     notebook: NotebookSerialization
     options: MarkdownExportOptions
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class HTMLExportRequest:
     filename: str | None
     app_code: str
@@ -80,14 +80,14 @@ class HTMLExportRequest:
     sharing_config: SharingConfig | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IPYNBExportRequest:
     app: InternalApp
     options: IPYNBExportOptions
     session_view: SessionView | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WASMExportRequest:
     filename: str | None
     app_config: _AppConfig
@@ -99,7 +99,7 @@ class WASMExportRequest:
     sharing_config: SharingConfig | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PDFExportRequest:
     app: InternalApp
     session_view: SessionView | None
@@ -108,7 +108,7 @@ class PDFExportRequest:
     status_callback: PDFExportStatusCallback | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class NotebookExecutionOptions:
     cli_args: SerializedCLIArgs
     argv: list[str] | None
@@ -118,24 +118,24 @@ class NotebookExecutionOptions:
     stderr: TextWriter | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class RunNotebookRequest:
     file_manager: AppFileManager
     options: NotebookExecutionOptions
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ScriptFileExportRequest:
     path: MarimoPath
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class MarkdownFileExportRequest:
     path: MarimoPath
     options: MarkdownExportOptions
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class IPYNBFileExportRequest:
     path: MarimoPath
     options: IPYNBExportOptions
@@ -143,14 +143,14 @@ class IPYNBFileExportRequest:
     stderr: TextWriter | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class HTMLFileExportRequest:
     path: MarimoPath
     options: HTMLExportOptions
     execution: NotebookExecutionOptions | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class WASMFileExportRequest:
     path: MarimoPath
     options: WASMExportOptions
@@ -160,7 +160,7 @@ class WASMFileExportRequest:
     stdout: TextWriter | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PDFFileExportRequest:
     path: MarimoPath
     options: PDFExportOptions
@@ -169,7 +169,7 @@ class PDFFileExportRequest:
     status_callback: PDFExportStatusCallback | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class PDFRasterizationRequest:
     app: InternalApp
     session_view: SessionView
@@ -180,13 +180,13 @@ class PDFRasterizationRequest:
     status_callback: PDFExportStatusCallback | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class ReactiveHTMLFileExportRequest:
     path: MarimoPath
     include_code: bool
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class CacheBundleRequest:
     notebook_path: MarimoPath
     output_directory: Path

@@ -14,9 +14,8 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._convert.markdown import convert_from_ir_to_markdown
-from marimo._export.exporter import Exporter
-from marimo._export.requests import HTMLExportRequest
+from marimo._export.exporter import Exporter, export_markdown
+from marimo._export.requests import HTMLExportRequest, MarkdownExportRequest
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelStreams
@@ -36,8 +35,13 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._schemas.export import ExportAsHTMLRequest
-from marimo._schemas.export_options import HTMLExportOptions
+from marimo._schemas.export import (
+    ExportAsHTMLRequest,
+    to_html_export_options,
+)
+from marimo._schemas.export_options import (
+    MarkdownExportOptions,
+)
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
     FileCopyRequest,
@@ -403,19 +407,20 @@ class PyodideBridge:
                     include_model_notifications=True,
                 ),
                 display_config=self.session._initial_user_config["display"],
-                options=HTMLExportOptions(
-                    files=tuple(parsed.files),
-                    include_code=parsed.include_code,
-                    asset_url=parsed.asset_url,
-                ),
+                options=to_html_export_options(parsed),
             )
         )
         return json.dumps(html)
 
     def export_markdown(self, request: str) -> str:
         del request
-        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
-        return json.dumps(md)
+        result = export_markdown(
+            MarkdownExportRequest(
+                notebook=self.session.app_manager.app.to_ir(),
+                options=MarkdownExportOptions(),
+            )
+        )
+        return json.dumps(result.text)
 
     def _parse(self, request: str, cls: type[T]) -> T:
         return parse_raw(request, cls)
