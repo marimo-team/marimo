@@ -26,6 +26,7 @@ from marimo._cli.print import (
 from marimo._cli.sandbox import maybe_prompt_run_in_sandbox, run_in_sandbox
 from marimo._cli.utils import prompt_to_overwrite
 from marimo._convert.common.filename import parse_title
+from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._export._status import PDFExportStatusEvent
@@ -380,7 +381,10 @@ def script(
         return
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
-        return export_script(ScriptFileExportRequest(path=file_path))
+        try:
+            return export_script(ScriptFileExportRequest(path=file_path))
+        except UnsupportedAsyncCodeError as error:
+            raise click.ClickException(str(error)) from None
 
     return watch_and_export(
         MarimoPath(name), output, watch, export_callback, force
