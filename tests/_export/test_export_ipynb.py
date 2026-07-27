@@ -12,7 +12,12 @@ from marimo._ast.app import InternalApp
 from marimo._ast.load import load_app
 from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.export import run_app_then_export_as_ipynb
+from marimo._export.file import export_ipynb
+from marimo._export.requests import (
+    IPYNBFileExportRequest,
+    NotebookExecutionOptions,
+)
+from marimo._schemas.export_options import IPYNBExportOptions
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import delete_lines_with_files, simplify_images, snapshotter
 
@@ -66,11 +71,12 @@ async def test_export_ipynb(app_path: Path) -> None:
     assert content is not None
 
     # Test with actual run
-    result = await run_app_then_export_as_ipynb(
-        MarimoPath(app_path),
-        sort_mode="top-down",
-        cli_args={},
-        argv=None,
+    result = await export_ipynb(
+        IPYNBFileExportRequest(
+            path=MarimoPath(app_path),
+            options=IPYNBExportOptions(sort_mode="top-down"),
+            execution=NotebookExecutionOptions(cli_args={}, argv=None),
+        )
     )
     assert result.download_filename == f"{app_path.stem}.ipynb"
     content = delete_lines_with_files(result.text)

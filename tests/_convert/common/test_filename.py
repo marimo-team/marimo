@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from marimo._server.api.utils import parse_title
+from marimo._convert.common.filename import parse_title
 
 
 def test_parse_title() -> None:

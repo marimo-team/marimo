@@ -4,7 +4,7 @@ import json
 from typing import Any, cast
 from unittest.mock import patch
 
-from marimo._server.export import _session_cache
+from marimo._export import _session_cache
 from marimo._session.state.session_view import SessionView
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__

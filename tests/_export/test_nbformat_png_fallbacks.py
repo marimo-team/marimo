@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from marimo._server.export._nbformat_png_fallbacks import (
+from marimo._export._nbformat_png_fallbacks import (
     inject_png_fallbacks_into_notebook,
 )
 

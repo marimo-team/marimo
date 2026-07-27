@@ -7,8 +7,10 @@ import pathlib
 import sys
 import textwrap
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
-from unittest.mock import ANY, AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -17,6 +19,29 @@ from marimo._ast.load import load_app
 from marimo._config.config import DEFAULT_CONFIG
 from marimo._dependencies.dependencies import Dependency, DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
+from marimo._export._status import PDFExportStatusEvent
+from marimo._export.exporter import Exporter
+from marimo._export.file import (
+    export_html,
+    export_ipynb,
+    export_markdown,
+    export_pdf,
+    export_wasm,
+    run_notebook,
+)
+from marimo._export.requests import (
+    HTMLExportRequest,
+    HTMLFileExportRequest,
+    IPYNBFileExportRequest,
+    MarkdownFileExportRequest,
+    NotebookExecutionOptions,
+    PDFExportRequest,
+    PDFFileExportRequest,
+    RunNotebookRequest,
+    WASMExportRequest,
+    WASMFileExportRequest,
+)
+from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.notification import (
@@ -25,17 +50,17 @@ from marimo._messaging.notification import (
     ModelLifecycleNotification,
     ModelOpen,
 )
-from marimo._server.export import (
-    export_as_md,
-    export_as_wasm,
-    run_app_then_export_as_html,
-    run_app_then_export_as_ipynb,
-    run_app_then_export_as_pdf,
-    run_app_until_completion,
+from marimo._schemas.export import (
+    ExportAsHTMLRequest,
 )
-from marimo._server.export._status import PDFExportStatusEvent
-from marimo._server.export.exporter import Exporter
-from marimo._server.models.export import ExportAsHTMLRequest
+from marimo._schemas.export_options import (
+    HTMLExportOptions,
+    IPYNBExportOptions,
+    MarkdownExportOptions,
+    PDFExportOptions,
+    PDFRasterizationOptions,
+    WASMExportOptions,
+)
 from marimo._session.notebook import AppFileManager
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._session.state.session_view import SessionView
@@ -59,6 +84,87 @@ HAS_DEPS = (
 )
 
 
+def _html_export_request(
+    *,
+    filename: str | None,
+    app: InternalApp,
+    session_view: SessionView,
+    display_config: Any,
+    request: ExportAsHTMLRequest,
+    sharing_config: Any = None,
+) -> HTMLExportRequest:
+    return HTMLExportRequest(
+        filename=filename,
+        app_code=app.to_py(),
+        app_config=app.config,
+        snapshot=serialize_notebook_snapshot(
+            app,
+            session_view,
+            drop_virtual_file_outputs=False,
+            include_model_notifications=True,
+        ),
+        display_config=display_config,
+        options=HTMLExportOptions(
+            files=tuple(request.files),
+            include_code=request.include_code,
+            asset_url=request.asset_url,
+        ),
+        sharing_config=sharing_config,
+    )
+
+
+def _wasm_export_request(
+    *,
+    filename: str | None,
+    app: InternalApp,
+    display_config: Any,
+    code: str,
+    mode: Any,
+    show_code: bool,
+    asset_url: str | None = None,
+    session_snapshot: Any = None,
+    notebook_snapshot: Any = None,
+    sharing_config: Any = None,
+) -> WASMExportRequest:
+    return WASMExportRequest(
+        filename=filename,
+        app_config=app.config,
+        display_config=display_config,
+        code=code,
+        options=WASMExportOptions(
+            mode=mode,
+            show_code=show_code,
+            asset_url=asset_url,
+        ),
+        session_snapshot=session_snapshot,
+        notebook_snapshot=notebook_snapshot,
+        sharing_config=sharing_config,
+    )
+
+
+def _pdf_export_request(
+    *,
+    app: InternalApp,
+    session_view: SessionView | None,
+    png_fallbacks: Any = None,
+    webpdf: bool = False,
+    include_inputs: bool = True,
+    status_callback: Any = None,
+    preset: Any = "document",
+) -> PDFExportRequest:
+    return PDFExportRequest(
+        app=app,
+        session_view=session_view,
+        png_fallbacks=png_fallbacks,
+        options=PDFExportOptions(
+            webpdf=webpdf,
+            preset=preset,
+            include_inputs=include_inputs,
+        ),
+        status_callback=status_callback,
+    )
+
+
 @pytest.mark.parametrize(
     ("filename", "source", "expected_fence"),
     [
@@ -76,7 +182,12 @@ def test_export_as_md_uses_resolved_markdown_filename(
     notebook = tmp_path / filename
     notebook.write_text(source, encoding="utf-8")
 
-    result = export_as_md(MarimoPath(notebook))
+    result = export_markdown(
+        MarkdownFileExportRequest(
+            path=MarimoPath(notebook),
+            options=MarkdownExportOptions(),
+        )
+    )
 
     assert result.download_filename == filename
     assert expected_fence in result.text
@@ -119,18 +230,19 @@ def _load_fixture_app(name: str) -> InternalApp:
     return InternalApp(app)
 
 
-# run_until_completion
+# run_notebook
 
 
-async def test_run_until_completion_with_stop() -> None:
+async def test_run_notebook_with_stop() -> None:
     """Test run until completion with mo.stop()."""
     internal_app = _load_fixture_app("with_stop")
     file_manager = AppFileManager.from_app(internal_app)
 
-    session_view, did_error = await run_app_until_completion(
-        file_manager,
-        cli_args={},
-        argv=None,
+    session_view, did_error = await run_notebook(
+        RunNotebookRequest(
+            file_manager=file_manager,
+            options=NotebookExecutionOptions(cli_args={}, argv=None),
+        )
     )
     assert did_error is False
     cell_notifications = [
@@ -139,12 +251,12 @@ async def test_run_until_completion_with_stop() -> None:
         if isinstance(op, CellNotification)
     ]
     snapshot(
-        "run_until_completion_with_stop.txt",
+        "run_notebook_with_stop.txt",
         _print_messages(cell_notifications),
     )
 
 
-async def test_run_until_completion_persists_session_snapshot(
+async def test_run_notebook_persists_session_snapshot(
     tmp_path: Path,
 ) -> None:
     notebook = tmp_path / "notebook.py"
@@ -165,10 +277,11 @@ if __name__ == "__main__":
     )
     file_manager = AppFileManager(str(notebook))
 
-    _, did_error = await run_app_until_completion(
-        file_manager,
-        cli_args={},
-        argv=None,
+    _, did_error = await run_notebook(
+        RunNotebookRequest(
+            file_manager=file_manager,
+            options=NotebookExecutionOptions(cli_args={}, argv=None),
+        )
     )
     assert did_error is False
 
@@ -182,7 +295,7 @@ if __name__ == "__main__":
     sys.version_info >= (3, 13), reason="3.13 has different stack trace format"
 )
 @pytest.mark.xfail(reason="flakey", strict=False)
-async def test_run_until_completion_with_stack_trace() -> None:
+async def test_run_notebook_with_stack_trace() -> None:
     """Test run until completion with stack trace from exception."""
 
     app = App()
@@ -210,8 +323,11 @@ async def test_run_until_completion_with_stack_trace() -> None:
 
     file_manager = AppFileManager.from_app(InternalApp(app))
 
-    session_view, did_error = await run_app_until_completion(
-        file_manager, cli_args={}, argv=None
+    session_view, did_error = await run_notebook(
+        RunNotebookRequest(
+            file_manager=file_manager,
+            options=NotebookExecutionOptions(cli_args={}, argv=None),
+        )
     )
     assert did_error is True
     cell_notifications = [
@@ -222,30 +338,31 @@ async def test_run_until_completion_with_stack_trace() -> None:
 
     messages = _print_messages(cell_notifications)
     snapshot(
-        "run_until_completion_with_stack_trace.txt",
+        "run_notebook_with_stack_trace.txt",
         delete_lines_with_files(messages),
     )
 
 
 @pytest.mark.flaky(reruns=3)
-@patch("marimo._server.export.echo")
-async def test_run_until_completion_with_console_output(
-    mock_echo: MagicMock,
+async def test_run_notebook_with_console_output(
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Test run until completion with console output."""
     internal_app = _load_fixture_app("with_console_output")
     file_manager = AppFileManager.from_app(internal_app)
 
-    session_view, did_error = await run_app_until_completion(
-        file_manager,
-        cli_args={},
-        argv=None,
+    session_view, did_error = await run_notebook(
+        RunNotebookRequest(
+            file_manager=file_manager,
+            options=NotebookExecutionOptions(cli_args={}, argv=None),
+        )
     )
     assert did_error is False
 
     def _assert_contents() -> None:
-        mock_echo.assert_any_call("hello stdout", file=ANY, nl=False)
-        mock_echo.assert_any_call("hello stderr", file=ANY, nl=False)
+        captured = capsys.readouterr()
+        assert "hello stdout" in captured.err
+        assert "hello stderr" in captured.err
 
     # Console output notifications arrive asynchronously after CompletedRun.
     n_tries = 0
@@ -266,7 +383,7 @@ async def test_run_until_completion_with_console_output(
         if isinstance(op, CellNotification)
     ]
     snapshot(
-        "run_until_completion_with_console_output.txt",
+        "run_notebook_with_console_output.txt",
         _print_messages(cell_notifications),
     )
 
@@ -288,12 +405,14 @@ async def test_export_wasm(mode: str, expected_mode_in_content: str) -> None:
     exporter = Exporter()
 
     content, filename = exporter.export_as_wasm(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        display_config=DEFAULT_CONFIG["display"],
-        mode=mode,
-        code=file_manager.app.to_py(),
-        show_code=True,
+        _wasm_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            display_config=DEFAULT_CONFIG["display"],
+            mode=mode,
+            code=file_manager.app.to_py(),
+            show_code=True,
+        )
     )
 
     assert filename == "notebook.wasm.html"
@@ -311,10 +430,11 @@ async def test_export_html_with_layout(tmp_path: Path) -> None:
     layout_file.parent.mkdir(parents=True, exist_ok=True)
     layout_file.write_text('{"type": "slides", "data": {}}')
 
-    result = export_as_wasm(
-        path=MarimoPath(test_file),
-        mode="edit",
-        show_code=True,
+    result = await export_wasm(
+        WASMFileExportRequest(
+            path=MarimoPath(test_file),
+            options=WASMExportOptions(mode="edit", show_code=True),
+        )
     )
     assert result.did_error is False
     assert "layout.json" not in result.text
@@ -382,11 +502,13 @@ def test_export_as_html_code_inclusion(
     )
 
     html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     assert filename == "notebook.html"
@@ -464,11 +586,13 @@ def test_export_as_html_with_serialization(session_view: SessionView) -> None:
     )
 
     html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     assert filename == "notebook.html"
@@ -505,17 +629,17 @@ def test_export_as_html_with_files(session_view: SessionView) -> None:
         include_code=True,
     )
 
-    with patch(
-        "marimo._server.export.exporter.read_virtual_file"
-    ) as mock_read:
+    with patch("marimo._export.exporter.read_virtual_file") as mock_read:
         mock_read.return_value = b"test file content"
 
         html, filename = exporter.export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=request,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=request,
+            )
         )
 
     assert filename == "notebook.html"
@@ -558,18 +682,20 @@ def test_export_as_html_includes_composed_widget_esm(
     )
 
     with patch(
-        "marimo._server.export.exporter.read_virtual_file",
+        "marimo._export.exporter.read_virtual_file",
         return_value=widget_code,
     ):
         html, _filename = Exporter().export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=ExportAsHTMLRequest(
-                download=True,
-                files=[],
-                include_code=True,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=ExportAsHTMLRequest(
+                    download=True,
+                    files=[],
+                    include_code=True,
+                ),
             ),
         )
 
@@ -610,11 +736,13 @@ def test_export_as_html_with_cell_configs(session_view: SessionView) -> None:
     )
 
     html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     assert filename == "notebook.html"
@@ -666,11 +794,13 @@ def test_export_as_html_preserves_output_order(
     )
 
     html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     assert filename == "notebook.html"
@@ -717,11 +847,13 @@ def test_export_as_html_with_error_outputs(session_view: SessionView) -> None:
     )
 
     html, filename = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=file_manager.filename,
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     assert filename == "notebook.html"
@@ -772,7 +904,7 @@ def _write_lazy_notebook(path: Path, lazy_arg: str) -> None:
         ),
     ],
 )
-async def test_run_app_then_export_as_ipynb_resolves_lazy(
+async def test_export_ipynb_resolves_lazy(
     tmp_path: Path,
     lazy_arg: str,
     expected_marker: str,
@@ -787,11 +919,12 @@ async def test_run_app_then_export_as_ipynb_resolves_lazy(
     notebook = tmp_path / "lazy_notebook.py"
     _write_lazy_notebook(notebook, lazy_arg)
 
-    result = await run_app_then_export_as_ipynb(
-        filepath=MarimoPath(str(notebook)),
-        sort_mode="top-down",
-        cli_args={},
-        argv=[],
+    result = await export_ipynb(
+        IPYNBFileExportRequest(
+            path=MarimoPath(str(notebook)),
+            options=IPYNBExportOptions(sort_mode="top-down"),
+            execution=NotebookExecutionOptions(cli_args={}, argv=[]),
+        )
     )
 
     # The rendered HTML is wrapped in <span> by as_html; the raw marker
@@ -806,7 +939,7 @@ async def test_run_app_then_export_as_ipynb_resolves_lazy(
         assert rendered not in result.contents
 
 
-async def test_run_app_then_export_as_html_keeps_lazy_placeholder(
+async def test_export_html_keeps_lazy_placeholder(
     tmp_path: Path,
 ) -> None:
     """HTML export ships interactive widgets and leaves `mo.lazy` as a placeholder.
@@ -819,11 +952,15 @@ async def test_run_app_then_export_as_html_keeps_lazy_placeholder(
     notebook = tmp_path / "lazy_notebook.py"
     _write_lazy_notebook(notebook, 'lambda: "SYNC_RESULT"')
 
-    result = await run_app_then_export_as_html(
-        path=MarimoPath(str(notebook)),
-        include_code=False,
-        cli_args={},
-        argv=[],
+    result = await export_html(
+        HTMLFileExportRequest(
+            path=MarimoPath(str(notebook)),
+            options=HTMLExportOptions(
+                files=(),
+                include_code=False,
+            ),
+            execution=NotebookExecutionOptions(cli_args={}, argv=[]),
+        )
     )
 
     assert "marimo-lazy" in result.contents
@@ -857,34 +994,29 @@ def test_export_as_html_code_hash_consistency(
     exporter = Exporter()
 
     # Test with include_code=True
-    request_with_code = ExportAsHTMLRequest(
-        download=True,
-        files=[],
-        include_code=True,
-    )
-
-    html_with_code, _ = exporter.export_as_html(
+    export_request = _html_export_request(
         filename=file_manager.filename,
         app=file_manager.app,
         session_view=session_view,
         display_config=DEFAULT_CONFIG["display"],
-        request=request_with_code,
+        request=ExportAsHTMLRequest(
+            download=True,
+            files=[],
+            include_code=True,
+        ),
     )
+    snapshot_before = deepcopy(export_request.snapshot)
 
     # Test with include_code=False
-    request_without_code = ExportAsHTMLRequest(
-        download=True,
-        files=[],
-        include_code=False,
-    )
-
     html_without_code, _ = exporter.export_as_html(
-        filename=file_manager.filename,
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request_without_code,
+        replace(
+            export_request,
+            options=HTMLExportOptions(files=(), include_code=False),
+        )
     )
+    html_with_code, _ = exporter.export_as_html(export_request)
+
+    assert export_request.snapshot == snapshot_before
 
     # Extract code hash from both HTML outputs
     hash_pattern = r"<marimo-code-hash[^>]*>([a-f0-9]+)</marimo-code-hash>"
@@ -959,11 +1091,13 @@ def test_export_html_replaces_virtual_files_in_outputs(
         mock_read.return_value = b"fake_image_data"
 
         html, filename = exporter.export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=request,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=request,
+            )
         )
 
     assert filename == "notebook.html"
@@ -1078,18 +1212,20 @@ def test_export_html_replaces_multiple_virtual_files_complex(
             "marimo._convert.common.dom_traversal.read_virtual_file"
         ) as mock_read_dom,
         patch(
-            "marimo._server.export.exporter.read_virtual_file"
+            "marimo._export.exporter.read_virtual_file"
         ) as mock_read_exporter,
     ):
         mock_read_dom.side_effect = mock_read_side_effect
         mock_read_exporter.side_effect = mock_read_side_effect
 
         html, filename = exporter.export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=request,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=request,
+            )
         )
 
     assert filename == "notebook.html"
@@ -1153,11 +1289,13 @@ def test_export_html_replaces_audio_virtual_files(
         mock_read.return_value = b"fake_audio_data"
 
         html, filename = exporter.export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=request,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=request,
+            )
         )
 
     assert filename == "notebook.html"
@@ -1227,11 +1365,13 @@ def test_export_html_inlines_public_folder_images(
     )
 
     html, _filename = exporter.export_as_html(
-        filename=str(notebook_path),
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=str(notebook_path),
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     # The original path is gone; the image is embedded as a data URI.
@@ -1284,11 +1424,13 @@ def test_export_html_does_not_touch_non_html_outputs(
     )
 
     html, _ = exporter.export_as_html(
-        filename=str(notebook_path),
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=str(notebook_path),
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     # The plain-text content is preserved verbatim (JSON-escaped in the
@@ -1336,11 +1478,13 @@ def test_export_html_public_folder_blocks_path_traversal(
     )
 
     html, _ = exporter.export_as_html(
-        filename=str(notebook_path),
-        app=file_manager.app,
-        session_view=session_view,
-        display_config=DEFAULT_CONFIG["display"],
-        request=request,
+        _html_export_request(
+            filename=str(notebook_path),
+            app=file_manager.app,
+            session_view=session_view,
+            display_config=DEFAULT_CONFIG["display"],
+            request=request,
+        )
     )
 
     # The secret file must NOT be inlined.
@@ -1395,18 +1539,20 @@ def test_export_html_skips_oversized_virtual_files(
             "marimo._convert.common.dom_traversal.read_virtual_file"
         ) as mock_read_dom,
         patch(
-            "marimo._server.export.exporter.read_virtual_file"
+            "marimo._export.exporter.read_virtual_file"
         ) as mock_read_exporter,
     ):
         mock_read_dom.return_value = b"huge_audio"
         mock_read_exporter.return_value = b"huge_audio"
 
         html, _filename = exporter.export_as_html(
-            filename=file_manager.filename,
-            app=file_manager.app,
-            session_view=session_view,
-            display_config=DEFAULT_CONFIG["display"],
-            request=request,
+            _html_export_request(
+                filename=file_manager.filename,
+                app=file_manager.app,
+                session_view=session_view,
+                display_config=DEFAULT_CONFIG["display"],
+                request=request,
+            )
         )
 
     # The large file should NOT be inlined as audio in the HTML output
@@ -1438,15 +1584,17 @@ class TestPDFExport:
         with patch.object(Dependency, "has", return_value=False):
             with pytest.raises(ManyModulesNotFoundError) as excinfo:
                 exporter.export_as_pdf(
-                    app=file_manager.app,
-                    session_view=session_view,
-                    webpdf=False,
+                    _pdf_export_request(
+                        app=file_manager.app,
+                        session_view=session_view,
+                        webpdf=False,
+                    )
                 )
 
             assert "for PDF export" in str(excinfo.value)
 
     @pytest.mark.asyncio
-    async def test_run_app_then_export_as_pdf_reports_execute_raster_render(
+    async def test_export_pdf_reports_execute_raster_render(
         self,
         temp_marimo_file: str,
         session_view: SessionView,
@@ -1460,10 +1608,9 @@ class TestPDFExport:
             return session_view, False
 
         async def fake_collect_pdf_png_fallbacks(
-            *args: Any, **kwargs: Any
+            request: Any,
         ) -> dict[str, str]:
-            del args
-            status_callback = kwargs["status_callback"]
+            status_callback = request.status_callback
             assert status_callback is not None
             status_callback(
                 PDFExportStatusEvent(
@@ -1483,10 +1630,10 @@ class TestPDFExport:
             return {"cell-1": "data:image/png;base64,ZmFrZQ=="}
 
         def fake_export_as_pdf(
-            self: Exporter, *args: Any, **kwargs: Any
+            self: Exporter, request: PDFExportRequest
         ) -> bytes:
-            del self, args
-            status_callback = kwargs["status_callback"]
+            del self
+            status_callback = request.status_callback
             assert status_callback is not None
             status_callback(
                 PDFExportStatusEvent(
@@ -1498,11 +1645,11 @@ class TestPDFExport:
 
         with (
             patch(
-                "marimo._server.export.run_app_until_completion",
+                "marimo._export.file.run_notebook",
                 side_effect=fake_run_app_until_completion,
             ),
             patch(
-                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
                 side_effect=fake_collect_pdf_png_fallbacks,
             ),
             patch.object(
@@ -1512,19 +1659,24 @@ class TestPDFExport:
                 side_effect=fake_export_as_pdf,
             ),
         ):
-            pdf_data, did_error = await run_app_then_export_as_pdf(
-                MarimoPath(temp_marimo_file),
-                include_outputs=True,
-                webpdf=True,
-                cli_args={},
-                argv=None,
-                export_as=None,
-                rasterization_options=MagicMock(enabled=True),
-                status_callback=events.append,
+            result = await export_pdf(
+                PDFFileExportRequest(
+                    path=MarimoPath(temp_marimo_file),
+                    options=PDFExportOptions(
+                        webpdf=True,
+                        rasterization=PDFRasterizationOptions(enabled=True),
+                    ),
+                    execution=NotebookExecutionOptions(
+                        cli_args={},
+                        argv=None,
+                    ),
+                    status_callback=events.append,
+                )
             )
 
-        assert pdf_data == b"mock_pdf"
-        assert did_error is False
+        assert result is not None
+        assert result.contents == b"mock_pdf"
+        assert result.did_error is False
         assert [event.phase for event in events] == [
             "execute",
             "execute_complete",
@@ -1545,17 +1697,17 @@ class TestPDFExport:
         ]
 
     @pytest.mark.asyncio
-    async def test_run_app_then_export_as_pdf_reports_render_only_without_outputs(
+    async def test_export_pdf_reports_render_only_without_outputs(
         self,
         temp_marimo_file: str,
     ) -> None:
         events: list[PDFExportStatusEvent] = []
 
         def fake_export_as_pdf(
-            self: Exporter, *args: Any, **kwargs: Any
+            self: Exporter, request: PDFExportRequest
         ) -> bytes:
-            del self, args
-            status_callback = kwargs["status_callback"]
+            del self
+            status_callback = request.status_callback
             assert status_callback is not None
             status_callback(
                 PDFExportStatusEvent(
@@ -1567,13 +1719,13 @@ class TestPDFExport:
 
         with (
             patch(
-                "marimo._server.export.run_app_until_completion",
+                "marimo._export.file.run_notebook",
                 side_effect=AssertionError(
                     "execution should not run without outputs"
                 ),
             ),
             patch(
-                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
                 side_effect=AssertionError(
                     "rasterization should not run without outputs"
                 ),
@@ -1585,19 +1737,20 @@ class TestPDFExport:
                 side_effect=fake_export_as_pdf,
             ),
         ):
-            pdf_data, did_error = await run_app_then_export_as_pdf(
-                MarimoPath(temp_marimo_file),
-                include_outputs=False,
-                webpdf=False,
-                cli_args={},
-                argv=None,
-                export_as=None,
-                rasterization_options=MagicMock(enabled=False),
-                status_callback=events.append,
+            result = await export_pdf(
+                PDFFileExportRequest(
+                    path=MarimoPath(temp_marimo_file),
+                    options=PDFExportOptions(
+                        webpdf=False,
+                        rasterization=PDFRasterizationOptions(enabled=False),
+                    ),
+                    status_callback=events.append,
+                )
             )
 
-        assert pdf_data == b"mock_pdf"
-        assert did_error is False
+        assert result is not None
+        assert result.contents == b"mock_pdf"
+        assert result.did_error is False
         assert [(event.phase, event.message) for event in events] == [
             ("prepare", "serializing notebook for PDF rendering..."),
             ("render", "rendering PDF via standard exporter..."),
@@ -1618,7 +1771,7 @@ class TestPDFExport:
         import nbformat
 
         from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
-        from marimo._server.export.exporter import (
+        from marimo._export.exporter import (
             _nbconvert_tag_remove_config,
         )
 
@@ -1654,7 +1807,7 @@ class TestPDFExport:
             )
 
     @pytest.mark.asyncio
-    async def test_run_app_then_export_as_pdf_ignores_status_callback_failures(
+    async def test_export_pdf_ignores_status_callback_failures(
         self,
         temp_marimo_file: str,
     ) -> None:
@@ -1669,13 +1822,13 @@ class TestPDFExport:
 
         with (
             patch(
-                "marimo._server.export.run_app_until_completion",
+                "marimo._export.file.run_notebook",
                 side_effect=AssertionError(
                     "execution should not run without outputs"
                 ),
             ),
             patch(
-                "marimo._server.export._pdf_raster.collect_pdf_png_fallbacks",
+                "marimo._export._pdf_raster.collect_pdf_png_fallbacks",
                 side_effect=AssertionError(
                     "rasterization should not run without outputs"
                 ),
@@ -1687,19 +1840,20 @@ class TestPDFExport:
                 side_effect=fake_export_as_pdf,
             ),
         ):
-            pdf_data, did_error = await run_app_then_export_as_pdf(
-                MarimoPath(temp_marimo_file),
-                include_outputs=False,
-                webpdf=False,
-                cli_args={},
-                argv=None,
-                export_as=None,
-                rasterization_options=MagicMock(enabled=False),
-                status_callback=failing_status_callback,
+            result = await export_pdf(
+                PDFFileExportRequest(
+                    path=MarimoPath(temp_marimo_file),
+                    options=PDFExportOptions(
+                        webpdf=False,
+                        rasterization=PDFRasterizationOptions(enabled=False),
+                    ),
+                    status_callback=failing_status_callback,
+                )
             )
 
-        assert pdf_data == b"mock_pdf"
-        assert did_error is False
+        assert result is not None
+        assert result.contents == b"mock_pdf"
+        assert result.did_error is False
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -1733,9 +1887,11 @@ class TestPDFExport:
             mock_pdf_exporter.return_value = mock_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                webpdf=False,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
             )
 
             assert result == b"mock_pdf_data"
@@ -1777,9 +1933,11 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                webpdf=True,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=True,
+                )
             )
 
             assert result == b"mock_webpdf_data"
@@ -1796,7 +1954,7 @@ class TestPDFExport:
     ) -> None:
         import nbformat
 
-        from marimo._server.export.exporter import _render_webpdf
+        from marimo._export.exporter import _render_webpdf
 
         (tmp_path / "nbconvert.py").write_text(
             textwrap.dedent(
@@ -1830,7 +1988,7 @@ class TestPDFExport:
         reason="requires Windows and nbconvert",
     )
     def test_webpdf_worker_can_spawn_subprocess_on_windows(self) -> None:
-        from marimo._server.export.exporter import (
+        from marimo._export.exporter import (
             _render_webpdf_with_nbconvert,
         )
 
@@ -1901,10 +2059,12 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                include_inputs=False,
-                webpdf=True,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    include_inputs=False,
+                    webpdf=True,
+                )
             )
 
             assert result == b"mock_webpdf_data_no_inputs"
@@ -1946,7 +2106,11 @@ class TestPDFExport:
             mock_pdf_exporter.return_value = mock_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app, session_view=session_view, webpdf=False
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
             )
 
             assert result is None
@@ -1994,10 +2158,12 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                include_inputs=False,
-                webpdf=False,  # Request standard PDF, but it should fall back
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    include_inputs=False,
+                    webpdf=False,  # Request standard PDF, but it should fall back
+                )
             )
 
             # Should fall back to webpdf and succeed
@@ -2059,9 +2225,11 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                webpdf=False,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
             )
 
             assert result == b"fallback_webpdf_data"
@@ -2111,9 +2279,11 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                webpdf=False,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                )
             )
 
             assert result == b"fallback_webpdf_data"
@@ -2160,10 +2330,12 @@ class TestPDFExport:
             mock_webpdf_exporter.return_value = mock_webpdf_exporter_instance
 
             result = exporter.export_as_pdf(
-                app=file_manager.app,
-                session_view=session_view,
-                webpdf=False,
-                status_callback=events.append,
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    webpdf=False,
+                    status_callback=events.append,
+                )
             )
 
         assert result == b"fallback_webpdf_data"
@@ -2240,9 +2412,12 @@ class TestPDFExport:
             ):
                 events: list[PDFExportStatusEvent] = []
                 result = await exporter.export_as_slides_pdf(
-                    app=file_manager.app,
-                    session_view=session_view,
-                    status_callback=events.append,
+                    _pdf_export_request(
+                        app=file_manager.app,
+                        session_view=session_view,
+                        status_callback=events.append,
+                        preset="slides",
+                    )
                 )
 
             assert result == b"mock_slides_pdf_data"
@@ -2348,9 +2523,12 @@ class TestPDFExport:
                 ),
             ):
                 result = await exporter.export_as_slides_pdf(
-                    app=file_manager.app,
-                    session_view=session_view,
-                    include_inputs=False,
+                    _pdf_export_request(
+                        app=file_manager.app,
+                        session_view=session_view,
+                        include_inputs=False,
+                        preset="slides",
+                    )
                 )
 
             assert result == b"mock_slides_pdf_data"
@@ -2403,7 +2581,7 @@ def test_export_assets_preserves_write_permission(
     dest = tmp_path / "output"
     dest.mkdir()
 
-    with patch("marimo._server.export.exporter.ROOT", src):
+    with patch("marimo._export.exporter.ROOT", src):
         Exporter().export_assets(dest)
 
     assert dest.stat().st_mode & stat.S_IWUSR, (
