@@ -45,9 +45,9 @@ function goToPosition(view: EditorView, from: number): void {
         y: "center",
       }),
     });
-
-    scrollOwnerCell(view);
   });
+
+  scrollOwnerCell(view);
 }
 
 function findFirstMatchingVariable(

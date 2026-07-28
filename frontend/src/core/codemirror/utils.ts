@@ -73,7 +73,7 @@ export function scrollOwnerCell(view: EditorView): void {
 
   requestAnimationFrame(() => {
     cell.scrollIntoView({
-      behavior: "smooth",
+      behavior: "instant",
       block: "nearest",
       inline: "nearest",
     });

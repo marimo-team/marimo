@@ -393,13 +393,14 @@ print('myVar')`);
 
     view = createEditor("myVar = 10\nprint(myVar)", cell);
     expect(goToVariableDefinition(view, "myVar")).toBe(true);
-    // One frame for the jump, one for the scroll it defers.
-    await tick();
+    // The jump and the scroll are both deferred to the next frame.
     await tick();
 
-    expect(cell.scrollIntoView).toHaveBeenCalledWith(
-      expect.objectContaining({ inline: "nearest" }),
-    );
+    expect(cell.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "instant",
+      block: "nearest",
+      inline: "nearest",
+    });
 
     cell.remove();
   });

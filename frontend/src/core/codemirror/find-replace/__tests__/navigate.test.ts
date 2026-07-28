@@ -252,9 +252,11 @@ describe("navigate", () => {
       // The scroll is deferred a frame.
       await new Promise((resolve) => requestAnimationFrame(resolve));
 
-      expect(cell.scrollIntoView).toHaveBeenCalledWith(
-        expect.objectContaining({ inline: "nearest" }),
-      );
+      expect(cell.scrollIntoView).toHaveBeenCalledWith({
+        behavior: "instant",
+        block: "nearest",
+        inline: "nearest",
+      });
     });
   });
 

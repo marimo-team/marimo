@@ -10,9 +10,8 @@ app = marimo.App(width="columns")
 
 @app.cell(column=0)
 def __(deep_and_far_variable, far_away_variable):
-    # Two usages, so a find/replace walk has to step through both before it
-    # leaves this cell for the definition in column 3 -- the scenario the
-    # reporter perceived as search being "stuck" inside a cell.
+    # Two matches in this cell, so find-next must step through both before
+    # leaving the column.
     usage_of_far_away = far_away_variable + 1
     another_usage = far_away_variable * 2
     usage_of_deep_and_far = deep_and_far_variable + 1
