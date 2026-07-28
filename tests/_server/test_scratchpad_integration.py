@@ -653,6 +653,30 @@ def test_ctx_run_cell_cascade_error(session: _Session) -> None:
     )
 
 
+def test_ctx_run_cell_downstream_stop_is_success(session: _Session) -> None:
+    """A downstream `mo.stop` is control flow, not a failed durable edit."""
+    session.setup_cells(
+        ["cell_a", "guard", "descendant"],
+        [
+            "x = 1",
+            "import marimo as mo\nmo.stop(x == 0)\ny = x",
+            "z = y + 1",
+        ],
+    )
+
+    lines = session.execute(
+        "import marimo._code_mode as cm\n"
+        "async with cm.get_context() as ctx:\n"
+        '    ctx.cells["cell_a"].code\n'
+        '    ctx.edit_cell("cell_a", code="x = 0")\n'
+        '    ctx.run_cell("cell_a")',
+    )
+
+    done_index = lines.index("event: done")
+    done = json.loads(lines[done_index + 1].removeprefix("data: "))
+    assert done["success"] is True
+
+
 def test_ctx_create_cell_multiply_defined(session: _Session) -> None:
     """`ctx.create_cell` introducing a duplicate definition errors early.
 
