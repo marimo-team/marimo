@@ -8,13 +8,11 @@ describe("runServerSidePDFDownload", () => {
     const downloadPDF = vi.fn().mockResolvedValue(undefined);
 
     await runServerSidePDFDownload({
-      filename: "slides.py",
       preset: "document",
       downloadPDF,
     });
 
     expect(downloadPDF).toHaveBeenCalledWith({
-      filename: "slides.py",
       webpdf: false,
       preset: "document",
       includeInputs: true,
@@ -26,13 +24,11 @@ describe("runServerSidePDFDownload", () => {
     const downloadPDF = vi.fn().mockResolvedValue(undefined);
 
     await runServerSidePDFDownload({
-      filename: "slides.py",
       preset: "slides",
       downloadPDF,
     });
 
     expect(downloadPDF).toHaveBeenCalledWith({
-      filename: "slides.py",
       webpdf: false,
       preset: "slides",
       includeInputs: true,

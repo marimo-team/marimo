@@ -4,8 +4,8 @@ import React from "react";
 import { toast } from "@/components/ui/use-toast";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
+import type { ExportedFile } from "@/core/network/types";
 import { Filenames } from "@/utils/filenames";
-import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
 import { toPng } from "./html-to-image";
 import { captureExternalIframes } from "./iframe";
@@ -191,6 +191,14 @@ export function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadExportedFile({
+  contents,
+  filename,
+  mediaType,
+}: ExportedFile) {
+  downloadBlob(new Blob([contents], { type: mediaType }), filename);
+}
+
 export type PDFExportPreset = "document" | "slides";
 
 /**
@@ -200,7 +208,6 @@ export type PDFExportPreset = "document" | "slides";
  * Standard PDF requires Pandoc & TeX (~few GBs) but is of higher quality.
  */
 export async function downloadAsPDF(opts: {
-  filename: string;
   webpdf: boolean;
   preset?: PDFExportPreset;
   includeInputs?: boolean;
@@ -210,7 +217,6 @@ export async function downloadAsPDF(opts: {
 }) {
   const client = getRequestClient();
   const {
-    filename,
     webpdf,
     preset = "document",
     includeInputs = true,
@@ -220,7 +226,7 @@ export async function downloadAsPDF(opts: {
   } = opts;
 
   try {
-    const pdfBlob = await client.exportAsPDF({
+    const exportedFile = await client.exportAsPDF({
       webpdf,
       preset,
       includeInputs,
@@ -229,8 +235,7 @@ export async function downloadAsPDF(opts: {
       rasterServer,
     });
 
-    const filenameWithoutPath = Paths.basename(filename);
-    downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
+    downloadExportedFile(exportedFile);
   } catch (error) {
     toast({
       title: "Failed to download",

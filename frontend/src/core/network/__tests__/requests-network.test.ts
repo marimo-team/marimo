@@ -22,6 +22,7 @@ vi.mock("../api", async () => {
   return {
     ...actual,
     API: {
+      handleExportResponse: vi.fn((response) => response.data),
       handleResponse: vi.fn((response) => response.data),
       handleResponseReturnNull: vi.fn(() => null),
     },

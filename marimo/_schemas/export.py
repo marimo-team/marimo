@@ -50,5 +50,11 @@ class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
     raster_server: PDFRasterServer = "static"
 
 
+class ExportedFile(msgspec.Struct, rename="camel"):
+    contents: str
+    filename: str
+    media_type: str
+
+
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):
     cell_ids_to_output: dict[CellId_t, MimeBundleTuple]

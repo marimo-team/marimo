@@ -202,7 +202,7 @@ const ActionButtons: React.FC<{
     if (!app) {
       return;
     }
-    await downloadAsHTML({ filename: document.title, includeCode: true });
+    await downloadAsHTML({ includeCode: true });
   };
 
   const handleDownloadAsPython = async () => {
