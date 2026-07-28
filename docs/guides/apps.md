@@ -91,6 +91,56 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 - Add speaker notes at the bottom of each slide and launch speaker view by pressing `S`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
+#### Styling slides
+
+The slides layout is rendered with [reveal.js](https://revealjs.com/), so you
+can brand a deck with a custom CSS file (see [Theming](configuration/theming.md))
+targeted at reveal.js's own classes.
+
+Target `.reveal-viewport` for deck-wide styles, like a background or a logo
+that appears on every slide:
+
+```css
+.reveal-viewport {
+  background-color: #faf8f4;
+}
+
+/* Logo pinned to the top-right of every slide */
+.reveal-viewport::after {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.5rem;
+    width: 7.5rem;
+    height: 2.5rem;
+    background-image: url("./logo.png");
+    background-repeat: no-repeat;
+    background-position: right center;
+    background-size: contain;
+    z-index: 40;
+}
+```
+
+To target a specific slide, use either its position or a [named cell](configuration/theming.md#targeting-cells):
+
+```css
+/* By position (stable as long as the cell order doesn't change) */
+.reveal .slides > section:first-of-type { /* ... */ }
+.reveal .slides > section:nth-of-type(3) { /* ... */ }
+
+/* By named cell (best when you only care about one specific cell) */
+[data-cell-name="title"] { /* ... */ }
+```
+
+For a full-bleed background on a single slide, style `.reveal-viewport` with
+`:has()` rather than the `<section>` directly — reveal.js letterboxes slide
+content, so painting only the `<section>` can leave margins around it:
+
+```css
+.reveal-viewport:has(.slides > section.present [data-cell-name="title"]) {
+  background: linear-gradient(145deg, #1c1917 0%, #292524 45%, #1f2937 100%);
+}
+```
+
 #### Notes
 
 - The order of the slides is determined by the order of the cells in the notebook.
