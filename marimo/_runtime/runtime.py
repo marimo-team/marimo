@@ -156,6 +156,10 @@ from marimo._sql.engines.types import (
 from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
+from marimo._sql.sql_quoting import (
+    quote_qualified_name,
+    quote_sql_identifier,
+)
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
@@ -1007,7 +1011,8 @@ class Kernel:
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
                 try:
-                    duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
+                    qualified = quote_qualified_name("memory", "main", name)
+                    duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                 except Exception as e:
                     LOGGER.warning("Failed to drop table %s: %s", name, str(e))
             elif variable.kind == "view" and DependencyManager.duckdb.has():
@@ -1015,14 +1020,16 @@ class Kernel:
 
                 # We only drop in-memory views for the same reason.
                 try:
-                    duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
+                    qualified = quote_qualified_name("memory", "main", name)
+                    duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                 except Exception as e:
                     LOGGER.warning("Failed to drop view %s: %s", name, str(e))
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
                 try:
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
+                    identifier = quote_sql_identifier(name)
+                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
                     LOGGER.warning(
                         "Failed to detach catalog %s: %s", name, str(e)
