@@ -257,7 +257,7 @@ function createSQLAnalysis() {
   const parser = new NodeSqlParser({
     getParserOptions: (state: EditorState) => {
       return {
-        database: guessParserDialect(state) ?? DEFAULT_PARSER_DIALECT,
+        database: getAnalysisDialect(state),
       };
     },
   });
