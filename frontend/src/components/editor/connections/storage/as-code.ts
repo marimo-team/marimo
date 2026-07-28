@@ -3,7 +3,11 @@
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
 import { isSecret, unprefixSecret } from "../secrets";
-import { type StorageConnection, StorageConnectionSchema } from "./schemas";
+import {
+  type S3Auth,
+  type StorageConnection,
+  StorageConnectionSchema,
+} from "./schemas";
 
 export type StorageLibrary = "obstore" | "fsspec";
 
@@ -50,6 +54,36 @@ class SecretContainer {
   }
 }
 
+/**
+ * Credential kwargs shared by every S3-compatible store.
+ */
+function s3AuthParams(
+  auth: S3Auth | undefined,
+  secrets: SecretContainer,
+): string[] {
+  // obstore polls the credential endpoint with the token read from the file,
+  // refreshing credentials for the lifetime of the store.
+  if (auth?.type === "Container credentials") {
+    return [
+      `    container_credentials_full_uri=${secrets.print("container_credentials_full_uri", auth.container_credentials_full_uri)},`,
+      `    container_authorization_token_file=${secrets.print("container_authorization_token_file", auth.container_authorization_token_file)},`,
+    ];
+  }
+
+  const params: string[] = [];
+  if (auth?.access_key_id) {
+    params.push(
+      `    access_key_id=${secrets.print("access_key_id", auth.access_key_id)},`,
+    );
+  }
+  if (auth?.secret_access_key) {
+    params.push(
+      `    secret_access_key=${secrets.print("secret_access_key", auth.secret_access_key)},`,
+    );
+  }
+  return params;
+}
+
 function generateS3Code(
   connection: Extract<StorageConnection, { type: "s3" }>,
   secrets: SecretContainer,
@@ -61,20 +95,14 @@ function generateS3Code(
   if (connection.region) {
     params.push(`    region=${secrets.print("region", connection.region)},`);
   }
-  if (connection.access_key_id) {
-    params.push(
-      `    access_key_id=${secrets.print("access_key_id", connection.access_key_id)},`,
-    );
-  }
-  if (connection.secret_access_key) {
-    params.push(
-      `    secret_access_key=${secrets.print("secret_access_key", connection.secret_access_key)},`,
-    );
-  }
+  params.push(...s3AuthParams(connection.auth, secrets));
   if (connection.endpoint_url) {
     params.push(
       `    endpoint_url=${secrets.print("endpoint_url", connection.endpoint_url)},`,
     );
+  }
+  if (connection.allow_http) {
+    params.push("    allow_http=True,");
   }
 
   const paramsStr = params.length > 0 ? `\n${params.join("\n")}\n` : "";
@@ -140,16 +168,7 @@ function generateCoreWeaveCode(
     `    region=${secrets.print("region", connection.region)},`,
   ];
 
-  if (connection.access_key_id) {
-    params.push(
-      `    access_key_id=${secrets.print("access_key_id", connection.access_key_id)},`,
-    );
-  }
-  if (connection.secret_access_key) {
-    params.push(
-      `    secret_access_key=${secrets.print("secret_access_key", connection.secret_access_key)},`,
-    );
-  }
+  params.push(...s3AuthParams(connection.auth, secrets));
 
   params.push(
     `    endpoint="https://${connection.bucket}.cwobject.com",`,

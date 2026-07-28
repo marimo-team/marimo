@@ -49,6 +49,35 @@ store = S3Store.from_url(
 )
 ```
 
+S3-compatible stores can also authenticate with container-vended credentials — used by ECS/EKS task roles and CoreWeave sandboxes, where the platform injects a credential endpoint and a token file:
+
+```python
+import os
+
+from obstore.store import S3Store
+
+store = S3Store(
+    "my-bucket",
+    endpoint="https://my-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+    container_credentials_full_uri=os.environ["AWS_CONTAINER_CREDENTIALS_FULL_URI"],
+    container_authorization_token_file=os.environ["AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE"],
+)
+```
+
+!!! note "S3 endpoint gotchas"
+
+    - `AWS_ENDPOINT_URL_S3` takes precedence over the `endpoint` argument, so an
+      explicitly configured endpoint is silently ignored when that variable is set.
+    - Plain-http endpoints (e.g. `http://cwlota.com`) require `allow_http=True`.
+      obstore (0.11.0) can't read back the configuration of a store created this
+      way — it panics, printing `Expected config prefix to start with aws_` to
+      the console — so marimo falls back to labelling the connection as generic
+      S3 instead of detecting the provider from its endpoint. Browsing,
+      downloading, and signing still work.
+    - `virtual_hosted_style_request=True` expects the bucket name to already be part
+      of the endpoint hostname; unlike boto3, obstore does not prepend it.
+
 #### fsspec
 
 ```python

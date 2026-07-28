@@ -513,6 +513,15 @@ class TestObstore:
         root = backend.root_path
         assert root == "test-bucket"
 
+    def test_root_path_azure_uses_container_name(self) -> None:
+        from obstore.store import AzureStore
+
+        store = AzureStore(
+            "my-container", account_name="acct", account_key="YWJjZA=="
+        )
+        backend = self._make_backend(store)
+        assert backend.root_path == "my-container"
+
     def test_is_compatible_with_obstore(self) -> None:
         from obstore.store import MemoryStore
 
@@ -588,37 +597,74 @@ class TestObstore:
         backend = self._make_backend(store)
         assert backend.display_name == "In-memory"
 
-    def test_protocol_returns_unknown_when_config_panics(self) -> None:
+    def test_protocol_falls_back_to_store_type_when_config_panics(
+        self,
+    ) -> None:
         from obstore.store import S3Store
 
         store = S3Store("bucket", skip_signature=True)
         backend = self._make_backend(store)
 
-        def _raise(_: Any) -> None:
-            raise BaseException("rust panic")  # noqa: TRY002
+        with self._panicking_config(store):
+            assert backend.protocol == "s3"
 
-        with patch.object(
-            type(store),
-            "config",
-            new_callable=lambda: property(_raise),
-        ):
-            assert backend.protocol == "unknown"
-
-    def test_root_path_returns_none_when_config_panics(self) -> None:
+    def test_root_path_falls_back_to_repr_when_config_panics(self) -> None:
         from obstore.store import S3Store
 
         store = S3Store("bucket", skip_signature=True)
         backend = self._make_backend(store)
 
+        with self._panicking_config(store):
+            assert backend.root_path == "bucket"
+
+    def test_config_is_only_read_once_when_it_panics(self) -> None:
+        from obstore.store import S3Store
+
+        store = S3Store("bucket", skip_signature=True)
+        backend = self._make_backend(store)
+        calls = 0
+
         def _raise(_: Any) -> None:
+            nonlocal calls
+            calls += 1
             raise BaseException("rust panic")  # noqa: TRY002
 
         with patch.object(
-            type(store),
-            "config",
-            new_callable=lambda: property(_raise),
+            type(store), "config", new_callable=lambda: property(_raise)
         ):
-            assert backend.root_path is None
+            assert backend.protocol == "s3"
+            assert backend.root_path == "bucket"
+
+        assert calls == 1
+
+    def test_container_credentials_store_is_readable(self) -> None:
+        """obstore panics on `store.config` for container-credential stores."""
+        from obstore.store import S3Store
+
+        store = S3Store(
+            "demo-bucket",
+            endpoint="https://demo-bucket.cwobject.com",
+            allow_http=True,
+            virtual_hosted_style_request=True,
+            container_credentials_full_uri="http://169.254.170.23/v1/creds",
+            container_authorization_token_file="/tmp/token",
+        )
+        backend = self._make_backend(store)
+
+        assert backend.root_path == "demo-bucket"
+        # `allow_http=True` makes the config (and so the endpoint) unreadable,
+        # so we can't detect "coreweave" from the endpoint and fall back to the
+        # store type.
+        assert backend.protocol == "s3"
+
+    @staticmethod
+    def _panicking_config(store: Any) -> Any:
+        def _raise(_: Any) -> None:
+            raise BaseException("rust panic")  # noqa: TRY002
+
+        return patch.object(
+            type(store), "config", new_callable=lambda: property(_raise)
+        )
 
 
 @pytest.mark.skipif(not HAS_FSSPEC, reason="fsspec not installed")

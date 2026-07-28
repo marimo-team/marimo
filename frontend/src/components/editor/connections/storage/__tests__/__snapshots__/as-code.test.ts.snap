@@ -51,6 +51,21 @@ store = S3Store("operator-bucket",
 )"
 `;
 
+exports[`generateStorageCode > CoreWeave > with container credentials 1`] = `
+"from obstore.store import S3Store
+import os
+
+_container_credentials_full_uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+_container_authorization_token_file = os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE")
+store = S3Store("operator-bucket",
+    region="US-EAST-04A",
+    container_credentials_full_uri=_container_credentials_full_uri,
+    container_authorization_token_file=_container_authorization_token_file,
+    endpoint="https://operator-bucket.cwobject.com",
+    virtual_hosted_style_request=True,
+)"
+`;
+
 exports[`generateStorageCode > CoreWeave > with secrets 1`] = `
 "from obstore.store import S3Store
 import os
@@ -119,6 +134,29 @@ exports[`generateStorageCode > S3 > minimal connection (bucket only) 1`] = `
 store = S3Store("my-bucket",)"
 `;
 
+exports[`generateStorageCode > S3 > with container credentials 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("my-bucket",
+    region="us-east-1",
+    container_credentials_full_uri="http://169.254.170.23/v1/credentials",
+    container_authorization_token_file="/var/run/secrets/token",
+)"
+`;
+
+exports[`generateStorageCode > S3 > with container credentials from secrets 1`] = `
+"from obstore.store import S3Store
+import os
+
+_container_credentials_full_uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_FULL_URI")
+_container_authorization_token_file = os.environ.get("AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE")
+store = S3Store("my-bucket",
+    region="us-east-1",
+    container_credentials_full_uri=_container_credentials_full_uri,
+    container_authorization_token_file=_container_authorization_token_file,
+)"
+`;
+
 exports[`generateStorageCode > S3 > with custom endpoint 1`] = `
 "from obstore.store import S3Store
 
@@ -127,6 +165,18 @@ store = S3Store("my-bucket",
     access_key_id="AKIAIOSFODNN7EXAMPLE",
     secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
     endpoint_url="https://minio.example.com:9000",
+)"
+`;
+
+exports[`generateStorageCode > S3 > with plain-http endpoint 1`] = `
+"from obstore.store import S3Store
+
+store = S3Store("my-bucket",
+    region="us-east-1",
+    access_key_id="AKIAIOSFODNN7EXAMPLE",
+    secret_access_key="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    endpoint_url="http://cwlota.com",
+    allow_http=True,
 )"
 `;
 
