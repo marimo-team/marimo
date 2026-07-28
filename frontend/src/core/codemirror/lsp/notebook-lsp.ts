@@ -576,8 +576,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     return relatedInformation.map((related) => {
       // `isDiagnostic` does not validate related information, so a server may
-      // hand us an entry with no usable location.
+      // hand us an entry that isn't an object or has no usable location.
       if (
+        !isRecord(related) ||
         !isRecord(related.location) ||
         related.location.uri !== this.documentUri ||
         !isRange(related.location.range)

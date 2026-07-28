@@ -1444,6 +1444,58 @@ describe("NotebookLanguageServerClient", () => {
       ]);
     });
 
+    it("should keep diagnostics with unusable relatedInformation entries", async () => {
+      const capturedDiagnostics: LSP.PublishDiagnosticsParams[] = [];
+      mockClient.processNotification = vi
+        .fn()
+        .mockImplementation((notification: ClientNotification) => {
+          if (isPublishDiagnosticsNotification(notification)) {
+            capturedDiagnostics.push(notification.params);
+          }
+        });
+      notebookClient.patchProcessNotification();
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell3),
+          languageId: "python",
+          version: 1,
+          text: "print(math.sqrt(4))",
+        },
+      });
+
+      expect(() => {
+        mockClient.processNotification({
+          method: "textDocument/publishDiagnostics",
+          params: {
+            uri: notebookClient.documentUri,
+            version: 1,
+            diagnostics: [
+              {
+                range: {
+                  start: { line: 3, character: 0 },
+                  end: { line: 3, character: 5 },
+                },
+                message: "Shadowed import",
+                // `isDiagnostic` doesn't reach these, so a server can hand us
+                // entries that aren't objects at all.
+                relatedInformation: [
+                  null,
+                  { message: "no location" },
+                ] as unknown as LSP.DiagnosticRelatedInformation[],
+              },
+            ],
+          },
+        });
+      }).not.toThrow();
+
+      const forwarded = capturedDiagnostics.find(
+        (params) => params.diagnostics.length > 0,
+      );
+      expect(forwarded?.uri).toBe(CellDocumentUri.of(Cells.cell3));
+      expect(forwarded?.diagnostics[0].message).toBe("Shadowed import");
+    });
+
     it("should clear diagnostics for all cells when receiving empty diagnostics", async () => {
       await notebookClient.sync();
 
