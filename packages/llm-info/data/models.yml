@@ -340,28 +340,8 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
-  - name: Claude Opus 5
-    model: anthropic.claude-opus-5
-    description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
   - name: Claude Opus 5 (Global)
     model: global.anthropic.claude-opus-5
-    description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
-  - name: Claude Opus 5 (US)
-    model: us.anthropic.claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
@@ -420,16 +400,6 @@ bedrock:
     release_date: 2026-06-30
     cost: {input: 2, output: 10}
 
-  - name: Claude Sonnet 5 (JP)
-    model: jp.anthropic.claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -442,16 +412,6 @@ bedrock:
 
   - name: Claude Sonnet 5 (Global)
     model: global.anthropic.claude-sonnet-5
-    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-06-30
-    cost: {input: 2, output: 10}
-
-  - name: Claude Sonnet 5
-    model: anthropic.claude-sonnet-5
     description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
