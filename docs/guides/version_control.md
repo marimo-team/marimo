@@ -4,9 +4,8 @@ description: Using marimo with git — what to ignore and when to commit `__mari
 
 # Version control
 
-marimo writes a few generated files next to your notebooks. Most of them should
-stay out of git; a few are optional when you want previews or social images in
-the repo.
+marimo may write generated files next to your notebooks. Ignore most of them;
+commit only what you need for previews or social images.
 
 ## Recommended `.gitignore`
 
