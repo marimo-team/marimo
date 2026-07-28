@@ -17,22 +17,15 @@ You can load LaTeX macros using `mo.latex(filename=...)`.
 
 ## Composing markdown
 
-`mo.md` returns an HTML-like object. When you interpolate it into another
-`mo.md(...)` **f-string**, Python stringifies the nested value through
-`__format__` before the outer markdown parser runs. That usually works for
-plain nested markdown, but it breaks when the nested content must sit inside a
-raw HTML block such as `<details>` (CommonMark does not re-parse markdown
-inside HTML blocks).
+`mo.md(...)` returns an object that stringifies when you interpolate it into an
+f-string. Nested markdown is usually fine. It breaks when the nested markdown
+must live **inside a raw HTML block** such as `<details>` (CommonMark does not
+parse markdown inside HTML blocks).
 
-**Working pattern** — use the nested object's `.text` (markdown source) when
-embedding into HTML:
+Use the nested object's `.text` (source) when embedding into HTML:
 
 ```python
-_answer = mo.md(
-    """
-    **The answer**
-    """
-)
+_answer = mo.md("**The answer**")
 
 mo.md(
     f"""
@@ -47,18 +40,10 @@ mo.md(
 )
 ```
 
-**Pitfalls**
+Notes:
 
-- `mo.as_html(_answer)` is not the right tool here: `mo.md` is already HTML,
-  and wrapping again does not restore markdown parsing inside `<details>`.
-- Prefer `.text` for nested markdown source, or build the outer string from
-  plain markdown / HTML deliberately.
-- Longer term, [PEP 750](https://peps.python.org/pep-0750/) t-strings could let
-  `mo.md` receive live objects instead of pre-stringified fragments (Python
-  3.14+); until then, compose with `.text` or avoid f-string nesting for
-  HTML-wrapped content.
-
-See also the discussion on [#9890](https://github.com/marimo-team/marimo/issues/9890).
+- Prefer `.text` over wrapping with `mo.as_html` for this case.
+- See [#9890](https://github.com/marimo-team/marimo/issues/9890).
 
 ## Icons
 
