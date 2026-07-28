@@ -3583,6 +3583,68 @@ class TestSQL:
         await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
         assert not table_exists()
 
+    async def test_sql_table_on_attached_catalog_is_not_dropped(
+        self, k: Kernel
+    ) -> None:
+        # `CREATE TABLE <catalog>.<table>` is shorthand for
+        # `<catalog>.main.<table>`, which is ambiguous with `<schema>.<table>`
+        # in the default "memory" catalog. Cleanup must resolve this against
+        # the real attached catalogs, so it neither leaves the attached
+        # table undropped-but-mistaken-for-memory, nor drops an unrelated,
+        # same-named table living in a "memory" schema of the same name.
+        import duckdb
+
+        duckdb.execute("ATTACH ':memory:' AS other_db")
+
+        def attached_table_exists() -> bool:
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'other_db' AND table_schema = 'main' "
+                "AND table_name = 'holdings'"
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        def memory_schema_table_exists() -> bool:
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'memory' AND table_schema = 'other_db' "
+                "AND table_name = 'holdings'"
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
+                    code=(
+                        "mo.sql('CREATE OR REPLACE TABLE other_db.holdings "
+                        "AS SELECT 1 AS a')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert attached_table_exists()
+
+        # An unrelated table happens to be created afterwards in a "memory"
+        # schema with the same name as the attached catalog. Cleanup must
+        # not confuse the two.
+        duckdb.execute('CREATE SCHEMA IF NOT EXISTS "other_db"')
+        duckdb.execute(
+            'CREATE TABLE memory."other_db".holdings AS SELECT 2 AS a'
+        )
+
+        # Deleting the defining cell must not drop the attached table, and
+        # must not touch the unrelated table in memory."other_db".
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+        assert attached_table_exists()
+        assert memory_schema_table_exists()
+
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
             [

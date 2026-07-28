@@ -448,13 +448,36 @@ def _in_memory_qualified_name(
 ) -> str | None:
     """Resolve the quoted, qualified name of an in-memory table/view.
 
-    Returns `None` if the object doesn't live in the "memory" catalog,
+    Returns `None` if the object doesn't live in the "memory" catalog.
     """
+    import duckdb
+
     sql_ref = variable.sql_ref
-    catalog = (sql_ref.catalog if sql_ref else None) or "memory"
+    catalog = sql_ref.catalog if sql_ref else None
+    schema = sql_ref.schema if sql_ref else None
+
+    if catalog is None and schema is not None:
+        # A two-part name (e.g. `CREATE TABLE foo.bar ...`) is ambiguous:
+        # `foo` could be a schema in the default "memory" catalog, or
+        # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
+        # against DuckDB's actual attached catalogs, so we don't mistake an
+        # attached database for a "memory" schema (or vice versa).
+        try:
+            attached_catalogs = {
+                row[0].lower()
+                for row in duckdb.sql(
+                    "SELECT database_name FROM duckdb_databases()"
+                ).fetchall()
+            }
+        except Exception:
+            attached_catalogs = set()
+        if schema.lower() in attached_catalogs and schema.lower() != "memory":
+            catalog, schema = schema, "main"
+
+    catalog = catalog or "memory"
     if catalog != "memory":
         return None
-    schema = (sql_ref.schema if sql_ref else None) or "main"
+    schema = schema or "main"
     return quote_qualified_name(catalog, schema, name)
 
 
