@@ -4,7 +4,7 @@ from __future__ import annotations
 import asyncio
 import queue as _queue
 import threading
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -27,6 +27,9 @@ from marimo._runtime.kernel_lifecycle import (
     threaded_queue_reader,
 )
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
@@ -160,6 +163,35 @@ async def test_listen_messages_exits_when_reader_raises(
     await listen_messages(kernel, control, ui, failing_reader)
 
     kernel.handle_message.assert_not_called()
+
+
+async def test_listen_messages_survives_interrupted_read(
+    kernel: Any,
+    control: asyncio.Queue[Any],
+    ui: asyncio.Queue[Any],
+) -> None:
+    """A SIGINT-aborted queue read (EINTR) must not stop the control
+    loop."""
+    cmd = _execute()
+    reads: Iterator[CommandMessage | BaseException] = iter(
+        [
+            InterruptedError(4, "Interrupted function call"),
+            cmd,
+            StopKernelCommand(),
+        ]
+    )
+
+    async def interrupted_reader(_queue: object) -> CommandMessage:
+        result = next(reads)
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    await listen_messages(kernel, control, ui, interrupted_reader)
+
+    # The dispatch after the EINTR proves the loop kept reading.
+    assert kernel.handle_message.await_count == 1
+    assert kernel.handle_message.await_args.args == (cmd,)
 
 
 async def test_listen_messages_merges_ui_updates(

@@ -142,7 +142,10 @@ from marimo._runtime.runner.hooks import (
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
-from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._runtime.win32_interrupt_handler import (
+    Win32InterruptHandler,
+    ignore_console_ctrl_c,
+)
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
 )
@@ -2503,6 +2506,8 @@ def _bootstrap_subprocess(
     if sys.platform != "win32":
         os.setsid()
         start_parent_poller(parent_pid)
+    else:
+        ignore_console_ctrl_c()
 
     # The runtime process inherits the server's loop policy. On Windows, we
     # restore the event loop policy to the default ProactorEventLoop, so
