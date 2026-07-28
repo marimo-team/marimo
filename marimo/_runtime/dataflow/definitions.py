@@ -48,12 +48,14 @@ class DefinitionRegistry:
         Return the key used to group definitions that conflict.
         Only qualified SQL definitions return a non-global key.
         """
+        sql_ref = variable.sql_ref
+        qualified_name = sql_ref.qualified_name if sql_ref else None
         if (
             variable.language == "sql"
-            and variable.qualified_name is not None
-            and variable.qualified_name != name
+            and qualified_name is not None
+            and qualified_name != name
         ):
-            return ("sql", variable.qualified_name)
+            return ("sql", qualified_name)
         return ("global", name)
 
     def register_definition(

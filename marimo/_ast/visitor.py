@@ -91,8 +91,8 @@ class VariableData:
     # For kind == import
     import_data: ImportData | None = None
 
-    # In the sql case, the name may be qualified
-    qualified_name: str | None = None
+    # Only applicable for SQL kinds (table, view, schema, catalog)
+    sql_ref: SQLRef | None = None
 
     @property
     def language(self) -> Language:
@@ -784,18 +784,14 @@ class ScopedVisitor(ast.NodeVisitor):
                         self._define(
                             None,
                             _table.table,
-                            VariableData(
-                                "table", qualified_name=_table.qualified_name
-                            ),
+                            VariableData("table", sql_ref=_table),
                         )
                         defined_names.add(_table.qualified_name)
                     for _view in sql_defs.views:
                         self._define(
                             None,
                             _view.table,
-                            VariableData(
-                                "view", qualified_name=_view.qualified_name
-                            ),
+                            VariableData("view", sql_ref=_view),
                         )
                         defined_names.add(_view.qualified_name)
                     for _schema in sql_defs.schemas:

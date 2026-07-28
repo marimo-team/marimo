@@ -10,7 +10,7 @@ import pytest
 
 from marimo._ast import visitor
 from marimo._ast.errors import ImportStarError
-from marimo._ast.sql_visitor import normalize_sql_f_string
+from marimo._ast.sql_visitor import SQLRef, normalize_sql_f_string
 from marimo._ast.visitor import (
     AnnotationData,
     ImportData,
@@ -1504,7 +1504,7 @@ def test_sql_statement_with_url() -> None:
     v.visit(mod)
     assert v.defs == {"cars"}
     assert v.variable_data == {
-        "cars": [VariableData("table", qualified_name="cars")]
+        "cars": [VariableData("table", sql_ref=SQLRef(table="cars"))]
     }
     assert v.refs == {"mo"}
 
