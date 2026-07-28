@@ -44,6 +44,7 @@ from marimo._schemas.export import (
     ExportAsScriptRequest,
     UpdateCellOutputsRequest,
     to_html_export_options,
+    to_markdown_export_options,
 )
 from marimo._schemas.export_options import (
     IPYNBExportOptions,
@@ -318,7 +319,8 @@ async def export_as_markdown(
     result = export_markdown(
         MarkdownExportRequest(
             notebook=app_file_manager.app.to_ir(),
-            options=MarkdownExportOptions(
+            options=to_markdown_export_options(
+                body,
                 filename=app_file_manager.filename,
                 source_filename=app_file_manager.filename,
             ),
@@ -408,7 +410,7 @@ async def auto_export_as_markdown(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/ExportAsMarkdownRequest"
+                    $ref: "#/components/schemas/AutoExportAsMarkdownRequest"
     responses:
         200:
             description: Export the notebook as a markdown

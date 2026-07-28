@@ -255,6 +255,14 @@ components:
       required: []
       title: AnthropicConfig
       type: object
+    AutoExportAsMarkdownRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsMarkdownRequest
+      type: object
     BannerNotification:
       description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
         \        title: Banner title.\n        description: Banner body (may contain\
@@ -1743,6 +1751,15 @@ components:
       properties:
         download:
           type: boolean
+        flavor:
+          anyOf:
+          - enum:
+            - mdx
+            - mystmd
+            - pymdown
+            - qmd
+          - type: 'null'
+          default: null
       required:
       - download
       title: ExportAsMarkdownRequest
@@ -6358,7 +6375,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+              $ref: '#/components/schemas/AutoExportAsMarkdownRequest'
       responses:
         200:
           content:

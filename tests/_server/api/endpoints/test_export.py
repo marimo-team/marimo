@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo import __version__
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest, PDFRasterizationRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -248,6 +249,42 @@ def test_export_markdown_uses_qmd_filename(
     assert response.headers["Content-Disposition"].startswith("inline;")
     assert qmd_path.name in response.headers["Content-Disposition"]
     assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
+
+
+@with_session(SESSION_ID)
+def test_export_markdown_uses_requested_flavor(
+    client: TestClient,
+    *,
+    temp_marimo_file: str,
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = temp_marimo_file
+
+    cases: list[tuple[MarkdownFlavorName, str, str]] = [
+        ("pymdown", ".md", "```python {.marimo}"),
+        ("qmd", ".qmd", "```{marimo .python"),
+        ("mystmd", ".myst.md", "```{marimo} python"),
+        ("mdx", ".mdx", "```python marimo"),
+    ]
+    for flavor, expected_suffix, expected_fence in cases:
+        response = client.post(
+            "/api/export/markdown",
+            headers=HEADERS,
+            json={
+                "download": False,
+                "flavor": flavor,
+            },
+        )
+
+        expected_filename = f"{Path(temp_marimo_file).stem}{expected_suffix}"
+        assert response.status_code == 200
+        assert expected_fence in response.text
+        assert (
+            response.headers["Content-Disposition"]
+            == f"inline; filename*=UTF-8''{expected_filename}"
+        )
+        assert response.headers["Content-Type"] == "text/plain; charset=utf-8"
 
 
 @pytest.mark.skipif(

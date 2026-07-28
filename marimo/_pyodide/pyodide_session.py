@@ -36,11 +36,10 @@ from marimo._runtime.commands import (
 from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._schemas.export import (
     ExportAsHTMLRequest,
+    ExportAsMarkdownRequest,
     ExportedFile,
     to_html_export_options,
-)
-from marimo._schemas.export_options import (
-    MarkdownExportOptions,
+    to_markdown_export_options,
 )
 from marimo._server.files.os_file_system import OSFileSystem
 from marimo._server.models.files import (
@@ -419,11 +418,16 @@ class PyodideBridge:
         )
 
     def export_markdown(self, request: str) -> str:
-        del request
+        parsed = self._parse(request, ExportAsMarkdownRequest)
+        filename = self.session.app_manager.filename
         result = export_markdown(
             MarkdownExportRequest(
                 notebook=self.session.app_manager.app.to_ir(),
-                options=MarkdownExportOptions(),
+                options=to_markdown_export_options(
+                    parsed,
+                    filename=filename,
+                    source_filename=filename,
+                ),
             )
         )
         return self._dump(
