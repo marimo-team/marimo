@@ -107,16 +107,17 @@ that appears on every slide:
 
 /* Logo pinned to the top-right of every slide */
 .reveal-viewport::after {
-    position: absolute;
-    top: 1.25rem;
-    right: 1.5rem;
-    width: 7.5rem;
-    height: 2.5rem;
-    background-image: url("./logo.png");
-    background-repeat: no-repeat;
-    background-position: right center;
-    background-size: contain;
-    z-index: 40;
+  content: "";
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  width: 7.5rem;
+  height: 2.5rem;
+  background-image: url("./logo.png");
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: contain;
+  z-index: 40;
 }
 ```
 
