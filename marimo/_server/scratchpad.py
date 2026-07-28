@@ -342,8 +342,10 @@ async def run_scratchpad_code(
     run_id = str(uuid4())
     listener = ScratchCellListener(run_id=run_id)
 
-    with session.scoped(listener):
-        async with session.scratchpad_lock:
+    # Ensure we take a lock on the scratchpad before scoping the listener.
+    # See #10035.
+    async with session.scratchpad_lock:
+        with session.scoped(listener):
             notebook_cells, cell_outputs = snapshot_for_scratchpad(session)
             session.put_control_request(
                 ExecuteScratchpadCommand(

@@ -965,3 +965,32 @@ class TestRunScratchpadCode:
 
         assert result.success is False
         assert result.errors == ["cell 'child-cell' raised ZeroDivisionError"]
+
+    @pytest.mark.asyncio
+    async def test_listener_registered_only_while_lock_held(self) -> None:
+        """The listener must be scoped only while `scratchpad_lock` is held.
+        Scoping before the lock lets a concurrent execute waiting on the lock
+        accumulate this run's console output (see #10035)."""
+        session = _FakeSession()
+        locked_when_scoped: list[bool] = []
+        original_scoped = session.scoped
+
+        @contextmanager
+        def recording_scoped(
+            listener: ScratchCellListener,
+        ) -> Iterator[ScratchCellListener]:
+            locked_when_scoped.append(session.scratchpad_lock.locked())
+            with original_scoped(listener) as scoped_listener:
+                yield scoped_listener
+
+        session.scoped = recording_scoped  # type: ignore[method-assign]
+
+        await run_scratchpad_code(
+            session.as_session(),
+            _build_request(),
+            code="x = 1",
+            server_url="u",
+            auth_token="t",
+        )
+
+        assert locked_when_scoped == [True]
