@@ -43,15 +43,15 @@
 - ⚡️ **響應式：** 執行一個單元格，marimo 會響應式地[執行所有相依單元格](https://docs.marimo.io/guides/reactivity.html)或<a href="#expensive-notebooks">將其標記為過時</a>
 - 🖐️ **互動性：** [綁定滑桿、表格、圖表等](https://docs.marimo.io/guides/interactivity.html)至 Python — 無需回呼函式
 - 🐍 **支援 Git 版本控制：** 以 `.py` 檔案格式儲存
-- 🛢️ **為資料設計：** 使用 SQL 查詢[資料框和資料庫](https://docs.marimo.io/guides/working_with_data/sql.html)，過濾和搜尋[資料框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🤖 **AI 原生：** [連結 agent CLIs](https://docs.marimo.io/guides/generate_with_ai/marimo_pair/)（如 Claude Code）至筆記本，或使用編輯器的[內建 AI 功能](https://docs.marimo.io/guides/editor_features/ai_completion/)
-- 🔬 **可重現：** [無隱藏狀態](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)、確定性執行、[內建套件管理](https://docs.marimo.io/guides/editor_features/package_management.html)
+- 🛢️ **為資料設計：** 使用 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查詢資料框、資料庫、資料倉儲或資料湖，過濾和搜尋[資料框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+- 🤖 **AI 原生：** [與 AI agent 結對](https://marimo.io/pair)，如 Claude Code，或使用編輯器的[內建 AI 功能](https://docs.marimo.io/guides/editor_features/ai_completion/)
+- 🔬 **可重現：** [無隱藏狀態](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)、確定性執行、[內建套件管理](https://docs.marimo.io/guides/package_management/)
 - 🏃 **可執行：** [作為 Python 腳本執行](https://docs.marimo.io/guides/scripts.html)，透過 CLI 參數化
 - 🛜 **可分享：** [部署為互動式網頁應用程式](https://docs.marimo.io/guides/apps.html)或[簡報](https://docs.marimo.io/guides/apps.html#slides-layout)，[透過 WASM 在瀏覽器中執行](https://docs.marimo.io/guides/wasm.html)
 - 🧩 **可重用：** [匯入函式和類別](https://docs.marimo.io/guides/reusing_functions/)從一個筆記本到另一個筆記本
 - 🧪 **可測試：** 在筆記本上[執行 pytest](https://docs.marimo.io/guides/testing/)
 - ⌨️ **現代化編輯器：** [GitHub Copilot](https://docs.marimo.io/guides/editor_features/ai_completion.html#github-copilot)、[AI 助手](https://docs.marimo.io/guides/editor_features/ai_completion.html)、vim 鍵盤綁定、變數瀏覽器，以及[更多功能](https://docs.marimo.io/guides/editor_features/index.html)
-- 🧑‍💻 **使用您喜愛的編輯器**：在 [VS Code 或 Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) 中執行，或在 neovim、Zed [或任何其他文字編輯器](https://docs.marimo.io/guides/editor_features/watching/)中編輯
+- 🧑‍💻 **使用您喜愛的編輯器**：在 [VS Code 或 Cursor](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo) 或 [PyCharm](https://plugins.jetbrains.com/plugin/32416-marimo) 中執行，或在 neovim、Zed [或任何其他文字編輯器](https://docs.marimo.io/guides/editor_features/watching/)中編輯
 
 ```python
 pip install marimo && marimo tutorial intro
@@ -98,7 +98,7 @@ marimo 保證您的筆記本程式碼、輸出和程式狀態保持一致。這[
 
 **高效能執行環境。** marimo 透過靜態分析您的程式碼，只執行需要執行的單元格。
 
-**功能齊全。** marimo 附帶 GitHub Copilot、AI 助手、Ruff 程式碼格式化、HTML 匯出、快速程式碼自動完成、[VS Code 擴充套件](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、互動式資料框檢視器，以及[更多](https://docs.marimo.io/guides/editor_features/index.html)便利功能。
+**功能齊全。** marimo 附帶 GitHub Copilot、AI 助手、Ruff 程式碼格式化、HTML 匯出、快速程式碼自動完成、[VS Code 擴充套件](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo)、[PyCharm 擴充套件](https://plugins.jetbrains.com/plugin/32416-marimo)、互動式資料框檢視器，以及[更多](https://docs.marimo.io/guides/editor_features/index.html)便利功能。
 
 ## 快速開始
 
@@ -278,6 +278,8 @@ marimo 是 Python 筆記本的**重新發明**，作為一個可重現、互動�
 我們相信工具會影響我們的思考方式——更好的工具，造就更好的思維。透過 marimo，我們希望為 Python 社群提供一個更好的程式設計環境，用以進行研究並傳達成果；實驗程式碼並分享它；學習計算科學並教授它。
 
 我們的靈感來自許多地方和專案，特別是 [Pluto.jl](https://github.com/fonsp/Pluto.jl)、[ObservableHQ](https://observablehq.com/tutorials) 和 [Bret Victor 的文章](http://worrydream.com/)。marimo 是朝向響應式資料流程式設計更大運動的一部分。從 [IPyflow](https://github.com/ipyflow/ipyflow)、[streamlit](https://github.com/streamlit/streamlit)、[TensorFlow](https://github.com/tensorflow/tensorflow)、[PyTorch](https://github.com/pytorch/pytorch/tree/main)、[JAX](https://github.com/google/jax) 到 [React](https://github.com/facebook/react)，函數式、聲明式和響應式程式設計的理念正在改善廣泛的工具。
+
+最後，我們要感謝 [Bennet Meyers](https://bmeyers.github.io/about/) 和 [David Chassin](https://www.chassin.org/about/) 從一開始就相信 marimo：這項工作部分得到美國能源部關鍵礦產與能源創新辦公室（CMEI）整合能源系統辦公室（IESO）第 34368 號協議的支持。
 
 <p align="right">
   <img src="https://raw.githubusercontent.com/marimo-team/marimo/main/docs/_static/marimo-logotype-horizontal.png" height="200px">
