@@ -223,9 +223,7 @@ export interface EditRequests {
   ) => Promise<ExportedFile<string>>;
   exportAsPDF: (request: ExportAsPDFRequest) => Promise<ExportedFile<Blob>>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
-  autoExportAsMarkdown: (
-    request: AutoExportAsMarkdownRequest,
-  ) => Promise<null>;
+  autoExportAsMarkdown: (request: AutoExportAsMarkdownRequest) => Promise<null>;
   autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
   // Package requests
