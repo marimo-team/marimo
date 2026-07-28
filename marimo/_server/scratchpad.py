@@ -14,6 +14,7 @@ from marimo._code_mode.screenshot_meta import (
     SCREENSHOT_SERVER_URL_KEY,
 )
 from marimo._messaging.cell_output import CellChannel
+from marimo._messaging.errors import MarimoAncestorStoppedError
 from marimo._messaging.notebook.outputs import CellOutputs
 from marimo._messaging.notification import (
     CellNotification,
@@ -136,13 +137,21 @@ class ScratchCellListener(EventAwareExtension):
                 and isinstance(msg.output.data, list)
                 and msg.output.data
             ):
-                err = msg.output.data[0]
-                exc_type = (
-                    getattr(err, "exception_type", None) or type(err).__name__
-                )
-                self.child_error_summaries.append(
-                    f"cell '{msg.cell_id}' raised {exc_type}"
-                )
+                for err in msg.output.data:
+                    # `mo.stop` is intentional control flow. The runtime marks
+                    # cells downstream of the stopped cell with this structured
+                    # error so the frontend can explain why they did not run,
+                    # but it must not turn a successful scratchpad edit into a
+                    # failed code-mode request.
+                    if isinstance(err, MarimoAncestorStoppedError):
+                        continue
+                    exc_type = (
+                        getattr(err, "exception_type", None)
+                        or type(err).__name__
+                    )
+                    self.child_error_summaries.append(
+                        f"cell '{msg.cell_id}' raised {exc_type}"
+                    )
 
     async def stream(self) -> AsyncGenerator[str, None]:
         """Yield SSE-formatted stdout/stderr events until execution completes.
