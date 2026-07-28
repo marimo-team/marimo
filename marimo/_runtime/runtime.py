@@ -443,6 +443,21 @@ class CellMetadata:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
+def _in_memory_qualified_name(
+    variable: VariableData, name: Name
+) -> str | None:
+    """Resolve the quoted, qualified name of an in-memory table/view.
+
+    Returns `None` if the object doesn't live in the "memory" catalog,
+    """
+    sql_ref = variable.sql_ref
+    catalog = (sql_ref.catalog if sql_ref else None) or "memory"
+    if catalog != "memory":
+        return None
+    schema = (sql_ref.schema if sql_ref else None) or "main"
+    return quote_qualified_name(catalog, schema, name)
+
+
 class Kernel:
     """Kernel that manages the dependency graph and its execution.
 
@@ -1010,20 +1025,26 @@ class Kernel:
 
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
-                try:
-                    qualified = quote_qualified_name("memory", "main", name)
-                    duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
-                except Exception as e:
-                    LOGGER.warning("Failed to drop table %s: %s", name, str(e))
+                qualified = _in_memory_qualified_name(variable, name)
+                if qualified is not None:
+                    try:
+                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to drop table %s: %s", name, str(e)
+                        )
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
                 # We only drop in-memory views for the same reason.
-                try:
-                    qualified = quote_qualified_name("memory", "main", name)
-                    duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
-                except Exception as e:
-                    LOGGER.warning("Failed to drop view %s: %s", name, str(e))
+                qualified = _in_memory_qualified_name(variable, name)
+                if qualified is not None:
+                    try:
+                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to drop view %s: %s", name, str(e)
+                        )
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 

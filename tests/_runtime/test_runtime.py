@@ -47,6 +47,7 @@ from marimo._runtime.runtime import (
     notebook_location,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
 from tests._runtime._helpers.factories import default_app_metadata
@@ -3512,31 +3513,64 @@ class TestSQL:
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
+    @pytest.mark.parametrize(
+        ("catalog", "schema"),
+        [
+            (None, None),
+            (None, "main"),
+            (None, "custom-schema"),
+            ("memory", "main"),
+            ("memory", "custom-schema"),
+            # A schema containing a literal "." must not be confused with
+            # a catalog/schema separator when resolving the qualified name
+            # to drop.
+            (None, "my.schema"),
+        ],
+        ids=[
+            "unqualified",
+            "explicit-schema",
+            "custom-schema",
+            "explicit-catalog-and-schema",
+            "explicit-catalog-and-custom-schema",
+            "dotted-schema",
+        ],
+    )
     async def test_sql_table_with_special_char_name_is_dropped(
-        self, k: Kernel
+        self, k: Kernel, catalog: str | None, schema: str | None
     ) -> None:
         # Regression test for #10338: an in-memory table whose name needs
-        # quoting (e.g. a hyphen) must still be cleaned up. The name was
-        # previously interpolated raw, producing invalid SQL
-        # (`DROP TABLE IF EXISTS memory.main.manual-holdings`).
+        # quoting (e.g. a hyphen) must still be cleaned up.
         import duckdb
 
+        resolved_schema = schema or "main"
+        if resolved_schema != "main":
+            duckdb.execute(f'CREATE SCHEMA IF NOT EXISTS "{resolved_schema}"')
+
         def table_exists() -> bool:
-            return (
-                duckdb.execute(
-                    "SELECT count(*) FROM information_schema.tables "
-                    "WHERE table_name = 'manual-holdings'"
-                ).fetchone()[0]
-                > 0
-            )
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'memory' AND table_schema = ? "
+                "AND table_name = 'manual-holdings'",
+                [resolved_schema],
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        qualified_name = ".".join(
+            f'"{part}"'
+            for part in (catalog, schema, "manual-holdings")
+            if part
+        )
 
         await k.run(
             [
-                ExecuteCellCommand(cell_id="0", code="import marimo as mo"),
                 ExecuteCellCommand(
-                    cell_id="1",
+                    cell_id=CellId_t("0"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
                     code=(
-                        'mo.sql(\'CREATE OR REPLACE TABLE "manual-holdings" '
+                        f"mo.sql('CREATE OR REPLACE TABLE {qualified_name} "
                         "AS SELECT 1 AS a')"
                     ),
                 ),
@@ -3546,7 +3580,7 @@ class TestSQL:
         assert table_exists()
 
         # Deleting the defining cell triggers cleanup of the in-memory table.
-        await k.delete_cell(DeleteCellCommand(cell_id="1"))
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
         assert not table_exists()
 
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:

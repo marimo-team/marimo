@@ -10,6 +10,7 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.cell_manager import CellManager
+from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -272,7 +273,7 @@ class TestParseSQLCell:
         assert cell.refs == {"mo"}
         assert cell.language == "sql"
         assert cell.variable_data == {
-            "t1": [VariableData("table", qualified_name="t1")]
+            "t1": [VariableData("table", sql_ref=SQLRef(table="t1"))]
         }
 
     @staticmethod
@@ -302,7 +303,7 @@ class TestParseSQLCell:
         assert cell.refs == {"duckdb"}
         assert cell.language == "sql"
         assert cell.variable_data == {
-            "t1": [VariableData("table", qualified_name="t1")]
+            "t1": [VariableData("table", sql_ref=SQLRef(table="t1"))]
         }
 
     @staticmethod
