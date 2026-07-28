@@ -13,6 +13,7 @@ import useEvent from "react-use-event-hook";
 import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { cellDomProps } from "@/components/editor/common";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { SlideScrollContainer } from "@/components/slides/slide-scroll-hint";
 import { Button } from "@/components/ui/button";
@@ -341,13 +342,18 @@ const SubslideView = ({
             const rendered = block.cells.map((cell) => {
               if (!resolveShowCode(cell.id)) {
                 return (
-                  <CellOutputSlide
+                  <div
                     key={cell.id}
-                    cellId={cell.id}
-                    status={cell.status}
-                    output={cell.output}
-                    stale={outputIsStale(cell, false)}
-                  />
+                    className="flex flex-col"
+                    {...cellDomProps(cell.id, cell.name)}
+                  >
+                    <CellOutputSlide
+                      cellId={cell.id}
+                      status={cell.status}
+                      output={cell.output}
+                      stale={outputIsStale(cell, false)}
+                    />
+                  </div>
                 );
               }
               return isEditable ? (
@@ -407,12 +413,14 @@ const ParkedPreviewContent = ({
     );
   }
   return (
-    <CellOutputSlide
-      cellId={cell.id}
-      status={cell.status}
-      output={cell.output}
-      stale={outputIsStale(cell, false)}
-    />
+    <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
+      <CellOutputSlide
+        cellId={cell.id}
+        status={cell.status}
+        output={cell.output}
+        stale={outputIsStale(cell, false)}
+      />
+    </div>
   );
 };
 
