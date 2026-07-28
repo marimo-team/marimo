@@ -821,7 +821,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+          "application/json": components["schemas"]["AutoExportAsMarkdownRequest"];
         };
       };
       responses: {
@@ -3705,6 +3705,10 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
+    /** AutoExportAsMarkdownRequest */
+    AutoExportAsMarkdownRequest: {
+      download: boolean;
+    };
     /**
      * BannerNotification
      * @description Persistent banner message at top of notebook.
@@ -4632,6 +4636,8 @@ export interface components {
     /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {
       download: boolean;
+      /** @default null */
+      flavor?: ("mdx" | "mystmd" | "pymdown" | "qmd") | null;
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {

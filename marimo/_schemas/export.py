@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import msgspec
 
+from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._messaging.mimetypes import MimeBundleTuple
 from marimo._schemas.export_options import (
     ExportPDFPreset,
     HTMLExportOptions,
+    MarkdownExportOptions,
     PDFRasterServer,
 )
 from marimo._types.ids import CellId_t
@@ -39,6 +41,24 @@ class ExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
 
 class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
     download: bool
+    flavor: MarkdownFlavorName | None = None
+
+
+class AutoExportAsMarkdownRequest(msgspec.Struct, rename="camel"):
+    download: bool
+
+
+def to_markdown_export_options(
+    request: ExportAsMarkdownRequest,
+    *,
+    filename: str | None = None,
+    source_filename: str | None = None,
+) -> MarkdownExportOptions:
+    return MarkdownExportOptions(
+        flavor=request.flavor,
+        filename=filename,
+        source_filename=source_filename,
+    )
 
 
 class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
