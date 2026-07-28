@@ -16,12 +16,12 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
-import { getSessionId } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
   type AgentTab,
   type ConnectionInfo,
+  getFileFromURL,
   getRawPrompt,
   getTerminalCommand,
   maskToken,
@@ -53,7 +53,7 @@ export const PairWithAgentModal: React.FC<{
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
-    sessionId: getSessionId(),
+    file: getFileFromURL(window.location.href),
   };
 
   return (

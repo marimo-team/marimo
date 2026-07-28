@@ -30,6 +30,8 @@ class TestPairGroup:
         assert "--claude" in result.output
         assert "--codex" in result.output
         assert "--opencode" in result.output
+        assert "--file" in result.output
+        assert "--session" not in result.output
 
 
 class TestPairPrompt:
@@ -46,22 +48,70 @@ class TestPairPrompt:
         assert "execute-code.sh" in result.output
         assert "marimo-pair" in result.output
 
-    def test_prompt_with_session(self) -> None:
+    def test_prompt_with_file(self) -> None:
         result = _runner.invoke(
             cli_main,
-            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+            [
+                "pair",
+                "prompt",
+                "--url",
+                TEST_URL,
+                "--file",
+                "notebooks/example.py",
+            ],
         )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "s_ab12cd" in result.output
-        assert "--session s_ab12cd" in result.output
+        assert "notebooks/example.py" in result.output
+        assert "--file notebooks/example.py" in result.output
 
-    def test_prompt_without_session_omits_flag(self) -> None:
+    def test_prompt_without_file_omits_flag(self) -> None:
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
+        assert "--file" not in result.output
         assert "--session" not in result.output
+
+    def test_prompt_rejects_removed_session_option(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+        )
+        assert result.exit_code != 0
+        assert "--session" in result.output
+
+    def test_prompt_shell_quotes_file_paths(self) -> None:
+        cases = [
+            ("relative/path.py", "--file relative/path.py"),
+            ("/tmp/my notebook.py", "--file '/tmp/my notebook.py'"),
+            (
+                r"C:\Users\Jane Doe\notebook.py",
+                r"--file 'C:\Users\Jane Doe\notebook.py'",
+            ),
+            (
+                r"\\server\share\my notebook.py",
+                r"--file '\\server\share\my notebook.py'",
+            ),
+            (
+                "notebooks/it's.py",
+                """--file 'notebooks/it'"'"'s.py'""",
+            ),
+        ]
+        for file_path, expected in cases:
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    TEST_URL,
+                    "--file",
+                    file_path,
+                ],
+            )
+            assert result.exit_code == 0
+            assert expected in result.output
 
     def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
         # The execute-code.sh command is meant to be copy-pasted into a shell,
@@ -117,7 +167,7 @@ class TestPairPromptWithToken:
         if sys.platform != "win32":
             assert oct(token_file.stat().st_mode & 0o777) == "0o600"
 
-    def test_with_token_and_session(self, tmp_path: Path) -> None:
+    def test_with_token_and_file(self, tmp_path: Path) -> None:
         with patch(
             "marimo._cli.pair.commands._token_dir", return_value=tmp_path
         ):
@@ -128,16 +178,16 @@ class TestPairPromptWithToken:
                     "prompt",
                     "--url",
                     TEST_URL,
-                    "--session",
-                    "s_ab12cd",
+                    "--file",
+                    "notebooks/my notebook.py",
                     "--with-token",
                 ],
                 input="my-secret-token\n",
             )
         assert result.exit_code == 0
-        assert "--session s_ab12cd" in result.output
-        # The token hint should target the same session.
-        assert "--session s_ab12cd --token" in result.output
+        assert "--file 'notebooks/my notebook.py'" in result.output
+        # The token hint should target the same file.
+        assert "--file 'notebooks/my notebook.py' --token" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
