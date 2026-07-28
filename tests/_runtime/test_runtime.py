@@ -3645,6 +3645,44 @@ class TestSQL:
         assert attached_table_exists()
         assert memory_schema_table_exists()
 
+    async def test_sql_table_qualified_with_default_catalog_is_dropped(
+        self, k: Kernel
+    ) -> None:
+        # `CREATE TABLE memory.holdings ...` is a two-part
+        # name whose qualifier happens to be "memory", the default catalog's
+        # own name. DuckDB resolves this to `memory.main.holdings`, not a
+        # schema literally named "memory"; cleanup must match.
+        import duckdb
+
+        def table_exists() -> bool:
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'memory' AND table_schema = 'main' "
+                "AND table_name = 'holdings'"
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
+                    code=(
+                        "mo.sql('CREATE OR REPLACE TABLE memory.holdings "
+                        "AS SELECT 1 AS a')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert table_exists()
+
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+        assert not table_exists()
+
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
             [

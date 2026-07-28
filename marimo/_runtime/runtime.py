@@ -443,15 +443,33 @@ class CellMetadata:
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
 
 
+def _get_attached_catalogs() -> set[str]:
+    """Fetch the names of all catalogs currently attached to DuckDB."""
+    import duckdb
+
+    try:
+        return {
+            row[0].lower()
+            for row in duckdb.sql(
+                "SELECT database_name FROM duckdb_databases()"
+            ).fetchall()
+        }
+    except Exception:
+        return set()
+
+
 def _in_memory_qualified_name(
-    variable: VariableData, name: Name
+    variable: VariableData,
+    name: Name,
+    attached_catalogs: Callable[[], set[str]],
 ) -> str | None:
     """Resolve the quoted, qualified name of an in-memory table/view.
 
     Returns `None` if the object doesn't live in the "memory" catalog.
-    """
-    import duckdb
 
+    `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
+    should memoize it when resolving many names, to avoid repeated queries.
+    """
     sql_ref = variable.sql_ref
     catalog = sql_ref.catalog if sql_ref else None
     schema = sql_ref.schema if sql_ref else None
@@ -462,16 +480,7 @@ def _in_memory_qualified_name(
         # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
         # against DuckDB's actual attached catalogs, so we don't mistake an
         # attached database for a "memory" schema (or vice versa).
-        try:
-            attached_catalogs = {
-                row[0].lower()
-                for row in duckdb.sql(
-                    "SELECT database_name FROM duckdb_databases()"
-                ).fetchall()
-            }
-        except Exception:
-            attached_catalogs = set()
-        if schema.lower() in attached_catalogs and schema.lower() != "memory":
+        if schema.lower() in attached_catalogs():
             catalog, schema = schema, "main"
 
     catalog = catalog or "memory"
@@ -1037,6 +1046,15 @@ class Kernel:
         exclude_defs: set[Name],
     ) -> None:
         """Delete `names` from kernel, except for `exclude_defs`"""
+        # Memoize the attached-catalog lookup
+        attached_catalogs: set[str] | None = None
+
+        def get_attached_catalogs() -> set[str]:
+            nonlocal attached_catalogs
+            if attached_catalogs is None:
+                attached_catalogs = _get_attached_catalogs()
+            return attached_catalogs
+
         for name, variable_data in variables.items():
             # Take the last definition of the variable
             variable = variable_data[-1]
@@ -1048,7 +1066,9 @@ class Kernel:
 
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
-                qualified = _in_memory_qualified_name(variable, name)
+                qualified = _in_memory_qualified_name(
+                    variable, name, get_attached_catalogs
+                )
                 if qualified is not None:
                     try:
                         duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
@@ -1060,7 +1080,9 @@ class Kernel:
                 import duckdb
 
                 # We only drop in-memory views for the same reason.
-                qualified = _in_memory_qualified_name(variable, name)
+                qualified = _in_memory_qualified_name(
+                    variable, name, get_attached_catalogs
+                )
                 if qualified is not None:
                     try:
                         duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
