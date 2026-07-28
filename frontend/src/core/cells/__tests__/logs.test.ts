@@ -46,7 +46,7 @@ describe("getCellLogsForMessage", () => {
       timestamp: 1_234_567_890,
       level: "stdout",
       message: "Hello, World!",
-      cellId: "cell-1",
+      source: { type: "cell", cellId: "cell-1" },
     });
   });
 
@@ -74,7 +74,7 @@ describe("getCellLogsForMessage", () => {
       timestamp: 1_234_567_890,
       level: "stderr",
       message: "Error occurred",
-      cellId: "cell-2",
+      source: { type: "cell", cellId: "cell-2" },
     });
   });
 
@@ -102,7 +102,7 @@ describe("getCellLogsForMessage", () => {
       timestamp: 1_234_567_890,
       level: "stdout",
       message: "Error: Something went wrong",
-      cellId: "cell-3",
+      source: { type: "cell", cellId: "cell-3" },
     });
   });
 
@@ -130,7 +130,7 @@ describe("getCellLogsForMessage", () => {
       timestamp: 1_234_567_890,
       level: "stderr",
       message: "Critical Error: System failure",
-      cellId: "cell-4",
+      source: { type: "cell", cellId: "cell-4" },
     });
   });
 
@@ -157,7 +157,7 @@ describe("getCellLogsForMessage", () => {
     expect(logs[0].level).toBe("stderr"); // marimo-error should be treated as stderr
     expect(logs[0].message).toContain("Traceback (most recent call last):");
     expect(logs[0].message).toContain('File "test.py", line 1');
-    expect(logs[0].cellId).toBe("cell-5");
+    expect(logs[0].source).toEqual({ type: "cell", cellId: "cell-5" });
   });
 
   test("handles multiple console outputs with different MIME types", () => {

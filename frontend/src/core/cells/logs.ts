@@ -13,11 +13,21 @@ import { tracebackModalAtom } from "../errors/traceback-atom";
 import React from "react";
 import { ToastAction } from "@/components/ui/toast";
 
+/** Logs come from a cell, or from a language server, which has no cell. */
+export type LogSource =
+  | { type: "cell"; cellId: CellId }
+  | { type: "lsp"; name: string };
+
 export interface CellLog {
+  /** Unix timestamp, in seconds. */
   timestamp: number;
   level: "stdout" | "stderr";
   message: string;
-  cellId: CellId;
+  source: LogSource;
+}
+
+export function logSourceLabel(source: LogSource): string {
+  return source.type === "cell" ? source.cellId : `lsp:${source.name}`;
 }
 
 let didAlreadyToastError = false;
@@ -48,7 +58,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
             timestamp: output.timestamp || Date.now(),
             level: isError ? "stderr" : "stdout",
             message: message,
-            cellId: cell.cell_id,
+            source: { type: "cell", cellId: cell.cell_id },
           });
           break;
         }
@@ -71,7 +81,7 @@ export function getCellLogsForMessage(cell: CellMessage): CellLog[] {
     cell.output.data.forEach((error) => {
       CellLogLogger.log({
         level: "stderr",
-        cellId: cell.cell_id,
+        source: { type: "cell", cellId: cell.cell_id },
         timestamp: cell.timestamp ?? 0,
         message: JSON.stringify(error),
       });
@@ -150,7 +160,7 @@ const CellLogLogger = {
       `%c[${status}]`,
       `color:${color}; padding:2px 0; border-radius:2px; font-weight:bold`,
       `[${formatLogTimestamp(payload.timestamp)}]`,
-      `(${payload.cellId}) ${payload.message}`,
+      `(${logSourceLabel(payload.source)}) ${payload.message}`,
     );
   },
 };

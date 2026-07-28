@@ -6,9 +6,40 @@ import type { CellId } from "@/core/cells/ids";
 import { invariant } from "@/utils/invariant";
 import type { TypedString } from "@/utils/typed";
 
-export type ILanguageServerClient = {
-  [key in keyof LanguageServerClient]: LanguageServerClient[key];
-};
+type LanguageServerClientMember =
+  | "ready"
+  | "capabilities"
+  | "initializePromise"
+  | "clientCapabilities"
+  | "initialize"
+  | "close"
+  | "hasCapability"
+  | "textDocumentDidOpen"
+  | "textDocumentDidChange"
+  | "textDocumentDidClose"
+  | "textDocumentWillSave"
+  | "textDocumentWillSaveWaitUntil"
+  | "textDocumentDidSave"
+  | "textDocumentHover"
+  | "textDocumentCompletion"
+  | "completionItemResolve"
+  | "textDocumentDefinition"
+  | "textDocumentCodeAction"
+  | "codeActionResolve"
+  | "textDocumentRename"
+  | "textDocumentPrepareRename"
+  | "textDocumentSignatureHelp"
+  | "onNotification";
+
+/**
+ * The stable client surface used by marimo's notebook and federated adapters.
+ * Keeping this explicit prevents unrelated additions to the upstream client
+ * from becoming required adapter methods.
+ */
+export type ILanguageServerClient = Pick<
+  LanguageServerClient,
+  LanguageServerClientMember
+>;
 
 export type CellDocumentUri = DocumentUri & TypedString<"CellDocumentUri">;
 
@@ -33,10 +64,23 @@ export const CellDocumentUri = {
 export function isClientWithNotify(
   client: ILanguageServerClient,
 ): client is ILanguageServerClient & {
-  notify: (
-    kind: string,
-    options: { settings: Record<string, unknown> },
-  ) => void;
+  notify: (method: string, params: unknown) => Promise<void>;
 } {
-  return "notify" in client;
+  return "notify" in client && typeof client.notify === "function";
+}
+
+export interface ClientNotification {
+  method: string;
+  params: unknown;
+}
+
+export function isClientWithProcessNotification(
+  client: ILanguageServerClient,
+): client is ILanguageServerClient & {
+  processNotification: (notification: ClientNotification) => void;
+} {
+  return (
+    "processNotification" in client &&
+    typeof client.processNotification === "function"
+  );
 }

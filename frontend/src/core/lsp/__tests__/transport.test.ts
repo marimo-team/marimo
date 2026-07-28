@@ -1,439 +1,572 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
-import { WebSocketTransport } from "@open-rpc/client-js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { JSONRPCMessage } from "@marimo-team/codemirror-languageserver";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
+import { isRecord } from "@/utils/records";
 import { ReconnectingWebSocketTransport } from "../transport";
 
-// Mock the Logger
 vi.mock("@/utils/Logger", () => ({
   Logger: Mocks.logger(),
 }));
 
-// Mock the WebSocketTransport
-vi.mock("@open-rpc/client-js", () => {
-  const mockWebSocketTransport = vi.fn();
-  mockWebSocketTransport.prototype.connect = vi.fn();
-  mockWebSocketTransport.prototype.close = vi.fn();
-  mockWebSocketTransport.prototype.sendData = vi.fn();
+class FakeWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSING = 2;
+  static readonly CLOSED = 3;
+  static readonly instances: FakeWebSocket[] = [];
 
-  return {
-    WebSocketTransport: mockWebSocketTransport,
-  };
-});
+  readonly sent: string[] = [];
+  readonly url: string;
+  readonly protocols: string | string[] | undefined;
+  readyState = FakeWebSocket.CONNECTING;
+  private readonly listeners = new Map<
+    string,
+    Set<(event: { data?: unknown }) => void>
+  >();
+
+  constructor(url: string, protocols?: string | string[]) {
+    this.url = url;
+    this.protocols = protocols;
+    FakeWebSocket.instances.push(this);
+  }
+
+  addEventListener(
+    type: string,
+    listener: (event: { data?: unknown }) => void,
+  ) {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  send(frame: string) {
+    this.sent.push(frame);
+  }
+
+  close() {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.emit("close", {});
+  }
+
+  open() {
+    this.readyState = FakeWebSocket.OPEN;
+    this.emit("open", {});
+  }
+
+  fail() {
+    this.emit("error", {});
+  }
+
+  disconnect() {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.emit("close", {});
+  }
+
+  receive(message: JSONRPCMessage) {
+    this.emit("message", { data: JSON.stringify(message) });
+  }
+
+  messages(): JSONRPCMessage[] {
+    return this.sent.map((frame) => {
+      const message: unknown = JSON.parse(frame);
+      if (!isJSONRPCMessage(message)) {
+        throw new Error("Fake WebSocket received an invalid JSON-RPC message");
+      }
+      return message;
+    });
+  }
+
+  private emit(type: string, event: { data?: unknown }) {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(event);
+    }
+  }
+}
+
+function isJSONRPCMessage(value: unknown): value is JSONRPCMessage {
+  if (!isRecord(value) || value.jsonrpc !== "2.0") {
+    return false;
+  }
+  if (typeof value.method === "string") {
+    return true;
+  }
+  return (
+    (typeof value.id === "string" || typeof value.id === "number") &&
+    ("result" in value || "error" in value)
+  );
+}
+
+async function getSocket(index: number): Promise<FakeWebSocket> {
+  await vi.waitFor(() => {
+    expect(FakeWebSocket.instances.length).toBeGreaterThan(index);
+  });
+  return FakeWebSocket.instances[index];
+}
 
 describe("ReconnectingWebSocketTransport", () => {
   const mockWsUrl = "ws://localhost:8080/lsp";
-  let mockConnection: any;
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    FakeWebSocket.instances.length = 0;
+    vi.stubGlobal("WebSocket", FakeWebSocket);
+  });
 
-    // Create a mock WebSocket connection with readyState
-    mockConnection = {
-      readyState: WebSocket.OPEN,
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("waits for prerequisites and shares concurrent connection attempts", async () => {
+    let releaseConnection: (() => void) | undefined;
+    const waitForConnection = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          releaseConnection = resolve;
+        }),
+    );
+    const getWsUrl = vi.fn(() => mockWsUrl);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl,
+      waitForConnection,
+    });
+
+    const firstConnection = transport.connect();
+    const secondConnection = transport.connect();
+    expect(waitForConnection).toHaveBeenCalledTimes(1);
+    expect(FakeWebSocket.instances).toHaveLength(0);
+
+    releaseConnection?.();
+    const socket = await getSocket(0);
+    socket.open();
+    await Promise.all([firstConnection, secondConnection]);
+
+    expect(socket.url).toBe(mockWsUrl);
+    expect(getWsUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards messages in both directions and supports unsubscribe", async () => {
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+    });
+    const inbound = vi.fn();
+    const unsubscribe = transport.onMessage(inbound);
+    const connection = transport.connect();
+    const socket = await getSocket(0);
+    socket.open();
+    await connection;
+
+    const outbound: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      method: "initialized",
+      params: {},
     };
+    transport.send(outbound);
+    expect(socket.messages()).toEqual([outbound]);
 
-    // Mock the WebSocketTransport constructor to set the connection
-    (WebSocketTransport as any).mockImplementation(function (this: any) {
-      this.connection = mockConnection;
-      this.connect = vi.fn().mockResolvedValue(undefined);
-      this.close = vi.fn();
-      this.sendData = vi.fn().mockResolvedValue({ result: "success" });
-      this.subscribe = vi.fn();
-      this.unsubscribe = vi.fn();
+    const notification: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      method: "textDocument/publishDiagnostics",
+      params: { uri: "file:///test.py", diagnostics: [] },
+    };
+    socket.receive(notification);
+    expect(inbound).toHaveBeenCalledWith(notification);
+
+    unsubscribe();
+    socket.receive(notification);
+    expect(inbound).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores LSP state before replaying queued requests", async () => {
+    const onReconnect = vi.fn(async () => {
+      transport.send({
+        jsonrpc: "2.0",
+        method: "initialized",
+        params: {},
+      });
+      transport.send({
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: { textDocument: { uri: "file:///test.py" } },
+      });
     });
-  });
-
-  it("should create a transport with the provided URL function", () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    expect(transport).toBeDefined();
-    expect(getWsUrl).not.toHaveBeenCalled(); // URL function not called until connect
-  });
-
-  it("should connect successfully", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    await transport.connect();
-
-    expect(getWsUrl).toHaveBeenCalledTimes(1);
-    expect(WebSocketTransport).toHaveBeenCalledWith(mockWsUrl);
-  });
-
-  it("should wait for connection before connecting", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const waitForConnection = vi.fn().mockResolvedValue(undefined);
     const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
-      waitForConnection,
-    });
-
-    await transport.connect();
-
-    expect(waitForConnection).toHaveBeenCalledTimes(1);
-    expect(getWsUrl).toHaveBeenCalledTimes(1);
-  });
-
-  it("should reuse the same connection promise if already connecting", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const waitForConnection = vi
-      .fn()
-      .mockImplementation(
-        () => new Promise((resolve) => setTimeout(resolve, 100)),
-      );
-    const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
-      waitForConnection,
-    });
-
-    // Start two connections concurrently
-    const promise1 = transport.connect();
-    const promise2 = transport.connect();
-
-    await Promise.all([promise1, promise2]);
-
-    // Should only create one delegate
-    expect(WebSocketTransport).toHaveBeenCalledTimes(1);
-    expect(waitForConnection).toHaveBeenCalledTimes(1);
-  });
-
-  it("should send data successfully when connected", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    await transport.connect();
-
-    const data: any = { method: "test", params: [] };
-    const result = await transport.sendData(data, 5000);
-
-    expect(result).toEqual({ result: "success" });
-  });
-
-  it("should reconnect when WebSocket is in CLOSED state", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    // First connection
-    await transport.connect();
-    expect(WebSocketTransport).toHaveBeenCalledTimes(1);
-
-    // Simulate WebSocket closing
-    mockConnection.readyState = WebSocket.CLOSED;
-
-    // Send data should trigger reconnection
-    const data: any = { method: "test", params: [] };
-    await transport.sendData(data, 5000);
-
-    // Should have created a new WebSocketTransport
-    expect(WebSocketTransport).toHaveBeenCalledTimes(2);
-  });
-
-  it("should reconnect when WebSocket is in CLOSING state", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    // First connection
-    await transport.connect();
-    expect(WebSocketTransport).toHaveBeenCalledTimes(1);
-
-    // Simulate WebSocket closing
-    mockConnection.readyState = WebSocket.CLOSING;
-
-    // Send data should trigger reconnection
-    const data: any = { method: "test", params: [] };
-    await transport.sendData(data, 5000);
-
-    // Should have created a new WebSocketTransport
-    expect(WebSocketTransport).toHaveBeenCalledTimes(2);
-  });
-
-  it("should close the transport and prevent reconnection", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    await transport.connect();
-    transport.close();
-
-    // Attempting to connect again should throw
-    await expect(transport.connect()).rejects.toThrow("Transport is closed");
-  });
-
-  it("should close old delegate when creating a new one", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    // First connection
-    await transport.connect();
-    const firstDelegate = (transport as any).delegate;
-    expect(firstDelegate).toBeDefined();
-
-    // Simulate connection closed
-    mockConnection.readyState = WebSocket.CLOSED;
-
-    // Reconnect by sending data
-    const data: any = { method: "test", params: [] };
-    await transport.sendData(data, 5000);
-
-    // Old delegate should have been closed
-    expect(firstDelegate.close).toHaveBeenCalled();
-  });
-
-  it("should handle connection failures gracefully", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const connectionError = new Error("Connection failed");
-
-    // Mock connect to fail
-    (WebSocketTransport as any).mockImplementationOnce(function (this: any) {
-      this.connection = mockConnection;
-      this.connect = vi.fn().mockRejectedValue(connectionError);
-      this.close = vi.fn();
-      this.sendData = vi.fn();
-    });
-
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    await expect(transport.connect()).rejects.toThrow("Connection failed");
-
-    // Delegate should be cleared after failure
-    expect((transport as any).delegate).toBeUndefined();
-  });
-
-  it("should handle waitForConnection failures", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const waitError = new Error("Wait failed");
-    const waitForConnection = vi.fn().mockRejectedValue(waitError);
-
-    const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
-      waitForConnection,
-    });
-
-    await expect(transport.connect()).rejects.toThrow("Wait failed");
-
-    // Should not have created a delegate
-    expect(WebSocketTransport).not.toHaveBeenCalled();
-  });
-
-  it("should automatically reconnect on sendData after connection loss", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-    // Don't connect initially
-    // Simulate WebSocket in closed state (no delegate exists)
-    expect((transport as any).delegate).toBeUndefined();
-
-    // Send data should trigger automatic connection
-    const data: any = { method: "test", params: [] };
-    await transport.sendData(data, 5000);
-
-    expect(WebSocketTransport).toHaveBeenCalledTimes(1);
-  });
-
-  it("should call onReconnect callback after reconnection", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const onReconnect = vi.fn().mockResolvedValue(undefined);
-    const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
+      getWsUrl: () => mockWsUrl,
       onReconnect,
     });
 
-    // First connection - callback should not be called
-    await transport.connect();
-    expect(onReconnect).not.toHaveBeenCalled();
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
 
-    // Simulate connection loss
-    mockConnection.readyState = WebSocket.CLOSED;
+    transport.send({
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: { textDocument: { uri: "file:///test.py", version: 2 } },
+    });
+    const completionRequest: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "textDocument/completion",
+      params: { textDocument: { uri: "file:///test.py" } },
+    };
+    transport.send(completionRequest);
 
-    // Reconnect - callback should be called this time
-    const data: any = { method: "test", params: [] };
-    await transport.sendData(data, 5000);
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+      expect(secondSocket.messages()).toHaveLength(3);
+    });
 
-    expect(onReconnect).toHaveBeenCalledTimes(1);
+    expect(secondSocket.messages()).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "initialized",
+        params: {},
+      },
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: { textDocument: { uri: "file:///test.py" } },
+      },
+      completionRequest,
+    ]);
   });
 
-  it("should not call onReconnect callback on first connection", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const onReconnect = vi.fn().mockResolvedValue(undefined);
+  it("holds live requests until asynchronous state restoration finishes", async () => {
+    let finishRestoration: (() => void) | undefined;
+    const restorationGate = new Promise<void>((resolve) => {
+      finishRestoration = resolve;
+    });
+    const onReconnect = vi.fn(async () => {
+      transport.send({
+        jsonrpc: "2.0",
+        id: 10,
+        method: "initialize",
+        params: {},
+      });
+      await restorationGate;
+      transport.send({
+        jsonrpc: "2.0",
+        method: "initialized",
+        params: {},
+      });
+    });
     const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
+      getWsUrl: () => mockWsUrl,
       onReconnect,
     });
 
-    await transport.connect();
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
 
-    expect(onReconnect).not.toHaveBeenCalled();
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(secondSocket.messages()).toEqual([
+        {
+          jsonrpc: "2.0",
+          id: 10,
+          method: "initialize",
+          params: {},
+        },
+      ]);
+    });
+
+    const hoverRequest: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      id: 11,
+      method: "textDocument/hover",
+      params: { textDocument: { uri: "file:///test.py" } },
+    };
+    transport.send(hoverRequest);
+    expect(secondSocket.messages()).toHaveLength(1);
+
+    finishRestoration?.();
+    await vi.waitFor(() => {
+      expect(secondSocket.messages()).toHaveLength(3);
+    });
+    expect(secondSocket.messages()).toEqual([
+      {
+        jsonrpc: "2.0",
+        id: 10,
+        method: "initialize",
+        params: {},
+      },
+      {
+        jsonrpc: "2.0",
+        method: "initialized",
+        params: {},
+      },
+      hoverRequest,
+    ]);
   });
 
-  it("should handle onReconnect callback errors gracefully", async () => {
-    const getWsUrl = vi.fn(() => mockWsUrl);
-    const reconnectError = new Error("Reconnect callback failed");
-    const onReconnect = vi.fn().mockRejectedValue(reconnectError);
+  it("replays document changes made while state restoration is in flight", async () => {
+    let finishRestoration: (() => void) | undefined;
+    const restorationGate = new Promise<void>((resolve) => {
+      finishRestoration = resolve;
+    });
+    const onReconnect = vi.fn(async () => {
+      transport.send({
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: { textDocument: { uri: "file:///test.py", version: 3 } },
+      });
+      await restorationGate;
+    });
     const transport = new ReconnectingWebSocketTransport({
-      getWsUrl,
+      getWsUrl: () => mockWsUrl,
       onReconnect,
     });
 
-    // First connection
-    await transport.connect();
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
 
-    // Simulate connection loss
-    mockConnection.readyState = WebSocket.CLOSED;
+    const staleChange: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: { textDocument: { uri: "file:///test.py", version: 2 } },
+    };
+    transport.send(staleChange);
 
-    // Reconnect - should propagate the error from onReconnect
-    const data: any = { method: "test", params: [] };
-    await expect(transport.sendData(data, 5000)).rejects.toThrow(
-      "Reconnect callback failed",
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+
+    // The user keeps typing while the resync is still awaiting.
+    const liveChange: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: { textDocument: { uri: "file:///test.py", version: 4 } },
+    };
+    transport.send(liveChange);
+
+    finishRestoration?.();
+    await vi.waitFor(() => {
+      expect(secondSocket.messages()).toHaveLength(2);
+    });
+    expect(secondSocket.messages()).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didOpen",
+        params: { textDocument: { uri: "file:///test.py", version: 3 } },
+      },
+      liveChange,
+    ]);
+    expect(secondSocket.messages()).not.toContainEqual(staleChange);
+  });
+
+  it("retries failed state restoration without losing queued requests", async () => {
+    const onReconnect = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("State restoration failed"))
+      .mockResolvedValue(undefined);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      onReconnect,
+      retries: 2,
+      retryDelayMs: 0,
+    });
+
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
+
+    const queuedRequest: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      id: 12,
+      method: "textDocument/hover",
+      params: { textDocument: { uri: "file:///test.py" } },
+    };
+    transport.send(queuedRequest);
+
+    const failedRestorationSocket = await getSocket(1);
+    failedRestorationSocket.open();
+    const recoveredSocket = await getSocket(2);
+    recoveredSocket.open();
+
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(2);
+      expect(recoveredSocket.messages()).toEqual([queuedRequest]);
+    });
+    expect(failedRestorationSocket.messages()).toEqual([]);
+  });
+
+  it("abandons a restoration whose socket died instead of waiting for it", async () => {
+    // A restoration awaiting a response on a dead socket only settles when the
+    // LSP request times out, so recovery must not be chained to it.
+    const strandedRestoration = new Promise<void>(() => {
+      // never settles
+    });
+    const onReconnect = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(() => strandedRestoration)
+      .mockResolvedValue(undefined);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      onReconnect,
+    });
+
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
+
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+
+    secondSocket.disconnect();
+
+    const thirdSocket = await getSocket(2);
+    thirdSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(2);
+    });
+    expect(thirdSocket.readyState).toBe(FakeWebSocket.OPEN);
+  });
+
+  it("keeps the queued backlog when a restoration is abandoned", async () => {
+    const strandedRestoration = new Promise<void>(() => {
+      // never settles
+    });
+    const onReconnect = vi
+      .fn<() => Promise<void>>()
+      .mockImplementationOnce(() => strandedRestoration)
+      .mockResolvedValue(undefined);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      onReconnect,
+    });
+
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
+
+    const queuedRequest: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      id: 21,
+      method: "textDocument/hover",
+      params: { textDocument: { uri: "file:///test.py" } },
+    };
+    transport.send(queuedRequest);
+
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+    // The doomed attempt detached the backlog; abandoning it must hand the
+    // messages back rather than strand them.
+    secondSocket.disconnect();
+
+    const thirdSocket = await getSocket(2);
+    thirdSocket.open();
+    await vi.waitFor(() => {
+      expect(thirdSocket.messages()).toEqual([queuedRequest]);
+    });
+  });
+
+  it("keeps inbound subscriptions active after reconnection", async () => {
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+    });
+    const inbound = vi.fn();
+    transport.onMessage(inbound);
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+
+    firstSocket.disconnect();
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    const notification: JSONRPCMessage = {
+      jsonrpc: "2.0",
+      method: "window/logMessage",
+      params: { type: 3, message: "reconnected" },
+    };
+    secondSocket.receive(notification);
+
+    expect(inbound).toHaveBeenCalledWith(notification);
+  });
+
+  it("retries failed connection attempts", async () => {
+    const onConnectionFailure = vi.fn();
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      retries: 2,
+      retryDelayMs: 0,
+      onConnectionFailure,
+    });
+
+    const connection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.fail();
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await connection;
+
+    expect(secondSocket.readyState).toBe(FakeWebSocket.OPEN);
+    expect(onConnectionFailure).not.toHaveBeenCalled();
+  });
+
+  it("reports the final connection failure", async () => {
+    const onConnectionFailure = vi.fn();
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      retries: 1,
+      onConnectionFailure,
+    });
+
+    const connection = transport.connect();
+    const socket = await getSocket(0);
+    socket.fail();
+
+    await expect(connection).rejects.toThrow(
+      "WebSocket connection to ws://localhost:8080/lsp failed",
+    );
+    expect(onConnectionFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("failed") }),
     );
   });
 
-  describe("subscribe", () => {
-    it("should track subscriptions", () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
+  it("closes permanently and ignores later sends", async () => {
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+    });
+    const connection = transport.connect();
+    const socket = await getSocket(0);
+    socket.open();
+    await connection;
 
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(1);
-      expect((transport as any).pendingSubscriptions[0]).toEqual({
-        event: "notification",
-        handler,
-      });
+    transport.close();
+    transport.send({
+      jsonrpc: "2.0",
+      method: "initialized",
+      params: {},
     });
 
-    it("should register handler on delegate if it exists", async () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      await transport.connect();
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler);
-    });
-
-    it("should register pending subscriptions when delegate is created", async () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      transport.subscribe("notification", handler1);
-      transport.subscribe("response", handler2);
-
-      await transport.connect();
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler1);
-      expect(delegate.subscribe).toHaveBeenCalledWith("response", handler2);
-    });
-
-    it("should re-register subscriptions on reconnection", async () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      // Add subscription before connection
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      // First connection
-      await transport.connect();
-      const firstDelegate = (transport as any).delegate;
-      expect(firstDelegate.subscribe).toHaveBeenCalledWith(
-        "notification",
-        handler,
-      );
-
-      // Clear mock calls
-      firstDelegate.subscribe.mockClear();
-
-      // Simulate connection loss
-      mockConnection.readyState = WebSocket.CLOSED;
-
-      // Reconnect by sending data
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
-      // New delegate should have been created
-      const secondDelegate = (transport as any).delegate;
-      expect(secondDelegate).not.toBe(firstDelegate);
-
-      // Subscription should be re-registered on new delegate
-      expect(secondDelegate.subscribe).toHaveBeenCalledWith(
-        "notification",
-        handler,
-      );
-    });
-  });
-
-  describe("unsubscribe", () => {
-    it("should remove subscription from tracking", () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-      expect((transport as any).pendingSubscriptions).toHaveLength(1);
-
-      transport.unsubscribe("notification", handler);
-      expect((transport as any).pendingSubscriptions).toHaveLength(0);
-    });
-
-    it("should unregister from delegate if it exists", async () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      await transport.connect();
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      const delegate = (transport as any).delegate;
-      delegate.unsubscribe.mockClear();
-
-      transport.unsubscribe("notification", handler);
-
-      expect(delegate.unsubscribe).toHaveBeenCalledWith(
-        "notification",
-        handler,
-      );
-    });
-
-    it("should not re-register unsubscribed handlers on reconnection", async () => {
-      const getWsUrl = vi.fn(() => mockWsUrl);
-      const transport = new ReconnectingWebSocketTransport({ getWsUrl });
-
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      transport.subscribe("notification", handler1);
-      transport.subscribe("response", handler2);
-
-      await transport.connect();
-
-      // Unsubscribe handler1
-      transport.unsubscribe("notification", handler1);
-
-      // Simulate connection loss
-      mockConnection.readyState = WebSocket.CLOSED;
-
-      // Reconnect by sending data
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
-      const newDelegate = (transport as any).delegate;
-
-      // Only handler2 should be registered on the new delegate
-      expect(newDelegate.subscribe).not.toHaveBeenCalledWith(
-        "notification",
-        handler1,
-      );
-      expect(newDelegate.subscribe).toHaveBeenCalledWith("response", handler2);
-    });
+    expect(socket.messages()).toEqual([]);
+    await expect(transport.connect()).rejects.toThrow("Transport is closed");
+    expect(FakeWebSocket.instances).toHaveLength(1);
   });
 });

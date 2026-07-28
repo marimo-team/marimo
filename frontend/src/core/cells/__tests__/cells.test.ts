@@ -1870,8 +1870,18 @@ describe("cell reducer", () => {
 
   it("can clear logs", () => {
     state.cellLogs = [
-      { level: "stderr", message: "log1", timestamp: 0, cellId: firstCellId },
-      { level: "stderr", message: "log1", timestamp: 0, cellId: firstCellId },
+      {
+        level: "stderr",
+        message: "log1",
+        timestamp: 0,
+        source: { type: "cell", cellId: firstCellId },
+      },
+      {
+        level: "stderr",
+        message: "log1",
+        timestamp: 0,
+        source: { type: "cell", cellId: firstCellId },
+      },
     ];
     actions.clearLogs();
     expect(state.cellLogs).toEqual([]);

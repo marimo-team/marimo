@@ -1,6 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
 import { EditorView } from "@codemirror/view";
 import {
   type LanguageServerClient,
@@ -18,13 +16,51 @@ import { PythonLanguageAdapter } from "../../language/languages/python";
 import { languageMetadataField } from "../../language/metadata";
 import { createNotebookLens } from "../lens";
 import { NotebookLanguageServerClient } from "../notebook-lsp";
-import { CellDocumentUri, type ILanguageServerClient } from "../types";
+import {
+  CellDocumentUri,
+  type ClientNotification,
+  type ILanguageServerClient,
+} from "../types";
 
 const Cells = {
   cell1: cellId("cell1"),
   cell2: cellId("cell2"),
   cell3: cellId("cell3"),
 };
+
+type TestLanguageServerClient = ILanguageServerClient & {
+  notify: (method: string, params: unknown) => Promise<void>;
+  processNotification: (notification: ClientNotification) => void;
+};
+
+type GetNotebookEditors = () => Record<CellId, EditorView | null | undefined>;
+
+function replaceNotebookEditors(
+  client: NotebookLanguageServerClient,
+  getNotebookEditors: GetNotebookEditors,
+): void {
+  const mutableClient = client as unknown as {
+    getNotebookEditors: GetNotebookEditors;
+  };
+  mutableClient.getNotebookEditors = getNotebookEditors;
+}
+
+function isPublishDiagnosticsNotification(
+  notification: ClientNotification,
+): notification is {
+  method: "textDocument/publishDiagnostics";
+  params: LSP.PublishDiagnosticsParams;
+} {
+  return (
+    notification.method === "textDocument/publishDiagnostics" &&
+    typeof notification.params === "object" &&
+    notification.params !== null &&
+    "uri" in notification.params &&
+    typeof notification.params.uri === "string" &&
+    "diagnostics" in notification.params &&
+    Array.isArray(notification.params.diagnostics)
+  );
+}
 
 describe("createNotebookLens", () => {
   it("should produce correct lens for same inputs", () => {
@@ -243,8 +279,9 @@ describe("createNotebookLens", () => {
 });
 
 describe("NotebookLanguageServerClient", () => {
-  let mockClient: Mocked<ILanguageServerClient>;
+  let mockClient: Mocked<TestLanguageServerClient>;
   let notebookClient: NotebookLanguageServerClient;
+  let notifyMock: Mocked<TestLanguageServerClient>["notify"];
 
   beforeEach(() => {
     mockClient = {
@@ -252,12 +289,18 @@ describe("NotebookLanguageServerClient", () => {
       capabilities: {},
       initializePromise: Promise.resolve(),
       clientCapabilities: {},
+      hasCapability: vi.fn().mockReturnValue(false),
       completionItemResolve: vi.fn(),
+      codeActionResolve: vi.fn(),
       initialize: vi.fn(),
       close: vi.fn(),
       onNotification: vi.fn(),
       textDocumentDidOpen: vi.fn(),
       textDocumentDidChange: vi.fn(),
+      textDocumentDidClose: vi.fn(),
+      textDocumentWillSave: vi.fn(),
+      textDocumentWillSaveWaitUntil: vi.fn(),
+      textDocumentDidSave: vi.fn(),
       textDocumentHover: vi.fn(),
       textDocumentCompletion: vi.fn(),
       textDocumentDefinition: vi.fn(),
@@ -265,14 +308,10 @@ describe("NotebookLanguageServerClient", () => {
       textDocumentCodeAction: vi.fn(),
       textDocumentSignatureHelp: vi.fn(),
       textDocumentRename: vi.fn(),
+      processNotification: vi.fn(),
+      notify: vi.fn(),
     };
-    (mockClient as any).processNotification = vi.fn();
-    (mockClient as any).notify = vi.fn();
-    notebookClient = new NotebookLanguageServerClient(mockClient, {}, () => ({
-      [Cells.cell1]: new EditorView({ doc: "# this is a comment" }),
-      [Cells.cell2]: new EditorView({ doc: "import math\nimport numpy" }),
-      [Cells.cell3]: new EditorView({ doc: "print(math.sqrt(4))" }),
-    }));
+    notifyMock = mockClient.notify;
 
     // Mock the atom instead of the instance method
     vi.spyOn(store, "get").mockImplementation((atom) => {
@@ -295,7 +334,169 @@ describe("NotebookLanguageServerClient", () => {
       return undefined;
     });
 
-    (NotebookLanguageServerClient as any).SEEN_CELL_DOCUMENT_URIS.clear();
+    notebookClient = new NotebookLanguageServerClient(mockClient, {}, () => ({
+      [Cells.cell1]: new EditorView({ doc: "# this is a comment" }),
+      [Cells.cell2]: new EditorView({ doc: "import math\nimport numpy" }),
+      [Cells.cell3]: new EditorView({ doc: "print(math.sqrt(4))" }),
+    }));
+  });
+
+  describe("document lifecycle", () => {
+    it("maps cell opens and closes to the merged notebook document", async () => {
+      mockClient.textDocumentDidOpen.mockResolvedValue(true);
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+
+      await expect(
+        notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri: cellUri,
+            languageId: "python",
+            version: 1,
+            text: "print('cell')",
+          },
+        }),
+      ).resolves.toBe(true);
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+
+      expect(mockClient.textDocumentDidOpen).toHaveBeenCalledWith({
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+          languageId: "python",
+          version: 1,
+          text: [
+            "# this is a comment",
+            "import math",
+            "import numpy",
+            "print(math.sqrt(4))",
+          ].join("\n"),
+        },
+      });
+      expect(mockClient.textDocumentDidClose).toHaveBeenCalledWith({
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+        },
+      });
+    });
+
+    it("reopens the merged document directly after reconnection", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: cellUri,
+          languageId: "python",
+          version: 1,
+          text: "print('cell')",
+        },
+      });
+      notifyMock.mockClear();
+
+      await notebookClient.resyncAllDocuments();
+
+      expect(mockClient.initialize).toHaveBeenCalledTimes(1);
+      expect(notifyMock).toHaveBeenNthCalledWith(
+        1,
+        "workspace/didChangeConfiguration",
+        { settings: {} },
+      );
+      expect(notifyMock).toHaveBeenNthCalledWith(2, "textDocument/didOpen", {
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+          languageId: "python",
+          version: 1,
+          text: [
+            "# this is a comment",
+            "import math",
+            "import numpy",
+            "print(math.sqrt(4))",
+          ].join("\n"),
+        },
+      });
+      expect(mockClient.textDocumentDidOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not reopen a notebook with no active editor documents", async () => {
+      notifyMock.mockClear();
+
+      await notebookClient.resyncAllDocuments();
+
+      expect(notifyMock).toHaveBeenCalledTimes(1);
+      expect(notifyMock).not.toHaveBeenCalledWith(
+        "textDocument/didOpen",
+        expect.anything(),
+      );
+    });
+
+    it("keeps the merged document open until its last cell view closes", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      const openParams: LSP.DidOpenTextDocumentParams = {
+        textDocument: {
+          uri: cellUri,
+          languageId: "python",
+          version: 1,
+          text: "value = 1",
+        },
+      };
+      await notebookClient.textDocumentDidOpen(openParams);
+      await notebookClient.textDocumentDidOpen(openParams);
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+      notifyMock.mockClear();
+
+      await notebookClient.resyncAllDocuments();
+      expect(notifyMock).toHaveBeenCalledWith(
+        "textDocument/didOpen",
+        expect.anything(),
+      );
+
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+      notifyMock.mockClear();
+      await notebookClient.resyncAllDocuments();
+      expect(notifyMock).not.toHaveBeenCalledWith(
+        "textDocument/didOpen",
+        expect.anything(),
+      );
+    });
+
+    it("maps safe save notifications and rejects merged save edits", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      const willSaveParams: LSP.WillSaveTextDocumentParams = {
+        textDocument: { uri: cellUri },
+        reason: LSP.TextDocumentSaveReason.Manual,
+      };
+
+      await notebookClient.textDocumentWillSave(willSaveParams);
+      await expect(
+        notebookClient.textDocumentWillSaveWaitUntil(willSaveParams),
+      ).resolves.toBeNull();
+      await notebookClient.textDocumentDidSave({
+        textDocument: { uri: cellUri },
+        text: "cell text",
+      });
+
+      expect(mockClient.textDocumentWillSave).toHaveBeenCalledWith({
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+        },
+        reason: LSP.TextDocumentSaveReason.Manual,
+      });
+      expect(mockClient.textDocumentWillSaveWaitUntil).not.toHaveBeenCalled();
+      expect(mockClient.textDocumentDidSave).toHaveBeenCalledWith({
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+        },
+        text: [
+          "# this is a comment",
+          "import math",
+          "import numpy",
+          "print(math.sqrt(4))",
+        ].join("\n"),
+      });
+    });
   });
 
   describe("textDocumentHover", () => {
@@ -598,26 +799,6 @@ describe("NotebookLanguageServerClient", () => {
 
   describe("textDocumentRename", () => {
     it("should transform rename position and apply edits to editor views", async () => {
-      const props = {
-        workspaceFolders: null,
-        capabilities: {
-          textDocument: {
-            rename: {
-              prepareSupport: true,
-            },
-          },
-        },
-        languageId: "python",
-        transport: {
-          sendData: vi.fn(),
-          subscribe: vi.fn(),
-          connect: vi.fn(),
-          transportRequestManager: {
-            send: vi.fn(),
-          },
-        } as any,
-      };
-
       // Setup mock plugins with editor views
       const mockView1 = new EditorView({
         doc: "# this is a comment",
@@ -627,7 +808,6 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell1),
-            ...props,
           }),
         ],
       });
@@ -641,7 +821,6 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell2),
-            ...props,
           }),
         ],
       });
@@ -655,17 +834,16 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell3),
-            ...props,
           }),
         ],
       });
       expect(mockView3.state.doc.toString()).toBe("print(math.sqrt(4))");
 
-      (notebookClient as any).getNotebookEditors = () => ({
+      replaceNotebookEditors(notebookClient, () => ({
         [Cells.cell1]: mockView1,
         [Cells.cell2]: mockView2,
         [Cells.cell3]: mockView3,
-      });
+      }));
 
       // Setup rename params
       const renameParams: LSP.RenameParams = {
@@ -825,7 +1003,7 @@ describe("NotebookLanguageServerClient", () => {
                   end: { line: 0, character: 5 },
                 },
                 // Missing newText property
-              } as any,
+              } as unknown as LSP.TextEdit,
             ],
           },
         ],
@@ -858,26 +1036,6 @@ describe("NotebookLanguageServerClient", () => {
     });
 
     it("should handle raw strings with markdown content during rename (issue #7377)", async () => {
-      const props = {
-        workspaceFolders: null,
-        capabilities: {
-          textDocument: {
-            rename: {
-              prepareSupport: true,
-            },
-          },
-        },
-        languageId: "python",
-        transport: {
-          sendData: vi.fn(),
-          subscribe: vi.fn(),
-          connect: vi.fn(),
-          transportRequestManager: {
-            send: vi.fn(),
-          },
-        } as any,
-      };
-
       // Setup mock plugins with editor views
       const markdownCell = 'mo.md(r"""\n# Header\n""")';
       const variableCell = "a = 'Test'";
@@ -890,7 +1048,6 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell1),
-            ...props,
           }),
         ],
       });
@@ -903,7 +1060,6 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell2),
-            ...props,
           }),
         ],
       });
@@ -916,16 +1072,15 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell3),
-            ...props,
           }),
         ],
       });
 
-      (notebookClient as any).getNotebookEditors = () => ({
+      replaceNotebookEditors(notebookClient, () => ({
         [Cells.cell1]: mockView1,
         [Cells.cell2]: mockView2,
         [Cells.cell3]: mockView3,
-      });
+      }));
 
       // Update the mock to return the correct codes
       vi.spyOn(store, "get").mockImplementation((atom) => {
@@ -1005,26 +1160,6 @@ describe("NotebookLanguageServerClient", () => {
     });
 
     it("should only rename private variables in the current cell (issue #7810)", async () => {
-      const props = {
-        workspaceFolders: null,
-        capabilities: {
-          textDocument: {
-            rename: {
-              prepareSupport: true,
-            },
-          },
-        },
-        languageId: "python",
-        transport: {
-          sendData: vi.fn(),
-          subscribe: vi.fn(),
-          connect: vi.fn(),
-          transportRequestManager: {
-            send: vi.fn(),
-          },
-        } as any,
-      };
-
       // Setup editor views - both cells have a private variable _x
       const cell1Code = "_x = 1\nprint(_x)";
       const cell2Code = "_x = 2\nprint(_x)";
@@ -1037,7 +1172,6 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell1),
-            ...props,
           }),
         ],
       });
@@ -1050,15 +1184,14 @@ describe("NotebookLanguageServerClient", () => {
           languageServerWithClient({
             client: mockClient as unknown as LanguageServerClient,
             documentUri: CellDocumentUri.of(Cells.cell2),
-            ...props,
           }),
         ],
       });
 
-      (notebookClient as any).getNotebookEditors = () => ({
+      replaceNotebookEditors(notebookClient, () => ({
         [Cells.cell1]: mockView1,
         [Cells.cell2]: mockView2,
-      });
+      }));
 
       // Update the mock to return the correct codes
       vi.spyOn(store, "get").mockImplementation((atom) => {
@@ -1129,22 +1262,38 @@ describe("NotebookLanguageServerClient", () => {
   });
 
   describe("diagnostics handling", () => {
+    it("forwards malformed diagnostic notifications without throwing", () => {
+      const forwardedNotification = vi.fn();
+      mockClient.processNotification = forwardedNotification;
+      notebookClient.patchProcessNotification();
+
+      const malformedNotification: ClientNotification = {
+        method: "textDocument/publishDiagnostics",
+        params: {
+          uri: "file:///__marimo__.py",
+          diagnostics: [{ message: "Missing a range" }],
+        },
+      };
+
+      expect(() => {
+        mockClient.processNotification(malformedNotification);
+      }).not.toThrow();
+      expect(forwardedNotification).toHaveBeenCalledWith(malformedNotification);
+    });
+
     it("should transform diagnostic ranges and filter out-of-bounds diagnostics", async () => {
       // Mock processNotification to capture the transformed diagnostics
       const capturedDiagnostics: LSP.PublishDiagnosticsParams[] = [];
-      // @ts-expect-error: processNotification is private
       mockClient.processNotification = vi
         .fn()
-        .mockImplementation((notification: any) => {
-          if (notification.method === "textDocument/publishDiagnostics") {
+        .mockImplementation((notification: ClientNotification) => {
+          if (isPublishDiagnosticsNotification(notification)) {
             capturedDiagnostics.push(notification.params);
           }
         });
 
       // Call patch since we changed processNotification
       notebookClient.patchProcessNotification();
-      // Start the document version at 1
-      (notebookClient as any).documentVersion = 1;
 
       // Open documents for multiple cells so they get tracked
       await notebookClient.textDocumentDidOpen({
@@ -1193,8 +1342,7 @@ describe("NotebookLanguageServerClient", () => {
         },
       };
 
-      // @ts-expect-error: processNotification is private
-      notebookClient.client.processNotification(diagnosticsNotification);
+      mockClient.processNotification(diagnosticsNotification);
 
       expect(capturedDiagnostics).toHaveLength(2);
       expect(capturedDiagnostics[0].diagnostics).toHaveLength(1);
@@ -1207,21 +1355,108 @@ describe("NotebookLanguageServerClient", () => {
       expect(capturedDiagnostics[1].diagnostics).toHaveLength(0);
     });
 
+    it("should map relatedInformation out of merged-document coordinates", async () => {
+      const capturedDiagnostics: LSP.PublishDiagnosticsParams[] = [];
+      mockClient.processNotification = vi
+        .fn()
+        .mockImplementation((notification: ClientNotification) => {
+          if (isPublishDiagnosticsNotification(notification)) {
+            capturedDiagnostics.push(notification.params);
+          }
+        });
+      notebookClient.patchProcessNotification();
+
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: CellDocumentUri.of(Cells.cell3),
+          languageId: "python",
+          version: 1,
+          text: "print(math.sqrt(4))",
+        },
+      });
+
+      // Merged doc: line 0 -> cell1, lines 1-2 -> cell2, line 3 -> cell3
+      mockClient.processNotification({
+        method: "textDocument/publishDiagnostics",
+        params: {
+          uri: notebookClient.documentUri,
+          version: 1,
+          diagnostics: [
+            {
+              range: {
+                start: { line: 3, character: 0 },
+                end: { line: 3, character: 5 },
+              },
+              message: "Shadowed import",
+              severity: LSP.DiagnosticSeverity.Warning,
+              relatedInformation: [
+                {
+                  location: {
+                    uri: notebookClient.documentUri,
+                    range: {
+                      start: { line: 1, character: 7 },
+                      end: { line: 1, character: 11 },
+                    },
+                  },
+                  message: "declared here",
+                },
+                {
+                  location: {
+                    uri: "file:///site-packages/math.pyi",
+                    range: {
+                      start: { line: 9, character: 0 },
+                      end: { line: 9, character: 4 },
+                    },
+                  },
+                  message: "stub definition",
+                },
+              ],
+            },
+          ],
+        },
+      });
+
+      const forwarded = capturedDiagnostics.find(
+        (params) => params.diagnostics.length > 0,
+      );
+      expect(forwarded?.uri).toBe(CellDocumentUri.of(Cells.cell3));
+      expect(forwarded?.diagnostics[0].relatedInformation).toEqual([
+        {
+          location: {
+            uri: CellDocumentUri.of(Cells.cell2),
+            range: {
+              start: { line: 0, character: 7 },
+              end: { line: 0, character: 11 },
+            },
+          },
+          message: "declared here",
+        },
+        {
+          location: {
+            uri: "file:///site-packages/math.pyi",
+            range: {
+              start: { line: 9, character: 0 },
+              end: { line: 9, character: 4 },
+            },
+          },
+          message: "stub definition",
+        },
+      ]);
+    });
+
     it("should clear diagnostics for all cells when receiving empty diagnostics", async () => {
       await notebookClient.sync();
 
       const seenNotifications: LSP.PublishDiagnosticsParams[] = [];
-      (mockClient as any).processNotification = vi
+      mockClient.processNotification = vi
         .fn()
-        .mockImplementation((notification: any) => {
-          if (notification.method === "textDocument/publishDiagnostics") {
+        .mockImplementation((notification: ClientNotification) => {
+          if (isPublishDiagnosticsNotification(notification)) {
             seenNotifications.push(notification.params);
           }
         });
 
       notebookClient.patchProcessNotification();
-      // Start the document version at 1
-      (notebookClient as any).documentVersion = 1;
 
       // Open documents so they get tracked
       await notebookClient.textDocumentDidOpen({
@@ -1252,8 +1487,7 @@ describe("NotebookLanguageServerClient", () => {
         },
       };
 
-      // @ts-expect-error: processNotification is private
-      notebookClient.client.processNotification(emptyDiagnosticsNotification);
+      mockClient.processNotification(emptyDiagnosticsNotification);
 
       expect(seenNotifications.length).toBeGreaterThan(0);
       seenNotifications.forEach((notification) => {
@@ -1263,17 +1497,15 @@ describe("NotebookLanguageServerClient", () => {
 
     it("should handle diagnostics across multiple cells", async () => {
       const seenNotifications = new Map<string, LSP.PublishDiagnosticsParams>();
-      (mockClient as any).processNotification = vi
+      mockClient.processNotification = vi
         .fn()
-        .mockImplementation((notification: any) => {
-          if (notification.method === "textDocument/publishDiagnostics") {
+        .mockImplementation((notification: ClientNotification) => {
+          if (isPublishDiagnosticsNotification(notification)) {
             seenNotifications.set(notification.params.uri, notification.params);
           }
         });
 
       notebookClient.patchProcessNotification();
-      // Start the document version at 1
-      (notebookClient as any).documentVersion = 1;
 
       // Open documents for multiple cells so they get tracked
       await notebookClient.textDocumentDidOpen({
@@ -1321,10 +1553,7 @@ describe("NotebookLanguageServerClient", () => {
         },
       };
 
-      // @ts-expect-error: processNotification is private
-      notebookClient.client.processNotification(
-        multiCellDiagnosticsNotification,
-      );
+      mockClient.processNotification(multiCellDiagnosticsNotification);
 
       expect(seenNotifications.size).toBe(2);
       const cell1Uri = CellDocumentUri.of(Cells.cell1);
@@ -1341,13 +1570,7 @@ describe("NotebookLanguageServerClient", () => {
     });
 
     it("should handle version updates in textDocumentDidChange", async () => {
-      mockClient.textDocumentDidChange = vi
-        .fn()
-        .mockImplementation((params) => {
-          return params;
-        });
-
-      const result = await notebookClient.textDocumentDidChange({
+      await notebookClient.textDocumentDidChange({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
           version: 5,
@@ -1355,15 +1578,22 @@ describe("NotebookLanguageServerClient", () => {
         contentChanges: [{ text: "new code" }],
       });
 
-      expect(result).toBeDefined();
-      expect(result.textDocument.version).toBeGreaterThan(0);
-      expect(result.contentChanges).toHaveLength(1);
-      expect(result.contentChanges[0].text).toMatchInlineSnapshot(`
-        "# this is a comment
-        import math
-        import numpy
-        print(math.sqrt(4))"
-      `);
+      expect(mockClient.textDocumentDidChange).toHaveBeenCalledWith({
+        textDocument: {
+          uri: "file:///project/__marimo_notebook__.py",
+          version: expect.any(Number),
+        },
+        contentChanges: [
+          {
+            text: [
+              "# this is a comment",
+              "import math",
+              "import numpy",
+              "print(math.sqrt(4))",
+            ].join("\n"),
+          },
+        ],
+      });
     });
   });
 
@@ -1404,14 +1634,8 @@ describe("NotebookLanguageServerClient", () => {
     });
   });
 
-  describe("SEEN_CELL_DOCUMENT_URIS memory management", () => {
-    it("should track opened cells in SEEN_CELL_DOCUMENT_URIS", async () => {
-      // Clear any existing state
-      const seenUris = (NotebookLanguageServerClient as any)
-        .SEEN_CELL_DOCUMENT_URIS;
-      seenUris.clear();
-
-      // Open some cells to add them to SEEN_CELL_DOCUMENT_URIS
+  describe("diagnostic tracking isolation", () => {
+    it("does not leak opened cell state between notebook clients", async () => {
       await notebookClient.textDocumentDidOpen({
         textDocument: {
           uri: CellDocumentUri.of(Cells.cell1),
@@ -1421,37 +1645,41 @@ describe("NotebookLanguageServerClient", () => {
         },
       });
 
-      await notebookClient.textDocumentDidOpen({
-        textDocument: {
-          uri: CellDocumentUri.of(Cells.cell2),
-          languageId: "python",
+      const forwardedNotification = vi.fn();
+      const isolatedClient: Mocked<TestLanguageServerClient> = {
+        ...mockClient,
+        processNotification: forwardedNotification,
+        notify: vi.fn(),
+      };
+      const isolatedNotebookClient = new NotebookLanguageServerClient(
+        isolatedClient,
+        {},
+      );
+      await isolatedNotebookClient.sync();
+      isolatedNotebookClient.patchProcessNotification();
+
+      isolatedClient.processNotification({
+        method: "textDocument/publishDiagnostics",
+        params: {
+          uri: "file:///project/__marimo_notebook__.py",
           version: 1,
-          text: "code2",
+          diagnostics: [],
         },
       });
 
-      // Verify cells were added
-      expect(seenUris.has(CellDocumentUri.of(Cells.cell1))).toBe(true);
-      expect(seenUris.has(CellDocumentUri.of(Cells.cell2))).toBe(true);
-      expect(seenUris.size).toBe(2);
-    });
-
-    it("should have pruneSeenCellUris static method", () => {
-      // Verify the method exists and is callable
-      expect(
-        typeof (NotebookLanguageServerClient as any).pruneSeenCellUris,
-      ).toBe("function");
+      expect(forwardedNotification).not.toHaveBeenCalled();
     });
   });
 
   describe("initialization and configuration", () => {
     it("should send configuration after initialization", async () => {
-      const configNotifications: any[] = [];
-      (mockClient as any).notify = vi
-        .fn()
-        .mockImplementation((method, params) => {
-          configNotifications.push({ method, params });
-        });
+      const configNotifications: Array<{
+        method: string;
+        params: unknown;
+      }> = [];
+      mockClient.notify = vi.fn().mockImplementation(async (method, params) => {
+        configNotifications.push({ method, params });
+      });
 
       // Create a new client to trigger initialization
       const client = new NotebookLanguageServerClient(mockClient, {});

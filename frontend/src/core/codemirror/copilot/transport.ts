@@ -1,10 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { WebSocketTransport } from "@open-rpc/client-js";
-import type { JSONRPCRequestData } from "@open-rpc/client-js/build/Request";
-import { Transport } from "@open-rpc/client-js/build/transports/Transport";
 import { prettyError } from "@/utils/errors";
-import { Logger } from "@/utils/Logger";
+import { ReconnectingWebSocketTransport } from "@/core/lsp/transport";
 
 export interface LazyWebsocketTransportOptions {
   /**
@@ -24,224 +21,35 @@ export interface LazyWebsocketTransportOptions {
   showError: (title: string, description: string | React.ReactNode) => void;
 
   /**
-   * Number of retry attempts for connection.
+   * Number of connection attempts in each retry cycle.
    * @default 3
    */
   retries?: number;
 
   /**
-   * Delay between retry attempts in milliseconds.
+   * Delay between connection attempts in milliseconds.
    * @default 1000
    */
   retryDelayMs?: number;
-
-  /**
-   * Default timeout for sendData operations in milliseconds.
-   * Used when the caller does not provide an explicit timeout.
-   * @default 5000
-   */
-  maxTimeoutMs?: number;
-}
-
-interface Subscription {
-  event: "pending" | "notification" | "response" | "error";
-  handler: Parameters<Transport["subscribe"]>[1];
 }
 
 /**
- * A WebSocket transport that lazily connects after waiting for prerequisites.
- *
- * This transport:
- * - Waits for copilot to be enabled before connecting
- * - Waits for the websocket to be available before connecting
- * - Forwards subscriptions/unsubscriptions to the delegate
- * - Handles reconnection automatically
+ * Copilot's lazy transport is the shared reconnecting LSP transport with
+ * Copilot-specific readiness checks, retries, and user-facing errors.
  */
-export class LazyWebsocketTransport extends Transport {
-  private delegate: WebSocketTransport | undefined;
-  private pendingSubscriptions: Subscription[] = [];
-  private readonly options: Required<LazyWebsocketTransportOptions>;
-  private needsReInitialization = false;
-
-  /**
-   * Callback invoked after the transport reconnects following a close or connection failure.
-   * Used by the LSP client to re-run the initialize handshake on the new connection.
-   */
-  onReconnect?: () => Promise<void>;
-
+export class LazyWebsocketTransport extends ReconnectingWebSocketTransport {
   constructor(options: LazyWebsocketTransportOptions) {
-    super();
-    this.delegate = undefined;
-    this.pendingSubscriptions = [];
-    this.options = {
+    super({
+      getWsUrl: options.getWsUrl,
+      waitForConnection: options.waitForReady,
       retries: options.retries ?? 3,
       retryDelayMs: options.retryDelayMs ?? 1000,
-      maxTimeoutMs: options.maxTimeoutMs ?? 5000,
-      getWsUrl: options.getWsUrl,
-      waitForReady: options.waitForReady,
-      showError: options.showError,
-    };
-  }
-
-  override subscribe(...args: Parameters<Transport["subscribe"]>): void {
-    // Register handler on parent Transport
-    super.subscribe(...args);
-
-    const [event, handler] = args;
-
-    // Track the subscription
-    this.pendingSubscriptions.push({ event, handler });
-
-    // Also register on delegate if it exists
-    if (this.delegate) {
-      this.delegate.subscribe(event, handler);
-    }
-  }
-
-  override unsubscribe(
-    ...args: Parameters<Transport["unsubscribe"]>
-  ): import("events").EventEmitter | undefined {
-    // Unsubscribe from parent Transport
-    const result = super.unsubscribe(...args);
-
-    const [event, handler] = args;
-    // Also unsubscribe from delegate if it exists
-    if (this.delegate) {
-      this.delegate.unsubscribe(event, handler);
-    }
-
-    // Remove from pending subscriptions if handler is provided
-    if (handler) {
-      if (event) {
-        // Remove specific handler for specific event
-        const index = this.pendingSubscriptions.findIndex(
-          (sub) => sub.event === event && sub.handler === handler,
+      onConnectionFailure: (error) => {
+        options.showError(
+          "GitHub Copilot Connection Error",
+          `Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n${prettyError(error)}`,
         );
-        if (index > -1) {
-          this.pendingSubscriptions.splice(index, 1);
-        }
-      } else {
-        // Remove handler from all events
-        this.pendingSubscriptions = this.pendingSubscriptions.filter(
-          (sub) => sub.handler !== handler,
-        );
-      }
-    } else if (event) {
-      // Remove all handlers for specific event
-      this.pendingSubscriptions = this.pendingSubscriptions.filter(
-        (sub) => sub.event !== event,
-      );
-    } else {
-      // Remove all subscriptions
-      this.pendingSubscriptions = [];
-    }
-
-    return result;
-  }
-
-  private createDelegate(): WebSocketTransport {
-    const delegate = new WebSocketTransport(this.options.getWsUrl());
-    // Register all pending subscriptions on the delegate
-    for (const { event, handler } of this.pendingSubscriptions) {
-      delegate.subscribe(event, handler);
-    }
-    return delegate;
-  }
-
-  private async tryConnect(): Promise<void> {
-    for (let attempt = 1; attempt <= this.options.retries; attempt++) {
-      try {
-        // Create delegate, if it doesn't exist
-        if (!this.delegate) {
-          this.delegate = this.createDelegate();
-        }
-        await this.delegate.connect();
-        Logger.log("Copilot#connect: Connected successfully");
-        return;
-      } catch (error) {
-        Logger.warn(
-          `Copilot#connect: Connection attempt ${attempt}/${this.options.retries} failed`,
-          error,
-        );
-        if (attempt === this.options.retries) {
-          this.delegate = undefined;
-          this.needsReInitialization = true;
-          // Show error toast on final retry
-          this.options.showError(
-            "GitHub Copilot Connection Error",
-            `Failed to connect to GitHub Copilot. Please check your settings and try again.\n\n${prettyError(error)}`,
-          );
-          throw error;
-        }
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.options.retryDelayMs),
-        );
-      }
-    }
-  }
-
-  override async connect(): Promise<void> {
-    // Wait for all prerequisites to be ready
-    await this.options.waitForReady();
-
-    // Try connecting with retries
-    return this.tryConnect();
-  }
-
-  override close(): void {
-    this.delegate?.close();
-    this.delegate = undefined;
-    this.needsReInitialization = true;
-  }
-
-  override async sendData(
-    data: JSONRPCRequestData,
-    timeout: number | null | undefined,
-  ): Promise<unknown> {
-    // If delegate is undefined, try to reconnect
-    if (!this.delegate) {
-      Logger.log("Copilot#sendData: Delegate not initialized, reconnecting...");
-      try {
-        // Ensure prerequisites are ready before attempting connection
-        await this.options.waitForReady();
-        await this.tryConnect();
-      } catch (error) {
-        Logger.error("Copilot#sendData: Failed to reconnect transport", error);
-        throw new Error(
-          "Unable to connect to GitHub Copilot. Please check your settings and try again.",
-          { cause: error },
-        );
-      }
-
-      // Re-run LSP initialization handshake after reconnecting
-      if (this.needsReInitialization && this.onReconnect) {
-        Logger.log(
-          "Copilot#sendData: Re-initializing LSP after reconnection...",
-        );
-        try {
-          await this.onReconnect();
-          this.needsReInitialization = false;
-        } catch (error) {
-          // Close the uninitialized connection so the next attempt starts fresh
-          this.close();
-          Logger.error(
-            "Copilot#sendData: LSP re-initialization after reconnection failed",
-            error,
-          );
-          throw error;
-        }
-      }
-    }
-
-    // After reconnection, delegate should be initialized
-    if (!this.delegate) {
-      throw new Error(
-        "Failed to initialize GitHub Copilot connection. Please try again.",
-      );
-    }
-
-    // Use maxTimeoutMs as default when no timeout is provided
-    timeout = timeout ?? this.options.maxTimeoutMs;
-    return this.delegate.sendData(data, timeout);
+      },
+    });
   }
 }
