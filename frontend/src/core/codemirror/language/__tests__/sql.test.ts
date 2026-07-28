@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type {
-  CompletionContext,
-  CompletionResult,
-} from "@codemirror/autocomplete";
-import { PostgreSQL } from "@codemirror/lang-sql";
+import { CompletionContext } from "@codemirror/autocomplete";
+import type { CompletionSource } from "@codemirror/autocomplete";
+import { PostgreSQL, sql } from "@codemirror/lang-sql";
+import { forEachDiagnostic, forceLinting } from "@codemirror/lint";
 import { EditorState, type Extension } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type {
   CompletionConfig,
@@ -20,6 +20,7 @@ import {
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
+import { ValidateSQL } from "@/core/datasets/request-registry";
 import { datasetsAtom } from "@/core/datasets/state";
 import type { DatasetsState } from "@/core/datasets/types";
 import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
@@ -27,10 +28,11 @@ import { store } from "@/core/state/jotai";
 import type { PlaceholderType } from "../../config/types";
 import { TestSQLCompletionStore } from "../languages/sql/completion-store";
 import {
+  exportedForTesting,
   SQLLanguageAdapter,
   type SQLLanguageAdapterMetadata,
 } from "../languages/sql/sql";
-import { languageMetadataField } from "../metadata";
+import { languageMetadataField, updateLanguageMetadata } from "../metadata";
 
 const adapter = new SQLLanguageAdapter();
 
@@ -631,6 +633,389 @@ _df = mo.sql(
       setLatestEngineSelected(DUCKDB_ENGINE);
       expect(adapter.defaultCode).toBe(`_df = mo.sql(f"""SELECT * FROM """)`);
     });
+  });
+});
+
+describe("SQL analysis features", () => {
+  const metadata: SQLLanguageAdapterMetadata = {
+    dataframeName: "_df",
+    quotePrefix: "f",
+    commentLines: [],
+    showOutput: true,
+    engine: TEST_ENGINE,
+  };
+
+  const createConnection = (
+    columns: string[],
+    includeDefaultSchema = true,
+  ): DataSourceConnection => ({
+    name: TEST_ENGINE,
+    dialect: "postgres",
+    display_name: "PostgreSQL",
+    source: "postgres",
+    default_database: "test_db",
+    default_schema: includeDefaultSchema ? "public" : undefined,
+    databases: [
+      {
+        name: "test_db",
+        dialect: "postgres",
+        schemas: [
+          {
+            name: "public",
+            tables: [
+              {
+                name: "users",
+                source: "postgres",
+                source_type: "local",
+                type: "table",
+                num_columns: columns.length,
+                num_rows: 0,
+                variable_name: null,
+                columns: columns.map((name) => ({
+                  name,
+                  external_type: "string",
+                  type: "string",
+                  sample_values: [],
+                })),
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+
+  const createCompletionContext = (doc: string, pos: number) => {
+    const state = EditorState.create({
+      doc,
+      extensions: [languageMetadataField.init(() => metadata)],
+    });
+    const view = new EditorView({ state });
+    return {
+      context: new CompletionContext(view.state, pos, true, view),
+      view,
+    };
+  };
+
+  const getLabels = async (
+    source: CompletionSource,
+    context: CompletionContext,
+  ) => {
+    const result = await source(context);
+    return result?.options.map((option) => option.label) ?? [];
+  };
+
+  beforeEach(() => {
+    store.set(datasetsAtom, { tables: [] } as unknown as DatasetsState);
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [TEST_ENGINE, createConnection(["id", "name"])],
+      ]),
+      latestEngineSelected: TEST_ENGINE,
+    });
+  });
+
+  it("resolves alias completions from the latest connection schema", async () => {
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const doc = "SELECT u. FROM users u";
+    const { context, view } = createCompletionContext(doc, "SELECT u.".length);
+
+    expect(await getLabels(analysis.aliasCompletionSource, context)).toEqual(
+      expect.arrayContaining(["id", "name"]),
+    );
+
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [TEST_ENGINE, createConnection(["id", "name", "email"])],
+      ]),
+      latestEngineSelected: TEST_ENGINE,
+    });
+
+    expect(await getLabels(analysis.aliasCompletionSource, context)).toContain(
+      "email",
+    );
+    view.destroy();
+  });
+
+  it("resolves aliases when the only schema is implicit", async () => {
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [TEST_ENGINE, createConnection(["id", "name"], false)],
+      ]),
+      latestEngineSelected: TEST_ENGINE,
+    });
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const doc = "SELECT u. FROM users u";
+    const { context, view } = createCompletionContext(doc, "SELECT u.".length);
+
+    expect(await getLabels(analysis.aliasCompletionSource, context)).toEqual(
+      expect.arrayContaining(["id", "name"]),
+    );
+    view.destroy();
+  });
+
+  it("preserves top-level namespaces when promoting default-schema tables", () => {
+    const connection = createConnection(["id"]);
+    const database = connection.databases[0]!;
+    const publicSchema = database.schemas[0]!;
+    const usersTable = publicSchema.tables[0]!;
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [
+          TEST_ENGINE,
+          {
+            ...connection,
+            databases: [
+              {
+                ...database,
+                schemas: [
+                  {
+                    ...publicSchema,
+                    tables: [
+                      ...publicSchema.tables,
+                      { ...usersTable, name: "analytics" },
+                      { ...usersTable, name: "test_db" },
+                    ],
+                  },
+                  {
+                    name: "analytics",
+                    tables: [{ ...usersTable, name: "events" }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      ]),
+      latestEngineSelected: TEST_ENGINE,
+    });
+    const state = EditorState.create({
+      extensions: [languageMetadataField.init(() => metadata)],
+    });
+    const view = new EditorView({ state });
+
+    expect(exportedForTesting.getSchema(view)).toMatchObject({
+      analytics: {
+        self: { label: "analytics", type: "schema" },
+        children: {
+          events: { self: { label: "events", type: "table" } },
+        },
+      },
+      public: {
+        children: {
+          analytics: { self: { label: "analytics", type: "table" } },
+          test_db: { self: { label: "test_db", type: "table" } },
+        },
+      },
+      test_db: {
+        self: { label: "test_db", type: "database" },
+      },
+    });
+    view.destroy();
+  });
+
+  it("resolves a table literally named self", async () => {
+    store.set(datasetsAtom, {
+      tables: [
+        {
+          name: "self",
+          columns: [{ name: "value", type: "string" }],
+        },
+      ],
+    } as DatasetsState);
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const doc = "SELECT s. FROM self s";
+    const { context, view } = createCompletionContext(doc, "SELECT s.".length);
+
+    expect(await getLabels(analysis.aliasCompletionSource, context)).toContain(
+      "value",
+    );
+    view.destroy();
+  });
+
+  it("completes declared CTE columns", async () => {
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const doc =
+      "WITH active_users(user_id, user_email) AS (SELECT id, email FROM users) " +
+      "SELECT active_users. FROM active_users";
+    const pos = doc.indexOf("active_users.") + "active_users.".length;
+    const { context, view } = createCompletionContext(doc, pos);
+
+    expect(await getLabels(analysis.cteCompletionSource, context)).toEqual(
+      expect.arrayContaining(["user_id", "user_email"]),
+    );
+    view.destroy();
+  });
+
+  it("completes columns from tables in the current statement", async () => {
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const doc = "SELECT na FROM users";
+    const { context, view } = createCompletionContext(doc, "SELECT na".length);
+
+    expect(await getLabels(analysis.columnCompletionSource, context)).toContain(
+      "name",
+    );
+    view.destroy();
+  });
+
+  it("reports semantic diagnostics as warnings", async () => {
+    const adapter = new SQLLanguageAdapter();
+    const extensions = adapter.getExtension(
+      {} as CellId,
+      {} as CompletionConfig,
+      {} as HotkeyProvider,
+      {} as PlaceholderType,
+      {
+        diagnostics: { sql_linter: true },
+      } as LSPConfig & { diagnostics: DiagnosticsConfig },
+    );
+    const state = EditorState.create({
+      doc: "SELECT missing FROM users",
+      extensions: [languageMetadataField.init(() => metadata), ...extensions],
+    });
+    const view = new EditorView({ state });
+
+    forceLinting(view);
+    await vi.waitFor(() => {
+      const diagnostics: Array<{ message: string; severity: string }> = [];
+      forEachDiagnostic(view.state, (diagnostic) => {
+        diagnostics.push(diagnostic);
+      });
+      expect(diagnostics).toContainEqual(
+        expect.objectContaining({
+          message: "Column 'missing' not found in table 'users'",
+          severity: "warning",
+        }),
+      );
+    });
+    view.destroy();
+  });
+
+  it("does not report unknown tables", async () => {
+    const adapter = new SQLLanguageAdapter();
+    const extensions = adapter.getExtension(
+      {} as CellId,
+      {} as CompletionConfig,
+      {} as HotkeyProvider,
+      {} as PlaceholderType,
+      {
+        diagnostics: { sql_linter: true },
+      } as LSPConfig & { diagnostics: DiagnosticsConfig },
+    );
+    const state = EditorState.create({
+      doc: "SELECT missing FROM users; SELECT * FROM unknown_table",
+      extensions: [languageMetadataField.init(() => metadata), ...extensions],
+    });
+    const view = new EditorView({ state });
+
+    forceLinting(view);
+    await vi.waitFor(() => {
+      const diagnostics: string[] = [];
+      forEachDiagnostic(view.state, (diagnostic) => {
+        diagnostics.push(diagnostic.message);
+      });
+      expect(diagnostics).toEqual([
+        "Column 'missing' not found in table 'users'",
+      ]);
+    });
+    view.destroy();
+  });
+
+  it("invalidates analysis caches when the engine changes", async () => {
+    const mssqlEngine = "mssql_engine" as ConnectionName;
+    const postgresEngine = "postgres_engine" as ConnectionName;
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [
+          mssqlEngine,
+          {
+            ...createConnection([]),
+            name: mssqlEngine,
+            dialect: "mssql",
+          },
+        ],
+        [
+          postgresEngine,
+          {
+            ...createConnection([]),
+            name: postgresEngine,
+            dialect: "postgres",
+          },
+        ],
+      ]),
+      latestEngineSelected: mssqlEngine,
+    });
+    const analysis = exportedForTesting.createSQLAnalysis();
+    const state = EditorState.create({
+      doc: "SELECT TOP 1 * FROM users",
+      extensions: [
+        languageMetadataField.init(() => ({
+          ...metadata,
+          engine: mssqlEngine,
+        })),
+      ],
+    });
+    const view = new EditorView({ state });
+
+    const before = await analysis.structureAnalyzer.analyzeDocument(view.state);
+    expect(before[0]?.isValid).toBe(true);
+
+    view.dispatch({
+      effects: updateLanguageMetadata.of({ engine: postgresEngine }),
+    });
+
+    const after = await analysis.structureAnalyzer.analyzeDocument(view.state);
+    expect(after[0]?.isValid).toBe(false);
+    view.destroy();
+  });
+});
+
+describe("CustomSqlParser", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("uses backend DuckDB validation", async () => {
+    vi.useFakeTimers();
+    const error = {
+      message: "Backend syntax error",
+      line: 1,
+      column: 1,
+      severity: "error" as const,
+    };
+    const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
+      error: null,
+      parse_result: { success: false, errors: [error] },
+      request_id: "request-id",
+      validate_result: null,
+    });
+    const state = EditorState.create({
+      doc: "SELECT",
+      extensions: [
+        languageMetadataField.init(() => ({
+          dataframeName: "_df",
+          quotePrefix: "f",
+          commentLines: [],
+          showOutput: true,
+          engine: DUCKDB_ENGINE,
+        })),
+      ],
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+    parser.setFocusState(true);
+
+    const result = parser.validateSql("SELECT", { state });
+    await vi.runAllTimersAsync();
+
+    await expect(result).resolves.toEqual([error]);
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        engine: DUCKDB_ENGINE,
+        onlyParse: true,
+        query: "SELECT",
+      }),
+    );
   });
 });
 
@@ -1523,6 +1908,7 @@ describe("tablesCompletionSource", () => {
 
     const completionSource = completionStore.getCompletionSource(TEST_ENGINE);
     expect(completionSource?.defaultTable).toBe("users");
+    expect(completionSource?.defaultSchema).toBe("public");
     expect(completionSource?.dialect).toBe(PostgreSQL);
   });
 
@@ -1654,17 +2040,7 @@ describe("tablesCompletionSource", () => {
     `);
   });
 
-  it("should return local tables", () => {
-    const testDatasets = [
-      {
-        name: "dataset1",
-        columns: [
-          { name: "col1", type: "number" },
-          { name: "col2", type: "string" },
-        ],
-      },
-    ];
-
+  describe("completion sources", () => {
     describe("SQL Completions", () => {
       const completionStore = new TestSQLCompletionStore();
 
@@ -1695,54 +2071,57 @@ describe("tablesCompletionSource", () => {
 
         return EditorState.create({
           doc,
-          extensions: [languageMetadataField.init(() => defaultMetadata)],
+          extensions: [
+            languageMetadataField.init(() => defaultMetadata),
+            sql({ dialect: PostgreSQL }),
+          ],
         });
       };
 
       const createCompletionContext = (
         state: EditorState,
         pos: number,
-        matchText?: string,
-        matchFrom?: number,
       ): CompletionContext => {
-        return {
-          pos,
-          explicit: false,
-          matchBefore: matchText
-            ? () => ({
-                from: matchFrom || pos - matchText.length,
-                to: pos,
-                text: matchText,
-              })
-            : () => null,
-          state,
-          aborted: false,
-          tokenBefore: () => null,
-        } as unknown as CompletionContext;
+        return new CompletionContext(state, pos, false);
       };
 
-      const getCompletion = (extensions: Extension[]) => {
-        // oxlint-disable-next-line typescript/no-explicit-any
-        const ext = extensions.find((ext) => (ext as any).facet === undefined);
-        // oxlint-disable-next-line typescript/no-explicit-any
-        return (ext as any)?.value?.override?.[0];
+      const getCompletionSources = (
+        extensions: readonly Extension[],
+      ): readonly CompletionSource[] | undefined => {
+        for (const extension of extensions) {
+          if (Array.isArray(extension)) {
+            const sources = getCompletionSources(extension);
+            if (sources) {
+              return sources;
+            }
+            continue;
+          }
+
+          const config = extension as {
+            value?: { override?: readonly CompletionSource[] };
+          };
+          if (config.value?.override) {
+            return config.value.override;
+          }
+        }
+        return undefined;
       };
 
       describe("tablesCompletionSource", () => {
-        it("should return null when no connection exists", () => {
+        it("should return null when no connection exists", async () => {
           const state = createEditorState("SELECT * FROM ");
           const ctx = createCompletionContext(state, 14);
 
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions)?.[0];
 
           expect(completion).toBeDefined();
-          const result = completion!(ctx);
+          const result = await completion!(ctx);
           expect(result).toBeNull();
         });
 
-        it("should provide table completions when connection exists", () => {
+        it("should provide table completions when connection exists", async () => {
           const mockConnection: DataSourceConnection = {
             name: TEST_ENGINE,
             dialect: "postgres",
@@ -1794,19 +2173,19 @@ describe("tablesCompletionSource", () => {
           const state = createEditorState("SELECT * FROM u", {
             engine: TEST_ENGINE,
           });
-          const ctx = createCompletionContext(state, 15, "u", 14);
+          const ctx = createCompletionContext(state, 15);
 
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions)?.[0];
 
           expect(completion).toBeDefined();
-          const result = completion!(ctx);
+          const result = await completion!(ctx);
           expect(result).toBeDefined();
           expect(result?.options.length).toBeGreaterThan(0);
         });
 
-        it("should include local datasets in completions", () => {
+        it("should include local datasets in completions", async () => {
           const mockConnection: DataSourceConnection = {
             name: TEST_ENGINE,
             dialect: "duckdb",
@@ -1825,14 +2204,14 @@ describe("tablesCompletionSource", () => {
           const state = createEditorState("SELECT * FROM d", {
             engine: TEST_ENGINE,
           });
-          const ctx = createCompletionContext(state, 15, "d", 14);
+          const ctx = createCompletionContext(state, 15);
 
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions)?.[0];
 
           expect(completion).toBeDefined();
-          const result: CompletionResult = completion!(ctx);
+          const result = await completion!(ctx);
           expect(result).toBeDefined();
           expect(result?.options.some((opt) => opt.label === "dataset1")).toBe(
             true,
@@ -1841,7 +2220,7 @@ describe("tablesCompletionSource", () => {
       });
 
       describe("customKeywordCompletionSource", () => {
-        it("should provide SQL keyword completions", () => {
+        it("should provide SQL keyword completions", async () => {
           const mockConnection: DataSourceConnection = {
             name: TEST_ENGINE,
             dialect: "postgres",
@@ -1858,21 +2237,21 @@ describe("tablesCompletionSource", () => {
           const state = createEditorState("SEL", {
             engine: TEST_ENGINE,
           });
-          const ctx = createCompletionContext(state, 3, "SEL", 0);
+          const ctx = createCompletionContext(state, 3);
 
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions)?.[2];
 
           expect(completion).toBeDefined();
-          const result: CompletionResult = completion!(ctx);
+          const result = await completion!(ctx);
           expect(result).toBeDefined();
           expect(result?.options.some((opt) => opt.label === "SELECT")).toBe(
             true,
           );
         });
 
-        it("should not provide keyword completions after dot", () => {
+        it("should not provide keyword completions after dot", async () => {
           const mockConnection: DataSourceConnection = {
             name: TEST_ENGINE,
             dialect: "postgres",
@@ -1889,14 +2268,14 @@ describe("tablesCompletionSource", () => {
           const state = createEditorState("SELECT users.n", {
             engine: TEST_ENGINE,
           });
-          const ctx = createCompletionContext(state, 14, ".n", 12);
+          const ctx = createCompletionContext(state, 14);
 
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions)?.[2];
 
           expect(completion).toBeDefined();
-          const result = completion!(ctx);
+          const result = await completion!(ctx);
           expect(result).toBeNull();
         });
 
@@ -1925,13 +2304,16 @@ describe("tablesCompletionSource", () => {
         it("should be included in extension overrides", () => {
           const adapter = new SQLLanguageAdapter();
           const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
-          const completion = getCompletion(extensions);
+          const completion = getCompletionSources(extensions);
 
           expect(completion).toBeDefined();
-          expect(completion).toHaveLength(3); // tablesCompletionSource, variableCompletionSource, customKeywordCompletionSource
+          expect(completion).toHaveLength(6);
         });
       });
     });
+  });
+
+  it("should return local tables", () => {
     mockStore.set(datasetsAtom, { tables: testDatasets } as DatasetsState);
 
     const mockConnection: DataSourceConnection = {

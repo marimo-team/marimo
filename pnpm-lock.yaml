@@ -146,8 +146,8 @@ importers:
         specifier: ^0.1.7
         version: 0.1.7(@codemirror/autocomplete@6.20.3)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)(@modelcontextprotocol/sdk@1.17.2)
       '@marimo-team/codemirror-sql':
-        specifier: ^0.2.8
-        version: 0.2.8(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)
+        specifier: ^0.3.0
+        version: 0.3.0(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)
       '@marimo-team/llm-info':
         specifier: workspace:*
         version: link:../packages/llm-info
@@ -1699,8 +1699,8 @@ packages:
       '@codemirror/view': ^6
       '@modelcontextprotocol/sdk': ^1
 
-  '@marimo-team/codemirror-sql@0.2.8':
-    resolution: {integrity: sha512-OT9JsZz3Nfynm9wKTDbqnfQ2YYn5tclrKpN3npUr4JuuKvqT2Z9nCDGS4IH86prHboeR0vJy+2Q+8zK2LS03yA==}
+  '@marimo-team/codemirror-sql@0.3.0':
+    resolution: {integrity: sha512-cAEWKQ15akEc0i8Ax6D+WI3temUy6FpNkVnN1j2SvDSjHmK8BfwBZ6nzelQbrR+PBjw6M3TcZaygZL4a1HG/Qg==}
     peerDependencies:
       '@codemirror/autocomplete': ^6
       '@codemirror/lint': ^6
@@ -7416,8 +7416,8 @@ packages:
     resolution: {integrity: sha512-J6l92tKHX6w8Jy5nO1Vuc01NoIiRGi/d6qBKVxh+IQ8Cr3b6HbVNfKiF8ZpFKufTwpwxMmce2W3iQZ861ZRyTg==}
     engines: {node: '>=18'}
 
-  node-sql-parser@5.3.13:
-    resolution: {integrity: sha512-heyWv3lLjKHpcBDMUSR+R0DohRYZTYq+Ro3hJ4m9Ia8ccdKbL5UijIaWr2L4co+bmmFuvBVZ4v23QW2PqvBFAA==}
+  node-sql-parser@5.4.0:
+    resolution: {integrity: sha512-jVe6Z61gPcPjCElPZ6j8llB3wnqGcuQzefim1ERsqIakxnEy5JlzV7XKdO1KmacRG5TKwPc4vJTgSRQ0LfkbFw==}
     engines: {node: '>=8'}
 
   normalize-package-data@2.5.0:
@@ -11241,13 +11241,13 @@ snapshots:
       '@codemirror/view': 6.43.6
       '@modelcontextprotocol/sdk': 1.17.2
 
-  '@marimo-team/codemirror-sql@0.2.8(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)':
+  '@marimo-team/codemirror-sql@0.3.0(@codemirror/autocomplete@6.20.3)(@codemirror/lint@6.9.7)(@codemirror/state@6.7.1)(@codemirror/view@6.43.6)':
     dependencies:
       '@codemirror/autocomplete': 6.20.3
       '@codemirror/lint': 6.9.7
       '@codemirror/state': 6.7.1
       '@codemirror/view': 6.43.6
-      node-sql-parser: 5.3.13
+      node-sql-parser: 5.4.0
 
   '@marimo-team/react-slotz@0.2.0(react@19.2.4)':
     dependencies:
@@ -17901,7 +17901,7 @@ snapshots:
 
   node-releases@2.0.50: {}
 
-  node-sql-parser@5.3.13:
+  node-sql-parser@5.4.0:
     dependencies:
       '@types/pegjs': 0.10.6
       big-integer: 1.6.52
