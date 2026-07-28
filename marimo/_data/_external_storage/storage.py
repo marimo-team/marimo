@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import mimetypes
+import re
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
@@ -28,12 +30,9 @@ if TYPE_CHECKING:
     from obstore import ObjectMeta
     from obstore.store import (
         AzureConfig,
-        AzureStore,
         GCSConfig,
-        GCSStore,
         ObjectStore,  # noqa: F401
         S3Config,
-        S3Store,
     )
 
 LOGGER = _loggers.marimo_logger()
@@ -147,17 +146,31 @@ class Obstore(StorageBackend["ObjectStore"]):
             LOGGER.info("Failed to sign URL for %s", path)
             return None
 
-    def _get_config(
-        self, store: AzureStore | GCSStore | S3Store
-    ) -> AzureConfig | GCSConfig | S3Config | None:
+    @cached_property
+    def _config(self) -> AzureConfig | GCSConfig | S3Config | None:
+        """The store's config, or None for stores that don't have one.
+
+        obstore (0.11.0) panics rather than raises for perfectly valid stores:
+        an `S3Store` created with `allow_http=True` fails with "Expected config
+        prefix to start with aws_" (pyo3-object_store/src/aws/store.rs:254),
+        printing raw Rust output to stderr. The result is cached so such a
+        store panics once, rather than on every property read.
+        """
+        from obstore.store import AzureStore, GCSStore, S3Store
+
+        store = self.store
+        if not isinstance(store, (AzureStore, GCSStore, S3Store)):
+            return None
         try:
             return store.config
-        except BaseException:
-            # Sometimes, there will be a Rust panic when trying to get the config for invalid stores
-            LOGGER.exception(
-                "Failed to read store config for %s", type(store).__name__
+        except BaseException as e:
+            # PanicException derives from BaseException, not Exception
+            LOGGER.warning(
+                "Failed to read store config for %s: %s",
+                type(store).__name__,
+                e,
             )
-        return None
+            return None
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
@@ -170,17 +183,14 @@ class Obstore(StorageBackend["ObjectStore"]):
             S3Store,
         )
 
-        # Try the endpoint URL which can give a more accurate protocol
-        if not isinstance(self.store, (MemoryStore, HTTPStore, LocalStore)):
-            config = self._get_config(self.store)
-            if config is None:
-                return "unknown"
-
-            endpoint = config.get("endpoint")
-            if isinstance(endpoint, str) and (
-                protocol := detect_protocol_from_url(endpoint)
-            ):
-                return protocol
+        # Try the endpoint URL which can give a more accurate protocol,
+        # falling back to the store type if the config is unreadable.
+        config = self._config
+        endpoint = config.get("endpoint") if config else None
+        if isinstance(endpoint, str) and (
+            protocol := detect_protocol_from_url(endpoint)
+        ):
+            return protocol
 
         if isinstance(self.store, MemoryStore):
             return "in-memory"
@@ -216,11 +226,13 @@ class Obstore(StorageBackend["ObjectStore"]):
             if isinstance(self.store, LocalStore):
                 return None  # root
 
-            config = self._get_config(self.store)
+            config = self._config
             if config is None:
-                return None
+                # The config can be unreadable (see _config); the repr still
+                # carries the bucket/container name.
+                return _bucket_from_repr(self.store)
 
-            bucket = config.get("bucket")
+            bucket = config.get("bucket") or config.get("container_name")
             if bucket is None:
                 LOGGER.debug(
                     "No bucket found for storage backend. Config %s", config
@@ -498,6 +510,16 @@ _URL_PATTERNS: list[tuple[str, CLOUD_STORAGE_TYPES]] = [
     ("s3", "s3"),
     ("amazonaws", "s3"),
 ]
+
+
+# e.g. 'S3Store(bucket="my-bucket")', 'AzureStore(container_name="c", ...)'
+_STORE_REPR_NAME_RE = re.compile(r'(?:bucket|container_name)="([^"]*)"')
+
+
+def _bucket_from_repr(store: object) -> str | None:
+    """Best-effort bucket/container name for a store with an unreadable config."""
+    match = _STORE_REPR_NAME_RE.search(repr(store))
+    return match.group(1) if match else None
 
 
 def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:

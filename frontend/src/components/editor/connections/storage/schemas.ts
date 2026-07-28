@@ -2,6 +2,83 @@
 import { z } from "zod";
 import { FieldOptions } from "@/components/forms/options";
 
+/**
+ * Credentials shared by every S3-compatible store (Amazon S3, CoreWeave, ...).
+ *
+ * Rendered as tabs: either long-lived access keys, or a credential-vending
+ * endpoint (ECS/EKS task roles, CoreWeave sandboxes, ...) that obstore polls
+ * with a bearer token read from disk.
+ */
+const s3AuthField = () =>
+  z
+    .discriminatedUnion("type", [
+      z.object({
+        type: z.literal("Access keys"),
+        access_key_id: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Access Key ID",
+              description: "Leave empty to use the default credential chain",
+              inputType: "password",
+              optionRegex:
+                "(access.?key.?id|object.?storage.?key|aws.?access.?key)",
+            }),
+          ),
+        secret_access_key: z
+          .string()
+          .optional()
+          .describe(
+            FieldOptions.of({
+              label: "Secret Access Key",
+              inputType: "password",
+              optionRegex:
+                "(secret.?access.?key|object.?storage.?secret|aws.?secret)",
+            }),
+          ),
+      }),
+      z.object({
+        type: z.literal("Container credentials"),
+        container_credentials_full_uri: z
+          .string()
+          .nonempty()
+          .describe(
+            FieldOptions.of({
+              label: "Credentials URI",
+              description: "Endpoint that vends credentials to the container",
+              placeholder: "http://169.254.170.23/v1/credentials",
+              optionRegex: "container.?credentials",
+            }),
+          ),
+        container_authorization_token_file: z
+          .string()
+          .nonempty()
+          .describe(
+            FieldOptions.of({
+              label: "Authorization Token File",
+              description: "File holding the token sent to the credentials URI",
+              placeholder: "/var/run/secrets/token",
+              optionRegex:
+                "(container.?authorization.?token.?file|container.?auth.?token)",
+            }),
+          ),
+      }),
+    ])
+    .default({ type: "Access keys" })
+    .describe(FieldOptions.of({ label: "Credentials", special: "tabs" }));
+
+const allowHttpField = () =>
+  z
+    .boolean()
+    .default(false)
+    .describe(
+      FieldOptions.of({
+        label: "Allow HTTP",
+        description: "Required for plain-http (non-TLS) endpoints",
+      }),
+    );
+
 export const S3StorageSchema = z
   .object({
     type: z.literal("s3"),
@@ -25,36 +102,20 @@ export const S3StorageSchema = z
           optionRegex: "(region|aws.?region)",
         }),
       ),
-    access_key_id: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Access Key ID",
-          inputType: "password",
-          optionRegex: "(access.?key.?id|aws.?access.?key)",
-        }),
-      ),
-    secret_access_key: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Secret Access Key",
-          inputType: "password",
-          optionRegex: "(secret.?access.?key|aws.?secret)",
-        }),
-      ),
     endpoint_url: z
       .string()
       .optional()
       .describe(
         FieldOptions.of({
           label: "Endpoint URL",
+          description:
+            "Ignored if the AWS_ENDPOINT_URL_S3 environment variable is set",
           placeholder: "https://s3.amazonaws.com",
           optionRegex: "(endpoint|s3.?url|s3.?endpoint)",
         }),
       ),
+    allow_http: allowHttpField(),
+    auth: s3AuthField(),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
@@ -139,28 +200,7 @@ export const CoreWeaveStorageSchema = z
           placeholder: "US-EAST-04A",
         }),
       ),
-    access_key_id: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Access Key ID",
-          inputType: "password",
-          optionRegex:
-            "(access.?key.?id|object.?storage.?key|aws.?access.?key)",
-        }),
-      ),
-    secret_access_key: z
-      .string()
-      .optional()
-      .describe(
-        FieldOptions.of({
-          label: "Secret Access Key",
-          inputType: "password",
-          optionRegex:
-            "(secret.?access.?key|object.?storage.?secret|aws.?secret)",
-        }),
-      ),
+    auth: s3AuthField(),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
@@ -189,3 +229,4 @@ export const StorageConnectionSchema = z.discriminatedUnion("type", [
 ]);
 
 export type StorageConnection = z.infer<typeof StorageConnectionSchema>;
+export type S3Auth = Extract<StorageConnection, { type: "s3" }>["auth"];
