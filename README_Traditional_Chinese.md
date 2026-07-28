@@ -43,8 +43,8 @@
 - ⚡️ **響應式：** 執行一個單元格，marimo 會響應式地[執行所有相依單元格](https://docs.marimo.io/guides/reactivity.html)或<a href="#expensive-notebooks">將其標記為過時</a>
 - 🖐️ **互動性：** [綁定滑桿、表格、圖表等](https://docs.marimo.io/guides/interactivity.html)至 Python — 無需回呼函式
 - 🐍 **支援 Git 版本控制：** 以 `.py` 檔案格式儲存
-- 🛢️ **為資料設計：** 使用 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查詢資料框、資料庫、資料倉儲或資料湖，過濾和搜尋[資料框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
-- 🤖 **AI 原生：** [與 AI agent 結對](https://marimo.io/pair)，如 Claude Code，或使用編輯器的[內建 AI 功能](https://docs.marimo.io/guides/editor_features/ai_completion/)
+- 🛢️ **為資料設計：** 使用 [SQL](https://docs.marimo.io/guides/working_with_data/sql.html) 查詢資料框、資料庫、資料倉儲或資料湖倉，過濾和搜尋[資料框](https://docs.marimo.io/guides/working_with_data/dataframes.html)
+- 🤖 **AI 原生：** [與 AI agents 結對](https://marimo.io/pair)（如 Claude Code），或使用編輯器的[內建 AI 功能](https://docs.marimo.io/guides/editor_features/ai_completion/)
 - 🔬 **可重現：** [無隱藏狀態](https://docs.marimo.io/guides/reactivity.html#no-hidden-state)、確定性執行、[內建套件管理](https://docs.marimo.io/guides/package_management/)
 - 🏃 **可執行：** [作為 Python 腳本執行](https://docs.marimo.io/guides/scripts.html)，透過 CLI 參數化
 - 🛜 **可分享：** [部署為互動式網頁應用程式](https://docs.marimo.io/guides/apps.html)或[簡報](https://docs.marimo.io/guides/apps.html#slides-layout)，[透過 WASM 在瀏覽器中執行](https://docs.marimo.io/guides/wasm.html)
