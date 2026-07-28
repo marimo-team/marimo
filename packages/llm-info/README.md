@@ -17,6 +17,8 @@ If you want to add a new LLM model or provider, you can do so by editing the YAM
 
 `pnpm sync-models` adds the latest models from [`models.dev`](https://models.dev/api.json) to the top of each provider section in `models.yml`. Existing entries are preserved. Run `pnpm codegen` afterwards.
 
+`google-vertex` maps into the `google` section, so Anthropic models with `@default` ids (e.g. `claude-opus-5@default`) are Vertex-only — note that in their `description` if you keep them.
+
 ```bash
 pnpm sync-models                          # all providers, 10 newest each
 pnpm sync-models --provider=anthropic     # one provider
