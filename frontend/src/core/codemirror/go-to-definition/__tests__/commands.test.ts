@@ -384,7 +384,6 @@ print('myVar')`);
     `);
   });
 
-  // https://github.com/marimo-team/marimo/issues/10222
   test("scrolls the cell owning the definition into view", async () => {
     const cell = document.createElement("div");
     cell.className = "marimo-cell";

@@ -21,9 +21,7 @@ vi.mock("@/core/cells/cells", () => ({
 }));
 
 /**
- * A view stub that only carries what navigate needs: the state it searches, a
- * dispatch to assert on, and a `dom` inside a `.marimo-cell` so the horizontal
- * scroll for columns mode has something to walk up to.
+ * A view stub that only carries what navigate needs
  */
 function createMockView(state: EditorState): EditorView {
   const cell = document.createElement("div");
@@ -245,7 +243,6 @@ describe("navigate", () => {
       expect(result).toBe(false);
     });
 
-    // https://github.com/marimo-team/marimo/issues/10222
     it("should scroll the cell owning the match into view", async () => {
       const cell = view1.dom.closest(".marimo-cell");
       invariant(cell, "mock view should be inside a cell");
