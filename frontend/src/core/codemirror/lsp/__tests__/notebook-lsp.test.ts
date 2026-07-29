@@ -521,6 +521,40 @@ describe("NotebookLanguageServerClient", () => {
       );
     });
 
+    it("keeps the reference and marks the cell seen when the underlying client reports no fresh open (result === false)", async () => {
+      // The vendor client resolves `false` when another view already has the
+      // shared merged document open: it did not need to send its own
+      // `didOpen`, but the document is genuinely open. This is the common
+      // case for every cell after the first one in a notebook, since all
+      // cells share the same underlying merged-document URI. It must not be
+      // treated like a rejection.
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      mockClient.textDocumentDidOpen.mockResolvedValueOnce(false);
+
+      await expect(
+        notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri: cellUri,
+            languageId: "python",
+            version: 1,
+            text: "value = 1",
+          },
+        }),
+      ).resolves.toBe(false);
+
+      const seenCellDocumentUris = (
+        notebookClient as unknown as { seenCellDocumentUris: Set<string> }
+      ).seenCellDocumentUris;
+      expect(seenCellDocumentUris.has(cellUri)).toBe(true);
+
+      // The reference must still be tracked: closing it forwards a real
+      // close instead of being treated as unmatched.
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+      expect(mockClient.textDocumentDidClose).toHaveBeenCalledTimes(1);
+    });
+
     it("does not mark a cell as seen when the underlying client rejects textDocumentDidOpen", async () => {
       const cellUri = CellDocumentUri.of(Cells.cell1);
       mockClient.textDocumentDidOpen.mockRejectedValueOnce(
