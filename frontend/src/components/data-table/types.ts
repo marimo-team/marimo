@@ -70,7 +70,7 @@ export function toFieldTypes(
   return new Map(fieldTypes.map(([columnName, [type]]) => [columnName, type]));
 }
 
-interface BinValue {
+export interface BinValue {
   bin_start: number | string | Date | null;
   bin_end: number | string | Date | null;
   count: number;
