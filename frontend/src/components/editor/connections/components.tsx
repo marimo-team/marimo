@@ -21,9 +21,13 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
-import { ENV_RENDERER, SecretsProvider } from "./form-renderers";
+import {
+  ENV_RENDERER,
+  SECRET_TEXTAREA_RENDERER,
+  SecretsProvider,
+} from "./form-renderers";
 
-const RENDERERS: FormRenderer[] = [ENV_RENDERER];
+const RENDERERS: FormRenderer[] = [ENV_RENDERER, SECRET_TEXTAREA_RENDERER];
 
 /**
  * Grid layout for provider/database selector buttons.

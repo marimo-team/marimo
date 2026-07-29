@@ -295,11 +295,12 @@ export const BigQueryConnectionSchema = z
           optionRegex: "(bigquery.?dataset|dataset)",
         }),
       ),
-    credentials_json: z
-      .string()
-      .describe(
-        FieldOptions.of({ label: "Credentials JSON", inputType: "textarea" }),
-      ),
+    credentials_json: z.string().describe(
+      FieldOptions.of({
+        label: "Credentials JSON",
+        special: "secret_textarea",
+      }),
+    ),
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 

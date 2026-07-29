@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { prefixPath } from "../../paths";
 import { prefixSecret } from "../../secrets";
 import { generateStorageCode } from "../as-code";
 import type { StorageConnection } from "../schemas";
@@ -155,6 +156,26 @@ describe("generateStorageCode", () => {
         generateStorageCode(conn, { library: "obstore" }),
       ).toMatchSnapshot();
     });
+
+    it("with service account key from secrets", () => {
+      const conn: StorageConnection = {
+        ...baseGCS,
+        service_account_key: prefixSecret("GCS_SERVICE_ACCOUNT_KEY"),
+      };
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
+    });
+
+    it("with service account key from a file path", () => {
+      const conn: StorageConnection = {
+        ...baseGCS,
+        service_account_key: prefixPath("/etc/secrets/gcs.json"),
+      };
+      expect(
+        generateStorageCode(conn, { library: "obstore" }),
+      ).toMatchSnapshot();
+    });
   });
 
   describe("Azure", () => {
@@ -264,6 +285,26 @@ describe("generateStorageCode", () => {
       };
       expect(
         generateStorageCode(conn, { library: "fsspec", isEmbedded: true }),
+      ).toMatchSnapshot();
+    });
+
+    it("with service account credentials from secrets", () => {
+      const conn: StorageConnection = {
+        ...baseGDrive,
+        credentials_json: prefixSecret("GDRIVE_CREDENTIALS_JSON"),
+      };
+      expect(
+        generateStorageCode(conn, { library: "fsspec" }),
+      ).toMatchSnapshot();
+    });
+
+    it("with service account credentials from a file path", () => {
+      const conn: StorageConnection = {
+        ...baseGDrive,
+        credentials_json: prefixPath("/etc/secrets/gdrive.json"),
+      };
+      expect(
+        generateStorageCode(conn, { library: "fsspec" }),
       ).toMatchSnapshot();
     });
   });

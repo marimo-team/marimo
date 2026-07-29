@@ -392,6 +392,22 @@ credentials = json.loads("""{"type": "service_account", "project_id": "test"}"""
 engine = sqlmodel.create_engine(f"bigquery://{_project}/{_dataset}", credentials_info=credentials)"
 `;
 
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials_json as a file path 1`] = `
+"import sqlmodel
+
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_path="/etc/secrets/bigquery.json")"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials_json as secret 1`] = `
+"import json
+import os
+import sqlmodel
+
+_credentials_json = os.environ.get("BIGQUERY_CREDENTIALS_JSON")
+credentials = json.loads(_credentials_json)
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
+`;
+
 exports[`generateDatabaseCode > connections with secrets > clickhouse with all connection details as secrets 1`] = `
 "import clickhouse_connect
 import os
