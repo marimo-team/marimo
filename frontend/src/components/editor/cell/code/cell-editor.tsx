@@ -11,7 +11,7 @@ import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
-import { SCRATCH_CELL_ID, SETUP_CELL_ID } from "@/core/cells/ids";
+import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { usePendingDeleteService } from "@/core/cells/pending-delete-service";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { notebookCellEditorViews } from "@/core/cells/utils";
@@ -39,7 +39,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
-import { isRtcEnabled } from "@/core/rtc/state";
+import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { isAppConnecting } from "@/core/websocket/connection-utils";
 import type { Theme } from "@/theme/useTheme";
@@ -342,7 +342,7 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = isRtcEnabled() && cellId !== SCRATCH_CELL_ID;
+  const rtcEnabled = canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
@@ -645,7 +645,7 @@ function WithWaitUntilConnected<T extends Pick<CellEditorProps, "id">>(
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
     if (
-      props.id !== SCRATCH_CELL_ID &&
+      canUseRtc(props.id) &&
       (isAppConnecting(connection.state) || rtcDoc === undefined)
     ) {
       return (
