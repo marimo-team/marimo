@@ -41,12 +41,41 @@ class AgentConfig:
 def _claude_skill_dirs() -> list[Path]:
     """Return all directories where a Claude Code skill may be installed.
 
-    Skills can live under skills/, plugins/, or plugins/marketplaces/ in
-    both the global (~/.claude) and local (.claude) config directories.
+    Skills can be installed directly or bundled in a marketplace plugin in
+    both the global (`~/.claude`) and local (`.claude`) config directories.
     """
     roots = [Path.home() / ".claude", Path.cwd() / ".claude"]
     subdirs = ["skills", "plugins", str(Path("plugins") / "marketplaces")]
-    return [root / sub for root in roots for sub in subdirs]
+    return [
+        *[root / sub for root in roots for sub in subdirs],
+        *[
+            skill_dir
+            for root in roots
+            for skill_dir in _plugin_skill_dirs(root)
+        ],
+    ]
+
+
+def _plugin_skill_dirs(root: Path) -> list[Path]:
+    """Return skill directories from marketplace and cached plugins."""
+    plugins = root / "plugins"
+    return [
+        *plugins.glob("marketplaces/*/skills"),
+        *plugins.glob(f"cache/*/{SKILL_NAME}/*/skills"),
+    ]
+
+
+def _codex_skill_dirs() -> list[Path]:
+    """Return directories where a Codex skill may be installed."""
+    roots = [Path.home() / ".codex", Path.cwd() / ".codex"]
+    return [
+        *[root / "skills" for root in roots],
+        *[
+            skill_dir
+            for root in roots
+            for skill_dir in _plugin_skill_dirs(root)
+        ],
+    ]
 
 
 def _opencode_skill_dirs() -> list[Path]:
@@ -76,8 +105,6 @@ def _opencode_skill_dirs() -> list[Path]:
 
 def pair_agents() -> dict[str, AgentConfig]:
     """Return agent configs; paths use `Path.cwd()` at call time."""
-    cwd = Path.cwd()
-    home = Path.home()
     return {
         "claude": AgentConfig(
             name="Claude Code",
@@ -85,10 +112,7 @@ def pair_agents() -> dict[str, AgentConfig]:
         ),
         "codex": AgentConfig(
             name="Codex",
-            skill_dirs=[
-                home / ".codex" / "skills",
-                cwd / ".codex" / "skills",
-            ],
+            skill_dirs=_codex_skill_dirs(),
         ),
         "opencode": AgentConfig(
             name="opencode",
