@@ -520,7 +520,7 @@ class TestMCPTransportConnectors:
     @pytest.mark.skipif(
         not DependencyManager.mcp.has(), reason="MCP SDK not available"
     )
-    @patch("mcp.client.streamable_http.streamablehttp_client")
+    @patch("mcp.client.streamable_http.streamable_http_client")
     async def test_http_connector_connect(self, mock_http_client):
         """Test HTTP transport connector connection."""
         # Setup mocks

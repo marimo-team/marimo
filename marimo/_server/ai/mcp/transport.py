@@ -83,7 +83,7 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
         self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
     ) -> TransportConnectorResponse:
         # Import MCP SDK components for streamable HTTP transport
-        from mcp.client.streamable_http import streamablehttp_client
+        from mcp.client.streamable_http import streamable_http_client
 
         # Type narrowing for mypy
         assert "url" in server_def.config
@@ -91,7 +91,7 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
 
         # Establish streamable HTTP connection
         read, write, *_ = await exit_stack.enter_async_context(
-            streamablehttp_client(
+            streamable_http_client(
                 config["url"],
                 headers=config.get("headers", {}),
                 timeout=server_def.timeout,
