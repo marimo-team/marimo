@@ -16,8 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
-      actions: write # rerun the workflow that was blocked on the CLA check
-      contents: read # signatures live in marimo-team/cla-signers, written with the Doppler PAT
+      actions: write
+      contents: read # signatures are written to marimo-team/cla-signers with the PAT
       pull-requests: write
       statuses: write
       id-token: write # required for Doppler OIDC
@@ -37,9 +37,7 @@ jobs:
 
       - name: "CLA Assistant"
         if: (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA') || github.event_name == 'pull_request_target'
-        # Maintained fork of the archived contributor-assistant/github-action.
-        # Pinned to a full commit SHA: tags are mutable and this step is handed
-        # a write-scoped token.
+        # maintained fork of the archived contributor-assistant/github-action
         uses: iainmcgin/cla-github-action@0d27e5a16278d4adb6b0c4b92f08ad27b0a21dc8 # v3.2.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -55,10 +53,7 @@ jobs:
           remote-organization-name: marimo-team
           remote-repository-name: cla-signers
           lock-pullrequest-aftermerge: false #- if you don't want this bot to automatically lock the pull request after merging (default - true)
-          # Fail the check when the PR opener is not an author or co-author of any
-          # commit. Git author fields are unauthenticated, so this guards against
-          # commits being submitted under an identity the opener doesn't control.
-          # Set to false if we ever need to accept cherry-picks or relayed patches.
+          # fail the check if the PR opener authored none of the commits
           require-opener-as-author: true
           #create-file-commit-message: 'For example: Creating file for storing CLA Signatures'
           #signed-commit-message: 'For example: $contributorName has signed the CLA in $owner/$repo#$pullRequestNo'
