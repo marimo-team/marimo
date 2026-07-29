@@ -304,6 +304,10 @@ class file_browser(
             selected_path = self._create_path(
                 normalize_path(self._create_path(selected_value))
             )
+            if not selected_path.exists():
+                raise ValueError(
+                    f"Default value {selected_path} does not exist."
+                )
             is_directory = selected_path.is_dir()
             kind = "directory" if is_directory else "file"
             if kind not in self._selection_mode:
