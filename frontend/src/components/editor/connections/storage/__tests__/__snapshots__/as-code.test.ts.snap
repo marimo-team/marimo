@@ -105,8 +105,16 @@ fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)"
 
 exports[`generateStorageCode > Google Drive > with embedded auth (no credentials) 1`] = `
 "from gdrive_fsspec import GoogleDriveFileSystem
+import pydata_google_auth.cache
 
-fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True, auth_kwargs={"use_local_webserver": False})
+fs = GoogleDriveFileSystem(
+    use_listings_cache=False,
+    skip_instance_cache=True,
+    auth_kwargs={
+        "use_local_webserver": False,
+        "credentials_cache": pydata_google_auth.cache.NOOP,
+    },
+)
 mo.output.clear_console()"
 `;
 

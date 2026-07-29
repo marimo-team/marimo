@@ -209,15 +209,29 @@ function generateGDriveCode(
 
   // In the iframe (embedded) flow we authenticate via the console-based OOB
   // flow, which prints an auth URL and reads the code from stdin. Clear the
-  // console afterwards so the (single-use) auth code doesn't linger.
-  const code = isEmbedded
-    ? dedent(`
-        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True, auth_kwargs={"use_local_webserver": False})
-        mo.output.clear_console()
-      `)
-    : dedent(`
-        fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)
-      `);
+  // console afterwards so the (single-use) auth code doesn't linger. We also
+  // disable the on-disk credentials cache so we don't write credentials to disk.
+  // The tradeoff is that we need to re-authenticate every time this cell is run.
+  // https://pydata-google-auth.readthedocs.io/en/latest/api.html#pydata_google_auth.cache.NOOP
+  if (isEmbedded) {
+    imports.add("import pydata_google_auth.cache");
+    const code = dedent(`
+      fs = GoogleDriveFileSystem(
+          use_listings_cache=False,
+          skip_instance_cache=True,
+          auth_kwargs={
+              "use_local_webserver": False,
+              "credentials_cache": pydata_google_auth.cache.NOOP,
+          },
+      )
+      mo.output.clear_console()
+    `);
+    return { imports, code };
+  }
+
+  const code = dedent(`
+    fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)
+  `);
   return { imports, code };
 }
 
