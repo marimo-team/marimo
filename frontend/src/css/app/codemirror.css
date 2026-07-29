@@ -90,8 +90,22 @@
     @apply bg-muted border border-border rounded-md px-1;
   }
 
-  .cm-diagnosticText > div {
-    display: inline-flex;
+  /* The message, the docs link, and related info are siblings; stack them. */
+  .cm-lsp-diagnostic-message {
+    @apply flex flex-col items-start gap-1;
+
+    /* Rendered markdown, so the `pre-wrap` on `.cm-diagnostic` would only turn
+       the whitespace between block tags into blank lines. */
+    white-space: normal;
+  }
+
+  .cm-diagnostic-code-link {
+    @apply text-xs;
+  }
+
+  /* The docs link already reads `source(code)`; don't repeat it below. */
+  .cm-diagnostic:has(.cm-diagnostic-code-link) .cm-diagnosticSource {
+    @apply hidden;
   }
 }
 

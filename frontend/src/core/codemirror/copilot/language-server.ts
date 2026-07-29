@@ -7,6 +7,7 @@ import type {
   CompletionList,
   CompletionParams,
   DidChangeTextDocumentParams,
+  DidCloseTextDocumentParams,
   DidOpenTextDocumentParams,
   Hover,
   HoverParams,
@@ -16,7 +17,9 @@ import type {
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 import { store } from "@/core/state/jotai";
+import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
+import { hasFunctionProperty, isRecord } from "@/utils/records";
 import { getCodes } from "./getCodes";
 import {
   clearGitHubCopilotLoadingVersion,
@@ -30,42 +33,88 @@ import type {
   GitHubCopilotStatusNotificationParams,
   GitHubCopilotStatusResult,
 } from "./types";
+import type { LanguageAdapterType } from "../language/types";
 
 const logger = Logger.get("@github/copilot-language-server");
+const REQUEST_TIMEOUT_MS = 10_000;
+// Only used for the synthetic didOpen sent when a change arrives before any open
+const DEFAULT_LANGUAGE_ID: LanguageAdapterType = "python";
+type NoParams = Record<string, never>;
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
-  checkStatus: [{}, GitHubCopilotStatusResult];
-  signIn: [{}, GitHubCopilotSignInInitiateResult];
+  checkStatus: [NoParams, GitHubCopilotStatusResult];
+  signIn: [NoParams, GitHubCopilotSignInInitiateResult];
   signInConfirm: [GitHubCopilotSignInConfirmParams, GitHubCopilotStatusResult];
-  signOut: [{}, GitHubCopilotStatusResult];
+  signOut: [NoParams, GitHubCopilotStatusResult];
   "textDocument/inlineCompletion": [
     InlineCompletionParams,
     InlineCompletionList | InlineCompletionItem[] | null,
   ];
 }
 
-export interface LSPEventMap {
-  statusNotification: GitHubCopilotStatusNotificationParams;
-  didChangeStatus: GitHubCopilotStatusNotificationParams;
-  "window/logMessage": { type: number; message: string };
+interface UntypedLanguageServerMethods {
+  request: (
+    method: string,
+    params: unknown,
+    timeout: number,
+  ) => Promise<unknown>;
+  notify: (method: string, params: unknown) => Promise<void>;
 }
 
-export type EnhancedNotification = {
-  [key in keyof LSPEventMap]: {
-    jsonrpc: "2.0";
-    id?: null | undefined;
-    method: key;
-    params: LSPEventMap[key];
+/**
+ * `LanguageServerClient#request`/`#notify` are protected and generic over the
+ * library's own `LSPRequestMap`/`LSPNotifyMap`
+ * This asserts the two inherited methods we need are present.
+ */
+function assertHasLanguageServerRpc(
+  value: unknown,
+): asserts value is UntypedLanguageServerMethods {
+  invariant(
+    isRecord(value) &&
+      hasFunctionProperty(value, "request") &&
+      hasFunctionProperty(value, "notify"),
+    "LanguageServerClient is missing request/notify",
+  );
+}
+
+/**
+ * Normalizes rather than validates: Copilot omits `message`/`busy` on most
+ * notifications and ships `kind` values we don't know about, so rejecting on an
+ * exact shape match would silently freeze the status indicator.
+ */
+function parseCopilotStatusNotificationParams(
+  value: unknown,
+): GitHubCopilotStatusNotificationParams | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const { busy, kind, message, status } = value;
+  return {
+    busy: typeof busy === "boolean" ? busy : false,
+    kind: typeof kind === "string" ? kind : null,
+    message: typeof message === "string" ? message : null,
+    status: typeof status === "string" ? status : undefined,
   };
-}[keyof LSPEventMap];
+}
+
+function isLogMessageParams(
+  value: unknown,
+): value is { type: number; message: string } {
+  return (
+    isRecord(value) &&
+    typeof value.type === "number" &&
+    typeof value.message === "string"
+  );
+}
 
 /**
  * A client for the Copilot language server.
  */
 export class CopilotLanguageServerClient extends LanguageServerClient {
   private documentVersion = 0;
-  private hasOpenedDocument = false;
+  private openDocumentCount = 0;
+  private lastOpenedDocument: DidOpenTextDocumentParams | undefined;
   private copilotSettings: Record<string, unknown> = {};
 
   constructor(
@@ -80,10 +129,11 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
   }
 
   private attachInitializeListener() {
-    // Send configuration after initialization
-    this.initializePromise.then(() => {
-      this.sendConfiguration();
-    });
+    void this.initializePromise
+      .then(() => this.sendConfiguration())
+      .catch((error: unknown) => {
+        logger.warn("#initialize: Failed to send configuration", error);
+      });
   }
 
   /**
@@ -95,6 +145,12 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     this.initializePromise = this.initialize();
     await this.initializePromise;
     await this.sendConfiguration();
+    if (this.openDocumentCount > 0 && this.lastOpenedDocument) {
+      await this.sendNotification(
+        "textDocument/didOpen",
+        this.lastOpenedDocument,
+      );
+    }
   }
 
   private async sendConfiguration() {
@@ -103,7 +159,9 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     if (!settings || Object.keys(settings).length === 0) {
       return;
     }
-    await this.notify("workspace/didChangeConfiguration", { settings });
+    await this.sendNotification("workspace/didChangeConfiguration", {
+      settings,
+    });
     logger.debug("#sendConfiguration: Configuration sent", settings);
   }
 
@@ -111,20 +169,21 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    return await (
-      this as unknown as {
-        request: (
-          method: Method,
-          params: LSPRequestMap[Method][0],
-        ) => Promise<LSPRequestMap[Method][1]>;
-      }
-    ).request(method, params);
+    assertHasLanguageServerRpc(this);
+    return (await this.request(
+      method,
+      params,
+      REQUEST_TIMEOUT_MS,
+    )) as LSPRequestMap[Method][1];
   }
 
-  // oxlint-disable-next-line typescript/no-explicit-any
-  override async notify(method: any, params: any): Promise<any> {
+  private async sendNotification(
+    method: string,
+    params: unknown,
+  ): Promise<void> {
     logger.debug("#notify", method, params);
-    return super.notify(method, params);
+    assertHasLanguageServerRpc(this);
+    return this.notify(method, params);
   }
 
   override getInitializationOptions() {
@@ -151,12 +210,27 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
   override async textDocumentDidOpen(
     params: DidOpenTextDocumentParams,
-  ): Promise<DidOpenTextDocumentParams> {
+  ): Promise<boolean> {
     if (this.isDisabled()) {
-      return params;
+      return false;
     }
-    this.hasOpenedDocument = true;
+    this.openDocumentCount++;
+    this.lastOpenedDocument = params;
+    this.documentVersion = Math.max(
+      this.documentVersion,
+      params.textDocument.version,
+    );
     return super.textDocumentDidOpen(params);
+  }
+
+  override async textDocumentDidClose(
+    params: DidCloseTextDocumentParams,
+  ): Promise<void> {
+    if (this.openDocumentCount === 0) {
+      return;
+    }
+    this.openDocumentCount--;
+    return super.textDocumentDidClose(params);
   }
 
   override async textDocumentCompletion(
@@ -168,18 +242,27 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
   override async textDocumentDidChange(
     params: DidChangeTextDocumentParams,
-  ): Promise<DidChangeTextDocumentParams> {
+  ): Promise<void> {
     if (this.isDisabled()) {
-      return params;
+      return;
     }
 
-    if (!this.hasOpenedDocument) {
+    const change = params.contentChanges[0];
+    if (!change) {
+      logger.warn(
+        "#textDocumentDidChange: Ignoring an update with no content changes.",
+        params,
+      );
+      return;
+    }
+
+    if (this.openDocumentCount === 0) {
       await this.textDocumentDidOpen({
         textDocument: {
           uri: params.textDocument.uri,
-          languageId: "python",
+          languageId: DEFAULT_LANGUAGE_ID,
           version: params.textDocument.version,
-          text: params.contentChanges[0].text,
+          text: change.text,
         },
       });
     }
@@ -191,7 +274,6 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
         changes,
       );
     }
-    const change = changes[0];
     if ("range" in change) {
       logger.warn(
         "#textDocumentDidChange: Copilot doesn't support range changes.",
@@ -200,12 +282,24 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
 
     const text = getCodes(change.text);
+    const version = ++this.documentVersion;
+    // `reInitialize` replays this as a didOpen, so keep the original languageId
+    this.lastOpenedDocument = {
+      textDocument: {
+        uri: params.textDocument.uri,
+        languageId:
+          this.lastOpenedDocument?.textDocument.languageId ??
+          DEFAULT_LANGUAGE_ID,
+        version,
+        text,
+      },
+    };
     return super.textDocumentDidChange({
       ...params,
       contentChanges: [{ text: text }],
       textDocument: VersionedTextDocumentIdentifier.create(
         params.textDocument.uri,
-        ++this.documentVersion,
+        version,
       ),
     });
   }
@@ -264,9 +358,11 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     return await this._request("textDocument/inlineCompletion", {
       ...params,
       textDocument: {
-        ...params.textDocument,
-        version: version,
-      } as VersionedTextDocumentIdentifier,
+        ...VersionedTextDocumentIdentifier.create(
+          params.textDocument.uri,
+          version,
+        ),
+      },
     });
   };
 
@@ -287,8 +383,6 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     }
 
     const requestVersion = this.documentVersion;
-    (params.textDocument as VersionedTextDocumentIdentifier).version =
-      requestVersion;
 
     // If version is 0, it means the document hasn't been opened yet
     if (requestVersion === 0) {
@@ -297,12 +391,27 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
 
     // Start a loading indicator
     setGitHubCopilotLoadingVersion(requestVersion);
-    const response = await this.throttledGetCompletionInternal(
-      params,
-      requestVersion,
-    );
-    // Stop the loading indicator (only if the version hasn't changed)
-    clearGitHubCopilotLoadingVersion(requestVersion);
+    let response: InlineCompletionList | InlineCompletionItem[] | null;
+    try {
+      response = await this.throttledGetCompletionInternal(
+        {
+          ...params,
+          textDocument: VersionedTextDocumentIdentifier.create(
+            params.textDocument.uri,
+            requestVersion,
+          ),
+        },
+        requestVersion,
+      );
+    } catch (error) {
+      // A suggestion that times out should fail quietly rather than surface as
+      // an unhandled rejection out of the inline-completion fetcher.
+      logger.warn("#getCompletion: Failed to fetch completions", error);
+      return null;
+    } finally {
+      // Stop the loading indicator (only if the version hasn't changed)
+      clearGitHubCopilotLoadingVersion(requestVersion);
+    }
 
     // If the document version has changed since the request was made, return an empty response
     if (requestVersion !== this.documentVersion) {
@@ -316,29 +425,32 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
    * Handle notifications from the Copilot language server.
    * Uses onNotification to listen for statusNotification, didChangeStatus, and window/logMessage.
    */
-  private handleNotification: Parameters<
-    LanguageServerClient["onNotification"]
-  >[0] = (notif) => {
-    if (!notif.params) {
+  private handleNotification = (notification: unknown): void => {
+    if (!isRecord(notification) || typeof notification.method !== "string") {
       return;
     }
 
-    const notification = notif as unknown as EnhancedNotification;
-
-    // Handle statusNotification
-    if (notification.method === "statusNotification") {
-      store.set(copilotStatusState, notification.params);
+    if (
+      notification.method === "statusNotification" ||
+      notification.method === "didChangeStatus"
+    ) {
+      const status = parseCopilotStatusNotificationParams(notification.params);
+      if (status) {
+        store.set(copilotStatusState, status);
+      } else {
+        logger.warn(
+          "#statusNotification: Ignoring a status update with no params",
+          notification.params,
+        );
+      }
+      return;
     }
 
-    // Handle didChangeStatus
-    if (notification.method === "didChangeStatus") {
-      store.set(copilotStatusState, notification.params);
-    }
-
-    // Handle window/logMessage
-    if (notification.method === "window/logMessage") {
-      const params = notification.params as { type: number; message: string };
-      const { type, message } = params;
+    if (
+      notification.method === "window/logMessage" &&
+      isLogMessageParams(notification.params)
+    ) {
+      const { type, message } = notification.params;
       // Map LSP log types to console methods
       // type: 1 = Error, 2 = Warning, 3 = Info, 4 = Log
       switch (type) {

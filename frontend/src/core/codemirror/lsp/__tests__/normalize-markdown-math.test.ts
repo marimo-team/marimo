@@ -90,6 +90,31 @@ Use \`:math:\` as text and :math:\`z\` as math.
     expect(normalized).not.toContain(":math:`z`");
     expect(normalized).toContain("||(z||)");
   });
+
+  it("leaves markdown-escaped brackets in type annotations alone", () => {
+    const markdown =
+      'on\\_change (Optional\\[Callable\\]) and editable\\_columns (Union\\[list\\[str\\], Literal\\["all"\\]\\])';
+
+    expect(normalizeMarkdownMath(markdown)).toBe(markdown);
+  });
+
+  it("keeps the newlines around fenced code blocks", () => {
+    const markdown = `
+\`\`\`python
+class data_editor()
+\`\`\`
+---
+Inline \\[z^2\\] math forces normalization.
+
+Done.
+`.trim();
+
+    // A closing fence glued to the next line stops closing the block, and the
+    // rest of the document is swallowed into it.
+    expect(normalizeMarkdownMath(markdown)).toContain(
+      "class data_editor()\n```\n---\n",
+    );
+  });
 });
 
 describe("normalizeLspDocumentation", () => {

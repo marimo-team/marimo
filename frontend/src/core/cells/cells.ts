@@ -927,6 +927,12 @@ const {
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
   },
+  addLogs: (state, action: { logs: CellLog[] }) => {
+    return {
+      ...state,
+      cellLogs: [...state.cellLogs, ...action.logs],
+    };
+  },
   setCellIds: (state, action: { cellIds: CellId[] }) => {
     const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
     if (isTheSame) {
@@ -1697,6 +1703,13 @@ export {
   reducer as notebookReducer,
   notebookAtom,
 };
+
+/** Actions for dispatching outside of React. */
+const imperativeActions = createActions((action) => {
+  store.set(notebookAtom, (state) => reducer(state, action));
+});
+
+export const addLogs = imperativeActions.addLogs;
 
 /// ATOMS
 

@@ -9,6 +9,7 @@ import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
 import { LRUCache } from "@/utils/lru";
 import { Objects } from "@/utils/objects";
+import { isRecord } from "@/utils/records";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { topologicalCodesAtom } from "../copilot/getCodes";
 import {
@@ -19,8 +20,10 @@ import { createNotebookLens, type NotebookLens } from "./lens";
 import { normalizeLspDocumentation } from "./normalize-markdown-math";
 import {
   CellDocumentUri,
+  type ClientNotification,
   type ILanguageServerClient,
   isClientWithNotify,
+  isClientWithProcessNotification,
 } from "./types";
 import { getLspDocumentUri } from "./utils";
 
@@ -140,6 +143,47 @@ function normalizeSignatureHelpResponse(
   };
 }
 
+interface PublishDiagnosticsNotification {
+  method: "textDocument/publishDiagnostics";
+  params: LSP.PublishDiagnosticsParams;
+}
+
+function isPosition(value: unknown): value is LSP.Position {
+  return (
+    isRecord(value) &&
+    typeof value.line === "number" &&
+    typeof value.character === "number"
+  );
+}
+
+function isRange(value: unknown): value is LSP.Range {
+  return isRecord(value) && isPosition(value.start) && isPosition(value.end);
+}
+
+function isDiagnostic(value: unknown): value is LSP.Diagnostic {
+  return (
+    isRecord(value) && typeof value.message === "string" && isRange(value.range)
+  );
+}
+
+function isPublishDiagnosticsNotification(
+  notification: ClientNotification,
+): notification is PublishDiagnosticsNotification {
+  if (
+    notification.method !== "textDocument/publishDiagnostics" ||
+    !isRecord(notification.params)
+  ) {
+    return false;
+  }
+  const { uri, version, diagnostics } = notification.params;
+  return (
+    typeof uri === "string" &&
+    (version === undefined || typeof version === "number") &&
+    Array.isArray(diagnostics) &&
+    diagnostics.every(isDiagnostic)
+  );
+}
+
 export class NotebookLanguageServerClient implements ILanguageServerClient {
   public readonly documentUri: LSP.DocumentUri;
   private readonly client: ILanguageServerClient;
@@ -156,17 +200,17 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    * This set is pruned when diagnostics are processed to only include
    * cells that exist in the current notebook snapshot.
    */
-  private static readonly SEEN_CELL_DOCUMENT_URIS = new Set<CellDocumentUri>();
+  private readonly seenCellDocumentUris = new Set<CellDocumentUri>();
 
   /**
    * Remove cell URIs that are no longer in the notebook.
    * Called during diagnostic processing to prevent memory leaks.
    */
-  private static pruneSeenCellUris(currentCellIds: Set<CellId>): void {
-    for (const uri of NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS) {
+  private pruneSeenCellUris(currentCellIds: Set<CellId>): void {
+    for (const uri of this.seenCellDocumentUris) {
       const cellId = CellDocumentUri.parse(uri);
       if (!currentCellIds.has(cellId)) {
-        NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.delete(uri);
+        this.seenCellDocumentUris.delete(uri);
       }
     }
   }
@@ -178,6 +222,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     string,
     Promise<LSP.CompletionItem>
   >(10);
+  private readonly openCellDocumentCounts = new Map<CellDocumentUri, number>();
   private latestDiagnosticsVersion: number | null = null;
   private forwardedDiagnosticsVersion = 0;
 
@@ -201,7 +246,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
         isClientWithNotify(this.client),
         "notify is not a method on the client",
       );
-      this.client.notify("workspace/didChangeConfiguration", {
+      void this.client.notify("workspace/didChangeConfiguration", {
         settings: initialSettings,
       });
     });
@@ -253,7 +298,12 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
   }
 
   close(): void {
+    this.openCellDocumentCounts.clear();
     this.client.close();
+  }
+
+  hasCapability(method: string): boolean {
+    return this.client.hasCapability(method);
   }
 
   /**
@@ -266,7 +316,7 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       "notify is not a method on the client",
     );
     await this.client.initialize();
-    this.client.notify("workspace/didChangeConfiguration", {
+    await this.client.notify("workspace/didChangeConfiguration", {
       settings: this.initialSettings,
     });
 
@@ -275,16 +325,19 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.latestDiagnosticsVersion = null;
     this.forwardedDiagnosticsVersion = 0;
 
-    // Re-open the merged document with the LSP server
-    // This sends a textDocument/didOpen for the entire notebook
-    await this.client.textDocumentDidOpen({
-      textDocument: {
-        languageId: "python", // Default to Python for marimo notebooks
-        text: lens.mergedText,
-        uri: this.documentUri,
-        version: version,
-      },
-    });
+    // The upstream client preserves its didOpen reference counts across a
+    // transport reconnect. Send the re-open notification directly so the new
+    // server session receives the document without incrementing those counts.
+    if (this.openCellDocumentCounts.size > 0) {
+      await this.client.notify("textDocument/didOpen", {
+        textDocument: {
+          languageId: "python",
+          text: lens.mergedText,
+          uri: this.documentUri,
+          version: version,
+        },
+      });
+    }
 
     Logger.log("[lsp] Document re-synchronization complete");
   }
@@ -309,29 +362,67 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const { lens, version } = this.snapshotter.snapshot();
 
-    NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS.add(cellDocumentUri);
+    const previousOpenCount =
+      this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+    this.openCellDocumentCounts.set(cellDocumentUri, previousOpenCount + 1);
 
     // Pass merged doc to LSP
-    const result = await this.client.textDocumentDidOpen({
-      textDocument: {
-        languageId: params.textDocument.languageId,
-        text: lens.mergedText,
-        uri: this.documentUri,
-        version: version,
-      },
-    });
+    try {
+      const result = await this.client.textDocumentDidOpen({
+        textDocument: {
+          languageId: params.textDocument.languageId,
+          text: lens.mergedText,
+          uri: this.documentUri,
+          version: version,
+        },
+      });
 
-    if (!result) {
-      return params;
+      // Only mark the cell as seen once the open actually succeeds.
+      this.seenCellDocumentUris.add(cellDocumentUri);
+      return result !== false;
+    } catch (error) {
+      // Roll back this call's own increment. Use the *current* count rather
+      // than `previousOpenCount`: a concurrent open for the same cell may
+      // have incremented it while this call was in flight, and resetting to
+      // the stale snapshot would erase that other, possibly-successful
+      // reference.
+      const currentOpenCount =
+        this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+      if (currentOpenCount <= 1) {
+        this.openCellDocumentCounts.delete(cellDocumentUri);
+      } else {
+        this.openCellDocumentCounts.set(cellDocumentUri, currentOpenCount - 1);
+      }
+      throw error;
+    }
+  }
+
+  public async textDocumentDidClose(
+    params: LSP.DidCloseTextDocumentParams,
+  ): Promise<void> {
+    const cellDocumentUri = params.textDocument.uri;
+    this.assertCellDocumentUri(cellDocumentUri);
+
+    const previousOpenCount =
+      this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+    if (previousOpenCount === 0) {
+      // No matching open was ever recorded for this cell; ignore rather
+      // than forwarding a close that isn't ours to send.
+      Logger.warn(
+        "[lsp] textDocumentDidClose with no tracked open",
+        cellDocumentUri,
+      );
+      return;
+    }
+    if (previousOpenCount <= 1) {
+      this.openCellDocumentCounts.delete(cellDocumentUri);
+    } else {
+      this.openCellDocumentCounts.set(cellDocumentUri, previousOpenCount - 1);
     }
 
-    return {
-      ...result,
-      textDocument: {
-        ...result.textDocument,
-        text: lens.mergedText,
-      },
-    };
+    await this.client.textDocumentDidClose({
+      textDocument: { uri: this.documentUri },
+    });
   }
 
   /**
@@ -360,18 +451,52 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     return { params, lens };
   }
 
-  public async textDocumentDidChange(params: LSP.DidChangeTextDocumentParams) {
+  public async textDocumentDidChange(
+    params: LSP.DidChangeTextDocumentParams,
+  ): Promise<void> {
     Logger.debug("[lsp] textDocumentDidChange", params);
     // We know how to only handle single content changes
     // But that is all we expect to receive
     if (params.contentChanges.length === 1) {
-      const { params: syncParams } = await this.sync();
-      return syncParams;
+      await this.sync();
+      return;
     }
 
     Logger.warn("[lsp] Unhandled textDocumentDidChange", params);
 
-    return this.client.textDocumentDidChange(params);
+    await this.client.textDocumentDidChange(params);
+  }
+
+  public async textDocumentWillSave(
+    params: LSP.WillSaveTextDocumentParams,
+  ): Promise<void> {
+    this.assertCellDocumentUri(params.textDocument.uri);
+    await this.client.textDocumentWillSave({
+      ...params,
+      textDocument: { uri: this.documentUri },
+    });
+  }
+
+  public async textDocumentWillSaveWaitUntil(
+    params: LSP.WillSaveTextDocumentParams,
+  ): Promise<LSP.TextEdit[] | null> {
+    this.assertCellDocumentUri(params.textDocument.uri);
+    // See textDocumentCodeAction for why merged-document edits are unsafe
+    Logger.debug(
+      "[lsp] willSaveWaitUntil edits are disabled for notebook documents",
+    );
+    return null;
+  }
+
+  public async textDocumentDidSave(
+    params: LSP.DidSaveTextDocumentParams,
+  ): Promise<void> {
+    this.assertCellDocumentUri(params.textDocument.uri);
+    const { lens } = this.snapshotter.snapshot();
+    await this.client.textDocumentDidSave({
+      textDocument: { uri: this.documentUri },
+      text: params.text === undefined ? undefined : lens.mergedText,
+    });
   }
 
   async textDocumentDefinition(
@@ -455,6 +580,51 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
       return Promise.resolve(null);
     }
     return this.client.textDocumentCodeAction(params);
+  }
+
+  codeActionResolve(action: LSP.CodeAction): Promise<LSP.CodeAction> {
+    return Promise.resolve(action);
+  }
+
+  /**
+   * Map a diagnostic's related-information entries ("declared here", ...) out
+   * of merged-document coordinates. Entries pointing into the notebook are
+   * rewritten to the owning cell; entries pointing at files on disk are left
+   * for the host to open.
+   */
+  private reverseRelatedInformation(
+    relatedInformation: LSP.DiagnosticRelatedInformation[] | undefined,
+    lens: NotebookLens,
+  ): LSP.DiagnosticRelatedInformation[] | undefined {
+    if (!relatedInformation) {
+      return undefined;
+    }
+
+    return relatedInformation.map((related) => {
+      // `isDiagnostic` does not validate related information, so a server may
+      // hand us an entry that isn't an object or has no usable location.
+      if (
+        !isRecord(related) ||
+        !isRecord(related.location) ||
+        related.location.uri !== this.documentUri ||
+        !isRange(related.location.range)
+      ) {
+        return related;
+      }
+      const cellId = lens.cellIds.find((id) =>
+        lens.isInRange(related.location.range, id),
+      );
+      if (cellId === undefined) {
+        return related;
+      }
+      return {
+        ...related,
+        location: {
+          uri: CellDocumentUri.of(cellId),
+          range: lens.reverseRange(related.location.range, cellId),
+        },
+      };
+    });
   }
 
   /**
@@ -754,24 +924,16 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
    */
   public patchProcessNotification() {
     invariant(
-      "processNotification" in this.client,
+      isClientWithProcessNotification(this.client),
       "processNotification is not a method on the client",
     );
 
-    // @ts-expect-error: processNotification is private
     const previousProcessNotification = this.client.processNotification.bind(
       this.client,
     );
 
-    const processNotification = (
-      notification:
-        | {
-            method: "textDocument/publishDiagnostics";
-            params: LSP.PublishDiagnosticsParams;
-          }
-        | { method: "other"; params: unknown },
-    ) => {
-      if (notification.method === "textDocument/publishDiagnostics") {
+    const processNotification = (notification: ClientNotification) => {
+      if (isPublishDiagnosticsNotification(notification)) {
         const incomingVersion = notification.params.version;
         if (incomingVersion != null) {
           const latestVersion = this.latestDiagnosticsVersion;
@@ -811,12 +973,16 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
               if (!diagnosticsByCellId.has(cellId)) {
                 diagnosticsByCellId.set(cellId, []);
               }
-              const cellDiag = {
+              const relatedInformation = this.reverseRelatedInformation(
+                diag.relatedInformation,
+                lens,
+              );
+              const cellDiag: LSP.Diagnostic = {
                 ...diag,
                 range: lens.reverseRange(diag.range, cellId),
+                ...(relatedInformation ? { relatedInformation } : {}),
               };
-              // oxlint-disable-next-line typescript/no-non-null-assertion
-              diagnosticsByCellId.get(cellId)!.push(cellDiag);
+              diagnosticsByCellId.get(cellId)?.push(cellDiag);
               break; // Exit inner loop once we find the matching cell
             }
           }
@@ -824,11 +990,9 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
         // Prune any cell URIs for cells that no longer exist
         const currentCellIds = new Set(lens.cellIds);
-        NotebookLanguageServerClient.pruneSeenCellUris(currentCellIds);
+        this.pruneSeenCellUris(currentCellIds);
 
-        const cellsToClear = new Set(
-          NotebookLanguageServerClient.SEEN_CELL_DOCUMENT_URIS,
-        );
+        const cellsToClear = new Set(this.seenCellDocumentUris);
 
         // Process each cell's diagnostics
         for (const [cellId, cellDiagnostics] of diagnosticsByCellId.entries()) {

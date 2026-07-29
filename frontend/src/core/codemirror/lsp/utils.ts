@@ -1,6 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+import { cellIdsAtom } from "@/core/cells/cells";
 import { lspWorkspaceAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { CellDocumentUri } from "./types";
+
+/**
+ * `CellDocumentUri.is` only tests the `file:///` prefix, which every absolute
+ * file URI shares, so on its own it cannot tell a cell from a real file on
+ * disk. Resolve the URI against the open notebook instead.
+ */
+export function isKnownCellDocumentUri(uri: string): boolean {
+  if (!CellDocumentUri.is(uri)) {
+    return false;
+  }
+  return store.get(cellIdsAtom).inOrderIds.includes(CellDocumentUri.parse(uri));
+}
 
 export function getLspRootUri() {
   const lspWorkspace = store.get(lspWorkspaceAtom);
