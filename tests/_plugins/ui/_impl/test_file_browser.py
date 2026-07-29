@@ -61,6 +61,13 @@ def test_file_browser_single_default_value(tmp_path: Path) -> None:
     assert fb.path() == selected
 
 
+def test_file_browser_rejects_missing_default_value(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.txt"
+
+    with pytest.raises(ValueError, match="does not exist"):
+        file_browser(initial_path=tmp_path, value=missing)
+
+
 def test_file_browser_rejects_multiple_default_values(
     tmp_path: Path,
 ) -> None:
