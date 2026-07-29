@@ -123,6 +123,13 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
     });
 
+    it("getExportAvailability should GET /api/export/availability", async () => {
+      const requests = createNetworkRequests();
+      await requests.getExportAvailability();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
+    });
+
     it("getPackageList should not require a kernel connection", async () => {
       const { waitForConnectionOpen, waitForConnectionOpenIfNotebook } =
         await import("../connection");

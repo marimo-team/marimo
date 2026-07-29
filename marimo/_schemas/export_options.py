@@ -12,6 +12,7 @@ from marimo._schemas.session import NotebookSessionV1
 ExportPDFPreset = Literal["document", "slides"]
 IPYNBSortMode = Literal["top-down", "topological"]
 PDFRasterServer = Literal["static", "live"]
+ServerExportFormat = Literal["html", "markdown", "ipynb", "pdf"]
 WASMMode = Literal["edit", "run"]
 
 

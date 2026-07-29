@@ -358,6 +358,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         export.ExportAsScriptRequest,
         export.ExportAsIPYNBRequest,
         export.ExportAsPDFRequest,
+        export.ExportAvailabilityResponse,
         export.UpdateCellOutputsRequest,
         files.FileCreateMultipartRequest,
         files.FileCreateRequest,

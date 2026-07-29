@@ -103,6 +103,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
 
   // Served by the marimo server without a kernel session
   getEnvironmentInfo: "serverOnly",
+  getExportAvailability: "serverOnly",
 
   // Home operations throw errors
   getRecentFiles: "startConnection",

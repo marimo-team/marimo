@@ -402,6 +402,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    getExportAvailability: () => {
+      return getClient().GET("/api/export/availability").then(handleResponse);
+    },
     exportAsHTML: async (request) => {
       if (
         process.env.NODE_ENV === "development" ||

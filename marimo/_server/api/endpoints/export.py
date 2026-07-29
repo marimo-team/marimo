@@ -19,7 +19,10 @@ from marimo._convert.common.filename import (
     make_download_headers,
     make_export_headers,
 )
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._export.dependencies import (
+    SERVER_EXPORT_FORMATS,
+    missing_export_packages,
+)
 from marimo._export.exporter import (
     AutoExporter,
     Exporter,
@@ -42,6 +45,8 @@ from marimo._schemas.export import (
     ExportAsMarkdownRequest,
     ExportAsPDFRequest,
     ExportAsScriptRequest,
+    ExportAvailabilityResponse,
+    ExportFormatAvailability,
     UpdateCellOutputsRequest,
     to_html_export_options,
     to_markdown_export_options,
@@ -69,6 +74,35 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 auto_exporter = AutoExporter()
+
+
+@router.get("/availability")
+@requires("edit")
+async def get_export_availability(
+    *,
+    request: Request,
+) -> ExportAvailabilityResponse:
+    """
+    responses:
+        200:
+            description: Dependency readiness for server-backed exports
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ExportAvailabilityResponse"
+    """
+    del request
+    formats: list[ExportFormatAvailability] = []
+    for export_format in SERVER_EXPORT_FORMATS:
+        missing_packages = missing_export_packages(export_format)
+        formats.append(
+            ExportFormatAvailability(
+                format=export_format,
+                dependencies_available=not missing_packages,
+                missing_packages=missing_packages,
+            )
+        )
+    return ExportAvailabilityResponse(source="server", formats=formats)
 
 
 @router.post("/html")
@@ -503,15 +537,25 @@ async def auto_export_as_ipynb(
         LOGGER.debug("Already auto-exported to IPYNB")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
-    # Check nbformat before scheduling background task.  Alert at most once
-    # per session so the notification doesn't keep popping up on every save.
-    if not DependencyManager.nbformat.has():
-        LOGGER.warning("Cannot snapshot to IPYNB: nbformat not installed")
-        if "nbformat" not in session_view.notified_server_packages:
+    # Check server dependencies before scheduling the background task.
+    missing_packages = missing_export_packages("ipynb")
+    if missing_packages:
+        LOGGER.warning(
+            "Cannot snapshot to IPYNB: %s not installed",
+            ", ".join(missing_packages),
+        )
+        unnotified_packages = [
+            package
+            for package in missing_packages
+            if package not in session_view.notified_server_packages
+        ]
+        if unnotified_packages:
             notify_server_missing_packages(
-                session, app_state.get_current_session_id(), ["nbformat"]
+                session,
+                app_state.get_current_session_id(),
+                unnotified_packages,
             )
-            session_view.notified_server_packages.add("nbformat")
+            session_view.notified_server_packages.update(unnotified_packages)
         session_view.mark_auto_export_ipynb()
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 

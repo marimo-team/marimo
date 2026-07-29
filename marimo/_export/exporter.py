@@ -37,8 +37,8 @@ from marimo._convert.markdown.flavor import (
     normalize_markdown_flavor,
 )
 from marimo._convert.script import convert_from_ir_to_script
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._export._status import emit_pdf_export_status
+from marimo._export.dependencies import require_export_dependencies
 from marimo._export.requests import (
     ExportResult,
     HTMLExportRequest,
@@ -505,6 +505,7 @@ class Exporter:
         request: IPYNBExportRequest,
     ) -> str:
         """Export notebook as .ipynb, optionally including outputs if session_view provided."""
+        require_export_dependencies("ipynb", "for IPYNB export")
         return convert_from_ir_to_ipynb(
             request.app,
             sort_mode=request.options.sort_mode,
@@ -560,13 +561,7 @@ class Exporter:
         # falls back to webpdf (which requires playwright).
         # We don't want users to reinstall again after the first failure.
         # Webpdf is generally more resilient to errors than standard export.
-        DependencyManager.require_many(
-            "for PDF export",
-            DependencyManager.nbformat,
-            DependencyManager.nbconvert,
-            DependencyManager.playwright,
-            source="server",
-        )
+        require_export_dependencies("pdf", "for PDF export")
 
         ipynb_json_str = self.export_as_ipynb(
             IPYNBExportRequest(
@@ -678,13 +673,7 @@ class Exporter:
         Returns:
             PDF data
         """
-        DependencyManager.require_many(
-            "for PDF export",
-            DependencyManager.nbformat,
-            DependencyManager.nbconvert,
-            DependencyManager.playwright,
-            source="server",
-        )
+        require_export_dependencies("pdf", "for PDF export")
 
         ipynb_json_str = self.export_as_ipynb(
             IPYNBExportRequest(

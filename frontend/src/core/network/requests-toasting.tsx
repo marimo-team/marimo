@@ -63,6 +63,7 @@ export function createErrorToastingRequests(
     getWorkspaceFiles: "Failed to get workspace files",
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
+    getExportAvailability: "", // No toast
     exportAsHTML: "Failed to export HTML",
     exportAsIPYNB: "Failed to export ipynb",
     exportAsMarkdown: "Failed to export Markdown",
