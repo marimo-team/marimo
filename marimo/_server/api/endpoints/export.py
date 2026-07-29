@@ -44,6 +44,7 @@ from marimo._schemas.export import (
     ExportAsScriptRequest,
     UpdateCellOutputsRequest,
     to_html_export_options,
+    to_ipynb_export_options,
     to_markdown_export_options,
 )
 from marimo._schemas.export_options import (
@@ -377,8 +378,10 @@ async def export_as_ipynb(
     ipynb = Exporter().export_as_ipynb(
         IPYNBExportRequest(
             app=session.app_file_manager.app,
-            options=IPYNBExportOptions(sort_mode="top-down"),
-            session_view=session.session_view,
+            options=to_ipynb_export_options(body),
+            session_view=session.session_view
+            if body.include_outputs
+            else None,
         )
     )
 
@@ -477,7 +480,7 @@ async def auto_export_as_ipynb(
         content:
             application/json:
                 schema:
-                    $ref: "#/components/schemas/ExportAsIPYNBRequest"
+                    $ref: "#/components/schemas/AutoExportAsIPYNBRequest"
     responses:
         200:
             description: Export the notebook as IPYNB

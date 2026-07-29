@@ -11,7 +11,8 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from marimo import __version__
+from marimo import App, __version__
+from marimo._ast.app import InternalApp
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._export.requests import PDFExportRequest, PDFRasterizationRequest
@@ -40,6 +41,27 @@ HEADERS = {
 }
 
 CODE = uri_encode_component("import marimo as mo")
+
+
+def _ipynb_export_app() -> InternalApp:
+    app = App()
+
+    @app.cell()
+    def result(x, y):
+        z = x + y
+        return (z,)
+
+    @app.cell()
+    def __():
+        x = 1
+        return (x,)
+
+    @app.cell()
+    def __():
+        y = 1
+        return (y,)
+
+    return InternalApp(app)
 
 
 class _CollectorNotWired(Exception):
@@ -308,6 +330,91 @@ def test_export_ipynb(client: TestClient) -> None:
     )
     assert response.headers["content-disposition"].endswith(".ipynb")
     assert response.headers["content-type"] == "text/plain; charset=utf-8"
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+@with_session(SESSION_ID)
+def test_export_ipynb_uses_requested_sort_mode(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.app = _ipynb_export_app()
+
+    top_down = ["z = x + y", "x = 1", "y = 1"]
+    topological = ["x = 1", "y = 1", "z = x + y"]
+    cases = [
+        ({"download": False}, top_down),
+        ({"download": False, "sortMode": "top-down"}, top_down),
+        ({"download": False, "sortMode": "topological"}, topological),
+    ]
+
+    for request_body, expected_sources in cases:
+        response = client.post(
+            "/api/export/ipynb",
+            headers=HEADERS,
+            json=request_body,
+        )
+
+        assert response.status_code == 200
+        cells = json.loads(response.text)["cells"]
+        assert ["".join(cell["source"]) for cell in cells] == expected_sources
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(), reason="nbformat not installed"
+)
+@with_session(SESSION_ID)
+def test_export_ipynb_selects_current_session_outputs(
+    client: TestClient,
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    app = _ipynb_export_app()
+    session.app_file_manager.app = app
+
+    output_cell_id = next(
+        cell_data.cell_id
+        for cell_data in app.cell_manager.cell_data()
+        if cell_data.code == "x = 1"
+    )
+    session.session_view.add_notification(
+        CellNotification(
+            cell_id=output_cell_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/plain",
+                data="current output",
+            ),
+        )
+    )
+
+    current_output = [
+        {
+            "data": {"text/plain": ["current output"]},
+            "metadata": {},
+            "output_type": "display_data",
+        }
+    ]
+    cases = [
+        ({"download": False}, current_output),
+        ({"download": False, "includeOutputs": True}, current_output),
+        ({"download": False, "includeOutputs": False}, []),
+    ]
+
+    for request_body, expected_outputs in cases:
+        response = client.post(
+            "/api/export/ipynb",
+            headers=HEADERS,
+            json=request_body,
+        )
+
+        assert response.status_code == 200
+        cells = json.loads(response.text)["cells"]
+        output_cell = next(
+            cell for cell in cells if "".join(cell["source"]) == "x = 1"
+        )
+        assert output_cell["outputs"] == expected_outputs
 
 
 @with_read_session(SESSION_ID)
