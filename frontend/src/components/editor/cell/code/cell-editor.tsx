@@ -342,7 +342,7 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = canUseRtc(cellId);
+  const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
@@ -645,6 +645,7 @@ function WithWaitUntilConnected<T extends Pick<CellEditorProps, "id">>(
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
     if (
+      isRtcEnabled() &&
       canUseRtc(props.id) &&
       (isAppConnecting(connection.state) || rtcDoc === undefined)
     ) {

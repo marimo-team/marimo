@@ -28,7 +28,7 @@ import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
-import { canUseRtc } from "../rtc/state";
+import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
@@ -1045,7 +1045,7 @@ const {
 
       // Update codemirror if mounted. RTC-backed cells sync via Loro; others
       // (e.g. scratchpad) still need an explicit editor update.
-      if (!canUseRtc(cellId)) {
+      if (!isRtcEnabled() || !canUseRtc(cellId)) {
         const cellHandle = nextState.cellHandles[cellId].current;
         if (cellHandle?.editorViewOrNull) {
           updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);

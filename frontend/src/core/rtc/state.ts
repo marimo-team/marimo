@@ -26,9 +26,9 @@ export const isRtcEnabled = once(() => {
 });
 
 /**
- * Whether this cell should participate in real-time collaboration.
+ * Whether this cell type can participate in real-time collaboration.
  * Scratchpad cells are local-only.
  */
 export function canUseRtc(cellId: CellId): boolean {
-  return cellId !== SCRATCH_CELL_ID && isRtcEnabled();
+  return cellId !== SCRATCH_CELL_ID;
 }
