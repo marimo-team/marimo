@@ -164,6 +164,7 @@ export const EditApp: React.FC<AppProps> = ({
         width={appConfig.width}
         onReconnect={reconnect}
       >
+        <ViewerBanner />
         <AppHeader
           connection={connection}
           className={cn(
@@ -178,8 +179,6 @@ export const EditApp: React.FC<AppProps> = ({
             </div>
           )}
         </AppHeader>
-
-        <ViewerBanner />
 
         {/* Don't render until we have a single cell. NotStartedConnectionAlert
             still covers the "no remote runtime started" prompt. */}
