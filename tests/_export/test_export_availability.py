@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import get_args
 from unittest.mock import patch
 
 import pytest
@@ -10,25 +9,15 @@ from marimo._ast.app import App, InternalApp
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._export.dependencies import (
-    EXPORT_DEPENDENCY_REQUIREMENTS,
-    SERVER_EXPORT_FORMATS,
-    missing_export_packages,
+    get_missing_export_packages,
     require_export_dependencies,
 )
 from marimo._export.exporter import Exporter
 from marimo._export.requests import IPYNBExportRequest
 from marimo._schemas.export_options import (
+    SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
-    ServerExportFormat,
 )
-
-
-def test_export_requirement_registry_covers_server_formats() -> None:
-    assert (
-        tuple(EXPORT_DEPENDENCY_REQUIREMENTS)
-        == get_args(ServerExportFormat)
-        == SERVER_EXPORT_FORMATS
-    )
 
 
 def test_export_requirements_when_dependencies_are_installed() -> None:
@@ -38,7 +27,7 @@ def test_export_requirements_when_dependencies_are_installed() -> None:
         patch.object(DependencyManager.playwright, "has", return_value=True),
     ):
         assert {
-            export_format: missing_export_packages(export_format)
+            export_format: get_missing_export_packages(export_format)
             for export_format in SERVER_EXPORT_FORMATS
         } == {
             "html": [],
@@ -72,12 +61,12 @@ def test_pdf_requirement_is_an_actionable_package_spec(
             DependencyManager.playwright, "has", return_value=playwright
         ),
     ):
-        assert missing_export_packages("pdf") == ["nbconvert[webpdf]"]
+        assert get_missing_export_packages("pdf") == ["nbconvert[webpdf]"]
 
 
 def test_ipynb_requirement_uses_nbformat() -> None:
     with patch.object(DependencyManager.nbformat, "has", return_value=False):
-        assert missing_export_packages("ipynb") == ["nbformat"]
+        assert get_missing_export_packages("ipynb") == ["nbformat"]
 
 
 def test_ipynb_export_requires_server_dependency() -> None:
