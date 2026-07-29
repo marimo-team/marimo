@@ -2,8 +2,8 @@
 
 /**
  * Simulates React Activity's effect teardown when mode switches to "hidden":
- * all useEffect cleanups run, then on "visible" effects re-run. Component state
- * and DOM are preserved — only effects cycle.
+ * all useEffect cleanups run. On "visible", setups re-run (cleanups do not run
+ * again). Component state and DOM are preserved — only effects cycle.
  *
  * Registration order matches cell-editor.tsx: mount effect runs before destroy
  * effect setup. With async editor creation (editorMountScheduler), destroy
@@ -33,9 +33,6 @@ function createActivitySimulator() {
       }
     },
     show() {
-      for (const effect of effects) {
-        effect.cleanup();
-      }
       effects.length = 0;
     },
   };
