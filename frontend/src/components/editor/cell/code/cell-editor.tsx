@@ -93,6 +93,11 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+  /**
+   * Whether this editor should participate in real-time collaboration.
+   * Local-only editors such as the scratchpad must disable this.
+   */
+  enableRtc?: boolean;
 }
 
 const CellEditorInternal = ({
@@ -117,6 +122,7 @@ const CellEditorInternal = ({
   inlineAiTooltip,
   outputArea,
   tooltipParentSelector,
+  enableRtc = true,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
   const deleteCell = useDeleteCellCallback();
@@ -342,7 +348,7 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = isRtcEnabled();
+  const rtcEnabled = enableRtc && isRtcEnabled();
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
@@ -481,9 +487,9 @@ const CellEditorInternal = ({
 
   // Destroy the editor when the component is unmounted
   useEffect(() => {
-    const ev = editorViewRef.current;
     return () => {
-      ev?.destroy();
+      editorViewRef.current?.destroy();
+      editorViewRef.current = null;
     };
   }, [editorViewRef]);
 
@@ -635,14 +641,17 @@ CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 // Wait until the websocket connection is open before rendering the editor
 // This is used for real-time collaboration since the backend needs the connection started
 // before connecting the rtc websockets
-function WithWaitUntilConnected<T extends {}>(
+function WithWaitUntilConnected<T extends { enableRtc?: boolean }>(
   Component: React.ComponentType<T>,
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (isAppConnecting(connection.state) || rtcDoc === undefined) {
+    if (
+      props.enableRtc !== false &&
+      (isAppConnecting(connection.state) || rtcDoc === undefined)
+    ) {
       return (
         <div className="flex h-full w-full items-baseline p-4">
           <DelayMount milliseconds={1000} fallback={null}>

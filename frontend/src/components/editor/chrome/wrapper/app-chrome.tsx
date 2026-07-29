@@ -404,6 +404,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               {Object.entries(SIDEBAR_PANELS).map(([key, Panel]) => (
                 <LazyActivity
                   key={key}
+                  // CodeMirror is destroyed when Activity tears down effects,
+                  // so the scratchpad needs a fresh editor when reopened.
+                  unmountOnHide={key === "scratchpad"}
                   mode={
                     isSidebarOpen && selectedPanel === key
                       ? "visible"
@@ -559,6 +562,9 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
               {Object.entries(DEVELOPER_PANELS).map(([key, Panel]) => (
                 <LazyActivity
                   key={key}
+                  // CodeMirror is destroyed when Activity tears down effects,
+                  // so the scratchpad needs a fresh editor when reopened.
+                  unmountOnHide={key === "scratchpad"}
                   mode={
                     isDeveloperPanelOpen && selectedDeveloperPanelTab === key
                       ? "visible"

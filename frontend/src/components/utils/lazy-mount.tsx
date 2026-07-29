@@ -9,6 +9,15 @@ interface Props {
   isOpen: boolean;
 }
 
+interface LazyActivityProps extends ActivityProps {
+  /**
+   * Fully unmount the children when hidden instead of preserving their state.
+   * Use this for imperative components that cannot survive Activity's effect
+   * teardown while hidden.
+   */
+  unmountOnHide?: boolean;
+}
+
 /**
  * Lazy-mount until it is open for the first time
  */
@@ -28,7 +37,7 @@ export const LazyMount: React.FC<PropsWithChildren<Props>> = ({
 /**
  * Wraps a component in an Activity component. It is not mounted until it is open for the first time.
  */
-export const LazyActivity: React.FC<PropsWithChildren<ActivityProps>> = (
+export const LazyActivity: React.FC<PropsWithChildren<LazyActivityProps>> = (
   props,
 ) => {
   const [hasMountedBefore, setHasMountedBefore] = React.useState(false);
@@ -37,8 +46,13 @@ export const LazyActivity: React.FC<PropsWithChildren<ActivityProps>> = (
     setHasMountedBefore(true);
   }
 
+  if (props.unmountOnHide && props.mode === "hidden") {
+    return null;
+  }
+
   if (hasMountedBefore) {
-    return <Activity {...props} />;
+    const { unmountOnHide: _, ...activityProps } = props;
+    return <Activity {...activityProps} />;
   }
 
   return null;

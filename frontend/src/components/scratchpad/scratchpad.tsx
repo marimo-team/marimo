@@ -260,6 +260,7 @@ export const ScratchPad: React.FC = () => {
                 showHiddenCode={Functions.NOOP}
                 languageAdapter={languageAdapter}
                 setLanguageAdapter={setLanguageAdapter}
+                enableRtc={false}
               />
             </div>
             {renderHistory()}
