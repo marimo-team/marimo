@@ -19,10 +19,7 @@ from marimo._convert.common.filename import (
     make_download_headers,
     make_export_headers,
 )
-from marimo._export.dependencies import (
-    SERVER_EXPORT_FORMATS,
-    missing_export_packages,
-)
+from marimo._export.dependencies import get_missing_export_packages
 from marimo._export.exporter import (
     AutoExporter,
     Exporter,
@@ -52,6 +49,7 @@ from marimo._schemas.export import (
     to_markdown_export_options,
 )
 from marimo._schemas.export_options import (
+    SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
     MarkdownExportOptions,
     PDFExportOptions,
@@ -94,7 +92,7 @@ async def get_export_availability(
     del request
     formats: list[ExportFormatAvailability] = []
     for export_format in SERVER_EXPORT_FORMATS:
-        missing_packages = missing_export_packages(export_format)
+        missing_packages = get_missing_export_packages(export_format)
         formats.append(
             ExportFormatAvailability(
                 format=export_format,
@@ -538,7 +536,7 @@ async def auto_export_as_ipynb(
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
     # Check server dependencies before scheduling the background task.
-    missing_packages = missing_export_packages("ipynb")
+    missing_packages = get_missing_export_packages("ipynb")
     if missing_packages:
         LOGGER.warning(
             "Cannot snapshot to IPYNB: %s not installed",

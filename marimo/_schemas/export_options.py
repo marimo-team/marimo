@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, get_args
 
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._messaging.notification import ModelLifecycleNotification
@@ -13,6 +13,9 @@ ExportPDFPreset = Literal["document", "slides"]
 IPYNBSortMode = Literal["top-down", "topological"]
 PDFRasterServer = Literal["static", "live"]
 ServerExportFormat = Literal["html", "markdown", "ipynb", "pdf"]
+SERVER_EXPORT_FORMATS: tuple[ServerExportFormat, ...] = get_args(
+    ServerExportFormat
+)
 WASMMode = Literal["edit", "run"]
 
 
