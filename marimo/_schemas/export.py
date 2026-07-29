@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Literal
+
 import msgspec
 
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
@@ -10,6 +12,7 @@ from marimo._schemas.export_options import (
     HTMLExportOptions,
     MarkdownExportOptions,
     PDFRasterServer,
+    ServerExportFormat,
 )
 from marimo._types.ids import CellId_t
 
@@ -74,6 +77,17 @@ class ExportedFile(msgspec.Struct, rename="camel"):
     contents: str
     filename: str
     media_type: str
+
+
+class ExportFormatAvailability(msgspec.Struct, rename="camel", frozen=True):
+    format: ServerExportFormat
+    dependencies_available: bool
+    missing_packages: list[str]
+
+
+class ExportAvailabilityResponse(msgspec.Struct, rename="camel", frozen=True):
+    source: Literal["server"]
+    formats: list[ExportFormatAvailability]
 
 
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):

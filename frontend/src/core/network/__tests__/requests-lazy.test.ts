@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId, requestId, uiElementId } from "@/__tests__/branded";
 import type { RuntimeManager } from "../../runtime/runtime";
 import { createLazyRequests } from "../requests-lazy";
-import type { EditRequests, RunRequests } from "../types";
+import type {
+  EditRequests,
+  ExportAvailabilityResponse,
+  RunRequests,
+} from "../types";
 
 // Mock the connection module
 vi.mock("../connection", async () => {
@@ -70,6 +74,33 @@ describe("createLazyRequests", () => {
     );
     expect(mockInit).not.toHaveBeenCalled();
     expect(mockDelegate.getEnvironmentInfo).toHaveBeenCalledOnce();
+  });
+
+  it("gets export availability without starting a kernel", async () => {
+    const availability: ExportAvailabilityResponse = {
+      source: "server",
+      formats: [
+        {
+          format: "ipynb",
+          dependenciesAvailable: false,
+          missingPackages: ["nbformat"],
+        },
+      ],
+    };
+    mockDelegate.getExportAvailability = vi
+      .fn()
+      .mockResolvedValue(availability) as EditRequests["getExportAvailability"];
+
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await expect(lazyRequests.getExportAvailability()).resolves.toEqual(
+      availability,
+    );
+    expect(mockInit).not.toHaveBeenCalled();
+    expect(mockDelegate.getExportAvailability).toHaveBeenCalledOnce();
   });
 
   it("should call init once before first request", async () => {

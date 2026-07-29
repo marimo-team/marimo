@@ -64,6 +64,31 @@ export const MockRequestClient = {
       getWorkspaceFiles: vi.fn().mockResolvedValue({ files: [] }),
       getRunningNotebooks: vi.fn().mockResolvedValue({ files: [] }),
       shutdownSession: vi.fn().mockResolvedValue({}),
+      getExportAvailability: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [
+          {
+            format: "html",
+            dependenciesAvailable: true,
+            missingPackages: [],
+          },
+          {
+            format: "markdown",
+            dependenciesAvailable: true,
+            missingPackages: [],
+          },
+          {
+            format: "ipynb",
+            dependenciesAvailable: true,
+            missingPackages: [],
+          },
+          {
+            format: "pdf",
+            dependenciesAvailable: true,
+            missingPackages: [],
+          },
+        ],
+      }),
       exportAsHTML: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.html",

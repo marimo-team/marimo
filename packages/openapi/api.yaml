@@ -1799,6 +1799,40 @@ components:
       - download
       title: ExportAsScriptRequest
       type: object
+    ExportAvailabilityResponse:
+      properties:
+        formats:
+          items:
+            $ref: '#/components/schemas/ExportFormatAvailability'
+          type: array
+        source:
+          enum:
+          - server
+      required:
+      - source
+      - formats
+      title: ExportAvailabilityResponse
+      type: object
+    ExportFormatAvailability:
+      properties:
+        dependenciesAvailable:
+          type: boolean
+        format:
+          enum:
+          - html
+          - ipynb
+          - markdown
+          - pdf
+        missingPackages:
+          items:
+            type: string
+          type: array
+      required:
+      - format
+      - dependenciesAvailable
+      - missingPackages
+      title: ExportFormatAvailability
+      type: object
     FileCopyRequest:
       properties:
         newPath:
@@ -6385,6 +6419,15 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/availability:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportAvailabilityResponse'
+          description: Dependency readiness for server-backed exports
   /api/export/html:
     post:
       parameters:
