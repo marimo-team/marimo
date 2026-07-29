@@ -305,11 +305,7 @@ class TestAgentConfig:
 class TestPluginSkillDirs:
     def test_claude_marketplace_layout(self, tmp_path: Path) -> None:
         skill_dir = (
-            tmp_path
-            / "plugins"
-            / "marketplaces"
-            / "marimo-pair"
-            / "skills"
+            tmp_path / "plugins" / "marketplaces" / "marimo-pair" / "skills"
         )
         (skill_dir / "marimo-pair").mkdir(parents=True)
         (skill_dir / "marimo-pair" / "SKILL.md").write_text("test")
