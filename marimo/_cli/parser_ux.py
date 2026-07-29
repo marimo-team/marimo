@@ -6,6 +6,32 @@ from typing import Any
 import click
 
 from marimo._cli.print import red
+from marimo._cli.suggestions import suggest_short_options
+
+
+def _collect_short_options(ctx: click.Context) -> list[str]:
+    """Collect all short flag names (e.g. -p) declared on the command."""
+    options: set[str] = set()
+    for param in ctx.command.get_params(ctx):
+        if not isinstance(param, click.Option):
+            continue
+        for option in [*param.opts, *param.secondary_opts]:
+            if option.startswith("-") and not option.startswith("--"):
+                options.add(option)
+    return sorted(options)
+
+
+def _short_option_possibilities(error: click.NoSuchOption) -> list[str]:
+    """Suggest short flags for a misspelled short option.
+
+    Click only fills in `possibilities` for long options, so short flags get
+    their suggestions here.
+    """
+    if error.ctx is None:
+        return []
+    return suggest_short_options(
+        error.option_name, _collect_short_options(error.ctx)
+    )
 
 
 def _normalize_usage_message(message: str) -> str:
@@ -29,8 +55,11 @@ def _format_no_such_option(error: click.NoSuchOption) -> list[str]:
     lines = [
         f"{red('error')}: unexpected argument {error.option_name!r} found"
     ]
-    if error.possibilities:
-        lines.extend(["", _format_suggestion_tip(list(error.possibilities))])
+    possibilities = list(
+        error.possibilities or _short_option_possibilities(error)
+    )
+    if possibilities:
+        lines.extend(["", _format_suggestion_tip(possibilities)])
     return lines
 
 

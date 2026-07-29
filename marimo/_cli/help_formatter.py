@@ -12,7 +12,7 @@ import click
 from click.utils import make_str
 
 from marimo._cli.print import bright_green, light_blue
-from marimo._cli.suggestions import suggest_commands, suggest_short_options
+from marimo._cli.suggestions import suggest_commands
 
 
 def _split_option_token(token: str) -> tuple[str, str]:
@@ -25,48 +25,8 @@ def _split_option_token(token: str) -> tuple[str, str]:
     return first, token[1:]
 
 
-def _collect_short_options(
-    command: click.Command, ctx: click.Context
-) -> list[str]:
-    """Collect all short flag names (e.g. -p) declared on a command."""
-    options: set[str] = set()
-    for param in command.get_params(ctx):
-        if not isinstance(param, click.Option):
-            continue
-        for option in [*param.opts, *param.secondary_opts]:
-            if option.startswith("-") and not option.startswith("--"):
-                options.add(option)
-    return sorted(options)
-
-
-def _augment_short_option_error(
-    command: click.Command,
-    ctx: click.Context,
-    error: click.NoSuchOption,
-) -> None:
-    """Populate click's possibilities for misspelled short flags."""
-    if error.possibilities:
-        return
-    if not error.option_name.startswith("-") or error.option_name.startswith(
-        "--"
-    ):
-        return
-
-    short_options = _collect_short_options(command, ctx)
-    suggestions = suggest_short_options(error.option_name, short_options)
-    if suggestions:
-        error.possibilities = suggestions
-
-
 class ColoredCommand(click.Command):
     """Click Command with colored help output (cargo-style)."""
-
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        try:
-            return super().parse_args(ctx, args)
-        except click.NoSuchOption as error:
-            _augment_short_option_error(self, ctx, error)
-            raise
 
     def format_usage(
         self, ctx: click.Context, formatter: click.HelpFormatter
@@ -109,13 +69,6 @@ class ColoredGroup(click.Group):
     """Click Group with colored help output (cargo-style)."""
 
     command_class = ColoredCommand
-
-    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
-        try:
-            return super().parse_args(ctx, args)
-        except click.NoSuchOption as error:
-            _augment_short_option_error(self, ctx, error)
-            raise
 
     def resolve_command(
         self, ctx: click.Context, args: list[str]
