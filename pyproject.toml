@@ -224,7 +224,7 @@ test-optional = [
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2",
     # zeromq
     "pyzmq>=27.1.0",
     # weave tracing integration
@@ -261,7 +261,7 @@ typecheck = [
     "types-redis>=4.6.0.20241004",
     "types-Markdown>=3.6.0.20240316",
     "types-PyYAML>=6.0.12.20240808",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2",
     # zeromq
     "pyzmq>=27.1.0",
     "pyarrow-stubs",
