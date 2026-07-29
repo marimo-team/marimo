@@ -13,6 +13,7 @@ import useEvent from "react-use-event-hook";
 import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { cellDomProps } from "@/components/editor/common";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { SlideScrollContainer } from "@/components/slides/slide-scroll-hint";
 import { Button } from "@/components/ui/button";
@@ -304,6 +305,25 @@ function resolveSlideContentStyle(
   }
 }
 
+/**
+ * Renders a cell's output wrapped in a `data-cell-id`/`data-cell-name` div
+ * (see `cellDomProps`), so it can be targeted by custom CSS in the slides
+ * view just like it can in the vertical layout. The wrapper is required
+ * because `CellOutputSlide` sets its own `id` from `CellOutputId` (a
+ * different scheme than `HTMLCellId`) and its inner `OutputArea` uses
+ * `display: contents`, which can't be targeted for background/border styling.
+ */
+export const CellOutputBlock = ({ cell }: { cell: RuntimeCell }) => (
+  <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
+    <CellOutputSlide
+      cellId={cell.id}
+      status={cell.status}
+      output={cell.output}
+      stale={outputIsStale(cell, false)}
+    />
+  </div>
+);
+
 const SubslideView = ({
   subslide,
   resolveShowCode,
@@ -340,15 +360,7 @@ const SubslideView = ({
           {subslide.blocks.map((block, i) => {
             const rendered = block.cells.map((cell) => {
               if (!resolveShowCode(cell.id)) {
-                return (
-                  <CellOutputSlide
-                    key={cell.id}
-                    cellId={cell.id}
-                    status={cell.status}
-                    output={cell.output}
-                    stale={outputIsStale(cell, false)}
-                  />
-                );
+                return <CellOutputBlock key={cell.id} cell={cell} />;
               }
               return isEditable ? (
                 <SlideCellView key={cell.id} cell={cell} />
@@ -406,14 +418,7 @@ const ParkedPreviewContent = ({
       <SlideCellReadOnlyView cell={cell} />
     );
   }
-  return (
-    <CellOutputSlide
-      cellId={cell.id}
-      status={cell.status}
-      output={cell.output}
-      stale={outputIsStale(cell, false)}
-    />
-  );
+  return <CellOutputBlock cell={cell} />;
 };
 
 // There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
