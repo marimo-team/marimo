@@ -19,6 +19,7 @@ from marimo._export.requests import PDFExportRequest, PDFRasterizationRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
+from marimo._session.model import SessionMode
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
@@ -47,7 +48,7 @@ class _CollectorNotWired(Exception):
     pass
 
 
-def test_export_availability_requires_edit_auth(client: TestClient) -> None:
+def test_export_availability_requires_auth(client: TestClient) -> None:
     response = client.get("/api/export/availability")
 
     assert response.status_code == 401
@@ -56,6 +57,7 @@ def test_export_availability_requires_edit_auth(client: TestClient) -> None:
 def test_export_availability_reports_server_dependencies(
     client: TestClient,
 ) -> None:
+    get_session_manager(client).mode = SessionMode.RUN
     with (
         patch.object(DependencyManager.nbformat, "has", return_value=False),
         patch.object(DependencyManager.nbconvert, "has", return_value=True),

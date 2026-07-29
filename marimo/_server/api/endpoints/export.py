@@ -75,7 +75,7 @@ auto_exporter = AutoExporter()
 
 
 @router.get("/availability")
-@requires("edit")
+@requires("read")
 async def get_export_availability(
     *,
     request: Request,
