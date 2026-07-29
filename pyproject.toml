@@ -117,7 +117,7 @@ lsp = [
 ]
 
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2", # MCP 2.0 is a major rework, unsupported for now.
     "pydantic>2",
 ]
 
