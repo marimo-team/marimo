@@ -9,7 +9,11 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
-from marimo._cli.pair.commands import AgentConfig, _opencode_skill_dirs
+from marimo._cli.pair.commands import (
+    AgentConfig,
+    _opencode_skill_dirs,
+    _plugin_skill_dirs,
+)
 
 _runner = CliRunner()
 
@@ -295,4 +299,42 @@ class TestAgentConfig:
         (dir2 / "marimo-pair" / "SKILL.md").write_text("test")
 
         agent = AgentConfig(name="test", skill_dirs=[dir1, dir2])
+        assert agent.has_skill() is True
+
+
+class TestPluginSkillDirs:
+    def test_claude_marketplace_layout(self, tmp_path: Path) -> None:
+        skill_dir = (
+            tmp_path
+            / "plugins"
+            / "marketplaces"
+            / "marimo-pair"
+            / "skills"
+        )
+        (skill_dir / "marimo-pair").mkdir(parents=True)
+        (skill_dir / "marimo-pair" / "SKILL.md").write_text("test")
+
+        agent = AgentConfig(
+            name="Claude Code",
+            skill_dirs=_plugin_skill_dirs(tmp_path),
+        )
+        assert agent.has_skill() is True
+
+    def test_plugin_cache_layout(self, tmp_path: Path) -> None:
+        skill_dir = (
+            tmp_path
+            / "plugins"
+            / "cache"
+            / "marimo-pair"
+            / "marimo-pair"
+            / "0.0.18"
+            / "skills"
+        )
+        (skill_dir / "marimo-pair").mkdir(parents=True)
+        (skill_dir / "marimo-pair" / "SKILL.md").write_text("test")
+
+        agent = AgentConfig(
+            name="Codex",
+            skill_dirs=_plugin_skill_dirs(tmp_path),
+        )
         assert agent.has_skill() is True
