@@ -211,18 +211,14 @@ export async function downloadAsPDF(opts: {
   webpdf: boolean;
   preset?: PDFExportPreset;
   includeInputs?: boolean;
-  rasterizeOutputs?: boolean;
-  rasterScale?: number;
-  rasterServer?: "static" | "live";
+  includeOutputs?: boolean;
 }) {
   const client = getRequestClient();
   const {
     webpdf,
     preset = "document",
     includeInputs = true,
-    rasterizeOutputs = true,
-    rasterScale = 4,
-    rasterServer = "static",
+    includeOutputs = true,
   } = opts;
 
   try {
@@ -230,9 +226,7 @@ export async function downloadAsPDF(opts: {
       webpdf,
       preset,
       includeInputs,
-      rasterizeOutputs,
-      rasterScale,
-      rasterServer,
+      includeOutputs,
     });
 
     downloadExportedFile(exportedFile);

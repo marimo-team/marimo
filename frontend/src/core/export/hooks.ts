@@ -112,7 +112,9 @@ interface UseEnrichCellOutputsOptions {
 }
 
 /**
- * Take screenshots of cells with HTML outputs. These images will be sent to the backend to be exported to IPYNB.
+ * Capture browser-rendered cell outputs for current-session exports.
+ *
+ * The caller uploads these PNG representations before requesting an export.
  * @returns A map of cell IDs to their screenshots data.
  */
 export function useEnrichCellOutputs(): (
@@ -221,8 +223,7 @@ export async function updateCellOutputsWithScreenshots(opts: {
     Logger.error("Error updating cell outputs with screenshots:", error);
     toast({
       title: "Failed to capture cell outputs",
-      description:
-        "Some outputs may not appear in the PDF. Continuing with export.",
+      description: "Some outputs may be missing from the export. Continuing.",
       variant: "danger",
     });
   }

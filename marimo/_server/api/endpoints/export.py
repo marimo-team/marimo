@@ -48,12 +48,12 @@ from marimo._schemas.export import (
     to_html_export_options,
     to_ipynb_export_options,
     to_markdown_export_options,
+    to_pdf_export_options,
 )
 from marimo._schemas.export_options import (
     SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
     MarkdownExportOptions,
-    PDFExportOptions,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -625,12 +625,8 @@ async def export_as_pdf(*, request: Request) -> Response:
 
     export_request = PDFExportRequest(
         app=session.app_file_manager.app,
-        session_view=session.session_view,
-        options=PDFExportOptions(
-            webpdf=body.webpdf,
-            preset=body.preset,
-            include_inputs=body.include_inputs,
-        ),
+        session_view=session.session_view if body.include_outputs else None,
+        options=to_pdf_export_options(body),
     )
     pdf_data = await render_pdf(export_request)
     if pdf_data is None:

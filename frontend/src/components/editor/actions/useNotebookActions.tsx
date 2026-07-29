@@ -193,12 +193,18 @@ export function useNotebookActions() {
     }
 
     const runDownload = async (progress: ProgressState) => {
-      await updateCellOutputsWithScreenshots({
-        takeScreenshots: () => takeScreenshots({ progress }),
-        updateCellOutputs,
-      });
       await runServerSidePDFDownload({
-        preset,
+        exportOptions: {
+          webpdf: false,
+          preset,
+          includeInputs: true,
+          includeOutputs: true,
+        },
+        captureOutputs: () =>
+          updateCellOutputsWithScreenshots({
+            takeScreenshots: () => takeScreenshots({ progress }),
+            updateCellOutputs,
+          }),
         downloadPDF: downloadAsPDF,
       });
     };

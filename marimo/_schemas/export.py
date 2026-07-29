@@ -13,7 +13,7 @@ from marimo._schemas.export_options import (
     IPYNBExportOptions,
     IPYNBSortMode,
     MarkdownExportOptions,
-    PDFRasterServer,
+    PDFExportOptions,
     ServerExportFormat,
 )
 from marimo._types.ids import CellId_t
@@ -82,9 +82,17 @@ class ExportAsPDFRequest(msgspec.Struct, rename="camel"):
     webpdf: bool
     preset: ExportPDFPreset = "document"
     include_inputs: bool = False
-    rasterize_outputs: bool = True
-    raster_scale: float = 4.0
-    raster_server: PDFRasterServer = "static"
+    include_outputs: bool = True
+
+
+def to_pdf_export_options(
+    request: ExportAsPDFRequest,
+) -> PDFExportOptions:
+    return PDFExportOptions(
+        webpdf=request.webpdf,
+        preset=request.preset,
+        include_inputs=request.include_inputs,
+    )
 
 
 class ExportedFile(msgspec.Struct, rename="camel"):
