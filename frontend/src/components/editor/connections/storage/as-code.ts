@@ -212,19 +212,20 @@ function generateGDriveCode(
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
   if (connection.credentials_json) {
-    imports.add("import json");
     const credential = resolveJsonCredential(connection.credentials_json, (v) =>
       secrets.print("credentials_json", v),
     );
-    let credentialsExpr: string;
+    // gdrive-fsspec accepts a filesystem path as `creds` when the string
+    // doesn't start with "{"; otherwise it expects a JSON object/string.
     if (credential.kind === "path") {
-      imports.add("from pathlib import Path");
-      credentialsExpr = `json.loads(Path("${escapePythonString(credential.path)}").read_text())`;
-    } else {
-      credentialsExpr = credential.expr;
+      const code = dedent(`
+        fs = GoogleDriveFileSystem(creds="${escapePythonString(credential.path)}", token="service_account", use_listings_cache=False, skip_instance_cache=True)
+      `);
+      return { imports, code };
     }
+    imports.add("import json");
     const code = dedent(`
-      _creds = ${credentialsExpr}
+      _creds = ${credential.expr}
       fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)
     `);
     return { imports, code };

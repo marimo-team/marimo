@@ -140,11 +140,8 @@ fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_c
 
 exports[`generateStorageCode > Google Drive > with service account credentials from a file path 1`] = `
 "from gdrive_fsspec import GoogleDriveFileSystem
-from pathlib import Path
-import json
 
-_creds = json.loads(Path("/etc/secrets/gdrive.json").read_text())
-fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
+fs = GoogleDriveFileSystem(creds="/etc/secrets/gdrive.json", token="service_account", use_listings_cache=False, skip_instance_cache=True)"
 `;
 
 exports[`generateStorageCode > Google Drive > with service account credentials from secrets 1`] = `
