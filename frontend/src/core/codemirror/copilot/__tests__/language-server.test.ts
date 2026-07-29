@@ -312,6 +312,54 @@ describe("CopilotLanguageServerClient", () => {
     expect(notifications(mockTransport, "textDocument/didOpen")).toEqual([]);
   });
 
+  it("does not close the shared document until the last mounted editor closes it (relies on base client's own refcounting)", async () => {
+    const client = new CopilotLanguageServerClient({
+      rootUri: "file:///test",
+      workspaceFolders: null,
+      transport: mockTransport,
+    });
+    await client.initializePromise;
+
+    // Two editors (e.g. two visible cells) share this client and both open
+    // the same document.
+    await client.textDocumentDidOpen({
+      textDocument: {
+        uri: "file:///test.py",
+        languageId: "python",
+        version: 1,
+        text: "value = 1",
+      },
+    });
+    await client.textDocumentDidOpen({
+      textDocument: {
+        uri: "file:///test.py",
+        languageId: "python",
+        version: 1,
+        text: "value = 1",
+      },
+    });
+    mockTransport.sent.length = 0;
+
+    // Closing the first editor must not close the shared document while the
+    // second editor is still mounted.
+    await client.textDocumentDidClose({
+      textDocument: { uri: "file:///test.py" },
+    });
+    expect(notifications(mockTransport, "textDocument/didClose")).toEqual([]);
+
+    // Closing the last editor closes the document for real.
+    await client.textDocumentDidClose({
+      textDocument: { uri: "file:///test.py" },
+    });
+    expect(notifications(mockTransport, "textDocument/didClose")).toEqual([
+      {
+        jsonrpc: "2.0",
+        method: "textDocument/didClose",
+        params: { textDocument: { uri: "file:///test.py" } },
+      },
+    ]);
+  });
+
   it("keeps document versions monotonic after opening a versioned document", async () => {
     const client = new CopilotLanguageServerClient({
       rootUri: "file:///test",

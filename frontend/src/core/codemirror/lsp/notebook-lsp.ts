@@ -368,16 +368,28 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
     this.openCellDocumentCounts.set(cellDocumentUri, previousOpenCount + 1);
 
     // Pass merged doc to LSP
-    const result = await this.client.textDocumentDidOpen({
-      textDocument: {
-        languageId: params.textDocument.languageId,
-        text: lens.mergedText,
-        uri: this.documentUri,
-        version: version,
-      },
-    });
+    try {
+      const result = await this.client.textDocumentDidOpen({
+        textDocument: {
+          languageId: params.textDocument.languageId,
+          text: lens.mergedText,
+          uri: this.documentUri,
+          version: version,
+        },
+      });
 
-    return result !== false;
+      return result !== false;
+    } catch (error) {
+      // The caller never saw a successful open, so it will not pair this
+      // with a matching close; roll back to avoid stranding a phantom
+      // reference that keeps this cell "open" for resync purposes.
+      if (previousOpenCount === 0) {
+        this.openCellDocumentCounts.delete(cellDocumentUri);
+      } else {
+        this.openCellDocumentCounts.set(cellDocumentUri, previousOpenCount);
+      }
+      throw error;
+    }
   }
 
   public async textDocumentDidClose(
@@ -388,6 +400,15 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const previousOpenCount =
       this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+    if (previousOpenCount === 0) {
+      // No matching open was ever recorded for this cell
+      // We should not incorrectly change the reference count
+      Logger.warn(
+        "[lsp] textDocumentDidClose with no tracked open",
+        cellDocumentUri,
+      );
+      return;
+    }
     if (previousOpenCount <= 1) {
       this.openCellDocumentCounts.delete(cellDocumentUri);
     } else {

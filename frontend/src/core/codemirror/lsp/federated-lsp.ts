@@ -2,7 +2,7 @@
 
 import type * as LSP from "vscode-languageserver-protocol";
 import { Objects } from "@/utils/objects";
-import type { ILanguageServerClient } from "./types";
+import type { ILanguageServerClient, RoutableLspMethod } from "./types";
 import { getLspDocumentUri } from "./utils";
 
 function removeFalseyValues<T extends object>(obj: T): T {
@@ -54,7 +54,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
         }
         return undefined;
       })
-      .filter((c) => c != null);
+      .filter((c): c is LSP.ClientCapabilities => c != null);
 
     return mergeDictsIgnoreFalsey<LSP.ClientCapabilities>(capabilities);
   }
@@ -72,7 +72,7 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
   get capabilities(): LSP.ServerCapabilities | null {
     const capabilities = this.clients
       .map((client) => client.capabilities)
-      .filter((c) => c !== null);
+      .filter((c): c is LSP.ServerCapabilities => c !== null);
     return mergeDictsIgnoreFalsey<LSP.ServerCapabilities>(capabilities);
   }
 
@@ -92,11 +92,15 @@ export class FederatedLanguageServerClient implements ILanguageServerClient {
     });
   }
 
-  private firstWithMethod(method: string): ILanguageServerClient | undefined {
+  private firstWithMethod(
+    method: RoutableLspMethod,
+  ): ILanguageServerClient | undefined {
     return this.clients.find((client) => client.hasCapability(method));
   }
 
-  private clientsWithMethod(method: string): ILanguageServerClient[] {
+  private clientsWithMethod(
+    method: RoutableLspMethod,
+  ): ILanguageServerClient[] {
     return this.clients.filter((client) => client.hasCapability(method));
   }
 

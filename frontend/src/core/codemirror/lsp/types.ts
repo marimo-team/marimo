@@ -41,6 +41,22 @@ export type ILanguageServerClient = Pick<
   LanguageServerClientMember
 >;
 
+/**
+ * LSP request methods that `FederatedLanguageServerClient` routes to whichever
+ * child client declares support.
+ *
+ * This is the subset of `ILanguageServerClient`'s request methods
+ * https://github.com/marimo-team/codemirror-languageserver/blob/v2.0.0/src/lsp.ts#L88-L113
+ */
+export type RoutableLspMethod =
+  | "textDocument/hover"
+  | "textDocument/completion"
+  | "textDocument/definition"
+  | "textDocument/codeAction"
+  | "textDocument/rename"
+  | "textDocument/prepareRename"
+  | "textDocument/signatureHelp";
+
 export type CellDocumentUri = DocumentUri & TypedString<"CellDocumentUri">;
 
 export const CellDocumentUri = {

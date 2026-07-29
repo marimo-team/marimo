@@ -485,6 +485,45 @@ describe("ReconnectingWebSocketTransport", () => {
     });
   });
 
+  it("clears the in-flight backlog when closed during restoration", async () => {
+    const strandedRestoration = new Promise<void>(() => {
+      // never settles
+    });
+    const onReconnect = vi.fn<() => Promise<void>>(() => strandedRestoration);
+    const transport = new ReconnectingWebSocketTransport({
+      getWsUrl: () => mockWsUrl,
+      onReconnect,
+    });
+
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.disconnect();
+
+    transport.send({
+      jsonrpc: "2.0",
+      method: "textDocument/didChange",
+      params: {},
+    });
+
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
+      expect(onReconnect).toHaveBeenCalledTimes(1);
+    });
+    // Restoration is now stranded and holding the backlog it detached.
+    expect(
+      (transport as unknown as { inFlightBacklog?: unknown[] }).inFlightBacklog,
+    ).toHaveLength(1);
+
+    transport.close();
+
+    expect(
+      (transport as unknown as { inFlightBacklog?: unknown[] }).inFlightBacklog,
+    ).toBeUndefined();
+  });
+
   it("keeps inbound subscriptions active after reconnection", async () => {
     const transport = new ReconnectingWebSocketTransport({
       getWsUrl: () => mockWsUrl,

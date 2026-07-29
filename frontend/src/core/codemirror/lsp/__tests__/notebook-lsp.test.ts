@@ -462,6 +462,65 @@ describe("NotebookLanguageServerClient", () => {
       );
     });
 
+    it("ignores an unmatched close instead of forwarding it to the underlying client", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+
+      // No matching textDocumentDidOpen was ever recorded for this cell.
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+
+      expect(mockClient.textDocumentDidClose).not.toHaveBeenCalled();
+    });
+
+    it("does not let an unmatched close of one cell close the document for others", async () => {
+      const cellUri1 = CellDocumentUri.of(Cells.cell1);
+      const cellUri2 = CellDocumentUri.of(Cells.cell2);
+      await notebookClient.textDocumentDidOpen({
+        textDocument: {
+          uri: cellUri2,
+          languageId: "python",
+          version: 1,
+          text: "import math",
+        },
+      });
+
+      // A spurious close for a cell that was never opened must not forward a
+      // close for the merged document while cell2's view is still open.
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri1 },
+      });
+
+      expect(mockClient.textDocumentDidClose).not.toHaveBeenCalled();
+    });
+
+    it("rolls back the open count when the underlying client rejects textDocumentDidOpen", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      mockClient.textDocumentDidOpen.mockRejectedValueOnce(
+        new Error("transport failure"),
+      );
+
+      await expect(
+        notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri: cellUri,
+            languageId: "python",
+            version: 1,
+            text: "value = 1",
+          },
+        }),
+      ).rejects.toThrow("transport failure");
+
+      // The failed open must not leave a phantom reference behind: a
+      // subsequent resync should not believe this cell is open.
+      notifyMock.mockClear();
+      await notebookClient.resyncAllDocuments();
+      expect(notifyMock).not.toHaveBeenCalledWith(
+        "textDocument/didOpen",
+        expect.anything(),
+      );
+    });
+
     it("maps safe save notifications and rejects merged save edits", async () => {
       const cellUri = CellDocumentUri.of(Cells.cell1);
       const willSaveParams: LSP.WillSaveTextDocumentParams = {
