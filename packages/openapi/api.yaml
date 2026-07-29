@@ -255,6 +255,14 @@ components:
       required: []
       title: AnthropicConfig
       type: object
+    AutoExportAsIPYNBRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsIPYNBRequest
+      type: object
     AutoExportAsMarkdownRequest:
       properties:
         download:
@@ -1743,6 +1751,14 @@ components:
       properties:
         download:
           type: boolean
+        includeOutputs:
+          default: true
+          type: boolean
+        sortMode:
+          default: top-down
+          enum:
+          - top-down
+          - topological
       required:
       - download
       title: ExportAsIPYNBRequest
@@ -6387,7 +6403,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+              $ref: '#/components/schemas/AutoExportAsIPYNBRequest'
       responses:
         200:
           content:

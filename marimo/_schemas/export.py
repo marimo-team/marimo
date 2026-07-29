@@ -10,6 +10,8 @@ from marimo._messaging.mimetypes import MimeBundleTuple
 from marimo._schemas.export_options import (
     ExportPDFPreset,
     HTMLExportOptions,
+    IPYNBExportOptions,
+    IPYNBSortMode,
     MarkdownExportOptions,
     PDFRasterServer,
     ServerExportFormat,
@@ -40,6 +42,18 @@ class ExportAsScriptRequest(msgspec.Struct, rename="camel"):
 
 class ExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
     download: bool
+    sort_mode: IPYNBSortMode = "top-down"
+    include_outputs: bool = True
+
+
+class AutoExportAsIPYNBRequest(msgspec.Struct, rename="camel"):
+    download: bool
+
+
+def to_ipynb_export_options(
+    request: ExportAsIPYNBRequest,
+) -> IPYNBExportOptions:
+    return IPYNBExportOptions(sort_mode=request.sort_mode)
 
 
 class ExportAsMarkdownRequest(msgspec.Struct, rename="camel"):

@@ -773,7 +773,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+          "application/json": components["schemas"]["AutoExportAsIPYNBRequest"];
         };
       };
       responses: {
@@ -3740,6 +3740,10 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
+    /** AutoExportAsIPYNBRequest */
+    AutoExportAsIPYNBRequest: {
+      download: boolean;
+    };
     /** AutoExportAsMarkdownRequest */
     AutoExportAsMarkdownRequest: {
       download: boolean;
@@ -4667,6 +4671,13 @@ export interface components {
     /** ExportAsIPYNBRequest */
     ExportAsIPYNBRequest: {
       download: boolean;
+      /** @default true */
+      includeOutputs?: boolean;
+      /**
+       * @default top-down
+       * @enum {unknown}
+       */
+      sortMode?: "top-down" | "topological";
     };
     /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {

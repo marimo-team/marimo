@@ -352,6 +352,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         completion.AiCompletionRequest,
         completion.AiInlineCompletionRequest,
         completion.ChatRequest,
+        export.AutoExportAsIPYNBRequest,
         export.AutoExportAsMarkdownRequest,
         export.ExportAsHTMLRequest,
         export.ExportAsMarkdownRequest,
