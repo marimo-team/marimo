@@ -521,6 +521,75 @@ describe("NotebookLanguageServerClient", () => {
       );
     });
 
+    it("does not mark a cell as seen when the underlying client rejects textDocumentDidOpen", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      mockClient.textDocumentDidOpen.mockRejectedValueOnce(
+        new Error("transport failure"),
+      );
+
+      await expect(
+        notebookClient.textDocumentDidOpen({
+          textDocument: {
+            uri: cellUri,
+            languageId: "python",
+            version: 1,
+            text: "value = 1",
+          },
+        }),
+      ).rejects.toThrow("transport failure");
+
+      // `seenCellDocumentUris` drives diagnostic clearing; a cell that never
+      // successfully opened has no diagnostics to clear and must not be
+      // tracked as seen.
+      const seenCellDocumentUris = (
+        notebookClient as unknown as { seenCellDocumentUris: Set<string> }
+      ).seenCellDocumentUris;
+      expect(seenCellDocumentUris.has(cellUri)).toBe(false);
+    });
+
+    it("does not drop a concurrent open's reference when an earlier open for the same cell rejects", async () => {
+      const cellUri = CellDocumentUri.of(Cells.cell1);
+      const openParams: LSP.DidOpenTextDocumentParams = {
+        textDocument: {
+          uri: cellUri,
+          languageId: "python",
+          version: 1,
+          text: "value = 1",
+        },
+      };
+
+      let rejectFirst!: (error: Error) => void;
+      const firstUnderlyingOpen = new Promise<boolean>((_, reject) => {
+        rejectFirst = reject;
+      });
+      let resolveSecond!: (value: boolean) => void;
+      const secondUnderlyingOpen = new Promise<boolean>((resolve) => {
+        resolveSecond = resolve;
+      });
+      mockClient.textDocumentDidOpen
+        .mockReturnValueOnce(firstUnderlyingOpen)
+        .mockReturnValueOnce(secondUnderlyingOpen);
+
+      // Two concurrent opens for the same cell (e.g. a fast remount) both
+      // increment the shared count before either underlying call settles.
+      const firstCall = notebookClient.textDocumentDidOpen(openParams);
+      const secondCall = notebookClient.textDocumentDidOpen(openParams);
+      const firstCallOutcome = firstCall.catch((error: Error) => error);
+
+      // The first (stale) open fails; its rollback must not erase the
+      // second, still-live open's reference.
+      rejectFirst(new Error("transport failure"));
+      await firstCallOutcome;
+
+      resolveSecond(true);
+      await secondCall;
+
+      await notebookClient.textDocumentDidClose({
+        textDocument: { uri: cellUri },
+      });
+      expect(mockClient.textDocumentDidClose).toHaveBeenCalledTimes(1);
+    });
+
     it("maps safe save notifications and rejects merged save edits", async () => {
       const cellUri = CellDocumentUri.of(Cells.cell1);
       const willSaveParams: LSP.WillSaveTextDocumentParams = {
