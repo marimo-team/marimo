@@ -180,6 +180,7 @@ export class ReconnectingWebSocketTransport implements Transport {
     this.connectionGeneration++;
     this.connectionPromise = undefined;
     this.pendingMessages = [];
+    this.inFlightBacklog = undefined;
     this.messageHandlers.clear();
     this.disposeDelegate();
     this.delegate?.close();

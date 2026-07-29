@@ -17,8 +17,9 @@ import type {
 } from "vscode-languageserver-protocol";
 import { VersionedTextDocumentIdentifier } from "vscode-languageserver-protocol";
 import { store } from "@/core/state/jotai";
+import { invariant } from "@/utils/invariant";
 import { Logger } from "@/utils/Logger";
-import { isRecord } from "@/utils/records";
+import { hasFunctionProperty, isRecord } from "@/utils/records";
 import { getCodes } from "./getCodes";
 import {
   clearGitHubCopilotLoadingVersion,
@@ -32,18 +33,20 @@ import type {
   GitHubCopilotStatusNotificationParams,
   GitHubCopilotStatusResult,
 } from "./types";
+import type { LanguageAdapterType } from "../language/types";
 
 const logger = Logger.get("@github/copilot-language-server");
 const REQUEST_TIMEOUT_MS = 10_000;
 // Only used for the synthetic didOpen sent when a change arrives before any open
-const DEFAULT_LANGUAGE_ID = "python";
+const DEFAULT_LANGUAGE_ID: LanguageAdapterType = "python";
+type NoParams = Record<string, never>;
 
 // A map of request methods and their parameters and return types
 export interface LSPRequestMap {
-  checkStatus: [Record<string, never>, GitHubCopilotStatusResult];
-  signIn: [Record<string, never>, GitHubCopilotSignInInitiateResult];
+  checkStatus: [NoParams, GitHubCopilotStatusResult];
+  signIn: [NoParams, GitHubCopilotSignInInitiateResult];
   signInConfirm: [GitHubCopilotSignInConfirmParams, GitHubCopilotStatusResult];
-  signOut: [Record<string, never>, GitHubCopilotStatusResult];
+  signOut: [NoParams, GitHubCopilotStatusResult];
   "textDocument/inlineCompletion": [
     InlineCompletionParams,
     InlineCompletionList | InlineCompletionItem[] | null,
@@ -57,6 +60,22 @@ interface UntypedLanguageServerMethods {
     timeout: number,
   ) => Promise<unknown>;
   notify: (method: string, params: unknown) => Promise<void>;
+}
+
+/**
+ * `LanguageServerClient#request`/`#notify` are protected and generic over the
+ * library's own `LSPRequestMap`/`LSPNotifyMap`
+ * This asserts the two inherited methods we need are present.
+ */
+function assertHasLanguageServerRpc(
+  value: unknown,
+): asserts value is UntypedLanguageServerMethods {
+  invariant(
+    isRecord(value) &&
+      hasFunctionProperty(value, "request") &&
+      hasFunctionProperty(value, "notify"),
+    "LanguageServerClient is missing request/notify",
+  );
 }
 
 /**
@@ -150,7 +169,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     method: Method,
     params: LSPRequestMap[Method][0],
   ): Promise<LSPRequestMap[Method][1]> {
-    return (await (this as unknown as UntypedLanguageServerMethods).request(
+    assertHasLanguageServerRpc(this);
+    return (await this.request(
       method,
       params,
       REQUEST_TIMEOUT_MS,
@@ -162,10 +182,8 @@ export class CopilotLanguageServerClient extends LanguageServerClient {
     params: unknown,
   ): Promise<void> {
     logger.debug("#notify", method, params);
-    return (this as unknown as UntypedLanguageServerMethods).notify(
-      method,
-      params,
-    );
+    assertHasLanguageServerRpc(this);
+    return this.notify(method, params);
   }
 
   override getInitializationOptions() {

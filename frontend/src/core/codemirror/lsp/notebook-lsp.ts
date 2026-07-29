@@ -362,22 +362,39 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const { lens, version } = this.snapshotter.snapshot();
 
-    this.seenCellDocumentUris.add(cellDocumentUri);
     const previousOpenCount =
       this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
     this.openCellDocumentCounts.set(cellDocumentUri, previousOpenCount + 1);
 
     // Pass merged doc to LSP
-    const result = await this.client.textDocumentDidOpen({
-      textDocument: {
-        languageId: params.textDocument.languageId,
-        text: lens.mergedText,
-        uri: this.documentUri,
-        version: version,
-      },
-    });
+    try {
+      const result = await this.client.textDocumentDidOpen({
+        textDocument: {
+          languageId: params.textDocument.languageId,
+          text: lens.mergedText,
+          uri: this.documentUri,
+          version: version,
+        },
+      });
 
-    return result !== false;
+      // Only mark the cell as seen once the open actually succeeds.
+      this.seenCellDocumentUris.add(cellDocumentUri);
+      return result !== false;
+    } catch (error) {
+      // Roll back this call's own increment. Use the *current* count rather
+      // than `previousOpenCount`: a concurrent open for the same cell may
+      // have incremented it while this call was in flight, and resetting to
+      // the stale snapshot would erase that other, possibly-successful
+      // reference.
+      const currentOpenCount =
+        this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+      if (currentOpenCount <= 1) {
+        this.openCellDocumentCounts.delete(cellDocumentUri);
+      } else {
+        this.openCellDocumentCounts.set(cellDocumentUri, currentOpenCount - 1);
+      }
+      throw error;
+    }
   }
 
   public async textDocumentDidClose(
@@ -388,6 +405,15 @@ export class NotebookLanguageServerClient implements ILanguageServerClient {
 
     const previousOpenCount =
       this.openCellDocumentCounts.get(cellDocumentUri) ?? 0;
+    if (previousOpenCount === 0) {
+      // No matching open was ever recorded for this cell; ignore rather
+      // than forwarding a close that isn't ours to send.
+      Logger.warn(
+        "[lsp] textDocumentDidClose with no tracked open",
+        cellDocumentUri,
+      );
+      return;
+    }
     if (previousOpenCount <= 1) {
       this.openCellDocumentCounts.delete(cellDocumentUri);
     } else {
