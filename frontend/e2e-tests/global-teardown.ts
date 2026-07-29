@@ -30,6 +30,15 @@ async function killProcessTree(pid: number): Promise<void> {
   }
 }
 
+async function getCommand(pid: number): Promise<string> {
+  try {
+    const { stdout } = await execAsync(`ps -o command= -p ${pid}`);
+    return stdout.trim();
+  } catch {
+    return "";
+  }
+}
+
 /**
  * Kill whatever is listening on `port`, plus its parent process (`uv`,
  * which doesn't forward SIGTERM to the marimo process it spawns) and all
@@ -38,7 +47,7 @@ async function killProcessTree(pid: number): Promise<void> {
 async function killServerOnPort(port: number): Promise<void> {
   let pids: number[] = [];
   try {
-    const { stdout } = await execAsync(`lsof -ti tcp:${port}`);
+    const { stdout } = await execAsync(`lsof -ti tcp:${port} -sTCP:LISTEN -nP`);
     pids = stdout
       .split("\n")
       .map((line) => Number.parseInt(line.trim(), 10))
@@ -49,15 +58,22 @@ async function killServerOnPort(port: number): Promise<void> {
   }
 
   for (const pid of pids) {
+    const command = await getCommand(pid);
+    if (!command.includes("marimo")) {
+      continue;
+    }
+
     let targetPid = pid;
     try {
       const { stdout } = await execAsync(`ps -o ppid= -p ${pid}`);
       const parentPid = Number.parseInt(stdout.trim(), 10);
-      // Walk up to the `uv` parent (if any) so it's cleaned up too,
-      // but stop before reaching an unrelated ancestor like the shell
-      // or Playwright's own node process.
       if (Number.isInteger(parentPid) && parentPid > 1) {
-        targetPid = parentPid;
+        // Only promote to the parent if it's actually the `uv` wrapper;
+        // otherwise leave it alone and just kill the marimo process itself.
+        const parentCommand = await getCommand(parentPid);
+        if (/(^|\/)uv(\s|$)/.test(parentCommand)) {
+          targetPid = parentPid;
+        }
       }
     } catch {
       // Fall back to killing just the pid bound to the port.
