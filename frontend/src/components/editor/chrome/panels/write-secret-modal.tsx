@@ -144,6 +144,7 @@ export const WriteSecretModal: React.FC<{
                 className="my-0 font-code text-xs break-all"
                 rows={8}
                 autoFocus={true}
+                autoComplete="off"
               />
             ) : (
               <Input

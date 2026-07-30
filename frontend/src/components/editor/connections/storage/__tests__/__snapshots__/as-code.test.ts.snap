@@ -85,7 +85,7 @@ exports[`generateStorageCode > GCS > with service account key 1`] = `
 "from obstore.store import GCSStore
 import json
 
-_credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+_credentials = json.loads(r"""{"type": "service_account", "project_id": "test"}""")
 store = GCSStore("my-bucket",
     service_account_key=_credentials,
 )"
@@ -134,7 +134,7 @@ exports[`generateStorageCode > Google Drive > with service account credentials 1
 "from gdrive_fsspec import GoogleDriveFileSystem
 import json
 
-_creds = json.loads("""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
+_creds = json.loads(r"""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
 fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
 `;
 

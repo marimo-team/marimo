@@ -64,6 +64,8 @@ interface SecretComboboxProps {
   createSecretLabel?: string;
   /** When false for the current search, hide the free-text / path option. */
   allowCustomValue?: (search: string) => boolean;
+  /** When false for the current search, hide the "create a new secret" option. */
+  allowCreateSecret?: (search: string) => boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   formatCustomValueLabel = (custom) => `Use "${custom}"`,
   createSecretLabel = "Create a new secret",
   allowCustomValue,
+  allowCreateSecret,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -97,6 +100,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
     trimmedSearch.length > 0 &&
     trimmedSearch !== value &&
     (allowCustomValue?.(trimmedSearch) ?? true);
+  const showCreateSecret = allowCreateSecret?.(trimmedSearch) ?? true;
 
   const displayValue = (() => {
     if (!value) {
@@ -194,22 +198,23 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
                   </CommandItem>
                 </CommandGroup>
               )}
-              {showCustomValue && <CommandSeparator />}
-              <CommandGroup className="mt-0">
-                <CommandItem
-                  // Include search so this stays visible while filtering
-                  value={`create new secret ${trimmedSearch}`}
-                  onSelect={() => {
-                    const suggestedValue = trimmedSearch || undefined;
-                    setOpen(false);
-                    setSearch("");
-                    onCreateSecret(suggestedValue);
-                  }}
-                >
-                  <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
-                  {createSecretLabel}
-                </CommandItem>
-              </CommandGroup>
+              {showCreateSecret && (
+                <CommandGroup className="mt-0">
+                  <CommandItem
+                    // Include search so this stays visible while filtering
+                    value={`create new secret ${trimmedSearch}`}
+                    onSelect={() => {
+                      const suggestedValue = trimmedSearch || undefined;
+                      setOpen(false);
+                      setSearch("");
+                      onCreateSecret(suggestedValue);
+                    }}
+                  >
+                    <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
+                    {createSecretLabel}
+                  </CommandItem>
+                </CommandGroup>
+              )}
               {recommendedKeys.length > 0 && (
                 <>
                   <CommandSeparator className="mt-0" />

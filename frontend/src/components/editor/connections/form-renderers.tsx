@@ -182,9 +182,9 @@ export const SECRET_TEXTAREA_RENDERER: FormRenderer<z.ZodString> = {
                   content="Enter a path to a file on disk, or create a secret to paste JSON directly."
                   delayDuration={300}
                 >
-                  <span className="inline-flex" tabIndex={0}>
+                  <button type="button" className="inline-flex">
                     <InfoIcon className="h-3.5 w-3.5" />
-                  </span>
+                  </button>
                 </Tooltip>
               </FormLabel>
               <FormDescription>{description}</FormDescription>
@@ -193,7 +193,9 @@ export const SECRET_TEXTAREA_RENDERER: FormRenderer<z.ZodString> = {
                   value={displayValue}
                   onChange={(next) => {
                     field.onChange(
-                      !next || isSecret(next) ? next : prefixPath(next),
+                      !next || isSecret(next) || isPath(next)
+                        ? next
+                        : prefixPath(next),
                     );
                   }}
                   placeholder={placeholder}
@@ -203,6 +205,9 @@ export const SECRET_TEXTAREA_RENDERER: FormRenderer<z.ZodString> = {
                   }
                   createSecretLabel="Paste JSON credentials"
                   allowCustomValue={(search) => !looksLikeJson(search)}
+                  allowCreateSecret={(search) =>
+                    !search || looksLikeJson(search)
+                  }
                   recommendedKeys={[]}
                   otherKeys={secretKeys}
                   onCreateSecret={(suggestedValue) => {

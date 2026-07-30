@@ -27,7 +27,17 @@ describe("resolveJsonCredential", () => {
       resolveJsonCredential('{"type":"service_account"}', (v) => v),
     ).toEqual({
       kind: "json",
-      expr: 'json.loads("""{"type":"service_account"}""")',
+      expr: 'json.loads(r"""{"type":"service_account"}""")',
+    });
+  });
+
+  test("uses a raw string so escaped newlines in a private_key survive", () => {
+    const credentialsJson =
+      '{"private_key":"-----BEGIN PRIVATE KEY-----\\nabc123\\n-----END PRIVATE KEY-----\\n"}';
+    const credential = resolveJsonCredential(credentialsJson, (v) => v);
+    expect(credential).toEqual({
+      kind: "json",
+      expr: `json.loads(r"""${credentialsJson}""")`,
     });
   });
 
@@ -47,6 +57,23 @@ describe("looksLikeJson", () => {
     expect(looksLikeJson("/etc/secrets/key.json")).toBe(false);
     expect(looksLikeJson("MY_SECRET")).toBe(false);
     expect(looksLikeJson("")).toBe(false);
+  });
+
+  test("drives the path vs. create-secret combobox actions exclusively", () => {
+    // These mirror how SECRET_TEXTAREA_RENDERER wires allowCustomValue /
+    // allowCreateSecret, so a path and a JSON paste never both offer (or
+    // both hide) the wrong action.
+    const allowCustomValue = (search: string) => !looksLikeJson(search);
+    const allowCreateSecret = (search: string) =>
+      !search || looksLikeJson(search);
+
+    expect(allowCustomValue("/etc/secrets/key.json")).toBe(true);
+    expect(allowCreateSecret("/etc/secrets/key.json")).toBe(false);
+
+    expect(allowCustomValue('{"type":"service_account"}')).toBe(false);
+    expect(allowCreateSecret('{"type":"service_account"}')).toBe(true);
+
+    expect(allowCreateSecret("")).toBe(true);
   });
 });
 
@@ -78,5 +105,10 @@ describe("escapePythonString", () => {
     expect(escapePythonString("/etc/secrets/key.json")).toBe(
       "/etc/secrets/key.json",
     );
+  });
+
+  test("escapes control characters", () => {
+    expect(escapePythonString("line1\nline2")).toBe("line1\\nline2");
+    expect(escapePythonString("a\tb\rc")).toBe("a\\tb\\rc");
   });
 });

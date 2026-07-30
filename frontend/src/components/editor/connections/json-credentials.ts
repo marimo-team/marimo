@@ -20,7 +20,8 @@ export function resolveJsonCredential(
   }
   const expr = isSecret(value)
     ? `json.loads(${printSecret(value)})`
-    : `json.loads("""${value}""")`;
+    : // Use raw string to avoid interpreting \n escapes as newlines.
+      `json.loads(r"""${value}""")`;
   return { kind: "json", expr };
 }
 
@@ -47,5 +48,10 @@ export function flattenSecretValue(value: string): string {
 
 /** Escape a filesystem path for embedding in a Python double-quoted string. */
 export function escapePythonString(value: string): string {
-  return value.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  return value
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("\n", "\\n")
+    .replaceAll("\r", "\\r")
+    .replaceAll("\t", "\\t");
 }
