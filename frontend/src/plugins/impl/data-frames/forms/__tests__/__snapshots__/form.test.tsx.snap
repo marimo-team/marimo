@@ -749,14 +749,8 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
         class="flex flex-col gap-1"
       >
         <div
-          class="flex flex-row items-start space-x-2"
+          class="flex flex-row gap-2 items-center"
         >
-          <label
-            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            for="_r_1u_-form-item"
-          >
-            Drop N/A
-          </label>
           <button
             aria-checked="false"
             aria-describedby="_r_1u_-form-item-description"
@@ -769,6 +763,16 @@ exports[`renderZodSchema > should render a form group_by 1`] = `
             type="button"
             value="on"
           />
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              for="_r_1u_-form-item"
+            >
+              Drop N/A
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -1252,14 +1256,8 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
         class="flex flex-col gap-1"
       >
         <div
-          class="flex flex-row items-start space-x-2"
+          class="flex flex-row gap-2 items-center"
         >
-          <label
-            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            for="_r_2n_-form-item"
-          >
-            Sample with replacement
-          </label>
           <button
             aria-checked="false"
             aria-describedby="_r_2n_-form-item-description"
@@ -1272,6 +1270,16 @@ exports[`renderZodSchema > should render a form sample_rows 1`] = `
             type="button"
             value="on"
           />
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              for="_r_2n_-form-item"
+            >
+              Sample with replacement
+            </label>
+          </div>
         </div>
       </div>
     </div>
@@ -1468,14 +1476,8 @@ exports[`renderZodSchema > should render a form sort_column 1`] = `
         class="flex flex-col gap-1"
       >
         <div
-          class="flex flex-row items-start space-x-2"
+          class="flex flex-row gap-2 items-center"
         >
-          <label
-            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-            for="_r_1f_-form-item"
-          >
-            Ascending
-          </label>
           <button
             aria-checked="false"
             aria-describedby="_r_1f_-form-item-description"
@@ -1488,6 +1490,16 @@ exports[`renderZodSchema > should render a form sort_column 1`] = `
             type="button"
             value="on"
           />
+          <div
+            class="flex flex-col gap-1"
+          >
+            <label
+              class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              for="_r_1f_-form-item"
+            >
+              Ascending
+            </label>
+          </div>
         </div>
       </div>
     </div>
