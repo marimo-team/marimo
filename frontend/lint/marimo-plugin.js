@@ -83,18 +83,19 @@ function isSimpleParam(param) {
   return param.type === "Identifier" || param.type === "AssignmentPattern";
 }
 
+const MIN_POSITIONAL_ARGS_FOR_WARNING = 5;
+
 const preferObjectParams = {
   meta: {
     type: "suggestion",
     docs: {
-      description:
-        "Prefer an options object instead of multiple positional arguments (3+)",
+      description: `Prefer an options object instead of multiple positional arguments (${MIN_POSITIONAL_ARGS_FOR_WARNING}+)`,
     },
   },
   createOnce(context) {
     function check(node, nameNode) {
       const params = node.params;
-      if (!params || params.length < 3) {
+      if (!params || params.length < MIN_POSITIONAL_ARGS_FOR_WARNING) {
         return;
       }
       if (params.some((p) => p.type === "ObjectPattern")) {
@@ -175,7 +176,8 @@ const TW_RENAMED = new Map([
 // Removed in Tailwind v4: these generate no CSS. The opacity modifier
 // (e.g. `bg-black/50`) replaces them, but the rewrite needs the base color,
 // so it cannot be applied mechanically.
-const TW_REMOVED_OPACITY = /^(bg|text|border|ring|divide|placeholder)-opacity-\d+$/;
+const TW_REMOVED_OPACITY =
+  /^(bg|text|border|ring|divide|placeholder)-opacity-\d+$/;
 
 function splitClassToken(token) {
   const colon = token.lastIndexOf(":");
