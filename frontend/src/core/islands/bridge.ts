@@ -341,6 +341,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   previewSQLTableList = throwNotImplemented;
   previewSQLSchemaList = throwNotImplemented;
   previewDataSourceConnection = throwNotImplemented;
+  discoverDataSources = throwNotImplemented;
   validateSQL = throwNotImplemented;
   openFile = throwNotImplemented;
   sendListFiles = throwNotImplemented;

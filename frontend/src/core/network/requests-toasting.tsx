@@ -43,6 +43,7 @@ export function createErrorToastingRequests(
     previewSQLTableList: "Failed to fetch SQL table list",
     previewSQLSchemaList: "Failed to fetch SQL schema list",
     previewDataSourceConnection: "Failed to preview data source connection",
+    discoverDataSources: "Failed to discover data sources",
     validateSQL: "Failed to validate SQL",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast

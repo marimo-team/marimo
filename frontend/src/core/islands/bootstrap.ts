@@ -194,6 +194,7 @@ function handleMessage(
       case "sql-schema-list-preview":
       case "datasets":
       case "data-source-connections":
+      case "data-source-discovery-result":
       case "validate-sql-result":
       case "storage-namespaces":
       case "storage-entries":
