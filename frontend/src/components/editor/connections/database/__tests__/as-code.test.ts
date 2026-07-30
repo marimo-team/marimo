@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { prefixPath } from "../../paths";
 import { prefixSecret } from "../../secrets";
 import { type ConnectionLibrary, generateDatabaseCode } from "../as-code";
 import type { DatabaseConnection } from "../schemas";
@@ -380,6 +381,22 @@ describe("generateDatabaseCode", () => {
           ...bigqueryConnection,
           project: prefixSecret("ENV_PROJECT"),
           dataset: prefixSecret("ENV_DATASET"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials_json as secret",
+        {
+          ...bigqueryConnection,
+          credentials_json: prefixSecret("BIGQUERY_CREDENTIALS_JSON"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials_json as a file path",
+        {
+          ...bigqueryConnection,
+          credentials_json: prefixPath("/etc/secrets/bigquery.json"),
         },
         "sqlmodel",
       ],

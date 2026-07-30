@@ -85,7 +85,27 @@ exports[`generateStorageCode > GCS > with service account key 1`] = `
 "from obstore.store import GCSStore
 import json
 
-_credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+_credentials = json.loads(r"""{"type": "service_account", "project_id": "test"}""")
+store = GCSStore("my-bucket",
+    service_account_key=_credentials,
+)"
+`;
+
+exports[`generateStorageCode > GCS > with service account key from a file path 1`] = `
+"from obstore.store import GCSStore
+
+store = GCSStore("my-bucket",
+    service_account_path="/etc/secrets/gcs.json",
+)"
+`;
+
+exports[`generateStorageCode > GCS > with service account key from secrets 1`] = `
+"from obstore.store import GCSStore
+import json
+import os
+
+_service_account_key = os.environ.get("GCS_SERVICE_ACCOUNT_KEY")
+_credentials = json.loads(_service_account_key)
 store = GCSStore("my-bucket",
     service_account_key=_credentials,
 )"
@@ -114,7 +134,23 @@ exports[`generateStorageCode > Google Drive > with service account credentials 1
 "from gdrive_fsspec import GoogleDriveFileSystem
 import json
 
-_creds = json.loads("""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
+_creds = json.loads(r"""{"type": "service_account", "client_email": "test@test.iam.gserviceaccount.com"}""")
+fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
+`;
+
+exports[`generateStorageCode > Google Drive > with service account credentials from a file path 1`] = `
+"from gdrive_fsspec import GoogleDriveFileSystem
+
+fs = GoogleDriveFileSystem(creds="/etc/secrets/gdrive.json", token="service_account", use_listings_cache=False, skip_instance_cache=True)"
+`;
+
+exports[`generateStorageCode > Google Drive > with service account credentials from secrets 1`] = `
+"from gdrive_fsspec import GoogleDriveFileSystem
+import json
+import os
+
+_credentials_json = os.environ.get("GDRIVE_CREDENTIALS_JSON")
+_creds = json.loads(_credentials_json)
 fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
 `;
 

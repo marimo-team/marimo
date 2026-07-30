@@ -138,7 +138,7 @@ export const GCSStorageSchema = z
       .describe(
         FieldOptions.of({
           label: "Service Account Key (JSON)",
-          inputType: "textarea",
+          special: "secret_textarea",
         }),
       ),
   })
@@ -214,7 +214,7 @@ export const GoogleDriveStorageSchema = z
         FieldOptions.of({
           label: "Service Account JSON",
           description: "Leave empty to use browser-based authentication",
-          inputType: "textarea",
+          special: "secret_textarea",
         }),
       ),
   })

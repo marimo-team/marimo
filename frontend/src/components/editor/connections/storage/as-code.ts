@@ -2,6 +2,7 @@
 
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
+import { escapePythonString, resolveJsonCredential } from "../json-credentials";
 import { isSecret, unprefixSecret } from "../secrets";
 import {
   type S3Auth,
@@ -120,20 +121,36 @@ function generateGCSCode(
   const bucket = secrets.print("bucket", connection.bucket);
   const imports = new Set(["from obstore.store import GCSStore"]);
 
-  let code: string;
-  if (connection.service_account_key) {
-    imports.add("import json");
-    code = dedent(`
-      _credentials = json.loads("""${connection.service_account_key}""")
+  if (!connection.service_account_key) {
+    return {
+      imports,
+      code: dedent(`
+        store = GCSStore(${bucket})
+      `),
+    };
+  }
+
+  const credential = resolveJsonCredential(
+    connection.service_account_key,
+    (v) => secrets.print("service_account_key", v),
+  );
+
+  if (credential.kind === "path") {
+    const code = dedent(`
       store = GCSStore(${bucket},
-          service_account_key=_credentials,
+          service_account_path="${escapePythonString(credential.path)}",
       )
     `);
-  } else {
-    code = dedent(`
-      store = GCSStore(${bucket})
-    `);
+    return { imports, code };
   }
+
+  imports.add("import json");
+  const code = dedent(`
+    _credentials = ${credential.expr}
+    store = GCSStore(${bucket},
+        service_account_key=_credentials,
+    )
+  `);
   return { imports, code };
 }
 
@@ -195,13 +212,20 @@ function generateGDriveCode(
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
   if (connection.credentials_json) {
-    imports.add("import json");
-    const creds = secrets.print(
-      "credentials_json",
-      connection.credentials_json,
+    const credential = resolveJsonCredential(connection.credentials_json, (v) =>
+      secrets.print("credentials_json", v),
     );
+    // gdrive-fsspec accepts a filesystem path as `creds` when the string
+    // doesn't start with "{"; otherwise it expects a JSON object/string.
+    if (credential.kind === "path") {
+      const code = dedent(`
+        fs = GoogleDriveFileSystem(creds="${escapePythonString(credential.path)}", token="service_account", use_listings_cache=False, skip_instance_cache=True)
+      `);
+      return { imports, code };
+    }
+    imports.add("import json");
     const code = dedent(`
-      _creds = json.loads("""${connection.credentials_json?.startsWith("ENV:") ? `{${creds}}` : connection.credentials_json}""")
+      _creds = ${credential.expr}
       fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)
     `);
     return { imports, code };

@@ -2,6 +2,7 @@
 
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
+import { escapePythonString, resolveJsonCredential } from "../json-credentials";
 import { isSecret, unprefixSecret } from "../secrets";
 import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
 
@@ -415,8 +416,14 @@ ${formatUrlParams(params, (inner) => `              ${inner}`)},
 }
 
 class BigQueryGenerator extends CodeGenerator<"bigquery"> {
+  private get credential() {
+    return resolveJsonCredential(this.connection.credentials_json, (v) =>
+      this.secrets.print("credentials_json", v),
+    );
+  }
+
   generateImports(): string[] {
-    return ["import json"];
+    return this.credential.kind === "path" ? [] : ["import json"];
   }
 
   generateConnectionCode(): string {
@@ -428,9 +435,16 @@ class BigQueryGenerator extends CodeGenerator<"bigquery"> {
       "dataset",
       this.connection.dataset,
     );
+    const credential = this.credential;
+
+    if (credential.kind === "path") {
+      return dedent(`
+        engine = ${this.orm}.create_engine(f"bigquery://${project}/${dataset}", credentials_path="${escapePythonString(credential.path)}")
+      `);
+    }
 
     return dedent(`
-      credentials = json.loads("""${this.connection.credentials_json}""")
+      credentials = ${credential.expr}
       engine = ${this.orm}.create_engine(f"bigquery://${project}/${dataset}", credentials_info=credentials)
     `);
   }

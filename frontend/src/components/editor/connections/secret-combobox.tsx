@@ -56,6 +56,16 @@ interface SecretComboboxProps {
   /** Opens the create-secret flow; `suggestedValue` is the current search text when present. */
   onCreateSecret: (suggestedValue?: string) => void;
   className?: string;
+  /** Placeholder for the search input inside the popover. */
+  searchPlaceholder?: string;
+  /** Label for the "commit a free-text literal" item, e.g. `Use "${value}" as a path`. */
+  formatCustomValueLabel?: (value: string) => string;
+  /** Label for the "create a new secret" item. */
+  createSecretLabel?: string;
+  /** When false for the current search, hide the free-text / path option. */
+  allowCustomValue?: (search: string) => boolean;
+  /** When false for the current search, hide the "create a new secret" option. */
+  allowCreateSecret?: (search: string) => boolean;
 }
 
 /**
@@ -73,6 +83,11 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   otherKeys,
   onCreateSecret,
   className,
+  searchPlaceholder,
+  formatCustomValueLabel = (custom) => `Use "${custom}"`,
+  createSecretLabel = "Create a new secret",
+  allowCustomValue,
+  allowCreateSecret,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -81,7 +96,11 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   // Non-secret fields may commit a literal even when it collides with an
   // existing secret key, so we intentionally don't filter out matches here.
   const showCustomValue =
-    !secretsOnly && trimmedSearch.length > 0 && trimmedSearch !== value;
+    !secretsOnly &&
+    trimmedSearch.length > 0 &&
+    trimmedSearch !== value &&
+    (allowCustomValue?.(trimmedSearch) ?? true);
+  const showCreateSecret = allowCreateSecret?.(trimmedSearch) ?? true;
 
   const displayValue = (() => {
     if (!value) {
@@ -158,9 +177,10 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
           <Command>
             <CommandInput
               placeholder={
-                secretsOnly
+                searchPlaceholder ??
+                (secretsOnly
                   ? "Search secrets..."
-                  : "Type a value or search secrets..."
+                  : "Type a value or search secrets...")
               }
               rootClassName="px-1 h-8"
               autoFocus={true}
@@ -174,26 +194,27 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
                     value={`use custom value ${trimmedSearch}`}
                     onSelect={() => selectCustom(trimmedSearch)}
                   >
-                    Use "{trimmedSearch}"
+                    {formatCustomValueLabel(trimmedSearch)}
                   </CommandItem>
                 </CommandGroup>
               )}
-              {showCustomValue && <CommandSeparator />}
-              <CommandGroup className="mt-0">
-                <CommandItem
-                  // Include search so this stays visible while filtering
-                  value={`create new secret ${trimmedSearch}`}
-                  onSelect={() => {
-                    const suggestedValue = trimmedSearch || undefined;
-                    setOpen(false);
-                    setSearch("");
-                    onCreateSecret(suggestedValue);
-                  }}
-                >
-                  <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
-                  Create a new secret
-                </CommandItem>
-              </CommandGroup>
+              {showCreateSecret && (
+                <CommandGroup className="mt-0">
+                  <CommandItem
+                    // Include search so this stays visible while filtering
+                    value={`create new secret ${trimmedSearch}`}
+                    onSelect={() => {
+                      const suggestedValue = trimmedSearch || undefined;
+                      setOpen(false);
+                      setSearch("");
+                      onCreateSecret(suggestedValue);
+                    }}
+                  >
+                    <PlusCircleIcon className="mr-2 h-3.5 w-3.5" />
+                    {createSecretLabel}
+                  </CommandItem>
+                </CommandGroup>
+              )}
               {recommendedKeys.length > 0 && (
                 <>
                   <CommandSeparator className="mt-0" />
