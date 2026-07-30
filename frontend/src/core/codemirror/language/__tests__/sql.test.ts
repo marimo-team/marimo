@@ -27,6 +27,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import type { PlaceholderType } from "../../config/types";
 import { TestSQLCompletionStore } from "../languages/sql/completion-store";
+import * as sqlMode from "../languages/sql/sql-mode";
 import {
   exportedForTesting,
   SQLLanguageAdapter,
@@ -971,6 +972,13 @@ describe("SQL analysis features", () => {
 });
 
 describe("CustomSqlParser", () => {
+  beforeEach(() => {
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map(),
+      latestEngineSelected: DUCKDB_ENGINE,
+    });
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -1020,6 +1028,7 @@ describe("CustomSqlParser", () => {
 
   it("uses backend DuckDB validation", async () => {
     vi.useFakeTimers();
+    vi.spyOn(sqlMode, "getSQLMode").mockReturnValue("validate");
     const error = {
       message: "Backend syntax error",
       line: 1,
@@ -1051,17 +1060,19 @@ describe("CustomSqlParser", () => {
     await vi.runAllTimersAsync();
 
     await expect(result).resolves.toEqual([error]);
-    expect(request).toHaveBeenCalledWith(
-      expect.objectContaining({
-        engine: DUCKDB_ENGINE,
-        onlyParse: true,
-        query: "SELECT",
-      }),
-    );
+    // No connection is registered for the internal engine, so the dialect
+    // falls back to DEFAULT_PARSER_DIALECT ("DuckDB").
+    expect(request).toHaveBeenCalledWith({
+      dialect: "DuckDB",
+      engine: DUCKDB_ENGINE,
+      onlyParse: false,
+      query: "SELECT",
+    });
   });
 
   it("uses backend validation for a named DuckDB connection", async () => {
     vi.useFakeTimers();
+    vi.spyOn(sqlMode, "getSQLMode").mockReturnValue("validate");
     const query =
       'INSERT OR IGNORE INTO "rebalance-dates" (Timestamp) VALUES (CURRENT_TIMESTAMP);';
     const error = {
@@ -1117,6 +1128,30 @@ describe("CustomSqlParser", () => {
       doc: query,
       engine: "postgres_con" as ConnectionName,
       dialect: "postgres",
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+
+    await expect(parser.parse(query, { state })).resolves.toMatchObject({
+      success: false,
+    });
+  });
+
+  it("preserves client-side parsing for an unregistered connection", async () => {
+    // No entry is registered in the data source connections store for this
+    // engine, so its dialect cannot be resolved (unlike a known non-DuckDB
+    // dialect, which resolves to a non-null, non-DuckDB value).
+    const query = "SELECT TOP 1 * FROM users";
+    const state = EditorState.create({
+      doc: query,
+      extensions: [
+        languageMetadataField.init(() => ({
+          dataframeName: "_df",
+          quotePrefix: "f",
+          commentLines: [],
+          showOutput: true,
+          engine: "unregistered_con" as ConnectionName,
+        })),
+      ],
     });
     const parser = new exportedForTesting.CustomSqlParser();
 

@@ -381,7 +381,7 @@ class CustomSqlParser extends NodeSqlParser {
 
   private async validateWithDelay(
     sql: string,
-    engine: string,
+    engine: ConnectionName,
     dialect: ParserDialects | null,
   ): Promise<SqlParseError[]> {
     // Clear any existing delay call
@@ -399,7 +399,11 @@ class CustomSqlParser extends NodeSqlParser {
         }
 
         try {
-          const sqlMode = getSQLMode();
+          // For validate mode, we run EXPLAIN queries on the engine, which can be
+          // expensive for remote databases. So, we only run for internal engines.
+          const sqlMode = INTERNAL_SQL_ENGINES.has(engine)
+            ? getSQLMode()
+            : "default";
           const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
