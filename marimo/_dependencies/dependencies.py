@@ -286,10 +286,6 @@ class DependencyManager:
     cloudpathlib = Dependency("cloudpathlib")
     cryptography = Dependency("cryptography")
 
-    # Version requirements to properly support the new superfences introduced in
-    # pymdown#2470
-    new_superfences = Dependency("pymdownx", min_version="10.11.0")
-
     @staticmethod
     def has(pkg: str) -> bool:
         """Return True if any lib is installed."""
