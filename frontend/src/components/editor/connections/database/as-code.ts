@@ -589,7 +589,22 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
 }
 
 class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
+  private getCatalogOptions(): Record<
+    string,
+    string | number | boolean | undefined
+  > {
+    return Object.fromEntries(
+      Object.entries(this.connection.catalog).filter(
+        ([key, value]) => value != null && value !== "" && key !== "type",
+      ),
+    );
+  }
+
   generateImports(): string[] {
+    if (Object.keys(this.getCatalogOptions()).length === 0) {
+      return ["from pyiceberg.catalog import load_catalog"];
+    }
+
     switch (this.connection.catalog.type) {
       case "REST":
         return ["from pyiceberg.catalog.rest import RestCatalog"];
@@ -607,15 +622,12 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   }
 
   generateConnectionCode(): string {
-    let options: Record<string, string | number | boolean | undefined> = {
-      ...this.connection.catalog,
-    };
-    // Remove k='type' and v=nullish values
-    options = Object.fromEntries(
-      Object.entries(options).filter(
-        ([k, v]) => v != null && v !== "" && k !== "type",
-      ),
-    );
+    const name = `"${this.connection.name}"`;
+    const options = this.getCatalogOptions();
+    if (Object.keys(options).length === 0) {
+      return `catalog = load_catalog(${name})`;
+    }
+
     // Convert to secrets if they are secrets
     for (const [k, v] of Object.entries(options)) {
       if (isSecret(v)) {
@@ -630,8 +642,6 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
       options,
       (line) => `${indent}${line}`,
     );
-
-    const name = `"${this.connection.name}"`;
 
     switch (this.connection.catalog.type) {
       case "REST":
