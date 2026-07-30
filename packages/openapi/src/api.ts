@@ -1157,6 +1157,13 @@ export interface paths {
             "text/plain": string;
           };
         };
+        /** @description Invalid export request */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
       };
     };
     delete?: never;

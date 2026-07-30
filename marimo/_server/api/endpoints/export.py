@@ -282,6 +282,8 @@ async def export_as_script(
                 text/plain:
                     schema:
                         type: string
+        400:
+            description: Invalid export request
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsScriptRequest)

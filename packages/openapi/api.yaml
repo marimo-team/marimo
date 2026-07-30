@@ -6712,6 +6712,8 @@ paths:
               schema:
                 type: string
           description: Export the notebook as a script
+        400:
+          description: Invalid export request
   /api/export/update_cell_outputs:
     post:
       parameters:
