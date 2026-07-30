@@ -184,6 +184,10 @@ class CellRuntimeState(Protocol):
     def stale(self) -> bool: ...
     @property
     def exception(self) -> Exception | None: ...
+    @property
+    def defs(self) -> set[str]: ...
+    @property
+    def refs(self) -> set[str]: ...
 
 
 LOGGER = _loggers.marimo_logger()
@@ -279,6 +283,10 @@ class NotebookCell:
     code : str
     name : str
     config : CellConfig
+    definitions : frozenset[str]
+        Names defined by the cell in the current runtime graph.
+    references : frozenset[str]
+        Names referenced by the cell in the current runtime graph.
     status : CellStatusType | None
         Synthesized execution status. Priority order:
         transient state (queued/running/disabled) > stale > last run result.
@@ -345,6 +353,20 @@ class NotebookCell:
     def config(self) -> CellConfig:
         """The cell's configuration (e.g. disabled, hide_code)."""
         return self._cell.config
+
+    @property
+    def definitions(self) -> frozenset[str]:
+        """Names defined by the cell in the current runtime graph."""
+        return (
+            frozenset() if self._impl is None else frozenset(self._impl.defs)
+        )
+
+    @property
+    def references(self) -> frozenset[str]:
+        """Names referenced by the cell in the current runtime graph."""
+        return (
+            frozenset() if self._impl is None else frozenset(self._impl.refs)
+        )
 
     # -- runtime properties --
 

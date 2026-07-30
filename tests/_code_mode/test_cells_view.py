@@ -404,9 +404,19 @@ class _MockImpl:
     run_result_status: str | None = None
     stale: bool = False
     exception: Exception | None = None
+    defs: set[str] = dataclasses.field(default_factory=set)
+    refs: set[str] = dataclasses.field(default_factory=set)
 
 
 class TestEnrichedCellStatus:
+    def test_definitions_and_references(self) -> None:
+        cell = _cell("a", "y = x + 1")
+        impl = _MockImpl(defs={"y"}, refs={"x"})
+        enriched = EnrichedCell(cell, impl)
+
+        assert enriched.definitions == frozenset({"y"})
+        assert enriched.references == frozenset({"x"})
+
     def test_no_impl_empty_returns_none(self) -> None:
         cell = _cell("a", "")
         enriched = EnrichedCell(cell, None)
