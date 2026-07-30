@@ -84,6 +84,7 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
     ) -> TransportConnectorResponse:
         # Import MCP SDK components for streamable HTTP transport
         import httpx
+
         from mcp.client.streamable_http import streamable_http_client
 
         # Type narrowing for mypy
