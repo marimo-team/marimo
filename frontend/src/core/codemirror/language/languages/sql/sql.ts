@@ -372,6 +372,8 @@ class DialectAwareSqlStructureAnalyzer extends SqlStructureAnalyzer {
 
 class CustomSqlParser extends NodeSqlParser {
   private validationTimeout: number | null = null;
+  private pendingValidationResolve: ((errors: SqlParseError[]) => void) | null =
+    null;
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
   private isFocused = false; // Only validate if the editor is focused
 
@@ -379,22 +381,32 @@ class CustomSqlParser extends NodeSqlParser {
     this.isFocused = focused;
   }
 
+  private resolvePendingValidation(errors: SqlParseError[]): void {
+    this.pendingValidationResolve?.(errors);
+    this.pendingValidationResolve = null;
+  }
+
   private async validateWithDelay(
     sql: string,
     engine: ConnectionName,
     dialect: ParserDialects | null,
   ): Promise<SqlParseError[]> {
-    // Clear any existing delay call
+    // Clear any existing delay call, resolving its promise so a superseded
+    // request doesn't hang forever.
     if (this.validationTimeout) {
       window.clearTimeout(this.validationTimeout);
+      this.resolvePendingValidation([]);
     }
 
     // Set up a new request to be called after the delay
     return new Promise((resolve) => {
+      this.pendingValidationResolve = resolve;
       this.validationTimeout = window.setTimeout(async () => {
+        this.validationTimeout = null;
+
         // Only validate if the editor is still focused
         if (!this.isFocused) {
-          resolve([]);
+          this.resolvePendingValidation([]);
           return;
         }
 
@@ -407,13 +419,13 @@ class CustomSqlParser extends NodeSqlParser {
           const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
-            resolve([]);
+            this.resolvePendingValidation([]);
             return;
           }
-          resolve(result.parse_result?.errors ?? []);
+          this.resolvePendingValidation(result.parse_result?.errors ?? []);
         } catch (error) {
           Logger.error("Failed to validate SQL", { error });
-          resolve([]);
+          this.resolvePendingValidation([]);
         }
       }, this.VALIDATION_DELAY_MS);
     });
