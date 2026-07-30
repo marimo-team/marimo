@@ -54,8 +54,8 @@ export const ViewerBanner = () => {
   // A zero-height sticky row pins the banner to the top-left of the notebook
   // scroll area, so it stays visible while scrolling without reserving space in
   // the flow. Because it reserves no space, the banner visually overlaps the
-  // app header, which is itself sticky at z-50; the higher z-index keeps the
-  // header from covering the button and swallowing its clicks.
+  // app header (sticky at z-50); setting the banner to z-100 keeps the header
+  // from covering the button and swallowing its clicks.
   return (
     <div className="sticky top-2 left-2 z-100 h-0 ml-2 w-fit print:hidden">
       <Banner
