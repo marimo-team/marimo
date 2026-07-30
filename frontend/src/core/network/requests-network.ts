@@ -437,6 +437,15 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleExportResponse);
     },
+    exportAsScript: async (request) => {
+      return getClient()
+        .POST("/api/export/script", {
+          body: request,
+          parseAs: "text",
+          params: getParams(),
+        })
+        .then(handleExportResponse);
+    },
     exportAsIPYNB: async (request) => {
       return getClient()
         .POST("/api/export/ipynb", {

@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -281,8 +282,6 @@ async def export_as_script(
                 text/plain:
                     schema:
                         type: string
-        400:
-            description: File must be saved before downloading
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsScriptRequest)
@@ -290,22 +289,20 @@ async def export_as_script(
 
     result = export_script(
         ScriptExportRequest(
-            notebook=session.app_file_manager.app.to_ir(),
+            notebook=replace(
+                session.app_file_manager.app.to_ir(),
+                filename=session.app_file_manager.filename,
+            ),
         )
     )
-    filename = get_download_filename(
-        session.app_file_manager.filename, "script.py"
-    )
-
-    if body.download:
-        headers = make_download_headers(filename)
-    else:
-        headers = {}
 
     # Download the Script
     return PlainTextResponse(
         content=result.text,
-        headers=headers,
+        headers=make_export_headers(
+            result.download_filename,
+            download=body.download,
+        ),
     )
 
 

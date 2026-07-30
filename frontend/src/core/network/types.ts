@@ -226,6 +226,9 @@ export interface EditRequests {
   exportAsMarkdown: (
     request: ExportAsMarkdownRequest,
   ) => Promise<ExportedFile<string>>;
+  exportAsScript: (
+    request: ExportAsScriptRequest,
+  ) => Promise<ExportedFile<string>>;
   exportAsPDF: (request: ExportAsPDFRequest) => Promise<ExportedFile<Blob>>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
   autoExportAsMarkdown: (request: AutoExportAsMarkdownRequest) => Promise<null>;

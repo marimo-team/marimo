@@ -1072,6 +1072,33 @@ def test_pyodide_bridge_export_markdown(
     assert expected_fence in exported_file["contents"]
 
 
+@pytest.mark.parametrize(
+    ("filename", "expected_filename"),
+    [
+        ("renamed.py", "renamed.script.py"),
+        (None, "notebook.script.py"),
+    ],
+)
+def test_pyodide_bridge_export_script(
+    pyodide_bridge: PyodideBridge,
+    filename: str | None,
+    expected_filename: str,
+) -> None:
+    pyodide_bridge.session.app_manager.filename = filename
+    result = pyodide_bridge.export_script(
+        json.dumps(
+            {
+                "download": False,
+            }
+        )
+    )
+    exported_file = json.loads(result)
+
+    assert exported_file["filename"] == expected_filename
+    assert exported_file["mediaType"] == "text/plain; charset=utf-8"
+    assert '# %%\n"Hello, world!"' in exported_file["contents"]
+
+
 async def test_pyodide_bridge_read_snippets(
     pyodide_bridge: PyodideBridge,
     default_snippets: Any,

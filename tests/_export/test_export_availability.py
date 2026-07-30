@@ -34,6 +34,7 @@ def test_export_requirements_when_dependencies_are_installed() -> None:
             "markdown": [],
             "ipynb": [],
             "pdf": [],
+            "script": [],
         }
 
 

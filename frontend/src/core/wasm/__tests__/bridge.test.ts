@@ -2,7 +2,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockNotebookReadFile, rpcListeners } = vi.hoisted(() => ({
+const { mockBridge, mockNotebookReadFile, rpcListeners } = vi.hoisted(() => ({
+  mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
   rpcListeners: {} as Record<string, () => void>,
 }));
@@ -28,7 +29,7 @@ vi.mock("@/core/wasm/rpc", () => ({
   getWorkerRPC: () => ({
     proxy: {
       request: {
-        bridge: vi.fn(),
+        bridge: mockBridge,
         startSession: vi.fn(),
         readFile: vi.fn(),
         readNotebook: vi.fn(),
@@ -109,6 +110,31 @@ describe("PyodideBridge.readCode", () => {
     await PyodideBridge.INSTANCE.readCode();
 
     expect(mockNotebookReadFile).not.toHaveBeenCalled();
+  });
+});
+
+describe("PyodideBridge.exportAsScript", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the script export from the Python bridge", async () => {
+    const exportedFile = {
+      contents: '# %%\nprint("hello")',
+      filename: "notebook.script.py",
+      mediaType: "text/plain; charset=utf-8",
+    };
+    mockBridge.mockResolvedValue(exportedFile);
+
+    const result = await PyodideBridge.INSTANCE.exportAsScript({
+      download: false,
+    });
+
+    expect(mockBridge).toHaveBeenCalledWith({
+      functionName: "export_script",
+      payload: { download: false },
+    });
+    expect(result).toEqual(exportedFile);
   });
 });
 

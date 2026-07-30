@@ -1957,6 +1957,7 @@ components:
           - ipynb
           - markdown
           - pdf
+          - script
         missingPackages:
           items:
             type: string
@@ -6711,8 +6712,6 @@ paths:
               schema:
                 type: string
           description: Export the notebook as a script
-        400:
-          description: File must be saved before downloading
   /api/export/update_cell_outputs:
     post:
       parameters:

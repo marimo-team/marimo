@@ -88,6 +88,11 @@ export const MockRequestClient = {
             dependenciesAvailable: true,
             missingPackages: [],
           },
+          {
+            format: "script",
+            dependenciesAvailable: true,
+            missingPackages: [],
+          },
         ],
       }),
       exportAsHTML: vi.fn().mockResolvedValue({
@@ -103,6 +108,11 @@ export const MockRequestClient = {
       exportAsMarkdown: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.md",
+        mediaType: "text/plain; charset=utf-8",
+      }),
+      exportAsScript: vi.fn().mockResolvedValue({
+        contents: "",
+        filename: "notebook.script.py",
         mediaType: "text/plain; charset=utf-8",
       }),
       exportAsPDF: vi.fn().mockResolvedValue({

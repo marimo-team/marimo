@@ -261,6 +261,7 @@ expected_methods = [
     "update_file",
     "export_html",
     "export_markdown",
+    "export_script",
 ]
 
 missing_methods = []

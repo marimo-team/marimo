@@ -12,6 +12,7 @@ import type {
   EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportAsScriptRequest,
   ExportedFile,
   FileCopyRequest,
   FileCopyResponse,
@@ -101,6 +102,7 @@ export interface RawBridge {
   export_markdown(
     request: ExportAsMarkdownRequest,
   ): Promise<ExportedFile<string>>;
+  export_script(request: ExportAsScriptRequest): Promise<ExportedFile<string>>;
 }
 
 export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge

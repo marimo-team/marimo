@@ -7,8 +7,10 @@ import re
 import shutil
 import time
 from pathlib import Path
+from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest.mock import patch
+from urllib.parse import quote
 
 import pytest
 
@@ -22,6 +24,7 @@ from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.export_options import PDFExportOptions
 from marimo._session.model import SessionMode
+from marimo._session.notebook.file_manager import AppFileManager
 from marimo._types.ids import CellId_t, SessionId
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
@@ -110,6 +113,11 @@ def test_export_availability_reports_server_dependencies(
                 "format": "pdf",
                 "dependenciesAvailable": False,
                 "missingPackages": ["nbconvert[webpdf]"],
+            },
+            {
+                "format": "script",
+                "dependenciesAvailable": True,
+                "missingPackages": [],
             },
         ],
     }
@@ -263,6 +271,38 @@ def test_export_html_no_code_in_read(client: TestClient) -> None:
 
 @with_session(SESSION_ID)
 def test_export_script(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = "test.py"
+
+    response = client.post(
+        "/api/export/script",
+        headers={**HEADERS, "Origin": "localhost"},
+        json={
+            "download": False,
+        },
+    )
+    assert response.status_code == 200
+    assert f'__generated_with = "{__version__}"' in response.text
+    assert "# %%\nimport marimo as mo" in response.text
+    assert "app = marimo.App" not in response.text
+    assert "@app.cell" not in response.text
+    assert "app.run()" not in response.text
+    assert (
+        response.headers["content-disposition"]
+        == "inline; filename*=UTF-8''test.script.py"
+    )
+    assert response.headers["content-type"] == "text/plain; charset=utf-8"
+    exposed_headers = response.headers["access-control-expose-headers"].lower()
+    assert "content-disposition" in exposed_headers
+
+
+@with_session(SESSION_ID)
+def test_export_script_uses_unnamed_filename(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.filename = None
+
     response = client.post(
         "/api/export/script",
         headers=HEADERS,
@@ -270,8 +310,57 @@ def test_export_script(client: TestClient) -> None:
             "download": False,
         },
     )
+
     assert response.status_code == 200
-    assert "__generated_with = " in response.text
+    assert (
+        response.headers["content-disposition"]
+        == "inline; filename*=UTF-8''notebook.script.py"
+    )
+
+
+@with_session(SESSION_ID)
+def test_export_script_uses_topological_order(
+    client: TestClient,
+    *,
+    temp_marimo_file: str,
+) -> None:
+    Path(temp_marimo_file).write_text(
+        dedent(
+            """
+            import marimo
+
+            app = marimo.App()
+
+            @app.cell
+            def _(x):
+                y = x + 1
+                return (y,)
+
+            @app.cell
+            def _():
+                x = 1
+                return (x,)
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        ),
+        encoding="utf-8",
+    )
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager = AppFileManager(temp_marimo_file)
+
+    response = client.post(
+        "/api/export/script",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.text.index("x = 1") < response.text.index("y = x + 1")
 
 
 @pytest.mark.xfail(reason="flakey", strict=False)
@@ -918,8 +1007,14 @@ def test_export_script_download_edge_case_filenames(
             },
         )
         assert response.status_code == 200, f"Failed for filename: {filename}"
-        assert "Content-Disposition" in response.headers
-        assert "attachment" in response.headers["Content-Disposition"]
+        encoded_filename = quote(
+            f"{Path(filename).stem}.script.py",
+            safe="",
+        )
+        assert (
+            response.headers["Content-Disposition"]
+            == f"attachment; filename*=UTF-8''{encoded_filename}"
+        )
 
 
 @pytest.mark.skipif(

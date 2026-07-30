@@ -19,6 +19,7 @@ import type {
   EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportAsScriptRequest,
   ExportedFile,
   FileCopyResponse,
   FileCreateResponse,
@@ -529,6 +530,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
   ) => {
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
+      payload: request,
+    });
+    return response as ExportedFile<string>;
+  };
+
+  exportAsScript: EditRequests["exportAsScript"] = async (
+    request: ExportAsScriptRequest,
+  ) => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "export_script",
       payload: request,
     });
     return response as ExportedFile<string>;

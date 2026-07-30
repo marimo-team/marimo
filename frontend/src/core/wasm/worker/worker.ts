@@ -287,8 +287,11 @@ const requestHandler = createRPCRequestHandler({
         `);
     }
 
-    // Special case to lazily install PyYAML on export_markdown
-    if (functionName === "export_markdown") {
+    // Script export also parses Markdown frontmatter when present.
+    if (
+      functionName === "export_markdown" ||
+      functionName === "export_script"
+    ) {
       await self.pyodide.runPythonAsync(`
         import micropip
 
