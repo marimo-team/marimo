@@ -17,10 +17,11 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
-    # - 10.11.2 introduced the codeblock handling we rely on
-    # - 10.21.2 stopped passing `filename=None` to pygments (broken on
-    #   pygments>=2.20)
-    "pymdown-extensions>=10.21.2,<12",
+    # - 11.0.0 fixed a path traversal in the `b64` extension, which we enable
+    #   under WASM (CVE-2026-61632)
+    # - 11.0.1 fixed a ReDoS in the caret/tilde/magiclink inline processors,
+    #   which we enable by default (CVE-2026-67422)
+    "pymdown-extensions>=11.0.1,<12",
     # syntax highlighting of code in markdown
     "pygments>=2.19,<3",
     # for reading, writing configs
@@ -293,7 +294,7 @@ docs = [
     "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
     "cairosvg>=2.7.1",  # for social cards
     "mdx-include>=1.4.2",
-    "pymdown-extensions>=10.21.2",
+    "pymdown-extensions>=11.0.1",
     "lzstring>=1.0.4",
     "beautifulsoup4>=4.12.0",
     "markdownify>=0.13.0",
