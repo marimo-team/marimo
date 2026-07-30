@@ -263,6 +263,61 @@ describe("Model", () => {
       await TestUtils.nextTick(); // flush
       expect(callback).toHaveBeenCalledTimes(1);
     });
+
+    it("should not mark kernel-pushed state dirty", () => {
+      getMarimoInternal(model).updateAndEmitDiffs({ foo: "changed", bar: 456 });
+
+      model.save_changes();
+      expect(mockComm.sendUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should not echo kernel-pushed state alongside a local set", () => {
+      // Kernel pushes a large trait; widget ESM then sets one field.
+      getMarimoInternal(model).updateAndEmitDiffs({
+        foo: "from kernel",
+        bar: 123,
+      });
+      model.set("bar", 456);
+
+      model.save_changes();
+      expect(mockComm.sendUpdate).toHaveBeenCalledExactlyOnceWith({
+        bar: 456,
+      });
+    });
+
+    it("should drop a pending local write superseded by a kernel push", () => {
+      // Local write, not yet saved...
+      model.set("foo", "local");
+      // ...then the kernel pushes a newer value for the same key.
+      getMarimoInternal(model).updateAndEmitDiffs({
+        foo: "from kernel",
+        bar: 123,
+      });
+      expect(model.get("foo")).toBe("from kernel");
+
+      // Saving must not resend the stale local value.
+      model.save_changes();
+      expect(mockComm.sendUpdate).not.toHaveBeenCalled();
+    });
+
+    it("should drop a pending local write the kernel pushed the same value for", () => {
+      const callback = vi.fn();
+      model.on("change:foo", callback);
+
+      // Local write, not yet saved...
+      model.set("foo", "agreed");
+      expect(callback).toHaveBeenCalledTimes(1);
+
+      // ...then the kernel independently pushes the same value.
+      getMarimoInternal(model).updateAndEmitDiffs({
+        foo: "agreed",
+        bar: 123,
+      });
+      expect(callback).toHaveBeenCalledTimes(1); // no spurious re-emit
+
+      model.save_changes();
+      expect(mockComm.sendUpdate).not.toHaveBeenCalled();
+    });
   });
 
   describe("emitCustomMessage", () => {
