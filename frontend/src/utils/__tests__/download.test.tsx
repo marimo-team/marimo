@@ -205,9 +205,26 @@ describe("downloadAsPDF", () => {
       webpdf: false,
       preset: "slides",
       includeInputs: true,
-      rasterizeOutputs: true,
-      rasterScale: 4,
-      rasterServer: "static",
+      includeOutputs: true,
+    });
+  });
+
+  it("should send input and output selections", async () => {
+    mockExportAsPDF.mockRejectedValue(new Error("network"));
+
+    await expect(
+      downloadAsPDF({
+        webpdf: true,
+        includeInputs: false,
+        includeOutputs: false,
+      }),
+    ).rejects.toThrow("network");
+
+    expect(mockExportAsPDF).toHaveBeenCalledWith({
+      webpdf: true,
+      preset: "document",
+      includeInputs: false,
+      includeOutputs: false,
     });
   });
 });

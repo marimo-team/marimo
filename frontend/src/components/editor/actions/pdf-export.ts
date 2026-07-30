@@ -1,23 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 type Preset = "document" | "slides";
-type DownloadPDF = (opts: {
+interface PDFExportOptions {
   webpdf: boolean;
   preset: Preset;
   includeInputs: boolean;
-  rasterServer: "live" | "static";
-}) => Promise<void>;
+  includeOutputs: boolean;
+}
+type DownloadPDF = (opts: PDFExportOptions) => Promise<void>;
 
 export async function runServerSidePDFDownload(opts: {
-  preset: Preset;
+  exportOptions: PDFExportOptions;
+  captureOutputs: () => Promise<void>;
   downloadPDF: DownloadPDF;
 }): Promise<void> {
-  const { preset, downloadPDF } = opts;
+  const { exportOptions, captureOutputs, downloadPDF } = opts;
 
-  await downloadPDF({
-    webpdf: false,
-    preset,
-    includeInputs: true,
-    rasterServer: "static",
-  });
+  if (exportOptions.includeOutputs) {
+    await captureOutputs();
+  }
+  await downloadPDF(exportOptions);
 }

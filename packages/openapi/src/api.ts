@@ -4689,20 +4689,13 @@ export interface components {
     ExportAsPDFRequest: {
       /** @default false */
       includeInputs?: boolean;
+      /** @default true */
+      includeOutputs?: boolean;
       /**
        * @default document
        * @enum {unknown}
        */
       preset?: "document" | "slides";
-      /** @default 4 */
-      rasterScale?: number;
-      /**
-       * @default static
-       * @enum {unknown}
-       */
-      rasterServer?: "live" | "static";
-      /** @default true */
-      rasterizeOutputs?: boolean;
       webpdf: boolean;
     };
     /** ExportAsScriptRequest */
