@@ -182,7 +182,11 @@ export const SECRET_TEXTAREA_RENDERER: FormRenderer<z.ZodString> = {
                   content="Enter a path to a file on disk, or create a secret to paste JSON directly."
                   delayDuration={300}
                 >
-                  <button type="button" className="inline-flex">
+                  <button
+                    type="button"
+                    className="inline-flex"
+                    aria-label="Credential input help"
+                  >
                     <InfoIcon className="h-3.5 w-3.5" />
                   </button>
                 </Tooltip>
