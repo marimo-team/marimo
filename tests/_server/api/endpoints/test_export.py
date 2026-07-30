@@ -385,6 +385,33 @@ def test_export_markdown(client: TestClient) -> None:
 
 
 @with_session(SESSION_ID)
+def test_export_markdown_uses_current_session_state(
+    client: TestClient,
+) -> None:
+    app = App()
+
+    @app.cell()
+    def _():
+        current_session_value = "unsaved"
+        return (current_session_value,)
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.app = InternalApp(app)
+
+    response = client.post(
+        "/api/export/markdown",
+        headers=HEADERS,
+        json={
+            "download": False,
+        },
+    )
+
+    assert response.status_code == 200
+    assert 'current_session_value = "unsaved"' in response.text
+
+
+@with_session(SESSION_ID)
 def test_export_markdown_uses_qmd_filename(
     client: TestClient, *, temp_marimo_file: str
 ) -> None:

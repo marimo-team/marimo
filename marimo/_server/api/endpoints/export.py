@@ -339,8 +339,6 @@ async def export_as_markdown(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsMarkdownRequest)
     app_file_manager = app_state.require_current_session().app_file_manager
-    # Reload the file manager to get the latest state
-    app_file_manager.reload()
 
     if not app_file_manager.path:
         raise HTTPException(
