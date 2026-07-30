@@ -66,7 +66,7 @@ import { getSQLMode, type SQLMode } from "./sql-mode";
 import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
-const DEFAULT_PARSER_DIALECT = "DuckDB";
+const DEFAULT_PARSER_DIALECT: ParserDialects = "DuckDB";
 
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
@@ -420,19 +420,23 @@ class CustomSqlParser extends NodeSqlParser {
     opts: { state: EditorState },
   ): Promise<SqlParseError[]> {
     const metadata = getSQLMetadata(opts.state);
+    const dialect = connectionNameToParserDialect(metadata.engine);
 
     // Only validate if the editor is focused
     if (!this.isFocused) {
       return [];
     }
 
-    // Only perform custom validation for DuckDB
-    if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
+    // Only perform custom validation for DuckDB as we have a custom validation endpoint for it.
+    if (!isDuckDBConnection(metadata.engine, dialect)) {
       return super.validateSql(sql, opts);
     }
 
-    const dialect = guessParserDialect(opts.state);
-    return this.validateWithDelay(sql, metadata.engine, dialect);
+    return this.validateWithDelay(
+      sql,
+      metadata.engine,
+      dialect ?? DEFAULT_PARSER_DIALECT,
+    );
   }
 
   override async parse(
@@ -441,14 +445,22 @@ class CustomSqlParser extends NodeSqlParser {
   ): Promise<NodeSqlParserResult> {
     const metadata = getSQLMetadata(opts.state);
     const engine = metadata.engine;
+    const dialect = connectionNameToParserDialect(engine);
 
     // For now, always return success for DuckDB
-    if (engine === DUCKDB_ENGINE) {
+    if (isDuckDBConnection(engine, dialect)) {
       return { success: true, errors: [] };
     }
 
     return super.parse(sql, opts);
   }
+}
+
+function isDuckDBConnection(
+  engine: ConnectionName,
+  dialect: ParserDialects | null,
+): boolean {
+  return engine === DUCKDB_ENGINE || dialect === "DuckDB";
 }
 
 /**
