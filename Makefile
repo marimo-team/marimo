@@ -190,6 +190,15 @@ docs:
 docs-serve:
 	uv run --group docs mkdocs serve --clean
 
+.PHONY: docs-llms
+# 📚 Build docs + generate per-page .md files and the llms.txt index into site/
+docs-llms: docs
+	uv run --group docs python docs/scripts/html_to_markdown.py \
+		--input-dir site --base-url https://docs.marimo.io
+	uv run --group docs python docs/scripts/generate_llms_txt.py \
+		--input-dir site --base-url https://docs.marimo.io \
+		--output-index site/llms.txt
+
 .PHONY: storybook
 # 🧩 Start Storybook for UI development
 storybook:
