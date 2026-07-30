@@ -185,7 +185,7 @@ engine = sqlalchemy.create_engine(TRINO_URL)""",
     )
 
 
-def test_password_without_port_uses_https_default() -> None:
+def test_password_without_port_does_not_change_default_port() -> None:
     detected = discover(
         DiscoveryContext(
             environment={
@@ -197,8 +197,44 @@ def test_password_without_port_uses_https_default() -> None:
         )
     )
 
-    assert '"http_scheme": "https"' in detected[0].code
-    assert "port=443" in detected[0].code
+    assert [
+        line.strip()
+        for line in detected[0].code.splitlines()
+        if "http_scheme" in line or "port=" in line
+    ] == snapshot(
+        [
+            '"http_scheme": "https",',
+            "port=8080,",
+        ]
+    )
+
+
+@pytest.mark.parametrize(
+    "port",
+    [
+        "not-a-port",
+        "0",
+        "-1",
+        "65536",
+    ],
+)
+def test_invalid_port_uses_default(port: str) -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "TRINO_HOST": "secret-host",
+                "TRINO_PORT": port,
+                "TRINO_USER": "secret-user",
+                "TRINO_CATALOG": "secret-catalog",
+            }
+        )
+    )
+
+    assert [
+        configuration.field for configuration in detected[0].configuration
+    ] == snapshot(["Host", "Username", "Catalog"])
+    assert "port=8080" in detected[0].code
+    assert "TRINO_PORT" not in detected[0].code
 
 
 @pytest.mark.parametrize(

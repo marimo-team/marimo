@@ -48,4 +48,10 @@ async def test_discovery_reads_live_kernel_environment(
     assert [source.integration for source in results[0].sources] == [
         "postgres"
     ]
-    load_resolved_catalogs.assert_called_once_with()
+    load_resolved_catalogs.assert_called_once_with(
+        environment={
+            "PGHOST": "host",
+            "PGUSER": "user",
+            "PGDATABASE": "database",
+        }
+    )

@@ -102,6 +102,59 @@ def test_ignores_partial_mysql_environment() -> None:
     assert detected == snapshot([])
 
 
+def test_discovers_mysql_password_environment() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "MYSQL_HOST": "secret-host",
+                "MYSQL_USER": "secret-user",
+                "MYSQL_PASSWORD": "secret-password",
+                "MYSQL_DATABASE": "secret-database",
+            }
+        )
+    )
+
+    builtins = msgspec.json.decode(msgspec.json.encode(detected))
+    assert builtins[0]["configuration"][2] == snapshot(
+        {
+            "field": "Password",
+            "value": {
+                "kind": "environment-variable",
+                "name": "MYSQL_PASSWORD",
+            },
+        }
+    )
+    assert 'password=os.environ["MYSQL_PASSWORD"]' in builtins[0]["code"]
+    assert "secret-" not in repr(builtins)
+
+
+def test_prefers_mysql_password_over_mysql_pwd() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "MYSQL_HOST": "host",
+                "MYSQL_USER": "user",
+                "MYSQL_PASSWORD": "password",
+                "MYSQL_PWD": "legacy-password",
+                "MYSQL_DATABASE": "database",
+            }
+        )
+    )
+
+    builtins = msgspec.json.decode(msgspec.json.encode(detected))
+    assert builtins[0]["configuration"][2] == snapshot(
+        {
+            "field": "Password",
+            "value": {
+                "kind": "environment-variable",
+                "name": "MYSQL_PASSWORD",
+            },
+        }
+    )
+    assert 'password=os.environ["MYSQL_PASSWORD"]' in detected[0].code
+    assert "MYSQL_PWD" not in detected[0].code
+
+
 def test_ignores_empty_required_value() -> None:
     detected = discover(
         DiscoveryContext(
@@ -109,6 +162,20 @@ def test_ignores_empty_required_value() -> None:
                 "MYSQL_HOST": "host",
                 "MYSQL_USER": "user",
                 "MYSQL_PWD": "",
+                "MYSQL_DATABASE": "database",
+            }
+        )
+    )
+
+    assert detected == snapshot([])
+
+
+def test_ignores_environment_without_password() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "MYSQL_HOST": "host",
+                "MYSQL_USER": "user",
                 "MYSQL_DATABASE": "database",
             }
         )
@@ -130,5 +197,26 @@ def test_uses_default_for_empty_optional_port() -> None:
         )
     )
 
+    assert "port=3306" in detected[0].code
+    assert "MYSQL_TCP_PORT" not in detected[0].code
+
+
+def test_uses_default_for_malformed_optional_port() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "MYSQL_HOST": "host",
+                "MYSQL_USER": "user",
+                "MYSQL_PWD": "password",
+                "MYSQL_DATABASE": "database",
+                "MYSQL_TCP_PORT": "not-a-port",
+            }
+        )
+    )
+
+    builtins = msgspec.json.decode(msgspec.json.encode(detected))
+    assert [
+        item["field"] for item in builtins[0]["configuration"]
+    ] == snapshot(["Host", "Username", "Password", "Database"])
     assert "port=3306" in detected[0].code
     assert "MYSQL_TCP_PORT" not in detected[0].code

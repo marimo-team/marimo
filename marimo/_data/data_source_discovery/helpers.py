@@ -32,6 +32,17 @@ def has_all(environment: Mapping[str, str], names: tuple[str, ...]) -> bool:
     return all(has_value(environment, name) for name in names)
 
 
+def is_valid_port(value: str | None) -> bool:
+    """Return whether a value is a valid integer network port."""
+    if value is None:
+        return False
+    try:
+        port = int(value)
+    except ValueError:
+        return False
+    return 1 <= port <= 65535
+
+
 def environment_variable(
     field: str, name: str
 ) -> DetectedDataSourceConfiguration:

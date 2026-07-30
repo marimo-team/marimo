@@ -38,6 +38,7 @@ async def discover_data_sources(request: Request) -> BaseResponse:
             type: string
           required: true
     requestBody:
+        required: true
         content:
             application/json:
                 schema:

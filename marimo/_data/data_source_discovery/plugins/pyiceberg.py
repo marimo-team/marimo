@@ -9,6 +9,7 @@ from typing import cast
 
 import yaml
 
+from marimo import _loggers
 from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
     RESOLVED_CONFIGURATION_ORIGIN,
@@ -42,6 +43,7 @@ CATALOG_TYPE_LABELS = {
 CatalogConfiguration = Mapping[str, object]
 CatalogConfigurations = Mapping[str, CatalogConfiguration]
 CatalogConfigurationLoader = Callable[[], CatalogConfigurations]
+LOGGER = _loggers.marimo_logger()
 
 
 def discover(
@@ -49,9 +51,19 @@ def discover(
     load_catalogs: CatalogConfigurationLoader | None = None,
 ) -> list[DetectedDataSource]:
     environment_sources = _detect_environment_catalogs(context.environment)
-    resolved_sources = _detect_resolved_catalogs(
-        (load_catalogs or _load_resolved_catalogs)()
-    )
+    try:
+        catalogs = (
+            load_catalogs()
+            if load_catalogs is not None
+            else _load_resolved_catalogs(environment=context.environment)
+        )
+        resolved_sources = _detect_resolved_catalogs(catalogs)
+    except Exception as exc:
+        LOGGER.warning(
+            "PyIceberg resolved configuration discovery failed (%s)",
+            type(exc).__name__,
+        )
+        resolved_sources = []
     return _merge_catalogs([*environment_sources, *resolved_sources])
 
 
@@ -135,7 +147,9 @@ def _load_resolved_catalogs(
     current_directory: Path | None = None,
 ) -> CatalogConfigurations:
     """Resolve catalogs with the same PyIceberg configuration used at runtime."""
-    if DependencyManager.pyiceberg.has(quiet=True):
+    # PyIceberg's `Config` reads the live process environment directly. Only
+    # use it when the caller has not supplied an environment snapshot.
+    if environment is None and DependencyManager.pyiceberg.has(quiet=True):
         from pyiceberg.utils.config import Config
 
         config = Config()
@@ -146,7 +160,7 @@ def _load_resolved_catalogs(
             for name in config.get_known_catalogs()
         }
 
-    return _load_catalogs_from_configuration_file(
+    catalogs = _load_catalogs_from_configuration_file(
         environment=os.environ if environment is None else environment,
         home_directory=Path.home()
         if home_directory is None
@@ -154,6 +168,10 @@ def _load_resolved_catalogs(
         current_directory=Path.cwd()
         if current_directory is None
         else current_directory,
+    )
+    return _apply_environment_catalog_overrides(
+        catalogs,
+        os.environ if environment is None else environment,
     )
 
 
@@ -184,6 +202,36 @@ def _load_catalogs_from_configuration_file(
         return _catalogs_from_file_config(_lowercase_keys(config))
 
     return {}
+
+
+def _apply_environment_catalog_overrides(
+    catalogs: CatalogConfigurations,
+    environment: Mapping[str, str],
+) -> CatalogConfigurations:
+    """Apply environment metadata to catalogs resolved from a config file."""
+    merged = {
+        name: dict(configuration) for name, configuration in catalogs.items()
+    }
+
+    for variable_name, value in environment.items():
+        if not variable_name.startswith(CATALOG_PREFIX):
+            continue
+
+        remainder = variable_name[len(CATALOG_PREFIX) :]
+        catalog_name, separator, property_name = remainder.partition("__")
+        if not separator:
+            continue
+
+        catalog_name = _normalize_key(catalog_name)
+        property_name = _normalize_key(property_name)
+        if (
+            catalog_name not in merged
+            or property_name not in CONFIDENCE_PROPERTIES
+        ):
+            continue
+        merged[catalog_name][property_name] = value
+
+    return merged
 
 
 def _lowercase_keys(value: object) -> object:

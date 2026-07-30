@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import ast
+import os
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -143,6 +144,36 @@ def test_ignores_low_confidence_catalogs() -> None:
     )
 
     assert detected == snapshot([])
+
+
+def test_resolved_configuration_failure_preserves_environment_catalogs() -> (
+    None
+):
+    sentinel = "TOP-SECRET-CONFIGURATION"
+
+    def fail() -> dict[str, dict[str, str]]:
+        raise ValueError(sentinel)
+
+    with patch(
+        "marimo._data.data_source_discovery.plugins.pyiceberg.LOGGER.warning"
+    ) as log_warning:
+        detected = discover(
+            DiscoveryContext(
+                environment={
+                    "PYICEBERG_CATALOG__PROD__URI": ("https://secret.invalid")
+                }
+            ),
+            load_catalogs=fail,
+        )
+
+    payload = msgspec.json.encode(detected).decode()
+    assert [source.id for source in detected] == snapshot(["pyiceberg-prod"])
+    assert sentinel not in payload
+    log_warning.assert_called_once_with(
+        "PyIceberg resolved configuration discovery failed (%s)",
+        "ValueError",
+    )
+    assert sentinel not in repr(log_warning.call_args_list)
 
 
 def test_rejects_unknown_explicit_catalog_type_without_leaking_it() -> None:
@@ -332,6 +363,75 @@ catalog:
     payload = msgspec.json.encode(detected).decode()
     assert "TOP-SECRET-CONFIGURED" not in payload
     assert detected[0].display_name == snapshot("PyIceberg (configured)")
+
+
+def test_discovery_uses_the_context_environment_snapshot(
+    tmp_path: Path,
+) -> None:
+    context_home = tmp_path / "context"
+    process_home = tmp_path / "process"
+    context_home.mkdir()
+    process_home.mkdir()
+    (context_home / ".pyiceberg.yaml").write_text(
+        "catalog:\n  snapshot:\n    type: rest\n",
+        encoding="utf-8",
+    )
+    (process_home / ".pyiceberg.yaml").write_text(
+        "catalog:\n  live-process:\n    type: hive\n",
+        encoding="utf-8",
+    )
+
+    with (
+        patch.dict(
+            os.environ,
+            {"PYICEBERG_HOME": str(process_home)},
+            clear=True,
+        ),
+        patch(
+            "marimo._data.data_source_discovery.plugins.pyiceberg."
+            "DependencyManager.pyiceberg.has",
+            return_value=True,
+        ) as has_pyiceberg,
+    ):
+        detected = discover(
+            DiscoveryContext(environment={"PYICEBERG_HOME": str(context_home)})
+        )
+
+    assert [source.id for source in detected] == snapshot(
+        ["pyiceberg-snapshot"]
+    )
+    has_pyiceberg.assert_not_called()
+
+
+def test_context_environment_overrides_file_catalog_metadata(
+    tmp_path: Path,
+) -> None:
+    configured_home = tmp_path / "configured"
+    configured_home.mkdir()
+    (configured_home / ".pyiceberg.yaml").write_text(
+        "catalog:\n  prod:\n    type: rest\n",
+        encoding="utf-8",
+    )
+
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "PYICEBERG_HOME": str(configured_home),
+                "PYICEBERG_CATALOG__PROD__TYPE": "glue",
+            }
+        )
+    )
+
+    resolved_types: list[str] = []
+    for configuration in detected[0].configuration:
+        if configuration.field != "Type":
+            continue
+        value = configuration.value
+        assert isinstance(value, SafeLiteralDiscoveryValue)
+        resolved_types.append(value.value)
+
+    assert [source.id for source in detected] == snapshot(["pyiceberg-prod"])
+    assert resolved_types == snapshot(["Glue"])
 
 
 def test_empty_configuration_falls_through_to_next_location(

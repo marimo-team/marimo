@@ -6,6 +6,7 @@ from marimo._data.data_source_discovery.helpers import (
     environment_variable,
     has_all,
     has_value,
+    is_valid_port,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -21,8 +22,9 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
     if not has_all(environment, REQUIRED):
         return []
 
+    has_valid_port = is_valid_port(environment.get("TRINO_PORT"))
     configuration = [environment_variable("Host", "TRINO_HOST")]
-    if has_value(environment, "TRINO_PORT"):
+    if has_valid_port:
         configuration.append(environment_variable("Port", "TRINO_PORT"))
     configuration.append(environment_variable("Username", "TRINO_USER"))
     if has_value(environment, "TRINO_PASSWORD"):
@@ -53,8 +55,8 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
     )
     port = (
         '    port=int(os.environ["TRINO_PORT"]),'
-        if has_value(environment, "TRINO_PORT")
-        else f"    port={443 if has_password else 8080},"
+        if has_valid_port
+        else "    port=8080,"
     )
     code = "\n".join(
         [

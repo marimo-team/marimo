@@ -6,6 +6,7 @@ from marimo._data.data_source_discovery.helpers import (
     environment_variable,
     has_all,
     has_value,
+    is_valid_port,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -21,19 +22,20 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
     if not has_all(environment, REQUIRED):
         return []
 
+    has_valid_port = is_valid_port(environment.get("PGPORT"))
     configuration = [
         environment_variable("Host", "PGHOST"),
         environment_variable("Username", "PGUSER"),
         environment_variable("Database", "PGDATABASE"),
     ]
-    if has_value(environment, "PGPORT"):
+    if has_valid_port:
         configuration.append(environment_variable("Port", "PGPORT"))
     if has_value(environment, "PGPASSWORD"):
         configuration.append(environment_variable("Password", "PGPASSWORD"))
 
     port = (
         '    port=int(os.environ["PGPORT"]),'
-        if has_value(environment, "PGPORT")
+        if has_valid_port
         else "    port=5432,"
     )
     password = (

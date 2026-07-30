@@ -6,6 +6,7 @@ from marimo._data.data_source_discovery.helpers import (
     environment_variable,
     has_all,
     has_value,
+    is_valid_port,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -13,26 +14,32 @@ from marimo._data.data_source_discovery.types import (
     DiscoveryPlugin,
 )
 
-REQUIRED = ("MYSQL_HOST", "MYSQL_USER", "MYSQL_PWD", "MYSQL_DATABASE")
+REQUIRED = ("MYSQL_HOST", "MYSQL_USER", "MYSQL_DATABASE")
+PASSWORD_VARIABLES = ("MYSQL_PASSWORD", "MYSQL_PWD")
 
 
 def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
     environment = context.environment
-    if not has_all(environment, REQUIRED):
+    password_variable = next(
+        (name for name in PASSWORD_VARIABLES if has_value(environment, name)),
+        None,
+    )
+    if not has_all(environment, REQUIRED) or password_variable is None:
         return []
 
+    has_valid_port = is_valid_port(environment.get("MYSQL_TCP_PORT"))
     configuration = [
         environment_variable("Host", "MYSQL_HOST"),
         environment_variable("Username", "MYSQL_USER"),
-        environment_variable("Password", "MYSQL_PWD"),
+        environment_variable("Password", password_variable),
         environment_variable("Database", "MYSQL_DATABASE"),
     ]
-    if has_value(environment, "MYSQL_TCP_PORT"):
+    if has_valid_port:
         configuration.append(environment_variable("Port", "MYSQL_TCP_PORT"))
 
     port = (
         '    port=int(os.environ["MYSQL_TCP_PORT"]),'
-        if has_value(environment, "MYSQL_TCP_PORT")
+        if has_valid_port
         else "    port=3306,"
     )
     code = f"""\
@@ -42,7 +49,7 @@ import sqlalchemy
 DATABASE_URL = sqlalchemy.URL.create(
     "mysql+pymysql",
     username=os.environ["MYSQL_USER"],
-    password=os.environ["MYSQL_PWD"],
+    password=os.environ["{password_variable}"],
     host=os.environ["MYSQL_HOST"],
 {port}
     database=os.environ["MYSQL_DATABASE"],

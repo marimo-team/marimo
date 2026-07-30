@@ -128,3 +128,45 @@ def test_uses_defaults_for_empty_optional_values() -> None:
     assert "port=5432" in detected[0].code
     assert "PGPORT" not in detected[0].code
     assert "PGPASSWORD" not in detected[0].code
+
+
+def test_uses_default_for_malformed_optional_port() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "PGHOST": "host",
+                "PGUSER": "user",
+                "PGDATABASE": "database",
+                "PGPORT": "not-a-port",
+            }
+        )
+    )
+
+    builtins = msgspec.json.decode(msgspec.json.encode(detected))
+    assert builtins[0]["configuration"] == snapshot(
+        [
+            {
+                "field": "Host",
+                "value": {
+                    "kind": "environment-variable",
+                    "name": "PGHOST",
+                },
+            },
+            {
+                "field": "Username",
+                "value": {
+                    "kind": "environment-variable",
+                    "name": "PGUSER",
+                },
+            },
+            {
+                "field": "Database",
+                "value": {
+                    "kind": "environment-variable",
+                    "name": "PGDATABASE",
+                },
+            },
+        ]
+    )
+    assert "port=5432" in detected[0].code
+    assert "PGPORT" not in detected[0].code

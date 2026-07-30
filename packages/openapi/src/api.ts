@@ -384,7 +384,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: {
+      requestBody: {
         content: {
           "application/json": components["schemas"]["DiscoverDataSourcesRequest"];
         };
