@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { beforeEach, describe, expect, test } from "vitest";
-import { deserializeBlob, serializeBlob } from "../blob";
+import { deserializeBlob, fileDetailsToBlob, serializeBlob } from "../blob";
 import { blobToString } from "../fileToBase64";
 
 describe("Blob serialization and deserialization", () => {
@@ -49,6 +49,32 @@ describe("Blob serialization and deserialization", () => {
     expect(deserialized).toBeDefined();
     expect(deserialized.size).toBe(imageBlob.size);
     expect(deserialized.type).toBe(imageBlob.type);
+  });
+});
+
+describe("fileDetailsToBlob", () => {
+  test("decodes base64 contents into a binary blob", async () => {
+    const bytes = new Uint8Array([0, 1, 2, 3, 255]);
+    const base64 = btoa(String.fromCharCode(...bytes));
+    const blob = fileDetailsToBlob({
+      contents: base64,
+      mimeType: "image/png",
+      isBase64: true,
+    });
+    expect(blob.type).toBe("image/png");
+    const roundTripped = new Uint8Array(await blob.arrayBuffer());
+    expect(roundTripped).toEqual(bytes);
+  });
+
+  test("treats non-base64 contents as UTF-8 text", async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"></svg>';
+    const blob = fileDetailsToBlob({
+      contents: svg,
+      mimeType: "image/svg+xml",
+      isBase64: false,
+    });
+    expect(blob.type).toBe("image/svg+xml");
+    expect(await blob.text()).toBe(svg);
   });
 });
 

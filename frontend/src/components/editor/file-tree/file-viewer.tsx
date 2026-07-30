@@ -22,12 +22,11 @@ import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { copyToClipboard } from "@/utils/copy";
-import type { Base64String } from "@/utils/json/base64";
 import { downloadFile } from "./download";
 import { FilePreviewHeader } from "./file-header";
 import { FilePreviewMetadata } from "./file-preview-metadata";
 import { getFileRenderMode } from "./file-render-mode";
-import { FileContentRenderer } from "./renderers";
+import { buildMediaSource, FileContentRenderer } from "./renderers";
 
 export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
@@ -226,6 +225,15 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     </Alert>
   );
 
+  const mediaSource =
+    isMedia && data.contents
+      ? buildMediaSource({
+          contents: data.contents,
+          mimeType,
+          isBase64: data.isBase64 ?? false,
+        })
+      : undefined;
+
   return (
     <>
       {header}
@@ -239,11 +247,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
               ? (data.contents ?? undefined)
               : undefined
         }
-        mediaSource={
-          isMedia && data.contents
-            ? { base64: data.contents as Base64String, mime: mimeType }
-            : undefined
-        }
+        mediaSource={mediaSource}
         readOnly={!isText}
         onChange={isText ? setInternalValue : undefined}
         extensions={isText ? [saveKeymapExtension] : []}
