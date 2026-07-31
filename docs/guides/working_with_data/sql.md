@@ -163,8 +163,6 @@ SELECT * FROM my_table
 -- {refresh}
 ```
 
-Both `{refresh}` and `{refresh.value}` create a dependency on the refresh control and work the same way.
-
 Each time the refresh timer fires, the SQL cell re-runs. See the [refresh recipe](../../recipes.md#run-a-cell-on-a-timer) for more details.
 
 ### Manual refresh with a button
@@ -181,13 +179,6 @@ refresh_button
 ```sql
 SELECT * FROM my_table
 -- {refresh_button}
-```
-
-In a **Python cell**, a bare reference to the button on its own line also works:
-
-```python
-refresh_button
-_df = mo.sql(f"""SELECT * FROM my_table""")
 ```
 
 ### Other UI elements
