@@ -27,6 +27,7 @@ import type { HotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { store } from "@/core/state/jotai";
 import type { PlaceholderType } from "../../config/types";
 import { TestSQLCompletionStore } from "../languages/sql/completion-store";
+import * as sqlMode from "../languages/sql/sql-mode";
 import {
   exportedForTesting,
   SQLLanguageAdapter,
@@ -971,13 +972,63 @@ describe("SQL analysis features", () => {
 });
 
 describe("CustomSqlParser", () => {
+  beforeEach(() => {
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map(),
+      latestEngineSelected: DUCKDB_ENGINE,
+    });
+  });
+
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map(),
+      latestEngineSelected: DUCKDB_ENGINE,
+    });
   });
+
+  const createNamedConnectionState = ({
+    doc,
+    engine,
+    dialect,
+  }: {
+    doc: string;
+    engine: ConnectionName;
+    dialect: string;
+  }) => {
+    store.set(dataSourceConnectionsAtom, {
+      connectionsMap: new Map([
+        [
+          engine,
+          {
+            name: engine,
+            dialect,
+            display_name: engine,
+            source: dialect,
+            databases: [],
+          },
+        ],
+      ]),
+      latestEngineSelected: engine,
+    });
+    return EditorState.create({
+      doc,
+      extensions: [
+        languageMetadataField.init(() => ({
+          dataframeName: "_df",
+          quotePrefix: "f",
+          commentLines: [],
+          showOutput: true,
+          engine,
+        })),
+      ],
+    });
+  };
 
   it("uses backend DuckDB validation", async () => {
     vi.useFakeTimers();
+    vi.spyOn(sqlMode, "getSQLMode").mockReturnValue("validate");
     const error = {
       message: "Backend syntax error",
       line: 1,
@@ -1009,13 +1060,146 @@ describe("CustomSqlParser", () => {
     await vi.runAllTimersAsync();
 
     await expect(result).resolves.toEqual([error]);
-    expect(request).toHaveBeenCalledWith(
-      expect.objectContaining({
-        engine: DUCKDB_ENGINE,
-        onlyParse: true,
-        query: "SELECT",
-      }),
-    );
+    // No connection is registered for the internal engine, so the dialect
+    // falls back to DEFAULT_PARSER_DIALECT ("DuckDB").
+    expect(request).toHaveBeenCalledWith({
+      dialect: "DuckDB",
+      engine: DUCKDB_ENGINE,
+      onlyParse: false,
+      query: "SELECT",
+    });
+  });
+
+  it("resolves superseded validation requests instead of leaving them pending", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(sqlMode, "getSQLMode").mockReturnValue("validate");
+    const error = {
+      message: "Backend syntax error",
+      line: 1,
+      column: 1,
+      severity: "error" as const,
+    };
+    vi.spyOn(ValidateSQL, "request").mockResolvedValue({
+      error: null,
+      parse_result: { success: false, errors: [error] },
+      request_id: "request-id",
+      validate_result: null,
+    });
+    const state = EditorState.create({
+      doc: "SELECT",
+      extensions: [
+        languageMetadataField.init(() => ({
+          dataframeName: "_df",
+          quotePrefix: "f",
+          commentLines: [],
+          showOutput: true,
+          engine: DUCKDB_ENGINE,
+        })),
+      ],
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+    parser.setFocusState(true);
+
+    // Simulate a rapid edit: a second validation call arrives before the
+    // first call's internal debounce timer has fired. The first call should
+    // resolve (with no errors) rather than hang forever.
+    const first = parser.validateSql("SELECT 1", { state });
+    await vi.advanceTimersByTimeAsync(100);
+    const second = parser.validateSql("SELECT 2", { state });
+    await vi.runAllTimersAsync();
+
+    await expect(first).resolves.toEqual([]);
+    await expect(second).resolves.toEqual([error]);
+  });
+
+  it("uses backend validation for a named DuckDB connection", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(sqlMode, "getSQLMode").mockReturnValue("validate");
+    const query =
+      'INSERT OR IGNORE INTO "rebalance-dates" (Timestamp) VALUES (CURRENT_TIMESTAMP);';
+    const error = {
+      message: "Named DuckDB backend result",
+      line: 1,
+      column: 1,
+      severity: "error" as const,
+    };
+    const request = vi.spyOn(ValidateSQL, "request").mockResolvedValue({
+      error: null,
+      parse_result: { success: false, errors: [error] },
+      request_id: "request-id",
+      validate_result: null,
+    });
+    const state = createNamedConnectionState({
+      doc: query,
+      engine: "con" as ConnectionName,
+      dialect: "duckdb",
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+    parser.setFocusState(true);
+
+    const result = parser.validateSql(query, { state });
+    await vi.runAllTimersAsync();
+
+    await expect(result).resolves.toEqual([error]);
+    expect(request).toHaveBeenCalledWith({
+      dialect: "DuckDB",
+      engine: "con",
+      onlyParse: true,
+      query,
+    });
+  });
+
+  it("skips client-side parsing for named DuckDB SQL", async () => {
+    const query = "CHECKPOINT;";
+    const state = createNamedConnectionState({
+      doc: query,
+      engine: "con" as ConnectionName,
+      dialect: "duckdb",
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+
+    await expect(parser.parse(query, { state })).resolves.toEqual({
+      success: true,
+      errors: [],
+    });
+  });
+
+  it("preserves client-side parsing for non-DuckDB connections", async () => {
+    const query = "SELECT TOP 1 * FROM users";
+    const state = createNamedConnectionState({
+      doc: query,
+      engine: "postgres_con" as ConnectionName,
+      dialect: "postgres",
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+
+    await expect(parser.parse(query, { state })).resolves.toMatchObject({
+      success: false,
+    });
+  });
+
+  it("preserves client-side parsing for an unregistered connection", async () => {
+    // No entry is registered in the data source connections store for this
+    // engine, so its dialect cannot be resolved (unlike a known non-DuckDB
+    // dialect, which resolves to a non-null, non-DuckDB value).
+    const query = "SELECT TOP 1 * FROM users";
+    const state = EditorState.create({
+      doc: query,
+      extensions: [
+        languageMetadataField.init(() => ({
+          dataframeName: "_df",
+          quotePrefix: "f",
+          commentLines: [],
+          showOutput: true,
+          engine: "unregistered_con" as ConnectionName,
+        })),
+      ],
+    });
+    const parser = new exportedForTesting.CustomSqlParser();
+
+    await expect(parser.parse(query, { state })).resolves.toMatchObject({
+      success: false,
+    });
   });
 });
 

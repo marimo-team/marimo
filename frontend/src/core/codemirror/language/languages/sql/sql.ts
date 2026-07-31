@@ -66,7 +66,7 @@ import { getSQLMode, type SQLMode } from "./sql-mode";
 import { isKnownDialect } from "./utils";
 
 const DEFAULT_DIALECT = DuckDBDialect;
-const DEFAULT_PARSER_DIALECT = "DuckDB";
+const DEFAULT_PARSER_DIALECT: ParserDialects = "DuckDB";
 
 // A compartment for the SQL config, so we can update the config of codemirror
 const sqlConfigCompartment = new Compartment();
@@ -372,6 +372,8 @@ class DialectAwareSqlStructureAnalyzer extends SqlStructureAnalyzer {
 
 class CustomSqlParser extends NodeSqlParser {
   private validationTimeout: number | null = null;
+  private pendingValidationResolve: ((errors: SqlParseError[]) => void) | null =
+    null;
   private readonly VALIDATION_DELAY_MS = 300; // Wait 300ms after user stops typing
   private isFocused = false; // Only validate if the editor is focused
 
@@ -379,37 +381,51 @@ class CustomSqlParser extends NodeSqlParser {
     this.isFocused = focused;
   }
 
+  private resolvePendingValidation(errors: SqlParseError[]): void {
+    this.pendingValidationResolve?.(errors);
+    this.pendingValidationResolve = null;
+  }
+
   private async validateWithDelay(
     sql: string,
-    engine: string,
+    engine: ConnectionName,
     dialect: ParserDialects | null,
   ): Promise<SqlParseError[]> {
-    // Clear any existing delay call
+    // Clear any existing delay call, resolving its promise so a superseded
+    // request doesn't hang forever.
     if (this.validationTimeout) {
       window.clearTimeout(this.validationTimeout);
+      this.resolvePendingValidation([]);
     }
 
     // Set up a new request to be called after the delay
     return new Promise((resolve) => {
+      this.pendingValidationResolve = resolve;
       this.validationTimeout = window.setTimeout(async () => {
+        this.validationTimeout = null;
+
         // Only validate if the editor is still focused
         if (!this.isFocused) {
-          resolve([]);
+          this.resolvePendingValidation([]);
           return;
         }
 
         try {
-          const sqlMode = getSQLMode();
+          // For validate mode, we run EXPLAIN queries on the engine, which can be
+          // expensive for remote databases. So, we only run for internal engines.
+          const sqlMode = INTERNAL_SQL_ENGINES.has(engine)
+            ? getSQLMode()
+            : "default";
           const result = await validateSQL(sql, engine, dialect, sqlMode);
           if (result.error) {
             Logger.error("Failed to validate SQL", { error: result.error });
-            resolve([]);
+            this.resolvePendingValidation([]);
             return;
           }
-          resolve(result.parse_result?.errors ?? []);
+          this.resolvePendingValidation(result.parse_result?.errors ?? []);
         } catch (error) {
           Logger.error("Failed to validate SQL", { error });
-          resolve([]);
+          this.resolvePendingValidation([]);
         }
       }, this.VALIDATION_DELAY_MS);
     });
@@ -420,19 +436,23 @@ class CustomSqlParser extends NodeSqlParser {
     opts: { state: EditorState },
   ): Promise<SqlParseError[]> {
     const metadata = getSQLMetadata(opts.state);
+    const dialect = connectionNameToParserDialect(metadata.engine);
 
     // Only validate if the editor is focused
     if (!this.isFocused) {
       return [];
     }
 
-    // Only perform custom validation for DuckDB
-    if (!INTERNAL_SQL_ENGINES.has(metadata.engine)) {
+    // Only perform custom validation for DuckDB as we have a custom validation endpoint for it.
+    if (!isDuckDBConnection(metadata.engine, dialect)) {
       return super.validateSql(sql, opts);
     }
 
-    const dialect = guessParserDialect(opts.state);
-    return this.validateWithDelay(sql, metadata.engine, dialect);
+    return this.validateWithDelay(
+      sql,
+      metadata.engine,
+      dialect ?? DEFAULT_PARSER_DIALECT,
+    );
   }
 
   override async parse(
@@ -441,14 +461,22 @@ class CustomSqlParser extends NodeSqlParser {
   ): Promise<NodeSqlParserResult> {
     const metadata = getSQLMetadata(opts.state);
     const engine = metadata.engine;
+    const dialect = connectionNameToParserDialect(engine);
 
     // For now, always return success for DuckDB
-    if (engine === DUCKDB_ENGINE) {
+    if (isDuckDBConnection(engine, dialect)) {
       return { success: true, errors: [] };
     }
 
     return super.parse(sql, opts);
   }
+}
+
+function isDuckDBConnection(
+  engine: ConnectionName,
+  dialect: ParserDialects | null,
+): boolean {
+  return engine === DUCKDB_ENGINE || dialect === "DuckDB";
 }
 
 /**
