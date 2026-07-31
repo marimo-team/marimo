@@ -226,6 +226,10 @@ class file_browser(
         else:
             self._path_cls = initial_path.__class__
 
+        self._path_kwargs: dict[str, Any] = {}
+        if hasattr(initial_path, "client"):
+            self._path_kwargs["client"] = initial_path.client  # type: ignore
+
         # Make a Path object
         if not initial_path:
             initial_path = Path.cwd()
@@ -347,14 +351,7 @@ class file_browser(
 
     def _create_path(self, path_str: str | Path) -> Path:
         """Create a path object with the same class and client as the initial path."""
-        kwargs: dict[str, Any] = {}
-
-        # If we have a client on the initial path, pass it to the path constructor
-        # This covers the case when the initial path is a CloudPath with a client
-        if hasattr(self._initial_path, "client"):
-            kwargs["client"] = self._initial_path.client  # type: ignore
-
-        path = self._path_cls(path_str, **kwargs)
+        path = self._path_cls(path_str, **self._path_kwargs)
         return path
 
     def _passes_filter(self, file: Path) -> bool:
