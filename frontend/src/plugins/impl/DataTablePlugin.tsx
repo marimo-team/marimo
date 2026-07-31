@@ -908,7 +908,10 @@ const DataTableComponent = ({
     );
   }, [fieldTypes, columnSummaries]);
 
-  const fieldTypesOrInferred = fieldTypes ?? inferFieldTypes(data);
+  const rowHeaderNames = new Set(rowHeaders.map(([name]) => name));
+  const fieldTypesOrInferred =
+    fieldTypes ??
+    inferFieldTypes(data).filter(([name]) => !rowHeaderNames.has(name));
 
   const memoizedUnclampedFieldTypes =
     useDeepCompareMemoize(fieldTypesOrInferred);
