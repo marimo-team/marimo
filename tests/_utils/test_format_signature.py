@@ -21,12 +21,14 @@ class TestFormatSignature:
             ("func(x: int, y: str = None) -> bool", "bool"),
             # Long (like hstack)
             (
-                "hstack(items: Sequence[object], *, "
-                'justify: str = "space-between", '
-                "align: str = None, "
-                "wrap: bool = False, "
-                "gap: float = 0.5, "
-                "widths: str = None) -> Html",
+                (
+                    "hstack(items: Sequence[object], *, "
+                    'justify: str = "space-between", '
+                    "align: str = None, "
+                    "wrap: bool = False, "
+                    "gap: float = 0.5, "
+                    "widths: str = None) -> Html"
+                ),
                 "Html",
             ),
         ],

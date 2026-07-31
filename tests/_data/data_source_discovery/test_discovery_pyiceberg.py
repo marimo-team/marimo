@@ -385,7 +385,7 @@ def test_discovery_uses_the_context_environment_snapshot(
         patch.dict(
             os.environ,
             {"PYICEBERG_HOME": str(process_home)},
-            clear=True,
+            clear=False,
         ),
         patch(
             "marimo._data.data_source_discovery.plugins.pyiceberg."
