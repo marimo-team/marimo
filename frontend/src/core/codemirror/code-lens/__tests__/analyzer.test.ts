@@ -153,6 +153,10 @@ describe("findCacheSites", () => {
     ]);
   });
 
+  it("returns nothing for syntax errors", () => {
+    expect(runCache("mo.cache(f)\ndf = (")).toEqual([]);
+  });
+
   describe("bound name and cache name extraction", () => {
     function sites(code: string) {
       return findCacheSites(pythonState(code)).map(

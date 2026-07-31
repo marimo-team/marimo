@@ -35,7 +35,7 @@ vi.mock("../actions", () => ({
 }));
 
 vi.mock("../popover", () => ({
-  mountLensPopover: vi.fn(() => () => {}),
+  mountLensPopover: vi.fn(() => vi.fn()),
 }));
 
 function mockFlags(flags: Partial<ExperimentalFeatures>) {
