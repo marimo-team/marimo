@@ -159,7 +159,7 @@ SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 
 There are two ways to connect to a database in marimo:
 
-### 1. Using the UI
+### Using the UI
 
 Click the "Add Database Connection" button in your notebook to connect to PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, or BigQuery databases. The UI will guide you through entering your connection details securely. Environment variables picked up from your [`dotenv`](../configuration/runtime_configuration.md#environment-variables) can be used to fill out the database configuration fields.
 
@@ -172,13 +172,9 @@ Click the "Add Database Connection" button in your notebook to connect to Postgr
 
 #### Detecting data sources from your environment
 
-marimo can also detect data sources that are already configured in your
-environment and offer them as one-click additions in the connection dialog.
-Detection inspects the kernel's environment variables (and, for PyIceberg,
-its configuration file); when a source is detected, marimo generates a code
-cell that connects to it. Secret values never leave the kernel: detected
-configuration is reported by variable *name*, and the generated code reads
-credentials with `os.environ` rather than inlining them.
+marimo detects data sources that are already configured in your
+environment and offers them as one-click additions in the connection dialog.
+Detection inspects the kernel's environment variables and/or configuration files.
 
 <div align="center">
   <figure>
@@ -187,7 +183,7 @@ credentials with `os.environ` rather than inlining them.
   </figure>
 </div>
 
-The following non-exhaustive table enumerates the environment variables scanned for each supported source:
+The following non-exhaustive table enumerates the environment variables and configuration files scanned for each supported source:
 
 | Source                   | Detected when                                                                                                                    |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -206,7 +202,7 @@ precedence.
 
 If you'd like to connect to a database that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=New%20database%20connection:&labels=enhancement&template=feature_request.yaml).
 
-### 2. Using Code
+### Using code
 
 You can bring your own database via a **connection engine** with one of the following libraries
 
