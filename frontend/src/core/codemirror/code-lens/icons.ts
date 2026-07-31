@@ -3,10 +3,14 @@
 import type { CodeLensKind } from "./entities";
 
 // Inline SVG markup mirroring the lucide icons used by the target panels:
-// database (Data sources), hard-drive (Remote storage), database-zap (Cache).
+// table-2 (dataframes), database (SQL engines), hard-drive (Remote storage),
+// database-zap (Cache).
 const svg = (contents: string) =>
   `<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${contents}</svg>`;
 
+const TABLE = svg(
+  '<path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18"/>',
+);
 const DATABASE = svg(
   '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
 );
@@ -18,7 +22,7 @@ const DATABASE_ZAP = svg(
 );
 
 export const LENS_ICONS: Record<CodeLensKind, string> = {
-  table: DATABASE,
+  table: TABLE,
   connection: DATABASE,
   bucket: HARD_DRIVE,
   cache: DATABASE_ZAP,
