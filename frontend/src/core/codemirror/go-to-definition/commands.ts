@@ -4,19 +4,12 @@ import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import type { SyntaxNode, Tree, TreeCursor } from "@lezer/common";
+import { PyKeyword, PyNode, SCOPE_CREATING_NODES } from "../python-node-names";
 import { scrollOwnerCell } from "../utils";
 
-const SCOPE_CREATING_NODES = new Set([
-  "FunctionDefinition",
-  "LambdaExpression",
-  "ArrayComprehensionExpression",
-  "SetComprehensionExpression",
-  "DictionaryComprehensionExpression",
-  "ComprehensionExpression",
-  "ClassDefinition",
+const POSITION_SENSITIVE_SCOPES: ReadonlySet<string> = new Set([
+  PyNode.ClassDefinition,
 ]);
-
-const POSITION_SENSITIVE_SCOPES = new Set(["ClassDefinition"]);
 
 interface ScopeContext {
   id: number;
@@ -65,14 +58,14 @@ function findFirstMatchingVariable(
       }
 
       if (
-        node.name === "VariableName" &&
+        node.name === PyNode.VariableName &&
         state.doc.sliceString(node.from, node.to) === variableName
       ) {
         from = node.from;
         return false;
       }
 
-      if (node.name === "Comment" || node.name === "String") {
+      if (node.name === PyNode.Comment || node.name === PyNode.String) {
         return false;
       }
 
@@ -92,10 +85,12 @@ function getScopeChain(tree: Tree, usagePosition: number): ScopeContext[] {
       // Skip ClassDefinition if we've already seen a function/lambda.
       const inFunctionLikeScope = scopeChain.some(
         (scope) =>
-          scope.type === "FunctionDefinition" ||
-          scope.type === "LambdaExpression",
+          scope.type === PyNode.FunctionDefinition ||
+          scope.type === PyNode.LambdaExpression,
       );
-      if (!(inFunctionLikeScope && currentNode.name === "ClassDefinition")) {
+      if (
+        !(inFunctionLikeScope && currentNode.name === PyNode.ClassDefinition)
+      ) {
         scopeChain.push({
           id: currentNode.from,
           type: currentNode.name,
@@ -130,30 +125,27 @@ function traverseChildren(
 
 function collectMatchingTargets(
   cursor: TreeCursor,
-  state: EditorState,
-  variableName: string,
-  scopeId: number,
-  declarations: VariableDeclaration[],
+  options: {
+    state: EditorState;
+    variableName: string;
+    scopeId: number;
+    declarations: VariableDeclaration[];
+  },
 ) {
+  const { state, variableName, scopeId, declarations } = options;
   switch (cursor.name) {
-    case "VariableName":
+    case PyNode.VariableName:
       if (state.doc.sliceString(cursor.from, cursor.to) === variableName) {
         addDeclaration(declarations, scopeId, cursor.from);
       }
       break;
 
-    case "TupleExpression":
-    case "ArrayExpression": {
+    case PyNode.TupleExpression:
+    case PyNode.ArrayExpression: {
       const childCursor = cursor.node.cursor();
       childCursor.firstChild();
       do {
-        collectMatchingTargets(
-          childCursor,
-          state,
-          variableName,
-          scopeId,
-          declarations,
-        );
+        collectMatchingTargets(childCursor, options);
       } while (childCursor.nextSibling());
       break;
     }
@@ -164,15 +156,18 @@ function collectMatchingTargets(
 
 function collectFunctionParameters(
   node: SyntaxNode | Tree,
-  state: EditorState,
-  variableName: string,
-  scopeId: number,
-  declarations: VariableDeclaration[],
+  options: {
+    state: EditorState;
+    variableName: string;
+    scopeId: number;
+    declarations: VariableDeclaration[];
+  },
 ) {
+  const { state, variableName, scopeId, declarations } = options;
   const cursor = node.cursor();
   cursor.firstChild();
   do {
-    if (cursor.name !== "ParamList") {
+    if (cursor.name !== PyNode.ParamList) {
       continue;
     }
 
@@ -180,7 +175,7 @@ function collectFunctionParameters(
     paramCursor.firstChild();
     do {
       if (
-        paramCursor.name === "VariableName" &&
+        paramCursor.name === PyNode.VariableName &&
         state.doc.sliceString(paramCursor.from, paramCursor.to) === variableName
       ) {
         addDeclaration(declarations, scopeId, paramCursor.from);
@@ -191,38 +186,37 @@ function collectFunctionParameters(
 
 function collectForTargets(
   node: SyntaxNode | Tree,
-  state: EditorState,
-  variableName: string,
-  scopeId: number,
-  declarations: VariableDeclaration[],
+  options: {
+    state: EditorState;
+    variableName: string;
+    scopeId: number;
+    declarations: VariableDeclaration[];
+  },
 ) {
   const cursor = node.cursor();
   cursor.firstChild();
   let foundFor = false;
   do {
-    if (cursor.name === "for") {
+    if (cursor.name === PyKeyword.For) {
       foundFor = true;
-    } else if (foundFor && cursor.name === "in") {
+    } else if (foundFor && cursor.name === PyKeyword.In) {
       break;
     } else if (foundFor) {
-      collectMatchingTargets(
-        cursor,
-        state,
-        variableName,
-        scopeId,
-        declarations,
-      );
+      collectMatchingTargets(cursor, options);
     }
   } while (cursor.nextSibling());
 }
 
 function collectMatchingDeclarations(
   node: SyntaxNode | Tree,
-  state: EditorState,
-  variableName: string,
-  scopeStack: number[],
-  declarations: VariableDeclaration[],
+  options: {
+    state: EditorState;
+    variableName: string;
+    scopeStack: number[];
+    declarations: VariableDeclaration[];
+  },
 ) {
+  const { state, variableName, scopeStack, declarations } = options;
   const cursor = node.cursor();
   const nodeName = cursor.name;
   const nodeStart = cursor.from;
@@ -234,13 +228,13 @@ function collectMatchingDeclarations(
   const currentScope = currentScopeStack[currentScopeStack.length - 1] ?? -1;
 
   switch (nodeName) {
-    case "FunctionDefinition":
-    case "ClassDefinition": {
+    case PyNode.FunctionDefinition:
+    case PyNode.ClassDefinition: {
       const subCursor = node.cursor();
       subCursor.firstChild();
       do {
         if (
-          subCursor.name === "VariableName" &&
+          subCursor.name === PyNode.VariableName &&
           state.doc.sliceString(subCursor.from, subCursor.to) === variableName
         ) {
           const parentScope = scopeStack[scopeStack.length - 1] ?? -1;
@@ -249,41 +243,44 @@ function collectMatchingDeclarations(
         }
       } while (subCursor.nextSibling());
 
-      if (nodeName === "FunctionDefinition") {
-        collectFunctionParameters(
-          node,
+      if (nodeName === PyNode.FunctionDefinition) {
+        collectFunctionParameters(node, {
           state,
           variableName,
-          nodeStart,
+          scopeId: nodeStart,
           declarations,
-        );
+        });
       }
       break;
     }
-    case "LambdaExpression":
-      collectFunctionParameters(
-        node,
+    case PyNode.LambdaExpression:
+      collectFunctionParameters(node, {
         state,
         variableName,
-        nodeStart,
+        scopeId: nodeStart,
         declarations,
-      );
+      });
       break;
 
-    case "ArrayComprehensionExpression":
-    case "DictionaryComprehensionExpression":
-    case "SetComprehensionExpression":
-    case "ComprehensionExpression":
-    case "ForStatement":
-      collectForTargets(node, state, variableName, currentScope, declarations);
+    case PyNode.ArrayComprehensionExpression:
+    case PyNode.DictionaryComprehensionExpression:
+    case PyNode.SetComprehensionExpression:
+    case PyNode.ComprehensionExpression:
+    case PyNode.ForStatement:
+      collectForTargets(node, {
+        state,
+        variableName,
+        scopeId: currentScope,
+        declarations,
+      });
       break;
 
-    case "AssignStatement": {
+    case PyNode.AssignStatement: {
       const assignOpPositions: number[] = [];
       const subCursor = node.cursor();
       subCursor.firstChild();
       do {
-        if (subCursor.name === "AssignOp") {
+        if (subCursor.name === PyNode.AssignOp) {
           assignOpPositions.push(subCursor.from);
         }
       } while (subCursor.nextSibling());
@@ -298,18 +295,17 @@ function collectMatchingDeclarations(
       targetCursor.firstChild();
       do {
         if (targetCursor.from < lastAssignOpPosition) {
-          collectMatchingTargets(
-            targetCursor,
+          collectMatchingTargets(targetCursor, {
             state,
             variableName,
-            currentScope,
+            scopeId: currentScope,
             declarations,
-          );
+          });
         }
       } while (targetCursor.nextSibling());
       break;
     }
-    case "ImportStatement": {
+    case PyNode.ImportStatement: {
       // The grammar emits one ImportStatement for both `import x [as y]` and
       // `from m import x [as y], ...`. Direct children include the keywords
       // (`from`/`import`/`as`), commas, dots, and every VariableName from the
@@ -330,19 +326,19 @@ function collectMatchingDeclarations(
         pending = null;
       };
       do {
-        if (subCursor.name === "import") {
+        if (subCursor.name === PyKeyword.Import) {
           pastImport = true;
           continue;
         }
         if (!pastImport) {
           continue;
         }
-        if (subCursor.name === "as") {
+        if (subCursor.name === PyKeyword.As) {
           // Next VariableName is the alias and replaces `pending`.
           pending = null;
           continue;
         }
-        if (subCursor.name === "VariableName") {
+        if (subCursor.name === PyNode.VariableName) {
           // Flush any previous pending name (no `as` followed it).
           commit();
           pending = {
@@ -358,17 +354,17 @@ function collectMatchingDeclarations(
       commit();
       break;
     }
-    case "TryStatement":
-    case "WithStatement": {
+    case PyNode.TryStatement:
+    case PyNode.WithStatement: {
       const subCursor = node.cursor();
       subCursor.firstChild();
       let foundAs = false;
       do {
-        if (subCursor.name === "as") {
+        if (subCursor.name === PyKeyword.As) {
           foundAs = true;
         } else if (
           foundAs &&
-          subCursor.name === "VariableName" &&
+          subCursor.name === PyNode.VariableName &&
           state.doc.sliceString(subCursor.from, subCursor.to) === variableName
         ) {
           addDeclaration(declarations, currentScope, subCursor.from);
@@ -382,13 +378,12 @@ function collectMatchingDeclarations(
   }
 
   traverseChildren(cursor, (childNode) => {
-    collectMatchingDeclarations(
-      childNode,
+    collectMatchingDeclarations(childNode, {
       state,
       variableName,
-      currentScopeStack,
+      scopeStack: currentScopeStack,
       declarations,
-    );
+    });
   });
 }
 
@@ -400,7 +395,12 @@ function findScopedDefinitionPosition(
   const tree = syntaxTree(state);
   const declarations: VariableDeclaration[] = [];
 
-  collectMatchingDeclarations(tree, state, variableName, [], declarations);
+  collectMatchingDeclarations(tree, {
+    state,
+    variableName,
+    scopeStack: [],
+    declarations,
+  });
 
   const clampedUsagePosition = Math.max(
     0,

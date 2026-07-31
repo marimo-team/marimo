@@ -25,7 +25,6 @@ export function openLensTarget(kind: CodeLensKind): void {
       expandAccordionSection(fileExplorerPanelAtom, "remote-storage");
       return;
     case "cache":
-      // No-ops if the cache panel is hidden (not in the layout)
       openPanel("cache");
       return;
     default:

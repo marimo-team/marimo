@@ -198,7 +198,7 @@ export function useChromeActions() {
 
 /**
  * Open a panel imperatively from non-React code (e.g. CodeMirror extensions).
- * Resolves sidebar vs developer-panel placement like `useChromeActions().openApplication`.
+ * No-ops if the panel is hidden (not in the layout).
  */
 export function openPanel(panelType: PanelType): void {
   store.set(chromeAtom, (prev) =>

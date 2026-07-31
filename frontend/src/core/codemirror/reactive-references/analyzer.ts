@@ -5,22 +5,13 @@ import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode, Tree, TreeCursor } from "@lezer/common";
 import { type CellId, SETUP_CELL_ID } from "@/core/cells/ids";
 import type { VariableName, Variables } from "@/core/variables/types";
+import { PyKeyword, PyNode, SCOPE_CREATING_NODES } from "../python-node-names";
 
 export interface ReactiveVariableRange {
   from: number;
   to: number;
   variableName: string;
 }
-
-const SCOPE_CREATING_NODES = new Set([
-  "FunctionDefinition",
-  "LambdaExpression",
-  "ArrayComprehensionExpression",
-  "SetComprehensionExpression",
-  "DictionaryComprehensionExpression",
-  "ComprehensionExpression",
-  "ClassDefinition",
-]);
 
 /**
  * Analyzes the given editor state to find variable names that represent
@@ -88,11 +79,11 @@ export function findReactiveVariables(options: {
     }
 
     switch (nodeName) {
-      case "FunctionDefinition": {
+      case PyNode.FunctionDefinition: {
         const subCursor = node.cursor();
         subCursor.firstChild();
         do {
-          if (subCursor.name === "VariableName") {
+          if (subCursor.name === PyNode.VariableName) {
             const functionName = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
@@ -111,11 +102,11 @@ export function findReactiveVariables(options: {
         const paramCursor = node.cursor();
         paramCursor.firstChild();
         do {
-          if (paramCursor.name === "ParamList") {
+          if (paramCursor.name === PyNode.ParamList) {
             const paramListCursor = paramCursor.node.cursor();
             paramListCursor.firstChild();
             do {
-              if (paramListCursor.name === "VariableName") {
+              if (paramListCursor.name === PyNode.VariableName) {
                 const paramName = options.state.doc.sliceString(
                   paramListCursor.from,
                   paramListCursor.to,
@@ -128,16 +119,16 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "LambdaExpression": {
+      case PyNode.LambdaExpression: {
         // Lambda params
         const subCursor = node.cursor();
         subCursor.firstChild();
         do {
-          if (subCursor.name === "ParamList") {
+          if (subCursor.name === PyNode.ParamList) {
             const paramCursor = subCursor.node.cursor();
             paramCursor.firstChild();
             do {
-              if (paramCursor.name === "VariableName") {
+              if (paramCursor.name === PyNode.VariableName) {
                 const paramName = options.state.doc.sliceString(
                   paramCursor.from,
                   paramCursor.to,
@@ -150,29 +141,29 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "ArrayComprehensionExpression":
-      case "DictionaryComprehensionExpression":
-      case "SetComprehensionExpression":
-      case "ComprehensionExpression": {
+      case PyNode.ArrayComprehensionExpression:
+      case PyNode.DictionaryComprehensionExpression:
+      case PyNode.SetComprehensionExpression:
+      case PyNode.ComprehensionExpression: {
         // Domprehension variables - look for VariableName or TupleExpression after 'for'
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundFor = false;
         do {
-          if (subCursor.name === "for") {
+          if (subCursor.name === PyKeyword.For) {
             foundFor = true;
-          } else if (foundFor && subCursor.name === "VariableName") {
+          } else if (foundFor && subCursor.name === PyNode.VariableName) {
             const varName = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
             );
             allDeclarations.get(nodeStart)?.add(varName);
-          } else if (foundFor && subCursor.name === "TupleExpression") {
+          } else if (foundFor && subCursor.name === PyNode.TupleExpression) {
             // Handle tuple destructuring like (k, v)
             const tupleCursor = subCursor.node.cursor();
             tupleCursor.firstChild();
             do {
-              if (tupleCursor.name === "VariableName") {
+              if (tupleCursor.name === PyNode.VariableName) {
                 const varName = options.state.doc.sliceString(
                   tupleCursor.from,
                   tupleCursor.to,
@@ -180,18 +171,18 @@ export function findReactiveVariables(options: {
                 allDeclarations.get(nodeStart)?.add(varName);
               }
             } while (tupleCursor.nextSibling());
-          } else if (foundFor && subCursor.name === "in") {
+          } else if (foundFor && subCursor.name === PyKeyword.In) {
             foundFor = false; // Stop collecting variables after 'in'
           }
         } while (subCursor.nextSibling());
 
         break;
       }
-      case "ClassDefinition": {
+      case PyNode.ClassDefinition: {
         const subCursor = node.cursor();
         subCursor.firstChild();
         do {
-          if (subCursor.name === "VariableName") {
+          if (subCursor.name === PyNode.VariableName) {
             const className = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
@@ -210,7 +201,7 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "AssignStatement": {
+      case PyNode.AssignStatement: {
         // Assignments - capture all variables being assigned to (variables that come before the last AssignOp)
         const subCursor = node.cursor();
 
@@ -218,7 +209,7 @@ export function findReactiveVariables(options: {
         const assignOpPositions: number[] = [];
         subCursor.firstChild();
         do {
-          if (subCursor.name === "AssignOp") {
+          if (subCursor.name === PyNode.AssignOp) {
             assignOpPositions.push(subCursor.from);
           }
         } while (subCursor.nextSibling());
@@ -248,15 +239,15 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "ForStatement": {
+      case PyNode.ForStatement: {
         // For loop variables
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundFor = false;
         do {
-          if (subCursor.name === "for") {
+          if (subCursor.name === PyKeyword.For) {
             foundFor = true;
-          } else if (foundFor && subCursor.name === "VariableName") {
+          } else if (foundFor && subCursor.name === PyNode.VariableName) {
             const varName = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
@@ -268,14 +259,14 @@ export function findReactiveVariables(options: {
               allDeclarations.set(currentScope, new Set());
             }
             allDeclarations.get(currentScope)?.add(varName);
-          } else if (foundFor && subCursor.name === "in") {
+          } else if (foundFor && subCursor.name === PyKeyword.In) {
             foundFor = false; // Stop collecting variables after 'in'
           }
         } while (subCursor.nextSibling());
 
         break;
       }
-      case "ImportStatement": {
+      case PyNode.ImportStatement: {
         // The grammar emits a single ImportStatement for both `import x [as y]`
         // and `from m import x [as y], ...`. Direct children mix keywords,
         // module-path names (before `import`), imported names, and aliases.
@@ -299,19 +290,19 @@ export function findReactiveVariables(options: {
           pending = null;
         };
         do {
-          if (subCursor.name === "import") {
+          if (subCursor.name === PyKeyword.Import) {
             pastImport = true;
             continue;
           }
           if (!pastImport) {
             continue;
           }
-          if (subCursor.name === "as") {
+          if (subCursor.name === PyKeyword.As) {
             // Drop the imported name; the next VariableName is the alias.
             pending = null;
             continue;
           }
-          if (subCursor.name === "VariableName") {
+          if (subCursor.name === PyNode.VariableName) {
             commit();
             pending = options.state.doc.sliceString(
               subCursor.from,
@@ -325,15 +316,15 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "TryStatement": {
+      case PyNode.TryStatement: {
         // Exception variable binding - look for 'as' followed by VariableName
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundAs = false;
         do {
-          if (subCursor.name === "as") {
+          if (subCursor.name === PyKeyword.As) {
             foundAs = true;
-          } else if (foundAs && subCursor.name === "VariableName") {
+          } else if (foundAs && subCursor.name === PyNode.VariableName) {
             const varName = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
@@ -350,14 +341,14 @@ export function findReactiveVariables(options: {
 
         break;
       }
-      case "WithStatement": {
+      case PyNode.WithStatement: {
         const subCursor = node.cursor();
         subCursor.firstChild();
         let foundAs = false;
         do {
-          if (subCursor.name === "as") {
+          if (subCursor.name === PyKeyword.As) {
             foundAs = true;
-          } else if (foundAs && subCursor.name === "VariableName") {
+          } else if (foundAs && subCursor.name === PyNode.VariableName) {
             const varName = options.state.doc.sliceString(
               subCursor.from,
               subCursor.to,
@@ -405,7 +396,7 @@ export function findReactiveVariables(options: {
     for (const scope of scopeStack) {
       const scopeType = scopeTypes.get(scope);
 
-      if (scopeType === "ClassDefinition") {
+      if (scopeType === PyNode.ClassDefinition) {
         // for class scopes, check position-based declarations
         if (isVariableDeclaredInClassScope(varName, scope, cursorPosition)) {
           return true;
@@ -429,7 +420,7 @@ export function findReactiveVariables(options: {
 
     // Names inside an import statement are module paths, imported names, or
     // aliases — none of them are reactive *uses* of an outer-cell global.
-    if (nodeName === "ImportStatement") {
+    if (nodeName === PyNode.ImportStatement) {
       return;
     }
 
@@ -440,7 +431,7 @@ export function findReactiveVariables(options: {
       currentScopeStack = [...scopeStack, nodeStart];
     }
 
-    if (nodeName === "VariableName") {
+    if (nodeName === PyNode.VariableName) {
       const varName = options.state.doc.sliceString(cursor.from, cursor.to);
 
       if (shouldHighlightVariable(varName, cursor)) {
@@ -498,13 +489,17 @@ export function findReactiveVariables(options: {
 function isKeywordArgumentName(cursor: TreeCursor): boolean {
   const temp = cursor.node.cursor();
   temp.moveTo(cursor.from);
-  if (temp.parent() && temp.name === "CallExpression" && temp.firstChild()) {
+  if (
+    temp.parent() &&
+    temp.name === PyNode.CallExpression &&
+    temp.firstChild()
+  ) {
     do {
       // @ts-expect-error: comparing disjoint string literals is intentional due to do/while traversal
-      if (temp.name === "ArgList" && temp.firstChild()) {
+      if (temp.name === PyNode.ArgList && temp.firstChild()) {
         do {
           if (temp.from === cursor.from && temp.to === cursor.to) {
-            return temp.nextSibling() && temp.name === "AssignOp";
+            return temp.nextSibling() && temp.name === PyNode.AssignOp;
           }
         } while (temp.nextSibling());
         break;
@@ -519,14 +514,14 @@ function isAssignmentTarget(cursor: TreeCursor): boolean {
   const temp = cursor.node.cursor();
 
   // Check if parent is AssignStatement
-  if (temp.parent() && temp.name === "AssignStatement") {
+  if (temp.parent() && temp.name === PyNode.AssignStatement) {
     // Now check if this VariableName is before the AssignOp
     const assignStatementCursor = temp.node.cursor();
     assignStatementCursor.firstChild();
 
     let assignOpPosition = -1;
     do {
-      if (assignStatementCursor.name === "AssignOp") {
+      if (assignStatementCursor.name === PyNode.AssignOp) {
         assignOpPosition = assignStatementCursor.from;
         break;
       }
@@ -583,11 +578,11 @@ function extractAssignmentTargets(
   },
 ) {
   switch (cursor.name) {
-    case "VariableName": {
+    case PyNode.VariableName: {
       const varName = options.state.doc.sliceString(cursor.from, cursor.to);
       const isInClassScope =
         options.currentScope !== -1 &&
-        options.scopeTypes.get(options.currentScope) === "ClassDefinition";
+        options.scopeTypes.get(options.currentScope) === PyNode.ClassDefinition;
 
       if (isInClassScope) {
         // For class-level assignments, track the position of the assignment
@@ -606,7 +601,7 @@ function extractAssignmentTargets(
 
       break;
     }
-    case "TupleExpression": {
+    case PyNode.TupleExpression: {
       // Handle tuple unpacking like (x, (y, z)) = ...
       const tupleCursor = cursor.node.cursor();
       tupleCursor.firstChild();
@@ -616,7 +611,7 @@ function extractAssignmentTargets(
 
       break;
     }
-    case "ArrayExpression": {
+    case PyNode.ArrayExpression: {
       // Handle list unpacking like [a, b, c] = ...
       const arrayCursor = cursor.node.cursor();
       arrayCursor.firstChild();

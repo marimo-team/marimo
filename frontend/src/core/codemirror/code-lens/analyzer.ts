@@ -3,6 +3,12 @@
 import { syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode, Tree } from "@lezer/common";
+import {
+  NON_CODE_NODES,
+  PyKeyword,
+  PyNode,
+  SCOPE_CREATING_NODES,
+} from "../python-node-names";
 import { hasSyntaxErrors } from "../reactive-references/analyzer";
 
 export interface CodeLensTarget {
@@ -10,16 +16,6 @@ export interface CodeLensTarget {
   to: number;
   name: string;
 }
-
-const SCOPE_CREATING_NODES = new Set([
-  "FunctionDefinition",
-  "LambdaExpression",
-  "ArrayComprehensionExpression",
-  "SetComprehensionExpression",
-  "DictionaryComprehensionExpression",
-  "ComprehensionExpression",
-  "ClassDefinition",
-]);
 
 /**
  * Finds the first module-scope assignment site for each name in `names`.
@@ -40,7 +36,7 @@ export function findDeclarationSites(options: {
   const firstSites = new Map<string, CodeLensTarget>();
 
   const collectTargetNames = (node: SyntaxNode) => {
-    if (node.name === "VariableName") {
+    if (node.name === PyNode.VariableName) {
       const name = state.doc.sliceString(node.from, node.to);
       if (names.has(name) && !firstSites.has(name)) {
         firstSites.set(name, { from: node.from, to: node.to, name });
@@ -51,9 +47,9 @@ export function findDeclarationSites(options: {
     // and parenthesized targets, e.g. `(df) = ...`.
     // Member/subscript targets (`obj.attr = ...`) are not declarations.
     if (
-      node.name === "TupleExpression" ||
-      node.name === "ArrayExpression" ||
-      node.name === "ParenthesizedExpression"
+      node.name === PyNode.TupleExpression ||
+      node.name === PyNode.ArrayExpression ||
+      node.name === PyNode.ParenthesizedExpression
     ) {
       for (let child = node.firstChild; child; child = child.nextSibling) {
         collectTargetNames(child);
@@ -66,7 +62,7 @@ export function findDeclarationSites(options: {
     // A bare annotation (`x: int`) has no AssignOp and is skipped.
     let lastAssignOp = -1;
     for (let child = assign.firstChild; child; child = child.nextSibling) {
-      if (child.name === "AssignOp") {
+      if (child.name === PyNode.AssignOp) {
         lastAssignOp = child.from;
       }
     }
@@ -88,7 +84,7 @@ export function findDeclarationSites(options: {
     if (SCOPE_CREATING_NODES.has(node.name)) {
       return;
     }
-    if (node.name === "AssignStatement") {
+    if (node.name === PyNode.AssignStatement) {
       collectAssignmentTargets(node);
       return;
     }
@@ -101,8 +97,9 @@ export function findDeclarationSites(options: {
   return [...firstSites.values()];
 }
 
+// Note that the cache pattern assumes users `import marimo as mo`.
+// This is a common convention for marimo notebooks.
 const CACHE_PATTERN = /\bmo\.(?:persistent_cache|cache)\b/g;
-const NON_CODE_NODES = new Set(["Comment", "String", "FormatString"]);
 
 export interface CacheSite {
   from: number;
@@ -146,12 +143,15 @@ function findStaticCacheName(
     firstArgument ??= child;
 
     if (
-      child.name === "VariableName" &&
+      child.name === PyNode.VariableName &&
       text(child) === "name" &&
-      child.nextSibling?.name === "AssignOp"
+      child.nextSibling?.name === PyNode.AssignOp
     ) {
       const value = child.nextSibling.nextSibling;
-      if (value?.name === "String" && isArgumentBoundary(value.nextSibling)) {
+      if (
+        value?.name === PyNode.String &&
+        isArgumentBoundary(value.nextSibling)
+      ) {
         return stripStringQuotes(text(value));
       }
     }
@@ -161,7 +161,7 @@ function findStaticCacheName(
     return null;
   }
   if (
-    firstArgument.name === "String" &&
+    firstArgument.name === PyNode.String &&
     isArgumentBoundary(firstArgument.nextSibling)
   ) {
     return stripStringQuotes(text(firstArgument));
@@ -195,7 +195,7 @@ function analyzeCacheSite(
     ancestor && ancestor.from === from;
     ancestor = ancestor.parent
   ) {
-    if (ancestor.name === "CallExpression") {
+    if (ancestor.name === PyNode.CallExpression) {
       call = ancestor;
       break;
     }
@@ -203,38 +203,37 @@ function analyzeCacheSite(
 
   if (call) {
     end = call.to;
-    argList = call.getChild("ArgList");
+    argList = call.getChild(PyNode.ArgList);
     const parent = call.parent;
-    if (parent?.name === "AssignStatement") {
+    if (parent?.name === PyNode.AssignStatement) {
       // `g = mo.cache(f)` — the direct VariableName child is the target
-      const target = parent.getChild("VariableName");
+      const target = parent.getChild(PyNode.VariableName);
       boundName = target && target.from < call.from ? text(target) : null;
-    } else if (parent?.name === "WithStatement") {
+    } else if (parent?.name === PyNode.WithStatement) {
       // `with mo.persistent_cache("k") as c:` — `as c` follows the call
-      for (let child = parent.firstChild; child; child = child.nextSibling) {
-        if (child.from < call.to) {
+      let child = parent.firstChild;
+      while (child) {
+        if (child.from < call.to || child.name === PyKeyword.As) {
+          child = child.nextSibling;
           continue;
         }
-        if (child.name === "as") {
-          continue;
-        }
-        if (child.name === "VariableName") {
+        if (child.name === PyNode.VariableName) {
           boundName = text(child);
         }
         break;
       }
     }
-  } else if (node.parent?.name === "Decorator") {
+  } else if (node.parent?.name === PyNode.Decorator) {
     // `@mo.cache(...)` decorators are flat: the ArgList is a direct sibling
     const decorator = node.parent;
-    const decoratorArgs = decorator.getChild("ArgList");
+    const decoratorArgs = decorator.getChild(PyNode.ArgList);
     if (decoratorArgs?.from === to) {
       argList = decoratorArgs;
       end = decoratorArgs.to;
     }
     // The decorated function's name
-    const fn = decorator.parent?.getChild("FunctionDefinition");
-    const fnName = fn?.getChild("VariableName");
+    const fn = decorator.parent?.getChild(PyNode.FunctionDefinition);
+    const fnName = fn?.getChild(PyNode.VariableName);
     boundName = fnName ? text(fnName) : null;
   }
 
@@ -260,7 +259,7 @@ function isStandaloneMoReference(
   // In `obj.mo.cache`, `mo` parses as a `PropertyName`; a standalone `mo`
   // (including whitespace-separated `mo . cache`) parses as a `VariableName`.
   return (
-    node.name === "VariableName" &&
+    node.name === PyNode.VariableName &&
     state.doc.sliceString(node.from, node.to) === "mo"
   );
 }
@@ -274,8 +273,9 @@ function isStandaloneMoReference(
 export function findCacheSites(state: EditorState): CacheSite[] {
   const tree = syntaxTree(state);
   return [...state.doc.toString().matchAll(CACHE_PATTERN)]
-    .filter((match) => isStandaloneMoReference(state, tree, match.index))
-    .map((match) =>
-      analyzeCacheSite(state, tree, match.index, match.index + match[0].length),
-    );
+    .filter((match) => isStandaloneMoReference(state, tree, match.index ?? 0))
+    .map((match) => {
+      const from = match.index ?? 0;
+      return analyzeCacheSite(state, tree, from, from + match[0].length);
+    });
 }

@@ -28,6 +28,7 @@ import {
   SectionHeader,
 } from "../language/languages/sql/renderers";
 import type { CodeLensSpec } from "./entities";
+import { assertNever } from "@/utils/assertNever";
 
 /**
  * Mounts the hover popover for a code lens into `dom`; returns a dispose
@@ -63,25 +64,24 @@ const LensPopover: React.FC<{ spec: CodeLensSpec }> = ({ spec }) => {
           cacheName={spec.cache?.cacheName ?? null}
         />
       );
+    default:
+      assertNever(spec.kind);
   }
 };
 
 const TablePopover: React.FC<{ name: string }> = ({ name }) => {
   const tables = useAtomValue(datasetTablesAtom);
   const table = tables.find((t) => t.variable_name === name);
-  return <>{table ? renderTableInfo(table) : renderEmptyInfo("table")}</>;
+  return table ? renderTableInfo(table) : renderEmptyInfo("table");
 };
 
 const ConnectionPopover: React.FC<{ name: string }> = ({ name }) => {
   const connections = useAtomValue(dataConnectionsMapAtom);
   const connection = connections.get(name as ConnectionName);
-  return (
-    <>
-      {connection
-        ? renderDatasourceInfo(connection)
-        : renderEmptyInfo("database")}
-    </>
-  );
+  if (!connection) {
+    return renderEmptyInfo("database");
+  }
+  return renderDatasourceInfo(connection);
 };
 
 const BucketPopover: React.FC<{ name: string }> = ({ name }) => {

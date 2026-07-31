@@ -8,6 +8,7 @@ import { store } from "@/core/state/jotai";
 import { storageNamespacesAtom } from "@/core/storage/state";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
+import { Logger } from "@/utils/Logger";
 
 export type CodeLensKind = "table" | "connection" | "bucket" | "cache";
 
@@ -22,6 +23,24 @@ export interface CodeLensSpec {
     boundName: string | null;
     cacheName: string | null;
   };
+}
+
+/**
+ * Sets `name` to `kind`, logging (and overwriting) if the name was already
+ * claimed by a different kind. This should be rare.
+ */
+function setEntity(
+  entities: Map<string, CodeLensKind>,
+  name: string,
+  kind: CodeLensKind,
+): void {
+  const existing = entities.get(name);
+  if (existing !== undefined && existing !== kind) {
+    Logger.error(
+      `[code-lens] "${name}" is claimed by both a ${existing} and a ${kind} entity; keeping ${kind}`,
+    );
+  }
+  entities.set(name, kind);
 }
 
 /**
@@ -41,17 +60,17 @@ export function getLensEntities(cellId: CellId): Map<string, CodeLensKind> {
 
   for (const table of store.get(datasetTablesAtom)) {
     if (table.variable_name && isDeclaredHere(table.variable_name)) {
-      entities.set(table.variable_name, "table");
+      setEntity(entities, table.variable_name, "table");
     }
   }
   for (const name of store.get(dataConnectionsMapAtom).keys()) {
     if (!INTERNAL_SQL_ENGINES.has(name) && isDeclaredHere(name)) {
-      entities.set(name, "connection");
+      setEntity(entities, name, "connection");
     }
   }
   for (const namespace of store.get(storageNamespacesAtom)) {
     if (isDeclaredHere(namespace.name)) {
-      entities.set(namespace.name, "bucket");
+      setEntity(entities, namespace.name, "bucket");
     }
   }
   return entities;
