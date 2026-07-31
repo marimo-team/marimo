@@ -66,6 +66,28 @@ def _normalize_selection_mode(
     )
 
 
+def _normalize_values(
+    value: str | Path | Sequence[str | Path] | None,
+    *,
+    multiple: bool,
+) -> Sequence[str | Path]:
+    """Normalize the file browser's default values to a sequence."""
+    if value is None:
+        values: Sequence[str | Path] = ()
+    elif isinstance(value, Sequence) and not isinstance(value, str):
+        values = value
+    else:
+        values = (value,)
+
+    if not multiple and len(values) > 1:
+        raise ValueError(
+            "File browser with multiple=False cannot have more than one "
+            "default value."
+        )
+
+    return values
+
+
 def _common_parent(paths: Sequence[Path]) -> Path:
     """Return the nearest directory containing all paths.
 
@@ -235,18 +257,7 @@ class file_browser(
     ) -> None:
         self._selection_mode = _normalize_selection_mode(selection_mode)
 
-        if value is None:
-            values: Sequence[str | Path] = ()
-        elif isinstance(value, Sequence) and not isinstance(value, str):
-            values = value
-        else:
-            values = (value,)
-
-        if not multiple and len(values) > 1:
-            raise ValueError(
-                "File browser with multiple=False cannot have more than one "
-                "default value."
-            )
+        values = _normalize_values(value, multiple=multiple)
 
         # Save the Path class and client used to construct paths
         path_source = (
