@@ -116,6 +116,22 @@ describe("read-file snippet", () => {
     ).toBeNull();
   });
 
+  it("huggingface backend does not misparse a dataset/space root as a model repo", () => {
+    // These paths are missing a filename segment, so they aren't valid
+    // dataset/space repo files. They must not fall through and be treated
+    // as the model repo "datasets/scikit-learn" or "spaces/gradio".
+    for (const path of ["datasets/scikit-learn/Fish", "spaces/gradio/demo"]) {
+      expect(
+        readSnippet.getCode(
+          makeCtx({
+            backendType: "huggingface",
+            entry: { path, kind: "file", size: 100, lastModified: null },
+          }),
+        ),
+      ).toBeNull();
+    }
+  });
+
   it("returns null for directories", () => {
     expect(
       readSnippet.getCode(

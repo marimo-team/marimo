@@ -33,6 +33,11 @@ interface ParsedHfRepoPath {
   filename: string;
 }
 
+// Namespaced prefixes are reserved: they can never be the first segment of a
+// model repo id, so a path like "datasets/org" that is missing a filename
+// must not fall through and be misparsed as the model repo "datasets/org".
+const RESERVED_PREFIXES = new Set(["datasets", "spaces", "buckets"]);
+
 function parseHfRepoPath(path: string): ParsedHfRepoPath | null {
   const parts = path.split("/").filter(Boolean);
   if (parts[0] === "datasets" && parts.length >= 4) {
@@ -49,7 +54,7 @@ function parseHfRepoPath(path: string): ParsedHfRepoPath | null {
       filename: parts.slice(3).join("/"),
     };
   }
-  if (parts.length >= 3 && parts[0] !== "buckets") {
+  if (parts.length >= 3 && !RESERVED_PREFIXES.has(parts[0])) {
     return {
       repoType: "model",
       repoId: `${parts[0]}/${parts[1]}`,
