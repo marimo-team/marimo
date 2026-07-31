@@ -66,6 +66,21 @@ def _normalize_selection_mode(
     )
 
 
+def _common_parent(paths: Sequence[Path]) -> Path:
+    """Return the nearest directory containing all paths.
+
+    When paths are on different drives (Windows) or have no common parent,
+    returns the root directory of the first path.
+    """
+    candidate = paths[0].parent
+    while (
+        any(candidate not in path.parents for path in paths)
+        and candidate != candidate.parent
+    ):
+        candidate = candidate.parent
+    return candidate
+
+
 @dataclass
 class ListDirectoryArgs:
     path: str
@@ -158,8 +173,9 @@ class file_browser(
             files.
 
     Args:
-        initial_path (Union[str, Path, AnyPath], optional): Starting directory. Defaults to current
-            working directory.
+        initial_path (Union[str, Path, AnyPath], optional): Starting directory.
+            Defaults to the common parent directory of `value`, when provided,
+            or the current working directory otherwise.
             If a string, it will be interpreted as a local path.
             If a Path, it will be interpreted as a local path.
             If a CloudPath (from cloudpathlib), such as S3Path, GCSPath, or AzurePath,
@@ -232,17 +248,22 @@ class file_browser(
                 "default value."
             )
 
-        # Save the Path class of the initial path
+        # Save the Path class and client used to construct paths
+        path_source = (
+            values[0]
+            if not initial_path and values and not restrict_navigation
+            else initial_path
+        )
         self._path_cls: type[Path]
-        if isinstance(initial_path, str):
+        if isinstance(path_source, str):
             self._path_cls = Path
         else:
-            self._path_cls = initial_path.__class__
-
+            self._path_cls = path_source.__class__
         self._path_kwargs: dict[str, Any] = {}
-        if hasattr(initial_path, "client"):
-            self._path_kwargs["client"] = initial_path.client  # type: ignore
+        if hasattr(path_source, "client"):
+            self._path_kwargs["client"] = path_source.client  # type: ignore
 
+        selected_paths: list[Path] = []
         initial_value: list[TypedFileBrowserFileInfo] = []
         for selected_value in values:
             selected_path = self._create_path(
@@ -259,6 +280,7 @@ class file_browser(
                     f"Default value {selected_path} is a {kind}, but "
                     f"selection_mode {self._selection_mode} does not allow it."
                 )
+            selected_paths.append(selected_path)
             initial_value.append(
                 TypedFileBrowserFileInfo(
                     id=str(selected_path),
@@ -270,7 +292,11 @@ class file_browser(
 
         # Make a Path object
         if not initial_path:
-            initial_path = Path.cwd()
+            initial_path = (
+                _common_parent(selected_paths)
+                if selected_paths and not restrict_navigation
+                else Path.cwd()
+            )
         elif isinstance(initial_path, str):
             initial_path = Path(initial_path)
         self._initial_path = initial_path
@@ -284,6 +310,14 @@ class file_browser(
             raise ValueError(
                 f"Initial path {initial_path} is not a directory."
             )
+
+        if restrict_navigation:
+            for selected_path in selected_paths:
+                if not selected_path.parent.is_relative_to(self._initial_path):
+                    raise ValueError(
+                        f"Default value {selected_path} is outside the "
+                        f"restricted initial path {self._initial_path}."
+                    )
 
         # Normalize filetypes: ensure lowercase and dot prefix for case-insensitive matching
         if filetypes:
