@@ -12,6 +12,7 @@ import type {
   EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportAsScriptRequest,
   ExportedFile,
   FileCopyRequest,
   FileCopyResponse,
@@ -101,6 +102,7 @@ export interface RawBridge {
   export_markdown(
     request: ExportAsMarkdownRequest,
   ): Promise<ExportedFile<string>>;
+  export_script(request: ExportAsScriptRequest): Promise<ExportedFile<string>>;
 }
 
 export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
@@ -108,9 +110,11 @@ export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
   : undefined;
 
 export type SerializedBridge = {
-  [P in keyof RawBridge]: RawBridge[P] extends (
+  [P in Exclude<keyof RawBridge, "save">]: RawBridge[P] extends (
     payload: string,
   ) => Promise<unknown>
     ? (payload: string) => Promise<string>
     : RawBridge[P];
+} & {
+  save(payload: string): Promise<void>;
 };

@@ -1157,7 +1157,7 @@ export interface paths {
             "text/plain": string;
           };
         };
-        /** @description File must be saved before downloading */
+        /** @description Invalid export request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -4821,7 +4821,7 @@ export interface components {
     ExportFormatAvailability: {
       dependenciesAvailable: boolean;
       /** @enum {unknown} */
-      format: "html" | "ipynb" | "markdown" | "pdf";
+      format: "html" | "ipynb" | "markdown" | "pdf" | "script";
       missingPackages: string[];
     };
     /** FileCopyRequest */

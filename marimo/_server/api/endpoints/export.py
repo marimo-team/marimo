@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from starlette.authentication import requires
@@ -19,6 +20,7 @@ from marimo._convert.common.filename import (
     make_download_headers,
     make_export_headers,
 )
+from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._export.dependencies import get_missing_export_packages
 from marimo._export.exporter import (
     AutoExporter,
@@ -282,30 +284,34 @@ async def export_as_script(
                     schema:
                         type: string
         400:
-            description: File must be saved before downloading
+            description: Invalid export request
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsScriptRequest)
     session = app_state.require_current_session()
 
-    result = export_script(
-        ScriptExportRequest(
-            notebook=session.app_file_manager.app.to_ir(),
+    try:
+        result = export_script(
+            ScriptExportRequest(
+                notebook=replace(
+                    session.app_file_manager.app.to_ir(),
+                    filename=session.app_file_manager.filename,
+                ),
+            )
         )
-    )
-    filename = get_download_filename(
-        session.app_file_manager.filename, "script.py"
-    )
-
-    if body.download:
-        headers = make_download_headers(filename)
-    else:
-        headers = {}
+    except UnsupportedAsyncCodeError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(error),
+        ) from error
 
     # Download the Script
     return PlainTextResponse(
         content=result.text,
-        headers=headers,
+        headers=make_export_headers(
+            result.download_filename,
+            download=body.download,
+        ),
     )
 
 
@@ -340,8 +346,6 @@ async def export_as_markdown(
     app_state = AppState(request)
     body = await parse_request(request, cls=ExportAsMarkdownRequest)
     app_file_manager = app_state.require_current_session().app_file_manager
-    # Reload the file manager to get the latest state
-    app_file_manager.reload()
 
     if not app_file_manager.path:
         raise HTTPException(

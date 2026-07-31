@@ -116,6 +116,19 @@ describe("createNetworkRequests", () => {
       );
     });
 
+    it("exportAsScript should request a text export", async () => {
+      const requests = createNetworkRequests();
+      await requests.exportAsScript({ download: false });
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/script",
+        expect.objectContaining({
+          body: { download: false },
+          parseAs: "text",
+        }),
+      );
+    });
+
     it("getEnvironmentInfo should GET /api/environment", async () => {
       const requests = createNetworkRequests();
       await requests.getEnvironmentInfo();

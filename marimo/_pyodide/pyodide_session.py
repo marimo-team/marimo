@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import signal
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -13,8 +14,12 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._export.exporter import Exporter, export_markdown
-from marimo._export.requests import HTMLExportRequest, MarkdownExportRequest
+from marimo._export.exporter import Exporter, export_markdown, export_script
+from marimo._export.requests import (
+    HTMLExportRequest,
+    MarkdownExportRequest,
+    ScriptExportRequest,
+)
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelStreams
@@ -37,6 +42,7 @@ from marimo._runtime.marimo_pdb import MarimoPdb
 from marimo._schemas.export import (
     ExportAsHTMLRequest,
     ExportAsMarkdownRequest,
+    ExportAsScriptRequest,
     ExportedFile,
     to_html_export_options,
     to_markdown_export_options,
@@ -427,6 +433,24 @@ class PyodideBridge:
                     parsed,
                     filename=filename,
                     source_filename=filename,
+                ),
+            )
+        )
+        return self._dump(
+            ExportedFile(
+                contents=result.text,
+                filename=result.download_filename,
+                media_type="text/plain; charset=utf-8",
+            )
+        )
+
+    def export_script(self, request: str) -> str:
+        self._parse(request, ExportAsScriptRequest)
+        result = export_script(
+            ScriptExportRequest(
+                notebook=replace(
+                    self.session.app_manager.app.to_ir(),
+                    filename=self.session.app_manager.filename,
                 ),
             )
         )

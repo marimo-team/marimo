@@ -30,6 +30,8 @@ def _dependencies_for_format(
             return ()
         case "markdown":
             return ()
+        case "script":
+            return ()
         case "ipynb":
             return _IPYNB_DEPENDENCIES
         case "pdf":
