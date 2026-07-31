@@ -52,7 +52,7 @@ const SOURCE_TYPE_COLORS = {
   catalog: "bg-(--purple-4) text-(--purple-11)",
 } as const;
 
-const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
+export const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
 
 const columnsText = new PluralWord("column", "columns");
 const rowsText = new PluralWord("row", "rows");
@@ -61,7 +61,7 @@ const tablesText = new PluralWord("table", "tables");
 const databasesText = new PluralWord("database", "databases");
 
 // Helper components and functions
-const SectionHeader: React.FC<{
+export const SectionHeader: React.FC<{
   icon: React.ReactNode;
   title: string;
   badge?: React.ReactNode;
@@ -73,7 +73,7 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-const MetadataRow: React.FC<{
+export const MetadataRow: React.FC<{
   label: string;
   value: React.ReactNode;
 }> = ({ label, value }) => (

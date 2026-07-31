@@ -196,6 +196,16 @@ export function useChromeActions() {
   return useActions();
 }
 
+/**
+ * Open a panel imperatively from non-React code (e.g. CodeMirror extensions).
+ * No-ops if the panel is hidden (not in the layout).
+ */
+export function openPanel(panelType: PanelType): void {
+  store.set(chromeAtom, (prev) =>
+    reducer(prev, { type: "openApplication", payload: panelType }),
+  );
+}
+
 export { chromeAtom };
 
 /**
