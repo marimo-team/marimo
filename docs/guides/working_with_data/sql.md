@@ -151,7 +151,7 @@ If you'd like to refresh your SQL cells automatically, you can wire a UI element
 
 ### Periodic refresh with `mo.ui.refresh`
 
-Add a [`mo.ui.refresh`][marimo.ui.refresh] control and reference it in your SQL query. Because SQL cells use f-strings, include the refresh control in a SQL comment so it does not affect the query:
+Add a [`mo.ui.refresh`][marimo.ui.refresh] control and reference it in your SQL query. As SQL cells use f-strings, you can include the refresh control in a SQL comment to not affect the query:
 
 ```python
 refresh = mo.ui.refresh(default_interval="30s")
