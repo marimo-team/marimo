@@ -19,6 +19,7 @@ export const sessionPanelAtom = atomWithStorage<
   "marimo:session-panel:state",
   { openSections: ["variables"], hasUserInteracted: false },
   jotaiJsonStorage,
+  { getOnInit: true },
 );
 
 export const fileExplorerPanelAtom = atomWithStorage<
@@ -27,6 +28,7 @@ export const fileExplorerPanelAtom = atomWithStorage<
   "marimo:file-explorer-panel:state",
   { openSections: ["files"], hasUserInteracted: false },
   jotaiJsonStorage,
+  { getOnInit: true },
 );
 
 /**

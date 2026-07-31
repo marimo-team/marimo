@@ -187,6 +187,30 @@ describe("findCacheSites", () => {
       ]);
     });
 
+    it("ignores string-valued options that are not cache names", () => {
+      expect(
+        sites(
+          '@mo.cache(hash_type="content")\ndef add(a, b):\n    return a + b',
+        ),
+      ).toEqual([{ boundName: "add", cacheName: null }]);
+      expect(
+        sites(
+          '@mo.persistent_cache(save_path="cache")\ndef add(a, b):\n    return a + b',
+        ),
+      ).toEqual([{ boundName: "add", cacheName: null }]);
+      expect(
+        sites('with mo.persistent_cache(prefix, save_path="cache"):\n    pass'),
+      ).toEqual([{ boundName: null, cacheName: null }]);
+    });
+
+    it("extracts an explicit name after other keyword arguments", () => {
+      expect(
+        sites(
+          'with mo.persistent_cache(save_path="cache", name="k"):\n    pass',
+        ),
+      ).toEqual([{ boundName: null, cacheName: "k" }]);
+    });
+
     it("extracts nothing for bare expressions", () => {
       expect(sites("mo.cache(f)")).toEqual([
         { boundName: null, cacheName: null },

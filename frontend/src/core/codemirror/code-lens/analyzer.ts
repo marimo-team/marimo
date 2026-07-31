@@ -123,6 +123,53 @@ function stripStringQuotes(text: string): string {
 }
 
 /**
+ * Extracts a static cache name from the first positional argument or an
+ * explicit `name=` argument. Other string-valued options, such as
+ * `hash_type="content"` and `save_path="cache"`, are not cache names.
+ */
+function findStaticCacheName(
+  argList: SyntaxNode | null,
+  text: (node: SyntaxNode) => string,
+): string | null {
+  if (!argList) {
+    return null;
+  }
+
+  const isArgumentBoundary = (node: SyntaxNode | null) =>
+    node?.name === "," || node?.name === ")";
+
+  let firstArgument: SyntaxNode | null = null;
+  for (let child = argList.firstChild; child; child = child.nextSibling) {
+    if (child.name === "(" || child.name === ")" || child.name === ",") {
+      continue;
+    }
+    firstArgument ??= child;
+
+    if (
+      child.name === "VariableName" &&
+      text(child) === "name" &&
+      child.nextSibling?.name === "AssignOp"
+    ) {
+      const value = child.nextSibling.nextSibling;
+      if (value?.name === "String" && isArgumentBoundary(value.nextSibling)) {
+        return stripStringQuotes(text(value));
+      }
+    }
+  }
+
+  if (!firstArgument) {
+    return null;
+  }
+  if (
+    firstArgument.name === "String" &&
+    isArgumentBoundary(firstArgument.nextSibling)
+  ) {
+    return stripStringQuotes(text(firstArgument));
+  }
+  return null;
+}
+
+/**
  * Resolves a `mo.cache` / `mo.persistent_cache` match into a CacheSite:
  * extends `to` past call arguments (`mo.cache(pin_modules=True)`), so an
  * icon placed at `to` lands after the closing paren, and extracts the bound
@@ -191,8 +238,7 @@ function analyzeCacheSite(
     boundName = fnName ? text(fnName) : null;
   }
 
-  const stringArg = argList?.getChild("String");
-  const cacheName = stringArg ? stripStringQuotes(text(stringArg)) : null;
+  const cacheName = findStaticCacheName(argList, text);
   return { from, to: end, boundName, cacheName };
 }
 
