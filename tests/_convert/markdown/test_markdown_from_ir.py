@@ -414,6 +414,14 @@ def test_markdown_output_filename(filename, flavor, expected):
     assert markdown_output_filename(filename, flavor) == expected
 
 
+def test_markdown_output_filename_rejects_unknown_flavor():
+    with pytest.raises(
+        ValueError,
+        match="Unsupported markdown flavor: 'bogus'",
+    ):
+        markdown_output_filename("nb.md", "bogus")  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     ("filename", "flavor", "expected_head", "expected_name"),
     [

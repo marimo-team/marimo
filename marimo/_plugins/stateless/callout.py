@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import ContainerHtml
@@ -12,6 +12,7 @@ from marimo._plugins.core.web_component import (
 )
 
 CalloutKind = Literal["neutral", "warn", "success", "info", "danger"]
+CALLOUT_KINDS: tuple[CalloutKind, ...] = get_args(CalloutKind)
 
 
 @mddoc
@@ -30,6 +31,11 @@ class callout(ContainerHtml):
         kind: CalloutKind = "neutral",
         title: str | None = None,
     ) -> None:
+        if kind not in CALLOUT_KINDS:
+            raise ValueError(
+                f"Unsupported callout kind: {kind!r}. "
+                f"Expected one of {CALLOUT_KINDS}."
+            )
         self._kind = kind
         self._title = title
         super().__init__([as_html(value)])

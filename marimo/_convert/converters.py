@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from marimo._schemas.notebook import NotebookV1
@@ -61,7 +62,10 @@ class MarimoConvert:
         """
         from marimo._ast.parse import parse_notebook
 
-        ir = parse_notebook(source) or EMPTY_NOTEBOOK_SERIALIZATION
+        ir = parse_notebook(source, filepath="notebook.py") or replace(
+            EMPTY_NOTEBOOK_SERIALIZATION,
+            filename="notebook.py",
+        )
         return MarimoConverterIntermediate(ir)
 
     @staticmethod

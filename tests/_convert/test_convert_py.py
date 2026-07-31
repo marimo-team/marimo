@@ -6,6 +6,12 @@ from textwrap import dedent
 from marimo import __version__
 from marimo._convert.converters import MarimoConvert
 from marimo._convert.script import _header_for_script
+from marimo._export.exporter import export_markdown, export_script
+from marimo._export.requests import (
+    MarkdownExportRequest,
+    ScriptExportRequest,
+)
+from marimo._schemas.export_options import MarkdownExportOptions
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
@@ -62,6 +68,29 @@ def test_basic_marimo_example_jupytext_compatibility():
     # Test conversion back from markdown to marimo
     converted_back = MarimoConvert.from_md(converted_to_md).to_py()
     snapshot("basic_marimo_example_roundtrip.py.txt", converted_back)
+
+
+def test_from_py_ir_can_be_exported_without_filename_fixup() -> None:
+    source = "import marimo\napp = marimo.App()\n"
+
+    ir = MarimoConvert.from_py(source).to_ir()
+    script = export_script(ScriptExportRequest(notebook=ir))
+    markdown = export_markdown(
+        MarkdownExportRequest(
+            notebook=ir,
+            options=MarkdownExportOptions(),
+        )
+    )
+
+    assert ir.filename == "notebook.py"
+    assert script.download_filename == "notebook.script.py"
+    assert markdown.download_filename == "notebook.md"
+
+
+def test_from_empty_py_ir_has_exportable_default_filename() -> None:
+    ir = MarimoConvert.from_py("").to_ir()
+
+    assert ir.filename == "notebook.py"
 
 
 def test_unparsable_cell_with_escaped_quotes():

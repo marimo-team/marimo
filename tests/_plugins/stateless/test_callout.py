@@ -4,6 +4,8 @@ from __future__ import annotations
 import gc
 import weakref
 
+import pytest
+
 import marimo as mo
 from marimo._output.hypertext import Html
 from marimo._plugins.stateless.callout import callout
@@ -26,6 +28,14 @@ def test_callout_with_title() -> None:
     # No title arg -> no title attribute in the rendered component.
     result = callout(Html("<p>Important</p>"), kind="warn")
     assert "data-title" not in result.text
+
+
+def test_callout_rejects_unknown_kind() -> None:
+    with pytest.raises(
+        ValueError,
+        match="Unsupported callout kind: 'warning'",
+    ):
+        callout("Important", kind="warning")  # type: ignore[arg-type]
 
 
 def test_callout_retains_strong_reference_to_child() -> None:
