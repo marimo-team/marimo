@@ -159,7 +159,7 @@ SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 
 There are two ways to connect to a database in marimo:
 
-### 1. Using the UI
+### Using the UI
 
 Click the "Add Database Connection" button in your notebook to connect to PostgreSQL, MySQL, SQLite, DuckDB, Snowflake, or BigQuery databases. The UI will guide you through entering your connection details securely. Environment variables picked up from your [`dotenv`](../configuration/runtime_configuration.md#environment-variables) can be used to fill out the database configuration fields.
 
@@ -170,9 +170,39 @@ Click the "Add Database Connection" button in your notebook to connect to Postgr
   </figure>
 </div>
 
+#### Detecting data sources from your environment
+
+marimo detects data sources that are already configured in your
+environment and offers them as one-click additions in the connection dialog.
+Detection inspects the kernel's environment variables and/or configuration files.
+
+<div align="center">
+  <figure>
+    <img width="700" src="/_static/docs-sql-datasource-quick-add.png"/>
+    <figcaption>Quick-add a discovered data source</figcaption>
+  </figure>
+</div>
+
+The following non-exhaustive table enumerates the environment variables and configuration files scanned for each supported source:
+
+| Source                   | Detected when                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| PostgreSQL               | `PGHOST`, `PGUSER`, and `PGDATABASE` are set (optionally `PGPORT`, `PGPASSWORD`)                                                   |
+| MySQL                    | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and a password (`MYSQL_PASSWORD` or `MYSQL_PWD`) are set (optionally `MYSQL_TCP_PORT`) |
+| Trino                    | `TRINO_HOST`, `TRINO_USER`, and `TRINO_CATALOG` are set (optionally `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`)                |
+| Amazon S3                | `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, or `AWS_PROFILE` is set                                                   |
+| S3-compatible storage    | As above, with a custom endpoint (`AWS_ENDPOINT_URL` or `AWS_ENDPOINT_URL_S3`), e.g. MinIO or Cloudflare R2                        |
+| PySpark (Spark Connect)  | `SPARK_REMOTE` is set                                                                                                              |
+| PyIceberg                | `PYICEBERG_CATALOG__<name>__<property>` variables define a catalog, or a `.pyiceberg.yaml` file configures one                     |
+
+PyIceberg catalogs are resolved the same way PyIceberg resolves them at
+runtime: `.pyiceberg.yaml` is searched in `PYICEBERG_HOME`, then your home
+directory, then the current directory, with environment variables taking
+precedence.
+
 If you'd like to connect to a database that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=New%20database%20connection:&labels=enhancement&template=feature_request.yaml).
 
-### 2. Using Code
+### Using code
 
 You can bring your own database via a **connection engine** with one of the following libraries
 
