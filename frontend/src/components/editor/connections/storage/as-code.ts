@@ -10,7 +10,7 @@ import {
   StorageConnectionSchema,
 } from "./schemas";
 
-export type StorageLibrary = "obstore" | "fsspec";
+export type StorageLibrary = "obstore" | "fsspec" | "huggingface_hub";
 
 export interface StorageCodeOptions {
   library: StorageLibrary;
@@ -20,6 +20,7 @@ export interface StorageCodeOptions {
 export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
   obstore: "obstore",
   fsspec: "fsspec",
+  huggingface_hub: "huggingface_hub",
 };
 
 class SecretContainer {
@@ -245,6 +246,31 @@ function generateGDriveCode(
   return { imports, code };
 }
 
+function generateHuggingfaceCode(
+  connection: Extract<StorageConnection, { type: "huggingface" }>,
+  secrets: SecretContainer,
+): { imports: Set<string>; code: string } {
+  const imports = new Set(["from huggingface_hub import HfApi"]);
+  const params: string[] = [];
+
+  if (connection.token) {
+    params.push(`    token=${secrets.print("token", connection.token)},`);
+  }
+
+  const paramsStr =
+    params.length > 0 ? `\n${params.join("\n").replace(/,$/, "")}\n` : "";
+
+  const code =
+    params.length > 0
+      ? dedent(`
+        hf = HfApi(${paramsStr})
+      `)
+      : dedent(`
+        hf = HfApi()
+      `);
+  return { imports, code };
+}
+
 export function generateStorageCode(
   connection: StorageConnection,
   options: StorageCodeOptions,
@@ -272,6 +298,9 @@ export function generateStorageCode(
         secrets,
         isEmbedded: options.isEmbedded,
       });
+      break;
+    case "huggingface":
+      result = generateHuggingfaceCode(connection, secrets);
       break;
     default:
       assertNever(connection);

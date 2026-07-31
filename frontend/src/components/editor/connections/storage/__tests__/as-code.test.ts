@@ -309,6 +309,26 @@ describe("generateStorageCode", () => {
     });
   });
 
+  describe("Hugging Face", () => {
+    it("default connection", () => {
+      expect(
+        generateStorageCode({ type: "huggingface" }, { library: "fsspec" }),
+      ).toMatchSnapshot();
+    });
+
+    it("with token from secrets", () => {
+      expect(
+        generateStorageCode(
+          {
+            type: "huggingface",
+            token: prefixSecret("HF_TOKEN"),
+          },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+  });
+
   describe("invalid cases", () => {
     it("throws for empty S3 bucket", () => {
       expect(() =>

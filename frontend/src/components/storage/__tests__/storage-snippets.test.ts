@@ -44,6 +44,78 @@ describe("read-file snippet", () => {
     `);
   });
 
+  it("huggingface backend (dataset)", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          backendType: "huggingface",
+          entry: {
+            path: "datasets/scikit-learn/Fish/Fish.csv",
+            kind: "file",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "from huggingface_hub import hf_hub_download
+
+      local_path = hf_hub_download(
+          repo_id="scikit-learn/Fish",
+          filename="Fish.csv",
+          repo_type="dataset",
+      )
+
+      with open(local_path, "rb") as f:
+          _data = f.read()
+      _data"
+    `);
+  });
+
+  it("huggingface backend (model)", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          backendType: "huggingface",
+          entry: {
+            path: "google-bert/bert-base-uncased/config.json",
+            kind: "file",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toMatchInlineSnapshot(`
+      "from huggingface_hub import hf_hub_download
+
+      local_path = hf_hub_download(
+          repo_id="google-bert/bert-base-uncased",
+          filename="config.json",
+          repo_type="model",
+      )
+
+      with open(local_path, "rb") as f:
+          _data = f.read()
+      _data"
+    `);
+  });
+
+  it("huggingface backend returns null for unparsable paths", () => {
+    expect(
+      readSnippet.getCode(
+        makeCtx({
+          backendType: "huggingface",
+          entry: {
+            path: "buckets/my-bucket/file.csv",
+            kind: "file",
+            size: 100,
+            lastModified: null,
+          },
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it("returns null for directories", () => {
     expect(
       readSnippet.getCode(

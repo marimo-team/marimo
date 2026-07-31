@@ -7004,7 +7004,7 @@ export interface components {
      */
     StorageNamespace: {
       /** @enum {unknown} */
-      backendType: "fsspec" | "obstore";
+      backendType: "fsspec" | "huggingface" | "obstore";
       displayName: string;
       name: components["schemas"]["VariableName"];
       protocol: string;

@@ -16,6 +16,7 @@ marimo auto-discovers variables that are instances of:
 |---------|-----------|----------------|
 | [obstore](https://developmentseed.org/obstore/) | `obstore.store.ObjectStore` | `S3Store`, `GCSStore`, `AzureStore`, `HTTPStore`, `LocalStore`, `MemoryStore` |
 | [fsspec](https://filesystem-spec.readthedocs.io/) | `fsspec.AbstractFileSystem` | `S3FileSystem`, `GithubFileSystem`, `FTPFileSystem`, `DatabricksFileSystem`, and [many more](https://filesystem-spec.readthedocs.io/en/latest/api.html#built-in-implementations) |
+| [huggingface_hub](https://huggingface.co/docs/huggingface_hub) | `huggingface_hub.HfApi` | Browse the Hugging Face Hub (datasets, models, spaces, buckets) |
 
 
 ## Creating a storage connection
@@ -78,6 +79,20 @@ store = S3Store(
 from fsspec.implementations.github import GithubFileSystem
 
 repo = GithubFileSystem(org="marimo-team", repo="marimo")
+```
+
+#### Hugging Face Hub
+
+```python
+from huggingface_hub import HfApi
+
+hf = HfApi()  # optional: HfApi(token=os.environ.get("HF_TOKEN"))
+```
+
+Use `hf://` URLs in Polars, pandas, or DuckDB to read files you find in the panel:
+
+```python
+df = pl.read_csv("hf://datasets/scikit-learn/Fish/Fish.csv")
 ```
 
 After the cell runs, the **Remote Storage** section will populate with your connection, its detected protocol, and root path.

@@ -11,10 +11,13 @@ from marimo._data._external_storage.get_storage import (
     get_storage_backends_from_variables,
     storage_backend_to_storage_namespace,
 )
+from marimo._data._external_storage.huggingface import HuggingfaceApi
 from marimo._data._external_storage.models import StorageNamespace
 from marimo._data._external_storage.storage import FsspecFilesystem, Obstore
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
+
+HAS_HF = DependencyManager.huggingface_hub.has()
 
 HAS_OBSTORE = DependencyManager.obstore.has()
 HAS_FSSPEC = DependencyManager.fsspec.has()
@@ -183,3 +186,19 @@ class TestStorageBackendToStorageNamespace:
                 storage_entries=[],
             )
         )
+
+
+@pytest.mark.skipif(not HAS_HF, reason="huggingface_hub not installed")
+class TestGetStorageBackendsHf:
+    def test_detects_huggingface_api(self) -> None:
+        from huggingface_hub import HfApi
+
+        api = HfApi()
+        variables: list[tuple[VariableName, object]] = [
+            (VariableName("hf"), api),
+        ]
+        result = get_storage_backends_from_variables(variables)
+        assert len(result) == 1
+        var_name, backend = result[0]
+        assert var_name == "hf"
+        assert isinstance(backend, HuggingfaceApi)
