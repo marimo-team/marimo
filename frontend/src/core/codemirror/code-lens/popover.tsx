@@ -17,6 +17,7 @@ import { store } from "@/core/state/jotai";
 import { storageNamespacesAtom } from "@/core/storage/state";
 import { variablesAtom } from "@/core/variables/state";
 import type { VariableName } from "@/core/variables/types";
+import { assertNever } from "@/utils/assertNever";
 import { formatTime } from "@/utils/formatting";
 import { prettyNumber } from "@/utils/numbers";
 import {
@@ -28,7 +29,6 @@ import {
   SectionHeader,
 } from "../language/languages/sql/renderers";
 import type { CodeLensSpec } from "./entities";
-import { assertNever } from "@/utils/assertNever";
 
 /**
  * Mounts the hover popover for a code lens into `dom`; returns a dispose
@@ -139,6 +139,29 @@ const BucketPopover: React.FC<{ name: string }> = ({ name }) => {
 // variable-preview truncation
 const CACHE_STATS_PATTERN = /\bhits=(\d+) misses=(\d+)/;
 
+// The popover remounts on every hover (see `mountLensPopover`), so this has
+// to live at module scope rather than in component state: it debounces the
+// notebook-wide `getCacheInfo` fetch across repeated hovers.
+let lastCacheInfoFetchAt: number | null = null;
+const CACHE_INFO_REFETCH_INTERVAL_MS = 5000;
+
+function maybeFetchCacheInfo(): void {
+  const now = Date.now();
+  if (
+    lastCacheInfoFetchAt != null &&
+    now - lastCacheInfoFetchAt < CACHE_INFO_REFETCH_INTERVAL_MS
+  ) {
+    return;
+  }
+  lastCacheInfoFetchAt = now;
+  getRequestClient()
+    .getCacheInfo()
+    .catch(() => {
+      // Allow the next hover to retry rather than waiting out the interval.
+      lastCacheInfoFetchAt = null;
+    });
+}
+
 const CachePopover: React.FC<{
   boundName: string | null;
   cacheName: string | null;
@@ -153,18 +176,14 @@ const CachePopover: React.FC<{
     : undefined;
   const hasLocalStats = Boolean(stats);
 
-  // Only fetch the notebook-wide fallback when there are no per-cache stats to
-  // show. Swallow failures (disconnects, kernel not ready) so the popover
-  // doesn't emit an unhandled promise rejection.
+  // Only fetch the notebook-wide fallback when there are no per-cache stats
+  // to show, and throttle across repeated hovers so mousing over a lens
+  // several times in a row doesn't fire a fresh request every time.
   useEffect(() => {
     if (hasLocalStats) {
       return;
     }
-    getRequestClient()
-      .getCacheInfo()
-      .catch(() => {
-        // Keep any stale cache info; nothing to surface here
-      });
+    maybeFetchCacheInfo();
   }, [hasLocalStats]);
 
   return (

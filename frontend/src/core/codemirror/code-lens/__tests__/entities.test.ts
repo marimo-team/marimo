@@ -153,4 +153,23 @@ describe("getLensEntities", () => {
     expect(entities.get("df")).toBe("table");
     expect(errorSpy).not.toHaveBeenCalled();
   });
+
+  it("shares the underlying entity map across cells instead of rebuilding it per call", () => {
+    // Regression test: the table/connection/namespace scan (and its
+    // collision logging) must run once and be reused by every cell, not
+    // once per `getLensEntities` call.
+    const errorSpy = vi
+      .spyOn(Logger, "error")
+      .mockImplementation(() => undefined);
+    seedStore({
+      tables: [table("shared")],
+      connections: [connection("shared")],
+    });
+
+    getLensEntities(CELL);
+    getLensEntities(OTHER_CELL);
+    getLensEntities(CELL);
+
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
 });

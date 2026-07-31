@@ -272,6 +272,9 @@ function isStandaloneMoReference(
  */
 export function findCacheSites(state: EditorState): CacheSite[] {
   const tree = syntaxTree(state);
+  if (!tree || hasSyntaxErrors(tree)) {
+    return [];
+  }
   return [...state.doc.toString().matchAll(CACHE_PATTERN)]
     .filter((match) => isStandaloneMoReference(state, tree, match.index ?? 0))
     .map((match) => {
