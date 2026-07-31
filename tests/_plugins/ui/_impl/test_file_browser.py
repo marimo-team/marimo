@@ -12,9 +12,32 @@ from marimo._plugins.ui._impl.file_browser import (
     ListDirectoryArgs,
     ListDirectoryResponse,
     _normalize_selection_mode,
+    _normalize_values,
     file_browser,
 )
 from marimo._utils.paths import normalize_path
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, ()),
+        ("file.txt", ("file.txt",)),
+        (Path("file.txt"), (Path("file.txt"),)),
+        (["first.txt", "second.txt"], ["first.txt", "second.txt"]),
+        (("first.txt", "second.txt"), ("first.txt", "second.txt")),
+    ],
+)
+def test_normalize_values(
+    value: str | Path | list[str] | tuple[str, ...] | None,
+    expected: list[str | Path] | tuple[str | Path, ...],
+) -> None:
+    assert _normalize_values(value, multiple=True) == expected
+
+
+def test_normalize_values_rejects_multiple_values() -> None:
+    with pytest.raises(ValueError, match="multiple=False"):
+        _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
 def test_file_browser_init(tmp_path: Path) -> None:
