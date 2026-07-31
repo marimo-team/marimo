@@ -89,6 +89,12 @@ DATABASE_URL = "data.duckdb"
 engine = duckdb.connect(DATABASE_URL, read_only=True)"
 `;
 
+exports[`generateDatabaseCode > basic connections > iceberg configured catalog 1`] = `
+"from pyiceberg.catalog import load_catalog
+
+catalog = load_catalog("my_catalog")"
+`;
+
 exports[`generateDatabaseCode > basic connections > iceberg dynamodb 1`] = `
 "from pyiceberg.catalog.dynamodb import DynamoDBCatalog
 

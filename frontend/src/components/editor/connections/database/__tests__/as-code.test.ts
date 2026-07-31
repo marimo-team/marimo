@@ -166,6 +166,17 @@ describe("generateDatabaseCode", () => {
     },
   };
 
+  const icebergConfiguredCatalogConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "REST",
+      uri: undefined,
+      warehouse: undefined,
+      token: undefined,
+    },
+  };
+
   const icebergSqlConnection: DatabaseConnection = {
     type: "iceberg",
     name: "my_catalog",
@@ -310,6 +321,11 @@ describe("generateDatabaseCode", () => {
       ["chdb", chdbConnection, "chdb"],
       ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
+      [
+        "iceberg configured catalog",
+        icebergConfiguredCatalogConnection,
+        "pyiceberg",
+      ],
       ["iceberg rest", icebergRestConnection, "pyiceberg"],
       ["iceberg sql", icebergSqlConnection, "pyiceberg"],
       ["iceberg hive", icebergHiveConnection, "pyiceberg"],
