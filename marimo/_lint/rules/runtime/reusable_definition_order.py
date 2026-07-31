@@ -326,5 +326,5 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
     @staticmethod
     def _get_definition_name(status: TopLevelStatus) -> str:
         if status.defs:
-            return sorted(status.defs)[0]
+            return min(status.defs)
         return status.name

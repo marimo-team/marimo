@@ -251,7 +251,7 @@ edit_help_msg = "\n".join(
         "\b",
         "Create or edit notebooks.",
         "\b",
-        "If NAME is a url, the notebook will be downloaded to a temporary file."
+        "If NAME is a url, the notebook will be downloaded to a temporary file.",
         "",
         _key_value_bullets(
             [

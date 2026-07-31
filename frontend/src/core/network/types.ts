@@ -75,6 +75,7 @@ export type ListSQLTablesRequest = schemas["ListSQLTablesRequest"];
 export type ListSQLSchemasRequest = schemas["ListSQLSchemasRequest"];
 export type ListDataSourceConnectionRequest =
   schemas["ListDataSourceConnectionRequest"];
+export type DiscoverDataSourcesRequest = schemas["DiscoverDataSourcesRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
 export type DebugCellRequest = schemas["DebugCellRequest"];
 export type SetBreakpointsRequest = schemas["SetBreakpointsRequest"];
@@ -181,6 +182,7 @@ export interface EditRequests {
   previewDataSourceConnection: (
     request: ListDataSourceConnectionRequest,
   ) => Promise<null>;
+  discoverDataSources: (request: DiscoverDataSourcesRequest) => Promise<null>;
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;

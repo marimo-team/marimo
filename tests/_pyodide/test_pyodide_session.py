@@ -536,9 +536,11 @@ async def test_pyodide_session_put_input(
     [
         # Notebook operations
         (
-            '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
-            '"cellIds": ["cell-1"], "setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
-            '"autoRun": true}',
+            (
+                '{"type": "create-notebook", "executionRequests": [{"cellId": "cell-1", "code": "print(1)", "type": "execute-cell"}], '
+                '"cellIds": ["cell-1"], "setUiElementValueRequest": {"objectIds": [], "values": [], "type": "update-ui-element"}, '
+                '"autoRun": true}'
+            ),
             CreateNotebookCommand,
         ),
         (
@@ -605,8 +607,10 @@ async def test_pyodide_session_put_input(
             PreviewDatasetColumnCommand,
         ),
         (
-            '{"type": "preview-sql-table", "requestId": "req-1", "engine": "duckdb", "database": "test.db", '
-            '"schema": "main", "tableName": "users"}',
+            (
+                '{"type": "preview-sql-table", "requestId": "req-1", "engine": "duckdb", "database": "test.db", '
+                '"schema": "main", "tableName": "users"}'
+            ),
             PreviewSQLTableCommand,
         ),
         (

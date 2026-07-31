@@ -16,6 +16,17 @@ HEADERS = {
 
 
 @with_session(SESSION_ID)
+def test_discover_data_sources(client: TestClient) -> None:
+    response = client.post(
+        "/api/datasources/discover",
+        headers=HEADERS,
+        json={"requestId": "discovery-request"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["success"] is True
+
+
+@with_session(SESSION_ID)
 def test_preview_column(client: TestClient) -> None:
     response = client.post(
         "/api/datasources/preview_column",
@@ -99,6 +110,13 @@ def test_preview_datasource_connection(client: TestClient) -> None:
 
 @with_read_session(SESSION_ID)
 def test_fails_in_read_mode(client: TestClient) -> None:
+    response = client.post(
+        "/api/datasources/discover",
+        headers=HEADERS,
+        json={"requestId": "discovery-request"},
+    )
+    assert response.status_code == 401
+
     response = client.post(
         "/api/datasources/preview_column",
         headers=HEADERS,

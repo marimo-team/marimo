@@ -1000,10 +1000,12 @@ def test_underscore_as_imports_are_cell_local() -> None:
         ("import a.b as _c", {f"{prefix}c"}),
         ("from a.b import _c as _d", {f"{prefix}d"}),
         (
-            "import marimo as _private\n"
-            "@_private.cache\n"
-            "def f(x):\n"
-            "    return _private.md('x')\n",
+            (
+                "import marimo as _private\n"
+                "@_private.cache\n"
+                "def f(x):\n"
+                "    return _private.md('x')\n"
+            ),
             {f"{prefix}private", "f"},
         ),
         # `from x import y as _p` referenced in nested scopes (class base,
@@ -1014,10 +1016,12 @@ def test_underscore_as_imports_are_cell_local() -> None:
             {f"{prefix}private", "C"},
         ),
         (
-            "from a.b import c as _also_private\n"
-            "@_also_private.deco\n"
-            "def f(x):\n"
-            "    return _also_private.g(x)\n",
+            (
+                "from a.b import c as _also_private\n"
+                "@_also_private.deco\n"
+                "def f(x):\n"
+                "    return _also_private.g(x)\n"
+            ),
             {f"{prefix}also_private", "f"},
         ),
     ]
@@ -1069,10 +1073,12 @@ def test_no_alias_underscore_import_refs_not_mangled() -> None:
             {"_camera", "C"},
         ),
         (
-            "from a.b import _camera\n"
-            "@_camera.deco\n"
-            "def f(x):\n"
-            "    return _camera.g(x)\n",
+            (
+                "from a.b import _camera\n"
+                "@_camera.deco\n"
+                "def f(x):\n"
+                "    return _camera.g(x)\n"
+            ),
             {"_camera", "f"},
         ),
     ]

@@ -114,6 +114,21 @@ describe("createLazyRequests", () => {
     expect(mockInit).toHaveBeenCalledTimes(1);
   });
 
+  it("starts the kernel for datasource discovery", async () => {
+    mockDelegate.discoverDataSources = vi.fn().mockResolvedValue(null);
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await lazyRequests.discoverDataSources({
+      requestId: requestId("discovery"),
+    });
+
+    expect(mockInit).toHaveBeenCalledOnce();
+    expect(mockDelegate.discoverDataSources).toHaveBeenCalledOnce();
+  });
+
   it("should only call init once across multiple requests", async () => {
     const lazyRequests = createLazyRequests(
       mockDelegate,

@@ -630,6 +630,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  discoverDataSources: EditRequests["discoverDataSources"] = async (
+    request,
+  ) => {
+    await this.putControlRequest({
+      type: "discover-data-sources",
+      ...request,
+    });
+    return null;
+  };
+
   getUsageStats = throwNotImplemented;
   getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
     const response = await this.rpc.proxy.request.bridge({

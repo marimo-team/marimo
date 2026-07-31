@@ -130,6 +130,20 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
     });
 
+    it("discoverDataSources should POST to the discovery endpoint", async () => {
+      const requests = createNetworkRequests();
+      const request = { requestId: "discovery-request" } as any;
+      await requests.discoverDataSources(request);
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/datasources/discover",
+        expect.objectContaining({
+          body: request,
+          params: expect.anything(),
+        }),
+      );
+    });
+
     it("getPackageList should not require a kernel connection", async () => {
       const { waitForConnectionOpen, waitForConnectionOpenIfNotebook } =
         await import("../connection");

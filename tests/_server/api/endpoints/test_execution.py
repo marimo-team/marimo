@@ -378,11 +378,14 @@ class TestExecutionRoutes_EditMode:
             json={
                 "cellIds": ["test-1"],
                 "codes": [
-                    "import marimo as mo\n"
-                    "import json\n"
-                    "request = dict(mo.app_meta().request)\n"
-                    "request['user'] = bool(request['user'])\n"  # user is not serializable
-                    "print(json.dumps(request))"
+                    (
+                        "import marimo as mo\n"
+                        "import json\n"
+                        "request = dict(mo.app_meta().request)\n"
+                        # user is not serializable
+                        "request['user'] = bool(request['user'])\n"
+                        "print(json.dumps(request))"
+                    )
                 ],
             },
         )
@@ -551,11 +554,14 @@ class TestExecutionRoutes_RunMode:
             json={
                 "cellIds": ["test-1"],
                 "codes": [
-                    "import marimo as mo\n"
-                    "import json\n"
-                    "request = dict(mo.app_meta().request)\n"
-                    "request['user'] = bool(request['user'])\n"  # user is not serializable
-                    "print(json.dumps(request))"
+                    (
+                        "import marimo as mo\n"
+                        "import json\n"
+                        "request = dict(mo.app_meta().request)\n"
+                        # user is not serializable
+                        "request['user'] = bool(request['user'])\n"
+                        "print(json.dumps(request))"
+                    )
                 ],
             },
         )

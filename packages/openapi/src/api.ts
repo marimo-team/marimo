@@ -366,6 +366,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/discover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["DiscoverDataSourcesRequest"];
+        };
+      };
+      responses: {
+        /** @description Discover datasource connections */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -4295,6 +4336,20 @@ export interface components {
       op: "data-source-connections";
     };
     /**
+     * DataSourceDiscoveryResultNotification
+     * @description High-confidence datasource connections discovered by the kernel.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             sources: Detected datasource connection configurations.
+     */
+    DataSourceDiscoveryResultNotification: {
+      /** @enum {unknown} */
+      op: "data-source-discovery-result";
+      request_id: string;
+      sources: components["schemas"]["DetectedDataSource"][];
+    };
+    /**
      * DataTable
      * @description Represents a data table.
      *
@@ -4480,6 +4535,35 @@ export interface components {
       tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
+     * DetectedDataSource
+     * @description A secret-free datasource suggestion produced by the kernel.
+     */
+    DetectedDataSource: {
+      /** @enum {unknown} */
+      category: "catalog" | "database" | "object-storage";
+      code: string;
+      /** @enum {unknown} */
+      confidence: "high" | "medium";
+      configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
+      displayName: string;
+      id: string;
+      integration: string;
+      origins: components["schemas"]["DetectedDataSourceOrigin"][];
+    };
+    /** DetectedDataSourceConfiguration */
+    DetectedDataSourceConfiguration: {
+      field: string;
+      value:
+        | components["schemas"]["EnvironmentVariableDiscoveryValue"]
+        | components["schemas"]["SafeLiteralDiscoveryValue"];
+    };
+    /** DetectedDataSourceOrigin */
+    DetectedDataSourceOrigin: {
+      label: string;
+      /** @enum {unknown} */
+      type: "configuration" | "environment";
+    };
+    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4491,6 +4575,22 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DiscoverDataSourcesCommand
+     * @description Discover datasource connections from the live kernel environment and configuration.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     */
+    DiscoverDataSourcesCommand: {
+      requestId: components["schemas"]["RequestId"];
+      /** @enum {unknown} */
+      type: "discover-data-sources";
+    };
+    /** DiscoverDataSourcesRequest */
+    DiscoverDataSourcesRequest: {
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * DisplayConfig
@@ -4523,6 +4623,15 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EnvironmentVariableDiscoveryValue
+     * @description A reference to an environment variable, never its value.
+     */
+    EnvironmentVariableDiscoveryValue: {
+      /** @enum {unknown} */
+      kind: "environment-variable";
+      name: string;
     };
     /**
      * EsmSpec
@@ -5289,6 +5398,7 @@ export interface components {
         | components["schemas"]["ListSQLSchemasCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
+        | components["schemas"]["DiscoverDataSourcesCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
         | components["schemas"]["StorageDownloadCommand"]
         | components["schemas"]["ListSecretKeysCommand"]
@@ -5350,6 +5460,7 @@ export interface components {
         | components["schemas"]["SQLTableListPreviewNotification"]
         | components["schemas"]["SQLSchemaListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
+        | components["schemas"]["DataSourceDiscoveryResultNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
         | components["schemas"]["StorageEntriesNotification"]
@@ -6422,6 +6533,15 @@ export interface components {
       op: "sql-table-preview";
       request_id: components["schemas"]["RequestId"];
       table: null | components["schemas"]["DataTable"];
+    };
+    /**
+     * SafeLiteralDiscoveryValue
+     * @description Non-sensitive metadata that is safe to send to the frontend.
+     */
+    SafeLiteralDiscoveryValue: {
+      /** @enum {unknown} */
+      kind: "safe-literal";
+      value: string;
     };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {

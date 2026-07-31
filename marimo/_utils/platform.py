@@ -41,10 +41,12 @@ def check_shared_memory_available() -> tuple[bool, str]:
     except OSError as e:
         return (
             False,
-            f"Unable to create shared memory: {e}. "
-            "This can happen in restricted environments like some Docker "
-            "containers or when /dev/shm is not available or has insufficient "
-            "space.",
+            (
+                f"Unable to create shared memory: {e}. "
+                "This can happen in restricted environments like some Docker "
+                "containers or when /dev/shm is not available or has "
+                "insufficient space."
+            ),
         )
     except Exception as e:
         return False, f"Unexpected error checking shared memory: {e}"

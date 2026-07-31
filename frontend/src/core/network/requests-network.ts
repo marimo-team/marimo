@@ -267,6 +267,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    discoverDataSources: (request) => {
+      return getClient()
+        .POST("/api/datasources/discover", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     validateSQL: (request) => {
       return getClient()
         .POST("/api/sql/validate", {

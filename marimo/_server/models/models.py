@@ -12,6 +12,7 @@ from marimo._runtime.commands import (
     CodeCompletionCommand,
     DebugCellCommand,
     DeleteCellCommand,
+    DiscoverDataSourcesCommand,
     ExecuteCellsCommand,
     ExecuteScratchpadCommand,
     GetCacheInfoCommand,
@@ -39,6 +40,11 @@ from marimo._types.ids import CellId_t
 class ListSecretKeysRequest(ListSecretKeysCommand, tag=False):
     def as_command(self) -> ListSecretKeysCommand:
         return ListSecretKeysCommand(request_id=self.request_id)
+
+
+class DiscoverDataSourcesRequest(DiscoverDataSourcesCommand, tag=False):
+    def as_command(self) -> DiscoverDataSourcesCommand:
+        return DiscoverDataSourcesCommand(request_id=self.request_id)
 
 
 class ClearCacheRequest(ClearCacheCommand, tag=False):

@@ -9,6 +9,7 @@ from marimo import _loggers
 from marimo._server.api.utils import dispatch_control_request
 from marimo._server.models.models import (
     BaseResponse,
+    DiscoverDataSourcesRequest,
     ListDataSourceConnectionRequest,
     ListSQLSchemasRequest,
     ListSQLTablesRequest,
@@ -24,6 +25,33 @@ LOGGER = _loggers.marimo_logger()
 
 # Router for data source endpoints
 router = APIRouter()
+
+
+@router.post("/discover")
+@requires("edit")
+async def discover_data_sources(request: Request) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        required: true
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/DiscoverDataSourcesRequest"
+    responses:
+        200:
+            description: Discover datasource connections
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, DiscoverDataSourcesRequest)
 
 
 @router.post("/preview_column")
