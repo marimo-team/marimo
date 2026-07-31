@@ -114,7 +114,12 @@ def _markdown_output_extension(
     flavor: MarkdownFlavor | MarkdownFlavorName,
 ) -> str:
     flavor_name = flavor.name if isinstance(flavor, MarkdownFlavor) else flavor
-    return _MARKDOWN_OUTPUT_EXTENSIONS[flavor_name]
+    try:
+        return _MARKDOWN_OUTPUT_EXTENSIONS[flavor_name]
+    except KeyError as error:
+        raise ValueError(
+            f"Unsupported markdown flavor: {flavor_name!r}"
+        ) from error
 
 
 def markdown_output_filename(

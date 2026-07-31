@@ -52,9 +52,14 @@ class TestQuoteSqlIdentifier:
             ("nested.namespace", "starrocks", "`nested.namespace`"),
             ("has`backtick", "starrocks", "`has``backtick`"),
             ('has"quotes', "starrocks", '`has"quotes`'),
-            # Unknown dialect returns unquoted
-            ("table", "sqlite", "table"),
-            ("my table", "unknown", "my table"),
+            # Unknown dialects safely default to ANSI double quotes
+            ("table", "sqlite", '"table"'),
+            ("my table", "unknown", '"my table"'),
+            (
+                'my table; DROP TABLE "x',
+                "sqlite",
+                '"my table; DROP TABLE ""x"',
+            ),
         ],
     )
     def test_quote_identifier(
