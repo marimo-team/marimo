@@ -30,6 +30,164 @@ beforeAll(() => {
 });
 
 describe("LoadingDataTableComponent", () => {
+  it("keeps data columns when inferred types include a row header", async () => {
+    const host = document.createElement("div");
+    const data = JSON.stringify([{ index: "first", value: 1 }]);
+
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          <LoadingDataTableComponent
+            label={null}
+            totalRows={1}
+            pagination={false}
+            pageSize={10}
+            selection={null}
+            showDownload={false}
+            showFilters={false}
+            showColumnSummaries={false}
+            showDataTypes={false}
+            showPageSizeSelector={false}
+            showColumnExplorer={false}
+            showRowExplorer={false}
+            showChartBuilder={false}
+            rowHeaders={[["index", ["string", "object"]]]}
+            fieldTypes={undefined}
+            totalColumns={1}
+            maxColumns={1}
+            hasStableRowId={false}
+            lazy={false}
+            host={host}
+            showSearch={false}
+            value={[]}
+            setValue={vi.fn()}
+            data={data}
+            search={vi.fn().mockResolvedValue({
+              data,
+              total_rows: 1,
+              cell_styles: null,
+              cell_hover_texts: null,
+            })}
+            download_as={vi.fn() as DownloadAsArgs}
+            get_column_summaries={vi.fn()}
+            get_data_url={vi.fn() as GetDataUrl}
+            get_row_ids={vi.fn() as GetRowIds}
+            get_size_bytes={vi.fn().mockResolvedValue({ size_bytes: null })}
+          />
+        </TooltipProvider>
+      </Provider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("columnheader", { name: "value" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("does not log duplicate keys when a pivot becomes empty", async () => {
+    const host = document.createElement("div");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const populatedData = JSON.stringify([
+      { DSGROUP: "a", no: 1, yes: 1 },
+      { DSGROUP: "b", no: 0, yes: 1 },
+    ]);
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
+      <Provider store={store}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </Provider>
+    );
+    const commonProps = {
+      label: null,
+      pagination: false,
+      pageSize: 10,
+      selection: null,
+      showDownload: false,
+      showFilters: false,
+      showColumnSummaries: false as const,
+      showDataTypes: true,
+      showPageSizeSelector: false,
+      showColumnExplorer: false,
+      showRowExplorer: false,
+      showChartBuilder: false,
+      rowHeaders: [
+        ["DSGROUP", ["string", "object"]],
+      ] as FieldTypesWithExternalType,
+      maxColumns: "all" as const,
+      hasStableRowId: false,
+      lazy: false,
+      host,
+      showSearch: false,
+      value: [] as (number | string | { rowId: string; columnName?: string })[],
+      setValue: vi.fn(),
+      download_as: vi.fn() as DownloadAsArgs,
+      get_column_summaries: vi.fn(),
+      get_data_url: vi.fn() as GetDataUrl,
+      get_row_ids: vi.fn() as GetRowIds,
+      get_size_bytes: vi.fn().mockResolvedValue({ size_bytes: null }),
+    };
+
+    try {
+      const { rerender } = render(
+        <Wrapper>
+          <LoadingDataTableComponent
+            {...commonProps}
+            totalRows={2}
+            totalColumns={2}
+            fieldTypes={[
+              ["no", ["number", "int64"]],
+              ["yes", ["number", "int64"]],
+            ]}
+            data={populatedData}
+            search={vi.fn().mockResolvedValue({
+              data: populatedData,
+              total_rows: 2,
+              cell_styles: null,
+              cell_hover_texts: null,
+            })}
+          />
+        </Wrapper>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getAllByRole("row")).toHaveLength(3);
+      });
+
+      await act(async () => {
+        rerender(
+          <Wrapper>
+            <LoadingDataTableComponent
+              {...commonProps}
+              totalRows={0}
+              totalColumns={0}
+              fieldTypes={undefined}
+              data="[]"
+              search={vi.fn().mockResolvedValue({
+                data: "[]",
+                total_rows: 0,
+                cell_styles: null,
+                cell_hover_texts: null,
+              })}
+            />
+          </Wrapper>,
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText("No results.")).toBeInTheDocument();
+      });
+
+      const duplicateKeyErrors = consoleError.mock.calls.filter((args) =>
+        args.some((arg) => typeof arg === "string" && arg.includes("same key")),
+      );
+      expect(duplicateKeyErrors).toHaveLength(0);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   /**
    * Regression test for https://github.com/marimo-team/marimo/issues/8023
    *

@@ -5,6 +5,7 @@ import { fireEvent, render } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Logger } from "@/utils/Logger";
 import { parseContent } from "@/utils/url-parser";
 import {
   generateColumns,
@@ -174,16 +175,23 @@ describe("generateColumns", () => {
   ];
 
   it("should generate columns with row headers", () => {
+    const loggerWarn = vi.spyOn(Logger, "warn").mockImplementation(() => {});
+    // "name" intentionally appears in both inputs; the row header takes precedence.
     const columns = generateColumns({
       rowHeaders: [["name", ["string", "text"]]],
       selection: null,
       fieldTypes,
     });
 
-    expect(columns).toHaveLength(3);
+    expect(columns).toHaveLength(2);
+    expect(columns.map((column) => column.id)).toEqual(["name", "age"]);
     expect(columns[0].id).toBe("name");
     expect(columns[0].meta?.rowHeader).toBe(true);
     expect(columns[0].enableSorting).toBe(true);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      "Skipping field type for row header column name",
+    );
+    loggerWarn.mockRestore();
   });
 
   it("should generate columns with nameless row headers", () => {
