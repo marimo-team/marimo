@@ -65,13 +65,29 @@ def test_rename(client: TestClient) -> None:
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_read_code(client: TestClient) -> None:
+    source = """import marimo
+
+app = marimo.App()
+
+@app.cell
+async def _():
+    import asyncio
+    await asyncio.sleep(0)
+    return
+"""
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    assert session.app_file_manager.path
+    Path(session.app_file_manager.path).write_text(source, encoding="utf-8")
+
     response = client.post(
         "/api/kernel/read_code",
         headers=HEADERS,
         json={},
     )
-    assert response.status_code == 200, response.text
-    assert "import marimo" in response.json()["contents"]
+
+    assert response.status_code == 200
+    assert response.json()["contents"] == source
 
 
 @with_read_session(SESSION_ID, include_code=True)

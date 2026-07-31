@@ -250,13 +250,9 @@ const requestHandler = createRPCRequestHandler({
    * Save the notebook
    */
   saveNotebook: async (opts: SaveNotebookRequest) => {
-    // Partially duplicated from save-worker.ts
     await pyodideReadyPromise; // Make sure loading is done
-    const saveFile = self.pyodide.runPython(`
-      from marimo._pyodide.bootstrap import save_file
-      save_file
-    `);
-    await saveFile(JSON.stringify(opts), WasmFileSystem.NOTEBOOK_FILENAME);
+    const bridge = await bridgeReady.promise;
+    await bridge.save(JSON.stringify(opts));
   },
 
   /**

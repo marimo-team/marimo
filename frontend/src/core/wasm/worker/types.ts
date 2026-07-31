@@ -110,9 +110,11 @@ export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
   : undefined;
 
 export type SerializedBridge = {
-  [P in keyof RawBridge]: RawBridge[P] extends (
+  [P in Exclude<keyof RawBridge, "save">]: RawBridge[P] extends (
     payload: string,
   ) => Promise<unknown>
     ? (payload: string) => Promise<string>
     : RawBridge[P];
+} & {
+  save(payload: string): Promise<void>;
 };

@@ -363,6 +363,34 @@ def test_export_script_uses_topological_order(
     assert response.text.index("x = 1") < response.text.index("y = x + 1")
 
 
+@with_session(SESSION_ID)
+def test_export_script_rejects_async_notebook(
+    client: TestClient,
+) -> None:
+    app = App()
+
+    @app.cell()
+    async def _():
+        import asyncio
+
+        await asyncio.sleep(0)
+
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager.app = InternalApp(app)
+
+    response = client.post(
+        "/api/export/script",
+        headers=HEADERS,
+        json={"download": False},
+    )
+
+    assert response.status_code == 400
+    assert response.json() == {
+        "detail": "Cannot export a notebook with async code to a flat script"
+    }
+
+
 @pytest.mark.xfail(reason="flakey", strict=False)
 @with_session(SESSION_ID)
 def test_export_markdown(client: TestClient) -> None:

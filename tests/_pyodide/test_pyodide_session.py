@@ -787,18 +787,23 @@ def test_pyodide_bridge_save(
     pyodide_bridge: PyodideBridge,
     pyodide_app_file: Path,
 ) -> None:
-    """Test saving notebook through the bridge."""
     request_json = json.dumps(
         {
             "cellIds": ["test"],
-            "codes": ["# Updated code"],
+            "codes": ['message = "NEW"'],
             "names": ["_"],
-            "configs": [{}],  # Must match length of cell_ids
+            "configs": [{}],
             "filename": str(pyodide_app_file),
         }
     )
 
     pyodide_bridge.save(request_json)
+
+    request = json.dumps({"download": False})
+    script = json.loads(pyodide_bridge.export_script(request))
+    markdown = json.loads(pyodide_bridge.export_markdown(request))
+    assert 'message = "NEW"' in script["contents"]
+    assert 'message = "NEW"' in markdown["contents"]
 
 
 def test_pyodide_bridge_save_app_config(

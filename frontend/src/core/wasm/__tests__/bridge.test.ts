@@ -1,10 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { cellId } from "@/__tests__/branded";
+import { Deferred } from "@/utils/Deferred";
 
-const { mockBridge, mockNotebookReadFile, rpcListeners } = vi.hoisted(() => ({
+const {
+  mockBridge,
+  mockNotebookReadFile,
+  mockReadNotebook,
+  mockSaveNotebook,
+  rpcListeners,
+} = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
+  mockReadNotebook: vi.fn(),
+  mockSaveNotebook: vi.fn(),
   rpcListeners: {} as Record<string, () => void>,
 }));
 
@@ -32,8 +42,8 @@ vi.mock("@/core/wasm/rpc", () => ({
         bridge: mockBridge,
         startSession: vi.fn(),
         readFile: vi.fn(),
-        readNotebook: vi.fn(),
-        saveNotebook: vi.fn(),
+        readNotebook: mockReadNotebook,
+        saveNotebook: mockSaveNotebook,
       },
       send: { consumerReady: vi.fn() },
     },
@@ -135,6 +145,64 @@ describe("PyodideBridge.exportAsScript", () => {
       payload: { download: false },
     });
     expect(result).toEqual(exportedFile);
+  });
+});
+
+describe("PyodideBridge.sendSave", () => {
+  const request = {
+    cellIds: [cellId("cell-1")],
+    codes: ['value = "NEW"'],
+    names: ["_"],
+    filename: "notebook.py",
+    configs: [{}],
+    layout: null,
+    persist: true,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    store.set(initialModeAtom, "edit");
+    rpcListeners.initialized();
+    mockSaveNotebook.mockResolvedValue(null);
+    mockReadNotebook.mockResolvedValue(
+      "import marimo\napp = marimo.App()\n# NEW",
+    );
+  });
+
+  afterEach(() => {
+    store.set(initialModeAtom, undefined);
+  });
+
+  it("waits for the session save before generating exports", async () => {
+    const mainSave = new Deferred<void>();
+    mockSaveNotebook
+      .mockResolvedValueOnce(null)
+      .mockReturnValueOnce(mainSave.promise);
+
+    await PyodideBridge.INSTANCE.sendSave(request);
+    expect(mockSaveNotebook).toHaveBeenCalledTimes(2);
+    expect(mockSaveNotebook).toHaveBeenNthCalledWith(1, request);
+    expect(mockSaveNotebook).toHaveBeenNthCalledWith(2, request);
+
+    const markdown = PyodideBridge.INSTANCE.exportAsMarkdown({
+      download: false,
+    });
+    const script = PyodideBridge.INSTANCE.exportAsScript({
+      download: false,
+    });
+    await Promise.resolve();
+    expect(mockBridge).not.toHaveBeenCalled();
+
+    mainSave.resolve();
+    await Promise.all([markdown, script]);
+    expect(mockBridge).toHaveBeenCalledWith({
+      functionName: "export_markdown",
+      payload: { download: false },
+    });
+    expect(mockBridge).toHaveBeenCalledWith({
+      functionName: "export_script",
+      payload: { download: false },
+    });
   });
 });
 

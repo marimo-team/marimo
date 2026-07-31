@@ -252,7 +252,7 @@ const ActionButtons: React.FC<{
           key="download-python"
         >
           <CodeIcon className="mr-2" size={14} strokeWidth={1.5} />
-          Download as .py
+          Download notebook source
         </DropdownMenuItem>,
       );
     }

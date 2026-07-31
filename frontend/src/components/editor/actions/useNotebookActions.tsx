@@ -82,10 +82,12 @@ import { copyToClipboard } from "@/utils/copy";
 import {
   ADD_PRINTING_CLASS,
   downloadAsPDF,
+  downloadBlob,
   downloadExportedFile,
   downloadHTMLAsImage,
   withLoadingToast,
 } from "@/utils/download";
+import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
 import type { ProgressState } from "@/utils/progress";
 import { Strings } from "@/utils/strings";
@@ -288,7 +290,18 @@ export function useNotebookActions() {
         },
         {
           icon: <CodeIcon size={14} strokeWidth={1.5} />,
-          label: "Download Python code",
+          label: "Download notebook source",
+          handle: async () => {
+            const code = await readCode();
+            downloadBlob(
+              new Blob([code.contents], { type: "text/plain" }),
+              Filenames.toPY(document.title),
+            );
+          },
+        },
+        {
+          icon: <CodeIcon size={14} strokeWidth={1.5} />,
+          label: "Download flat script",
           handle: async () => {
             const exportedFile = await exportAsScript({ download: false });
             downloadExportedFile(exportedFile);

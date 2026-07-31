@@ -20,6 +20,7 @@ from marimo._convert.common.filename import (
     make_download_headers,
     make_export_headers,
 )
+from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._export.dependencies import get_missing_export_packages
 from marimo._export.exporter import (
     AutoExporter,
@@ -289,14 +290,20 @@ async def export_as_script(
     body = await parse_request(request, cls=ExportAsScriptRequest)
     session = app_state.require_current_session()
 
-    result = export_script(
-        ScriptExportRequest(
-            notebook=replace(
-                session.app_file_manager.app.to_ir(),
-                filename=session.app_file_manager.filename,
-            ),
+    try:
+        result = export_script(
+            ScriptExportRequest(
+                notebook=replace(
+                    session.app_file_manager.app.to_ir(),
+                    filename=session.app_file_manager.filename,
+                ),
+            )
         )
-    )
+    except UnsupportedAsyncCodeError as error:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=str(error),
+        ) from error
 
     # Download the Script
     return PlainTextResponse(
