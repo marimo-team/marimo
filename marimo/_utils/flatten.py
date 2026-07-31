@@ -297,6 +297,12 @@ def contains_instance(value: Any, instance: Any) -> bool:
                 return any(_contains_instance(v) for v in value)
             elif isinstance(value, dict):
                 return any(_contains_instance(v) for v in value.values())
+            elif hasattr(value, "_live_children"):
+                # marimo Html containers (e.g. hstack/vstack) store their
+                # children as live references under `_live_children`
+                # rather than as a raw list/tuple/dict; descend into them
+                # so nested UIElements are still found.
+                return any(_contains_instance(v) for v in value._live_children)
         except Exception:
             # .__iter__() or .values() raised. Cannot probe container.
             return False
