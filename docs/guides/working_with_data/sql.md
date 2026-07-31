@@ -145,6 +145,55 @@ SELECT * FROM read_parquet('path/to/example.parquet');
 For a full list you can check out the [duckdb extensions](https://duckdb.org/docs/extensions/overview).
 You can also check out our [examples on GitHub](https://github.com/marimo-team/marimo/tree/main/examples/sql).
 
+## Refreshing SQL queries
+
+If you'd like to refresh your SQL cells automatically, you can wire a UI element into the SQL cell's dependency graph.
+
+### Periodic refresh with `mo.ui.refresh`
+
+Add a [`mo.ui.refresh`][marimo.ui.refresh] control and reference it in your SQL query. Because SQL cells use f-strings, include the refresh control in a SQL comment so it does not affect the query:
+
+```python
+refresh = mo.ui.refresh(default_interval="30s")
+refresh
+```
+
+```sql
+SELECT * FROM my_table
+-- {refresh}
+```
+
+Both `{refresh}` and `{refresh.value}` create a dependency on the refresh control and work the same way.
+
+Each time the refresh timer fires, the SQL cell re-runs. See the [refresh recipe](../../recipes.md#run-a-cell-on-a-timer) for more details.
+
+### Manual refresh with a button
+
+For on-demand refresh, add a [`mo.ui.button`][marimo.ui.button] and reference it in the cell that runs your query.
+
+In a **SQL cell**, reference the button in a comment:
+
+```python
+refresh_button = mo.ui.button(label="Refresh data")
+refresh_button
+```
+
+```sql
+SELECT * FROM my_table
+-- {refresh_button}
+```
+
+In a **Python cell**, a bare reference to the button on its own line also works:
+
+```python
+refresh_button
+_df = mo.sql(f"""SELECT * FROM my_table""")
+```
+
+### Other UI elements
+
+SQL queries can interpolate any Python value, so dropdowns, sliders, text inputs, and other UI elements already trigger re-queries when their values change. See the [`parametrizing_sql_queries.py` example](https://github.com/marimo-team/marimo/blob/main/examples/sql/parametrizing_sql_queries.py) on GitHub.
+
 ## Escaping SQL brackets
 
 Our "SQL" cells are really just Python under the hood to keep notebooks as pure Python scripts. By default, we use `f-strings` for SQL strings, which allows for parameterized SQL like `SELECT * from table where value < {min}`.
@@ -201,7 +250,7 @@ By default, marimo uses the [in-memory duckdb connection](https://duckdb.org/doc
     | ClickHouse                 | `clickhouse_connect`, `chdb`       |
     | CockroachDB                | `sqlalchemy`, `sqlmodel`           |
     | Databricks                 | `sqlalchemy`, `sqlmodel`, `ibis`   |
-    | dlt                        | `ibis`                             | 
+    | dlt                        | `ibis`                             |
     | Datafusion                 | `ibis`                             |
     | DuckDB                     | `duckdb`                           |
     | EXASolution                | `sqlalchemy`, `sqlmodel`, `ibis`   |
