@@ -554,6 +554,53 @@ class TestMCPTransportConnectors:
             assert read == mock_read
             assert write == mock_write
 
+    @pytest.mark.skipif(
+        not DependencyManager.mcp.has(), reason="MCP SDK not available"
+    )
+    @patch("mcp.client.streamable_http.streamablehttp_client")
+    @patch.dict("sys.modules", {})
+    async def test_http_connector_connect_legacy_fallback(
+        self, mock_streamablehttp_client
+    ):
+        """Test HTTP transport connector fallback to streamablehttp_client on ImportError."""
+        mock_read = AsyncMock()
+        mock_write = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__ = AsyncMock(
+            return_value=(mock_read, mock_write)
+        )
+        mock_context.__aexit__ = AsyncMock(return_value=None)
+        mock_streamablehttp_client.return_value = mock_context
+
+        connector = StreamableHTTPTransportConnector()
+        config = MCPServerStreamableHttpConfig(
+            url="https://api.example.com/mcp",
+            headers={"Authorization": "Bearer token"},
+            timeout=30.0,
+        )
+        server_def = MCPServerDefinition(
+            name="test",
+            transport=MCPTransportType.STREAMABLE_HTTP,
+            config=config,
+            timeout=30.0,
+        )
+
+        from contextlib import AsyncExitStack
+
+        with patch(
+            "mcp.client.streamable_http.streamable_http_client",
+            side_effect=ImportError,
+        ):
+            async with AsyncExitStack() as exit_stack:
+                read, write = await connector.connect(server_def, exit_stack)
+                assert read == mock_read
+                assert write == mock_write
+                mock_streamablehttp_client.assert_called_once_with(
+                    "https://api.example.com/mcp",
+                    headers={"Authorization": "Bearer token"},
+                    timeout=30.0,
+                )
+
 
 class TestMCPClientConfiguration:
     """Test cases for MCPClient configuration parsing and initialization."""
