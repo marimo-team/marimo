@@ -46,9 +46,9 @@ class Obstore(StorageBackend["ObjectStore"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         page_token: str | None = None,
     ) -> StorageListResult:
-        offset = _parse_page_offset(page_token)
+        offset = parse_page_offset(page_token)
         storage_entries = self._list_storage_entries(prefix)
-        return _paginate_entries(storage_entries, offset=offset, limit=limit)
+        return paginate_entries(storage_entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         # Object stores commonly cap a single delimiter listing at ~1000
@@ -264,9 +264,9 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         page_token: str | None = None,
     ) -> StorageListResult:
-        offset = _parse_page_offset(page_token)
+        offset = parse_page_offset(page_token)
         entries = self._list_storage_entries(prefix)
-        return _paginate_entries(entries, offset=offset, limit=limit)
+        return paginate_entries(entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         # If no prefix provided, we use empty string to list root entries
@@ -536,7 +536,7 @@ def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | None:
     return _PROTOCOL_MAP.get(protocol.strip().lower())
 
 
-def _parse_page_offset(page_token: str | None) -> int:
+def parse_page_offset(page_token: str | None) -> int:
     if page_token is None:
         return 0
     try:
@@ -548,7 +548,7 @@ def _parse_page_offset(page_token: str | None) -> int:
     return offset
 
 
-def _paginate_entries(
+def paginate_entries(
     entries: list[StorageEntry],
     *,
     offset: int,

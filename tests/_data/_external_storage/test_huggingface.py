@@ -204,6 +204,34 @@ class TestHuggingfaceApi:
             ]
         )
 
+    def test_list_root_entries_tolerates_partial_failures(self) -> None:
+        # A transient failure in one listing call (e.g. rate limiting)
+        # shouldn't prevent the others from rendering.
+        mock_api = MagicMock()
+        mock_api.whoami.return_value = {"name": "marimo-team"}
+        mock_api.list_datasets.side_effect = Exception("rate limited")
+        mock_model = MagicMock()
+        mock_model.id = "marimo-team/model"
+        mock_api.list_models.return_value = [mock_model]
+        mock_api.list_spaces.side_effect = Exception("rate limited")
+        mock_api.list_buckets.return_value = []
+
+        backend = self._make_backend(mock_api)
+        result = backend.list_entries(prefix="")
+
+        assert result.entries == snapshot(
+            [
+                StorageEntry(
+                    path="marimo-team/model",
+                    kind="directory",
+                    size=0,
+                    last_modified=None,
+                    metadata={},
+                    mime_type=None,
+                )
+            ]
+        )
+
     def test_protocol_and_backend_type(self) -> None:
         backend = self._make_backend(MagicMock())
         assert backend.protocol == "hf"
@@ -298,6 +326,20 @@ class TestHuggingfaceApi:
             "https://huggingface.co/buckets/my-org/my-bucket/resolve/"
             "data/file.parquet"
         )
+
+    @pytest.mark.asyncio
+    async def test_read_range_zero_length(self) -> None:
+        mock_api = MagicMock()
+        mock_api.endpoint = "https://huggingface.co"
+        backend = self._make_backend(mock_api)
+
+        with patch("huggingface_hub.file_download.http_get") as mock_http_get:
+            data = await backend.read_range(
+                "datasets/scikit-learn/Fish/Fish.csv", offset=0, length=0
+            )
+
+        mock_http_get.assert_not_called()
+        assert data == b""
 
     def test_list_entries_pagination(self) -> None:
         mock_api = MagicMock()

@@ -251,24 +251,13 @@ function generateHuggingfaceCode(
   secrets: SecretContainer,
 ): { imports: Set<string>; code: string } {
   const imports = new Set(["from huggingface_hub import HfApi"]);
-  const params: string[] = [];
 
-  if (connection.token) {
-    params.push(`    token=${secrets.print("token", connection.token)},`);
+  if (!connection.token) {
+    return { imports, code: "hf = HfApi()" };
   }
 
-  const paramsStr =
-    params.length > 0 ? `\n${params.join("\n").replace(/,$/, "")}\n` : "";
-
-  const code =
-    params.length > 0
-      ? dedent(`
-        hf = HfApi(${paramsStr})
-      `)
-      : dedent(`
-        hf = HfApi()
-      `);
-  return { imports, code };
+  const token = secrets.print("token", connection.token);
+  return { imports, code: `hf = HfApi(token=${token})` };
 }
 
 export function generateStorageCode(

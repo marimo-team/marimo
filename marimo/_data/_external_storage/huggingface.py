@@ -19,10 +19,12 @@ from marimo._data._external_storage.models import (
     StorageListResult,
 )
 from marimo._data._external_storage.storage import (
-    _paginate_entries,
-    _parse_page_offset,
+    paginate_entries,
+    parse_page_offset,
 )
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.assert_never import log_never
+from marimo._utils.typing import override
 
 if TYPE_CHECKING:
     from huggingface_hub import HfApi  # noqa: F401
@@ -122,6 +124,7 @@ def _directory_entry(path: str) -> StorageEntry:
 
 
 class HuggingfaceApi(StorageBackend["HfApi"]):
+    @override
     def list_entries(
         self,
         prefix: str | None,
@@ -129,9 +132,9 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         page_token: str | None = None,
     ) -> StorageListResult:
-        offset = _parse_page_offset(page_token)
+        offset = parse_page_offset(page_token)
         entries = self._list_storage_entries(prefix or "")
-        return _paginate_entries(entries, offset=offset, limit=limit)
+        return paginate_entries(entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str) -> list[StorageEntry]:
         resolved = _parse_hub_path(prefix)
@@ -145,29 +148,32 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         entries: list[StorageEntry] = []
         author = self._current_username()
 
-        for dataset in self.store.list_datasets(
-            author=author, limit=_ROOT_LIST_LIMIT
-        ):
-            dataset_id = dataset.id
-            hub_path = _hub_path_for_repo("dataset", dataset_id)
-            directory_entry = _directory_entry(hub_path)
-            entries.append(directory_entry)
+        try:
+            for dataset in self.store.list_datasets(
+                author=author, limit=_ROOT_LIST_LIMIT
+            ):
+                hub_path = _hub_path_for_repo("dataset", dataset.id)
+                entries.append(_directory_entry(hub_path))
+        except Exception:
+            LOGGER.debug("Hugging Face list_datasets failed", exc_info=True)
 
-        for model in self.store.list_models(
-            author=author, limit=_ROOT_LIST_LIMIT
-        ):
-            model_id = model.id
-            hub_path = _hub_path_for_repo("model", model_id)
-            directory_entry = _directory_entry(hub_path)
-            entries.append(directory_entry)
+        try:
+            for model in self.store.list_models(
+                author=author, limit=_ROOT_LIST_LIMIT
+            ):
+                hub_path = _hub_path_for_repo("model", model.id)
+                entries.append(_directory_entry(hub_path))
+        except Exception:
+            LOGGER.debug("Hugging Face list_models failed", exc_info=True)
 
-        for space in self.store.list_spaces(
-            author=author, limit=_ROOT_LIST_LIMIT
-        ):
-            space_id = space.id
-            hub_path = _hub_path_for_repo("space", space_id)
-            directory_entry = _directory_entry(hub_path)
-            entries.append(directory_entry)
+        try:
+            for space in self.store.list_spaces(
+                author=author, limit=_ROOT_LIST_LIMIT
+            ):
+                hub_path = _hub_path_for_repo("space", space.id)
+                entries.append(_directory_entry(hub_path))
+        except Exception:
+            LOGGER.debug("Hugging Face list_spaces failed", exc_info=True)
 
         try:
             for bucket in self.store.list_buckets():
@@ -180,11 +186,17 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
 
     def _current_username(self) -> str | None:
         try:
-            whoami = self.store.whoami()
+            whoami: dict[str, Any] = self.store.whoami()
         except Exception:
             LOGGER.debug("Hugging Face whoami failed; listing public repos")
             return None
-        return whoami.get("name") if isinstance(whoami, dict) else None
+        name = whoami.get("name")
+        if not isinstance(name, str):
+            LOGGER.warning(
+                "Hugging Face whoami returned a non-string name %s", name
+            )
+            return str(name)
+        return name
 
     def _list_repo_entries(
         self, resolved: _ResolvedHubPath
@@ -235,6 +247,8 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                         mime_type=None,
                     )
                 )
+            else:
+                log_never(item)
 
         return entries
 
@@ -288,9 +302,12 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                         mime_type=None,
                     )
                 )
+            else:
+                log_never(item)
 
         return entries
 
+    @override
     async def get_entry(self, path: str) -> StorageEntry:
         resolved = _parse_hub_path(path)
         if resolved.kind == "root":
@@ -331,7 +348,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 last_modified=_last_modified_from_commit(item.last_commit),
                 mime_type=mimetypes.guess_type(full_path)[0],
             )
-        if isinstance(item, RepoFolder):
+        elif isinstance(item, RepoFolder):
             folder_path = item.path.rstrip("/")
             full_path = f"{repo_root}/{folder_path}"
             return StorageEntry(
@@ -341,6 +358,9 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 last_modified=_last_modified_from_commit(item.last_commit),
                 mime_type=None,
             )
+        else:
+            log_never(item)
+
         raise ValueError(f"Entry at {path} is not a file or directory")
 
     async def _get_bucket_entry(
@@ -360,6 +380,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 return entry
         raise ValueError(f"Entry at {path} not found")
 
+    @override
     async def download(self, path: str) -> bytes:
         resolved = _parse_hub_path(path)
         if resolved.kind == "bucket":
@@ -413,6 +434,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
 
         return await asyncio.to_thread(_read)
 
+    @override
     async def read_range(
         self, path: str, *, offset: int = 0, length: int | None = None
     ) -> bytes:
@@ -427,6 +449,9 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
             raise ValueError("Missing Hugging Face repository metadata")
         if not resolved.path_in_repo:
             raise ValueError("Cannot read a repository root")
+
+        if length == 0:
+            return b""
 
         from huggingface_hub import hf_hub_url
         from huggingface_hub.file_download import http_get
@@ -453,6 +478,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
 
         return await asyncio.to_thread(_read)
 
+    @override
     async def sign_download_url(
         self, path: str, expiration: int = SIGNED_URL_EXPIRATION
     ) -> str | None:
@@ -485,22 +511,27 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         )
 
     @property
+    @override
     def protocol(self) -> str:
         return "hf"
 
     @property
+    @override
     def backend_type(self) -> Literal["huggingface"]:
         return "huggingface"
 
     @property
+    @override
     def display_name(self) -> str:
         return "Hugging Face Hub"
 
     @property
+    @override
     def root_path(self) -> str | None:
         return None
 
     @staticmethod
+    @override
     def is_compatible(var: Any) -> bool:
         if not DependencyManager.huggingface_hub.imported():
             return False

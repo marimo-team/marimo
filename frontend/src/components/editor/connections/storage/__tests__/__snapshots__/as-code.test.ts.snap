@@ -165,9 +165,7 @@ exports[`generateStorageCode > Hugging Face > with token from secrets 1`] = `
 import os
 
 _token = os.environ.get("HF_TOKEN")
-hf = HfApi(
-    token=_token
-)"
+hf = HfApi(token=_token)"
 `;
 
 exports[`generateStorageCode > S3 > basic connection with all fields 1`] = `
