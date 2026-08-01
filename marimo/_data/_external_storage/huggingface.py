@@ -70,7 +70,9 @@ def _parse_hub_path(path: str) -> _ResolvedHubPath:
     if not normalized:
         return _ResolvedHubPath(kind="root")
 
-    parts = normalized.split("/")
+    # Drop empty segments (e.g. from a double slash) so they don't get
+    # folded into namespaced_id/repo_id.
+    parts = [part for part in normalized.split("/") if part]
     prefix = parts[0]
     if prefix in _NAMESPACED_PREFIXES:
         if len(parts) < 3:

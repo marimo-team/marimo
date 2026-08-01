@@ -97,6 +97,34 @@ class TestParseHubPath:
         ):
             _parse_hub_path("buckets/my-bucket")
 
+    def test_ignores_empty_segments_from_double_slashes(self) -> None:
+        # A double slash shouldn't leak an empty segment into repo_id/
+        # namespaced_id, matching the frontend's `.filter(Boolean)`.
+        assert _parse_hub_path("datasets//scikit-learn/Fish") == snapshot(
+            _ResolvedHubPath(
+                kind="repo",
+                repo_type="dataset",
+                repo_id="scikit-learn/Fish",
+            )
+        )
+        assert _parse_hub_path("google//bert-base-uncased") == snapshot(
+            _ResolvedHubPath(
+                kind="repo",
+                repo_type="model",
+                repo_id="google/bert-base-uncased",
+            )
+        )
+        assert _parse_hub_path(
+            "google/bert-base-uncased//weights.bin"
+        ) == snapshot(
+            _ResolvedHubPath(
+                kind="repo",
+                repo_type="model",
+                repo_id="google/bert-base-uncased",
+                path_in_repo="weights.bin",
+            )
+        )
+
 
 class TestHubPathForRepo:
     def test_paths(self) -> None:

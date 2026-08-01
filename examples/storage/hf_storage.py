@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.15"
+__generated_with = "0.23.16"
 app = marimo.App(width="medium")
 
 
@@ -31,7 +31,7 @@ def _(mo):
 def _():
     from huggingface_hub import HfApi
 
-    hf = HfApi(library_name="scikit-learn")
+    hf = HfApi()
     return (hf,)
 
 
@@ -65,17 +65,18 @@ def _(mo):
 
 
 @app.cell
-def _():
-    import polars as pl
-
-    return (pl,)
-
-
-@app.cell
 def _(pl):
     df = pl.read_csv("hf://datasets/scikit-learn/Fish/Fish.csv")
     df
     return
+
+
+@app.cell
+def _():
+    import marimo as mo
+    import polars as pl
+
+    return mo, pl
 
 
 if __name__ == "__main__":
