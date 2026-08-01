@@ -282,6 +282,21 @@ describe("ExportDialog", () => {
     expect(screen.getByTestId("export-format-pdf")).toBeVisible();
   });
 
+  it("announces requirement checks as status updates", () => {
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getExportAvailability: vi.fn(() => new Promise(() => undefined)),
+      }),
+    );
+
+    renderDialog("pdf");
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Checking PDF requirements…",
+    );
+  });
+
   it("shows the supported export surface in read mode", async () => {
     store.set(viewStateAtom, { mode: "read", cellAnchor: null });
 

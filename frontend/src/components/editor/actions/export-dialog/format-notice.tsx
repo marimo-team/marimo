@@ -102,6 +102,7 @@ function ReasonNotice({
     case "checking-requirements":
       return (
         <Alert
+          role="status"
           variant="info"
           className="flex items-center gap-2.5 p-3 has-[svg]:pl-3 [&>svg]:static [&>svg+div]:translate-y-0"
         >
