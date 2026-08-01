@@ -371,19 +371,22 @@ function SwitchOption({
   const description =
     descriptionOverride ??
     (checked ? descriptions.checked : descriptions.unchecked);
+  const possibleDescriptions = [
+    descriptions.checked,
+    descriptions.unchecked,
+    ...(descriptionOverride ? [descriptionOverride] : []),
+  ];
   return (
     <div className="flex min-h-14 items-center justify-between gap-4 px-3 py-2">
       <div className="min-w-0">
         <label htmlFor={id} className="text-sm font-medium leading-5">
           {label}
         </label>
-        <p
+        <OptionDescription
           id={descriptionId}
-          aria-live="polite"
-          className="mt-0.5 text-xs leading-4 text-muted-foreground"
-        >
-          {description}
-        </p>
+          description={description}
+          possibleDescriptions={possibleDescriptions}
+        />
       </div>
       <Switch
         id={id}
@@ -420,13 +423,11 @@ function RadioOption<Value extends string>({
     <div className="flex min-h-14 flex-col items-stretch gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="min-w-0">
         <div className="text-sm font-medium leading-5">{label}</div>
-        <p
+        <OptionDescription
           id={descriptionId}
-          aria-live="polite"
-          className="mt-0.5 text-xs leading-4 text-muted-foreground"
-        >
-          {selectedDescription}
-        </p>
+          description={selectedDescription ?? ""}
+          possibleDescriptions={options.map((option) => option.description)}
+        />
       </div>
       <RadioGroup
         value={value}
@@ -476,13 +477,11 @@ function SelectOption<Value extends string>({
         <label htmlFor={id} className="text-sm font-medium leading-5">
           {label}
         </label>
-        <p
+        <OptionDescription
           id={descriptionId}
-          aria-live="polite"
-          className="mt-0.5 text-xs leading-4 text-muted-foreground"
-        >
-          {selectedDescription}
-        </p>
+          description={selectedDescription ?? ""}
+          possibleDescriptions={options.map((option) => option.description)}
+        />
       </div>
       <Select
         value={value}
@@ -504,6 +503,36 @@ function SelectOption<Value extends string>({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function OptionDescription({
+  id,
+  description,
+  possibleDescriptions,
+}: {
+  id: string;
+  description: string;
+  possibleDescriptions: readonly string[];
+}) {
+  const sizingDescriptions = [...new Set(possibleDescriptions)].filter(
+    (candidate) => candidate !== description,
+  );
+  return (
+    <div className="mt-0.5 grid text-xs leading-4 text-muted-foreground">
+      <p id={id} aria-live="polite" className="col-start-1 row-start-1">
+        {description}
+      </p>
+      {sizingDescriptions.map((candidate) => (
+        <p
+          key={candidate}
+          aria-hidden={true}
+          className="invisible col-start-1 row-start-1"
+        >
+          {candidate}
+        </p>
+      ))}
     </div>
   );
 }
