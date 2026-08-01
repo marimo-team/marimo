@@ -245,6 +245,7 @@ describe("useExportDialog", () => {
 
   it("prints the current view for PDF export in WebAssembly", async () => {
     vi.mocked(isWasm).mockReturnValue(true);
+    store.set(viewStateAtom, { mode: "read", cellAnchor: null });
     const print = vi.fn();
     vi.stubGlobal("print", print);
     const onClose = vi.fn();

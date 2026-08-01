@@ -272,14 +272,15 @@ export function getExportFormatStatus({
         requiresNamedNotebookOnServer: true,
       }
     : FORMAT_REQUIREMENTS[format];
+  const usesBrowserPrint = runtime === "wasm" && format === "pdf";
 
-  if (!canEdit && requirements.requiresEditMode) {
+  if (!canEdit && requirements.requiresEditMode && !usesBrowserPrint) {
     return { available: false, reason: { type: "requires-edit-mode" } };
   }
 
   if (runtime === "wasm" && requirements.requiresServerRuntime) {
     return {
-      available: format === "pdf",
+      available: usesBrowserPrint,
       reason: { type: "wasm-runtime" },
     };
   }

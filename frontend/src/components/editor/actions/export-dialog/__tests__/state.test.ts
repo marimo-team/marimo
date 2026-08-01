@@ -234,7 +234,7 @@ describe("getExportFormatStatus", () => {
     },
   );
 
-  it("keeps PDF export edit-only in WebAssembly", () => {
+  it("allows browser PDF printing in read-only WebAssembly", () => {
     expect(
       status("pdf", {
         runtime: "wasm",
@@ -242,8 +242,8 @@ describe("getExportFormatStatus", () => {
         availability: { status: "success", data: null },
       }),
     ).toEqual({
-      available: false,
-      reason: { type: "requires-edit-mode" },
+      available: true,
+      reason: { type: "wasm-runtime" },
     });
   });
 
