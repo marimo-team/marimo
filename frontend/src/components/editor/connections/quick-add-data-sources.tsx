@@ -5,11 +5,13 @@ import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
 import { useDataSourceDiscovery } from "@/hooks/useDataSourceDiscovery";
 import { useInsertCode } from "./components";
+import { cn } from "@/utils/cn";
 
 export const QuickAddDataSources: React.FC<{
+  className?: string;
   sources: DetectedDataSource[];
   onAdd: (source: DetectedDataSource) => void;
-}> = ({ sources, onAdd }) => {
+}> = ({ className, sources, onAdd }) => {
   if (sources.length === 0) {
     return null;
   }
@@ -17,7 +19,10 @@ export const QuickAddDataSources: React.FC<{
   return (
     <section
       aria-labelledby="quick-add-data-sources-title"
-      className="rounded-full bg-[linear-gradient(135deg,var(--blue-2),var(--purple-3))] px-3 py-2"
+      className={cn(
+        "rounded-full bg-[linear-gradient(135deg,var(--blue-2),var(--purple-3))] px-3 py-2",
+        className,
+      )}
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-1 flex items-center gap-1.5">
@@ -90,12 +95,14 @@ const DetectedDataSourceDetails: React.FC<{
 
 export const AutoDiscoveredDataSources: React.FC<{
   onSubmit: () => void;
-}> = ({ onSubmit }) => {
+  className?: string;
+}> = ({ onSubmit, className }) => {
   const insertCode = useInsertCode();
   const { data } = useDataSourceDiscovery();
 
   return (
     <QuickAddDataSources
+      className={className}
       sources={data ?? []}
       onAdd={(source) => {
         insertCode(source.code);
