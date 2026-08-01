@@ -17,11 +17,11 @@ export const QuickAddDataSources: React.FC<{
   return (
     <section
       aria-labelledby="quick-add-data-sources-title"
-      className="rounded-md border bg-muted/30 px-3 py-2"
+      className="rounded-full bg-[linear-gradient(135deg,var(--blue-2),var(--purple-3))] px-3 py-2"
     >
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-1 flex items-center gap-1.5">
-          <SparklesIcon className="h-3.5 w-3.5 text-muted-foreground" />
+          <SparklesIcon className="h-3.5 w-3.5 text-(--blue-9)" />
           <h3 id="quick-add-data-sources-title" className="text-sm font-medium">
             Quick add
           </h3>
@@ -36,10 +36,10 @@ export const QuickAddDataSources: React.FC<{
               <button
                 type="button"
                 aria-label={`Add ${source.displayName} connection`}
-                className="inline-flex items-center gap-1 rounded-full border border-(--blue-8) bg-(--blue-2) px-2.5 py-1 text-xs font-semibold text-(--blue-11) transition-colors hover:bg-(--blue-3) focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs font-medium text-foreground/90 backdrop-blur-xs transition-colors hover:border-(--blue-7) hover:bg-background focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 onClick={() => onAdd(source)}
               >
-                <PlusIcon className="h-3 w-3" />
+                <PlusIcon className="h-3 w-3 text-muted-foreground" />
                 {source.displayName}
               </button>
             </Tooltip>
