@@ -88,36 +88,33 @@ marimo_converter = "marimo._utils.docs:MarimoConverter"
 
 [project.optional-dependencies]
 sql = [
-    "duckdb>=1.0.0",           # SQL cells
-    "polars[pyarrow]>=1.9.0",  # SQL output back in Python
-    "sqlglot[c]>=26.8.0"       # SQL cells parsing;
+    "duckdb>=1.0.0",          # SQL cells
+    "polars[pyarrow]>=1.9.0", # SQL output back in Python
+    "sqlglot[c]>=26.8.0",     # SQL cells parsing;
 ]
 
 # For per-notebook sandboxed kernels
 sandbox = [
-    "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
-    "uv>=0.9.21",              # for sandbox management and local html-wasm exports
+    "pyzmq>=27.1.0", # IPC communication for sandbox kernels
+    "uv>=0.9.21",    # for sandbox management and local html-wasm exports
 ]
 
 # List of deps that are recommended for most users
 # in order to unlock all features in marimo
 recommended = [
     "marimo[sql]",
-    "marimo[sandbox]",                           # For `marimo edit --sandbox DIRECTORY`
-    "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
-    "altair>=5.4.0",                             # Plotting in datasource viewer
-    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
-    "ruff",                                      # Formatting
-    "nbformat>=5.7.0",                           # Export as IPYNB
+    "marimo[sandbox]",                          # For `marimo edit --sandbox DIRECTORY`
+    "cryptography>=42.0.0",                     # Ed25519 signing of persistent cache manifests
+    "altair>=5.4.0",                            # Plotting in datasource viewer
+    "pydantic-ai-slim[openai]>=1.107.0,<3.0.0", # AI features
+    "ruff",                                     # Formatting
+    "nbformat>=5.7.0",                          # Export as IPYNB
 ]
 
-lsp = [
-    "python-lsp-server>=1.13.0",
-    "python-lsp-ruff>=2.0.0",
-]
+lsp = ["python-lsp-server>=1.13.0", "python-lsp-ruff>=2.0.0"]
 
 mcp = [
-    "mcp>=1.0.0,<2", # MCP 2.0 is a major rework, unsupported for now.
+    "mcp>=2",     # MCP 2.0 is a major rework, unsupported for now.
     "pydantic>2",
 ]
 
@@ -173,7 +170,7 @@ test = [
 ]
 
 test-optional = [
-    {include-group = "test"},
+    { include-group = "test" },
     # For testing ADBC driver-based SQL connections
     "adbc_driver_manager",
     "adbc_driver_sqlite",
@@ -224,7 +221,7 @@ test-optional = [
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0,<2",
+    "mcp>=2",
     # zeromq
     "pyzmq>=27.1.0",
     # weave tracing integration
@@ -261,7 +258,7 @@ typecheck = [
     "types-redis>=4.6.0.20241004",
     "types-Markdown>=3.6.0.20240316",
     "types-PyYAML>=6.0.12.20240808",
-    "mcp>=1.0.0,<2",
+    "mcp>=2",
     # zeromq
     "pyzmq>=27.1.0",
     "pyarrow-stubs",
@@ -289,9 +286,9 @@ docs = [
     "mkdocs-macros-plugin>=1.3.7",
     "mkdocs-redirects>=1.2.2",
     "mkdocs-click>=0.8.1",
-    "mike>=2.0.0",  # for versioning
-    "pillow>=10.2.0,!=11.3.0",  # for social cards, 11.3.0 doesn't have manylinux wheels
-    "cairosvg>=2.7.1",  # for social cards
+    "mike>=2.0.0",                                      # for versioning
+    "pillow>=10.2.0,!=11.3.0",                          # for social cards, 11.3.0 doesn't have manylinux wheels
+    "cairosvg>=2.7.1",                                  # for social cards
     "mdx-include>=1.4.2",
     "pymdown-extensions>=10.21.2",
     "lzstring>=1.0.4",
@@ -343,63 +340,63 @@ exclude = [
 [tool.ruff.lint]
 preview = true
 ignore = [
-    "G004",   # Logging statement uses f-string
-    "TC001", # Move application import into a type-checking block
-    "TC006", # Add quotes to type expression in typing.cast()
-    "D301",   # Use r""" if any backslashes in a docstring
+    "G004",    # Logging statement uses f-string
+    "TC001",   # Move application import into a type-checking block
+    "TC006",   # Add quotes to type expression in typing.cast()
+    "D301",    # Use r""" if any backslashes in a docstring
     "PERF203", # try-except within a loop incurs performance overhead; not always possible
     "PERF401", # Use {message_str} to create a transformed list; at the cost of readability
     "PERF403", # Use a dictionary comprehension instead of a for-loop; at the cost of readability
     # TODO: we should fix these, and enable this rule
-    "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
-    "E501",  # Line too long, we still trim
-    "D415", # First line should end with a period, question mark, or exclamation point
-    "FA102", # Use `from __future__ import annotations`
-    "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
+    "PT011",    # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
+    "E501",     # Line too long, we still trim
+    "D415",     # First line should end with a period, question mark, or exclamation point
+    "FA102",    # Use `from __future__ import annotations`
+    "PLR1711",  # Useless returns. We use this currently to delimit the end of a cell.
     "ASYNC119", # Yield in context manager in async generator; required for streaming generators (LLM/SSE), no clean refactor
 
     # From new version of Ruff: We should fix these, but it raises too many errors
-    "BLE001", # Do not catch blind exception: `Exception`
-    "RUF059", # Unused unpacked variable
-    "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
+    "BLE001",  # Do not catch blind exception: `Exception`
+    "RUF059",  # Unused unpacked variable
+    "DTZ001",  # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
-    "S110", # `try`-`except`-`pass`
-    "TRY004", # Type check without `TypeError`
-    "SIM102", # Use a single `if` statement instead of nested `if` statements
-    "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
-    "RUF012", # Mutable class default
-    "S102", # Use of `exec`
-    "PYI036", # Bad `sys.exit` annotation
-    "DTZ005", # `datetime.now()` called without `tzinfo`
+    "S110",    # `try`-`except`-`pass`
+    "TRY004",  # Type check without `TypeError`
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
+    "RUF012",  # Mutable class default
+    "S102",    # Use of `exec`
+    "PYI036",  # Bad `sys.exit` annotation
+    "DTZ005",  # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
-    "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
-    "SIM115", # Open file without context handler
-    "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
-    "DTZ007", # `datetime.strptime()` called without zone
-    "DTZ011", # `date.today()` used
-    "TRY401", # Verbose log message
-    "UP007", # Use `X | Y` for type annotations
-    "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
-    "DTZ901", # `datetime.min` / `datetime.max` used
+    "PYI066",  # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
+    "SIM115",  # Open file without context handler
+    "DTZ006",  # `datetime.fromtimestamp()` called without `tzinfo`
+    "DTZ007",  # `datetime.strptime()` called without zone
+    "DTZ011",  # `date.today()` used
+    "TRY401",  # Verbose log message
+    "UP007",   # Use `X | Y` for type annotations
+    "DTZ012",  # `date.fromtimestamp()` called without `tzinfo`
+    "DTZ901",  # `datetime.min` / `datetime.max` used
     "PLW0602", # Global variable not assigned
-    "S112", # `try`-`except`-`continue`
-    "TRY203", # Useless `try`-`except`
+    "S112",    # `try`-`except`-`continue`
+    "TRY203",  # Useless `try`-`except`
     "PLC0105", # Type name incorrect variance
     "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
-    "PYI063", # PEP 484-style positional-only parameter
-    "DTZ002", # `datetime.today()` called without tz
+    "PYI063",  # PEP 484-style positional-only parameter
+    "DTZ002",  # `datetime.today()` called without tz
     "PLC0205", # Single string `__slots__`
     "PLE0704", # Misplaced bare `raise`
     "PLR1704", # Redefined argument from local
     "PLW0129", # Assert on string literal
     "PLW0642", # Self or cls assignment
-    "PYI006", # Bad `sys.version_info` comparison
-    "SIM113", # `enumerate` for loop
-    "T100", # Debugger
-    "UP045", # Use `X | None` for optional type annotations
-    "D421", # Property docstring should not start with a verb (preview rule)
+    "PYI006",  # Bad `sys.version_info` comparison
+    "SIM113",  # `enumerate` for loop
+    "T100",    # Debugger
+    "UP045",   # Use `X | None` for optional type annotations
+    "D421",    # Property docstring should not start with a verb (preview rule)
 ]
 
 extend-select = [
@@ -451,22 +448,22 @@ extend-select = [
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "RUF006", # Store a reference to the return value of asyncio.create_task
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
-    "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
-    "B006",   # Checks for uses of mutable objects as function argument defaults.
-    "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
-    "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
-    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
-    "T201",   # No print statements
-    "D3",  # pydocstyle Quotes Issues
-    "D4",  # pydocstyle Docstring Content Issues
-    "D207",  # Docstring is under-indented
-    "D208",  # Docstring is over-indented
-    "D210",  # No whitespaces allowed surrounding docstring text
-    "D211",  # No blank lines allowed before class docstring
-    "D214",  # Section is over-indented
-    "D215",  # Section underline is over-indented
+    "B004",    # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
+    "B006",    # Checks for uses of mutable objects as function argument defaults.
+    "B017",    # Checks for pytest.raises context managers that catch Exception or BaseException.
+    "B019",    # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
+    "TRY002",  # Prohibit use of `raise Exception`, use specific exceptions instead.
+    "T201",    # No print statements
+    "D3",      # pydocstyle Quotes Issues
+    "D4",      # pydocstyle Docstring Content Issues
+    "D207",    # Docstring is under-indented
+    "D208",    # Docstring is over-indented
+    "D210",    # No whitespaces allowed surrounding docstring text
+    "D211",    # No blank lines allowed before class docstring
+    "D214",    # Section is over-indented
+    "D215",    # Section underline is over-indented
     "PLW1514", # Unspecified encoding in open()
-    "UP",  # Upgrades
+    "UP",      # Upgrades
 ]
 
 [tool.ruff.lint.pydocstyle]
@@ -518,7 +515,7 @@ banned-module-level-imports = [
     "starrocks",
     "pydantic_ai",
     # a top-level import of zmq may break WASM
-    "zmq"
+    "zmq",
 ]
 
 [tool.ruff.lint.flake8-pytest-style]
@@ -578,9 +575,9 @@ extend-exclude = [
     "**/snapshots/*",
     "**/__demo__/*",
     "base64.test.ts",
-    "SECURITY.md", # Contains usernames that trigger typos
-    "patches/*", # Patches may contain typos from source code,
-    "frontend/dist/assets/*", # Assets may contain typos from source code
+    "SECURITY.md",                  # Contains usernames that trigger typos
+    "patches/*",                    # Patches may contain typos from source code,
+    "frontend/dist/assets/*",       # Assets may contain typos from source code
     "tests/_sql/test_sql_parse.py", # Contains intentional invalid SQL for testing
 ]
 
@@ -631,4 +628,4 @@ python = "3.12.*"
 pip = ">=25.0.1,<26"
 
 [tool.pixi.pypi-dependencies]
-marimo = {path = ".", editable = true}
+marimo = { path = ".", editable = true }
