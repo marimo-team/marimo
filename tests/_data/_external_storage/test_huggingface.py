@@ -232,6 +232,21 @@ class TestHuggingfaceApi:
             ]
         )
 
+    def test_list_root_entries_with_non_string_username(self) -> None:
+        # If whoami() ever returns a non-string name (e.g. None), we must
+        # not filter listings by the literal string "None".
+        mock_api = MagicMock()
+        mock_api.whoami.return_value = {"name": None}
+        mock_api.list_datasets.return_value = []
+        mock_api.list_models.return_value = []
+        mock_api.list_spaces.return_value = []
+        mock_api.list_buckets.return_value = []
+
+        backend = self._make_backend(mock_api)
+        backend.list_entries(prefix="")
+
+        mock_api.list_datasets.assert_called_once_with(author=None, limit=50)
+
     def test_list_root_entries_tolerates_partial_failures(self) -> None:
         # A transient failure in one listing call (e.g. rate limiting)
         # shouldn't prevent the others from rendering.

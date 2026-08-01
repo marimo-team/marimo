@@ -197,7 +197,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
             LOGGER.warning(
                 "Hugging Face whoami returned a non-string name %s", name
             )
-            return str(name)
+            return None
         return name
 
     def _list_repo_entries(
