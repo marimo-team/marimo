@@ -555,7 +555,6 @@ class TestMCPTransportConnectors:
             assert write == mock_write
 
 
-
 class TestMCPClientConfiguration:
     """Test cases for MCPClient configuration parsing and initialization."""
 
