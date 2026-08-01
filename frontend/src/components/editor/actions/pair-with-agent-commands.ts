@@ -2,6 +2,7 @@
 
 import { assertNever } from "@/utils/assertNever";
 import { KnownQueryParams } from "@/core/constants";
+import { shellQuote } from "@/utils/shell";
 
 export type AgentTab = "claude" | "codex" | "opencode" | "prompt";
 
@@ -21,27 +22,6 @@ export const SKILL_INSTALL = "npx skills add marimo-team/marimo-pair";
 /** How to invoke marimo: from the local checkout in dev, else via uvx. */
 export function getMarimoCommand(): string {
   return import.meta.env.DEV ? "uv run marimo" : "uvx marimo@latest";
-}
-
-/**
- * POSIX-quote a value for safe embedding in a shell command. These commands are
- * meant to be copied into a terminal, so a url/token containing shell
- * metacharacters (`'`, `&`, `$(...)`, ...) must not break out of its argument.
- *
- * Mirrors Python's `shlex.quote` (used on the CLI side in
- * `marimo/_cli/pair/commands.py`) so both sides produce identical commands:
- * values that are already shell-safe are left as-is for readability, and
- * anything else is single-quoted with embedded quotes escaped as `'"'"'`.
- */
-export function shellQuote(value: string): string {
-  if (value === "") {
-    return "''";
-  }
-  // Same "safe" character set as CPython's shlex.quote (ASCII \w plus a few).
-  if (/^[\w@%+=:,./-]+$/.test(value)) {
-    return value;
-  }
-  return `'${value.replaceAll("'", `'"'"'`)}'`;
 }
 
 /** Return the server file key from a page URL, preserving its decoded value. */

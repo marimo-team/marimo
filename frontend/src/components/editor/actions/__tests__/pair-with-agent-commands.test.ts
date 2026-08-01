@@ -8,8 +8,8 @@ import {
   getRawPrompt,
   getTerminalCommand,
   maskToken,
-  shellQuote,
 } from "../pair-with-agent-commands";
+import { shellQuote } from "@/utils/shell";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
