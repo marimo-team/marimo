@@ -52,7 +52,7 @@ def setup_code_mcp_server(
         msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"
         raise ClickException(msg)
 
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
@@ -69,12 +69,9 @@ def setup_code_mcp_server(
             enable_dns_rebinding_protection=False,
         )
 
-    mcp = FastMCP(
+    mcp = MCPServer(
         "marimo-code-mcp",
-        stateless_http=True,
         log_level="WARNING",
-        streamable_http_path="/server",
-        transport_security=transport_security,
     )
 
     @mcp.tool()
@@ -155,7 +152,11 @@ def setup_code_mcp_server(
             return extract_result(session, listener)
 
     # Build the streamable HTTP app
-    mcp_app = mcp.streamable_http_app()
+    mcp_app = mcp.streamable_http_app(
+        stateless_http=True,
+        streamable_http_path="/server",
+        transport_security=transport_security,
+    )
 
     class RequiresEditMiddleware(BaseHTTPMiddleware):
         async def __call__(
