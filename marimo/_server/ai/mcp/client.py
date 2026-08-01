@@ -449,7 +449,7 @@ class MCPClient:
             error_message: The error message to include
 
         Returns:
-            CallToolResult with isError=True and the error message
+            CallToolResult with is_error=True and the error message
         """
         # Based on the MCP SDK error handling:
         # https://modelcontextprotocol.io/docs/concepts/tools#error-handling
