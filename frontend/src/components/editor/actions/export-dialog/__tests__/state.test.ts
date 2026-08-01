@@ -234,6 +234,19 @@ describe("getExportFormatStatus", () => {
     },
   );
 
+  it("keeps PDF export edit-only in WebAssembly", () => {
+    expect(
+      status("pdf", {
+        runtime: "wasm",
+        canEdit: false,
+        availability: { status: "success", data: null },
+      }),
+    ).toEqual({
+      available: false,
+      reason: { type: "requires-edit-mode" },
+    });
+  });
+
   it.each([
     ["html", true],
     ["markdown", false],

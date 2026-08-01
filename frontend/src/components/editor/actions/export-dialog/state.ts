@@ -273,15 +273,15 @@ export function getExportFormatStatus({
       }
     : FORMAT_REQUIREMENTS[format];
 
+  if (!canEdit && requirements.requiresEditMode) {
+    return { available: false, reason: { type: "requires-edit-mode" } };
+  }
+
   if (runtime === "wasm" && requirements.requiresServerRuntime) {
     return {
       available: format === "pdf",
       reason: { type: "wasm-runtime" },
     };
-  }
-
-  if (!canEdit && requirements.requiresEditMode) {
-    return { available: false, reason: { type: "requires-edit-mode" } };
   }
 
   if (
