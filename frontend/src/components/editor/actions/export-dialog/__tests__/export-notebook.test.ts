@@ -110,6 +110,7 @@ describe("exportNotebook", () => {
       sortMode: "top-down",
       includeOutputs: true,
     });
+    expect(downloadFile).toHaveBeenCalledWith(FILE);
   });
 
   it("skips browser capture when IPYNB outputs are excluded", async () => {
@@ -121,6 +122,7 @@ describe("exportNotebook", () => {
       sortMode: "topological",
       includeOutputs: false,
     });
+    expect(downloadFile).toHaveBeenCalledWith(FILE);
   });
 
   it("captures current outputs before PDF export and sends every option", async () => {
