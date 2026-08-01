@@ -27,7 +27,7 @@ export const QuickAddDataSources: React.FC<{
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-1 flex items-center gap-1.5">
           <SparklesIcon className="h-3.5 w-3.5 text-(--blue-9)" />
-          <h3 id="quick-add-data-sources-title" className="text-sm font-medium">
+          <h3 id="quick-add-data-sources-title" className="text-sm">
             Quick add
           </h3>
         </div>
@@ -41,7 +41,7 @@ export const QuickAddDataSources: React.FC<{
               <button
                 type="button"
                 aria-label={`Add ${source.displayName} connection`}
-                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-xs font-medium text-foreground/90 backdrop-blur-xs transition-colors hover:border-(--blue-7) hover:bg-background focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-background px-2.5 py-1 text-xs font-medium text-foreground/90 transition-colors hover:border-(--blue-7) focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2"
                 onClick={() => onAdd(source)}
               >
                 <PlusIcon className="h-3 w-3 text-muted-foreground" />
