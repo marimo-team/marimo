@@ -76,6 +76,7 @@ describe("useExportDialog", () => {
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
     vi.mocked(isWasm).mockReturnValue(false);
+    document.title = "Notebook";
   });
 
   afterEach(() => {
@@ -217,6 +218,21 @@ describe("useExportDialog", () => {
 
     expect(result.current.isExporting).toBe(false);
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("uses the saved notebook filename for source export", async () => {
+    store.set(filenameAtom, "/project/saved-name.py");
+    document.title = "Custom app title";
+    const { result } = renderController("script");
+    await waitForAvailable(() => result.current);
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(exportNotebookMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFilename: "saved-name.py" }),
+    );
   });
 
   it("persists the selected format and its options", () => {

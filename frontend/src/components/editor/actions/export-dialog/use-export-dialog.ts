@@ -27,6 +27,7 @@ import {
   withLoadingToast,
 } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
+import { Paths } from "@/utils/paths";
 import { getExportCommand } from "./export-command";
 import { exportNotebook } from "./export-notebook";
 import { FORMAT_DEFINITIONS, type UpdateExportOptions } from "./format-options";
@@ -206,6 +207,7 @@ function useExportDialogState(initialFormat?: ExportFormat) {
     exportRequest: {
       format,
       options: effectiveOptions,
+      filename,
       available: status.available,
       usesBrowserPrint,
       progressLabel,
@@ -271,6 +273,7 @@ function printCurrentView(onClose: () => void): void {
 function useExportDialogAction({
   format,
   options,
+  filename,
   available,
   usesBrowserPrint,
   progressLabel,
@@ -278,6 +281,7 @@ function useExportDialogAction({
 }: {
   format: ExportFormat;
   options: ExportOptions;
+  filename: string | null;
   available: boolean;
   usesBrowserPrint: boolean;
   progressLabel: string;
@@ -339,7 +343,9 @@ function useExportDialogAction({
             format,
             options,
             requests,
-            sourceFilename: Filenames.toPY(document.title),
+            sourceFilename: Filenames.toPY(
+              Paths.basename(filename ?? document.title),
+            ),
             htmlFiles: VirtualFileTracker.INSTANCE.filenames(),
             captureOutputs: () => captureOutputs(progress),
             capturePNG,
