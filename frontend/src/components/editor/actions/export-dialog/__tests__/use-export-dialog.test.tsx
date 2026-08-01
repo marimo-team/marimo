@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -111,10 +111,8 @@ describe("useExportDialog", () => {
     const app = document.createElement("div");
     app.id = "App";
     document.body.append(app);
-    const dialogContainer = document.createElement("div");
-    const dialog = document.createElement("div");
-    dialogContainer.append(dialog);
-    document.body.append(dialogContainer);
+    const { container: dialogContainer } = render(<div />);
+    const dialog = dialogContainer.firstElementChild as HTMLDivElement;
     exportNotebookMock.mockImplementationOnce(
       async ({ capturePNG }: { capturePNG: () => Promise<void> }) =>
         capturePNG(),
@@ -141,17 +139,14 @@ describe("useExportDialog", () => {
     expect(onClose).toHaveBeenCalledOnce();
     expect(store.get(viewStateAtom).mode).toBe("edit");
     expect(dialogContainer).toBeVisible();
-    dialogContainer.remove();
   });
 
   it("restores the dialog and edit mode when PNG capture fails", async () => {
     const app = document.createElement("div");
     app.id = "App";
     document.body.append(app);
-    const dialogContainer = document.createElement("div");
-    const dialog = document.createElement("div");
-    dialogContainer.append(dialog);
-    document.body.append(dialogContainer);
+    const { container: dialogContainer } = render(<div />);
+    const dialog = dialogContainer.firstElementChild as HTMLDivElement;
     exportNotebookMock.mockImplementationOnce(
       async ({ capturePNG }: { capturePNG: () => Promise<void> }) =>
         capturePNG(),
@@ -178,7 +173,6 @@ describe("useExportDialog", () => {
     expect(store.get(viewStateAtom).mode).toBe("edit");
     expect(dialogContainer).toBeVisible();
     expect(onClose).not.toHaveBeenCalled();
-    dialogContainer.remove();
   });
 
   it("does not close a newer modal after unmounting", async () => {
