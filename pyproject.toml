@@ -300,7 +300,7 @@ docs = [
 [tool.uv]
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
-exclude-newer = "7 days"
+exclude-newer = "2026-07-29T00:00:00Z"
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
