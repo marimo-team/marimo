@@ -1,2 +1,2 @@
-mcp>=1.0.0,<2
+mcp>=2
 pydantic>2
