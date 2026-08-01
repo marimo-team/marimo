@@ -189,7 +189,7 @@ Click a suggestion to insert a ready-to-run cell.
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 
-Only the *names* of environment variables are inspected and shown in the UI — their values are never sent to the frontend.
+Only the *names* of environment variables are shown in the UI — their values are never sent to the frontend.
 
 If you'd like to connect to a database that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=New%20database%20connection:&labels=enhancement&template=feature_request.yaml).
 
