@@ -262,10 +262,8 @@ async function captureCurrentAppView(
 function printCurrentView(onClose: () => void): void {
   onClose();
   requestAnimationFrame(() => {
-    window.dispatchEvent(new Event("export-beforeprint"));
     setTimeout(() => {
       window.print();
-      window.dispatchEvent(new Event("export-afterprint"));
     }, 0);
   });
 }
