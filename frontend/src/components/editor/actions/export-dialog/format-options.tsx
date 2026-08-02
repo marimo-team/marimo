@@ -32,7 +32,6 @@ import {
 export interface FormatOptionsProps {
   options: ExportOptions;
   updateOptions: UpdateExportOptions;
-  canIncludeCode: boolean;
   disabled: boolean;
 }
 
@@ -191,7 +190,6 @@ export const FORMAT_DEFINITIONS: Record<ExportFormat, FormatDefinition> = {
 function HTMLFormatOptions({
   options,
   updateOptions,
-  canIncludeCode,
   disabled,
 }: FormatOptionsProps) {
   return (
@@ -202,13 +200,8 @@ function HTMLFormatOptions({
           checked: "Includes code cells in the webpage.",
           unchecked: "Leaves code cells out of the webpage.",
         }}
-        descriptionOverride={
-          canIncludeCode
-            ? undefined
-            : "Code cells aren't available in this view."
-        }
-        checked={canIncludeCode && options.html.includeCode}
-        disabled={disabled || !canIncludeCode}
+        checked={options.html.includeCode}
+        disabled={disabled}
         onCheckedChange={(includeCode) =>
           updateOptions("html", { includeCode })
         }

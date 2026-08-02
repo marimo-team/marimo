@@ -3,17 +3,11 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
-import { useNotebook } from "@/core/cells/cells";
 import {
   updateCellOutputsWithScreenshots,
   useEnrichCellOutputs,
 } from "@/core/export/hooks";
-import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
-import {
-  kioskModeAtom,
-  runDuringPresentMode,
-  viewStateAtom,
-} from "@/core/mode";
+import { runDuringPresentMode, viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExportAvailabilityResponse } from "@/core/network/types";
 import { useFilename } from "@/core/saving/filename";
@@ -37,6 +31,7 @@ import {
   type ExportOptions,
   exportOptionsAtom,
   getExportFormatStatus,
+  isBrowserPrintExport,
   isExportFormat,
   lastExportFormatAtom,
 } from "./state";
@@ -78,6 +73,16 @@ function getExportAvailability(
   }
 }
 
+function getSourceFilename(
+  runtime: "server" | "wasm",
+  filename: string | null,
+): string {
+  if (runtime === "server" && filename) {
+    return Paths.basename(filename);
+  }
+  return Filenames.toPY(document.title);
+}
+
 function getFooterDescription({
   usesBrowserPrint,
   hasCommand,
@@ -103,9 +108,6 @@ function getFooterDescription({
 
 function useExportDialogState(initialFormat?: ExportFormat) {
   const filename = useFilename();
-  const notebook = useNotebook();
-  const viewState = useAtomValue(viewStateAtom);
-  const kioskMode = useAtomValue(kioskModeAtom);
   const [options, setOptions] = useAtom(exportOptionsAtom);
   const [lastFormat, setLastFormat] = useAtom(lastExportFormatAtom);
   const [format, setFormat] = useState<ExportFormat>(
@@ -113,14 +115,6 @@ function useExportDialogState(initialFormat?: ExportFormat) {
   );
   const runtime = isWasm() ? "wasm" : "server";
   const requests = useRequestClient();
-  const canEdit = !kioskMode && viewState.mode !== "read";
-  const cells = notebook.cellIds.inOrderIds.map(
-    (cellId) => notebook.cellData[cellId],
-  );
-  const sourceCodeAvailable = useNotebookCodeAvailable(cells);
-  const effectiveOptions: ExportOptions = sourceCodeAvailable
-    ? options
-    : { ...options, html: { includeCode: false } };
 
   const availabilityRequest =
     useAsyncData<ExportAvailabilityResponse | null>(async () => {
@@ -134,11 +128,9 @@ function useExportDialogState(initialFormat?: ExportFormat) {
   const statusFor = (candidate: ExportFormat) =>
     getExportFormatStatus({
       format: candidate,
-      options: effectiveOptions,
+      options,
       runtime,
       filename,
-      canEdit,
-      sourceCodeAvailable,
       availability,
     });
   const status = statusFor(format);
@@ -146,21 +138,20 @@ function useExportDialogState(initialFormat?: ExportFormat) {
     format: candidate,
     status: statusFor(candidate),
   }));
-  const usesBrowserPrint =
-    format === "pdf" && status.reason?.type === "wasm-runtime";
+  const usesBrowserPrint = isBrowserPrintExport(runtime, format);
   const definition = FORMAT_DEFINITIONS[format];
   const isNotebookSource =
-    format === "script" && effectiveOptions.script.type === "source";
+    format === "script" && options.script.type === "source";
   const { actionLabel, progressLabel } =
     format === "script"
-      ? SCRIPT_EXPORT_COPY[effectiveOptions.script.type]
+      ? SCRIPT_EXPORT_COPY[options.script.type]
       : {
           actionLabel: definition.actionLabel,
           progressLabel: definition.label,
         };
   const command = usesBrowserPrint
     ? null
-    : getExportCommand({ format, filename, options: effectiveOptions });
+    : getExportCommand({ format, filename, options });
   const footerDescription = getFooterDescription({
     usesBrowserPrint,
     hasCommand: Boolean(command),
@@ -195,7 +186,6 @@ function useExportDialogState(initialFormat?: ExportFormat) {
   return {
     formats,
     options,
-    canIncludeCode: sourceCodeAvailable,
     selected: {
       format,
       status,
@@ -206,8 +196,8 @@ function useExportDialogState(initialFormat?: ExportFormat) {
     },
     exportRequest: {
       format,
-      options: effectiveOptions,
-      filename,
+      options,
+      sourceFilename: getSourceFilename(runtime, filename),
       available: status.available,
       usesBrowserPrint,
       progressLabel,
@@ -271,7 +261,7 @@ function printCurrentView(onClose: () => void): void {
 function useExportDialogAction({
   format,
   options,
-  filename,
+  sourceFilename,
   available,
   usesBrowserPrint,
   progressLabel,
@@ -279,7 +269,7 @@ function useExportDialogAction({
 }: {
   format: ExportFormat;
   options: ExportOptions;
-  filename: string | null;
+  sourceFilename: string;
   available: boolean;
   usesBrowserPrint: boolean;
   progressLabel: string;
@@ -341,9 +331,7 @@ function useExportDialogAction({
             format,
             options,
             requests,
-            sourceFilename: Filenames.toPY(
-              Paths.basename(filename ?? document.title),
-            ),
+            sourceFilename,
             htmlFiles: VirtualFileTracker.INSTANCE.filenames(),
             captureOutputs: () => captureOutputs(progress),
             capturePNG,

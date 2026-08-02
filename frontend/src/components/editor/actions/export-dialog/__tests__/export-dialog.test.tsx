@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { Dialog } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { viewStateAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
@@ -67,12 +67,6 @@ async function waitForExportEnabled() {
   );
 }
 
-function selectFormat(format: ExportFormat) {
-  fireEvent.mouseDown(screen.getByTestId(`export-format-${format}`), {
-    button: 0,
-  });
-}
-
 describe("ExportDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -80,7 +74,6 @@ describe("ExportDialog", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(kioskModeAtom, false);
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
     vi.mocked(isWasm).mockReturnValue(false);
@@ -295,45 +288,6 @@ describe("ExportDialog", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "Checking PDF requirements…",
     );
-  });
-
-  it("shows the supported export surface in read mode", async () => {
-    store.set(viewStateAtom, { mode: "read", cellAnchor: null });
-
-    renderDialog("html");
-    await waitForExportEnabled();
-
-    expect(screen.getByRole("switch", { name: "Include code" })).toBeDisabled();
-    expect(screen.getByTestId("export-cli-command")).toHaveTextContent(
-      "--no-include-code",
-    );
-
-    selectFormat("pdf");
-    expect(
-      screen.getByText("Open this notebook in edit mode to use this export."),
-    ).toBeVisible();
-    expect(screen.getByTestId("export-submit")).toBeDisabled();
-    expect(screen.getByRole("tab", { name: "PDF Unavailable" })).toBeVisible();
-
-    selectFormat("png");
-    expect(screen.getByTestId("export-submit")).toBeEnabled();
-  });
-
-  it("distinguishes hidden source from flat script in read mode", () => {
-    store.set(viewStateAtom, { mode: "read", cellAnchor: null });
-
-    renderDialog("script");
-
-    expect(
-      screen.getByText("Notebook source isn't available in this view."),
-    ).toBeVisible();
-    expect(screen.getByTestId("export-submit")).toBeDisabled();
-
-    fireEvent.click(screen.getByRole("radio", { name: "Flat script" }));
-
-    expect(
-      screen.getByText("Open this notebook in edit mode to use this export."),
-    ).toBeVisible();
   });
 
   it("hides the document renderer when exporting slides", async () => {

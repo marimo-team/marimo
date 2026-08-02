@@ -184,10 +184,8 @@ export const lastExportFormatAtom = atomWithStorage<ExportFormat>(
 export type ExportBlockReason =
   | { type: "checking-requirements" }
   | { type: "notebook-must-be-named" }
-  | { type: "source-code-unavailable" }
   | { type: "missing-packages"; packages: string[] }
-  | { type: "wasm-runtime" }
-  | { type: "requires-edit-mode" };
+  | { type: "wasm-runtime" };
 
 export interface ExportFormatStatus {
   available: boolean;
@@ -200,8 +198,6 @@ interface GetExportFormatStatusOptions {
   options: ExportOptions;
   runtime: "server" | "wasm";
   filename: string | null;
-  canEdit: boolean;
-  sourceCodeAvailable: boolean;
   availability:
     | { status: "pending" }
     | { status: "error" }
@@ -209,7 +205,6 @@ interface GetExportFormatStatusOptions {
 }
 
 interface ExportFormatRequirements {
-  requiresEditMode: boolean;
   requiresNamedNotebookOnServer: boolean;
   requiresServerRuntime: boolean;
   checksServerAvailability: boolean;
@@ -217,50 +212,49 @@ interface ExportFormatRequirements {
 
 const FORMAT_REQUIREMENTS: Record<ExportFormat, ExportFormatRequirements> = {
   html: {
-    requiresEditMode: false,
     requiresNamedNotebookOnServer: true,
     requiresServerRuntime: false,
     checksServerAvailability: false,
   },
   markdown: {
-    requiresEditMode: true,
     requiresNamedNotebookOnServer: true,
     requiresServerRuntime: false,
     checksServerAvailability: false,
   },
   ipynb: {
-    requiresEditMode: true,
     requiresNamedNotebookOnServer: true,
     requiresServerRuntime: true,
     checksServerAvailability: true,
   },
   pdf: {
-    requiresEditMode: true,
     requiresNamedNotebookOnServer: true,
     requiresServerRuntime: true,
     checksServerAvailability: true,
   },
   script: {
-    requiresEditMode: true,
     requiresNamedNotebookOnServer: false,
     requiresServerRuntime: false,
     checksServerAvailability: false,
   },
   png: {
-    requiresEditMode: false,
     requiresNamedNotebookOnServer: false,
     requiresServerRuntime: false,
     checksServerAvailability: false,
   },
 };
 
+export function isBrowserPrintExport(
+  runtime: "server" | "wasm",
+  format: ExportFormat,
+): boolean {
+  return runtime === "wasm" && format === "pdf";
+}
+
 export function getExportFormatStatus({
   format,
   options,
   runtime,
   filename,
-  canEdit,
-  sourceCodeAvailable,
   availability,
 }: GetExportFormatStatusOptions): ExportFormatStatus {
   const isNotebookSource =
@@ -268,15 +262,11 @@ export function getExportFormatStatus({
   const requirements = isNotebookSource
     ? {
         ...FORMAT_REQUIREMENTS.script,
-        requiresEditMode: false,
         requiresNamedNotebookOnServer: true,
       }
     : FORMAT_REQUIREMENTS[format];
-  const usesBrowserPrint = runtime === "wasm" && format === "pdf";
 
-  if (!canEdit && requirements.requiresEditMode && !usesBrowserPrint) {
-    return { available: false, reason: { type: "requires-edit-mode" } };
-  }
+  const usesBrowserPrint = isBrowserPrintExport(runtime, format);
 
   if (runtime === "wasm" && requirements.requiresServerRuntime) {
     return {
@@ -293,13 +283,6 @@ export function getExportFormatStatus({
     return {
       available: false,
       reason: { type: "notebook-must-be-named" },
-    };
-  }
-
-  if (isNotebookSource && !sourceCodeAvailable) {
-    return {
-      available: false,
-      reason: { type: "source-code-unavailable" },
     };
   }
 

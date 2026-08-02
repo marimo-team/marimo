@@ -114,8 +114,6 @@ function ReasonNotice({
       );
     case "notebook-must-be-named":
       return <Notice>Name and save this notebook before exporting.</Notice>;
-    case "source-code-unavailable":
-      return <Notice>Notebook source isn't available in this view.</Notice>;
     case "missing-packages":
       return (
         <Notice>
@@ -133,10 +131,6 @@ function ReasonNotice({
             ? "Use your browser's print dialog to save the current app view as a PDF."
             : "Open this notebook in a local marimo session to use this export."}
         </Notice>
-      );
-    case "requires-edit-mode":
-      return (
-        <Notice>Open this notebook in edit mode to use this export.</Notice>
       );
     default:
       assertNever(reason);

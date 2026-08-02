@@ -252,6 +252,7 @@ export function useNotebookActions({
                 {
                   icon: <FileIcon size={14} strokeWidth={1.5} />,
                   label: "Slides Layout",
+                  hidden: isWasm(),
                   rightElement: (
                     <span className="ml-3 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
                       Recommended

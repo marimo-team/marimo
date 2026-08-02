@@ -30,7 +30,6 @@ export const ExportDialog: React.FC<{
     isExporting,
     formats,
     options,
-    canIncludeCode,
     selected,
     selectFormat,
     updateOptions,
@@ -123,7 +122,6 @@ export const ExportDialog: React.FC<{
             <FormatOptions
               options={options}
               updateOptions={updateOptions}
-              canIncludeCode={canIncludeCode}
               disabled={isExporting}
             />
           )}

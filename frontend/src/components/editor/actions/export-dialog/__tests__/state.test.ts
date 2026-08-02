@@ -52,8 +52,6 @@ function status(
     options: DEFAULT_EXPORT_OPTIONS,
     runtime: "server",
     filename: "notebook.py",
-    canEdit: true,
-    sourceCodeAvailable: true,
     availability: { status: "success", data: AVAILABLE },
     ...overrides,
   });
@@ -178,13 +176,6 @@ describe("getExportFormatStatus", () => {
     ).toEqual({ available: true });
   });
 
-  it("requires visible source code for notebook source", () => {
-    expect(status("script", { sourceCodeAvailable: false })).toEqual({
-      available: false,
-      reason: { type: "source-code-unavailable" },
-    });
-  });
-
   it("reports missing server packages", () => {
     expect(
       status("pdf", {
@@ -233,48 +224,6 @@ describe("getExportFormatStatus", () => {
       });
     },
   );
-
-  it("allows browser PDF printing in read-only WebAssembly", () => {
-    expect(
-      status("pdf", {
-        runtime: "wasm",
-        canEdit: false,
-        availability: { status: "success", data: null },
-      }),
-    ).toEqual({
-      available: true,
-      reason: { type: "wasm-runtime" },
-    });
-  });
-
-  it.each([
-    ["html", true],
-    ["markdown", false],
-    ["ipynb", false],
-    ["pdf", false],
-    ["script", true],
-    ["png", true],
-  ] as const)("describes %s availability in read mode", (format, available) => {
-    expect(status(format, { canEdit: false })).toEqual({
-      available,
-      ...(available ? {} : { reason: { type: "requires-edit-mode" } }),
-    });
-  });
-
-  it("keeps flat script edit-only", () => {
-    expect(
-      status("script", {
-        canEdit: false,
-        options: {
-          ...DEFAULT_EXPORT_OPTIONS,
-          script: { type: "flat" },
-        },
-      }),
-    ).toEqual({
-      available: false,
-      reason: { type: "requires-edit-mode" },
-    });
-  });
 
   it("allows an export attempt when the availability check fails", () => {
     expect(status("pdf", { availability: { status: "error" } })).toEqual({

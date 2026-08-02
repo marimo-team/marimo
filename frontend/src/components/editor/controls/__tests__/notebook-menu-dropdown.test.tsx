@@ -12,6 +12,7 @@ import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
+import { isWasm } from "@/core/wasm/utils";
 import {
   DEFAULT_EXPORT_OPTIONS,
   exportOptionsAtom,
@@ -65,6 +66,7 @@ describe("NotebookMenuDropdown", () => {
     });
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
+    vi.mocked(isWasm).mockReturnValue(false);
     vi.stubGlobal("PointerEvent", MouseEvent);
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
@@ -133,6 +135,29 @@ describe("NotebookMenuDropdown", () => {
       "true",
     );
     expect(screen.getByRole("radio", { name: "Slides" })).toBeChecked();
+  });
+
+  it("hides the slides PDF shortcut in WebAssembly", async () => {
+    vi.mocked(isWasm).mockReturnValue(true);
+    store.set(layoutStateAtom, {
+      selectedLayout: "slides",
+      layoutData: {},
+    });
+    render(<NotebookMenuDropdown />, { wrapper });
+
+    await openDownloadMenu();
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Download as PDF",
+      }),
+    );
+
+    expect(
+      screen.getByRole("menuitem", { name: "Document Layout" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: /Slides Layout/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("preselects each Python format from its download shortcut", async () => {

@@ -5,7 +5,7 @@ import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
-import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { viewStateAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
@@ -72,7 +72,6 @@ describe("useExportDialog", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
-    store.set(kioskModeAtom, false);
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
     vi.mocked(isWasm).mockReturnValue(false);
@@ -214,8 +213,8 @@ describe("useExportDialog", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("uses the saved notebook filename for source export", async () => {
-    store.set(filenameAtom, "/project/saved-name.py");
+  it("preserves the saved notebook filename for source export", async () => {
+    store.set(filenameAtom, "/project/report.qmd");
     document.title = "Custom app title";
     const { result } = renderController("script");
     await waitForAvailable(() => result.current);
@@ -225,7 +224,32 @@ describe("useExportDialog", () => {
     });
 
     expect(exportNotebookMock).toHaveBeenCalledWith(
-      expect.objectContaining({ sourceFilename: "saved-name.py" }),
+      expect.objectContaining({ sourceFilename: "report.qmd" }),
+    );
+  });
+
+  it("uses the page title for WebAssembly source export", async () => {
+    vi.mocked(isWasm).mockReturnValue(true);
+    store.set(filenameAtom, "notebook.py");
+    document.title = "Shared analysis";
+    const { result } = renderController("script");
+    await waitForAvailable(() => result.current);
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    expect(exportNotebookMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceFilename: "Shared analysis.py" }),
+    );
+  });
+
+  it("keeps equivalent CLI commands for WebAssembly exports", () => {
+    vi.mocked(isWasm).mockReturnValue(true);
+    const { result } = renderController("html");
+
+    expect(result.current.selected.command).toBe(
+      "marimo export html /project/notebook.py --include-code -o /project/notebook.html",
     );
   });
 
@@ -245,7 +269,6 @@ describe("useExportDialog", () => {
 
   it("prints the current view for PDF export in WebAssembly", async () => {
     vi.mocked(isWasm).mockReturnValue(true);
-    store.set(viewStateAtom, { mode: "read", cellAnchor: null });
     const print = vi.fn();
     vi.stubGlobal("print", print);
     const onClose = vi.fn();
