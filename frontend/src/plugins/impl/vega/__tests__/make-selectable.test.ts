@@ -2,11 +2,23 @@
 
 // @ts-expect-error - vega-parser is not typed
 import { parse } from "vega-parser";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { invariant } from "@/utils/invariant";
 import { makeSelectable } from "../make-selectable";
-import { getSelectionParamNames } from "../params";
+import { getPanZoomModifier, getSelectionParamNames } from "../params";
 import type { VegaLiteSpec } from "../types";
+
+// Pin the platform so the pan/zoom modifier (and therefore the snapshots
+// below) is deterministic regardless of the host running the tests. We use a
+// non-Mac platform, which resolves the modifier to `ctrlKey` — this matches
+// the Linux/Windows environment from issue #3812.
+beforeAll(() => {
+  vi.spyOn(window.navigator, "platform", "get").mockReturnValue("Linux x86_64");
+});
+
+afterAll(() => {
+  vi.restoreAllMocks();
+});
 
 describe("makeSelectable", () => {
   it("should return correctly if mark is not string", () => {
@@ -1266,5 +1278,69 @@ describe("makeSelectable", () => {
     // The spec should be returned unchanged
     expect(newSpec).toEqual(spec);
     expect(getSelectionParamNames(newSpec)).toEqual(["my_selection"]);
+  });
+});
+
+describe("pan/zoom modifier key (issue #3812)", () => {
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
+
+  function mockPlatform(platform: string) {
+    // jsdom's navigator has no `userAgentData`, so the detection helper falls
+    // back to `navigator.platform`, which is what we override here.
+    vi.spyOn(window.navigator, "platform", "get").mockReturnValue(platform);
+  }
+
+  it("uses metaKey (Command) on macOS", () => {
+    mockPlatform("MacIntel");
+    expect(getPanZoomModifier()).toBe("metaKey");
+
+    const spec = { mark: "point" } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    const panZoom = newSpec.params?.find((p) => p.name === "pan_zoom");
+    invariant(panZoom && "select" in panZoom, "expected pan_zoom param");
+    const select = panZoom.select as { on: string; zoom: string };
+    expect(select.on).toContain("event.metaKey");
+    expect(select.on).not.toContain("event.ctrlKey");
+    expect(select.zoom).toBe("wheel![event.metaKey]");
+  });
+
+  it.each(["Linux x86_64", "Win32"])(
+    "uses ctrlKey on non-macOS platform %s",
+    (platform) => {
+      mockPlatform(platform);
+      expect(getPanZoomModifier()).toBe("ctrlKey");
+
+      const spec = { mark: "point" } as VegaLiteSpec;
+      const newSpec = makeSelectable(spec, {});
+      const panZoom = newSpec.params?.find((p) => p.name === "pan_zoom");
+      invariant(panZoom && "select" in panZoom, "expected pan_zoom param");
+      const select = panZoom.select as { on: string; zoom: string };
+      // Must not use metaKey, which maps to the Super/Windows key here and is
+      // captured by the OS/desktop environment before the chart sees it.
+      expect(select.on).toContain("event.ctrlKey");
+      expect(select.on).not.toContain("event.metaKey");
+      expect(select.zoom).toBe("wheel![event.ctrlKey]");
+    },
+  );
+
+  it("keeps point/interval selection gated on the same modifier as pan/zoom", () => {
+    mockPlatform("Linux x86_64");
+    const spec = { mark: "bar" } as VegaLiteSpec;
+    const newSpec = makeSelectable(spec, {});
+    const mod = getPanZoomModifier();
+
+    for (const param of newSpec.params ?? []) {
+      if (!("select" in param) || typeof param.select !== "object") {
+        continue;
+      }
+      const select = param.select as { on?: string; translate?: string };
+      // The selection gating and pan/zoom must agree on the modifier, otherwise
+      // one gesture triggers both.
+      if (typeof select.on === "string" && select.on.includes("event.")) {
+        expect(select.on).toContain(`event.${mod}`);
+      }
+    }
   });
 });
