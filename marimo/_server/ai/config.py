@@ -89,10 +89,16 @@ class AnyProviderConfig:
             )
 
         provider_config = cast(dict[str, Any], custom_providers[provider_name])
+        # OpenAI-compatible custom endpoints typically accept the same key
+        # surface as OpenAI (OPENAI_API_KEY). Match for_openai so a missing or
+        # empty api_key in marimo.toml does not pass "" into the SDK and
+        # suppress that env fallback.
+        fallback_key = cls.os_key("OPENAI_API_KEY")
         return cls._for_openai_like(
             config,
             key=provider_name,
             name=provider_name.replace("_", " ").title(),
+            fallback_key=fallback_key,
             require_key=False,
             ai_config=provider_config,
         )

@@ -799,6 +799,90 @@ class TestProviderConfigWithFallback:
             exc_info.value.detail
         )
 
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_custom_provider_with_fallback_key(self) -> None:
+        """Custom providers fall back to OPENAI_API_KEY when api_key is missing."""
+        config: AiConfig = {
+            "custom_providers": {
+                "novita": {"base_url": "https://api.novita.ai/openai"},
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_custom_provider(
+            config, "novita"
+        )
+
+        assert provider_config.api_key == "env-openai-key"
+        assert provider_config.base_url == "https://api.novita.ai/openai"
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_custom_provider_empty_api_key_uses_fallback(self) -> None:
+        """Empty api_key in marimo.toml should not suppress OPENAI_API_KEY."""
+        config: AiConfig = {
+            "custom_providers": {
+                "novita": {
+                    "base_url": "https://api.novita.ai/openai",
+                    "api_key": "",
+                },
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_custom_provider(
+            config, "novita"
+        )
+
+        assert provider_config.api_key == "env-openai-key"
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_custom_provider_config_key_takes_precedence(self) -> None:
+        """Config api_key takes precedence over OPENAI_API_KEY for custom providers."""
+        config: AiConfig = {
+            "custom_providers": {
+                "novita": {
+                    "base_url": "https://api.novita.ai/openai",
+                    "api_key": "config-novita-key",
+                },
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_custom_provider(
+            config, "novita"
+        )
+
+        assert provider_config.api_key == "config-novita-key"
+
+    @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
+    def test_for_model_custom_provider_with_fallback_key(self) -> None:
+        """for_model routes custom providers through the same env fallback."""
+        config: AiConfig = {
+            "custom_providers": {
+                "novita": {"base_url": "https://api.novita.ai/openai"},
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "novita/deepseek/deepseek-v4-flash", config
+        )
+
+        assert provider_config.api_key == "env-openai-key"
+        assert provider_config.base_url == "https://api.novita.ai/openai"
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_for_custom_provider_no_fallback_available(self) -> None:
+        """Without config or env key, custom providers keep require_key=False."""
+        config: AiConfig = {
+            "custom_providers": {
+                "novita": {"base_url": "https://api.novita.ai/openai"},
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_custom_provider(
+            config, "novita"
+        )
+
+        assert provider_config.api_key == ""
+        assert provider_config.base_url == "https://api.novita.ai/openai"
+
 
 class TestGetKey:
     """Tests for _get_key function."""
