@@ -2876,6 +2876,18 @@ def test_signed_stateful_bytes_uses_custom_stub() -> None:
         CUSTOM_STUBS.pop(_Model, None)
 
 
+def test_signed_stateful_bytes_bytearray_is_signed_bytes() -> None:
+    # A bytearray value must hash to signed, immutable bytes (not a raw,
+    # mutable bytearray), and vary by content.
+    hasher = BlockHasher.__new__(BlockHasher)
+    a = hasher._signed_stateful_bytes(bytearray(b"abc"), "ui")
+    b = hasher._signed_stateful_bytes(bytearray(b"xyz"), "ui")
+    assert type(a) is bytes
+    assert type(b) is bytes
+    assert a != b
+    assert a == hasher._signed_stateful_bytes(bytearray(b"abc"), "ui")
+
+
 def test_signed_stateful_bytes_unpicklable_raises() -> None:
     hasher = BlockHasher.__new__(BlockHasher)
     with pytest.raises(TypeError, match="neither"):

@@ -567,7 +567,7 @@ class BlockHasher:
     ) -> bytes:
         """Content bytes for a state/UI value, pickling as a last resort."""
         signed = attempt_signed_bytes(value, label)
-        if isinstance(signed, (bytes, bytearray)):
+        if isinstance(signed, bytes):
             return signed
 
         # A registered custom stub defines the object's bytes.

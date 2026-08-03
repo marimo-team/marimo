@@ -131,6 +131,11 @@ def common_container_to_bytes(value: Any) -> bytes:
         # Tuple may be only data primitive, not fully primitive.
         if isinstance(value, tuple):
             return iterable_sign(map(recurse_container, value), "tuple")
+        # bytearray is mutable so not in PRIMITIVES, but its bytes are a
+        # deterministic content key; sign under a distinct label so it does not
+        # collide with an equal-content bytes value.
+        if isinstance(value, bytearray):
+            return type_sign(bytes(value), "bytearray")
 
         if is_primitive(value):
             return primitive_to_bytes(value)
