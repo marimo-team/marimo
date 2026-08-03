@@ -100,7 +100,13 @@ This will build the frontend, install Python dependencies in editable mode, and 
 
 ### `pre-commit` hooks
 
-You can optionally install [pre-commit](https://pre-commit.com/) hooks to automatically run the validation checks when making a commit:
+You can optionally install the hooks in `.pre-commit-config.yaml` to automatically run the validation checks when making a commit. We recommend [prek](https://github.com/j178/prek), a single-binary reimplementation of `pre-commit` that installs faster and shares toolchains across hooks:
+
+```bash
+uvx prek install
+```
+
+[pre-commit](https://pre-commit.com/) itself works too — both read the same config, so either gives identical results:
 
 ```bash
 uvx pre-commit install
