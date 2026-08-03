@@ -579,7 +579,7 @@ class BlockHasher:
             return type_sign(deterministic_dumps(value, hash_type), "pickle")
         except Exception as e:
             # If stateful and unpicklable, the value can't be keyed, so raise
-            # instead of mis-keying.
+            # instead of miskeying it.
             raise TypeError(
                 f"Cached cell depends on a {label} value that is neither "
                 f"content-addressable nor picklable: {type(value).__name__}."
