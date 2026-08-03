@@ -83,6 +83,8 @@ chat = mo.ui.chat(
 chat
 ```
 
+> **Tip:** Point the OpenAI client at any OpenAI-compatible multi-model gateway via `base_url` — for example [DaoXE](https://daoxe.com/?utm_source=github&utm_medium=organic&utm_campaign=marimo&utm_content=pr) at `https://api.daoxe.com/v1`.
+
 ## Accessing Chat History
 
 You can access the chat history using the `value` attribute:
