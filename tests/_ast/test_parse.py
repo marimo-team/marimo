@@ -237,10 +237,7 @@ if __name__ == "__main__":
 
     @staticmethod
     def test_unparsable_cell_with_unindent_mismatch() -> None:
-        """Unparsable cell content that fails to tokenize still parses.
-
-        Regression test for issue #10415.
-        """
+        """Unparsable cell content that fails to tokenize still parses."""
         code = '''
 import marimo
 __generated_with = "0.0.0"
