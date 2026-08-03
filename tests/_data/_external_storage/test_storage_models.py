@@ -20,6 +20,8 @@ from marimo._data._external_storage.storage import (
     Obstore,
     detect_protocol_from_url,
     normalize_protocol,
+)
+from marimo._data._external_storage.utils import (
     paginate_entries,
     parse_page_offset,
 )

@@ -19,6 +19,10 @@ from marimo._data._external_storage.models import (
     StorageEntry,
     StorageListResult,
 )
+from marimo._data._external_storage.utils import (
+    paginate_entries,
+    parse_page_offset,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
@@ -534,42 +538,3 @@ def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:
 def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | None:
     """Normalize a protocol string (e.g. 's3a', 'gs', 'abfs') to a known storage type."""
     return _PROTOCOL_MAP.get(protocol.strip().lower())
-
-
-def parse_page_offset(page_token: str | None) -> int:
-    if page_token is None:
-        return 0
-    try:
-        offset = int(page_token)
-    except ValueError as exc:
-        raise ValueError(f"Invalid storage page token: {page_token}") from exc
-    if offset < 0:
-        raise ValueError(f"Invalid storage page token: {page_token}")
-    return offset
-
-
-def paginate_entries(
-    entries: list[StorageEntry],
-    *,
-    offset: int,
-    limit: int,
-) -> StorageListResult:
-    if limit < 1:
-        raise ValueError("Storage list limit must be positive")
-
-    total_entries = len(entries)
-    if total_entries > limit:
-        LOGGER.debug(
-            "Fetched %s entries, returning page offset %s with limit %s",
-            total_entries,
-            offset,
-            limit,
-        )
-
-    end = offset + limit
-    has_next_page = end < total_entries
-    next_page_token = str(end) if has_next_page else None
-    return StorageListResult(
-        entries=entries[offset:end],
-        next_page_token=next_page_token,
-    )

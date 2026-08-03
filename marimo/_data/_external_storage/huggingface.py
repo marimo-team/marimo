@@ -18,7 +18,7 @@ from marimo._data._external_storage.models import (
     StorageEntry,
     StorageListResult,
 )
-from marimo._data._external_storage.storage import (
+from marimo._data._external_storage.utils import (
     paginate_entries,
     parse_page_offset,
 )
@@ -27,7 +27,7 @@ from marimo._utils.assert_never import log_never
 from marimo._utils.typing import override
 
 if TYPE_CHECKING:
-    from huggingface_hub import HfApi  # noqa: F401
+    from huggingface_hub import BucketFile, HfApi  # noqa: F401
     from huggingface_hub.hf_api import LastCommitInfo
 
 LOGGER = _loggers.marimo_logger()
@@ -126,6 +126,9 @@ def _directory_entry(path: str) -> StorageEntry:
 
 
 class HuggingfaceApi(StorageBackend["HfApi"]):
+    """Storage backend for Hugging Face Hub. See https://github.com/huggingface/huggingface_hub/blob/main/docs/source/en/guides/hf_file_system.md
+    on why HfApi is a preferred interface rather than HfFileSystem."""
+
     @override
     def list_entries(
         self,
@@ -375,6 +378,31 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         if not path_in_bucket:
             return _directory_entry(path.strip("/"))
 
+        bucket_id = resolved.bucket_id
+        bucket_root = f"buckets/{bucket_id}"
+
+        def _get_file() -> BucketFile | None:
+            results = list(
+                self.store.get_bucket_paths_info(bucket_id, [path_in_bucket])
+            )
+            return results[0] if results else None
+
+        item = await asyncio.to_thread(_get_file)
+        if item is not None:
+            full_path = f"{bucket_root}/{item.path}"
+            return StorageEntry(
+                path=full_path,
+                kind="file",
+                size=item.size or 0,
+                last_modified=_last_modified_from_bucket_item(
+                    item.uploaded_at
+                ),
+                mime_type=mimetypes.guess_type(full_path)[0],
+            )
+
+        # get_bucket_paths_info only resolves files (nonexistent paths are
+        # silently ignored, and directories aren't supported at all), so
+        # fall back to a listing to handle the directory case.
         entries = await asyncio.to_thread(self._list_bucket_entries, resolved)
         normalized = path.strip().strip("/")
         for entry in entries:
@@ -440,6 +468,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
     async def read_range(
         self, path: str, *, offset: int = 0, length: int | None = None
     ) -> bytes:
+        """Read a byte range from the file. If length is None, read the entire file."""
         resolved = _parse_hub_path(path)
         if resolved.kind != "repo":
             data = await self.download(path)
@@ -455,28 +484,30 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         if length == 0:
             return b""
 
-        from huggingface_hub import hf_hub_url
-        from huggingface_hub.file_download import http_get
+        from huggingface_hub import HfFileSystem
 
-        url = hf_hub_url(
-            resolved.repo_id,
-            resolved.path_in_repo,
-            repo_type=resolved.repo_type,
-            endpoint=self.store.endpoint,
+        hub_path = (
+            f"{_hub_path_for_repo(resolved.repo_type, resolved.repo_id)}"
+            f"/{resolved.path_in_repo}"
         )
 
         def _read() -> bytes:
-            import io
-
-            headers = self.store._build_hf_headers()
-            if length is not None:
-                headers["Range"] = f"bytes={offset}-{offset + length - 1}"
-            elif offset > 0:
-                headers["Range"] = f"bytes={offset}-"
-
-            buffer = io.BytesIO()
-            http_get(url, buffer, headers=headers)
-            return buffer.getvalue()
+            # Both HfApi and HfFileSystem can be used to read a file, but HfFileSystem abstracts away the http call logic.
+            fs = HfFileSystem(
+                token=self.store.token, endpoint=self.store.endpoint
+            )
+            # block_size=0 bypasses fsspec's default block cache, which always reads `blocksize` bytes past what's requested
+            # (see `fsspec.caching.ReadAheadCache._fetch`). Without this, every read would over-fetch.
+            with fs.open(hub_path, "rb", block_size=0) as f:
+                if offset:
+                    f.seek(offset)
+                data = f.read() if length is None else f.read(length)
+                if not isinstance(data, bytes):
+                    raise TypeError(
+                        "Expected bytes from a binary-mode read, got "
+                        f"{type(data).__name__}"
+                    )
+                return data
 
         return await asyncio.to_thread(_read)
 
@@ -491,6 +522,10 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 return None
             from urllib.parse import quote
 
+            # huggingface_hub has no URL-builder helper for buckets (unlike
+            # hf_hub_url for repos), so we construct it by hand. This mirrors
+            # what huggingface_hub itself does internally for buckets, e.g.
+            # HfApi.get_bucket_file_metadata and HfFileSystem.url().
             return (
                 f"{self.store.endpoint}/buckets/{resolved.bucket_id}/resolve/"
                 f"{quote(resolved.path_in_repo, safe='/')}"
@@ -499,6 +534,11 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
         if resolved.kind != "repo":
             return None
         if resolved.repo_id is None or resolved.repo_type is None:
+            # Should be unreachable: _ResolvedHubPath always sets these together when kind == "repo".
+            LOGGER.debug(
+                "Hugging Face repo path resolved without repo metadata: %s",
+                path,
+            )
             return None
         if not resolved.path_in_repo:
             return None

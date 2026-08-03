@@ -203,6 +203,77 @@ class TestHuggingfaceApi:
             ]
         )
 
+    @pytest.mark.asyncio
+    async def test_get_bucket_entry_file(self) -> None:
+        from huggingface_hub import BucketFile
+
+        mock_api = MagicMock()
+        mock_file = MagicMock(spec=BucketFile)
+        mock_file.path = "data/file.parquet"
+        mock_file.size = 1024
+        mock_file.uploaded_at = None
+        mock_api.get_bucket_paths_info.return_value = [mock_file]
+
+        backend = self._make_backend(mock_api)
+        entry = await backend.get_entry(
+            "buckets/my-org/my-bucket/data/file.parquet"
+        )
+
+        # A targeted lookup, not a full directory listing.
+        mock_api.get_bucket_paths_info.assert_called_once_with(
+            "my-org/my-bucket", ["data/file.parquet"]
+        )
+        mock_api.list_bucket_tree.assert_not_called()
+        assert entry == snapshot(
+            StorageEntry(
+                path="buckets/my-org/my-bucket/data/file.parquet",
+                kind="file",
+                size=1024,
+                last_modified=None,
+                metadata={},
+                mime_type=None,
+            )
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_bucket_entry_directory_falls_back_to_listing(
+        self,
+    ) -> None:
+        # get_bucket_paths_info only resolves files (nonexistent paths are
+        # silently ignored), so directories must fall back to a listing.
+        from huggingface_hub import BucketFolder
+
+        mock_api = MagicMock()
+        mock_api.get_bucket_paths_info.return_value = []
+        mock_folder = MagicMock(spec=BucketFolder)
+        mock_folder.path = "data"
+        mock_folder.uploaded_at = None
+        mock_api.list_bucket_tree.return_value = [mock_folder]
+
+        backend = self._make_backend(mock_api)
+        entry = await backend.get_entry("buckets/my-org/my-bucket/data")
+
+        assert entry == snapshot(
+            StorageEntry(
+                path="buckets/my-org/my-bucket/data",
+                kind="directory",
+                size=0,
+                last_modified=None,
+                metadata={},
+                mime_type=None,
+            )
+        )
+
+    @pytest.mark.asyncio
+    async def test_get_bucket_entry_not_found(self) -> None:
+        mock_api = MagicMock()
+        mock_api.get_bucket_paths_info.return_value = []
+        mock_api.list_bucket_tree.return_value = []
+
+        backend = self._make_backend(mock_api)
+        with pytest.raises(ValueError, match="not found"):
+            await backend.get_entry("buckets/my-org/my-bucket/missing.txt")
+
     def test_list_root_entries_with_author(self) -> None:
         mock_api = MagicMock()
         mock_api.whoami.return_value = {"name": "marimo-team"}
@@ -376,13 +447,72 @@ class TestHuggingfaceApi:
         mock_api.endpoint = "https://huggingface.co"
         backend = self._make_backend(mock_api)
 
-        with patch("huggingface_hub.file_download.http_get") as mock_http_get:
+        with patch("huggingface_hub.HfFileSystem") as mock_fs_cls:
             data = await backend.read_range(
                 "datasets/scikit-learn/Fish/Fish.csv", offset=0, length=0
             )
 
-        mock_http_get.assert_not_called()
+        mock_fs_cls.assert_not_called()
         assert data == b""
+
+    @pytest.mark.asyncio
+    async def test_read_range(self) -> None:
+        mock_api = MagicMock()
+        mock_api.token = None
+        mock_api.endpoint = "https://huggingface.co"
+        backend = self._make_backend(mock_api)
+
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_file.__exit__.return_value = False
+        mock_file.read.return_value = b"partial-data"
+        mock_fs = MagicMock()
+        mock_fs.open.return_value = mock_file
+
+        with patch(
+            "huggingface_hub.HfFileSystem", return_value=mock_fs
+        ) as mock_fs_cls:
+            data = await backend.read_range(
+                "datasets/scikit-learn/Fish/Fish.csv", offset=10, length=5
+            )
+
+        mock_fs_cls.assert_called_once_with(
+            token=None, endpoint="https://huggingface.co"
+        )
+        # block_size=0 is required to get an exact read: fsspec's default
+        # block cache always over-fetches past the requested range (see
+        # `fsspec.caching.ReadAheadCache._fetch`).
+        mock_fs.open.assert_called_once_with(
+            "datasets/scikit-learn/Fish/Fish.csv", "rb", block_size=0
+        )
+        mock_file.seek.assert_called_once_with(10)
+        mock_file.read.assert_called_once_with(5)
+        assert data == b"partial-data"
+
+    @pytest.mark.asyncio
+    async def test_read_range_from_start(self) -> None:
+        # offset=0 should not seek at all (avoids an unnecessary reconnect
+        # in the underlying streaming file).
+        mock_api = MagicMock()
+        mock_api.token = None
+        mock_api.endpoint = "https://huggingface.co"
+        backend = self._make_backend(mock_api)
+
+        mock_file = MagicMock()
+        mock_file.__enter__.return_value = mock_file
+        mock_file.__exit__.return_value = False
+        mock_file.read.return_value = b"first-bytes"
+        mock_fs = MagicMock()
+        mock_fs.open.return_value = mock_file
+
+        with patch("huggingface_hub.HfFileSystem", return_value=mock_fs):
+            data = await backend.read_range(
+                "datasets/scikit-learn/Fish/Fish.csv", length=1_000_000
+            )
+
+        mock_file.seek.assert_not_called()
+        mock_file.read.assert_called_once_with(1_000_000)
+        assert data == b"first-bytes"
 
     def test_list_entries_pagination(self) -> None:
         mock_api = MagicMock()
