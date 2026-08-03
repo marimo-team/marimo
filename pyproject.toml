@@ -316,7 +316,6 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-target-version = "py310"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "build",
