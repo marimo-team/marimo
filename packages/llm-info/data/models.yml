@@ -101,6 +101,16 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: GPT-Realtime-2.1
+    model: gpt-realtime-2.1
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-06
+    cost: {input: 4, output: 24}
+
   - name: GPT-5.6
     model: gpt-5.6
     description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
@@ -340,6 +350,46 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Claude Opus 5
+    model: anthropic.claude-opus-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
+  - name: Claude Opus 5 (AU)
+    model: au.anthropic.claude-opus-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
+  - name: Claude Opus 5 (EU)
+    model: eu.anthropic.claude-opus-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5.5, output: 27.5}
+
+  - name: Claude Opus 5 (JP)
+    model: jp.anthropic.claude-opus-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
   - name: Claude Opus 5 (Global)
     model: global.anthropic.claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
@@ -911,6 +961,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Kimi K3
+    model: moonshotai/Kimi-K3
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-16
+    cost: {input: 3, output: 15}
+
   - name: MiniMax M3
     model: MiniMaxAI/MiniMax-M3
     description: "Multimodal foundation model from MiniMax with a 1M-token context window, suited for long-horizon agentic work and coding"
@@ -1072,6 +1132,26 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: Qwen3.8 Max
+    model: qwen3.8-max
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-03
+    cost: {input: 2, output: 6}
+
+  - name: GPT-5.6 Luna (2x usage)
+    model: gpt-5.6-luna
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 0.1, output: 0.6}
+
   - name: Kimi K3 (2x usage)
     model: kimi-k3
     description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
