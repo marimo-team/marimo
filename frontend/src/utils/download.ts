@@ -140,7 +140,7 @@ export async function downloadHTMLAsImage(opts: {
   element: HTMLElement;
   filename: string;
   prepare?: (element: HTMLElement) => () => void;
-}) {
+}): Promise<boolean> {
   const { element, filename, prepare } = opts;
 
   // Capture current scroll position
@@ -156,6 +156,7 @@ export async function downloadHTMLAsImage(opts: {
     // Get screenshot
     const dataUrl = await toPng(element);
     downloadByURL(dataUrl, Filenames.toPNG(filename));
+    return true;
   } catch (error) {
     Logger.error("Error downloading as PNG", error);
     toast({
@@ -163,6 +164,7 @@ export async function downloadHTMLAsImage(opts: {
       description: prettyError(error),
       variant: "danger",
     });
+    return false;
   } finally {
     cleanup?.();
     if (document.body.classList.contains("printing")) {

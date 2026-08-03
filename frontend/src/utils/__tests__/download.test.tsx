@@ -390,8 +390,9 @@ describe("downloadHTMLAsImage", () => {
   it("should download image without prepare function", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-
+    expect(
+      await downloadHTMLAsImage({ element: mockElement, filename: "test" }),
+    ).toBe(true);
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
       expect.objectContaining({
@@ -452,8 +453,9 @@ describe("downloadHTMLAsImage", () => {
   it("should show error toast on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Failed"));
 
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-
+    expect(
+      await downloadHTMLAsImage({ element: mockElement, filename: "test" }),
+    ).toBe(false);
     expect(toast).toHaveBeenCalledWith({
       title: "Failed to download as PNG",
       description: "Failed",

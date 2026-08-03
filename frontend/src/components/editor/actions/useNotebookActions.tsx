@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import type { RefObject } from "react";
 import {
   BookMarkedIcon,
   CheckIcon,
@@ -51,7 +52,6 @@ import { GitHubIcon } from "@/components/icons/github";
 import { MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { YouTubeIcon } from "@/components/icons/youtube";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
-import { renderShortcut } from "@/components/shortcuts/renderShortcut";
 import { PairWithAgentModal } from "@/components/editor/actions/pair-with-agent-modal";
 import { ShareStaticNotebookModal } from "@/components/static-html/share-modal";
 import { toast } from "@/components/ui/use-toast";
@@ -66,30 +66,15 @@ import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
-import {
-  updateCellOutputsWithScreenshots,
-  useEnrichCellOutputs,
-} from "@/core/export/hooks";
 import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
-import { downloadAsHTML } from "@/core/static/download-html";
 import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
 import { copyToClipboard } from "@/utils/copy";
-import {
-  ADD_PRINTING_CLASS,
-  downloadAsPDF,
-  downloadBlob,
-  downloadExportedFile,
-  downloadHTMLAsImage,
-  withLoadingToast,
-} from "@/utils/download";
-import { Filenames } from "@/utils/filenames";
 import { Objects } from "@/utils/objects";
-import type { ProgressState } from "@/utils/progress";
 import { Strings } from "@/utils/strings";
 import { newNotebookURL } from "@/utils/urls";
 import { useRunAllCells } from "../cell/useRunCells";
@@ -100,7 +85,13 @@ import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
 import { LAYOUT_TYPES } from "../renderers/types";
-import { runServerSidePDFDownload } from "./pdf-export";
+import { ExportDialog } from "./export-dialog/export-dialog";
+import {
+  applyExportOptionOverrides,
+  exportOptionsAtom,
+  type ExportFormat,
+  type ExportOptionOverrides,
+} from "./export-dialog/state";
 import type { ActionButton } from "./types";
 import { useCopyNotebook } from "./useCopyNotebook";
 import { useRestartKernel } from "./useRestartKernel";
@@ -111,7 +102,11 @@ const NOOP_HANDLER = (event?: Event) => {
   event?.stopPropagation();
 };
 
-export function useNotebookActions() {
+export function useNotebookActions({
+  exportDialogReturnFocusRef,
+}: {
+  exportDialogReturnFocusRef?: RefObject<HTMLElement | null>;
+} = {}) {
   const filename = useFilename();
   const { openModal, closeModal } = useImperativeModal();
   const { toggleApplication } = useChromeActions();
@@ -138,15 +133,8 @@ export function useNotebookActions() {
   const setSettingsDialogOpen = useSetAtom(settingDialogAtom);
   const { handleClick: openSettings } = useOpenSettingsToTab();
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
-  const {
-    exportAsIPYNB,
-    exportAsMarkdown,
-    exportAsScript,
-    readCode,
-    saveCellConfig,
-    updateCellOutputs,
-  } = useRequestClient();
-  const takeScreenshots = useEnrichCellOutputs();
+  const setExportOptions = useSetAtom(exportOptionsAtom);
+  const { readCode, saveCellConfig } = useRequestClient();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
@@ -158,10 +146,6 @@ export function useNotebookActions() {
   const sharingHtmlEnabled = resolvedConfig.sharing?.html ?? true;
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
   const sharingMolabEnabled = resolvedConfig.sharing?.molab ?? true;
-
-  // Server-side PDF export is always available outside WASM.
-  // Browser print fallback is used in WASM.
-  const serverSidePdfEnabled = !isWasm();
   const isSlidesLayout = selectedLayout === "slides";
 
   const renderCheckboxElement = (checked: boolean) => (
@@ -170,82 +154,39 @@ export function useNotebookActions() {
     </div>
   );
 
-  const renderRecommendedElement = (recommended: boolean) => {
-    if (!recommended) {
-      return null;
+  const openExportDialog = (
+    initialFormat?: ExportFormat,
+    optionOverrides?: ExportOptionOverrides,
+  ) => {
+    if (optionOverrides) {
+      setExportOptions((current) =>
+        applyExportOptionOverrides(current, optionOverrides),
+      );
     }
-    return (
-      <span className="ml-3 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-        Recommended
-      </span>
+    openModal(
+      <ExportDialog
+        initialFormat={initialFormat}
+        onClose={closeModal}
+        returnFocusRef={exportDialogReturnFocusRef}
+      />,
     );
   };
 
-  const downloadServerSidePDF = async ({
-    preset,
-    title,
-  }: {
-    preset: "document" | "slides";
-    title: string;
-  }) => {
-    if (!filename) {
-      toastNotebookMustBeNamed();
-      return;
-    }
-
-    const runDownload = async (progress: ProgressState) => {
-      await runServerSidePDFDownload({
-        exportOptions: {
-          webpdf: false,
-          preset,
-          includeInputs: true,
-          includeOutputs: true,
-        },
-        captureOutputs: () =>
-          updateCellOutputsWithScreenshots({
-            takeScreenshots: () => takeScreenshots({ progress }),
-            updateCellOutputs,
-          }),
-        downloadPDF: downloadAsPDF,
-      });
-    };
-    await withLoadingToast(title, runDownload);
-  };
-
-  const handleDocumentPDF = async () => {
-    if (serverSidePdfEnabled) {
-      await downloadServerSidePDF({
-        preset: "document",
-        title: "Downloading Document PDF...",
-      });
-      return;
-    }
-    const beforeprint = new Event("export-beforeprint");
-    const afterprint = new Event("export-afterprint");
-    window.dispatchEvent(beforeprint);
-    setTimeout(() => window.print(), 0);
-    setTimeout(() => window.dispatchEvent(afterprint), 0);
-  };
-
-  const handleDownloadAsIPYNB = async () => {
-    if (!filename) {
-      toastNotebookMustBeNamed();
-      return;
-    }
-
-    const runDownload = async (progress: ProgressState) => {
-      await updateCellOutputsWithScreenshots({
-        takeScreenshots: () => takeScreenshots({ progress }),
-        updateCellOutputs,
-      });
-      const exportedFile = await exportAsIPYNB({ download: false });
-      downloadExportedFile(exportedFile);
-    };
-
-    await withLoadingToast("Downloading IPYNB...", runDownload);
-  };
-
   const actions: ActionButton[] = [
+    {
+      icon: <DownloadIcon size={14} strokeWidth={1.5} />,
+      label: "Export…",
+      additionalKeywords: [
+        "download",
+        "html",
+        "markdown",
+        "ipynb",
+        "pdf",
+        "script",
+        "png",
+      ],
+      handle: () => openExportDialog(),
+    },
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
       label: "Download",
@@ -254,83 +195,44 @@ export function useNotebookActions() {
         {
           icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
           label: "Download as HTML",
-          handle: async () => {
-            if (!filename) {
-              toastNotebookMustBeNamed();
-              return;
-            }
-            await downloadAsHTML({ includeCode: true });
-          },
+          handle: () =>
+            openExportDialog("html", { html: { includeCode: true } }),
         },
         {
           icon: <FolderDownIcon size={14} strokeWidth={1.5} />,
           label: "Download as HTML (exclude code)",
-          handle: async () => {
-            if (!filename) {
-              toastNotebookMustBeNamed();
-              return;
-            }
-            await downloadAsHTML({ includeCode: false });
-          },
+          handle: () =>
+            openExportDialog("html", { html: { includeCode: false } }),
         },
         {
           icon: (
             <MarkdownIcon strokeWidth={1.5} style={{ width: 14, height: 14 }} />
           ),
           label: "Download as Markdown",
-          handle: async () => {
-            const exportedFile = await exportAsMarkdown({ download: false });
-            downloadExportedFile(exportedFile);
-          },
+          handle: () => openExportDialog("markdown"),
         },
         {
           icon: <NotebookIcon size={14} strokeWidth={1.5} />,
           label: "Download as ipynb",
-          handle: handleDownloadAsIPYNB,
+          handle: () => openExportDialog("ipynb"),
         },
         {
           icon: <CodeIcon size={14} strokeWidth={1.5} />,
           label: "Download notebook source",
-          handle: async () => {
-            const code = await readCode();
-            downloadBlob(
-              new Blob([code.contents], { type: "text/plain" }),
-              Filenames.toPY(document.title),
-            );
-          },
+          handle: () =>
+            openExportDialog("script", { script: { type: "source" } }),
         },
         {
           icon: <CodeIcon size={14} strokeWidth={1.5} />,
           label: "Download flat script",
-          handle: async () => {
-            const exportedFile = await exportAsScript({ download: false });
-            downloadExportedFile(exportedFile);
-          },
+          handle: () =>
+            openExportDialog("script", { script: { type: "flat" } }),
         },
         {
           divider: true,
           icon: <ImageIcon size={14} strokeWidth={1.5} />,
           label: "Download as PNG",
-          disabled: viewState.mode !== "present",
-          tooltip:
-            viewState.mode === "present" ? undefined : (
-              <span>
-                Only available in app view. <br />
-                Toggle with: {renderShortcut("global.hideCode", false)}
-              </span>
-            ),
-          handle: async () => {
-            const app = document.getElementById("App");
-            if (!app) {
-              return;
-            }
-            await downloadHTMLAsImage({
-              element: app,
-              filename: document.title,
-              // Add body.printing ONLY when converting the whole notebook to a screenshot
-              prepare: ADD_PRINTING_CLASS,
-            });
-          },
+          handle: () => openExportDialog("png"),
         },
         isSlidesLayout
           ? {
@@ -342,19 +244,24 @@ export function useNotebookActions() {
                 {
                   icon: <FileIcon size={14} strokeWidth={1.5} />,
                   label: "Document Layout",
-                  handle: handleDocumentPDF,
+                  handle: () =>
+                    openExportDialog("pdf", {
+                      pdf: { preset: "document" },
+                    }),
                 },
                 {
                   icon: <FileIcon size={14} strokeWidth={1.5} />,
                   label: "Slides Layout",
-                  rightElement: renderRecommendedElement(true),
-                  hidden: !serverSidePdfEnabled,
-                  handle: async () => {
-                    await downloadServerSidePDF({
-                      preset: "slides",
-                      title: "Downloading Slides PDF...",
-                    });
-                  },
+                  hidden: isWasm(),
+                  rightElement: (
+                    <span className="ml-3 shrink-0 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                      Recommended
+                    </span>
+                  ),
+                  handle: () =>
+                    openExportDialog("pdf", {
+                      pdf: { preset: "slides" },
+                    }),
                 },
               ],
             }
@@ -362,7 +269,10 @@ export function useNotebookActions() {
               divider: true,
               icon: <FileIcon size={14} strokeWidth={1.5} />,
               label: "Download as PDF",
-              handle: handleDocumentPDF,
+              handle: () =>
+                openExportDialog("pdf", {
+                  pdf: { preset: "document" },
+                }),
             },
       ],
     },
@@ -739,12 +649,4 @@ export function useNotebookActions() {
       }
       return action;
     });
-}
-
-function toastNotebookMustBeNamed() {
-  toast({
-    title: "Error",
-    description: "Notebooks must be named to be exported.",
-    variant: "danger",
-  });
 }
