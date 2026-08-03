@@ -22,7 +22,7 @@ marimo auto-discovers variables that are instances of:
 
 You can either create a storage connection using the UI or code.
 
-### 1. Using the UI
+### Using the UI
 
 From the Files panel in the sidebar, expand the **Remote Storage** section and click the **Add remote storage** button. The UI will guide you through entering your storage connection details.
 
@@ -32,10 +32,18 @@ From the Files panel in the sidebar, expand the **Remote Storage** section and c
   </figure>
 </div>
 
+marimo also detects credentials in your kernel's environment and offers a **Quick add** suggestion.
+
+| Integration | Detected from |
+| --- | --- |
+| Amazon S3 | `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are set, or `AWS_PROFILE` is set |
+| S3-compatible storage | As above, with a custom endpoint (`AWS_ENDPOINT_URL` or `AWS_ENDPOINT_URL_S3`), e.g. MinIO or Cloudflare R2 |
+
+See [Detecting data sources from your environment](sql.md#detecting-data-sources-from-your-environment) for details on how detection works.
+
 If you'd like to connect to a storage that isn't supported by the UI, you can use the code method below, or submit a [feature request](https://github.com/marimo-team/marimo/issues/new?title=Add%20new%20storage%20connection%20UI:&labels=enhancement&template=feature_request.yaml).
 
-
-### 2. Using code
+### Using code
 
 #### obstore
 
