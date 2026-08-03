@@ -101,31 +101,35 @@ export const ExportDialog: React.FC<{
           })}
         </TabsList>
 
-        <TabsContent
-          value={format}
-          className="mt-0 min-h-0 min-w-0 overflow-y-auto px-4 py-3"
-        >
-          <div className="mb-3">
-            <h3 className="text-base font-semibold">{definition.label}</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {definition.description}
-            </p>
-          </div>
+        {/* One panel per tab so each trigger's aria-controls resolves. */}
+        {formats.map(({ format: candidate }) => (
+          <TabsContent
+            key={candidate}
+            value={candidate}
+            className="mt-0 min-h-0 min-w-0 overflow-y-auto px-4 py-3"
+          >
+            <div className="mb-3">
+              <h3 className="text-base font-semibold">{definition.label}</h3>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {definition.description}
+              </p>
+            </div>
 
-          <FormatNotice
-            format={format}
-            formatLabel={definition.label}
-            status={status}
-          />
-
-          {usesBrowserPrint ? null : (
-            <FormatOptions
-              options={options}
-              updateOptions={updateOptions}
-              disabled={isExporting}
+            <FormatNotice
+              format={format}
+              formatLabel={definition.label}
+              status={status}
             />
-          )}
-        </TabsContent>
+
+            {usesBrowserPrint ? null : (
+              <FormatOptions
+                options={options}
+                updateOptions={updateOptions}
+                disabled={isExporting}
+              />
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
 
       <footer className="min-w-0 border-t bg-muted/20 px-4 py-3">

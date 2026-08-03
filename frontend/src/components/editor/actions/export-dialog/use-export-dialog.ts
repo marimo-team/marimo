@@ -21,6 +21,7 @@ import {
   withLoadingToast,
 } from "@/utils/download";
 import { Filenames } from "@/utils/filenames";
+import { Logger } from "@/utils/Logger";
 import { Paths } from "@/utils/paths";
 import { getExportCommand } from "./export-command";
 import { exportNotebook } from "./export-notebook";
@@ -342,8 +343,9 @@ function useExportDialogAction({
       if (mountedRef.current) {
         onClose();
       }
-    } catch {
-      // Request and capture helpers report actionable errors to the user.
+    } catch (error) {
+      // Most helpers toast actionable errors, but not all (e.g. updateCellOutputs).
+      Logger.error("Export failed", error);
     } finally {
       if (mountedRef.current) {
         setIsExporting(false);
