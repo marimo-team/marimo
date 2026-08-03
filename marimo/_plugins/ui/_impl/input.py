@@ -1128,6 +1128,10 @@ class multiselect(UIElement[list[str], list[object]]):
             of its container. Defaults to False.
         max_selections (int, optional): Maximum number of items that can be selected.
             Defaults to None.
+        min_selections (int, optional): Minimum number of items that must be selected.
+            Enforced in the UI for user interactions; programmatic updates from
+            Python are not blocked. `min_selections=0` is allowed but equivalent
+            to no minimum. Defaults to None.
         disabled (bool, optional): Whether the multiselect is disabled. Defaults to False.
     """
 
@@ -1143,6 +1147,7 @@ class multiselect(UIElement[list[str], list[object]]):
         on_change: Callable[[list[object]], None] | None = None,
         full_width: bool = False,
         max_selections: int | None = None,
+        min_selections: int | None = None,
         disabled: bool = False,
     ) -> None:
         if len(options) > multiselect._MAX_OPTIONS:
@@ -1173,6 +1178,23 @@ class multiselect(UIElement[list[str], list[object]]):
                     "Initial value cannot be greater than max_selections."
                 )
 
+        if min_selections is not None:
+            if min_selections < 0:
+                raise ValueError("min_selections cannot be less than 0.")
+            if min_selections > len(self.options):
+                raise ValueError(
+                    "min_selections cannot be greater than the number of "
+                    "options."
+                )
+        if (
+            min_selections is not None
+            and max_selections is not None
+            and min_selections > max_selections
+        ):
+            raise ValueError(
+                "min_selections cannot be greater than max_selections."
+            )
+
         super().__init__(
             component_name=multiselect._name,
             initial_value=initial_value,
@@ -1181,6 +1203,7 @@ class multiselect(UIElement[list[str], list[object]]):
                 "options": list(self.options.keys()),
                 "full-width": full_width,
                 "max-selections": max_selections,
+                "min-selections": min_selections,
                 "disabled": disabled,
             },
             on_change=on_change,

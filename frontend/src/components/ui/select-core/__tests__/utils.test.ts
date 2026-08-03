@@ -2,12 +2,55 @@
 import { describe, expect, it } from "vitest";
 import type { Option } from "../types";
 import {
+  clampSelection,
   deselectMatching,
   getBulkActions,
   getVisibleOptions,
   multiselectFilterFn,
   selectMatching,
 } from "../utils";
+
+describe("clampSelection", () => {
+  it("passes an in-bounds value through unchanged", () => {
+    expect(clampSelection(["a", "b"], ["a"], {})).toEqual(["a", "b"]);
+  });
+
+  it("drops the oldest when over maxSelections", () => {
+    expect(
+      clampSelection(["a", "b", "c"], ["a", "b"], { maxSelections: 2 }),
+    ).toEqual(["b", "c"]);
+  });
+
+  it("rejects a removal that would fall below minSelections", () => {
+    // 1 selected, removing to 0 with min 1 → rejected.
+    expect(clampSelection([], ["a"], { minSelections: 1 })).toBeNull();
+  });
+
+  it("allows a removal that stays at or above minSelections", () => {
+    expect(clampSelection(["b"], ["a", "b"], { minSelections: 1 })).toEqual([
+      "b",
+    ]);
+  });
+
+  it("allows additions even while still below minSelections", () => {
+    // Building up from empty: 0 → 1 is allowed though 1 < min 2.
+    expect(clampSelection(["a"], [], { minSelections: 2 })).toEqual(["a"]);
+  });
+
+  it("enforces exact size when min == max", () => {
+    // At the pinned size, a removal is rejected...
+    expect(
+      clampSelection(["a"], ["a", "b"], { minSelections: 2, maxSelections: 2 }),
+    ).toBeNull();
+    // ...and an addition slices back to the cap.
+    expect(
+      clampSelection(["a", "b", "c"], ["a", "b"], {
+        minSelections: 2,
+        maxSelections: 2,
+      }),
+    ).toEqual(["b", "c"]);
+  });
+});
 
 describe("multiselectFilterFn", () => {
   it("matches when all query words appear in the option (any order)", () => {
@@ -87,6 +130,7 @@ const bulkBase = {
   value: [] as string[],
   searchQuery: "",
   maxSelections: undefined as number | undefined,
+  minSelections: undefined as number | undefined,
 };
 
 describe("getBulkActions", () => {
@@ -153,6 +197,33 @@ describe("getBulkActions", () => {
   it("searching with no matches: no specs", () => {
     expect(
       getBulkActions({ ...bulkBase, searchQuery: "zzz", filteredOptions: [] }),
+    ).toEqual([]);
+  });
+
+  it("idle: deselect-all disabled when a positive minSelections is set", () => {
+    expect(
+      getBulkActions({
+        ...bulkBase,
+        value: ["a", "b"],
+        filteredOptions: bulkBase.options,
+        minSelections: 1,
+      }),
+    ).toEqual([
+      { kind: "select-all", enabled: true },
+      { kind: "deselect-all", enabled: false },
+    ]);
+  });
+
+  it("searching: omits deselect-matching that would drop below minSelections", () => {
+    // 2 selected, min 2: removing the single match would drop to 1 → omitted.
+    expect(
+      getBulkActions({
+        ...bulkBase,
+        value: ["a", "b"],
+        searchQuery: "x",
+        filteredOptions: ["a"].map(opt),
+        minSelections: 2,
+      }),
     ).toEqual([]);
   });
 
