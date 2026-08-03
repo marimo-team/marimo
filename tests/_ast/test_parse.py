@@ -237,11 +237,9 @@ if __name__ == "__main__":
 
     @staticmethod
     def test_unparsable_cell_with_unindent_mismatch() -> None:
-        """Unparsable cells whose content trips IndentationError still load.
+        """Unparsable cell content that fails to tokenize still parses.
 
-        Regression test for issue #10415: tokenizing a dedent to a level that
-        was never established raises IndentationError (a SyntaxError, not a
-        TokenError), which must not crash notebook parsing.
+        Regression test for issue #10415.
         """
         code = '''
 import marimo

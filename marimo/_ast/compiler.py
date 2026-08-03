@@ -99,7 +99,7 @@ def ends_with_semicolon(code: str) -> bool:
         tokens = list(
             tokenize(io.BytesIO(code.strip().encode("utf-8")).readline)
         )
-    except TokenError:
+    except (TokenError, SyntaxError):
         # Fallback for code with syntax errors (e.g., unterminated strings)
         return code.rstrip().endswith(";")
     for token in reversed(tokens):

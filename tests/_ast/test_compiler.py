@@ -521,10 +521,8 @@ class TestEndsWithSemicolon:
 
     @staticmethod
     def test_syntax_error_bad_coding_cookie() -> None:
-        # A bad coding cookie is ignored by ast.parse on str input but
-        # rejected by the bytes-based tokenize() with a plain SyntaxError,
-        # not a TokenError — so this reaches the fallback from compile_cell
-        # even though the cell parsed cleanly.
+        # ast.parse on a str ignores a bad coding cookie, but the bytes-based
+        # tokenize() rejects it with a plain SyntaxError, not a TokenError.
         code = "# -*- coding: bogus -*-\nx = 1"
         assert compiler.ends_with_semicolon(code) is False
 

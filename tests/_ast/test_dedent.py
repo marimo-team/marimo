@@ -131,8 +131,7 @@ class TestSmartDedent:
 
     def test_unindent_mismatch_falls_back(self):
         # tokenize raises IndentationError (a SyntaxError, not a TokenError)
-        # when a line dedents to a level that was never established; the
-        # fallback dedent must kick in instead of propagating the exception.
+        # for a dedent to an unestablished level. Fall back, don't raise.
         code = "    def f():\n            x = 1\n        f():\n"
         assert smart_dedent(code) == "def f():\n        x = 1\n    f():\n"
 
@@ -164,10 +163,9 @@ class TestFixedDedent:
         assert fixed_dedent("    x = 1\n    y = 2\n") == "x = 1\ny = 2"
 
     def test_unindent_mismatch_falls_back(self):
-        # An unparsable cell can dedent to a level that was never established,
-        # for which tokenize raises IndentationError — a SyntaxError, not a
-        # TokenError. The mismatched line keeps its offset from the base
-        # indent instead of crashing notebook load (issue #10415).
+        # tokenize raises IndentationError for a dedent to an unestablished
+        # level (issue #10415). The mismatched line keeps its offset from the
+        # base indent.
         code = (
             "\n    def apply_adjustments():\n        value = 1\n"
             "        return value\n\n     apply_adjustments():\n    "
