@@ -391,13 +391,14 @@ class ModuleReloader:
         self, modules: dict[str, types.ModuleType]
     ) -> set[types.ModuleType]:
         """Like `check(..., reload=False)`, but tracks mtimes in
-        `watcher_mtimes` instead of `modules_mtimes`.
+        `watcher_modules_mtimes` instead of `modules_mtimes`.
 
-        `ModuleWatcher`'s background thread calls this
-        to find modules that changed since it last looked, in order to
-        compute *transitive* staleness via `_depends_on` in
-        `module_watcher.py`. It needs its own method to still call the check
-        but to avoid the race condition and all the cells update correctly
+        `ModuleWatcher`'s background thread calls this to find modules that
+        changed since the last watcher poll, so it can compute *transitive*
+        staleness via `_depends_on` in `module_watcher.py`.
+
+        This method exists to avoid races where `AutoreloadManager.cell_scope()`
+        advances `modules_mtimes` between watcher polls.
         """
         with self.lock:
             modified_modules: set[types.ModuleType] = set()
