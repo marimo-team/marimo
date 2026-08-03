@@ -235,6 +235,36 @@ if __name__ == "__main__":
         assert len(notebook.violations) == 1
         assert "Expected string constant" in notebook.violations[0].description
 
+    @staticmethod
+    def test_unparsable_cell_with_unindent_mismatch() -> None:
+        """Unparsable cell content that fails to tokenize still parses."""
+        code = '''
+import marimo
+__generated_with = "0.0.0"
+app = marimo.App()
+
+app._unparsable_cell(
+    r"""
+    def apply_adjustments():
+        value = 1
+        return value
+
+     apply_adjustments():
+    """,
+    name="_"
+)
+
+if __name__ == "__main__":
+    app.run()
+'''
+        notebook = parse_notebook(code)
+        assert notebook is not None
+        assert len(notebook.cells) == 1
+        assert notebook.cells[0].code == (
+            "def apply_adjustments():\n    value = 1\n"
+            "    return value\n\n apply_adjustments():"
+        )
+
 
 class TestTrailingComments:
     """Tests for trailing comment preservation in @app.function and @app.class_definition."""
