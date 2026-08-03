@@ -132,7 +132,7 @@ def smart_dedent(code: str) -> str:
     """
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(code).readline))
-    except TokenError:
+    except (TokenError, SyntaxError):
         return textwrap.dedent(code)
 
     lines = split_source_lines(code, keepends=True)
@@ -168,7 +168,7 @@ def fixed_dedent(text: str) -> str:
 
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(text).readline))
-    except TokenError:
+    except (TokenError, SyntaxError):
         tokens = []
 
     protected = _get_protected_lines(text, tokens)

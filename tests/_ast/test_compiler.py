@@ -519,6 +519,20 @@ class TestEndsWithSemicolon:
     def test_token_error_unterminated_triple_quote_with_semicolon() -> None:
         assert compiler.ends_with_semicolon('x = """unterminated;') is True
 
+    @staticmethod
+    def test_syntax_error_bad_coding_cookie() -> None:
+        # A bad coding cookie is ignored by ast.parse on str input but
+        # rejected by the bytes-based tokenize() with a plain SyntaxError,
+        # not a TokenError — so this reaches the fallback from compile_cell
+        # even though the cell parsed cleanly.
+        code = "# -*- coding: bogus -*-\nx = 1"
+        assert compiler.ends_with_semicolon(code) is False
+
+    @staticmethod
+    def test_syntax_error_bad_coding_cookie_with_semicolon() -> None:
+        code = "# -*- coding: bogus -*-\nx = 1;"
+        assert compiler.ends_with_semicolon(code) is True
+
 
 class TestCompileCellFilename:
     """Test compile_cell function with filename parameter."""
