@@ -570,12 +570,16 @@ class BlockHasher:
         if isinstance(signed, (bytes, bytearray)):
             return signed
 
+        # A registered custom stub defines the object's bytes.
+        if (stub := maybe_get_custom_stub(value)) is not None:
+            return type_sign(stub.to_bytes(), "stub")
+
         # Fallback for objects mapped to UI/State.
         try:
             return type_sign(deterministic_dumps(value, hash_type), "pickle")
         except Exception as e:
-            # If stateful and unpicklable, he value can't be keyed, so raise instead
-            # of mis-keying.
+            # If stateful and unpicklable, the value can't be keyed, so raise
+            # instead of mis-keying.
             raise TypeError(
                 f"Cached cell depends on a {label} value that is neither "
                 f"content-addressable nor picklable: {type(value).__name__}."

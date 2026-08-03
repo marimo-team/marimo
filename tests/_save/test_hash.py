@@ -2838,6 +2838,44 @@ def test_signed_stateful_bytes_content_varies() -> None:
     assert a == hasher._signed_stateful_bytes(_Selection(((0.0, 0.0),)), "ui")
 
 
+def test_signed_stateful_bytes_uses_custom_stub() -> None:
+    # A value with a registered custom stub hashes by the stub's canonical
+    # bytes (what the cache stores it as), not a generic pickle.
+    from marimo._save.encode import type_sign
+    from marimo._save.stubs import CUSTOM_STUBS, CustomStub, register_stub
+
+    @dataclasses.dataclass
+    class _Model:
+        payload: bytes
+
+    class _ModelStub(CustomStub):
+        __slots__ = ("payload",)
+
+        def __init__(self, obj: Any) -> None:
+            self.payload = obj.payload
+
+        def load(self, glbls: dict[str, Any]) -> Any:
+            del glbls
+            return _Model(self.payload)
+
+        @staticmethod
+        def get_type() -> type:
+            return _Model
+
+        def to_bytes(self) -> bytes:
+            return self.payload
+
+    register_stub(_Model, _ModelStub)
+    try:
+        hasher = BlockHasher.__new__(BlockHasher)
+        out = hasher._signed_stateful_bytes(_Model(b"abc"), "ui")
+        assert out == type_sign(b"abc", "stub")
+        # Distinct stub bytes -> distinct key.
+        assert out != hasher._signed_stateful_bytes(_Model(b"xyz"), "ui")
+    finally:
+        CUSTOM_STUBS.pop(_Model, None)
+
+
 def test_signed_stateful_bytes_unpicklable_raises() -> None:
     hasher = BlockHasher.__new__(BlockHasher)
     with pytest.raises(TypeError, match="neither"):
