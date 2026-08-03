@@ -297,7 +297,7 @@ class BlockHasher:
         if not external:
             ctx = get_and_update_context_from_scope(scope)
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
-            refs, scope, ctx
+            refs, scope, ctx, hash_type
         )
         self.stateful_refs = stateful_refs
 
@@ -562,11 +562,35 @@ class BlockHasher:
                 missing.add(ref)
         return _refs, missing
 
+    def _signed_stateful_bytes(
+        self, value: Any, label: str, hash_type: str = DEFAULT_HASH
+    ) -> bytes:
+        """Content bytes for a state/UI value, pickling as a last resort."""
+        signed = attempt_signed_bytes(value, label)
+        if isinstance(signed, bytes):
+            return signed
+
+        # A registered custom stub defines the object's bytes.
+        if (stub := maybe_get_custom_stub(value)) is not None:
+            return type_sign(stub.to_bytes(), "stub")
+
+        # Fallback for objects mapped to UI/State.
+        try:
+            return type_sign(deterministic_dumps(value, hash_type), "pickle")
+        except Exception as e:
+            # If stateful and unpicklable, the value can't be keyed, so raise
+            # instead of miskeying it.
+            raise TypeError(
+                f"Cached cell depends on a {label} value that is neither "
+                f"content-addressable nor picklable: {type(value).__name__}."
+            ) from e
+
     def extract_ref_state_and_normalize_scope(
         self,
         refs: set[Name],
         scope: dict[str, Any],
         ctx: RuntimeContext | None = None,
+        hash_type: str = DEFAULT_HASH,
     ) -> SerialRefs:
         """
         Preprocess the scope and references, and extract state references.
@@ -581,6 +605,7 @@ class BlockHasher:
             refs: A set of reference names.
             scope: A dictionary representing the current scope.
             ctx: An optional runtime context for stateful lookup.
+            hash_type: The hash algorithm used to serialize stateful values.
 
         Returns:
             SerialRefs tuple containing the following elements:
@@ -620,7 +645,9 @@ class BlockHasher:
                         repr(value).encode(), "pathstate"
                     )
                 else:
-                    scope[ref] = attempt_signed_bytes(value(), "state")
+                    scope[ref] = self._signed_stateful_bytes(
+                        value(), "state", hash_type
+                    )
                 if ctx:
                     for state_name in ctx.state_registry.bound_names(value):
                         scope[state_name] = scope[ref]
@@ -634,7 +661,9 @@ class BlockHasher:
             if ui is not None and (
                 ref not in scope or isinstance(scope[ref], UIElement)
             ):
-                scope[ref] = attempt_signed_bytes(ui.value, "ui")
+                scope[ref] = self._signed_stateful_bytes(
+                    ui.value, "ui", hash_type
+                )
                 if ctx:
                     for ui_name in ctx.ui_element_registry.bound_names(ui._id):
                         scope[ui_name] = scope[ref]
@@ -883,7 +912,7 @@ class BlockHasher:
 
         # Need to run extract again for the expanded ref set.
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
-            refs, scope, ctx
+            refs, scope, ctx, self.hash_alg.name
         )
         # Attempt content hash again on the extracted stateful refs.
         # Do not pass ctx — stateful values can change between cells,
@@ -1198,7 +1227,7 @@ def content_cache_attempt_from_base(
     hasher = BlockHasher.from_parent(previous_block)
     ctx = get_and_update_context_from_scope(scope, required_refs)
     refs, _, stateful_refs = hasher.extract_ref_state_and_normalize_scope(
-        refs, scope, ctx
+        refs, scope, ctx, hasher.hash_alg.name
     )
 
     refs, _content, tmp_stateful_refs = hasher.collect_for_content_hash(
