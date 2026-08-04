@@ -63,13 +63,36 @@ function getOutline(html: string): Outline | null {
   return { items };
 }
 
+function toXPathStringLiteral(value: string): string {
+  if (!value.includes('"')) {
+    return `"${value}"`;
+  }
+  if (!value.includes("'")) {
+    return `'${value}'`;
+  }
+
+  const segments = value.split('"');
+  const literals: string[] = [];
+  for (const [index, segment] of segments.entries()) {
+    if (segment) {
+      literals.push(`"${segment}"`);
+    }
+    if (index < segments.length - 1) {
+      literals.push(`'"'`);
+    }
+  }
+  return `concat(${literals.join(", ")})`;
+}
+
 export function headingToIdentifier(heading: Element): OutlineItem["by"] {
   const id = heading.id;
   if (id) {
     return { id };
   }
-  const name = heading.textContent;
-  return { path: `//${heading.tagName}[contains(., "${name}")]` };
+  const name = heading.textContent ?? "";
+  return {
+    path: `//${heading.tagName}[contains(., ${toXPathStringLiteral(name)})]`,
+  };
 }
 
 export function mergeOutlines(outlines: (Outline | null)[]): Outline {
