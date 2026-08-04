@@ -55,14 +55,15 @@ def test_topological_export_preserves_invalid_cells() -> None:
 
     internal_app = InternalApp(app)
     valid_cell = next(iter(internal_app.cell_manager.cell_data()))
+    invalid_cell_id = CellId_t("invalid-cell")
     _ = internal_app.graph
     internal_app.with_data(
-        cell_ids=[CellId_t("invalid-cell"), valid_cell.cell_id],
+        cell_ids=[invalid_cell_id, valid_cell.cell_id],
         codes=["x =", valid_cell.code],
         names=["_", valid_cell.name],
         configs=[CellConfig(), valid_cell.config],
     )
-    assert not internal_app.cell_manager.unparsable
+    assert invalid_cell_id not in internal_app.graph.cells
 
     notebook = nbformat.reads(
         convert_from_ir_to_ipynb(internal_app, sort_mode="topological"),
