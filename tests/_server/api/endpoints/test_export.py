@@ -134,6 +134,38 @@ def test_export_availability_reports_server_dependencies(
     }
 
 
+def test_export_availability_reports_available_pdf(
+    client: TestClient,
+) -> None:
+    get_session_manager(client).mode = SessionMode.RUN
+    probe = AsyncMock(return_value=True)
+    with (
+        patch.object(DependencyManager.nbformat, "has", return_value=True),
+        patch.object(DependencyManager.nbconvert, "has", return_value=True),
+        patch.object(DependencyManager.playwright, "has", return_value=True),
+        patch(
+            "marimo._export.dependencies._is_playwright_chromium_installed",
+            new=probe,
+        ),
+    ):
+        response = client.get(
+            "/api/export/availability",
+            headers=token_header(),
+        )
+
+    probe.assert_awaited_once_with()
+    assert response.status_code == 200
+    pdf = next(
+        item for item in response.json()["formats"] if item["format"] == "pdf"
+    )
+    assert pdf == {
+        "format": "pdf",
+        "dependenciesAvailable": True,
+        "missingPackages": [],
+        "missingSetup": [],
+    }
+
+
 def test_export_availability_reports_missing_pdf_setup(
     client: TestClient,
 ) -> None:
