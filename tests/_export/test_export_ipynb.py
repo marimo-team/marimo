@@ -8,7 +8,8 @@ from pathlib import Path
 
 import pytest
 
-from marimo._ast.app import InternalApp
+from marimo._ast.app import App, InternalApp
+from marimo._ast.cell import CellConfig
 from marimo._ast.load import load_app
 from marimo._convert.ipynb.from_ir import convert_from_ir_to_ipynb
 from marimo._dependencies.dependencies import DependencyManager
@@ -18,6 +19,7 @@ from marimo._export.requests import (
     NotebookExecutionOptions,
 )
 from marimo._schemas.export_options import IPYNBExportOptions
+from marimo._types.ids import CellId_t
 from marimo._utils.marimo_path import MarimoPath
 from tests.mocks import delete_lines_with_files, simplify_images, snapshotter
 
@@ -31,7 +33,7 @@ HAS_DEPS = (
     and DependencyManager.matplotlib.has()
 )
 
-pytest.importorskip("nbformat")
+nbformat = pytest.importorskip("nbformat")
 
 
 def _load_fixture_app(path: Path | str) -> InternalApp:
@@ -41,6 +43,34 @@ def _load_fixture_app(path: Path | str) -> InternalApp:
     app = load_app(path)
     assert app is not None
     return InternalApp(app)
+
+
+def test_topological_export_preserves_invalid_cells() -> None:
+    app = App()
+
+    @app.cell()
+    def _():
+        valid = 1
+        return (valid,)
+
+    internal_app = InternalApp(app)
+    valid_cell = next(iter(internal_app.cell_manager.cell_data()))
+    invalid_cell_id = CellId_t("invalid-cell")
+    _ = internal_app.graph
+    internal_app.with_data(
+        cell_ids=[invalid_cell_id, valid_cell.cell_id],
+        codes=["x =", valid_cell.code],
+        names=["_", valid_cell.name],
+        configs=[CellConfig(), valid_cell.config],
+    )
+    assert invalid_cell_id not in internal_app.graph.cells
+
+    notebook = nbformat.reads(
+        convert_from_ir_to_ipynb(internal_app, sort_mode="topological"),
+        as_version=4,
+    )
+
+    assert [cell.source for cell in notebook.cells] == ["x =", valid_cell.code]
 
 
 # Apps with heavy dependencies (matplotlib, pandas, polars, etc) that timeout in CI

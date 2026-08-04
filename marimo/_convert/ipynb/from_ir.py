@@ -98,23 +98,22 @@ def convert_from_ir_to_ipynb(
     # Add standard Jupyter language_info (no kernelspec)
     notebook["metadata"]["language_info"] = DEFAULT_LANGUAGE_INFO
 
-    # Determine cell order based on sort_mode
-    if sort_mode == "top-down":
-        cell_data_list = list(app.cell_manager.cell_data())
-    else:
-        # Topological sort - try to sort, fall back to top-down on cycle
+    cell_data_list = list(app.cell_manager.cell_data())
+    if sort_mode == "topological":
         try:
             graph = app.graph
-            sorted_ids = dataflow.topological_sort(graph, graph.cells.keys())
-            # Build cell_data list in topological order
-            cell_data_list = [
-                app.cell_manager.cell_data_at(cid)
-                for cid in sorted_ids
-                if cid in graph.cells
-            ]
+            cell_ids = {cell_data.cell_id for cell_data in cell_data_list}
+            # The graph only contains compiled cells, so it may omit cells in
+            # the current document while their code is invalid.
+            if cell_ids == set(graph.cells):
+                sorted_ids = dataflow.topological_sort(
+                    graph, graph.cells.keys()
+                )
+                cell_data_list = [
+                    app.cell_manager.cell_data_at(cid) for cid in sorted_ids
+                ]
         except (CycleError, MultipleDefinitionError):
-            # Fall back to top-down order if graph is invalid
-            cell_data_list = list(app.cell_manager.cell_data())
+            pass
 
     for cell_data in cell_data_list:
         cid = cell_data.cell_id
