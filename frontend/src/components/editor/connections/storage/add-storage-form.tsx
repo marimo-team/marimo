@@ -17,6 +17,7 @@ import {
   CoreWeaveStorageSchema,
   GCSStorageSchema,
   GoogleDriveStorageSchema,
+  HuggingfaceStorageSchema,
   S3StorageSchema,
   type StorageConnection,
 } from "./schemas";
@@ -77,6 +78,15 @@ const STORAGE_PROVIDERS = [
     storageLibraries: {
       libraries: ["fsspec"],
       preferred: "fsspec",
+    },
+  },
+  {
+    name: "Hugging Face Hub",
+    schema: HuggingfaceStorageSchema,
+    protocol: "hf",
+    storageLibraries: {
+      libraries: ["huggingface_hub"],
+      preferred: "huggingface_hub",
     },
   },
 ] satisfies StorageProviderSchema[];

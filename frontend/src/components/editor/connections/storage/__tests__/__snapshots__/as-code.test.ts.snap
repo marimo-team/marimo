@@ -154,6 +154,20 @@ _creds = json.loads(_credentials_json)
 fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)"
 `;
 
+exports[`generateStorageCode > Hugging Face > default connection 1`] = `
+"from huggingface_hub import HfApi
+
+hf = HfApi()"
+`;
+
+exports[`generateStorageCode > Hugging Face > with token from secrets 1`] = `
+"from huggingface_hub import HfApi
+import os
+
+_token = os.environ.get("HF_TOKEN")
+hf = HfApi(token=_token)"
+`;
+
 exports[`generateStorageCode > S3 > basic connection with all fields 1`] = `
 "from obstore.store import S3Store
 

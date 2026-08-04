@@ -283,6 +283,7 @@ class DependencyManager:
     # Storage
     obstore = Dependency("obstore")
     fsspec = Dependency("fsspec")
+    huggingface_hub = Dependency("huggingface_hub")
     cloudpathlib = Dependency("cloudpathlib")
     cryptography = Dependency("cryptography")
 

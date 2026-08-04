@@ -61,7 +61,7 @@ class ExternalStorageCallbacks:
                 return backend(var, variable_name), None
         return None, (
             f"Variable '{namespace}' is not a compatible "
-            "storage backend (expected obstore or fsspec)"
+            "storage backend (expected obstore, huggingface_hub.HfApi, or fsspec)"
         )
 
     def _schedule_vfile_cleanup(self, vfile: VirtualFile) -> None:

@@ -21,6 +21,10 @@ from marimo._data._external_storage.storage import (
     detect_protocol_from_url,
     normalize_protocol,
 )
+from marimo._data._external_storage.utils import (
+    paginate_entries,
+    parse_page_offset,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._types.ids import VariableName
 
@@ -1573,6 +1577,78 @@ class TestDetectProtocolFromUrl:
         self, url: str, expected: str | None
     ) -> None:
         assert detect_protocol_from_url(url) == expected
+
+
+class TestParsePageOffset:
+    @pytest.mark.parametrize(
+        ("page_token", "expected"),
+        [
+            (None, 0),
+            ("0", 0),
+            ("5", 5),
+            ("100", 100),
+        ],
+    )
+    def test_valid_tokens(self, page_token: str | None, expected: int) -> None:
+        assert parse_page_offset(page_token) == expected
+
+    @pytest.mark.parametrize(
+        "page_token",
+        ["-1", "abc", "", "1.5"],
+    )
+    def test_invalid_tokens_raise(self, page_token: str) -> None:
+        with pytest.raises(ValueError, match="Invalid storage page token"):
+            parse_page_offset(page_token)
+
+
+class TestPaginateEntries:
+    def _entries(self, count: int) -> list[StorageEntry]:
+        return [
+            StorageEntry(
+                path=f"entry-{i}",
+                kind="file",
+                size=0,
+                last_modified=None,
+            )
+            for i in range(count)
+        ]
+
+    def test_raises_for_non_positive_limit(self) -> None:
+        with pytest.raises(
+            ValueError, match="Storage list limit must be positive"
+        ):
+            paginate_entries(self._entries(3), offset=0, limit=0)
+
+    def test_first_page_with_more_entries(self) -> None:
+        result = paginate_entries(self._entries(5), offset=0, limit=2)
+        assert [entry.path for entry in result.entries] == [
+            "entry-0",
+            "entry-1",
+        ]
+        assert result.next_page_token == "2"
+
+    def test_middle_page(self) -> None:
+        result = paginate_entries(self._entries(5), offset=2, limit=2)
+        assert [entry.path for entry in result.entries] == [
+            "entry-2",
+            "entry-3",
+        ]
+        assert result.next_page_token == "4"
+
+    def test_last_page_has_no_next_token(self) -> None:
+        result = paginate_entries(self._entries(5), offset=4, limit=2)
+        assert [entry.path for entry in result.entries] == ["entry-4"]
+        assert result.next_page_token is None
+
+    def test_exact_multiple_has_no_next_token(self) -> None:
+        result = paginate_entries(self._entries(4), offset=0, limit=4)
+        assert len(result.entries) == 4
+        assert result.next_page_token is None
+
+    def test_offset_past_end_returns_empty(self) -> None:
+        result = paginate_entries(self._entries(3), offset=10, limit=2)
+        assert result.entries == []
+        assert result.next_page_token is None
 
 
 # --- Helpers ---

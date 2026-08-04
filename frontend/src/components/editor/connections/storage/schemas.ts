@@ -220,12 +220,31 @@ export const GoogleDriveStorageSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+export const HuggingfaceStorageSchema = z
+  .object({
+    type: z.literal("huggingface"),
+    token: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Access Token",
+          description:
+            "Leave empty to use the HF_TOKEN environment variable or cached login",
+          inputType: "password",
+          optionRegex: "(hf.?token|hugging.?face.?token|hub.?token)",
+        }),
+      ),
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const StorageConnectionSchema = z.discriminatedUnion("type", [
   S3StorageSchema,
   GCSStorageSchema,
   AzureStorageSchema,
   CoreWeaveStorageSchema,
   GoogleDriveStorageSchema,
+  HuggingfaceStorageSchema,
 ]);
 
 export type StorageConnection = z.infer<typeof StorageConnectionSchema>;

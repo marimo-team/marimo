@@ -5495,6 +5495,7 @@ components:
         backendType:
           enum:
           - fsspec
+          - huggingface
           - obstore
         displayName:
           type: string
@@ -7799,4 +7800,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-
