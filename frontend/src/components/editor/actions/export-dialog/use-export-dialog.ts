@@ -1,13 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/components/ui/use-toast";
 import {
   updateCellOutputsWithScreenshots,
   useEnrichCellOutputs,
 } from "@/core/export/hooks";
-import { runDuringPresentMode, viewStateAtom } from "@/core/mode";
+import { runDuringPresentMode } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExportAvailabilityResponse } from "@/core/network/types";
 import { useFilename } from "@/core/saving/filename";
@@ -278,8 +278,6 @@ function useExportDialogAction({
 }) {
   const requests = useRequestClient();
   const takeScreenshots = useEnrichCellOutputs();
-  const viewState = useAtomValue(viewStateAtom);
-  const setViewState = useSetAtom(viewStateAtom);
   const [isExporting, setIsExporting] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(true);
@@ -303,15 +301,7 @@ function useExportDialogAction({
   const capturePNG = async () => {
     const capture = () =>
       captureCurrentAppView(dialogRef.current?.parentElement ?? null);
-    if (viewState.mode !== "edit") {
-      await capture();
-      return;
-    }
-    try {
-      await runDuringPresentMode(capture);
-    } finally {
-      setViewState(viewState);
-    }
+    await runDuringPresentMode(capture);
   };
 
   const submit = async () => {
