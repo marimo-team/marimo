@@ -55,20 +55,22 @@ export async function runDuringPresentMode(
   fn: () => void | Promise<void>,
 ): Promise<void> {
   const state = store.get(viewStateAtom);
-  if (state.mode === "present") {
+  if (state.mode !== "edit") {
     await fn();
     return;
   }
 
   store.set(viewStateAtom, { ...state, mode: "present" });
-  // Wait 100ms to allow the page to render
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  // Wait 2 frames
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await fn();
-  store.set(viewStateAtom, { ...state, mode: "edit" });
-  return undefined;
+  try {
+    // Wait 100ms to allow the page to render
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait 2 frames
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await fn();
+  } finally {
+    store.set(viewStateAtom, state);
+  }
 }
 
 export const viewStateAtom = atom<ViewState>({
