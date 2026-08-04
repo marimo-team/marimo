@@ -35,7 +35,7 @@ when working on notebooks with expensive cells.
 !!! tip "Tip: speed up expensive notebooks with marimo's smart caching"
 
     In addition to runtime configuration, marimo also provides [opt-in caching](../../api/caching.md)
-    to help you work with expensive or side-effectful notebooks. marimo's
+    to help you work with expensive or side-effectful notebooks. marimo
     can cache expensive functions in memory and expensive blocks of code to disk,
     letting you skip entire sections of your code and automatically loading
     variables in memory on notebook startup. marimo can also automatically

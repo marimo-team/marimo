@@ -380,7 +380,7 @@ Enable it with:
 cache_cells = true
 ```
 
-!!! note "config-only for now"
+!!! note "Configuration only — not in the UI yet"
     `cache_cells` is not yet exposed in the notebook settings UI. Set it in
     your notebook's `pyproject.toml` as shown above, or directly in your
     notebooks' PEP 723 metadata.

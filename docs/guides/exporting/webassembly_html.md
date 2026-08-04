@@ -101,7 +101,7 @@ variables from cache, marimo binds the variable to a stub instead of raising
 an error. The notebook will load normally and behave normally as the
 evaluation of the stubbed variable is deferred until an attempt to use it.
 
-When a incompatible variable load is triggered, marimo will attempt to
+When an incompatible variable load is triggered, marimo will attempt to
 recompute its definition from the notebook, which in turn may fail if the
 behavior is not compatible with the WebAssembly environment.
 
@@ -123,11 +123,11 @@ For instance, if the browser does not have a package a new cell needs, the rerun
 import torch # load deferred; torch is not available in the browser
 import numpy as np
 
-# --- Cell 2 --- # Cell 2 is cached and the skipped
+# --- Cell 2 --- # Cell 2 is cached and skipped
 model = torch.nn.Linear(4, 2)
 # ... train the model ...
 
-# --- Cell 3 --- # Cell 3 is cached and the skipped
+# --- Cell 3 --- # Cell 3 is cached and skipped
 x = np.array(model(torch.rand(1, 4)))
 x # Output is initially visible!
 
@@ -139,7 +139,7 @@ np.array(model(torch.rand(1, 4)))
 ```
 
 In the exported notebook, `model` hydrates as a stub. Displaying outputs or
-referencing the variable in other cached cell still works. Calling `model(...)`
+referencing the variable in other cached cells still works. Calling `model(...)`
 in the new Cell 5 reruns this cell live. That rerun needs `torch`, which is
 unavailable in the browser, so it fails there.
 
@@ -160,8 +160,8 @@ inference with `onnxruntime-web` instead of the original framework.
 
 ### Caching precomputed values { #precomputed-values }
 
-An alternative to caching for runtime evaluation, is precomputing every
-possible output of a cell and bundle them into the export. This is useful for
+An alternative to caching for runtime evaluation is precomputing every
+possible output of a cell and bundling them into the export. This is useful for
 notebooks that have a small, known set of states, such as those with dropdowns
 or sliders that index into a fixed list of options. By precomputing every
 reachable output ahead of time, you can avoid waiting for the cache to warm up
@@ -170,12 +170,12 @@ during use.
 The pattern has four parts:
 
 1. Expose UI elements as indices into fixed option lists of plain, hashable
-   values (strings, numbers, avoid objects or callables) the indices
+   values (strings, numbers) — not the objects or callables the indices
    select. UI-defining cells always rerun live on load, even on a cache hit,
    so keep them free of anything that touches an unavailable package.
 2. Pull the expensive computation into a plain function keyed on those indices,
    decorated with `@mo.persistent_cache(method="lazy")`. Use `method="lazy"`:
-   `method="pickle"`, does not bundle well for the WASM export.
+   `method="pickle"` does not bundle well for the WASM export.
 3. Add a cell that calls that function for every combination of indices,
    guarded to run only outside the browser, for example with
    `sys.platform != "emscripten"`.
@@ -197,6 +197,7 @@ The pattern has four parts:
 # --- Cell 1 --- # setup; not UI-defining, so a cache hit can skip it entirely
 import sys
 import torch
+import marimo as mo
 
 FN_LABELS = ["x^2", "sin(x)"]
 
