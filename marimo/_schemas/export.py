@@ -9,6 +9,7 @@ from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._messaging.mimetypes import MimeBundleTuple
 from marimo._schemas.export_options import (
     ExportPDFPreset,
+    ExportSetupRequirementName,
     HTMLExportOptions,
     IPYNBExportOptions,
     IPYNBSortMode,
@@ -101,10 +102,16 @@ class ExportedFile(msgspec.Struct, rename="camel"):
     media_type: str
 
 
+class ExportSetupRequirement(msgspec.Struct, rename="camel", frozen=True):
+    name: ExportSetupRequirementName
+    command: str
+
+
 class ExportFormatAvailability(msgspec.Struct, rename="camel", frozen=True):
     format: ServerExportFormat
     dependencies_available: bool
     missing_packages: list[str]
+    missing_setup: list[ExportSetupRequirement]
 
 
 class ExportAvailabilityResponse(msgspec.Struct, rename="camel", frozen=True):

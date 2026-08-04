@@ -13,6 +13,7 @@ ExportPDFPreset = Literal["document", "slides"]
 IPYNBSortMode = Literal["top-down", "topological"]
 PDFRasterServer = Literal["static", "live"]
 ServerExportFormat = Literal["html", "markdown", "ipynb", "pdf", "script"]
+ExportSetupRequirementName = Literal["playwright-chromium"]
 SERVER_EXPORT_FORMATS: tuple[ServerExportFormat, ...] = get_args(
     ServerExportFormat
 )

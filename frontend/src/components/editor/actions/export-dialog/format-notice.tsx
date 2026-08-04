@@ -10,7 +10,17 @@ import type {
   ExportBlockReason,
   ExportFormat,
   ExportFormatStatus,
+  ExportSetupRequirement,
 } from "./state";
+
+const SETUP_REQUIREMENTS: Record<
+  ExportSetupRequirement["name"],
+  { description: string }
+> = {
+  "playwright-chromium": {
+    description: "PDF export requires Playwright Chromium.",
+  },
+};
 
 export function FormatStatusIcon({ status }: { status: ExportFormatStatus }) {
   if (status.available && !status.availabilityCheckFailed) {
@@ -122,6 +132,24 @@ function ReasonNotice({
             {reason.packages.join(", ")}
           </code>{" "}
           where marimo is running to use this export.
+        </Notice>
+      );
+    case "missing-setup":
+      return (
+        <Notice>
+          <span className="block min-w-0">
+            {reason.requirements.map((requirement) => {
+              const details = SETUP_REQUIREMENTS[requirement.name];
+              return (
+                <span className="block" key={requirement.name}>
+                  {details.description}
+                  <code className="mt-1 block break-all font-mono">
+                    {requirement.command}
+                  </code>
+                </span>
+              );
+            })}
+          </span>
         </Notice>
       );
     case "wasm-runtime":

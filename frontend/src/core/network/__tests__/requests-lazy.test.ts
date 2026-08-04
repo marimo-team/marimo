@@ -84,6 +84,7 @@ describe("createLazyRequests", () => {
           format: "ipynb",
           dependenciesAvailable: false,
           missingPackages: ["nbformat"],
+          missingSetup: [],
         },
       ],
     };

@@ -19,11 +19,13 @@ const AVAILABLE: ExportAvailabilityResponse = {
       format: "ipynb",
       dependenciesAvailable: true,
       missingPackages: [],
+      missingSetup: [],
     },
     {
       format: "pdf",
       dependenciesAvailable: true,
       missingPackages: [],
+      missingSetup: [],
     },
   ],
 };
@@ -188,6 +190,7 @@ describe("getExportFormatStatus", () => {
                 format: "pdf",
                 dependenciesAvailable: false,
                 missingPackages: ["nbconvert[webpdf]"],
+                missingSetup: [],
               },
             ],
           },
@@ -200,6 +203,64 @@ describe("getExportFormatStatus", () => {
         packages: ["nbconvert[webpdf]"],
       },
     });
+  });
+
+  it("reports missing server setup", () => {
+    expect(
+      status("pdf", {
+        availability: {
+          status: "success",
+          data: {
+            source: "server",
+            formats: [
+              {
+                format: "pdf",
+                dependenciesAvailable: false,
+                missingPackages: [],
+                missingSetup: [
+                  {
+                    name: "playwright-chromium",
+                    command: "uv run playwright install chromium",
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual({
+      available: false,
+      reason: {
+        type: "missing-setup",
+        requirements: [
+          {
+            name: "playwright-chromium",
+            command: "uv run playwright install chromium",
+          },
+        ],
+      },
+    });
+  });
+
+  it("fails open when an unavailable format has no requirements", () => {
+    expect(
+      status("pdf", {
+        availability: {
+          status: "success",
+          data: {
+            source: "server",
+            formats: [
+              {
+                format: "pdf",
+                dependenciesAvailable: false,
+                missingPackages: [],
+                missingSetup: [],
+              },
+            ],
+          },
+        },
+      }),
+    ).toEqual({ available: true, availabilityCheckFailed: true });
   });
 
   it.each([

@@ -15,6 +15,8 @@ export const EXPORT_FORMATS = [
 ] as const;
 
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+export type ExportSetupRequirement =
+  ExportAvailabilityResponse["formats"][number]["missingSetup"][number];
 
 export const MARKDOWN_FLAVORS = ["pymdown", "qmd", "mystmd", "mdx"] as const;
 export const IPYNB_SORT_MODES = ["topological", "top-down"] as const;
@@ -185,6 +187,7 @@ export type ExportBlockReason =
   | { type: "checking-requirements" }
   | { type: "notebook-must-be-named" }
   | { type: "missing-packages"; packages: string[] }
+  | { type: "missing-setup"; requirements: ExportSetupRequirement[] }
   | { type: "wasm-runtime" };
 
 export interface ExportFormatStatus {
@@ -308,12 +311,27 @@ export function getExportFormatStatus({
     return { available: true, availabilityCheckFailed: true };
   }
   if (!serverStatus.dependenciesAvailable) {
+    if (serverStatus.missingPackages.length > 0) {
+      return {
+        available: false,
+        reason: {
+          type: "missing-packages",
+          packages: serverStatus.missingPackages,
+        },
+      };
+    }
+    if (serverStatus.missingSetup.length > 0) {
+      return {
+        available: false,
+        reason: {
+          type: "missing-setup",
+          requirements: serverStatus.missingSetup,
+        },
+      };
+    }
     return {
-      available: false,
-      reason: {
-        type: "missing-packages",
-        packages: serverStatus.missingPackages,
-      },
+      available: true,
+      availabilityCheckFailed: true,
     };
   }
 

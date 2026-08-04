@@ -1962,11 +1962,28 @@ components:
           items:
             type: string
           type: array
+        missingSetup:
+          items:
+            $ref: '#/components/schemas/ExportSetupRequirement'
+          type: array
       required:
       - format
       - dependenciesAvailable
       - missingPackages
+      - missingSetup
       title: ExportFormatAvailability
+      type: object
+    ExportSetupRequirement:
+      properties:
+        command:
+          type: string
+        name:
+          enum:
+          - playwright-chromium
+      required:
+      - name
+      - command
+      title: ExportSetupRequirement
       type: object
     FileCopyRequest:
       properties:
@@ -6601,7 +6618,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ExportAvailabilityResponse'
-          description: Dependency readiness for server-backed exports
+          description: Readiness for server-backed exports
   /api/export/html:
     post:
       parameters:
