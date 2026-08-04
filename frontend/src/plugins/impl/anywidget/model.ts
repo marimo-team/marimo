@@ -53,7 +53,8 @@ export function getMarimoInternal<T extends ModelState>(
 
 export class Model<T extends ModelState> implements AnyModel<T> {
   #ANY_CHANGE_EVENT = "change";
-  #dirtyFields: Map<keyof T, unknown>;
+  /** Keys last written by the widget that the kernel hasn't seen yet. */
+  #dirtyFields: Set<keyof T>;
   #data: T;
   #comm: MarimoComm<T>;
   #listeners: Record<string, Set<EventHandler> | undefined> = {};
@@ -70,7 +71,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
   constructor(data: T, comm: MarimoComm<T>, signal?: AbortSignal) {
     this.#data = data;
     this.#comm = comm;
-    this.#dirtyFields = new Map();
+    this.#dirtyFields = new Set();
     if (signal) {
       signal.addEventListener("abort", () => {
         Logger.debug("[Model] Signal aborted, clearing all listeners");
@@ -140,7 +141,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 
   set<K extends keyof T>(key: K, value: T[K]): void {
     this.#data = { ...this.#data, [key]: value };
-    this.#dirtyFields.set(key, value);
+    this.#dirtyFields.add(key);
     this.#emit(`change:${key as K & string}`, value);
     this.#emitAnyChange();
   }
@@ -151,7 +152,7 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     }
     // Only send the dirty fields, not the entire state.
     const partialData = Object.fromEntries(
-      this.#dirtyFields.entries(),
+      [...this.#dirtyFields].map((key) => [key, this.#data[key]]),
     ) as Partial<T>;
 
     // Clear the dirty fields to avoid sending again.
@@ -204,6 +205,15 @@ export class Model<T extends ModelState> implements AnyModel<T> {
     }
   }
 
+  /**
+   * Apply a kernel-originated state update.
+   *
+   * Unlike `set()`, this never marks fields dirty — the kernel already
+   * has these values, so `save_changes()` must not echo them back.
+   *
+   * The kernel wins conflicts: a pending unsaved widget write to the same
+   * key is dropped, not replayed on top.
+   */
   #updateAndEmitDiffs(value: T) {
     if (value == null) {
       return;
@@ -211,9 +221,14 @@ export class Model<T extends ModelState> implements AnyModel<T> {
 
     Object.keys(value).forEach((key) => {
       const k = key as keyof T;
+      // Unconditional: guarding on inequality would leave a same-valued
+      // pending write dirty, and echo it back on save.
+      this.#dirtyFields.delete(k);
       // Shallow equal since these can be large objects
       if (this.#data[k] !== value[k]) {
-        this.set(k, value[k]);
+        this.#data = { ...this.#data, [k]: value[k] };
+        this.#emit(`change:${k as keyof T & string}`, value[k]);
+        this.#emitAnyChange();
       }
     });
   }

@@ -40,6 +40,53 @@ def test_file_browser_init(tmp_path: Path) -> None:
     assert fb._restrict_navigation is True
 
 
+def test_file_browser_default_value(tmp_path: Path) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.touch()
+    second.touch()
+
+    fb = file_browser(initial_path=tmp_path, value=[first, str(second)])
+
+    assert [file.path for file in fb.value] == [first, second]
+    assert [file.name for file in fb.value] == ["first.txt", "second.txt"]
+
+
+def test_file_browser_single_default_value(tmp_path: Path) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+
+    fb = file_browser(initial_path=tmp_path, value=selected, multiple=False)
+
+    assert fb.path() == selected
+
+
+def test_file_browser_rejects_multiple_default_values(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "first.txt"
+    second = tmp_path / "second.txt"
+    first.touch()
+    second.touch()
+
+    with pytest.raises(ValueError, match="multiple=False"):
+        file_browser(
+            initial_path=tmp_path,
+            value=[first, second],
+            multiple=False,
+        )
+
+
+def test_file_browser_rejects_default_value_of_wrong_kind(
+    tmp_path: Path,
+) -> None:
+    directory = tmp_path / "directory"
+    directory.mkdir()
+
+    with pytest.raises(ValueError, match="selection_mode"):
+        file_browser(initial_path=tmp_path, value=directory)
+
+
 def test_list_directory() -> None:
     fb = file_browser(
         initial_path=Path.cwd(), filetypes=[".txt"], selection_mode="file"

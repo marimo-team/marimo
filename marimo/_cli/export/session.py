@@ -19,13 +19,17 @@ from marimo._cli.export._common import (
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._schemas.session import NotebookSessionV1
-from marimo._server.export import run_app_until_completion
-from marimo._server.export._session_cache import (
+from marimo._export._session_cache import (
     is_session_snapshot_stale,
     serialize_session_snapshot,
     write_session_snapshot,
 )
+from marimo._export.file import run_notebook
+from marimo._export.requests import (
+    NotebookExecutionOptions,
+    RunNotebookRequest,
+)
+from marimo._schemas.session import NotebookSessionV1
 from marimo._server.utils import asyncio_run
 from marimo._session.notebook import load_notebook
 from marimo._session.state.serialize import get_session_cache_file
@@ -67,12 +71,16 @@ async def _export_session_snapshot(
 
         file_manager = load_notebook(marimo_path.absolute_name)
 
-        session_view, did_error = await run_app_until_completion(
-            file_manager,
-            cli_args=cli_args,
-            argv=list(notebook_args),
-            quiet=True,
-            persist_session=False,
+        session_view, did_error = await run_notebook(
+            RunNotebookRequest(
+                file_manager=file_manager,
+                options=NotebookExecutionOptions(
+                    cli_args=cli_args,
+                    argv=list(notebook_args),
+                    quiet=True,
+                    persist_session=False,
+                ),
+            )
         )
         session_snapshot = serialize_session_snapshot(
             session_view,
@@ -101,8 +109,12 @@ import json
 import sys
 
 from marimo._cli.parse_args import parse_args
-from marimo._server.export import run_app_until_completion
-from marimo._server.export._session_cache import serialize_session_snapshot
+from marimo._export._session_cache import serialize_session_snapshot
+from marimo._export.file import run_notebook
+from marimo._export.requests import (
+    NotebookExecutionOptions,
+    RunNotebookRequest,
+)
 from marimo._session.notebook import load_notebook
 from marimo._utils.marimo_path import MarimoPath
 
@@ -114,12 +126,16 @@ file_manager = load_notebook(path.absolute_name)
 
 cli_args = parse_args(tuple(args)) if args else {}
 session_view, did_error = asyncio.run(
-    run_app_until_completion(
-        file_manager,
-        cli_args=cli_args,
-        argv=list(args),
-        quiet=True,
-        persist_session=False,
+    run_notebook(
+        RunNotebookRequest(
+            file_manager=file_manager,
+            options=NotebookExecutionOptions(
+                cli_args=cli_args,
+                argv=list(args),
+                quiet=True,
+                persist_session=False,
+            ),
+        )
     )
 )
 session_snapshot = serialize_session_snapshot(

@@ -19,9 +19,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
 import type { ListSecretKeysResponse } from "@/core/network/types";
+import { flattenSecretValue } from "../../connections/json-credentials";
 
 // dotenv providers should be at the top
 export function sortProviders(providers: ListSecretKeysResponse["keys"]) {
@@ -43,10 +45,22 @@ export const WriteSecretModal: React.FC<{
   providerNames: string[];
   onClose: () => void;
   onSuccess: (secretName: string) => void;
-}> = ({ providerNames, onClose, onSuccess }) => {
+  initialValue?: string;
+  multiline?: boolean;
+}> = ({
+  providerNames,
+  onClose,
+  onSuccess,
+  initialValue = "",
+  multiline = false,
+}) => {
   const { writeSecret } = useRequestClient();
   const [key, setKey] = React.useState("");
-  const [value, setValue] = React.useState("");
+  // Multiline values are flattened so they fit on a single dotenv line;
+  // the textarea still wraps visually for readability.
+  const [value, setValue] = React.useState(() =>
+    multiline ? flattenSecretValue(initialValue) : initialValue,
+  );
   const [location, setLocation] = React.useState<string | undefined>(
     providerNames[0],
   );
@@ -64,7 +78,9 @@ export const WriteSecretModal: React.FC<{
       return;
     }
 
-    if (!key || !value || !location) {
+    const secretValue = multiline ? flattenSecretValue(value) : value;
+
+    if (!key || !secretValue || !location) {
       toast({
         title: "Error",
         description: "Please fill in all fields.",
@@ -76,7 +92,7 @@ export const WriteSecretModal: React.FC<{
     try {
       await writeSecret({
         key,
-        value,
+        value: secretValue,
         provider,
         name: location,
       });
@@ -119,14 +135,27 @@ export const WriteSecretModal: React.FC<{
           </div>
           <div className="grid gap-2">
             <Label htmlFor="value">Value</Label>
-            <Input
-              id="value"
-              type="password"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-              required={true}
-              autoComplete="off"
-            />
+            {multiline ? (
+              <Textarea
+                id="value"
+                value={value}
+                onChange={(e) => setValue(flattenSecretValue(e.target.value))}
+                required={true}
+                className="my-0 font-code text-xs break-all"
+                rows={8}
+                autoFocus={true}
+                autoComplete="off"
+              />
+            ) : (
+              <Input
+                id="value"
+                type="password"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+                required={true}
+                autoComplete="off"
+              />
+            )}
             {/* http is prone to man-in-the-middle */}
             {isHttpUrl() && (
               <FormDescription>

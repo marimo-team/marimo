@@ -1,565 +1,153 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-/* oxlint-disable typescript/no-explicit-any */
-
-import { WebSocketTransport } from "@open-rpc/client-js";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Mocks } from "@/__mocks__/common";
 import { LazyWebsocketTransport } from "../transport";
 
-// Mock the Logger
 vi.mock("@/utils/Logger", () => ({
   Logger: Mocks.logger(),
 }));
 
-// Mock the WebSocketTransport
-vi.mock("@open-rpc/client-js", () => {
-  const mockWebSocketTransport = vi.fn();
-  mockWebSocketTransport.prototype.connect = vi.fn();
-  mockWebSocketTransport.prototype.close = vi.fn();
-  mockWebSocketTransport.prototype.sendData = vi.fn();
-  mockWebSocketTransport.prototype.subscribe = vi.fn();
-  mockWebSocketTransport.prototype.unsubscribe = vi.fn();
+class FakeWebSocket {
+  static readonly OPEN = 1;
+  static readonly CLOSED = 3;
+  static readonly instances: FakeWebSocket[] = [];
 
-  return {
-    WebSocketTransport: mockWebSocketTransport,
-  };
-});
+  readonly sent: string[] = [];
+  readyState = 0;
+  readonly url: string;
+  private readonly listeners = new Map<
+    string,
+    Set<(event: Record<string, never>) => void>
+  >();
+
+  constructor(url: string) {
+    this.url = url;
+    FakeWebSocket.instances.push(this);
+  }
+
+  addEventListener(
+    type: string,
+    listener: (event: Record<string, never>) => void,
+  ) {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  send(frame: string) {
+    this.sent.push(frame);
+  }
+
+  close() {
+    this.readyState = FakeWebSocket.CLOSED;
+    this.emit("close");
+  }
+
+  open() {
+    this.readyState = FakeWebSocket.OPEN;
+    this.emit("open");
+  }
+
+  fail() {
+    this.emit("error");
+  }
+
+  private emit(type: string) {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener({});
+    }
+  }
+}
+
+async function getSocket(index: number): Promise<FakeWebSocket> {
+  await vi.waitFor(() => {
+    expect(FakeWebSocket.instances.length).toBeGreaterThan(index);
+  });
+  return FakeWebSocket.instances[index];
+}
 
 describe("LazyWebsocketTransport", () => {
   const mockWsUrl = "ws://localhost:8080/copilot";
-  let mockGetWsUrl: ReturnType<typeof vi.fn>;
-  let mockWaitForReady: ReturnType<typeof vi.fn>;
-  let mockShowError: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
-    vi.clearAllMocks();
-
-    mockGetWsUrl = vi.fn(() => mockWsUrl);
-    mockWaitForReady = vi.fn().mockResolvedValue(undefined);
-    mockShowError = vi.fn();
-
-    // Mock the WebSocketTransport constructor
-    (WebSocketTransport as any).mockImplementation(function (this: any) {
-      this.connect = vi.fn().mockResolvedValue(undefined);
-      this.close = vi.fn();
-      this.sendData = vi.fn().mockResolvedValue({ result: "success" });
-      this.subscribe = vi.fn();
-      this.unsubscribe = vi.fn();
-    });
+    FakeWebSocket.instances.length = 0;
+    vi.stubGlobal("WebSocket", FakeWebSocket);
   });
 
-  describe("constructor", () => {
-    it("should create a transport with default options", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      expect(transport).toBeDefined();
-      expect(mockGetWsUrl).not.toHaveBeenCalled();
-    });
-
-    it("should accept custom retry options", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        retries: 5,
-        retryDelayMs: 2000,
-        maxTimeoutMs: 10_000,
-      });
-
-      expect(transport).toBeDefined();
-    });
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
-  describe("connect", () => {
-    it("should wait for prerequisites before connecting", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      await transport.connect();
-
-      expect(mockWaitForReady).toHaveBeenCalledTimes(1);
-      expect(mockGetWsUrl).toHaveBeenCalledTimes(1);
-      expect(WebSocketTransport).toHaveBeenCalledWith(mockWsUrl);
+  it("waits for Copilot prerequisites before connecting", async () => {
+    let ready: (() => void) | undefined;
+    const waitForReady = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          ready = resolve;
+        }),
+    );
+    const transport = new LazyWebsocketTransport({
+      getWsUrl: () => mockWsUrl,
+      waitForReady,
+      showError: vi.fn(),
+      retryDelayMs: 0,
     });
 
-    it("should create delegate and connect", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
+    const connection = transport.connect();
+    expect(waitForReady).toHaveBeenCalledTimes(1);
+    expect(FakeWebSocket.instances).toHaveLength(0);
 
-      await transport.connect();
+    ready?.();
+    const socket = await getSocket(0);
+    socket.open();
+    await connection;
 
-      const delegate = (transport as any).delegate;
-      expect(delegate).toBeDefined();
-      expect(delegate.connect).toHaveBeenCalledTimes(1);
-    });
-
-    it("should retry on connection failure", async () => {
-      let attemptCount = 0;
-      (WebSocketTransport as any).mockImplementation(function (this: any) {
-        this.connect = vi.fn().mockImplementation(() => {
-          attemptCount++;
-          if (attemptCount < 2) {
-            return Promise.reject(new Error("Connection failed"));
-          }
-          return Promise.resolve(undefined);
-        });
-        this.close = vi.fn();
-        this.sendData = vi.fn();
-        this.subscribe = vi.fn();
-        this.unsubscribe = vi.fn();
-      });
-
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        retries: 3,
-        retryDelayMs: 10,
-      });
-
-      await transport.connect();
-
-      expect(attemptCount).toBe(2);
-    });
-
-    it("should show error toast on final retry failure", async () => {
-      const connectionError = new Error("Connection failed");
-      (WebSocketTransport as any).mockImplementation(function (this: any) {
-        this.connect = vi.fn().mockRejectedValue(connectionError);
-        this.close = vi.fn();
-        this.sendData = vi.fn();
-        this.subscribe = vi.fn();
-        this.unsubscribe = vi.fn();
-      });
-
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        retries: 2,
-        retryDelayMs: 10,
-      });
-
-      await expect(transport.connect()).rejects.toThrow("Connection failed");
-
-      expect(mockShowError).toHaveBeenCalledTimes(1);
-      expect(mockShowError).toHaveBeenCalledWith(
-        "GitHub Copilot Connection Error",
-        "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\nConnection failed",
-      );
-      expect((transport as any).delegate).toBeUndefined();
-    });
-
-    it("should handle waitForReady failure", async () => {
-      const waitError = new Error("Prerequisites not ready");
-      mockWaitForReady.mockRejectedValue(waitError);
-
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      await expect(transport.connect()).rejects.toThrow(
-        "Prerequisites not ready",
-      );
-      expect(WebSocketTransport).not.toHaveBeenCalled();
-    });
+    expect(socket.url).toBe(mockWsUrl);
   });
 
-  describe("subscribe", () => {
-    it("should register handler on parent and track subscription", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(1);
-      expect((transport as any).pendingSubscriptions[0]).toEqual({
-        event: "notification",
-        handler,
-      });
+  it("shows a user-facing error after the final retry", async () => {
+    const showError = vi.fn();
+    const transport = new LazyWebsocketTransport({
+      getWsUrl: () => mockWsUrl,
+      waitForReady: vi.fn().mockResolvedValue(undefined),
+      showError,
+      retries: 2,
+      retryDelayMs: 0,
     });
 
-    it("should register handler on delegate if it exists", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
+    const connection = transport.connect();
+    (await getSocket(0)).fail();
+    (await getSocket(1)).fail();
 
-      await transport.connect();
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler);
-    });
-
-    it("should register pending subscriptions when delegate is created", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      transport.subscribe("notification", handler1);
-      transport.subscribe("response", handler2);
-
-      await transport.connect();
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.subscribe).toHaveBeenCalledWith("notification", handler1);
-      expect(delegate.subscribe).toHaveBeenCalledWith("response", handler2);
-    });
+    await expect(connection).rejects.toThrow(
+      "WebSocket connection to ws://localhost:8080/copilot failed",
+    );
+    expect(showError).toHaveBeenCalledWith(
+      "GitHub Copilot Connection Error",
+      "Failed to connect to GitHub Copilot. Please check your settings and try again.\n\nWebSocket connection to ws://localhost:8080/copilot failed",
+    );
   });
 
-  describe("unsubscribe", () => {
-    it("should remove specific handler for specific event", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      transport.subscribe("notification", handler1);
-      transport.subscribe("notification", handler2);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(2);
-
-      transport.unsubscribe("notification", handler1);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(1);
-      expect((transport as any).pendingSubscriptions[0].handler).toBe(handler2);
+  it("inherits reconnect callbacks for Copilot re-initialization", async () => {
+    const transport = new LazyWebsocketTransport({
+      getWsUrl: () => mockWsUrl,
+      waitForReady: vi.fn().mockResolvedValue(undefined),
+      showError: vi.fn(),
+      retryDelayMs: 0,
     });
+    const onReconnect = vi.fn().mockResolvedValue(undefined);
+    transport.onReconnect = onReconnect;
 
-    it("should remove handler from all events when event not specified", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
+    const initialConnection = transport.connect();
+    const firstSocket = await getSocket(0);
+    firstSocket.open();
+    await initialConnection;
+    firstSocket.close();
 
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-      transport.subscribe("response", handler);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(2);
-
-      transport.unsubscribe(undefined, handler);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(0);
-    });
-
-    it("should remove all handlers for event when handler not specified", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const handler1 = vi.fn();
-      const handler2 = vi.fn();
-      transport.subscribe("notification", handler1);
-      transport.subscribe("notification", handler2);
-      transport.subscribe("response", handler1);
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(3);
-
-      transport.unsubscribe("notification");
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(1);
-      expect((transport as any).pendingSubscriptions[0].event).toBe("response");
-    });
-
-    it("should remove all subscriptions when neither event nor handler specified", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      transport.subscribe("notification", vi.fn());
-      transport.subscribe("response", vi.fn());
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(2);
-
-      transport.unsubscribe();
-
-      expect((transport as any).pendingSubscriptions).toHaveLength(0);
-    });
-
-    it("should unsubscribe from delegate if it exists", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      await transport.connect();
-
-      const handler = vi.fn();
-      transport.subscribe("notification", handler);
-      transport.unsubscribe("notification", handler);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.unsubscribe).toHaveBeenCalledWith(
-        "notification",
-        handler,
-      );
-    });
-  });
-
-  describe("sendData", () => {
-    it("should send data through delegate when connected", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      await transport.connect();
-
-      const data: any = { method: "test", params: [] };
-      const result = await transport.sendData(data, 5000);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.sendData).toHaveBeenCalledWith(data, 5000);
-      expect(result).toEqual({ result: "success" });
-    });
-
-    it("should reconnect if delegate is undefined", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
-      // sendData calls tryConnect directly, not connect, so wait functions aren't called
-      // But it should still create and connect the delegate
-      expect(WebSocketTransport).toHaveBeenCalled();
-      const delegate = (transport as any).delegate;
-      expect(delegate).toBeDefined();
-      expect(delegate.connect).toHaveBeenCalled();
-    });
-
-    it("should use maxTimeoutMs as default when no timeout is provided", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        maxTimeoutMs: 5000,
-      });
-
-      await transport.connect();
-
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, undefined);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.sendData).toHaveBeenCalledWith(data, 5000);
-    });
-
-    it("should respect caller-provided timeout without clamping", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        maxTimeoutMs: 5000,
-      });
-
-      await transport.connect();
-
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 30_000);
-
-      const delegate = (transport as any).delegate;
-      expect(delegate.sendData).toHaveBeenCalledWith(data, 30_000);
-    });
-
-    it("should throw error if reconnection fails", async () => {
-      const connectionError = new Error("Connection failed");
-      (WebSocketTransport as any).mockImplementation(function (this: any) {
-        this.connect = vi.fn().mockRejectedValue(connectionError);
-        this.close = vi.fn();
-        this.sendData = vi.fn();
-        this.subscribe = vi.fn();
-        this.unsubscribe = vi.fn();
-      });
-
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        retries: 1,
-        retryDelayMs: 10,
-      });
-
-      const data: any = { method: "test", params: [] };
-      await expect(transport.sendData(data, 5000)).rejects.toThrow(
-        "Unable to connect to GitHub Copilot",
-      );
-    });
-  });
-
-  describe("onReconnect", () => {
-    it("should call onReconnect after close + sendData reconnection", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const onReconnect = vi.fn().mockResolvedValue(undefined);
-      transport.onReconnect = onReconnect;
-
-      // Initial connect
-      await transport.connect();
-      expect(onReconnect).not.toHaveBeenCalled();
-
-      // Close the transport (simulates failure handling)
-      transport.close();
-
-      // sendData should reconnect and call onReconnect
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
+    const secondSocket = await getSocket(1);
+    secondSocket.open();
+    await vi.waitFor(() => {
       expect(onReconnect).toHaveBeenCalledTimes(1);
-    });
-
-    it("should NOT call onReconnect on initial sendData connection", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const onReconnect = vi.fn().mockResolvedValue(undefined);
-      transport.onReconnect = onReconnect;
-
-      // sendData without prior connect — this is the initial connection
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
-      expect(onReconnect).not.toHaveBeenCalled();
-    });
-
-    it("should call onReconnect after tryConnect failure + retry via sendData", async () => {
-      let connectAttempt = 0;
-      (WebSocketTransport as any).mockImplementation(function (this: any) {
-        this.connect = vi.fn().mockImplementation(() => {
-          connectAttempt++;
-          // First 2 attempts fail (retries=2 exhausted), then succeed on next sendData
-          if (connectAttempt <= 2) {
-            return Promise.reject(new Error("Connection failed"));
-          }
-          return Promise.resolve(undefined);
-        });
-        this.close = vi.fn();
-        this.sendData = vi.fn().mockResolvedValue({ result: "success" });
-        this.subscribe = vi.fn();
-        this.unsubscribe = vi.fn();
-      });
-
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-        retries: 2,
-        retryDelayMs: 10,
-      });
-
-      const onReconnect = vi.fn().mockResolvedValue(undefined);
-      transport.onReconnect = onReconnect;
-
-      // Initial connect fails (all retries exhausted)
-      await expect(transport.connect()).rejects.toThrow("Connection failed");
-      expect(onReconnect).not.toHaveBeenCalled();
-
-      // Now sendData reconnects successfully
-      const data: any = { method: "test", params: [] };
-      await transport.sendData(data, 5000);
-
-      expect(onReconnect).toHaveBeenCalledTimes(1);
-    });
-
-    it("should propagate onReconnect rejection and allow retry", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      const reconnectError = new Error("Re-initialization failed");
-      const onReconnect = vi.fn().mockRejectedValueOnce(reconnectError);
-      transport.onReconnect = onReconnect;
-
-      await transport.connect();
-      transport.close();
-
-      const data: any = { method: "test", params: [] };
-      await expect(transport.sendData(data, 5000)).rejects.toThrow(
-        "Re-initialization failed",
-      );
-      expect(onReconnect).toHaveBeenCalledTimes(1);
-
-      // needsReInitialization should still be true, so a subsequent retry
-      // will attempt onReconnect again
-      onReconnect.mockResolvedValueOnce(undefined);
-      await transport.sendData(data, 5000);
-      expect(onReconnect).toHaveBeenCalledTimes(2);
-    });
-  });
-
-  describe("close", () => {
-    it("should close delegate and clear it", async () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      await transport.connect();
-
-      const delegate = (transport as any).delegate;
-      expect(delegate).toBeDefined();
-
-      transport.close();
-
-      expect(delegate.close).toHaveBeenCalledTimes(1);
-      expect((transport as any).delegate).toBeUndefined();
-    });
-
-    it("should handle close when delegate is undefined", () => {
-      const transport = new LazyWebsocketTransport({
-        getWsUrl: mockGetWsUrl,
-        waitForReady: mockWaitForReady,
-        showError: mockShowError,
-      });
-
-      expect(() => transport.close()).not.toThrow();
     });
   });
 });

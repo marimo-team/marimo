@@ -154,6 +154,70 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("formatNavigableHttpURL", () => {
+    it("adds access_token when cross-origin with authToken", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.formatNavigableHttpURL(
+        "api/files/download",
+        new URLSearchParams({ path: "/tmp/data.csv" }),
+      );
+
+      expect(url.pathname).toBe("/api/files/download");
+      expect(url.searchParams.get("path")).toBe("/tmp/data.csv");
+      expect(url.searchParams.get("access_token")).toBe("my-secret-token");
+    });
+
+    it("omits access_token when same-origin", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: window.location.origin,
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.formatNavigableHttpURL(
+        "api/files/download",
+        new URLSearchParams({ path: "/tmp/data.csv" }),
+      );
+
+      expect(url.searchParams.get("access_token")).toBeNull();
+      expect(url.searchParams.get("path")).toBe("/tmp/data.csv");
+    });
+
+    it("omits access_token when no authToken configured", () => {
+      const runtime = new RuntimeManager(
+        { url: "https://sandbox.example.com", lazy: true },
+        true,
+      );
+      const url = runtime.formatNavigableHttpURL("api/files/download");
+
+      expect(url.searchParams.get("access_token")).toBeNull();
+    });
+
+    it("does not forward a page-inherited access_token when same-origin", () => {
+      const runtime = new RuntimeManager(
+        { url: window.location.origin, lazy: true },
+        true,
+      );
+      const original = window.location.href;
+      window.history.replaceState({}, "", "/?access_token=page-token");
+      try {
+        const url = runtime.formatNavigableHttpURL("api/files/download");
+        expect(url.searchParams.get("access_token")).toBeNull();
+      } finally {
+        window.history.replaceState({}, "", original);
+      }
+    });
+  });
+
   describe("getSseURL", () => {
     it("should return an http(s) URL with the session ID", () => {
       const runtime = new RuntimeManager(mockConfig);

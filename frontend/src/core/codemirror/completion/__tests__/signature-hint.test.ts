@@ -5,6 +5,7 @@ import { EditorView, type Tooltip } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 import {
   asSignatureHint,
+  closeSignatureHint,
   setSignatureHintEffect,
   signatureHintField,
 } from "../signature-hint";
@@ -51,11 +52,78 @@ describe("signatureHintField", () => {
     expect(state.field(signatureHintField)).toBeNull();
   });
 
-  it("keeps and re-anchors the tooltip across edits", () => {
+  it("keeps and re-anchors the tooltip across edits inside the call", () => {
     let state = stateWithHint("plt.plot(", 9);
-    // Insert before the tooltip position; it should shift to stay anchored.
-    state = state.update({ changes: { from: 0, insert: "xy" } }).state;
+    // Insert before the tooltip position while the cursor stays inside the
+    // call; the anchor should shift but the hint should remain.
+    state = state.update({
+      changes: { from: 0, insert: "xy" },
+      selection: { anchor: 11 },
+    }).state;
     expect(state.field(signatureHintField)?.pos).toBe(11);
+  });
+
+  it("dismisses the tooltip when the closing paren is typed", () => {
+    let state = stateWithHint("plt.plot(", 9);
+    // Type the closing paren; the cursor is now outside the call.
+    state = state.update({
+      changes: { from: 9, insert: ")" },
+      selection: { anchor: 10 },
+    }).state;
+    expect(state.field(signatureHintField)).toBeNull();
+  });
+
+  it("dismisses the tooltip when the anchored call closes inside grouping parens", () => {
+    // Regression for the `(plt.plot())` case: the outer grouping paren must not
+    // keep the (now-closed) plt.plot hint alive.
+    let state = stateWithHint("(plt.plot(", 10);
+    // Close plt.plot's call; the outer `(` is still open but we've left the
+    // anchored call.
+    state = state.update({
+      changes: { from: 10, insert: ")" },
+      selection: { anchor: 11 },
+    }).state;
+    expect(state.field(signatureHintField)).toBeNull();
+  });
+
+  it("keeps the tooltip while typing a nested call inside the anchored call", () => {
+    // Cursor inside the anchored call of `f(g(<cursor>`; opening/typing a nested
+    // call stays inside the anchored call, so the hint should remain.
+    let state = stateWithHint("f(g(", 4);
+    state = state.update({
+      changes: { from: 4, insert: "x(" },
+      selection: { anchor: 6 },
+    }).state;
+    expect(state.field(signatureHintField)?.pos).toBe(4);
+  });
+
+  it("keeps the tooltip when a nested call closes inside the anchored call", () => {
+    const anchor = "f(".length;
+    let state = stateWithHint("f(g(x", anchor);
+    state = state.update({
+      changes: { from: 5, insert: ")" },
+      selection: { anchor: 6 },
+    }).state;
+    expect(state.field(signatureHintField)?.pos).toBe(anchor);
+  });
+
+  it("dismisses the tooltip when the closing paren is typed in a large multi-line call", () => {
+    const anchor = "f(".length;
+    const prefix = `f(\n${"  x,\n".repeat(25)}`;
+    let state = EditorState.create({
+      doc: prefix,
+      selection: { anchor: prefix.length },
+      extensions: [signatureHintField],
+    });
+    state = state.update({
+      effects: setSignatureHintEffect.of(fakeTooltip(anchor)),
+    }).state;
+    const head = prefix.length;
+    state = state.update({
+      changes: { from: head, insert: ")" },
+      selection: { anchor: head + 1 },
+    }).state;
+    expect(state.field(signatureHintField)).toBeNull();
   });
 });
 
@@ -90,5 +158,31 @@ describe("asSignatureHint", () => {
     const wrapped = asSignatureHint(base);
     expect(wrapped.pos).toBe(5);
     expect(wrapped.above).toBe(true);
+  });
+});
+
+describe("closeSignatureHint", () => {
+  it("returns false when no hint is showing", () => {
+    const view = new EditorView({
+      state: EditorState.create({ extensions: [signatureHintField] }),
+    });
+    expect(closeSignatureHint(view)).toBe(false);
+    expect(view.state.field(signatureHintField)).toBeNull();
+    view.destroy();
+  });
+
+  it("dismisses the hint and returns true when one is showing", () => {
+    const view = new EditorView({
+      state: EditorState.create({
+        doc: "plt.plot(",
+        extensions: [signatureHintField],
+      }),
+    });
+    view.dispatch({ effects: setSignatureHintEffect.of(fakeTooltip(9)) });
+    expect(view.state.field(signatureHintField)?.pos).toBe(9);
+
+    expect(closeSignatureHint(view)).toBe(true);
+    expect(view.state.field(signatureHintField)).toBeNull();
+    view.destroy();
   });
 });

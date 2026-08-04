@@ -74,17 +74,24 @@ export const ZodForm = <T extends FieldValues>({
   return (
     <FormProvider {...form}>
       {children}
-      {renderZodSchema(schema, form, path, renderers)}
+      {renderZodSchema({ schema, form, path, renderers })}
     </FormProvider>
   );
 };
 
-export function renderZodSchema<T extends FieldValues, S>(
-  schema: z.ZodType<S>,
-  form: UseFormReturn<T>,
-  path: Path<T>,
-  renderers: FormRenderer<T>[],
-) {
+export interface RenderZodSchemaOptions<T extends FieldValues, S> {
+  schema: z.ZodType<S>;
+  form: UseFormReturn<T>;
+  path: Path<T>;
+  renderers: FormRenderer<T>[];
+}
+
+export function renderZodSchema<T extends FieldValues, S>({
+  schema,
+  form,
+  path,
+  renderers,
+}: RenderZodSchemaOptions<T, S>) {
   // Try custom renderers first
   for (const renderer of renderers) {
     const { isMatch, Component } = renderer;
@@ -107,7 +114,7 @@ export function renderZodSchema<T extends FieldValues, S>(
       !inner.description && schema.description
         ? inner.describe(schema.description)
         : inner;
-    return renderZodSchema(inner, form, path, renderers);
+    return renderZodSchema({ schema: inner, form, path, renderers });
   }
 
   if (schema instanceof z.ZodOptional) {
@@ -116,7 +123,7 @@ export function renderZodSchema<T extends FieldValues, S>(
       !inner.description && schema.description
         ? inner.describe(schema.description)
         : inner;
-    return renderZodSchema(inner, form, path, renderers);
+    return renderZodSchema({ schema: inner, form, path, renderers });
   }
 
   if (schema instanceof z.ZodObject) {
@@ -134,12 +141,12 @@ export function renderZodSchema<T extends FieldValues, S>(
         <FormLabel>{label}</FormLabel>
         {Objects.entries(schema.shape).map(([key, value]) => {
           const isLiteral = value instanceof z.ZodLiteral;
-          const childForm = renderZodSchema(
-            value as z.ZodType,
+          const childForm = renderZodSchema({
+            schema: value as z.ZodType,
             form,
-            joinPath(path, key),
+            path: joinPath(path, key),
             renderers,
-          );
+          });
 
           if (isLiteral) {
             return <React.Fragment key={key}>{childForm}</React.Fragment>;
@@ -189,16 +196,24 @@ export function renderZodSchema<T extends FieldValues, S>(
         name={path}
         render={({ field }) => (
           <FormItem>
-            <div className="flex flex-row items-start space-x-2">
-              <FormLabel>{label}</FormLabel>
-              <FormDescription>{description}</FormDescription>
+            <div
+              className={cn(
+                "flex flex-row gap-2",
+                description ? "items-start" : "items-center",
+              )}
+            >
               <FormControl>
                 <Checkbox
                   data-testid="marimo-plugin-data-frames-boolean-checkbox"
                   checked={field.value}
                   onCheckedChange={field.onChange}
+                  className={description ? "mt-0.5" : undefined}
                 />
               </FormControl>
+              <div className="flex flex-col gap-1">
+                <FormLabel>{label}</FormLabel>
+                <FormDescription>{description}</FormDescription>
+              </div>
             </div>
             <FormMessage />
           </FormItem>
@@ -363,13 +378,13 @@ export function renderZodSchema<T extends FieldValues, S>(
 
           return (
             <div className="flex flex-col">
-              <FormLabel>{label}</FormLabel>
-              <div className="flex border-b mb-4 -mt-2">
+              <FormLabel className="mb-2">{label}</FormLabel>
+              <div className="flex border-b mb-4">
                 {types.map((type: string) => (
                   <button
                     key={type}
                     type="button"
-                    className={`px-4 py-2 ${
+                    className={`px-4 py-2 text-sm ${
                       unionTypeValue === type
                         ? "border-b-2 border-primary font-medium"
                         : "text-muted-foreground"
@@ -389,7 +404,12 @@ export function renderZodSchema<T extends FieldValues, S>(
               </div>
               <div className="flex flex-col" key={unionTypeValue}>
                 {selectedOption &&
-                  renderZodSchema(selectedOption, form, path, renderers)}
+                  renderZodSchema({
+                    schema: selectedOption,
+                    form,
+                    path,
+                    renderers,
+                  })}
               </div>
             </div>
           );
@@ -434,7 +454,12 @@ export function renderZodSchema<T extends FieldValues, S>(
                 })}
               </NativeSelect>
               {selectedOption &&
-                renderZodSchema(selectedOption, form, path, renderers)}
+                renderZodSchema({
+                  schema: selectedOption,
+                  form,
+                  path,
+                  renderers,
+                })}
             </div>
           );
         }}
@@ -459,10 +484,15 @@ export function renderZodSchema<T extends FieldValues, S>(
   }
   if ("unwrap" in schema) {
     // Handle ZodEffects (transforms/refinements)
-    return renderZodSchema(maybeUnwrap(schema), form, path, renderers);
+    return renderZodSchema({
+      schema: maybeUnwrap(schema),
+      form,
+      path,
+      renderers,
+    });
   }
   if (isZodPipe(schema)) {
-    return renderZodSchema(schema.in, form, path, renderers);
+    return renderZodSchema({ schema: schema.in, form, path, renderers });
   }
 
   return (
@@ -512,7 +542,12 @@ const FormArray = ({
             key={field.id}
             onKeyDown={Events.onEnter((e) => e.preventDefault())}
           >
-            {renderZodSchema(schema, form, `${path}[${index}]`, renderers)}
+            {renderZodSchema({
+              schema,
+              form,
+              path: `${path}[${index}]`,
+              renderers,
+            })}
             {canRemove && (
               <Trash2Icon
                 className="w-4 h-4 ml-2 my-1 text-muted-foreground hover:text-destructive cursor-pointer absolute right-0 top-5"

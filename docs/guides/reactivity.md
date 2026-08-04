@@ -168,6 +168,13 @@ Variables prefixed with an underscore (_e.g._, `_x`) are "local" to a
 cell: they can't be read by other cells. Multiple cells can reuse the same
 local variables names.
 
+!!! note "Underscore-prefixed imports"
+    Imported names are also variables, so an import bound to an
+    underscore-prefixed name (`import numpy as _np`, or `from ibis import _`)
+    is local to the cell that imports it. When the imported symbol itself
+    starts with an underscore and you want to use it across cells, alias it
+    to a name without a leading underscore: `from ibis import _ as d`.
+
 #### Encapsulating code in functions
 
 If you want most or all the variables in a cell to be temporary, prefixing each

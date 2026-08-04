@@ -200,7 +200,7 @@ def test_resolve_opengraph_metadata_merges_generator_overrides(
     path = tmp_path / "notebook.py"
     path.write_text(script, encoding="utf-8")
 
-    resolved = resolve_opengraph_metadata(str(path))
+    resolved = resolve_opengraph_metadata(str(path), execute_generator=True)
     assert resolved.title == "Static Title"
     assert resolved.image == "https://example.com/generated.png"
 
@@ -225,7 +225,7 @@ def test_resolve_opengraph_metadata_ignores_invalid_generator_signature(
     path = tmp_path / "notebook.py"
     path.write_text(script, encoding="utf-8")
 
-    resolved = resolve_opengraph_metadata(str(path))
+    resolved = resolve_opengraph_metadata(str(path), execute_generator=True)
     assert resolved.title == "Static Title"
     assert resolved.image is None
 
@@ -254,6 +254,6 @@ def test_resolve_opengraph_metadata_supports_app_setup_imports(
     path = tmp_path / "notebook.py"
     path.write_text(script, encoding="utf-8")
 
-    resolved = resolve_opengraph_metadata(str(path))
+    resolved = resolve_opengraph_metadata(str(path), execute_generator=True)
     assert resolved.title == "Static Title"
     assert resolved.image == "https://example.com/3.png"

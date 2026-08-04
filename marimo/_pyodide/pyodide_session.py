@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import json
 import signal
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypeVar, cast
 
@@ -14,7 +14,13 @@ from marimo._config.config import (
     PartialMarimoConfig,
     merge_default_config,
 )
-from marimo._convert.markdown import convert_from_ir_to_markdown
+from marimo._export.exporter import Exporter, export_markdown, export_script
+from marimo._export.requests import (
+    HTMLExportRequest,
+    MarkdownExportRequest,
+    ScriptExportRequest,
+)
+from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._messaging.types import KernelStreams
 from marimo._pyodide.restartable_task import RestartableTask
@@ -33,9 +39,15 @@ from marimo._runtime.commands import (
     UpdateUserConfigCommand,
 )
 from marimo._runtime.marimo_pdb import MarimoPdb
-from marimo._server.export.exporter import Exporter
+from marimo._schemas.export import (
+    ExportAsHTMLRequest,
+    ExportAsMarkdownRequest,
+    ExportAsScriptRequest,
+    ExportedFile,
+    to_html_export_options,
+    to_markdown_export_options,
+)
 from marimo._server.files.os_file_system import OSFileSystem
-from marimo._server.models.export import ExportAsHTMLRequest
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -245,6 +257,11 @@ class PyodideBridge:
         snippets = await read_snippets(self.session._initial_user_config)
         return self._dump(snippets)
 
+    def get_environment_info(self) -> str:
+        from marimo._utils.diagnostics import get_system_info
+
+        return self._dump(get_system_info(redact_home=True))
+
     async def format(self, request: str) -> str:
         parsed = self._parse(request, FormatCellsRequest)
         formatter = DefaultFormatter(line_length=parsed.line_length)
@@ -303,7 +320,10 @@ class PyodideBridge:
         request: str,
     ) -> str:
         body = self._parse(request, FileDetailsRequest)
-        response = self.file_system.get_details(body.path)
+        response = self.file_system.get_details(
+            body.path,
+            max_bytes=body.max_bytes,
+        )
         return self._dump(response)
 
     def create_file_or_directory(
@@ -379,19 +399,68 @@ class PyodideBridge:
 
     def export_html(self, request: str) -> str:
         parsed = self._parse(request, ExportAsHTMLRequest)
-        html, _filename = Exporter().export_as_html(
-            app=self.session.app_manager.app,
-            filename=self.session.app_manager.filename,
-            session_view=self.session.session_view,
-            display_config=self.session._initial_user_config["display"],
-            request=parsed,
+        app = self.session.app_manager.app
+        html, filename = Exporter().export_as_html(
+            HTMLExportRequest(
+                filename=self.session.app_manager.filename,
+                app_code=app.to_py(),
+                app_config=app.config,
+                snapshot=serialize_notebook_snapshot(
+                    app,
+                    self.session.session_view,
+                    drop_virtual_file_outputs=False,
+                    include_model_notifications=True,
+                ),
+                display_config=self.session._initial_user_config["display"],
+                options=to_html_export_options(parsed),
+            )
         )
-        return json.dumps(html)
+        return self._dump(
+            ExportedFile(
+                contents=html,
+                filename=filename,
+                media_type="text/html; charset=utf-8",
+            )
+        )
 
     def export_markdown(self, request: str) -> str:
-        del request
-        md = convert_from_ir_to_markdown(self.session.app_manager.app.to_ir())
-        return json.dumps(md)
+        parsed = self._parse(request, ExportAsMarkdownRequest)
+        filename = self.session.app_manager.filename
+        result = export_markdown(
+            MarkdownExportRequest(
+                notebook=self.session.app_manager.app.to_ir(),
+                options=to_markdown_export_options(
+                    parsed,
+                    filename=filename,
+                    source_filename=filename,
+                ),
+            )
+        )
+        return self._dump(
+            ExportedFile(
+                contents=result.text,
+                filename=result.download_filename,
+                media_type="text/plain; charset=utf-8",
+            )
+        )
+
+    def export_script(self, request: str) -> str:
+        self._parse(request, ExportAsScriptRequest)
+        result = export_script(
+            ScriptExportRequest(
+                notebook=replace(
+                    self.session.app_manager.app.to_ir(),
+                    filename=self.session.app_manager.filename,
+                ),
+            )
+        )
+        return self._dump(
+            ExportedFile(
+                contents=result.text,
+                filename=result.download_filename,
+                media_type="text/plain; charset=utf-8",
+            )
+        )
 
     def _parse(self, request: str, cls: type[T]) -> T:
         return parse_raw(request, cls)

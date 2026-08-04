@@ -211,6 +211,7 @@ export class WidgetRuntime {
     });
     const widget = resolveAnyWidget(mod, spec.url);
     if (!widget) {
+      WIDGET_DEF_REGISTRY.invalidate(spec.hash);
       throw getInvalidAnyWidgetModuleError(mod, spec.url);
     }
     return WidgetBinding.create({

@@ -1,7 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { islandsHydratedAtom } from "@/core/islands/state";
 import { createPlugin } from "@/plugins/core/builder";
 import type { IPluginProps } from "@/plugins/types";
 import { ErrorBanner } from "../common/error-banner";
@@ -46,8 +48,12 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
   const { modelId } = props.data;
   const htmlRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<Error>();
+  const canCreateView = useAtomValue(islandsHydratedAtom);
 
   useEffect(() => {
+    if (!canCreateView) {
+      return;
+    }
     const el = htmlRef.current;
     if (!el) {
       return;
@@ -64,7 +70,7 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       }
     });
     return () => controller.abort();
-  }, [modelId]);
+  }, [canCreateView, modelId]);
 
   return (
     <>

@@ -39,12 +39,18 @@ interface Props extends Pick<
   "cellId" | "getEditorView"
 > {
   children: React.ReactNode;
+  /**
+   * If true, the custom context menu is disabled and the native one is used
+   * (e.g. while presenting).
+   */
+  disabled?: boolean;
 }
 
 export const CellActionsContextMenu = ({
   children,
   cellId,
   getEditorView,
+  disabled,
 }: Props) => {
   const cellData = useCellData(cellId);
   const cellRuntime = useCellRuntime(cellId);
@@ -187,6 +193,7 @@ export const CellActionsContextMenu = ({
   return (
     <ContextMenu>
       <ContextMenuTrigger
+        disabled={disabled}
         onContextMenu={(evt) => {
           if (evt.target instanceof HTMLImageElement) {
             setImageRightClicked(evt.target);

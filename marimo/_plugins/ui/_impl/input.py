@@ -783,6 +783,13 @@ class text(UIElement[str, str]):
             self._masked = False
         super()._update(value)
 
+    def _update_value(self, value: str) -> None:
+        if self._masked:
+            if value == "":
+                return
+            self._masked = False
+        super()._update_value(value)
+
     def _convert_value(self, value: str) -> str:
         return value
 
@@ -1595,7 +1602,7 @@ class form(UIElement[JSONTypeBound | None, T | None]):
     def _convert_value(self, value: JSONTypeBound | None) -> T | None:
         if value is None:
             return None
-        self.element._update(value)
+        self.element._update_value(value)
         return self.element.value
 
 

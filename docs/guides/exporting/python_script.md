@@ -4,8 +4,8 @@ Export marimo notebooks to flat Python scripts.
 
 ## Export from the marimo editor
 
-You can download your notebook as a Python script from the
-notebook menu in the editor (Download > Python).
+You can download your notebook as a Python script from the notebook menu in the
+editor: choose "Export…", then the "Python" format and "Flat script".
 
 ## Export from the command line
 

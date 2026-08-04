@@ -13,7 +13,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._server.export._pdf_raster import (
+from marimo._export._pdf_raster import (
     WAIT_FOR_NEXT_PAINT,
     WAIT_FOR_PAGE_READY,
 )

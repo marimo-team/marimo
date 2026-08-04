@@ -400,7 +400,7 @@ def _extract_body_code(cell_source: str, kind: str) -> str:
     Strips decorator lines, def/class/with header, and trailing return.
     Used when a cell fails ast.parse() to get the body for UnparsableCell.
     """
-    from marimo._ast.parse import fixed_dedent
+    from marimo._ast.dedent import fixed_dedent
 
     if kind == "unparsable":
         # Already app._unparsable_cell(...) — return as-is

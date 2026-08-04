@@ -148,7 +148,7 @@ export const FormWrapper = <T,>({
           if (evt.key === "Enter" && (evt.ctrlKey || evt.metaKey)) {
             evt.preventDefault();
             evt.stopPropagation();
-            setValue(newValue);
+            formDiv.current?.requestSubmit();
           }
         }}
       >

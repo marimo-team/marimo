@@ -37,6 +37,7 @@ const appToOptions = {
   "bad_button.py": { command: "edit" },
   "bugs.py": { command: "edit" },
   "cells.py": { command: "edit" },
+  "columns.py": { command: "edit" },
   "disabled_cells.py": { command: "edit" },
   "disabled_ancestor_error.py": { command: "edit" },
   "kitchen_sink.py": { command: "edit" },
@@ -48,6 +49,7 @@ const appToOptions = {
   "shutdown.py": { command: "edit", port: port() },
   // Run
   "components.py": { port: port(), command: "run" },
+  "nav_menu.py": { port: port(), command: "run" },
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "layout_grid_with_sidebar.py//run": { port: port(), command: "run" },
@@ -60,7 +62,12 @@ const appToOptions = {
 
 export type ApplicationNames = keyof typeof appToOptions;
 
-function getUrl(port: number, baseUrl = "", queryParams = ""): string {
+function getUrl(options: {
+  port: number;
+  baseUrl?: string;
+  queryParams?: string;
+}): string {
+  const { port, baseUrl = "", queryParams = "" } = options;
   return `http://127.0.0.1:${port}${baseUrl}${queryParams}`;
 }
 
@@ -72,9 +79,9 @@ export function getAppUrl(app: ApplicationNames): string {
   }
   if (options.command === "edit") {
     const pathToApp = path.join(pydir, app);
-    return getUrl(EDIT_PORT, "", `?file=${pathToApp}`);
+    return getUrl({ port: EDIT_PORT, queryParams: `?file=${pathToApp}` });
   }
-  return getUrl(options.port, options.baseUrl);
+  return getUrl({ port: options.port, baseUrl: options.baseUrl });
 }
 export function getAppMode(app: ApplicationNames): "edit" | "run" {
   const options: ServerOptions = appToOptions[app];
@@ -98,6 +105,18 @@ export async function resetFile(app: ApplicationNames): Promise<void> {
     });
   });
   return;
+}
+
+// All ports that a marimo test server may be started on
+export function getTestPorts(): number[] {
+  const ports = new Set<number>([EDIT_PORT]);
+  for (const opts of Object.values(appToOptions)) {
+    const options = opts as ServerOptions;
+    if (options.port) {
+      ports.add(options.port);
+    }
+  }
+  return [...ports].toSorted((a, b) => a - b);
 }
 
 // Start marimo server for the given app
@@ -207,7 +226,7 @@ const config: PlaywrightTestConfig = {
 
       return {
         command: marimoCmd,
-        url: getUrl(port, baseUrl),
+        url: getUrl({ port, baseUrl }),
         reuseExistingServer: true,
         timeout: 30 * 1000,
         ignoreHTTPSErrors: true,
@@ -220,7 +239,7 @@ const config: PlaywrightTestConfig = {
     }),
     {
       command: `uv run marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
-      url: getUrl(EDIT_PORT),
+      url: getUrl({ port: EDIT_PORT }),
       reuseExistingServer: true,
       timeout: 30 * 1000,
       ignoreHTTPSErrors: true,

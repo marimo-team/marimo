@@ -7,7 +7,6 @@ import sys
 import webbrowser
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from pathlib import Path
 from shutil import which
 from typing import (
     TYPE_CHECKING,
@@ -227,18 +226,6 @@ def get_code_mode_credentials(
     )
     server_url = f"{scheme}://{url_host}:{app_state.port}{base_url}"
     return server_url, auth_token
-
-
-def parse_title(filepath: str | None) -> str:
-    """
-    Create a title from a filename.
-    """
-    if filepath is None:
-        return "marimo"
-
-    # filename is used as title, except basename and suffix are
-    # stripped and underscores are replaced with spaces
-    return Path(filepath).stem.replace("_", " ")
 
 
 def open_url_in_browser(browser: str, url: str) -> None:

@@ -12,7 +12,7 @@ import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import { Logger } from "@/utils/Logger";
 import type { Host } from "./host";
 import type { Model } from "./model";
-import { modelProxy, type ProxyRegistration } from "./model-proxy";
+import { modelProxy } from "./model-proxy";
 import type { ModelState } from "./types";
 
 export const experimental: Experimental = {
@@ -78,6 +78,10 @@ class WidgetDefRegistry {
 
     this.#cache.set(jsHash, promise);
     return promise;
+  }
+
+  invalidate(jsHash: string): void {
+    this.#cache.delete(jsHash);
   }
 
   async #doImport(
@@ -266,9 +270,8 @@ export class WidgetBinding<T extends ModelState = ModelState> {
    * when the caller's `signal` fires or the binding is destroyed, and
    * listeners registered inside `render` auto-clear on abort.
    *
-   * Hydration guarantee: listeners attached during `render` observe
-   * current model state exactly once, after `render` settles. Scoped
-   * to this view's listeners; re-firing at other views double-paints.
+   * `render` reads current state via `model.get`; change listeners
+   * observe only subsequent changes, matching Jupyter semantics.
    */
   async createView(
     target: { el: HTMLElement },
@@ -305,11 +308,8 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     // Each view gets a host scoped to its own signal so child views tear
     // down with this view.
     const host = this.#createHost(renderSignal);
-    const registrations: ProxyRegistration[] = [];
     const renderCleanup = await widget.render({
-      model: modelProxy(this.#model, renderSignal, (registration) =>
-        registrations.push(registration),
-      ),
+      model: modelProxy(this.#model, renderSignal),
       el: target.el,
       experimental,
       signal: renderSignal,
@@ -333,7 +333,6 @@ export class WidgetBinding<T extends ModelState = ModelState> {
         once: true,
       });
     }
-    this.#replayState(registrations, renderSignal);
   }
 
   #trackCleanup(cleanup: Cleanup, reason: string): Promise<void> {
@@ -341,31 +340,6 @@ export class WidgetBinding<T extends ModelState = ModelState> {
     this.#cleanupTasks.add(task);
     void task.finally(() => this.#cleanupTasks.delete(task));
     return task;
-  }
-
-  /**
-   * The hydration guarantee documented on `createView`.
-   */
-  #replayState(
-    registrations: readonly ProxyRegistration[],
-    renderSignal: AbortSignal,
-  ): void {
-    const changePrefix = "change:";
-    for (const { event, callback } of registrations) {
-      if (renderSignal.aborted) {
-        return;
-      }
-      try {
-        if (event.startsWith(changePrefix)) {
-          const key = event.slice(changePrefix.length);
-          callback(this.#model.get(key));
-        } else if (event === "change") {
-          callback();
-        }
-      } catch (error) {
-        Logger.error("[WidgetBinding] Error replaying state", error);
-      }
-    }
   }
 
   /**

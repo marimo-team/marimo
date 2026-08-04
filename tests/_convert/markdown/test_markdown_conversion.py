@@ -463,6 +463,65 @@ def test_no_frontmatter() -> None:
     assert len(ids) == 3
 
 
+def test_plain_markdown_flagged_non_marimo() -> None:
+    """Plain markdown parses as valid but carries a non-marimo violation."""
+    from marimo._ast.parse import is_non_marimo_markdown
+
+    plain = dedent(
+        """
+        # My Project
+
+        Just prose with a fenced sample:
+
+        ```python
+        print("hello")
+        ```
+        """
+    )
+    notebook_ir = convert_from_md_to_marimo_ir(plain)
+    # Still valid so it can be bootstrapped/opened, but flagged for the linter.
+    assert notebook_ir.valid is True
+    assert is_non_marimo_markdown(notebook_ir) is True
+
+
+def test_marimo_markdown_not_flagged_non_marimo() -> None:
+    """Marimo fences or `marimo-version` frontmatter avoid the flag."""
+    from marimo._ast.parse import is_non_marimo_markdown
+
+    with_fence = dedent(
+        remove_empty_lines(
+            """
+    # Title
+
+    ```python {.marimo}
+    x = 1
+    ```
+    """
+        )
+    )
+    assert (
+        is_non_marimo_markdown(convert_from_md_to_marimo_ir(with_fence))
+        is False
+    )
+
+    with_version = dedent(
+        remove_empty_lines(
+            """
+    ---
+    title: Title
+    marimo-version: 0.1.0
+    ---
+
+    # Just prose
+    """
+        )
+    )
+    assert (
+        is_non_marimo_markdown(convert_from_md_to_marimo_ir(with_version))
+        is False
+    )
+
+
 def test_markdown_just_frontmatter() -> None:
     script = dedent(
         remove_empty_lines(

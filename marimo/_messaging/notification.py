@@ -19,6 +19,7 @@ from marimo._data._external_storage.models import (
     StorageEntry,
     StorageNamespace,
 )
+from marimo._data.data_source_discovery import DetectedDataSource
 from marimo._data.models import (
     ColumnStats,
     DataSourceConnection,
@@ -751,6 +752,21 @@ class DataSourceConnectionsNotification(
     connections: list[DataSourceConnection]
 
 
+class DataSourceDiscoveryResultNotification(
+    Notification, tag="data-source-discovery-result"
+):
+    """High-confidence datasource connections discovered by the kernel.
+
+    Attributes:
+        request_id: Request ID this responds to.
+        sources: Detected datasource connection configurations.
+    """
+
+    name: ClassVar[str] = "data-source-discovery-result"
+    request_id: RequestId
+    sources: list[DetectedDataSource]
+
+
 class StorageNamespacesNotification(Notification, tag="storage-namespaces"):
     """Available storage namespaces for storage inspector.
 
@@ -990,6 +1006,7 @@ NotificationMessage = (
     | SQLTableListPreviewNotification
     | SQLSchemaListPreviewNotification
     | DataSourceConnectionsNotification
+    | DataSourceDiscoveryResultNotification
     | ValidateSQLResultNotification
     # Storage
     | StorageNamespacesNotification

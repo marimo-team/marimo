@@ -28,7 +28,8 @@ export interface FieldOptions {
     | "date"
     | "datetime"
     | "time"
-    | "tabs";
+    | "tabs"
+    | "secret_textarea";
   /**
    * Only show options that match the regex
    */

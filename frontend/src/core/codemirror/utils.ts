@@ -52,6 +52,34 @@ export function focusInputAndMoveToEnd(
   });
 }
 
+/**
+ * Scrolls the `.marimo-cell` that owns `view` into view.
+ *
+ * `EditorView.scrollIntoView` doesn't work in columns mode: it stops at the
+ * first overflowing ancestor even if that ancestor doesn't actually scroll,
+ * so it never reaches the real horizontally-scrolling container. The
+ * browser's native `Element.scrollIntoView` doesn't have that problem.
+ *
+ * Deferred a frame so CodeMirror's own scroll settles first; otherwise it
+ * clamps this scroll right back.
+ *
+ * https://github.com/marimo-team/marimo/issues/10222
+ */
+export function scrollOwnerCell(view: EditorView): void {
+  const cell = view.dom.closest(".marimo-cell");
+  if (!cell) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    cell.scrollIntoView({
+      behavior: "instant",
+      block: "nearest",
+      inline: "nearest",
+    });
+  });
+}
+
 export function isInVimMode(ev: EditorView): boolean {
   return getCM(ev)?.state.vim != null;
 }

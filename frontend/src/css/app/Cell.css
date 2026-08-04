@@ -255,6 +255,12 @@
     border: none;
     box-shadow: none;
 
+    /* No dividers between sections. Tailwind v4's divide-y is structural
+     * (`> :not(:last-child)`), so hidden-but-mounted children (e.g. the tray
+     * while presenting) still count as siblings and would otherwise draw a
+     * stray rule under the output. */
+    @apply divide-y-0;
+
     .output-area {
       /* flow-root interferes with margin collapsing, but appears to be unneeded
             * when cell outlines are hidden; clear:both is sufficient.
@@ -443,6 +449,10 @@
   /* Set a fixed gutter width to ensure the hover area is always wide enough */
   /* And make the gutter bigger when the window is super wide */
   --gutter-width: 100px;
+
+  /* Vertical gap between notebook cells (gap-5). Overridable via custom css;
+   * zeroed while presenting, when published cells flow together. */
+  --notebook-cell-gap: 1.25rem;
 }
 
 /* ------------------------ CodeMirror Editor ----------------------------- */

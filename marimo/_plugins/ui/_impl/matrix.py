@@ -334,7 +334,7 @@ class matrix(
         v.value  # [1, 2, 3]
         ```
 
-        Row vecto
+        Row vector
 
         ```python
         v = mo.ui.matrix([[1, 2, 3]])

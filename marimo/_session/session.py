@@ -67,8 +67,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._runtime.virtual_file import VirtualFileStorageType
-    from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
+    from marimo._session.requests import InstantiateNotebookRequest
 
 LOGGER = _loggers.marimo_logger()
 

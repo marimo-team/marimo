@@ -2348,6 +2348,7 @@ class TestPandasTableManager(unittest.TestCase):
     def test_to_json_str_pint_pandas_series(self) -> None:
         """pint-pandas quantities display as readable strings in tables."""
         import pandas as pd
+        import pint_pandas  # noqa: F401 — registers pint dtypes with pandas
 
         series = pd.Series([1, 2, 3, 4], dtype="pint[meter]")
         manager = self.factory.create()(series.to_frame(name="value"))
@@ -2356,6 +2357,24 @@ class TestPandasTableManager(unittest.TestCase):
 
         expected = [{"value": value} for value in series.astype(str)]
         assert json_data == expected
+
+    @pytest.mark.requires("pint")
+    def test_to_json_str_object_column_of_pint_quantities(self) -> None:
+        """Object columns of bare pint.Quantity stringify instead of nested dicts."""
+        import pandas as pd
+        import pint
+
+        series = pd.Series(
+            [
+                pint.Quantity("1 sec"),
+                pint.Quantity("3 min"),
+                pint.Quantity("0.3 hours"),
+            ]
+        )
+        manager = self.factory.create()(series.to_frame(name="mixed"))
+        json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"mixed": str(value)} for value in series]
 
     def test_extension_column_needs_stringify_skips_json_primitives(
         self,
@@ -2413,28 +2432,30 @@ class TestPandasTableManager(unittest.TestCase):
         that PyArrow cannot convert (e.g. pint-pandas)."""
         import pyarrow as pa
 
+        from marimo._plugins.ui._impl.tables import pandas_table as pt
+
         df = pd.DataFrame({"a": [1, 2, 3], "b": [4.0, 5.0, 6.0]})
         manager = self.factory.create()(df)
 
-        # Make the first to_feather call raise, simulating an
-        # unsupported extension dtype.
-        original_to_feather = pd.DataFrame.to_feather
+        # Make the first IPC write raise, simulating an unsupported
+        # extension dtype.
+        original_write = pt._dataframe_to_arrow_ipc
 
         call_count = 0
 
-        def patched_to_feather(self_df, *args: Any, **kwargs: Any):
+        def patched_write(frame: pd.DataFrame) -> bytes:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
                 raise pa.lib.ArrowTypeError("unsupported extension type")
-            return original_to_feather(self_df, *args, **kwargs)
+            return original_write(frame)
 
-        with patch.object(pd.DataFrame, "to_feather", patched_to_feather):
+        with patch.object(pt, "_dataframe_to_arrow_ipc", patched_write):
             result = manager.to_arrow_ipc()
 
         assert isinstance(result, bytes)
         assert len(result) > 0
-        # Verify the result is valid IPC/feather data by reading it back
+        # Verify the result is valid Arrow IPC data by reading it back
         buf = pa.BufferReader(result)
         table = pa.ipc.open_file(buf).read_all()
         assert table.num_rows == 3

@@ -17,6 +17,11 @@ import {
   isDataURLString,
 } from "@/utils/json/base64";
 
+// Height (px) of the fallback/legacy summary charts. The invisible full-height
+// hover layer's `y2` must match this so it covers the whole plot; shared with
+// `createBase` so the two can't drift apart.
+export const DEFAULT_CHART_HEIGHT = 100;
+
 export function getLegacyNumericSpec(
   column: string,
   format: string,
@@ -47,7 +52,8 @@ export function getLegacyNumericSpec(
         },
       },
 
-      // Tooltip layer
+      // Full-height invisible hit targets (pixel coords). Avoid
+      // `y: { aggregate: "max" }` without a field — Vega drops it (#10303).
       {
         mark: {
           type: "bar",
@@ -67,9 +73,10 @@ export function getLegacyNumericSpec(
             },
           },
           y: {
-            aggregate: "max",
-            type: "quantitative",
-            axis: null,
+            value: 0,
+          },
+          y2: {
+            value: DEFAULT_CHART_HEIGHT,
           },
           tooltip: [
             {
@@ -136,8 +143,8 @@ export function getLegacyTemporalSpec(
         },
       },
 
-      // 0 opacity full-height bars with tooltips, since it is too hard to trigger
-      // the tooltip for very small bars.
+      // Full-height invisible hit targets (pixel coords). Avoid
+      // `y: { aggregate: "max" }` without a field — Vega drops it (#10303).
       {
         mark: {
           type: "bar",
@@ -151,7 +158,8 @@ export function getLegacyTemporalSpec(
             bin: true,
             scale: scale,
           },
-          y: { aggregate: "max", type: "quantitative", axis: null },
+          y: { value: 0 },
+          y2: { value: DEFAULT_CHART_HEIGHT },
           tooltip: [
             {
               // Can also use column, but this is more explicit

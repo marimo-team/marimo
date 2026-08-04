@@ -40,6 +40,8 @@ from marimo._runtime.commands import (
     CreateNotebookCommand,
     ExecuteCellCommand,
     ExecuteCellsCommand,
+    ModelCommand,
+    ModelUpdateMessage,
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
@@ -229,6 +231,37 @@ class SessionView:
                 self._add_ui_value(object_id, value)
             for execution_request in request.execution_requests:
                 self._add_last_run_code(execution_request)
+        elif isinstance(request, ModelCommand):
+            self._apply_model_command(request)
+
+    def _apply_model_command(self, request: ModelCommand) -> None:
+        """Merge a client's model write into replay state.
+
+        The kernel does not echo client writes back (see
+        `_create_model_message` in `marimo._plugins.ui._impl.comm`), so
+        the command itself is the only record of frontend-driven trait
+        changes for reconnect replay.
+        """
+        message = request.message
+        if not isinstance(message, ModelUpdateMessage):
+            # Custom messages are ephemeral — never replayed.
+            return
+        view = self.model_states.get(request.model_id)
+        if view is None:
+            return
+        # Clients may write widget state, never code or style: replayed
+        # state reaches future viewers. Mirrors the kernel-side filter
+        # in MarimoCommManager.receive_comm_message.
+        state = {
+            k: v for k, v in message.state.items() if k not in ("_esm", "_css")
+        }
+        view.apply_update(
+            ModelUpdate(
+                state=state,
+                buffer_paths=message.buffer_paths,
+                buffers=request.buffers,
+            )
+        )
 
     def add_stdin(self, stdin: str) -> None:
         self._touch()

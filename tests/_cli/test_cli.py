@@ -36,11 +36,11 @@ from marimo._cli.cli import (
 )
 from marimo._config.manager import get_default_config_manager
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.templates.templates import get_version
 from marimo._server.workspace import (
     DirectoryWorkspace,
     FixedFilesWorkspace,
 )
+from marimo._templates import get_version
 from marimo._utils.platform import is_windows
 from marimo._utils.toml import toml_reader
 

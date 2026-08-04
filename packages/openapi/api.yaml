@@ -255,6 +255,22 @@ components:
       required: []
       title: AnthropicConfig
       type: object
+    AutoExportAsIPYNBRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsIPYNBRequest
+      type: object
+    AutoExportAsMarkdownRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsMarkdownRequest
+      type: object
     BannerNotification:
       description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
         \        title: Banner title.\n        description: Banner body (may contain\
@@ -1138,6 +1154,26 @@ components:
       - connections
       title: DataSourceConnectionsNotification
       type: object
+    DataSourceDiscoveryResultNotification:
+      description: "High-confidence datasource connections discovered by the kernel.\n\
+        \n    Attributes:\n        request_id: Request ID this responds to.\n    \
+        \    sources: Detected datasource connection configurations."
+      properties:
+        op:
+          enum:
+          - data-source-discovery-result
+        request_id:
+          type: string
+        sources:
+          items:
+            $ref: '#/components/schemas/DetectedDataSource'
+          type: array
+      required:
+      - op
+      - request_id
+      - sources
+      title: DataSourceDiscoveryResultNotification
+      type: object
     DataTable:
       description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
         \ Type of data source ('local', 'duckdb', 'connection').\n    source (str):\
@@ -1443,6 +1479,76 @@ components:
       - tree
       title: DependencyTreeResponse
       type: object
+    DetectedDataSource:
+      description: A secret-free datasource suggestion produced by the kernel.
+      properties:
+        category:
+          enum:
+          - catalog
+          - database
+          - object-storage
+        code:
+          type: string
+        confidence:
+          enum:
+          - high
+          - medium
+        configuration:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceConfiguration'
+          type: array
+        displayName:
+          type: string
+        id:
+          type: string
+        integration:
+          type: string
+        origins:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceOrigin'
+          type: array
+      required:
+      - id
+      - integration
+      - category
+      - displayName
+      - confidence
+      - origins
+      - configuration
+      - code
+      title: DetectedDataSource
+      type: object
+    DetectedDataSourceConfiguration:
+      properties:
+        field:
+          type: string
+        value:
+          anyOf:
+          - $ref: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+          - $ref: '#/components/schemas/SafeLiteralDiscoveryValue'
+          discriminator:
+            mapping:
+              environment-variable: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+              safe-literal: '#/components/schemas/SafeLiteralDiscoveryValue'
+            propertyName: kind
+      required:
+      - field
+      - value
+      title: DetectedDataSourceConfiguration
+      type: object
+    DetectedDataSourceOrigin:
+      properties:
+        label:
+          type: string
+        type:
+          enum:
+          - configuration
+          - environment
+      required:
+      - type
+      - label
+      title: DetectedDataSourceOrigin
+      type: object
     DiagnosticsConfig:
       description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
         \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
@@ -1454,6 +1560,29 @@ components:
           type: boolean
       required: []
       title: DiagnosticsConfig
+      type: object
+    DiscoverDataSourcesCommand:
+      description: "Discover datasource connections from the live kernel environment\
+        \ and configuration.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request."
+      properties:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        type:
+          enum:
+          - discover-data-sources
+      required:
+      - type
+      - requestId
+      title: DiscoverDataSourcesCommand
+      type: object
+    DiscoverDataSourcesRequest:
+      properties:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+      required:
+      - requestId
+      title: DiscoverDataSourcesRequest
       type: object
     DisplayConfig:
       description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
@@ -1512,6 +1641,19 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    EnvironmentVariableDiscoveryValue:
+      description: A reference to an environment variable, never its value.
+      properties:
+        kind:
+          enum:
+          - environment-variable
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: EnvironmentVariableDiscoveryValue
       type: object
     EsmSpec:
       description: "Where the frontend imports a widget's ESM from, and which version.\n\
@@ -1735,6 +1877,14 @@ components:
       properties:
         download:
           type: boolean
+        includeOutputs:
+          default: true
+          type: boolean
+        sortMode:
+          default: top-down
+          enum:
+          - top-down
+          - topological
       required:
       - download
       title: ExportAsIPYNBRequest
@@ -1743,6 +1893,15 @@ components:
       properties:
         download:
           type: boolean
+        flavor:
+          anyOf:
+          - enum:
+            - mdx
+            - mystmd
+            - pymdown
+            - qmd
+          - type: 'null'
+          default: null
       required:
       - download
       title: ExportAsMarkdownRequest
@@ -1752,22 +1911,14 @@ components:
         includeInputs:
           default: false
           type: boolean
+        includeOutputs:
+          default: true
+          type: boolean
         preset:
           default: document
           enum:
           - document
           - slides
-        rasterScale:
-          default: 4.0
-          type: number
-        rasterServer:
-          default: static
-          enum:
-          - live
-          - static
-        rasterizeOutputs:
-          default: true
-          type: boolean
         webpdf:
           type: boolean
       required:
@@ -1781,6 +1932,58 @@ components:
       required:
       - download
       title: ExportAsScriptRequest
+      type: object
+    ExportAvailabilityResponse:
+      properties:
+        formats:
+          items:
+            $ref: '#/components/schemas/ExportFormatAvailability'
+          type: array
+        source:
+          enum:
+          - server
+      required:
+      - source
+      - formats
+      title: ExportAvailabilityResponse
+      type: object
+    ExportFormatAvailability:
+      properties:
+        dependenciesAvailable:
+          type: boolean
+        format:
+          enum:
+          - html
+          - ipynb
+          - markdown
+          - pdf
+          - script
+        missingPackages:
+          items:
+            type: string
+          type: array
+        missingSetup:
+          items:
+            $ref: '#/components/schemas/ExportSetupRequirement'
+          type: array
+      required:
+      - format
+      - dependenciesAvailable
+      - missingPackages
+      - missingSetup
+      title: ExportFormatAvailability
+      type: object
+    ExportSetupRequirement:
+      properties:
+        command:
+          type: string
+        name:
+          enum:
+          - playwright-chromium
+      required:
+      - name
+      - command
+      title: ExportSetupRequirement
       type: object
     FileCopyRequest:
       properties:
@@ -1902,6 +2105,11 @@ components:
       type: object
     FileDetailsRequest:
       properties:
+        maxBytes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         path:
           type: string
       required:
@@ -1918,6 +2126,9 @@ components:
         file:
           $ref: '#/components/schemas/FileInfo'
         isBase64:
+          default: false
+          type: boolean
+        isTooLarge:
           default: false
           type: boolean
         mimeType:
@@ -1956,6 +2167,11 @@ components:
           default: null
         path:
           type: string
+        size:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
       required:
       - id
       - path
@@ -2693,6 +2909,7 @@ components:
           - $ref: '#/components/schemas/ListSQLSchemasCommand'
           - $ref: '#/components/schemas/ValidateSQLCommand'
           - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+          - $ref: '#/components/schemas/DiscoverDataSourcesCommand'
           - $ref: '#/components/schemas/StorageListEntriesCommand'
           - $ref: '#/components/schemas/StorageDownloadCommand'
           - $ref: '#/components/schemas/ListSecretKeysCommand'
@@ -2707,6 +2924,7 @@ components:
               create-notebook: '#/components/schemas/CreateNotebookCommand'
               debug-cell: '#/components/schemas/DebugCellCommand'
               delete-cell: '#/components/schemas/DeleteCellCommand'
+              discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
               execute-cells: '#/components/schemas/ExecuteCellsCommand'
               execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
               execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
@@ -2804,6 +3022,7 @@ components:
           - $ref: '#/components/schemas/SQLTableListPreviewNotification'
           - $ref: '#/components/schemas/SQLSchemaListPreviewNotification'
           - $ref: '#/components/schemas/DataSourceConnectionsNotification'
+          - $ref: '#/components/schemas/DataSourceDiscoveryResultNotification'
           - $ref: '#/components/schemas/ValidateSQLResultNotification'
           - $ref: '#/components/schemas/StorageNamespacesNotification'
           - $ref: '#/components/schemas/StorageEntriesNotification'
@@ -2828,6 +3047,7 @@ components:
               consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
+              data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
               datasets: '#/components/schemas/DatasetsNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
@@ -4546,6 +4766,19 @@ components:
       - table
       title: SQLTablePreviewNotification
       type: object
+    SafeLiteralDiscoveryValue:
+      description: Non-sensitive metadata that is safe to send to the frontend.
+      properties:
+        kind:
+          enum:
+          - safe-literal
+        value:
+          type: string
+      required:
+      - kind
+      - value
+      title: SafeLiteralDiscoveryValue
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -5279,6 +5512,7 @@ components:
         backendType:
           enum:
           - fsspec
+          - huggingface
           - obstore
         displayName:
           type: string
@@ -6100,6 +6334,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Get cache statistics
+  /api/datasources/discover:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverDataSourcesRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Discover datasource connections
   /api/datasources/preview_column:
     post:
       parameters:
@@ -6235,6 +6490,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/Snippets'
           description: Load the snippets for the documentation page
+  /api/environment:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  Binaries:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Experimental Flags:
+                    additionalProperties: {}
+                    type: object
+                  Locale:
+                    type: string
+                  OS:
+                    type: string
+                  OS Version:
+                    type: string
+                  Optional Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Processor:
+                    type: string
+                  Python Version:
+                    type: string
+                  editable:
+                    type: boolean
+                  location:
+                    type: string
+                  marimo:
+                    type: string
+                required:
+                - marimo
+                - editable
+                - location
+                - OS
+                - OS Version
+                - Processor
+                - Python Version
+                - Locale
+                - Binaries
+                - Dependencies
+                - Optional Dependencies
+                - Experimental Flags
+                type: object
+          description: Environment information for issue reporting
   /api/export/auto_export/html:
     post:
       parameters:
@@ -6269,7 +6578,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+              $ref: '#/components/schemas/AutoExportAsIPYNBRequest'
       responses:
         200:
           content:
@@ -6291,7 +6600,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+              $ref: '#/components/schemas/AutoExportAsMarkdownRequest'
       responses:
         200:
           content:
@@ -6301,6 +6610,15 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/availability:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportAvailabilityResponse'
+          description: Readiness for server-backed exports
   /api/export/html:
     post:
       parameters:
@@ -6413,7 +6731,7 @@ paths:
                 type: string
           description: Export the notebook as a script
         400:
-          description: File must be saved before downloading
+          description: Invalid export request
   /api/export/update_cell_outputs:
     post:
       parameters:
@@ -6478,6 +6796,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileDeleteResponse'
           description: Delete a file or directory
+  /api/files/download:
+    get:
+      parameters:
+      - description: Path of the file to download
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: Stream the file as an attachment
+        400:
+          description: Path is missing or is a directory
+        403:
+          description: File downloads are disabled
+        404:
+          description: File not found
   /api/files/file_details:
     post:
       requestBody:
@@ -7476,4 +7817,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

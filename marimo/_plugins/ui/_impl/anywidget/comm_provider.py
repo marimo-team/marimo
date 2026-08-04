@@ -8,7 +8,7 @@ marimo's notification system instead of being silent no-ops.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from marimo._loggers import marimo_logger
@@ -21,6 +21,11 @@ from marimo._runtime.context import ContextNotInitializedError, get_context
 from marimo._types.ids import WidgetModelId
 
 LOGGER = marimo_logger()
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+_PATCHED_CREATE_COMM: Callable[..., Any] | None = None
 
 
 def _is_anywidget_comm(target_name: str, data: dict[str, Any] | None) -> bool:
@@ -37,8 +42,8 @@ def _is_anywidget_comm(target_name: str, data: dict[str, Any] | None) -> bool:
     return bool(state.get("_model_module") == "anywidget")
 
 
-def patch_comm_create() -> None:
-    """Replace `comm.create_comm` with a marimo-backed implementation.
+def install_anywidget_comm_provider() -> None:
+    """Install a marimo-backed comm provider for descriptor anywidgets.
 
     Only intercepts comms created by anywidget (identified by
     `target_name` and `_model_module`). All other comms fall
@@ -46,10 +51,15 @@ def patch_comm_create() -> None:
 
     This is idempotent -- calling it multiple times is safe.
     """
+    global _PATCHED_CREATE_COMM
+
     try:
         import comm
         from comm import DummyComm
     except ImportError:
+        return
+
+    if comm.create_comm is _PATCHED_CREATE_COMM:
         return
 
     def _marimo_create_comm(
@@ -101,4 +111,5 @@ def patch_comm_create() -> None:
             pass
         return c
 
+    _PATCHED_CREATE_COMM = _marimo_create_comm
     comm.create_comm = _marimo_create_comm  # type: ignore[assignment]

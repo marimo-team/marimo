@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type {
+  DataSourceDiscoveryResult,
   SQLSchemaListPreview,
   SQLTableListPreview,
   SQLTablePreview,
@@ -18,6 +19,16 @@ import type {
 // We make a request to the backend to preview the table, passing in Engine, DB, Schema, and Table
 // The backend returns data tables, which could also exist in other engines, dbs, schemas
 // Thus, we use the request ID pattern to match the response to the request
+
+export const DiscoverDataSources = new DeferredRequestRegistry<
+  {},
+  DataSourceDiscoveryResult
+>("data-source-discovery-result", async (requestId) => {
+  const client = getRequestClient();
+  await client.discoverDataSources({
+    requestId,
+  });
+});
 
 export const PreviewSQLTable = new DeferredRequestRegistry<
   Omit<PreviewSQLTableRequest, "requestId">,

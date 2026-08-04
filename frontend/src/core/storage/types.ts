@@ -61,5 +61,6 @@ export type KnownStorageProtocol =
   | "http"
   | "file"
   | "gdrive"
+  | "hf"
   | "in-memory"
   | "github";

@@ -3,7 +3,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from marimo._secrets.load_dotenv import read_dotenv_with_fallback
+from marimo._secrets.load_dotenv import (
+    escape_dotenv_value,
+    read_dotenv_with_fallback,
+)
 from marimo._secrets.models import SecretProvider
 
 
@@ -64,9 +67,9 @@ class DotEnvSecretsProvider(SecretProvider):
             if content and not ends_with_newline:
                 f.write("\n")
 
-            # Escape quotes in value if needed
-            escaped_value = value.replace('"', '\\"')
-            f.write(f'{key}="{escaped_value}"\n')
+            # Escape backslashes, quotes and newlines so the value reads back
+            # unchanged, with or without python-dotenv installed.
+            f.write(f'{key}="{escape_dotenv_value(value)}"\n')
 
     def delete_key(self, key: str) -> None:
         del key

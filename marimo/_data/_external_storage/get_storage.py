@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from marimo._data._external_storage.huggingface import HuggingfaceApi
 from marimo._data._external_storage.models import (
     StorageBackend,
     StorageNamespace,
@@ -10,7 +11,11 @@ from marimo._data._external_storage.models import (
 from marimo._data._external_storage.storage import FsspecFilesystem, Obstore
 from marimo._types.ids import VariableName
 
-STORAGE_BACKENDS: list[type[StorageBackend[Any]]] = [Obstore, FsspecFilesystem]
+STORAGE_BACKENDS: list[type[StorageBackend[Any]]] = [
+    Obstore,
+    HuggingfaceApi,
+    FsspecFilesystem,
+]
 
 
 def get_storage_backends_from_variables(

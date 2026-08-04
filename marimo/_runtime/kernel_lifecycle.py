@@ -239,8 +239,12 @@ async def listen_messages(
     while True:
         try:
             request = await get_request(control_queue)
+        except InterruptedError:
+            # Windows: SIGINT can abort a blocking queue read with EINTR;
+            # the interrupt is handled by the signal handler, keep reading.
+            continue
         except Exception as e:
-            # triggered on Windows when quit with Ctrl+C
+            # e.g. the queue's pipe was torn down by server shutdown
             LOGGER.debug("kernel queue.get() failed %s", e)
             return
 

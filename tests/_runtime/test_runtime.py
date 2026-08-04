@@ -47,6 +47,7 @@ from marimo._runtime.runtime import (
     notebook_location,
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
+from marimo._types.ids import CellId_t
 from marimo._utils.parse_dataclass import parse_raw
 from tests._messaging.mocks import MockStderr, MockStream
 from tests._runtime._helpers.factories import default_app_metadata
@@ -871,6 +872,127 @@ except NameError:
         # _sys mangled, should not be in globals
         assert "_sys" not in k.globals
         assert k.globals["msize"] == sys.maxsize
+
+    async def test_underscore_prefixed_import_in_cell(
+        self, any_kernel: Kernel
+    ) -> None:
+        # An underscore-prefixed `as` alias is cell-local (mangled), but
+        # must still resolve when used within the same cell, including in
+        # a nested decorator/body scope.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "import marimo as _mo\n"
+                        "@_mo.cache\n"
+                        "def f(x):\n"
+                        "    return _mo.md(str(x))\n"
+                        "msg = f(1)"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        # The alias is cell-local, so it never leaks into globals.
+        assert "_mo" not in k.globals
+        assert "1" in k.globals["msg"].text
+
+    async def test_underscore_prefixed_import_across_cells_no_conflict(
+        self, k: Kernel
+    ) -> None:
+        # Underscore-prefixed `as` aliases are cell-local/private: two
+        # cells may each `import sys as _sys` without triggering a
+        # MultipleDefinitionError. Each cell sees its own mangled binding.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="import sys as _sys; a = _sys.maxsize",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="import sys as _sys; b = _sys.maxsize",
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["a"] == sys.maxsize
+        assert k.globals["b"] == sys.maxsize
+        # The private alias is not promoted to a graph def.
+        assert "_sys" not in k.globals
+
+    async def test_no_alias_underscore_import_nested_scope(
+        self, any_kernel: Kernel
+    ) -> None:
+        # Regression for #9151 (MO-5835): a no-alias underscore import
+        # (`from pkg import _name`) keeps its raw name — the user cannot
+        # control the package's symbol name — so references to it in
+        # nested scopes (function bodies, decorators, class bases) must
+        # stay raw as well, not be mangled to `_cell_<id>_name`.
+        k = any_kernel
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=(
+                        "from marimo import _ast\n"
+                        "top = _ast.__name__\n"
+                        "def g():\n"
+                        "    return _ast.__name__\n"
+                        "nested = g()"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["top"] == "marimo._ast"
+        assert k.globals["nested"] == "marimo._ast"
+
+    async def test_no_alias_underscore_import_is_cell_local(
+        self, k: Kernel
+    ) -> None:
+        # MO-5949: a no-alias underscore import keeps its raw name but is
+        # still cell-local — it never becomes a graph definition, so other
+        # cells cannot read it.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="from marimo import _ast\na = _ast.__name__",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="b = _ast.__name__",
+                ),
+            ]
+        )
+        assert k.globals["a"] == "marimo._ast"
+        # The import is not shared: the other cell fails with a NameError.
+        assert "b" not in k.globals
+
+    async def test_underscore_import_public_alias_is_shared(
+        self, k: Kernel
+    ) -> None:
+        # MO-5949: aliasing an underscore-prefixed import to a name
+        # without a leading underscore makes it a regular, shared
+        # definition usable across cells.
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code="from marimo import _ast as ast_mod",
+                ),
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code="c = ast_mod.__name__",
+                ),
+            ]
+        )
+        assert not k.errors, k.errors
+        assert k.globals["c"] == "marimo._ast"
+        assert "ast_mod" in k.globals
 
     async def test_cell_transitioned_to_error_is_not_stale(
         self, lazy_kernel: Kernel
@@ -2694,6 +2816,28 @@ class TestStoredOutput:
         op_names = [op.get("op") for op in stream.operations]
         assert "missing-package-alert" in op_names
 
+    async def test_marimo_submodule_not_reported_as_missing(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        """A failed `import marimo.<x>` must not raise a missing-package alert.
+
+        marimo is always installed; a missing submodule can't be fixed by
+        installing marimo, so we never nudge callers (e.g. code_mode) to
+        install it.
+        """
+        k = mocked_kernel.k
+        assert k.packages_callbacks.package_manager is not None
+
+        await k.run(
+            [
+                exec_req.get("import marimo.this_submodule_does_not_exist"),
+            ]
+        )
+
+        stream = MockStream(mocked_kernel.stream)
+        op_names = [op.get("op") for op in stream.operations]
+        assert "missing-package-alert" not in op_names
+
 
 class TestDisable:
     async def test_disable_and_reenable_not_stale(
@@ -3369,6 +3513,188 @@ class TestSQL:
         # cell 1 should re-run but will fail to find t1
         assert "df" not in k.globals
 
+    @pytest.mark.parametrize(
+        ("catalog", "schema"),
+        [
+            (None, None),
+            (None, "main"),
+            (None, "custom-schema"),
+            ("memory", "main"),
+            ("memory", "custom-schema"),
+            # A schema containing a literal "." must not be confused with
+            # a catalog/schema separator when resolving the qualified name
+            # to drop.
+            (None, "my.schema"),
+        ],
+        ids=[
+            "unqualified",
+            "explicit-schema",
+            "custom-schema",
+            "explicit-catalog-and-schema",
+            "explicit-catalog-and-custom-schema",
+            "dotted-schema",
+        ],
+    )
+    async def test_sql_table_with_special_char_name_is_dropped(
+        self, k: Kernel, catalog: str | None, schema: str | None
+    ) -> None:
+        # Regression test for #10338: an in-memory table whose name needs
+        # quoting (e.g. a hyphen) must still be cleaned up.
+        import duckdb
+
+        resolved_schema = schema or "main"
+        if resolved_schema != "main":
+            duckdb.execute(f'CREATE SCHEMA IF NOT EXISTS "{resolved_schema}"')
+
+        def table_exists() -> bool:
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'memory' AND table_schema = ? "
+                "AND table_name = 'manual-holdings'",
+                [resolved_schema],
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        qualified_name = ".".join(
+            f'"{part}"'
+            for part in (catalog, schema, "manual-holdings")
+            if part
+        )
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
+                    code=(
+                        f"mo.sql('CREATE OR REPLACE TABLE {qualified_name} "
+                        "AS SELECT 1 AS a')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert table_exists()
+
+        # Deleting the defining cell triggers cleanup of the in-memory table.
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+        assert not table_exists()
+
+    async def test_sql_table_on_attached_catalog_is_not_dropped(
+        self, k: Kernel
+    ) -> None:
+        """
+        `CREATE TABLE <catalog>.<table>` is shorthand for
+        `<catalog>.main.<table>`, which is ambiguous with `<schema>.<table>`
+        in the default "memory" catalog. Cleanup must resolve this against
+        the real attached catalogs, so it neither leaves the attached
+        table undropped-but-mistaken-for-memory, nor drops an unrelated,
+        same-named table living in a "memory" schema of the same name.
+        """
+        import duckdb
+
+        duckdb.execute("ATTACH ':memory:' AS other_db")
+        try:
+
+            def attached_table_exists() -> bool:
+                row = duckdb.execute(
+                    """
+                    SELECT count(*) FROM information_schema.tables
+                    WHERE table_catalog = 'other_db'
+                    AND table_schema = 'main'
+                    AND table_name = 'holdings'
+                    """
+                ).fetchone()
+                assert row is not None
+                return bool(row[0] > 0)
+
+            def memory_schema_table_exists() -> bool:
+                row = duckdb.execute(
+                    """
+                    SELECT count(*) FROM information_schema.tables
+                    WHERE table_catalog = 'memory'
+                    AND table_schema = 'other_db'
+                    AND table_name = 'holdings'
+                    """
+                ).fetchone()
+                assert row is not None
+                return bool(row[0] > 0)
+
+            await k.run(
+                [
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("0"), code="import marimo as mo"
+                    ),
+                    ExecuteCellCommand(
+                        cell_id=CellId_t("1"),
+                        code=(
+                            "mo.sql('CREATE OR REPLACE TABLE other_db.holdings "
+                            "AS SELECT 1 AS a')"
+                        ),
+                    ),
+                ]
+            )
+            assert not k.errors
+            assert attached_table_exists()
+
+            # An unrelated table happens to be created afterwards in a
+            # "memory" schema with the same name as the attached catalog.
+            # Cleanup must not confuse the two.
+            duckdb.execute('CREATE SCHEMA IF NOT EXISTS "other_db"')
+            duckdb.execute(
+                'CREATE TABLE memory."other_db".holdings AS SELECT 2 AS a'
+            )
+
+            # Deleting the defining cell must not drop the attached table,
+            # and must not touch the unrelated table in memory."other_db".
+            await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+            assert attached_table_exists()
+            assert memory_schema_table_exists()
+        finally:
+            duckdb.execute("DETACH other_db")
+            duckdb.execute('DROP SCHEMA IF EXISTS memory."other_db" CASCADE')
+
+    async def test_sql_table_qualified_with_default_catalog_is_dropped(
+        self, k: Kernel
+    ) -> None:
+        # `CREATE TABLE memory.holdings ...` is a two-part
+        # name whose qualifier happens to be "memory", the default catalog's
+        # own name. DuckDB resolves this to `memory.main.holdings`, not a
+        # schema literally named "memory"; cleanup must match.
+        import duckdb
+
+        def table_exists() -> bool:
+            row = duckdb.execute(
+                "SELECT count(*) FROM information_schema.tables "
+                "WHERE table_catalog = 'memory' AND table_schema = 'main' "
+                "AND table_name = 'holdings'"
+            ).fetchone()
+            assert row is not None
+            return bool(row[0] > 0)
+
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id=CellId_t("0"), code="import marimo as mo"
+                ),
+                ExecuteCellCommand(
+                    cell_id=CellId_t("1"),
+                    code=(
+                        "mo.sql('CREATE OR REPLACE TABLE memory.holdings "
+                        "AS SELECT 1 AS a')"
+                    ),
+                ),
+            ]
+        )
+        assert not k.errors
+        assert table_exists()
+
+        await k.delete_cell(DeleteCellCommand(cell_id=CellId_t("1")))
+        assert not table_exists()
+
     async def test_sql_query_as_local_df(self, k: Kernel) -> None:
         await k.run(
             [
@@ -3802,6 +4128,66 @@ class TestErrorHandling:
         # the helper degrades to the base message; see test_tracebacks.py.
         if sys.version_info >= (3, 13):
             assert "Did you mean: 'aaa'?" in errors[0].msg
+
+    async def test_name_error_private_import_hint(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        # MO-6804 / #10223: referencing another cell's underscore import
+        # (`from ibis import _`) fails because such names are cell-local.
+        # The bare Python NameError is misleading; marimo should explain
+        # the privacy rule and suggest aliasing the import.
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get(
+                    "import sys, types\n"
+                    "_mod = types.ModuleType('fakelib')\n"
+                    "_mod._ = 42\n"
+                    "sys.modules['fakelib'] = _mod\n"
+                    "ready = True"
+                ),
+                exec_req.get("ready\nfrom fakelib import _"),
+                exec_req.get("res = _ + 1"),
+            ]
+        )
+        assert "res" not in k.globals
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].exception_type == "NameError"
+        assert "local to the cell" in errors[0].msg
+        assert "`from fakelib import _ as lib`" in errors[0].msg
+        # Blames the importing cell.
+        assert errors[0].raising_cell is not None
+
+    async def test_name_error_private_variable_hint(
+        self, mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Referencing another cell's private (underscore-prefixed)
+        # variable produces a hint about the privacy rule rather than a
+        # bare NameError with a mangled name.
+        k = mocked_kernel.k
+        await k.run(
+            [
+                exec_req.get("_x = 1"),
+                exec_req.get("y = _x"),
+            ]
+        )
+        assert "y" not in k.globals
+        cell_notifications = mocked_kernel.stream.cell_notifications
+        error_cell_notification = _filter_to_error_ops(cell_notifications)
+        assert len(error_cell_notification) == 1
+        errors = _parse_error_output(error_cell_notification[0])
+        assert len(errors) == 1
+        assert isinstance(errors[0], MarimoExceptionRaisedError)
+        assert errors[0].exception_type == "NameError"
+        # The message shows the name as written, not the mangled form.
+        assert "Name `_x` is not defined" in errors[0].msg
+        assert "remove the leading underscore" in errors[0].msg
+        assert errors[0].raising_cell is not None
 
     async def test_error_handling_in_run_mode_stop(
         self, run_mode_kernel: MockedKernel, exec_req: ExecReqProvider

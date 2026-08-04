@@ -119,6 +119,13 @@ class Cache(msgspec.Struct, omit_defaults=True):
     ui_defs: list[str] = msgspec.field(default_factory=list)
 
 
+class BlobAsset(msgspec.Struct, frozen=True):
+    data: bytes
+    media_type: str | None = None
+    filename: str | None = None
+    metadata: dict[str, Any] = msgspec.field(default_factory=dict)
+
+
 # ---------------------------------------------------------------------------
 # Unified type-to-loader registry
 # ---------------------------------------------------------------------------
@@ -135,6 +142,7 @@ class Cache(msgspec.Struct, omit_defaults=True):
 #   "npy"     — numpy .npy blob
 #   "arrow"   — Arrow IPC .arrow blob (polars and pandas)
 #   "pt"      — torch .pt blob (torch.save / torch.load)
+#   "bin"     — media-typed bytes with export metadata
 LAZY_STUB_LOOKUP: dict[str, str] = {
     "builtins.int": "inline",
     "builtins.str": "inline",
@@ -160,6 +168,7 @@ LAZY_STUB_LOOKUP: dict[str, str] = {
     # Subclasses (e.g. torch.nn.Parameter) resolve here through the MRO
     # walk in maybe_update_lazy_stub; torch.save round-trips them intact.
     "torch.Tensor": "pt",
+    "marimo._save.stubs.lazy_stub.BlobAsset": "bin",
 }
 
 
@@ -213,11 +222,17 @@ def _pickle_load(data: bytes, type_hint: str | None = None) -> Any:
     return pickle.loads(data)
 
 
+def _bin_load(data: bytes, type_hint: str | None = None) -> BlobAsset:
+    del type_hint
+    return msgspec.msgpack.decode(data, type=BlobAsset)
+
+
 BLOB_DESERIALIZERS: dict[str, Callable[[bytes, str | None], Any]] = {
     ".pickle": _pickle_load,
     ".npy": _npy_load,
     ".arrow": _arrow_load,
     ".pt": _pt_load,
+    ".bin": _bin_load,
 }
 
 # ---------------------------------------------------------------------------
@@ -234,27 +249,43 @@ def _npy_dump(obj: Any) -> bytes:
     return buf.getvalue()
 
 
+def _pandas_to_arrow_ipc(df: Any) -> bytes:
+    # Serialize via Arrow IPC. Prefer LZ4 when available so on-disk cache
+    # blobs stay compact.
+    import pyarrow as pa
+
+    buf = io.BytesIO()
+    table = pa.Table.from_pandas(df)
+    options = pa.ipc.IpcWriteOptions(
+        compression="lz4" if pa.Codec.is_available("lz4") else None
+    )
+    with pa.ipc.new_file(buf, table.schema, options=options) as writer:
+        writer.write_table(table)
+    return buf.getvalue()
+
+
 def _arrow_dump(obj: Any) -> bytes:
     # Duck-type dispatch:
     #   polars DataFrame  → write_ipc()
-    #   pandas DataFrame  → to_feather()
+    #   pandas DataFrame  → Arrow IPC via pyarrow.ipc
     #   Series (either)   → to_frame() first, then the appropriate DataFrame method
     # Fall back to pickle when pyarrow is absent so the cache write never fails.
     if not DependencyManager.pyarrow.has():
         return pickle.dumps(obj)
-    buf = io.BytesIO()
     if hasattr(obj, "write_ipc"):  # polars DataFrame
+        buf = io.BytesIO()
         obj.write_ipc(buf)
-    elif hasattr(obj, "to_feather"):  # pandas DataFrame
-        obj.to_feather(buf)
-    else:
-        # Series — promote to single-column DataFrame, then detect library
-        frame = obj.to_frame()
-        if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
-            frame.write_ipc(buf)
-        else:  # pandas Series → pandas DataFrame
-            frame.to_feather(buf)
-    return buf.getvalue()
+        return buf.getvalue()
+    if hasattr(obj, "to_feather"):  # pandas DataFrame
+        return _pandas_to_arrow_ipc(obj)
+    # Series — promote to single-column DataFrame, then detect library
+    frame = obj.to_frame()
+    if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
+        buf = io.BytesIO()
+        frame.write_ipc(buf)
+        return buf.getvalue()
+    # pandas Series → pandas DataFrame
+    return _pandas_to_arrow_ipc(frame)
 
 
 def _pt_dump(obj: Any) -> bytes:
@@ -266,11 +297,18 @@ def _pt_dump(obj: Any) -> bytes:
     return buf.getvalue()
 
 
+def _bin_dump(obj: Any) -> bytes:
+    if not isinstance(obj, BlobAsset):
+        raise TypeError(f"expected BlobAsset, got {type(obj).__name__}")
+    return msgspec.msgpack.encode(obj)
+
+
 BLOB_SERIALIZERS: dict[str, Callable[[Any], bytes]] = {
     "pickle": pickle.dumps,
     "npy": _npy_dump,
     "arrow": _arrow_dump,
     "pt": _pt_dump,
+    "bin": _bin_dump,
 }
 
 # ---------------------------------------------------------------------------

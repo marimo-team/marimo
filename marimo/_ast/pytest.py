@@ -457,17 +457,27 @@ def process_for_pytest(func: Fn, cell: Cell) -> None:
             f"Expected function or class definition, got {type(scope).__name__}"
         )
     # Get first frame not in library to insert the class.
-    # May be multiple levels if called from pytest or something.
+    # May be multiple levels if called from pytest or somewhere else.
     frames = fast_stack()
+    notebook_file = inspect.getfile(func)
 
     cls = build_test_class(
-        scope.body, run, inspect.getfile(func), name, cell.defs, frames
+        scope.body, run, notebook_file, name, cell.defs, frames
     )
 
-    # ensure marimo/_ not in frame path, using this file as a reference.
-    library = Path(__file__).parent.parent
+    # Inject the stub class into the notebook module's own frame so pytest's
+    # module-level collection finds it.
+    target = Path(notebook_file).resolve()
     for frame in frames:
-        if library not in Path(frame.filename).parents:
-            # Insert the class into the frame.
+        if Path(frame.filename).resolve() == target:
+            # At module level f_locals is the module dict, so this persists.
             frame.frame.f_locals[cls.__name__] = cls
             break
+    else:
+        # If no frame matches the notebook source, use the first frame outside
+        # the marimo package.
+        library = Path(__file__).parent.parent
+        for frame in frames:
+            if library not in Path(frame.filename).parents:
+                frame.frame.f_locals[cls.__name__] = cls
+                break

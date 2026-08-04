@@ -369,6 +369,7 @@ export function toDocumentChanges(
     case "clearCellConsoleOutput":
     case "clearAllCellOutputs":
     case "clearLogs":
+    case "addLogs":
       return [];
 
     // Editor UI state — no document changes.

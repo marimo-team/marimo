@@ -8,6 +8,10 @@ from marimo._schemas.serialization import NotebookSerialization
 from marimo._version import __version__
 
 
+class UnsupportedAsyncCodeError(ValueError):
+    pass
+
+
 def _header_for_script(ir: NotebookSerialization) -> str:
     """Extract a Python script-appropriate header from IR.
 
@@ -48,9 +52,7 @@ def convert_from_ir_to_script(ir: NotebookSerialization) -> str:
         if not cell:
             continue
         if cell._is_coroutine:
-            from click import ClickException
-
-            raise ClickException(
+            raise UnsupportedAsyncCodeError(
                 "Cannot export a notebook with async code to a flat script"
             )
 

@@ -22,6 +22,7 @@ vi.mock("../api", async () => {
   return {
     ...actual,
     API: {
+      handleExportResponse: vi.fn((response) => response.data),
       handleResponse: vi.fn((response) => response.data),
       handleResponseReturnNull: vi.fn(() => null),
     },
@@ -32,6 +33,7 @@ vi.mock("../api", async () => {
 vi.mock("../connection", () => ({
   isConnectedAtom: { read: vi.fn(() => true) },
   waitForConnectionOpen: vi.fn().mockResolvedValue(undefined),
+  waitForConnectionOpenIfNotebook: vi.fn().mockResolvedValue(undefined),
 }));
 
 describe("createNetworkRequests", () => {
@@ -112,6 +114,59 @@ describe("createNetworkRequests", () => {
           parseAs: "blob",
         }),
       );
+    });
+
+    it("exportAsScript should request a text export", async () => {
+      const requests = createNetworkRequests();
+      await requests.exportAsScript({ download: false });
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/script",
+        expect.objectContaining({
+          body: { download: false },
+          parseAs: "text",
+        }),
+      );
+    });
+
+    it("getEnvironmentInfo should GET /api/environment", async () => {
+      const requests = createNetworkRequests();
+      await requests.getEnvironmentInfo();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
+    });
+
+    it("getExportAvailability should GET /api/export/availability", async () => {
+      const requests = createNetworkRequests();
+      await requests.getExportAvailability();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
+    });
+
+    it("discoverDataSources should POST to the discovery endpoint", async () => {
+      const requests = createNetworkRequests();
+      const request = { requestId: "discovery-request" } as any;
+      await requests.discoverDataSources(request);
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/datasources/discover",
+        expect.objectContaining({
+          body: request,
+          params: expect.anything(),
+        }),
+      );
+    });
+
+    it("getPackageList should not require a kernel connection", async () => {
+      const { waitForConnectionOpen, waitForConnectionOpenIfNotebook } =
+        await import("../connection");
+
+      const requests = createNetworkRequests();
+      await requests.getPackageList();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/packages/list");
+      expect(waitForConnectionOpenIfNotebook).toHaveBeenCalled();
+      expect(waitForConnectionOpen).not.toHaveBeenCalled();
     });
 
     it("exportAsIPYNB should call the new endpoint as text", async () => {

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  type CSSProperties,
   startTransition,
   useEffect,
   useMemo,
@@ -12,7 +13,9 @@ import useEvent from "react-use-event-hook";
 import { CodeIcon, ExpandIcon, EyeOffIcon } from "lucide-react";
 import { Deck, Fragment, Slide, Stack } from "@revealjs/react";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { cellDomProps } from "@/components/editor/common";
 import { Slide as CellOutputSlide } from "@/components/slides/slide";
+import { SlideScrollContainer } from "@/components/slides/slide-scroll-hint";
 import { Button } from "@/components/ui/button";
 import { useFullScreenElement } from "@/components/ui/fullscreen";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -26,6 +29,7 @@ import { Logger } from "@/utils/Logger";
 import "./slides.css";
 import "./reveal-slides.css";
 import type {
+  DeckVerticalAlign,
   SlideConfig,
   SlidesLayout,
   SlideType,
@@ -39,6 +43,7 @@ import {
   type ComposedSubslide,
 } from "./compose-slides";
 import {
+  DEFAULT_DECK_VERTICAL_ALIGN,
   DEFAULT_DECK_TRANSITION,
   DEFAULT_SLIDE_TYPE,
   SlideSidebar,
@@ -122,18 +127,6 @@ function useSlideDimensions(ref: React.RefObject<HTMLDivElement | null>) {
   }, [ref]);
 
   return dims;
-}
-
-/**
- * Trigger a resize event on the window
- * Vega elements need to be re-measured when the container width changes.
- */
-function triggerResize(deck: RevealApi | null) {
-  if (deck?.getCurrentSlide()?.querySelector(".vega-embed, marimo-vega")) {
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("resize"));
-    });
-  }
 }
 
 // The speaker view renders this via innerHTML with `white-space: normal`, so
@@ -292,16 +285,57 @@ export function useParkedPreview(options: {
   };
 }
 
+/**
+ * Margin style that positions a slide's content vertically within the
+ * full-height slide. The content is a flex item, so the vertical margins decide
+ * where the free space lands: `auto` on both sides centers it, while pinning one
+ * side to `0` pushes content to the top or bottom. The horizontal `20px` keeps
+ * content off the slide edges regardless of alignment.
+ */
+function resolveSlideContentStyle(
+  verticalAlign: DeckVerticalAlign | undefined,
+): CSSProperties {
+  switch (verticalAlign ?? DEFAULT_DECK_VERTICAL_ALIGN) {
+    case "top":
+      return { margin: "0 20px auto" };
+    case "bottom":
+      return { margin: "auto 20px 0" };
+    default:
+      return { margin: "auto 20px" };
+  }
+}
+
+/**
+ * Renders a cell's output wrapped in a `data-cell-id`/`data-cell-name` div
+ * (see `cellDomProps`), so it can be targeted by custom CSS in the slides
+ * view just like it can in the vertical layout. The wrapper is required
+ * because `CellOutputSlide` sets its own `id` from `CellOutputId` (a
+ * different scheme than `HTMLCellId`) and its inner `OutputArea` uses
+ * `display: contents`, which can't be targeted for background/border styling.
+ */
+export const CellOutputBlock = ({ cell }: { cell: RuntimeCell }) => (
+  <div className="flex flex-col" {...cellDomProps(cell.id, cell.name)}>
+    <CellOutputSlide
+      cellId={cell.id}
+      status={cell.status}
+      output={cell.output}
+      stale={outputIsStale(cell, false)}
+    />
+  </div>
+);
+
 const SubslideView = ({
   subslide,
   resolveShowCode,
   isEditable,
   slideConfigs,
+  contentStyle,
 }: {
   subslide: ComposedSubslide<RuntimeCell>;
   resolveShowCode: (cellId: CellId) => boolean;
   isEditable: boolean;
   slideConfigs: ReadonlyMap<CellId, SlideConfig>;
+  contentStyle: CSSProperties;
 }) => {
   const { slideLevel, cumulativeByBlock } = buildSubslideNotes(
     subslide,
@@ -314,29 +348,19 @@ const SubslideView = ({
 
   return (
     <Slide>
-      <div className="h-full w-full overflow-auto flex">
+      <SlideScrollContainer>
         <div
           className={
             anyCodeShown
               ? "mo-slide-content flex flex-col gap-3"
               : "mo-slide-content"
           }
-          style={{
-            margin: "auto 20px",
-          }}
+          style={contentStyle}
         >
           {subslide.blocks.map((block, i) => {
             const rendered = block.cells.map((cell) => {
               if (!resolveShowCode(cell.id)) {
-                return (
-                  <CellOutputSlide
-                    key={cell.id}
-                    cellId={cell.id}
-                    status={cell.status}
-                    output={cell.output}
-                    stale={outputIsStale(cell, false)}
-                  />
-                );
+                return <CellOutputBlock key={cell.id} cell={cell} />;
               }
               return isEditable ? (
                 <SlideCellView key={cell.id} cell={cell} />
@@ -356,7 +380,7 @@ const SubslideView = ({
             return <ReactFragment key={i}>{rendered}</ReactFragment>;
           })}
         </div>
-      </div>
+      </SlideScrollContainer>
       {/* Outside any `.fragment`: shown only before any fragment is revealed. */}
       {slideLevel && <NotesAside text={slideLevel} />}
     </Slide>
@@ -394,14 +418,7 @@ const ParkedPreviewContent = ({
       <SlideCellReadOnlyView cell={cell} />
     );
   }
-  return (
-    <CellOutputSlide
-      cellId={cell.id}
-      status={cell.status}
-      output={cell.output}
-      stale={outputIsStale(cell, false)}
-    />
-  );
+  return <CellOutputBlock cell={cell} />;
 };
 
 // There is an upstream react bug in dev mode (https://github.com/facebook/react/issues/34840)
@@ -514,6 +531,10 @@ const RevealSlidesComponent = ({
   );
 
   const deckTransition = layout.deck?.transition ?? DEFAULT_DECK_TRANSITION;
+  const slideContentStyle = resolveSlideContentStyle(
+    layout.deck?.verticalAlign,
+  );
+
   // Reveal's Notes plugin iframes the deck for the current/upcoming-slide
   // previews. We load the same URL but as a read-only kiosk client with the
   // app chrome hidden, which `<SlidesLayoutRenderer>` interprets the same as
@@ -536,6 +557,10 @@ const RevealSlidesComponent = ({
       transition: deckTransition,
       keyboardCondition: (event: KeyboardEvent) => !Events.fromInput(event),
       url: kioskUrl,
+      // reveal.js auto-switches to its scroll view for mobile.
+      // We disable this mode because it rewrites the slide DOM that
+      // `@revealjs/react` owns, which crashes on `reveal.sync()` re-renders.
+      scrollActivationWidth: 0,
     }),
     [width, height, deckTransition, kioskUrl],
   );
@@ -657,7 +682,6 @@ const RevealSlidesComponent = ({
 
   const handleSlideChange = useEvent(() => {
     reportCurrentCell();
-    triggerResize(deckRef.current);
   });
 
   useEventListener(document, "keydown", handleParkedNavKey, { capture: true });
@@ -704,6 +728,7 @@ const RevealSlidesComponent = ({
                   resolveShowCode={resolveShowCode}
                   isEditable={isEditable}
                   slideConfigs={layout.cells}
+                  contentStyle={slideContentStyle}
                 />
               );
             }
@@ -717,6 +742,7 @@ const RevealSlidesComponent = ({
                       resolveShowCode={resolveShowCode}
                       isEditable={isEditable}
                       slideConfigs={layout.cells}
+                      contentStyle={slideContentStyle}
                     />
                   );
                 })}
@@ -743,7 +769,7 @@ const RevealSlidesComponent = ({
                     ? "mo-slide-content flex flex-col gap-3"
                     : "mo-slide-content"
                 }
-                style={{ margin: "auto 20px" }}
+                style={slideContentStyle}
               >
                 <ParkedPreviewContent
                   cell={parkedPreviewCell}

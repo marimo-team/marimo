@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import sys
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -15,26 +17,28 @@ class TestPatchCommCreate:
         import comm
 
         from marimo._plugins.ui._impl.anywidget.comm_provider import (
-            patch_comm_create,
+            install_anywidget_comm_provider,
         )
 
         original = comm.create_comm
-        patch_comm_create()
-        assert comm.create_comm is not original
-        # Restore
-        comm.create_comm = original
+        comm.create_comm = comm.DummyComm
+        try:
+            install_anywidget_comm_provider()
+            assert comm.create_comm is not comm.DummyComm
+        finally:
+            comm.create_comm = original
 
     @staticmethod
     def test_anywidget_comm_returns_marimo_comm() -> None:
         import comm
 
         from marimo._plugins.ui._impl.anywidget.comm_provider import (
-            patch_comm_create,
+            install_anywidget_comm_provider,
         )
         from marimo._plugins.ui._impl.comm import MarimoComm
 
         original = comm.create_comm
-        patch_comm_create()
+        install_anywidget_comm_provider()
         try:
             c = comm.create_comm(
                 target_name="jupyter.widget",
@@ -64,11 +68,11 @@ class TestPatchCommCreate:
         from comm import DummyComm
 
         from marimo._plugins.ui._impl.anywidget.comm_provider import (
-            patch_comm_create,
+            install_anywidget_comm_provider,
         )
 
         original = comm.create_comm
-        patch_comm_create()
+        install_anywidget_comm_provider()
         try:
             c = comm.create_comm(
                 target_name="some.other.target",
@@ -83,18 +87,36 @@ class TestPatchCommCreate:
         import comm
 
         from marimo._plugins.ui._impl.anywidget.comm_provider import (
-            patch_comm_create,
+            install_anywidget_comm_provider,
         )
 
         original = comm.create_comm
-        patch_comm_create()
-        first = comm.create_comm
-        patch_comm_create()
-        second = comm.create_comm
-        # Second patch wraps the first — both should work
-        assert first is not original
-        assert second is not original
-        comm.create_comm = original
+        comm.create_comm = comm.DummyComm
+        try:
+            install_anywidget_comm_provider()
+            first = comm.create_comm
+            install_anywidget_comm_provider()
+            assert comm.create_comm is first
+        finally:
+            comm.create_comm = original
+
+    @staticmethod
+    def test_register_formatters_installs_provider_without_anywidget() -> None:
+        import comm
+
+        from marimo._output.formatters.formatters import register_formatters
+
+        original = comm.create_comm
+        anywidget = sys.modules.pop("anywidget", None)
+        comm.create_comm = comm.DummyComm
+        try:
+            register_formatters()
+            assert comm.create_comm is not comm.DummyComm
+            assert "anywidget" not in sys.modules
+        finally:
+            comm.create_comm = original
+            if anywidget is not None:
+                sys.modules["anywidget"] = anywidget
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="anywidget/comm not installed")
@@ -107,11 +129,11 @@ class TestMaybeAsAnywidgetHtml:
             _maybe_as_anywidget_html,
         )
         from marimo._plugins.ui._impl.anywidget.comm_provider import (
-            patch_comm_create,
+            install_anywidget_comm_provider,
         )
 
         original = comm.create_comm
-        patch_comm_create()
+        install_anywidget_comm_provider()
         try:
             esm = (
                 "export default { render({ el }) { el.textContent = 'hi'; } }"

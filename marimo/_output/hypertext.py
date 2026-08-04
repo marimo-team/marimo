@@ -14,7 +14,7 @@ from marimo._output.utils import flatten_string
 from marimo._utils.methods import getcallable
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Iterator, Sequence
 
     from marimo._plugins.ui._core.ui_element import UIElement
     from marimo._plugins.ui._impl.batch import batch as batch_plugin
@@ -244,12 +244,14 @@ class Html(MIME):
         kind: Literal[
             "neutral", "danger", "warn", "success", "info"
         ] = "neutral",
+        title: str | None = None,
     ) -> Html:
         """Create a callout containing this HTML element.
 
-        A callout wraps your HTML element in a raised box, emphasizing its
-        importance. You can style the callout for different situations with the
-        `kind` argument.
+        A callout renders your HTML element in a flat, bordered box — the
+        same style as markdown admonitions — emphasizing its importance. You
+        can style the callout for different situations with the `kind`
+        argument, and optionally add a bold `title` line.
 
         Examples:
             ```python3
@@ -257,13 +259,15 @@ class Html(MIME):
             ```
 
             ```python3
-            mo.md("It's dangerous to go alone!").callout(kind="warn")
+            mo.md("It's dangerous to go alone!").callout(
+                kind="warn", title="Warning"
+            )
             ```
         """
 
         from marimo._plugins.stateless.callout import callout as _callout
 
-        return _callout(self, kind=kind)
+        return _callout(self, kind=kind, title=title)
 
     @mddoc
     def style(
@@ -289,7 +293,39 @@ class Html(MIME):
         return self.text
 
 
-class _BlockWrapped(Html):
+class ContainerHtml(Html):
+    """Base class for Html wrappers that contain other renderables.
+
+    A `ContainerHtml` holds *strong* references to its children and re-renders
+    from their live `.text` on every access. This matters for two reasons:
+
+    - UI elements are only weakly referenced by the UI element registry, so a
+      container that merely froze `child.text` at construction time would let
+      its children be garbage collected -- breaking interactivity for elements
+      returned from helper functions. Holding strong references keeps the
+      children alive, mirroring `mo.hstack`/`mo.vstack`.
+    - Mutable children (e.g. `mo.status.spinner`) re-render live rather than
+      being frozen at construction time.
+
+    Subclasses store any extra rendering state on `self` *before* calling
+    `super().__init__()` and implement `_build_text` in terms of
+    `self._children`.
+    """
+
+    def __init__(self, children: Sequence[Html]) -> None:
+        self._children: list[Html] = list(children)
+        super().__init__(self._build_text())
+
+    def _build_text(self) -> str:
+        raise NotImplementedError
+
+    @property
+    def text(self) -> str:  # type: ignore[override]
+        """Re-render children live on every access."""
+        return self._build_text()
+
+
+class _BlockWrapped(ContainerHtml):
     """Wraps another Html in a plain block `<div>`.
 
     Used by :meth:`Html.center`, :meth:`Html.left`, and :meth:`Html.right`
@@ -303,17 +339,12 @@ class _BlockWrapped(Html):
     """
 
     def __init__(self, inner: Html) -> None:
-        self._inner = inner
-        super().__init__(self._build_text())
+        super().__init__([inner])
 
     def _build_text(self) -> str:
         from marimo._output.builder import h
 
-        return h.div(self._inner.text)
-
-    @property
-    def text(self) -> str:
-        return self._build_text()
+        return h.div(self._children[0].text)
 
 
 MARIMO_NO_JS_KEY = "MARIMO_NO_JS"

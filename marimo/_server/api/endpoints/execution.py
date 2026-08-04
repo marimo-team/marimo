@@ -30,13 +30,11 @@ from marimo._server.models.models import (
     DebugCellRequest,
     ExecuteCellsRequest,
     ExecuteScratchpadRequest,
-    InstantiateNotebookRequest,
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
     SetBreakpointsRequest,
     SuccessResponse,
-    UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.sse import wait_for_http_disconnect
@@ -45,6 +43,10 @@ from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
     TakeoverDecision,
     can_take_over_editing,
+)
+from marimo._session.requests import (
+    InstantiateNotebookRequest,
+    UpdateUIElementValuesRequest,
 )
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
@@ -359,8 +361,10 @@ async def execute_code(
         run_id = str(uuid4())
         try:
             listener = ScratchCellListener(run_id=run_id)
-            with session.scoped(listener):
-                async with session.scratchpad_lock:
+            # Ensure we take a lock on the scratchpad before scoping the
+            # listener. See #10035.
+            async with session.scratchpad_lock:
+                with session.scoped(listener):
                     http_req = HTTPRequest.from_request(request)
                     server_url, auth_token = get_code_mode_credentials(
                         app_state, request

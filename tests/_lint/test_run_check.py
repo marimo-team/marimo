@@ -108,8 +108,97 @@ def __():
 
         # files with simple comments are valid notebooks with errors.
         assert not py_result.failed
+        # Plain markdown (no marimo cells/metadata) is skipped, not linted.
         assert not md_result.failed
+        assert md_result.skipped is True
         assert txt_result.skipped is True  # Not a notebook
+
+
+class TestMarkdownRecognition:
+    """Markdown is only linted when recognized as a marimo notebook."""
+
+    PLAIN_README = """# My Project
+
+A plain README with a fenced code sample:
+
+```python
+import foo
+foo.bar()
+```
+
+Nothing marimo about it.
+"""
+    MARIMO_MD = """# Title
+
+```python {.marimo}
+x = 1
+```
+"""
+    FRONTMATTER_ONLY = """---
+title: Title
+marimo-version: 0.1.0
+---
+
+# Just prose
+"""
+
+    def test_plain_markdown_is_skipped(self, tmpdir):
+        md_file = Path(tmpdir) / "README.md"
+        md_file.write_text(self.PLAIN_README)
+
+        result = run_check((str(md_file),))
+
+        assert len(result.files) == 1
+        assert result.files[0].skipped is True
+        assert result.errored is False
+        assert result.issues_count == 0
+
+    def test_plain_markdown_fix_is_noop(self, tmpdir):
+        """`--fix` must not rewrite a plain README (the reported regression)."""
+        md_file = Path(tmpdir) / "README.md"
+        md_file.write_text(self.PLAIN_README)
+
+        result = run_check((str(md_file),), fix=True)
+
+        assert result.files[0].skipped is True
+        assert result.fixed_count == 0
+        assert md_file.read_text() == self.PLAIN_README
+
+    def test_marimo_markdown_notebook_is_linted(self, tmpdir):
+        """A md notebook with a marimo fence is recognized and fixable."""
+        md_file = Path(tmpdir) / "notebook.md"
+        md_file.write_text(self.MARIMO_MD)
+
+        result = run_check((str(md_file),), fix=True)
+
+        assert result.files[0].skipped is False
+        # Frontmatter (title/marimo-version) is injected on fix.
+        assert "marimo-version:" in md_file.read_text()
+
+    def test_frontmatter_only_markdown_is_recognized(self, tmpdir):
+        """`marimo-version` frontmatter marks a notebook even with no fences."""
+        md_file = Path(tmpdir) / "notebook.md"
+        md_file.write_text(self.FRONTMATTER_ONLY)
+
+        result = run_check((str(md_file),))
+
+        assert result.files[0].skipped is False
+
+    def test_qmd_with_python_fence_is_linted(self, tmpdir):
+        qmd_file = Path(tmpdir) / "notebook.qmd"
+        qmd_file.write_text("# Title\n\n```{python}\nx = 1\n```\n")
+
+        result = run_check((str(qmd_file),))
+
+        assert result.files[0].skipped is False
+
+    def test_plain_qmd_is_skipped(self, tmpdir):
+        qmd_file = Path(tmpdir) / "doc.qmd"
+        qmd_file.write_text("---\ntitle: Doc\n---\n\n# Just prose\n")
+
+        result = run_check((str(qmd_file),))
+
+        assert result.files[0].skipped is True
 
 
 class TestFileStatus:

@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._save.encode import deterministic_dumps
+from marimo._save.encode import common_container_to_bytes, deterministic_dumps
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NUMPY = DependencyManager.numpy.has()
@@ -121,4 +121,19 @@ def test_dataframe_same_data_same_hash() -> None:
 
     assert deterministic_dumps(df1, hash_type="sha256") == deterministic_dumps(
         df2, hash_type="sha256"
+    )
+
+
+def test_bytearray_encodes_to_deterministic_bytes() -> None:
+    """A bytearray encodes to deterministic bytes that vary by content."""
+    a = common_container_to_bytes(bytearray(b"abc"))
+    assert type(a) is bytes
+    assert a == common_container_to_bytes(bytearray(b"abc"))
+    assert a != common_container_to_bytes(bytearray(b"xyz"))
+
+
+def test_bytearray_does_not_collide_with_equal_bytes() -> None:
+    """bytearray and bytes of equal content sign under distinct labels."""
+    assert common_container_to_bytes(bytearray(b"abc")) != (
+        common_container_to_bytes(b"abc")
     )

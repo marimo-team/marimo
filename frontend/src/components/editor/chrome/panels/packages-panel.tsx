@@ -303,6 +303,16 @@ const PackagesList: React.FC<{
   onSuccess: () => void;
   packages: { name: string; version: string }[];
 }> = ({ onSuccess, packages }) => {
+  // Sort case-insensitively so packages are strictly alphabetical
+  // regardless of capitalization (package managers sort inconsistently).
+  const sortedPackages = React.useMemo(
+    () =>
+      packages.toSorted((a, b) =>
+        a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
+      ),
+    [packages],
+  );
+
   if (packages.length === 0) {
     return (
       <PanelEmptyState
@@ -323,7 +333,7 @@ const PackagesList: React.FC<{
         </TableRow>
       </TableHeader>
       <TableBody>
-        {packages.map((item) => (
+        {sortedPackages.map((item) => (
           <TableRow
             key={item.name}
             className="group"

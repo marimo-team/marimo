@@ -357,7 +357,7 @@ def to_item(
         ref = _maybe_import_ref(value)
         if ref is not None:
             return Item(import_ref=ref)
-    if loader in ("pickle", "npy", "arrow", "pt"):
+    if loader in ("pickle", "npy", "arrow", "pt", "bin"):
         # Blob strategies: the file extension is the loader name, matching
         # the path `save_cache` writes (`{var}.{loader}`). Listing them
         # together keeps a new format (e.g. `pt`) from silently falling

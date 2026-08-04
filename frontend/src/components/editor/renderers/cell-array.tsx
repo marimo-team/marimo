@@ -89,22 +89,32 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   const { theme } = useTheme();
   const { toggleSidebarPanel } = useChromeActions();
 
+  const isPresenting = mode === "present";
+
   // Side-effects
   useFocusFirstEditor();
 
   // HOTKEYS
-  useHotkey("global.focusTop", actions.focusTopCell);
-  useHotkey("global.focusBottom", actions.focusBottomCell);
+  // Cell-editing hotkeys are disabled while presenting
+  const whilePresenting = { disabled: isPresenting };
+  useHotkey("global.focusTop", actions.focusTopCell, whilePresenting);
+  useHotkey("global.focusBottom", actions.focusBottomCell, whilePresenting);
   useHotkey("global.toggleSidebar", toggleSidebarPanel);
-  useHotkey("global.foldCode", actions.foldAll);
-  useHotkey("global.unfoldCode", actions.unfoldAll);
-  useHotkey("global.formatAll", () => {
-    formatAll();
-  });
+  useHotkey("global.foldCode", actions.foldAll, whilePresenting);
+  useHotkey("global.unfoldCode", actions.unfoldAll, whilePresenting);
+  useHotkey(
+    "global.formatAll",
+    () => {
+      formatAll();
+    },
+    whilePresenting,
+  );
   // Catch all to avoid native OS behavior
-  // Otherwise a user might try to hide a cell and accidentally hide the OS window
-  useHotkey("cell.hideCode", Functions.NOOP);
-  useHotkey("cell.format", Functions.NOOP);
+  // Otherwise a user might try to hide a cell and accidentally hide the OS
+  // window. While presenting, no cell editing is possible, so let the
+  // keystrokes reach the browser/OS.
+  useHotkey("cell.hideCode", Functions.NOOP, whilePresenting);
+  useHotkey("cell.format", Functions.NOOP, whilePresenting);
 
   const cellIds = useCellIds();
   const scrollKey = useScrollKey();
@@ -121,10 +131,11 @@ const CellArrayInternal: React.FC<CellArrayProps> = ({
   return (
     <VerticalLayoutWrapper
       // 'pb' allows the user to put the cell in the middle of the screen
-      className="pb-[40vh]"
+      className={cn(!isPresenting && "pb-[40vh]")}
       invisible={false}
       appConfig={appConfig}
-      innerClassName="pr-4" // For the floating actions
+      // 'pr' makes room for the floating actions
+      innerClassName={cn(!isPresenting && "pr-4")}
     >
       <PackageAlert />
       <StartupLogsAlert />
@@ -186,6 +197,7 @@ const CellColumn: React.FC<{
 
   const hasOnlyOneCell = cellIds.hasOnlyOneId();
   const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
+  const isPresenting = mode === "present";
 
   return (
     <Column
@@ -195,8 +207,9 @@ const CellColumn: React.FC<{
       canMoveRight={index < columnsLength - 1}
       width={appConfig.width}
       canDelete={columnsLength > 1}
+      presenting={isPresenting}
       footer={
-        hideControls ? null : (
+        hideControls || isPresenting ? null : (
           <AddCellButtons
             columnId={columnId}
             className={cn(

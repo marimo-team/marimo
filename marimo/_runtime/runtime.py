@@ -142,7 +142,10 @@ from marimo._runtime.runner.hooks import (
 )
 from marimo._runtime.scratch import SCRATCH_CELL_ID
 from marimo._runtime.state import State
-from marimo._runtime.win32_interrupt_handler import Win32InterruptHandler
+from marimo._runtime.win32_interrupt_handler import (
+    Win32InterruptHandler,
+    ignore_console_ctrl_c,
+)
 from marimo._secrets.load_dotenv import (
     load_dotenv_with_fallback,
 )
@@ -156,7 +159,11 @@ from marimo._sql.engines.types import (
 from marimo._sql.get_engines import (
     get_engines_from_variables,
 )
-from marimo._tracer import kernel_tracer
+from marimo._sql.sql_quoting import (
+    quote_qualified_name,
+    quote_sql_identifier,
+)
+from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
 from marimo._utils.lifespans import Lifespans
@@ -437,6 +444,53 @@ class CellMetadata:
     """
 
     config: CellConfig = dataclasses.field(default_factory=CellConfig)
+
+
+def _get_attached_catalogs() -> set[str]:
+    """Fetch the names of all catalogs currently attached to DuckDB."""
+    import duckdb
+
+    try:
+        return {
+            row[0].lower()
+            for row in duckdb.sql(
+                "SELECT database_name FROM duckdb_databases()"
+            ).fetchall()
+        }
+    except Exception:
+        return set()
+
+
+def _in_memory_qualified_name(
+    variable: VariableData,
+    name: Name,
+    attached_catalogs: Callable[[], set[str]],
+) -> str | None:
+    """Resolve the quoted, qualified name of an in-memory table/view.
+
+    Returns `None` if the object doesn't live in the "memory" catalog.
+
+    `attached_catalogs` lazily resolves DuckDB's attached catalogs; callers
+    should memoize it when resolving many names, to avoid repeated queries.
+    """
+    sql_ref = variable.sql_ref
+    catalog = sql_ref.catalog if sql_ref else None
+    schema = sql_ref.schema if sql_ref else None
+
+    if catalog is None and schema is not None:
+        # A two-part name (e.g. `CREATE TABLE foo.bar ...`) is ambiguous:
+        # `foo` could be a schema in the default "memory" catalog, or
+        # shorthand for the catalog `foo` (i.e. `foo.main.bar`). Disambiguate
+        # against DuckDB's actual attached catalogs, so we don't mistake an
+        # attached database for a "memory" schema (or vice versa).
+        if schema.lower() in attached_catalogs():
+            catalog, schema = schema, "main"
+
+    catalog = catalog or "memory"
+    if catalog != "memory":
+        return None
+    schema = schema or "main"
+    return quote_qualified_name(catalog, schema, name)
 
 
 class Kernel:
@@ -995,6 +1049,15 @@ class Kernel:
         exclude_defs: set[Name],
     ) -> None:
         """Delete `names` from kernel, except for `exclude_defs`"""
+        # Memoize the attached-catalog lookup
+        attached_catalogs: set[str] | None = None
+
+        def get_attached_catalogs() -> set[str]:
+            nonlocal attached_catalogs
+            if attached_catalogs is None:
+                attached_catalogs = _get_attached_catalogs()
+            return attached_catalogs
+
         for name, variable_data in variables.items():
             # Take the last definition of the variable
             variable = variable_data[-1]
@@ -1006,23 +1069,36 @@ class Kernel:
 
                 # We only drop in-memory tables: we don't want to drop tables
                 # on databases!
-                try:
-                    duckdb.execute(f"DROP TABLE IF EXISTS memory.main.{name}")
-                except Exception as e:
-                    LOGGER.warning("Failed to drop table %s: %s", name, str(e))
+                qualified = _in_memory_qualified_name(
+                    variable, name, get_attached_catalogs
+                )
+                if qualified is not None:
+                    try:
+                        duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to drop table %s: %s", name, str(e)
+                        )
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
                 # We only drop in-memory views for the same reason.
-                try:
-                    duckdb.execute(f"DROP VIEW IF EXISTS memory.main.{name}")
-                except Exception as e:
-                    LOGGER.warning("Failed to drop view %s: %s", name, str(e))
+                qualified = _in_memory_qualified_name(
+                    variable, name, get_attached_catalogs
+                )
+                if qualified is not None:
+                    try:
+                        duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
+                    except Exception as e:
+                        LOGGER.warning(
+                            "Failed to drop view %s: %s", name, str(e)
+                        )
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
                 try:
-                    duckdb.execute(f"DETACH DATABASE IF EXISTS {name}")
+                    identifier = quote_sql_identifier(name)
+                    duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
                     LOGGER.warning(
                         "Failed to detach catalog %s: %s", name, str(e)
@@ -2338,7 +2414,12 @@ class Kernel:
         acquiring an RLock costs ~100ns so the overhead is negligible.
         """
         LOGGER.debug("Acquiring globals lock to handle request %s", request)
-        with self.lock_globals():
+        # Link kernel spans to the trace of the originating HTTP request (if
+        # the request carried W3C trace headers), so distributed traces span
+        # the server and the kernel.
+        http_request = getattr(request, "request", None)
+        headers = getattr(http_request, "headers", None)
+        with self.lock_globals(), attach_trace_context(headers):
             LOGGER.debug("Handling control request: %s", request)
             await self.router.dispatch(request)
             LOGGER.debug("Handled control request: %s", request)
@@ -2425,6 +2506,8 @@ def _bootstrap_subprocess(
     if sys.platform != "win32":
         os.setsid()
         start_parent_poller(parent_pid)
+    else:
+        ignore_console_ctrl_c()
 
     # The runtime process inherits the server's loop policy. On Windows, we
     # restore the event loop policy to the default ProactorEventLoop, so

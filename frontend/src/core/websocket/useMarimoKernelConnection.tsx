@@ -42,6 +42,7 @@ import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
 import type { ConnectionName } from "../datasets/engines";
 import {
+  DiscoverDataSources,
   PreviewSQLSchemaList,
   PreviewSQLTable,
   PreviewSQLTableList,
@@ -393,6 +394,9 @@ export function useMarimoKernelConnection(opts: {
         return;
       case "validate-sql-result":
         ValidateSQL.resolve(msg.data.request_id as RequestId, msg.data);
+        return;
+      case "data-source-discovery-result":
+        DiscoverDataSources.resolve(msg.data.request_id as RequestId, msg.data);
         return;
       case "secret-keys-result":
         SECRETS_REGISTRY.resolve(msg.data.request_id, msg.data);

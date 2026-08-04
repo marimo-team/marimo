@@ -277,25 +277,22 @@ describe("WidgetBinding receives a host in render props", () => {
   });
 });
 
-describe("host-mounted views hydrate like display-mounted ones", () => {
-  it("replays current state to a child's render listeners", async () => {
-    const childId = asModelId("host-hydration-child");
+describe("host-mounted views", () => {
+  it("render with the child's current model state", async () => {
+    const childId = asModelId("host-child-state");
     const parentController = new AbortController();
     const getModuleSpy = vi.spyOn(WIDGET_DEF_REGISTRY, "getModule");
     try {
       const childWidget = {
         render: vi.fn(({ model, el }) => {
-          el.textContent = "count is 5";
-          model.on("change:count", () => {
-            el.textContent = `count is ${model.get("count")}`;
-          });
+          el.textContent = `count is ${model.get("count")}`;
         }),
       };
       const childModel = new Model<ModelState>({ count: 8 }, createMockComm());
       WIDGET_REGISTRY.setModel(childId, childModel);
       WIDGET_REGISTRY.setSpec(childId, {
-        url: "./@file/10-host-hydration-child.js",
-        hash: "hash-host-hydration-child",
+        url: "./@file/10-host-child-state.js",
+        hash: "hash-host-child-state",
       });
       getModuleSpy.mockResolvedValue({ default: childWidget });
 

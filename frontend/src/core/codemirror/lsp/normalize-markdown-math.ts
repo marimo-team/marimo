@@ -6,8 +6,10 @@ import type * as LSP from "vscode-languageserver-protocol";
 const INLINE_MATH_ROLE_REGEX = /(?<!`):math:`([^\n`]+)`/g;
 // Matches role variant with HTML code tag: :math:<code>...</code>
 const INLINE_MATH_ROLE_CODE_REGEX = /:math:\s*<code>(.+?)<\/code>/gs;
-// Matches display bracket delimiters: \[...\]
-const DISPLAY_BRACKET_REGEX = /\\\[(.+?)\\]/gs;
+// Matches display bracket delimiters: \[...\]. Must start a line or follow
+// whitespace, so escaped brackets in type annotations (`Optional\[Callable\]`)
+// are not read as math.
+const DISPLAY_BRACKET_REGEX = /(?<!\S)\\\[(.+?)\\]/gs;
 // Matches inline paren delimiters: \(...\)
 const INLINE_PAREN_REGEX = /\\\((.+?)\\\)/gs;
 // Matches display dollar delimiters: $$...$$
@@ -36,6 +38,8 @@ export function normalizeMarkdownMath(markdown: string): string {
     return markdown;
   }
 
+  // Segments are split on line boundaries, so the newline between two of them
+  // belongs to neither and has to be restored on join.
   return splitByFencedCodeBlocks(markdown)
     .map((segment) => {
       if (segment.isFenced) {
@@ -55,7 +59,7 @@ export function normalizeMarkdownMath(markdown: string): string {
         })
         .join("");
     })
-    .join("");
+    .join("\n");
 }
 
 /**
@@ -132,7 +136,7 @@ function containsMathSyntax(markdown: string): boolean {
     markdown.includes(".. math::") ||
     markdown.includes(":math:`") ||
     // Detects display bracket delimiters.
-    /\\\[[\S\s]+?\\]/.test(markdown) ||
+    /(?<!\S)\\\[[\S\s]+?\\]/.test(markdown) ||
     // Detects inline paren delimiters.
     /\\\([\S\s]+?\\\)/.test(markdown) ||
     // Detects display dollar delimiters.

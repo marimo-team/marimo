@@ -70,7 +70,9 @@ if TYPE_CHECKING:
     from pydantic_ai.providers.bedrock import (
         BedrockProvider as PydanticBedrock,
     )
-    from pydantic_ai.providers.google import GoogleProvider as PydanticGoogle
+    from pydantic_ai.providers.google import (
+        BaseGoogleProvider as PydanticGoogleProvider,
+    )
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
@@ -388,9 +390,11 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         return toolset, output_type
 
 
-class GoogleProvider(PydanticProvider["PydanticGoogle"]):
+class GoogleProvider(PydanticProvider["PydanticGoogleProvider"]):
     @override
-    def create_provider(self, config: AnyProviderConfig) -> PydanticGoogle:
+    def create_provider(
+        self, config: AnyProviderConfig
+    ) -> PydanticGoogleProvider:
         from pydantic_ai.providers.google import (
             GoogleProvider as PydanticGoogle,
         )
@@ -404,6 +408,10 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
             os.getenv("GOOGLE_GENAI_USE_VERTEXAI", "").lower() == "true"
         )
         if use_vertex:
+            from pydantic_ai.providers.google_cloud import (
+                GoogleCloudProvider as PydanticGoogleCloud,
+            )
+
             project = os.getenv("GOOGLE_CLOUD_PROJECT")
             # Upstream (pydantic-ai) defaults to us-central1 if not set
             location = os.getenv("GOOGLE_CLOUD_LOCATION") or None
@@ -414,16 +422,13 @@ class GoogleProvider(PydanticProvider["PydanticGoogle"]):
                     "Set this env var if your project has region restrictions."
                 )
                 LOGGER.info(location_msg)
-            # The type stubs don't have an overload that combines vertexai
-            # with project/location, but the runtime supports it
-            provider: PydanticGoogle = PydanticGoogle(  # type: ignore[call-overload]
-                vertexai=True,
+            return PydanticGoogleCloud(
                 project=project,
                 location=location,
             )
-        else:
-            # Try default initialization which may work with environment variables
-            provider = PydanticGoogle()  # type: ignore[call-overload]
+
+        # Try default initialization which may work with environment variables
+        provider: PydanticGoogleProvider = PydanticGoogle()  # type: ignore[call-overload]
         return provider
 
     @override

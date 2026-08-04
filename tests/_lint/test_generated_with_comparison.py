@@ -123,3 +123,46 @@ def test():
 
     # Should return True (one has __generated_with, one doesn't)
     assert contents_differ_excluding_generated_with(original, generated)
+
+
+def test_markdown_marimo_version_ignored():
+    """Markdown notebooks record the version in frontmatter, not code."""
+
+    original = """---
+title: Notebook
+marimo-version: 0.23.6
+---
+
+# Heading
+"""
+
+    generated = """---
+title: Notebook
+marimo-version: 0.23.13
+---
+
+# Heading
+"""
+
+    # Version-only frontmatter differences are not meaningful.
+    assert not contents_differ_excluding_generated_with(original, generated)
+
+
+def test_markdown_real_changes_still_detected():
+    """Real markdown differences are still detected despite version stripping."""
+
+    original = """---
+marimo-version: 0.23.6
+---
+
+# Heading
+"""
+
+    generated = """---
+marimo-version: 0.23.13
+---
+
+# Different heading
+"""
+
+    assert contents_differ_excluding_generated_with(original, generated)

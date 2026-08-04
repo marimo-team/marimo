@@ -3,6 +3,8 @@ export const Constants = {
   githubPage: "https://github.com/marimo-team/marimo",
   releasesPage: "https://github.com/marimo-team/marimo/releases",
   issuesPage: "https://github.com/marimo-team/marimo/issues",
+  bugReportUrl:
+    "https://github.com/marimo-team/marimo/issues/new?template=bug_report.yaml",
   feedbackForm: "https://marimo.io/feedback",
   discordLink: "https://marimo.io/discord?ref=notebook",
   docsPage: "https://docs.marimo.io",
@@ -50,6 +52,12 @@ export const KnownQueryParams = {
    * If false, the chrome will be hidden.
    */
   showChrome: "show-chrome",
+  /**
+   * Override the display theme: `light`, `dark`, or `system`.
+   * Takes precedence over the notebook's saved `display.theme`.
+   * Ignored for embedded islands, which infer the theme from their host page.
+   */
+  theme: "theme",
 };
 
 /**

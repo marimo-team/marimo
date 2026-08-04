@@ -99,7 +99,7 @@ class TestExternalStorageErrors:
                 prefix=None,
                 error=(
                     "Variable 'not_storage' is not a compatible "
-                    "storage backend (expected obstore or fsspec)"
+                    "storage backend (expected obstore, huggingface_hub.HfApi, or fsspec)"
                 ),
             )
         ]
@@ -165,7 +165,7 @@ class TestExternalStorageErrors:
                 filename=None,
                 error=(
                     "Variable 'not_storage' is not a compatible "
-                    "storage backend (expected obstore or fsspec)"
+                    "storage backend (expected obstore, huggingface_hub.HfApi, or fsspec)"
                 ),
             )
         ]

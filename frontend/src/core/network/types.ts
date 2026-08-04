@@ -17,12 +17,23 @@ export type CellConfig = schemas["CellConfig"];
 export type RuntimeState = schemas["CellNotification"]["status"];
 export type CodeCompletionRequest = schemas["CodeCompletionRequest"];
 export type DeleteCellRequest = schemas["DeleteCellRequest"];
+export type AutoExportAsIPYNBRequest = schemas["AutoExportAsIPYNBRequest"];
+export type AutoExportAsMarkdownRequest =
+  schemas["AutoExportAsMarkdownRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
 export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
+export type ExportAvailabilityResponse = schemas["ExportAvailabilityResponse"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
+
+export interface ExportedFile<T extends BlobPart = BlobPart> {
+  contents: T;
+  filename: string;
+  mediaType: string;
+}
+
 export type FileCopyRequest = schemas["FileCopyRequest"];
 export type FileCopyResponse = schemas["FileCopyResponse"];
 export type FileCreateRequest = schemas["FileCreateRequest"];
@@ -64,6 +75,7 @@ export type ListSQLTablesRequest = schemas["ListSQLTablesRequest"];
 export type ListSQLSchemasRequest = schemas["ListSQLSchemasRequest"];
 export type ListDataSourceConnectionRequest =
   schemas["ListDataSourceConnectionRequest"];
+export type DiscoverDataSourcesRequest = schemas["DiscoverDataSourcesRequest"];
 export type ValidateSQLRequest = schemas["ValidateSQLRequest"];
 export type DebugCellRequest = schemas["DebugCellRequest"];
 export type SetBreakpointsRequest = schemas["SetBreakpointsRequest"];
@@ -107,6 +119,8 @@ export type UpdateUIElementValuesRequest =
   schemas["UpdateUIElementValuesRequest"];
 export type UsageResponse =
   paths["/api/usage"]["get"]["responses"]["200"]["content"]["application/json"];
+export type EnvironmentInfo =
+  paths["/api/environment"]["get"]["responses"]["200"]["content"]["application/json"];
 export type WorkspaceFilesRequest = schemas["WorkspaceFilesRequest"];
 export type WorkspaceFilesResponse = schemas["WorkspaceFilesResponse"];
 export type RunningNotebooksResponse = schemas["RunningNotebooksResponse"];
@@ -168,9 +182,11 @@ export interface EditRequests {
   previewDataSourceConnection: (
     request: ListDataSourceConnectionRequest,
   ) => Promise<null>;
+  discoverDataSources: (request: DiscoverDataSourcesRequest) => Promise<null>;
   validateSQL: (request: ValidateSQLRequest) => Promise<null>;
   openFile: (request: { path: string; lineNumber?: number }) => Promise<null>;
   getUsageStats: () => Promise<UsageResponse>;
+  getEnvironmentInfo: () => Promise<EnvironmentInfo>;
   // Debugger
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
@@ -188,7 +204,9 @@ export interface EditRequests {
     request: FileMoveRequest,
   ) => Promise<FileMoveResponse>;
   sendUpdateFile: (request: FileUpdateRequest) => Promise<FileUpdateResponse>;
-  sendFileDetails: (request: { path: string }) => Promise<FileDetailsResponse>;
+  sendFileDetails: (
+    request: FileDetailsRequest,
+  ) => Promise<FileDetailsResponse>;
   // Homepage requests
   openTutorial: (request: OpenTutorialRequest) => Promise<MarimoFile>;
   getRecentFiles: () => Promise<RecentFilesResponse>;
@@ -200,13 +218,21 @@ export interface EditRequests {
     request: ShutdownSessionRequest,
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
-  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<string>;
-  exportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<string>;
-  exportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<string>;
-  exportAsPDF: (request: ExportAsPDFRequest) => Promise<Blob>;
+  getExportAvailability: () => Promise<ExportAvailabilityResponse>;
+  exportAsHTML: (request: ExportAsHTMLRequest) => Promise<ExportedFile<string>>;
+  exportAsIPYNB: (
+    request: ExportAsIPYNBRequest,
+  ) => Promise<ExportedFile<string>>;
+  exportAsMarkdown: (
+    request: ExportAsMarkdownRequest,
+  ) => Promise<ExportedFile<string>>;
+  exportAsScript: (
+    request: ExportAsScriptRequest,
+  ) => Promise<ExportedFile<string>>;
+  exportAsPDF: (request: ExportAsPDFRequest) => Promise<ExportedFile<Blob>>;
   autoExportAsHTML: (request: ExportAsHTMLRequest) => Promise<null>;
-  autoExportAsMarkdown: (request: ExportAsMarkdownRequest) => Promise<null>;
-  autoExportAsIPYNB: (request: ExportAsIPYNBRequest) => Promise<null>;
+  autoExportAsMarkdown: (request: AutoExportAsMarkdownRequest) => Promise<null>;
+  autoExportAsIPYNB: (request: AutoExportAsIPYNBRequest) => Promise<null>;
   updateCellOutputs: (request: UpdateCellOutputsRequest) => Promise<null>;
   // Package requests
   getPackageList: () => Promise<ListPackagesResponse>;

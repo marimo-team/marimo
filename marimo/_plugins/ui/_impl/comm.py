@@ -16,9 +16,6 @@ from marimo._messaging.notification import (
     ModelUpdate,
 )
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._plugins.ui._impl.anywidget.widget_ref import (
-    AnyWidgetStateSerializer,
-)
 from marimo._runtime.commands import (
     ModelCommand,
     ModelUpdateMessage,
@@ -113,13 +110,10 @@ def _create_model_message(
 ) -> ModelMessage | None:
     """Create the appropriate ModelMessage based on the method field.
 
-    Returns None for unknown methods that should be skipped. `data` is
-    the ipywidgets-shaped comm payload; `esm_spec` is minted by the
-    comm itself, never supplied by comm callers.
-
-    `echo_update` is coerced to `ModelUpdate`: marimo has no echo
-    protocol, and dropping echoes would lose frontend-driven trait
-    changes from reconnect replay.
+    Returns None for methods that should be skipped, including
+    `echo_update`. `data` is the ipywidgets-shaped comm payload;
+    `esm_spec` is minted by the comm itself, never supplied by comm
+    callers.
     """
     bbuffers = [_ensure_bytes(b) for b in buffers]
     method = data.get("method", "update")
@@ -146,14 +140,11 @@ def _create_model_message(
             buffers=bbuffers,
         )
     elif method == "echo_update":
-        # Preserve frontend-driven trait changes for reconnect replay.
-        # anywidget/ipywidgets can emit echo_update as the synchronisation
-        # acknowledgement path; dropping it causes stale replay state.
-        return ModelUpdate(
-            state=state,
-            buffer_paths=buffer_paths,
-            buffers=bbuffers,
-        )
+        # ipywidgets' acknowledgement of a client write. Broadcasting
+        # it would feed the write back into the sender's model,
+        # re-firing change listeners. Reconnect replay records client
+        # writes server-side instead (SessionView.add_control_request).
+        return None
     else:
         LOGGER.warning("Unknown method: %s, skipping", method)
         return None
@@ -216,10 +207,6 @@ class MarimoComm:
         LOGGER.debug("Opening comm %s", self.comm_id)
         data = dict(data or {})
         state = data.get("state", {})
-        self._state_serializer = AnyWidgetStateSerializer(state)
-        state = self._state_serializer.serialize(state)
-        if "state" in data:
-            data["state"] = state
         esm = state.get("_esm")
         self.esm_spec: EsmSpec | None = (
             EsmSpec.from_esm(esm) if isinstance(esm, str) and esm else None
@@ -263,9 +250,6 @@ class MarimoComm:
         LOGGER.debug("Sending comm message %s", self.comm_id)
         data = dict(data or {})
         state = data.get("state")
-        state = self._state_serializer.serialize(state)
-        if "state" in data:
-            data["state"] = state
         changed_spec: EsmSpec | None = None
         if isinstance(state, dict) and "_esm" in state:
             esm = state["_esm"]

@@ -15,6 +15,7 @@ import {
   parseIslandElement,
   parseIslandElementsIntoApps,
   parseMarimoIslandApps,
+  retainIslandSource,
 } from "../parse";
 import { createMockIslandElement, createMockIslands } from "./test-utils.tsx";
 
@@ -53,6 +54,7 @@ function appendPayload(
   script.type = ISLANDS_JSON_SCRIPT_TYPE;
   script.textContent = JSON.stringify(payload);
   root.appendChild(script);
+  return script;
 }
 
 describe("createMarimoFile", () => {
@@ -316,6 +318,39 @@ describe("parseIslandElement", () => {
     const result = parseIslandElement(element);
 
     expect(result).toBeNull();
+  });
+
+  it("uses retained source after the custom element renders", () => {
+    const element = document.createElement(ISLAND_TAG_NAMES.ISLAND);
+    retainIslandSource(element, {
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    expect(parseIslandElement(element)).toEqual({
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    retainIslandSource(element, { code: "", output: "<div>static</div>" });
+    expect(parseIslandElement(element)).toBeNull();
+  });
+
+  it("prefers new live source when an island element is reused", () => {
+    const element = createMockIslandElement({
+      code: 'print("new")',
+      innerHTML: "<div>new output</div>",
+    });
+    element.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    retainIslandSource(element, {
+      code: 'print("retained")',
+      output: "<div>retained output</div>",
+    });
+
+    expect(parseIslandElement(element)).toEqual({
+      code: 'print("new")',
+      output: "<div>new output</div>",
+    });
   });
 });
 
@@ -628,6 +663,76 @@ describe("parseMarimoIslandApps", () => {
     expect(island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)?.innerHTML).toBe(
       "<div>payload</div>",
     );
+  });
+
+  it("preserves payload-backed cells after a non-materializing capability probe", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-2",
+      code: "dom_code = True",
+      innerHTML: "<div>dom output</div>",
+    });
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell({ cellId: "cell-2" })],
+    });
+    const originalIsland = island.outerHTML;
+
+    const probed = parseMarimoIslandApps(container, { materialize: false });
+
+    expect(probed).toHaveLength(1);
+    expect(island.outerHTML).toBe(originalIsland);
+
+    expect(parseMarimoIslandApps(container)).toEqual(probed);
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_ID)).toBeNull();
+    expect(island.getAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX)).toBe("0");
+  });
+
+  it("refreshes a reused payload anchor when its content changes", () => {
+    const island = createMockIslandElement({
+      appId: "app1",
+      cellId: "cell-1",
+      code: 'print("dom")',
+      innerHTML: "<div>dom output</div>",
+    });
+    island.insertAdjacentHTML(
+      "beforeend",
+      '<div data-marimo-element><marimo-code-editor data-initial-value="old"></marimo-code-editor></div>',
+    );
+    island.setAttribute(ISLAND_DATA_ATTRIBUTES.REACTIVE, "true");
+    container.appendChild(island);
+    const script = appendPayload(container, {
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [createPayloadCell()],
+    });
+    parseMarimoIslandApps(container);
+
+    script.textContent = JSON.stringify({
+      schemaVersion: 1,
+      appId: "app1",
+      cells: [
+        createPayloadCell({
+          code: 'print("updated")',
+          outputHtml: "<div>updated output</div>",
+        }),
+      ],
+    });
+
+    parseMarimoIslandApps(container);
+
+    expect(extractIslandCodeFromEmbed(island)).toBe('print("updated")');
+    expect(island.querySelector(ISLAND_TAG_NAMES.CELL_OUTPUT)?.innerHTML).toBe(
+      "<div>updated output</div>",
+    );
+    expect(
+      island
+        .querySelector(ISLAND_TAG_NAMES.CODE_EDITOR)
+        ?.getAttribute("data-initial-value"),
+    ).toBe(JSON.stringify('print("updated")'));
   });
 
   it("should parse Python-generated island payload snapshots", () => {

@@ -648,8 +648,7 @@ describe("updateCellOutputsWithScreenshots", () => {
     );
     expect(toast).toHaveBeenCalledWith({
       title: "Failed to capture cell outputs",
-      description:
-        "Some outputs may not appear in the PDF. Continuing with export.",
+      description: "Some outputs may be missing from the export. Continuing.",
       variant: "danger",
     });
   });
@@ -679,8 +678,7 @@ describe("updateCellOutputsWithScreenshots", () => {
     );
     expect(toast).toHaveBeenCalledWith({
       title: "Failed to capture cell outputs",
-      description:
-        "Some outputs may not appear in the PDF. Continuing with export.",
+      description: "Some outputs may be missing from the export. Continuing.",
       variant: "danger",
     });
   });

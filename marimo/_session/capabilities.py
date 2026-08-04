@@ -48,6 +48,7 @@ _READ_COMMANDS: frozenset[type] = frozenset(
         commands.ListSQLSchemasCommand,
         commands.ValidateSQLCommand,
         commands.ListDataSourceConnectionCommand,
+        commands.DiscoverDataSourcesCommand,
         commands.StorageListEntriesCommand,
         commands.StorageDownloadCommand,
         commands.ListSecretKeysCommand,

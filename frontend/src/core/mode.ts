@@ -55,20 +55,22 @@ export async function runDuringPresentMode(
   fn: () => void | Promise<void>,
 ): Promise<void> {
   const state = store.get(viewStateAtom);
-  if (state.mode === "present") {
+  if (state.mode !== "edit") {
     await fn();
     return;
   }
 
   store.set(viewStateAtom, { ...state, mode: "present" });
-  // Wait 100ms to allow the page to render
-  await new Promise((resolve) => setTimeout(resolve, 100));
-  // Wait 2 frames
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await fn();
-  store.set(viewStateAtom, { ...state, mode: "edit" });
-  return undefined;
+  try {
+    // Wait 100ms to allow the page to render
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Wait 2 frames
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    await fn();
+  } finally {
+    store.set(viewStateAtom, state);
+  }
 }
 
 export const viewStateAtom = atom<ViewState>({
@@ -77,6 +79,16 @@ export const viewStateAtom = atom<ViewState>({
 });
 
 export const initialModeAtom = atom<AppMode | undefined>(undefined);
+
+/**
+ * Whether the current page hosts a notebook, and so connects to a kernel.
+ * False for non-notebook pages (home, gallery), which are served without a
+ * session.
+ */
+export function isNotebookPage(): boolean {
+  const mode = store.get(initialModeAtom);
+  return mode !== "home" && mode !== "gallery";
+}
 
 export const kioskModeAtom = atom<boolean>(false);
 

@@ -11,7 +11,7 @@
 
 import marimo
 
-__generated_with = "0.23.6"
+__generated_with = "0.23.15"
 app = marimo.App()
 
 
@@ -63,6 +63,23 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
+    /// Tip | Admonitions
+    Write admonitions or callouts with the following syntax:
+    ```text
+    /// Tip | Title
+    Admonition text body
+    ///
+    ```
+
+    Supported kinds include Note, Tip, Hint, Important, Warning, and Danger.
+    ///
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
     ## LaTeX
     You can embed LaTeX in Markdown.
 
@@ -95,31 +112,24 @@ def _(mo):
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.accordion(
-        {
-            "Tip: `r''` strings": mo.md(
-                "Use `r''` strings to remove the need to escape backslashes"
-                " when writing LaTeX."
-            )
-        }
-    )
+    mo.md(r"""
+    /// Note | `r''` strings
+    Use `r''` strings to remove the need to escape backslashes when writing LaTeX.
+    ///
+    """)
     return
 
 
 @app.cell(hide_code=True)
 def _(mo):
-    mo.accordion(
-        {
-            "Note: KaTeX": mo.md(
-                """
-                marimo actually uses KaTeX, a math typesetting library for the
-                web which supports a subset of LaTeX. For a list of
-                (un)supported commands, visit
-                https://katex.org/docs/support_table
-                """
-            )
-        }
-    )
+    mo.md(r"""
+    /// Note | KaTeX
+    marimo uses KaTeX, a math typesetting library for the
+    web which supports a subset of LaTeX. For a list of
+    (un)supported commands, visit
+    https://katex.org/docs/support_table
+    ///
+    """)
     return
 
 
@@ -143,7 +153,6 @@ def _(mo, np, plt):
         _x = np.linspace(start=0, stop=2 * np.pi)
         plt.plot(_x, np.sin(_x))
         return plt.gca()
-
 
     mo.md(
         f"""
@@ -211,12 +220,10 @@ def _(mo):
 def _(mo, np):
     import polars as pl
 
-
     def make_dataframe():
         x = np.linspace(0, 2 * np.pi, 10)
         y = np.sin(x)
         return pl.DataFrame({"x": x, "sin(x)": y})
-
 
     mo.md(
         f"""

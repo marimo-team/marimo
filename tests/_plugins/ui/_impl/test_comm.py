@@ -2,15 +2,11 @@ from __future__ import annotations
 
 import sys
 import threading
-from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from marimo._plugins.ui._impl.anywidget.init import CommLifecycleItem
-from marimo._plugins.ui._impl.anywidget.widget_ref import (
-    AnyWidgetStateSerializer,
-)
 from marimo._plugins.ui._impl.comm import (
     MarimoComm,
     MarimoCommManager,
@@ -168,8 +164,8 @@ def test_comm_broadcast(comm: MarimoComm):
         assert notification.model_id == comm.comm_id
 
 
-def test_comm_broadcast_echo_update(comm: MarimoComm):
-    """echo_update should still contribute to replay state."""
+def test_comm_drops_echo_update(comm: MarimoComm):
+    """echo_update (ipywidgets' ack of a client write) is never broadcast."""
     with patch(
         "marimo._plugins.ui._impl.comm.broadcast_notification"
     ) as mock_broadcast:
@@ -177,10 +173,42 @@ def test_comm_broadcast_echo_update(comm: MarimoComm):
             {"method": "echo_update", "state": {"key": "value"}},
             [],
         )
+        mock_broadcast.assert_not_called()
+
+
+def test_client_update_is_not_echoed_back(
+    comm_manager: MarimoCommManager, comm: MarimoComm
+):
+    """A client write must not bounce back as a live update.
+
+    Simulates ipywidgets' `Widget.set_state`, which acks a client
+    update with `echo_update` before observers send genuine updates.
+    Guarantees an echo is sent, unlike the real-stack test in
+    test_anywidget.py, where echoing is up to ipywidgets.
+    """
+
+    def fake_set_state(msg: dict) -> None:
+        state = msg["content"]["data"]["state"]
+        # ipywidgets acks the client's own values first...
+        comm.send({"method": "echo_update", "state": state})
+        # ...then an observer reacts with a kernel-driven change.
+        comm.send({"method": "update", "state": {"chart": "<new svg>"}})
+
+    comm.on_msg(fake_set_state)
+    command = ModelCommand(
+        model_id=comm.comm_id,
+        message=ModelUpdateMessage(state={"slider": 5}, buffer_paths=[]),
+        buffers=[],
+    )
+    with patch(
+        "marimo._plugins.ui._impl.comm.broadcast_notification"
+    ) as mock_broadcast:
+        comm_manager.receive_comm_message(command)
+        # Exactly one broadcast: the observer's update. The echo of
+        # {"slider": 5} is dropped.
         mock_broadcast.assert_called_once()
         notification = mock_broadcast.call_args[0][0]
-        assert notification.model_id == comm.comm_id
-        assert notification.message.state == {"key": "value"}
+        assert notification.message.state == {"chart": "<new svg>"}
 
 
 def test_comm_manager_receive_update_message(
@@ -408,32 +436,10 @@ class TestEsmSpecMinting:
         assert result.message.esm_spec == notification.message.esm_spec
 
 
-@dataclass(frozen=True)
-class _ModelIdWidget:
-    """Minimal ipywidgets-backed anywidget shape for wire transport tests."""
-
-    model_id: str
-
-
 class TestAnywidgetWireReferences:
     ESM = "export default { render() {} }"
 
-    def test_plain_state_does_not_import_optional_anywidget(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        for module_name in list(sys.modules):
-            if module_name == "anywidget" or module_name.startswith(
-                "anywidget."
-            ):
-                monkeypatch.delitem(sys.modules, module_name)
-
-        serializer = AnyWidgetStateSerializer({"_esm": self.ESM})
-        state = {"count": 1, "label": "counter"}
-
-        assert serializer.serialize(state) is state
-        assert "anywidget" not in sys.modules
-
-    def test_model_open_replaces_direct_and_nested_widget_refs(
+    def test_model_open_preserves_serialized_widget_refs(
         self, comm_manager: MarimoCommManager
     ) -> None:
         from marimo._messaging.serde import (
@@ -441,7 +447,7 @@ class TestAnywidgetWireReferences:
             serialize_kernel_message,
         )
 
-        child = _ModelIdWidget("child-open")
+        child = "anywidget:child-open"
         with patch(
             "marimo._plugins.ui._impl.comm.broadcast_notification"
         ) as mock_broadcast:
@@ -478,10 +484,10 @@ class TestAnywidgetWireReferences:
         )
         assert roundtripped.message.state == expected_state
 
-    def test_model_update_replaces_reassigned_widget_ref(
+    def test_model_update_preserves_serialized_widget_ref(
         self, comm_manager: MarimoCommManager
     ) -> None:
-        replacement = _ModelIdWidget("child-update")
+        replacement = "anywidget:child-update"
         with patch(
             "marimo._plugins.ui._impl.comm.broadcast_notification"
         ) as mock_broadcast:

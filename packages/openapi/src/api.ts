@@ -366,6 +366,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/datasources/discover": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["DiscoverDataSourcesRequest"];
+        };
+      };
+      responses: {
+        /** @description Discover datasource connections */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SuccessResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/datasources/preview_column": {
     parameters: {
       query?: never;
@@ -649,6 +690,62 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/environment": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Environment information for issue reporting */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": {
+              Binaries: {
+                [key: string]: string;
+              };
+              Dependencies: {
+                [key: string]: string;
+              };
+              "Experimental Flags": {
+                [key: string]: unknown;
+              };
+              Locale: string;
+              OS: string;
+              "OS Version": string;
+              "Optional Dependencies": {
+                [key: string]: string;
+              };
+              Processor: string;
+              "Python Version": string;
+              editable: boolean;
+              location: string;
+              marimo: string;
+            };
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/auto_export/html": {
     parameters: {
       query?: never;
@@ -717,7 +814,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["ExportAsIPYNBRequest"];
+          "application/json": components["schemas"]["AutoExportAsIPYNBRequest"];
         };
       };
       responses: {
@@ -765,7 +862,7 @@ export interface paths {
       };
       requestBody?: {
         content: {
-          "application/json": components["schemas"]["ExportAsMarkdownRequest"];
+          "application/json": components["schemas"]["AutoExportAsMarkdownRequest"];
         };
       };
       responses: {
@@ -787,6 +884,41 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/export/availability": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Readiness for server-backed exports */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ExportAvailabilityResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -1025,7 +1157,7 @@ export interface paths {
             "text/plain": string;
           };
         };
-        /** @description File must be saved before downloading */
+        /** @description Invalid export request */
         400: {
           headers: {
             [name: string]: unknown;
@@ -1199,6 +1331,65 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/files/download": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query: {
+          /** @description Path of the file to download */
+          path: string;
+        };
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description Stream the file as an attachment */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/octet-stream": string;
+          };
+        };
+        /** @description Path is missing or is a directory */
+        400: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description File downloads are disabled */
+        403: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+        /** @description File not found */
+        404: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content?: never;
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3590,6 +3781,14 @@ export interface components {
     AnthropicConfig: {
       api_key?: string;
     };
+    /** AutoExportAsIPYNBRequest */
+    AutoExportAsIPYNBRequest: {
+      download: boolean;
+    };
+    /** AutoExportAsMarkdownRequest */
+    AutoExportAsMarkdownRequest: {
+      download: boolean;
+    };
     /**
      * BannerNotification
      * @description Persistent banner message at top of notebook.
@@ -4137,6 +4336,20 @@ export interface components {
       op: "data-source-connections";
     };
     /**
+     * DataSourceDiscoveryResultNotification
+     * @description High-confidence datasource connections discovered by the kernel.
+     *
+     *         Attributes:
+     *             request_id: Request ID this responds to.
+     *             sources: Detected datasource connection configurations.
+     */
+    DataSourceDiscoveryResultNotification: {
+      /** @enum {unknown} */
+      op: "data-source-discovery-result";
+      request_id: string;
+      sources: components["schemas"]["DetectedDataSource"][];
+    };
+    /**
      * DataTable
      * @description Represents a data table.
      *
@@ -4322,6 +4535,35 @@ export interface components {
       tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
+     * DetectedDataSource
+     * @description A secret-free datasource suggestion produced by the kernel.
+     */
+    DetectedDataSource: {
+      /** @enum {unknown} */
+      category: "catalog" | "database" | "object-storage";
+      code: string;
+      /** @enum {unknown} */
+      confidence: "high" | "medium";
+      configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
+      displayName: string;
+      id: string;
+      integration: string;
+      origins: components["schemas"]["DetectedDataSourceOrigin"][];
+    };
+    /** DetectedDataSourceConfiguration */
+    DetectedDataSourceConfiguration: {
+      field: string;
+      value:
+        | components["schemas"]["EnvironmentVariableDiscoveryValue"]
+        | components["schemas"]["SafeLiteralDiscoveryValue"];
+    };
+    /** DetectedDataSourceOrigin */
+    DetectedDataSourceOrigin: {
+      label: string;
+      /** @enum {unknown} */
+      type: "configuration" | "environment";
+    };
+    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4333,6 +4575,22 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DiscoverDataSourcesCommand
+     * @description Discover datasource connections from the live kernel environment and configuration.
+     *
+     *         Attributes:
+     *             request_id: Unique identifier for this request.
+     */
+    DiscoverDataSourcesCommand: {
+      requestId: components["schemas"]["RequestId"];
+      /** @enum {unknown} */
+      type: "discover-data-sources";
+    };
+    /** DiscoverDataSourcesRequest */
+    DiscoverDataSourcesRequest: {
+      requestId: components["schemas"]["RequestId"];
     };
     /**
      * DisplayConfig
@@ -4365,6 +4623,15 @@ export interface components {
       reference_highlighting?: boolean;
       /** @enum {unknown} */
       theme: "dark" | "light" | "system";
+    };
+    /**
+     * EnvironmentVariableDiscoveryValue
+     * @description A reference to an environment variable, never its value.
+     */
+    EnvironmentVariableDiscoveryValue: {
+      /** @enum {unknown} */
+      kind: "environment-variable";
+      name: string;
     };
     /**
      * EsmSpec
@@ -4513,34 +4780,56 @@ export interface components {
     /** ExportAsIPYNBRequest */
     ExportAsIPYNBRequest: {
       download: boolean;
+      /** @default true */
+      includeOutputs?: boolean;
+      /**
+       * @default top-down
+       * @enum {unknown}
+       */
+      sortMode?: "top-down" | "topological";
     };
     /** ExportAsMarkdownRequest */
     ExportAsMarkdownRequest: {
       download: boolean;
+      /** @default null */
+      flavor?: ("mdx" | "mystmd" | "pymdown" | "qmd") | null;
     };
     /** ExportAsPDFRequest */
     ExportAsPDFRequest: {
       /** @default false */
       includeInputs?: boolean;
+      /** @default true */
+      includeOutputs?: boolean;
       /**
        * @default document
        * @enum {unknown}
        */
       preset?: "document" | "slides";
-      /** @default 4 */
-      rasterScale?: number;
-      /**
-       * @default static
-       * @enum {unknown}
-       */
-      rasterServer?: "live" | "static";
-      /** @default true */
-      rasterizeOutputs?: boolean;
       webpdf: boolean;
     };
     /** ExportAsScriptRequest */
     ExportAsScriptRequest: {
       download: boolean;
+    };
+    /** ExportAvailabilityResponse */
+    ExportAvailabilityResponse: {
+      formats: components["schemas"]["ExportFormatAvailability"][];
+      /** @enum {unknown} */
+      source: "server";
+    };
+    /** ExportFormatAvailability */
+    ExportFormatAvailability: {
+      dependenciesAvailable: boolean;
+      /** @enum {unknown} */
+      format: "html" | "ipynb" | "markdown" | "pdf" | "script";
+      missingPackages: string[];
+      missingSetup: components["schemas"]["ExportSetupRequirement"][];
+    };
+    /** ExportSetupRequirement */
+    ExportSetupRequirement: {
+      command: string;
+      /** @enum {unknown} */
+      name: "playwright-chromium";
     };
     /** FileCopyRequest */
     FileCopyRequest: {
@@ -4604,6 +4893,8 @@ export interface components {
     };
     /** FileDetailsRequest */
     FileDetailsRequest: {
+      /** @default null */
+      maxBytes?: number | null;
       path: string;
     };
     /** FileDetailsResponse */
@@ -4613,6 +4904,8 @@ export interface components {
       file: components["schemas"]["FileInfo"];
       /** @default false */
       isBase64?: boolean;
+      /** @default false */
+      isTooLarge?: boolean;
       /** @default null */
       mimeType?: string | null;
     };
@@ -4629,6 +4922,8 @@ export interface components {
       /** @default null */
       opengraph?: null | components["schemas"]["OpenGraphMetadata"];
       path: string;
+      /** @default null */
+      size?: number | null;
     };
     /** FileListRequest */
     FileListRequest: {
@@ -5110,6 +5405,7 @@ export interface components {
         | components["schemas"]["ListSQLSchemasCommand"]
         | components["schemas"]["ValidateSQLCommand"]
         | components["schemas"]["ListDataSourceConnectionCommand"]
+        | components["schemas"]["DiscoverDataSourcesCommand"]
         | components["schemas"]["StorageListEntriesCommand"]
         | components["schemas"]["StorageDownloadCommand"]
         | components["schemas"]["ListSecretKeysCommand"]
@@ -5171,6 +5467,7 @@ export interface components {
         | components["schemas"]["SQLTableListPreviewNotification"]
         | components["schemas"]["SQLSchemaListPreviewNotification"]
         | components["schemas"]["DataSourceConnectionsNotification"]
+        | components["schemas"]["DataSourceDiscoveryResultNotification"]
         | components["schemas"]["ValidateSQLResultNotification"]
         | components["schemas"]["StorageNamespacesNotification"]
         | components["schemas"]["StorageEntriesNotification"]
@@ -6244,6 +6541,15 @@ export interface components {
       request_id: components["schemas"]["RequestId"];
       table: null | components["schemas"]["DataTable"];
     };
+    /**
+     * SafeLiteralDiscoveryValue
+     * @description Non-sensitive metadata that is safe to send to the frontend.
+     */
+    SafeLiteralDiscoveryValue: {
+      /** @enum {unknown} */
+      kind: "safe-literal";
+      value: string;
+    };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
       config: Record<string, any>;
@@ -6705,7 +7011,7 @@ export interface components {
      */
     StorageNamespace: {
       /** @enum {unknown} */
-      backendType: "fsspec" | "obstore";
+      backendType: "fsspec" | "huggingface" | "obstore";
       displayName: string;
       name: components["schemas"]["VariableName"];
       protocol: string;

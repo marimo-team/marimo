@@ -1,14 +1,16 @@
 # Configuration
 
-marimo offers two types of configuration: User Configuration and App
-Configuration. Both can be easily managed through the Settings menu in the
-marimo editor.
+marimo offers two types of configuration: User Settings, which apply globally
+to all your notebooks, and Notebook Settings, which apply to a single notebook.
+Both can be configured in the marimo editor.
 
-<img align="right" src="/_static/docs-app-config.png" width="300px"/>
+<img align="right" src="/_static/docs-app-config.png" alt="Notebook settings dialog showing display, data, custom files, and exporting options" width="420px"/>
 
-## App Configuration
+## Notebook settings
 
-App Configuration is specific to each notebook and is stored in the `notebook.py` file. This allows you to customize various aspects of your notebook, including:
+Notebook settings are specific to each notebook and are stored in the
+`notebook.py` file. This allows you to customize various aspects of your
+notebook, including:
 
 - Notebook width
 - Notebook title
@@ -20,15 +22,16 @@ Configure these settings through the notebook menu (⚙️) in the top-right cor
 
 <br clear="left"/>
 
-## User Configuration
+## User settings
 
-User Configuration applies globally across all marimo notebooks and is stored
+User settings apply globally across all marimo notebooks and are stored
 in a `$XDG_CONFIG_HOME/marimo/marimo.toml` file.
 
-While you can edit the `$XDG_CONFIG_HOME/marimo/marimo.toml` file directly, we recommend using the
-marimo UI for a more user-friendly experience.
-
-<video controls width="100%" height="100%" align="center" src="/_static/docs-user-config.mp4"> </video>
+While you can edit the `$XDG_CONFIG_HOME/marimo/marimo.toml` file directly, we
+recommend using the marimo UI for a more user-friendly experience. Click the
+"User settings" button in the bottom of the notebook settings menu to open
+configuration UI, or hit `Cmd/Ctrl + k` to open the command palette and type
+`"User settings"`.
 
 You can customize the following settings:
 
@@ -94,7 +97,7 @@ You can override any user configuration setting in this way. To find these setti
 !!! note "Overridden settings"
     Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
 
-### Script Metadata Configuration
+### Script metadata configuration
 
 You can also configure marimo settings directly in your notebook files using script metadata (PEP 723). Add a `script` block at the top of your notebook:
 
@@ -114,7 +117,7 @@ You can also configure marimo settings directly in your notebook files using scr
 
     **Script config > pyproject.toml config > user config**
 
-## Environment Variables
+## Environment variables
 
 marimo supports the following environment variables for advanced configuration:
 

@@ -17,9 +17,6 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import InitializationArgs, UIElement
-from marimo._plugins.ui._impl.anywidget.widget_ref import (
-    AnyWidgetStateSerializer,
-)
 from marimo._plugins.ui._impl.comm import MarimoComm
 from marimo._types.ids import WidgetModelId
 from marimo._utils.methods import getcallable
@@ -139,20 +136,15 @@ def get_anywidget_state(widget: AnyWidget) -> AnyWidgetState:
     }
 
     state: dict[str, Any] = widget.get_state()
-    serializer = AnyWidgetStateSerializer(state)
 
     # Filter out system traits from the serialized state
     # This should include the binary data,
     # see marimo/_smoke_tests/issues/2366-anywidget-binary.py
     filtered = {k: v for k, v in state.items() if k not in ignored_traits}
 
-    # Replace nested AnyWidget values with `anywidget:<model_id>` strings
-    # so the frontend can resolve them via `host.getWidget(ref)`. Children
-    # already have their comms opened (ipywidgets'
-    # `Widget.on_widget_constructed` fires `init_marimo_widget` on
-    # construction), so the frontend has the model registered by the time
-    # the parent's state arrives.
-    return cast(AnyWidgetState, serializer.serialize(filtered))
+    # Trait serializers, such as anywidget's `WidgetTrait`, are responsible
+    # for converting Python values to their wire representation.
+    return cast(AnyWidgetState, filtered)
 
 
 def get_anywidget_model_id(widget: AnyWidget) -> WidgetModelId:

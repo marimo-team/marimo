@@ -1,31 +1,53 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from marimo._output.formatting import as_html
-from marimo._output.hypertext import Html
+from marimo._output.hypertext import ContainerHtml
 from marimo._output.rich_help import mddoc
-from marimo._plugins.core.web_component import build_stateless_plugin
+from marimo._plugins.core.web_component import (
+    JSONType,
+    build_stateless_plugin,
+)
+
+CalloutKind = Literal["neutral", "warn", "success", "info", "danger"]
+CALLOUT_KINDS: tuple[CalloutKind, ...] = get_args(CalloutKind)
 
 
 @mddoc
-def callout(
-    value: object,
-    kind: Literal["neutral", "warn", "success", "info", "danger"] = "neutral",
-) -> Html:
-    """Build a callout output.
+class callout(ContainerHtml):
+    """An `Html` callout object.
 
     Args:
         value: A value to render in the callout
         kind: The kind of callout (affects styling).
-
-    Returns:
-        Html (marimo.Html): An HTML object.
+        title: An optional title.
     """
-    return Html(
-        build_stateless_plugin(
+
+    def __init__(
+        self,
+        value: object,
+        kind: CalloutKind = "neutral",
+        title: str | None = None,
+    ) -> None:
+        if kind not in CALLOUT_KINDS:
+            raise ValueError(
+                f"Unsupported callout kind: {kind!r}. "
+                f"Expected one of {CALLOUT_KINDS}."
+            )
+        self._kind = kind
+        self._title = title
+        super().__init__([as_html(value)])
+
+    def _build_text(self) -> str:
+        args: dict[str, JSONType] = {
+            "html": self._children[0].text,
+            "kind": self._kind,
+        }
+        if self._title is not None:
+            args["title"] = self._title
+        return build_stateless_plugin(
             component_name="marimo-callout-output",
-            args={"html": as_html(value).text, "kind": kind},
+            args=args,
         )
-    )

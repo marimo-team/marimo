@@ -21,16 +21,14 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { deserializeBlob } from "@/utils/blob";
 import { copyToClipboard } from "@/utils/copy";
-import { downloadBlob, downloadByURL } from "@/utils/download";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
+import { downloadFile } from "./download";
 import { FilePreviewHeader } from "./file-header";
-import {
-  FileContentRenderer,
-  isMediaMime,
-  MIME_TO_LANGUAGE,
-} from "./renderers";
+import { FilePreviewMetadata } from "./file-preview-metadata";
+import { getFileRenderMode } from "./file-render-mode";
+import { buildMediaSource, FileContentRenderer } from "./renderers";
+
+export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
 interface Props {
   file: FileInfo;
@@ -51,9 +49,15 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
 
   const { data, isPending, error, setData, refetch } =
     useAsyncData(async () => {
-      const details = await sendFileDetails({ path: file.path });
-      const contents = details.contents || "";
-      setInternalValue(unsavedContentsForFile.get(file.path) || contents);
+      const details = await sendFileDetails({
+        path: file.path,
+        maxBytes: MAX_FILE_PREVIEW_BYTES,
+      });
+      const mode = getFileRenderMode(details.mimeType, details.isBase64);
+      if (!details.isTooLarge && mode === "text") {
+        const contents = details.contents || "";
+        setInternalValue(unsavedContentsForFile.get(file.path) ?? contents);
+      }
       return details;
     }, [file.path]);
 
@@ -73,13 +77,19 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     );
   };
 
-  // On file change or unmount, save the unsaved contents
+  // On file change or unmount, save the unsaved contents. Only editable text
+  // previews participate in editor state; oversized and non-text responses
+  // carry no draft to preserve.
   // We use a ref for internalValue so we don't call this effect on each keystroke
   const internalValueRef = useRef<string>(internalValue);
   internalValueRef.current = internalValue;
   useEffect(() => {
     return () => {
-      if (!data?.contents) {
+      if (
+        data?.contents == null ||
+        data.isTooLarge ||
+        getFileRenderMode(data.mimeType, data.isBase64) !== "text"
+      ) {
         return;
       }
       const draft = internalValueRef.current;
@@ -89,7 +99,13 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
         unsavedContentsForFile.set(file.path, draft);
       }
     };
-  }, [file.path, data?.contents]);
+  }, [
+    file.path,
+    data?.contents,
+    data?.isTooLarge,
+    data?.mimeType,
+    data?.isBase64,
+  ]);
 
   if (error) {
     return <ErrorBanner error={error} />;
@@ -100,7 +116,10 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
   }
 
   const mimeType = data.mimeType || "text/plain";
-  const isEditable = mimeType in MIME_TO_LANGUAGE;
+  const renderMode = getFileRenderMode(data.mimeType, data.isBase64);
+  const isText = renderMode === "text";
+  const isCsv = renderMode === "csv";
+  const isMedia = renderMode === "media";
   const isActiveNotebook =
     currentNotebookFilename &&
     data.file.isMarimoFile &&
@@ -109,44 +128,27 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       // but this is an okay heuristic for now.
       file.path.endsWith(`/${currentNotebookFilename}`));
 
-  if (!data.contents && !isEditable) {
-    // Show details instead of contents
-    return (
-      <div className="grid grid-cols-2 gap-2 p-6">
-        <div className="font-bold text-muted-foreground">Name</div>
-        <div>{data.file.name}</div>
-        <div className="font-bold text-muted-foreground">Type</div>
-        <div>{mimeType}</div>
-      </div>
-    );
-  }
-
-  const handleDownload = () => {
-    if (data.isBase64 && data.contents) {
-      if (isMediaMime(mimeType)) {
-        const dataURL = base64ToDataURL(
-          data.contents as Base64String,
-          mimeType,
-        );
-        downloadByURL(dataURL, data.file.name);
-      } else {
-        const blob = deserializeBlob(
-          base64ToDataURL(
-            data.contents as Base64String,
-            data.mimeType || "application/octet-stream",
-          ),
-        );
-        downloadBlob(blob, data.file.name);
-      }
-      return;
-    }
-
-    downloadBlob(
-      new Blob([data.contents || internalValue], { type: mimeType }),
-      data.file.name,
-    );
+  const handleDownload = async () => {
+    await downloadFile(file.path, data.file.name);
   };
 
+  const saveKeymapExtension = keymap.of([
+    {
+      key: hotkeys.getHotkey("global.save").key,
+      stopPropagation: true,
+      run: () => {
+        if (internalValue !== data.contents) {
+          void handleSaveFile();
+          return true;
+        }
+        return false;
+      },
+    },
+  ]);
+
+  // Defined before the metadata-only returns so refresh, download, and
+  // open-notebook stay available while edit-only copy/save are withheld from
+  // non-text previews.
   const header = (
     <FilePreviewHeader
       filename={data.file.name}
@@ -165,7 +167,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
               </Button>
             </Tooltip>
           )}
-          {!isMediaMime(mimeType) && (
+          {isText && (
             <>
               <Tooltip content="Copy contents to clipboard">
                 <Button
@@ -195,8 +197,23 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     />
   );
 
-  const isMedia = isMediaMime(mimeType);
-  const isText = !isMedia && mimeType !== "text/csv";
+  if (data.isTooLarge || renderMode === "unsupported") {
+    return (
+      <>
+        {header}
+        <FilePreviewMetadata
+          file={data.file}
+          mimeType={mimeType}
+          message={
+            data.isTooLarge
+              ? "File is too large to preview."
+              : "This file type cannot be previewed."
+          }
+          onDownload={disableFileDownloads ? undefined : handleDownload}
+        />
+      </>
+    );
+  }
 
   const warningBanner = isText && isActiveNotebook && (
     <Alert variant="warning" className="rounded-none">
@@ -208,6 +225,15 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
     </Alert>
   );
 
+  const mediaSource =
+    isMedia && data.contents
+      ? buildMediaSource({
+          contents: data.contents,
+          mimeType,
+          isBase64: data.isBase64 ?? false,
+        })
+      : undefined;
+
   return (
     <>
       {header}
@@ -215,35 +241,16 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       <FileContentRenderer
         mimeType={mimeType}
         contents={
-          isMedia
-            ? undefined
-            : isText
-              ? internalValue
-              : (data.contents ?? undefined)
+          isText
+            ? internalValue
+            : isCsv
+              ? (data.contents ?? undefined)
+              : undefined
         }
-        mediaSource={
-          isMedia
-            ? { base64: data.contents as Base64String, mime: mimeType }
-            : undefined
-        }
+        mediaSource={mediaSource}
         readOnly={!isText}
-        onChange={setInternalValue}
-        extensions={[
-          // Command S for save
-          keymap.of([
-            {
-              key: hotkeys.getHotkey("global.save").key,
-              stopPropagation: true,
-              run: () => {
-                if (internalValue !== data.contents) {
-                  handleSaveFile();
-                  return true;
-                }
-                return false;
-              },
-            },
-          ]),
-        ]}
+        onChange={isText ? setInternalValue : undefined}
+        extensions={isText ? [saveKeymapExtension] : []}
       />
     </>
   );

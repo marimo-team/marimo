@@ -523,6 +523,26 @@ components:
       - connections
       title: DataSourceConnectionsNotification
       type: object
+    DataSourceDiscoveryResultNotification:
+      description: "High-confidence datasource connections discovered by the kernel.\n\
+        \nAttributes:\n    request_id: Request ID this responds to.\n    sources:\
+        \ Detected datasource connection configurations."
+      properties:
+        op:
+          enum:
+          - data-source-discovery-result
+        request_id:
+          type: string
+        sources:
+          items:
+            $ref: '#/components/schemas/DetectedDataSource'
+          type: array
+      required:
+      - op
+      - request_id
+      - sources
+      title: DataSourceDiscoveryResultNotification
+      type: object
     DataTable:
       description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
         \ Type of data source ('local', 'duckdb', 'connection').\n    source (str):\
@@ -676,6 +696,89 @@ components:
       - op
       - tables
       title: DatasetsNotification
+      type: object
+    DetectedDataSource:
+      description: A secret-free datasource suggestion produced by the kernel.
+      properties:
+        category:
+          enum:
+          - catalog
+          - database
+          - object-storage
+        code:
+          type: string
+        confidence:
+          enum:
+          - high
+          - medium
+        configuration:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceConfiguration'
+          type: array
+        displayName:
+          type: string
+        id:
+          type: string
+        integration:
+          type: string
+        origins:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceOrigin'
+          type: array
+      required:
+      - id
+      - integration
+      - category
+      - displayName
+      - confidence
+      - origins
+      - configuration
+      - code
+      title: DetectedDataSource
+      type: object
+    DetectedDataSourceConfiguration:
+      properties:
+        field:
+          type: string
+        value:
+          anyOf:
+          - $ref: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+          - $ref: '#/components/schemas/SafeLiteralDiscoveryValue'
+          discriminator:
+            mapping:
+              environment-variable: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+              safe-literal: '#/components/schemas/SafeLiteralDiscoveryValue'
+            propertyName: kind
+      required:
+      - field
+      - value
+      title: DetectedDataSourceConfiguration
+      type: object
+    DetectedDataSourceOrigin:
+      properties:
+        label:
+          type: string
+        type:
+          enum:
+          - configuration
+          - environment
+      required:
+      - type
+      - label
+      title: DetectedDataSourceOrigin
+      type: object
+    EnvironmentVariableDiscoveryValue:
+      description: A reference to an environment variable, never its value.
+      properties:
+        kind:
+          enum:
+          - environment-variable
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: EnvironmentVariableDiscoveryValue
       type: object
     FocusCellNotification:
       description: "Focuses a cell (kiosk mode).\n\n    Attributes:\n        cell_id:\
@@ -1363,6 +1466,19 @@ components:
       - metadata
       - table
       title: SQLTablePreviewNotification
+      type: object
+    SafeLiteralDiscoveryValue:
+      description: Non-sensitive metadata that is safe to send to the frontend.
+      properties:
+        kind:
+          enum:
+          - safe-literal
+        value:
+          type: string
+      required:
+      - kind
+      - value
+      title: SafeLiteralDiscoveryValue
       type: object
     Schema:
       properties:

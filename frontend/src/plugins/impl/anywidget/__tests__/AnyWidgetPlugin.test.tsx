@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
+import { Provider, createStore } from "jotai";
 import {
   afterEach,
   beforeEach,
@@ -10,6 +11,7 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
+import { islandsPendingInitialRunsAtom } from "@/core/islands/state";
 import type { IPluginProps } from "@/plugins/types";
 import { visibleForTesting } from "../AnyWidgetPlugin";
 import { Model } from "../model";
@@ -86,6 +88,29 @@ describe("AnyWidgetSlot", () => {
       expect(mockWidget.initialize).toHaveBeenCalledTimes(1);
       expect(mockWidget.render).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("waits for islands hydration before resolving the model", async () => {
+    const islandsStore = createStore();
+    islandsStore.set(islandsPendingInitialRunsAtom, new Set([1]));
+    const createViewSpy = vi.spyOn(WIDGET_REGISTRY, "createView");
+
+    render(
+      <Provider store={islandsStore}>
+        <AnyWidgetSlot {...props(modelId)} />
+      </Provider>,
+    );
+
+    expect(createViewSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      islandsStore.set(islandsPendingInitialRunsAtom, new Set());
+    });
+
+    await waitFor(() => {
+      expect(createViewSpy).toHaveBeenCalledOnce();
+    });
+    createViewSpy.mockRestore();
   });
 
   it("aborts the runtime-owned view on unmount", async () => {

@@ -6,8 +6,12 @@ import subprocess
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest import mock
 
 import pytest
+from click.testing import CliRunner
+
+from marimo._cli.cli import main
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -31,31 +35,23 @@ def test_export_overwrite_confirm(
     temp_marimo_file: str, existing_file: str
 ) -> None:
     """Test export command with file overwrite confirmation (user confirms)."""
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "export",
-            "html",
-            temp_marimo_file,
-            "--output",
-            existing_file,
-        ],
-        stdin=subprocess.PIPE,
-    )
+    with mock.patch("marimo._cli.utils.stdout") as mock_stdout:
+        mock_stdout.isatty.return_value = True
+        result = CliRunner().invoke(
+            main,
+            [
+                "export",
+                "html",
+                temp_marimo_file,
+                "--output",
+                existing_file,
+            ],
+            input="y\n",
+        )
 
-    assert p.poll() is None
-    assert p.stdin is not None
-
-    # Simulate user confirming overwrite
-    p.stdin.write(b"y\n")
-    p.stdin.flush()
-
-    # Wait for process to complete
-    p.wait(timeout=5)
-
-    # Check that the file was overwritten
-    assert os.path.exists(existing_file)
-    assert p.returncode == 0
+    assert result.exit_code == 0, result.output
+    assert "Overwrite?" in result.output
+    assert "<!DOCTYPE html>" in Path(existing_file).read_text()
 
 
 def test_export_overwrite_with_yes_flag() -> None:
@@ -176,30 +172,21 @@ def test_convert_overwrite_confirm(tmp_path: Path) -> None:
     output_path = tmp_path / "output.py"
     output_path.write_text("existing content")
 
-    p = subprocess.Popen(
-        [
-            "marimo",
-            "convert",
-            str(notebook_path),
-            "-o",
-            str(output_path),
-        ],
-        stdin=subprocess.PIPE,
-    )
+    with mock.patch("marimo._cli.utils.stdout") as mock_stdout:
+        mock_stdout.isatty.return_value = True
+        result = CliRunner().invoke(
+            main,
+            [
+                "convert",
+                str(notebook_path),
+                "-o",
+                str(output_path),
+            ],
+            input="y\n",
+        )
 
-    assert p.poll() is None
-    assert p.stdin is not None
-
-    # Simulate user confirming overwrite
-    p.stdin.write(b"y\n")
-    p.stdin.flush()
-
-    # Wait for process to complete
-    p.wait(timeout=5)
-
-    # Check that the file was overwritten
-    assert output_path.exists()
-    assert p.returncode == 0
+    assert result.exit_code == 0, result.output
+    assert "Overwrite?" in result.output
     assert output_path.read_text() != "existing content"
 
 

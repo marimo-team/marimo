@@ -8,11 +8,13 @@ import {
 } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
+import type { OutputMessage } from "@/core/kernel/messages";
 import { MultiColumn } from "@/utils/id-tree";
 import {
   disabledCellIds,
   enabledCellIds,
   isUninstantiated,
+  shouldHidePublishedCell,
   staleCellIds,
 } from "../utils";
 
@@ -424,5 +426,62 @@ describe("enabledCellIds", () => {
 
     const result = enabledCellIds(state);
     expect(result).toEqual([cellId2, cellId3]);
+  });
+});
+
+describe("shouldHidePublishedCell", () => {
+  const base = {
+    errored: false,
+    interrupted: false,
+    stopped: false,
+    output: null,
+    showErrorTracebacks: false,
+  };
+  const errorOutput = (traceback?: string): OutputMessage => ({
+    channel: "marimo-error",
+    mimetype: "application/vnd.marimo+error",
+    data: [
+      { type: "exception", exception_type: "ValueError", msg: "!", traceback },
+    ],
+    timestamp: 0,
+  });
+
+  it("does not hide a healthy cell", () => {
+    expect(shouldHidePublishedCell(base)).toBe(false);
+  });
+
+  it.each(["errored", "interrupted", "stopped"] as const)(
+    "hides a %s cell",
+    (key) => {
+      expect(shouldHidePublishedCell({ ...base, [key]: true })).toBe(true);
+    },
+  );
+
+  it("hides error outputs", () => {
+    expect(shouldHidePublishedCell({ ...base, output: errorOutput() })).toBe(
+      true,
+    );
+  });
+
+  it("shows error outputs with a traceback when show_tracebacks is enabled", () => {
+    expect(
+      shouldHidePublishedCell({
+        ...base,
+        errored: true,
+        output: errorOutput("Traceback (most recent call last) ..."),
+        showErrorTracebacks: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("hides error outputs without a traceback even when show_tracebacks is enabled", () => {
+    expect(
+      shouldHidePublishedCell({
+        ...base,
+        errored: true,
+        output: errorOutput(),
+        showErrorTracebacks: true,
+      }),
+    ).toBe(true);
   });
 });

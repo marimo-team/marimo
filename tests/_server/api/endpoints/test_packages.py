@@ -107,6 +107,26 @@ def test_list_packages(client: TestClient, mock_package_manager: Mock) -> None:
     mock_package_manager.list_packages.assert_called_once()
 
 
+def test_list_packages_without_session(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The home page has no session, but can still list packages."""
+    mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.is_manager_installed = MagicMock(return_value=True)
+    mock_manager.list_packages = MagicMock(return_value=["package1"])
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages.create_package_manager",
+        MagicMock(return_value=mock_manager),
+    )
+
+    response = client.get(
+        "/api/packages/list",
+        headers=token_header("fake-token"),
+    )
+    assert response.status_code == 200
+    assert response.json() == {"packages": ["package1"]}
+
+
 def test_add_package_failure(
     client: TestClient, mock_package_manager: Mock
 ) -> None:

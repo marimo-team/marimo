@@ -817,6 +817,16 @@ class StorageDownloadCommand(Command):
     preview: bool = False
 
 
+class DiscoverDataSourcesCommand(Command):
+    """Discover datasource connections from the live kernel environment and configuration.
+
+    Attributes:
+        request_id: Unique identifier for this request.
+    """
+
+    request_id: RequestId
+
+
 class ListSecretKeysCommand(Command):
     """List available secret keys.
 
@@ -955,6 +965,7 @@ CommandMessage = (
     | ListSQLSchemasCommand
     | ValidateSQLCommand
     | ListDataSourceConnectionCommand
+    | DiscoverDataSourcesCommand
     # Storage operations
     | StorageListEntriesCommand
     | StorageDownloadCommand
