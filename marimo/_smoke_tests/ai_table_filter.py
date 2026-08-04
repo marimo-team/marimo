@@ -23,7 +23,8 @@ def _(mo):
     **How to try it**
 
     1. Type a natural-language prompt into the table's search box below.
-    2. Click the ✨ **Search with AI** button (or press `⌘↵`).
+    2. Click the ✨ **Search with AI** button (or press `⌘↵` on macOS
+       or `Ctrl+↵` on other platforms).
     3. The prompt is translated into a structured filter you can edit inline;
        press `Escape` / the ✕ to return to plain search.
 

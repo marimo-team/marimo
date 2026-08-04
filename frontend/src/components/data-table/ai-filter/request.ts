@@ -43,11 +43,14 @@ export async function requestAiFilterQuery(opts: {
  */
 export function extractFilterQuery(raw: string): string {
   const text = raw.trim();
+  if (text.length === 0) {
+    throw new Error("AI returned an empty filter query.");
+  }
   const lines = text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
   const looksLikeFilter = (line: string) =>
-    /[:=<>!]/.test(line) && !line.endsWith(":");
-  return (lines.find(looksLikeFilter) ?? lines[0] ?? text).trim();
+    /^(?:NOT\s+)?\(*[\p{L}\p{N}_.$-]+\s*(?:!=|>=|<=|[:=<>])\s*\S/u.test(line);
+  return (lines.find(looksLikeFilter) ?? lines[0]).trim();
 }

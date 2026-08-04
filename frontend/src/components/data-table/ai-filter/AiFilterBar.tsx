@@ -6,6 +6,7 @@ import { FilterBar, parseQuery, useFilterBar } from "better-filter-bar/react";
 import { SparklesIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { Logger } from "@/utils/Logger";
 import { Spinner } from "../../icons/spinner";
 import { Button } from "../../ui/button";
 import "./ai-filter.css";
@@ -22,11 +23,7 @@ interface AiFilterBarProps {
 export const AiFilterBar = ({ ai }: AiFilterBarProps) => {
   const { viewRef, getValue } = useFilterBar(ai.schema);
   const [dirty, setDirty] = useState(false);
-
-  // A fresh generation applies its own query, so it starts clean.
-  useEffect(() => {
-    setDirty(false);
-  }, [ai.generationId]);
+  const [editorError, setEditorError] = useState<string | null>(null);
 
   const handleChange = useEvent((_ast: FilterAST, raw: string) => {
     setDirty(raw.trim() !== ai.appliedRaw.trim());
@@ -35,12 +32,18 @@ export const AiFilterBar = ({ ai }: AiFilterBarProps) => {
   const apply = useEvent((ast: FilterAST, raw: string) => {
     ai.applyFromEditor(ast, raw);
     setDirty(false);
+    setEditorError(null);
   });
 
   // Submit the current editor contents (used by the button and by Enter).
   const submitCurrent = useEvent(() => {
     const raw = getValue();
-    apply(parseQuery(raw, ai.schema), raw);
+    try {
+      apply(parseQuery(raw, ai.schema), raw);
+    } catch (error) {
+      Logger.error("AI filter parsing failed", error);
+      setEditorError(error instanceof Error ? error.message : String(error));
+    }
   });
 
   // The packaged editor's Enter binding inserts a space instead of submitting.
@@ -72,10 +75,12 @@ export const AiFilterBar = ({ ai }: AiFilterBarProps) => {
   return (
     <div className="flex flex-1 items-center gap-1 px-2 min-w-0">
       <SparklesIcon className="w-4 h-4 text-primary shrink-0" />
-      <div ref={wrapperRef} className="flex-1 min-w-0">
+      <div
+        ref={wrapperRef}
+        className="flex-1 min-w-0"
+        data-testid="ai-filter-editor"
+      >
         <FilterBar
-          // Re-key on each generation so the editor re-seeds from `rawQuery`.
-          key={ai.generationId}
           viewRef={viewRef}
           schema={ai.schema}
           initialValue={ai.rawQuery}
@@ -97,12 +102,12 @@ export const AiFilterBar = ({ ai }: AiFilterBarProps) => {
           Press ↵ to search
         </Button>
       )}
-      {ai.error && (
+      {(editorError ?? ai.error) && (
         <span
           className="text-xs text-destructive line-clamp-1 shrink-0 max-w-64"
-          title={ai.error}
+          title={editorError ?? ai.error ?? undefined}
         >
-          {ai.error}
+          {editorError ?? ai.error}
         </span>
       )}
       <Button

@@ -77,9 +77,14 @@ function convert(
       return { node: convertFilter(node, fieldTypes), freeText: [] };
     case "not": {
       const inner = convert(node.operand, fieldTypes);
+      if (inner.freeText.length > 0) {
+        throw new Error(
+          "Free-text search terms cannot be negated. Bind the term to a column before using NOT.",
+        );
+      }
       return {
         node: inner.node == null ? null : negate(inner.node),
-        freeText: inner.freeText,
+        freeText: [],
       };
     }
     case "boolean": {
@@ -87,6 +92,11 @@ function convert(
       const right = convert(node.right, fieldTypes);
       const freeText = [...left.freeText, ...right.freeText];
       const operator = node.operator === "OR" ? "or" : "and";
+      if (operator === "or" && freeText.length > 0) {
+        throw new Error(
+          "Free-text search terms cannot be combined with OR. Bind each term to a column or use AND.",
+        );
+      }
       const children = [left.node, right.node].filter(
         (n): n is ConditionOrGroup => n != null,
       );
@@ -110,6 +120,9 @@ function convertFilter(
 ): FilterConditionType {
   const columnId = node.field as ColumnId;
   const dataType = columnDataType(fieldTypes, node.field);
+  if (dataType === undefined) {
+    throw new Error(`Unknown filter column: ${JSON.stringify(node.field)}.`);
+  }
 
   // Multi-value: `status:(open,closed)` → `in`
   if (Array.isArray(node.value)) {
@@ -141,18 +154,33 @@ function convertFilter(
 
 function mapOperator(opts: {
   fqlOperator: FilterNode["operator"];
-  dataType: DataType | undefined;
+  dataType: DataType;
   value: ScalarValue;
 }): { operator: OperatorType; value?: unknown } {
   const { fqlOperator, dataType, value } = opts;
-  // Comparison operators map straight across (only produced for number/date).
+  // Comparison operators map straight across for number/date columns.
   switch (fqlOperator) {
-    case "!=":
     case ">":
     case ">=":
     case "<":
     case "<=":
+      if (!isComparable(dataType)) {
+        throw new Error(
+          `Operator ${JSON.stringify(fqlOperator)} is not supported for ${dataType} columns.`,
+        );
+      }
       return { operator: fqlOperator, value: scalarToValue(value) };
+    case "!=":
+      if (isComparable(dataType)) {
+        return { operator: "!=", value: scalarToValue(value) };
+      }
+      if (dataType === "boolean") {
+        throw new Error('Operator "!=" is not supported for boolean columns.');
+      }
+      return {
+        operator: "does_not_equal",
+        value: scalarToString(value),
+      };
     case "=":
     case ":":
       break;
@@ -175,6 +203,16 @@ function mapOperator(opts: {
         value: scalarToString(value),
       };
   }
+}
+
+function isComparable(dataType: DataType): boolean {
+  return (
+    dataType === "integer" ||
+    dataType === "number" ||
+    dataType === "date" ||
+    dataType === "datetime" ||
+    dataType === "time"
+  );
 }
 
 function isTruthy(value: ScalarValue): boolean {

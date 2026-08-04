@@ -382,7 +382,10 @@ const DataTableInternal = <TData,>({
                 aiFilterActive={aiFilterEnabled?.isActive}
                 aiFilterBar={
                   aiFilterEnabled ? (
-                    <AiFilterBar ai={aiFilterEnabled} />
+                    <AiFilterBar
+                      key={aiFilterEnabled.generationId}
+                      ai={aiFilterEnabled}
+                    />
                   ) : undefined
                 }
                 reloading={reloading}

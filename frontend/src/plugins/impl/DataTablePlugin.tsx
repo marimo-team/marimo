@@ -754,6 +754,9 @@ export const LoadingDataTableComponent = memo(
       props.showColumnSummaries,
       filters,
       searchQuery,
+      aiFilter.isActive,
+      aiFilter.query,
+      aiFilter.filterGroup,
       props.totalRows,
       props.data,
     ]);

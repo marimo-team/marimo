@@ -1,15 +1,26 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { fireEvent, render, screen } from "@testing-library/react";
+import { parseQuery } from "better-filter-bar/react";
 import { describe, expect, it, vi } from "vitest";
 import { AiFilterBar } from "./AiFilterBar";
 import type { AiFilterState } from "./useAiFilter";
+
+vi.mock("better-filter-bar/react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("better-filter-bar/react")>();
+  return { ...actual, parseQuery: vi.fn(actual.parseQuery) };
+});
+
+vi.mock("@/utils/Logger", () => ({
+  Logger: { error: vi.fn() },
+}));
 
 function makeAi(overrides: Partial<AiFilterState> = {}): AiFilterState {
   return {
     schema: {
       fields: [{ name: "status", label: "status", type: "text" }],
-      allowUnknownFields: true,
+      allowUnknownFields: false,
     },
     rawQuery: "status:open",
     appliedRaw: "status:open",
@@ -57,12 +68,23 @@ describe("AiFilterBar", () => {
     expect(ai.clear).toHaveBeenCalledTimes(1);
   });
 
-  it("runs the query on Enter instead of inserting a newline", () => {
+  it("applies the filter on Enter key press", () => {
     const ai = makeAi();
-    const { container } = render(<AiFilterBar ai={ai} />);
-    const editor = container.querySelector(".fql-filter-bar");
-    expect(editor).not.toBeNull();
-    fireEvent.keyDown(editor as Element, { key: "Enter" });
+    render(<AiFilterBar ai={ai} />);
+    fireEvent.keyDown(screen.getByTestId("ai-filter-editor"), { key: "Enter" });
     expect(ai.applyFromEditor).toHaveBeenCalled();
+  });
+
+  it("surfaces parse errors when applying malformed editor input", () => {
+    vi.mocked(parseQuery).mockImplementationOnce(() => {
+      throw new Error("Unexpected token");
+    });
+    const ai = makeAi({ rawQuery: "malformed filter" });
+    render(<AiFilterBar ai={ai} />);
+
+    fireEvent.keyDown(screen.getByTestId("ai-filter-editor"), { key: "Enter" });
+
+    expect(ai.applyFromEditor).not.toHaveBeenCalled();
+    expect(screen.getByText("Unexpected token")).toBeInTheDocument();
   });
 });

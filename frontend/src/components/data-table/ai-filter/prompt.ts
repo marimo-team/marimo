@@ -23,15 +23,22 @@ export function buildAiFilterPrompt(
   naturalLanguage: string,
   fieldTypes: FieldTypesWithExternalType | null | undefined,
 ): string {
-  const columns = (fieldTypes ?? [])
-    .map(([name, [dataType]]) => `- ${name}: ${dataTypeToFieldType(dataType)}`)
-    .join("\n");
+  // JSON string escaping keeps user-controlled column names from introducing
+  // new prompt sections or list items via newlines and Markdown syntax.
+  const columns = JSON.stringify(
+    (fieldTypes ?? []).map(([name, [dataType]]) => ({
+      name,
+      type: dataTypeToFieldType(dataType),
+    })),
+  )
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
 
   return [
     "You translate a natural-language request into a single-line filter query for a data table.",
     "",
-    "## Available columns (name: type)",
-    columns || "(no columns)",
+    "## Available columns (JSON)",
+    columns,
     "",
     "## Filter query grammar",
     AI_FILTER_SYNTAX,

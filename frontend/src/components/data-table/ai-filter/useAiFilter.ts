@@ -2,7 +2,7 @@
 
 import type { FilterAST, FilterSchema } from "better-filter-bar";
 import { parseQuery, resolveRelativeDates } from "better-filter-bar";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
@@ -55,6 +55,7 @@ export function useAiFilter(
   const [filterGroup, setFilterGroup] = useState<FilterGroupType | null>(null);
   const [query, setQuery] = useState("");
   const [generationId, setGenerationId] = useState(0);
+  const latestRequestId = useRef(0);
 
   const serializeAndApply = useEvent((ast: FilterAST, raw: string) => {
     try {
@@ -76,20 +77,29 @@ export function useAiFilter(
     if (!text) {
       return;
     }
+    const requestId = ++latestRequestId.current;
     setIsActive(true);
     setIsGenerating(true);
     setError(null);
     try {
       const prompt = buildAiFilterPrompt(text, memoizedFieldTypes);
       const fql = await requestAiFilterQuery({ prompt, runtimeManager });
+      if (requestId !== latestRequestId.current) {
+        return;
+      }
       setRawQuery(fql);
       serializeAndApply(parseQuery(fql, schema), fql);
       setGenerationId((id) => id + 1);
     } catch (err) {
+      if (requestId !== latestRequestId.current) {
+        return;
+      }
       Logger.error("AI filter generation failed", err);
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setIsGenerating(false);
+      if (requestId === latestRequestId.current) {
+        setIsGenerating(false);
+      }
     }
   });
 
@@ -98,6 +108,7 @@ export function useAiFilter(
   });
 
   const clear = useEvent(() => {
+    latestRequestId.current++;
     setIsActive(false);
     setIsGenerating(false);
     setError(null);

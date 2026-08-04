@@ -81,7 +81,11 @@ export const TableTopBar = <TData,>({
       inputRef.current?.blur();
       return;
     }
-    if (event.key === "Enter" && event.metaKey && onAiSearch) {
+    if (
+      event.key === "Enter" &&
+      (event.metaKey || event.ctrlKey) &&
+      onAiSearch
+    ) {
       onAiSearch(internalValue);
     }
   };
@@ -113,6 +117,7 @@ export const TableTopBar = <TData,>({
             size="xs"
             className="h-5 w-5 p-0 shrink-0"
             onClick={() => setInternalValue("")}
+            aria-label="Clear search"
           >
             <XIcon className="w-3 h-3 text-muted-foreground" />
           </Button>
@@ -123,7 +128,8 @@ export const TableTopBar = <TData,>({
             size="xs"
             className="h-6 gap-1 px-1.5 shrink-0 text-primary hover:text-primary"
             onClick={() => onAiSearch(internalValue)}
-            title="Search with AI (⌘↵)"
+            aria-label="Search with AI"
+            title="Search with AI (⌘/Ctrl+Enter)"
           >
             <SparklesIcon className="w-3.5 h-3.5" />
           </Button>

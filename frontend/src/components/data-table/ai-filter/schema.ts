@@ -34,8 +34,9 @@ export function fieldTypesToFilterSchema(
 
   return {
     fields,
-    // Lenient: an unknown column warns instead of failing the whole query.
-    allowUnknownFields: true,
+    // Keep editor diagnostics aligned with serialization, which rejects unknown
+    // columns instead of letting the backend silently discard them.
+    allowUnknownFields: false,
   };
 }
 

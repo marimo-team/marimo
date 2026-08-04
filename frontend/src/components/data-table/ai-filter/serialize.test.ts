@@ -29,11 +29,9 @@ function serialize(query: string): SerializedFilter {
 
 // Terse builders that mirror the marimo FilterGroup shape.
 function cond(
-  column_id: string,
-  operator: string,
-  extra: Record<string, unknown> = {},
+  input: { column_id: string; operator: string } & Record<string, unknown>,
 ) {
-  return { type: "condition", column_id, operator, negate: false, ...extra };
+  return { type: "condition", negate: false, ...input };
 }
 function group(operator: "and" | "or", children: unknown[]) {
   return { type: "group", operator, children, negate: false };
@@ -42,14 +40,31 @@ function group(operator: "and" | "or", children: unknown[]) {
 describe("filterBarAstToMarimo", () => {
   it("maps a text `:` filter to contains", () => {
     expect(serialize("status:open")).toEqual({
-      filters: group("and", [cond("status", "contains", { value: "open" })]),
+      filters: group("and", [
+        cond({ column_id: "status", operator: "contains", value: "open" }),
+      ]),
       query: "",
     });
   });
 
   it("maps numeric comparisons directly", () => {
     expect(serialize("priority>=2")).toEqual({
-      filters: group("and", [cond("priority", ">=", { value: 2 })]),
+      filters: group("and", [
+        cond({ column_id: "priority", operator: ">=", value: 2 }),
+      ]),
+      query: "",
+    });
+  });
+
+  it("maps text not-equals to does_not_equal", () => {
+    expect(serialize('author!="alice"')).toEqual({
+      filters: group("and", [
+        cond({
+          column_id: "author",
+          operator: "does_not_equal",
+          value: "alice",
+        }),
+      ]),
       query: "",
     });
   });
@@ -57,7 +72,11 @@ describe("filterBarAstToMarimo", () => {
   it("maps multi-value `field:(a,b)` to `in`", () => {
     expect(serialize("status:(open,closed)")).toEqual({
       filters: group("and", [
-        cond("status", "in", { value: ["open", "closed"] }),
+        cond({
+          column_id: "status",
+          operator: "in",
+          value: ["open", "closed"],
+        }),
       ]),
       query: "",
     });
@@ -66,7 +85,12 @@ describe("filterBarAstToMarimo", () => {
   it("maps NOT to a negated condition", () => {
     expect(serialize("NOT status:closed")).toEqual({
       filters: group("and", [
-        cond("status", "contains", { value: "closed", negate: true }),
+        cond({
+          column_id: "status",
+          operator: "contains",
+          value: "closed",
+          negate: true,
+        }),
       ]),
       query: "",
     });
@@ -75,15 +99,15 @@ describe("filterBarAstToMarimo", () => {
   it("maps AND / OR to and/or groups", () => {
     expect(serialize("status:open AND author:alice")).toEqual({
       filters: group("and", [
-        cond("status", "contains", { value: "open" }),
-        cond("author", "contains", { value: "alice" }),
+        cond({ column_id: "status", operator: "contains", value: "open" }),
+        cond({ column_id: "author", operator: "contains", value: "alice" }),
       ]),
       query: "",
     });
     expect(serialize("status:open OR status:closed")).toEqual({
       filters: group("or", [
-        cond("status", "contains", { value: "open" }),
-        cond("status", "contains", { value: "closed" }),
+        cond({ column_id: "status", operator: "contains", value: "open" }),
+        cond({ column_id: "status", operator: "contains", value: "closed" }),
       ]),
       query: "",
     });
@@ -92,8 +116,8 @@ describe("filterBarAstToMarimo", () => {
   it("handles the homes example (numeric comparisons under AND)", () => {
     expect(serialize("year_built:<2000 AND price:<2000000")).toEqual({
       filters: group("and", [
-        cond("year_built", "<", { value: 2000 }),
-        cond("price", "<", { value: 2000000 }),
+        cond({ column_id: "year_built", operator: "<", value: 2000 }),
+        cond({ column_id: "price", operator: "<", value: 2000000 }),
       ]),
       query: "",
     });
@@ -101,28 +125,64 @@ describe("filterBarAstToMarimo", () => {
 
   it("preserves ISO date values for date comparisons", () => {
     expect(serialize("created:>2024-01-01")).toEqual({
-      filters: group("and", [cond("created", ">", { value: "2024-01-01" })]),
+      filters: group("and", [
+        cond({
+          column_id: "created",
+          operator: ">",
+          value: "2024-01-01",
+        }),
+      ]),
       query: "",
     });
   });
 
   it("maps boolean truthiness to is_true / is_false", () => {
     expect(serialize("is_active:true")).toEqual({
-      filters: group("and", [cond("is_active", "is_true")]),
+      filters: group("and", [
+        cond({ column_id: "is_active", operator: "is_true" }),
+      ]),
       query: "",
     });
     expect(serialize("is_active:false")).toEqual({
-      filters: group("and", [cond("is_active", "is_false")]),
+      filters: group("and", [
+        cond({ column_id: "is_active", operator: "is_false" }),
+      ]),
       query: "",
     });
   });
 
   it("routes free text into the query while keeping structured filters", () => {
-    const result = serialize('label:"needs review" homes');
+    const result = serialize('status:"needs review" homes');
     expect(result.query).toBe("homes");
-    // `label` is unknown to the schema, so it defaults to a text contains match.
     expect(result.filters).toEqual(
-      group("and", [cond("label", "contains", { value: "needs review" })]),
+      group("and", [
+        cond({
+          column_id: "status",
+          operator: "contains",
+          value: "needs review",
+        }),
+      ]),
+    );
+  });
+
+  it("rejects unknown columns instead of silently dropping them", () => {
+    expect(() => serialize("statsu:open")).toThrowError(
+      'Unknown filter column: "statsu".',
+    );
+  });
+
+  it("rejects OR expressions containing free text", () => {
+    expect(() => serialize("homes OR status:open")).toThrowError(
+      "Free-text search terms cannot be combined with OR",
+    );
+    expect(() => serialize("homes OR condos")).toThrowError(
+      "Free-text search terms cannot be combined with OR",
+    );
+  });
+
+  it("rejects negated free text", () => {
+    expect(() => serialize("NOT homes")).toThrowError(
+      "Free-text search terms cannot be negated",
     );
   });
 
@@ -130,10 +190,10 @@ describe("filterBarAstToMarimo", () => {
     expect(serialize("(status:open OR status:draft) AND priority>=3")).toEqual({
       filters: group("and", [
         group("or", [
-          cond("status", "contains", { value: "open" }),
-          cond("status", "contains", { value: "draft" }),
+          cond({ column_id: "status", operator: "contains", value: "open" }),
+          cond({ column_id: "status", operator: "contains", value: "draft" }),
         ]),
-        cond("priority", ">=", { value: 3 }),
+        cond({ column_id: "priority", operator: ">=", value: 3 }),
       ]),
       query: "",
     });
