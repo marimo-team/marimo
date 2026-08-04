@@ -259,6 +259,7 @@ describe("ExportDialog", () => {
               format: "pdf",
               dependenciesAvailable: false,
               missingPackages: ["nbconvert[webpdf]"],
+              missingSetup: [],
             },
           ],
         }),
@@ -273,6 +274,35 @@ describe("ExportDialog", () => {
     ).toBeVisible();
     expect(screen.getByTestId("export-submit")).toBeDisabled();
     expect(screen.getByTestId("export-format-pdf")).toBeVisible();
+  });
+
+  it("explains missing Playwright Chromium setup", async () => {
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getExportAvailability: vi.fn().mockResolvedValue({
+          source: "server",
+          formats: [
+            {
+              format: "pdf",
+              dependenciesAvailable: false,
+              missingPackages: [],
+              missingSetup: ["playwright-chromium"],
+            },
+          ],
+        }),
+      }),
+    );
+
+    renderDialog("pdf");
+
+    expect(
+      await screen.findByText("PDF export requires Playwright Chromium."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("python -m playwright install chromium"),
+    ).toBeVisible();
+    expect(screen.getByTestId("export-submit")).toBeDisabled();
   });
 
   it("announces requirement checks as status updates", () => {

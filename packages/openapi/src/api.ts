@@ -906,7 +906,7 @@ export interface paths {
       };
       requestBody?: never;
       responses: {
-        /** @description Dependency readiness for server-backed exports */
+        /** @description Readiness for server-backed exports */
         200: {
           headers: {
             [name: string]: unknown;
@@ -4823,6 +4823,7 @@ export interface components {
       /** @enum {unknown} */
       format: "html" | "ipynb" | "markdown" | "pdf" | "script";
       missingPackages: string[];
+      missingSetup: "playwright-chromium"[];
     };
     /** FileCopyRequest */
     FileCopyRequest: {

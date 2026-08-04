@@ -21,7 +21,10 @@ from marimo._convert.common.filename import (
     make_export_headers,
 )
 from marimo._convert.script import UnsupportedAsyncCodeError
-from marimo._export.dependencies import get_missing_export_packages
+from marimo._export.dependencies import (
+    get_missing_export_packages,
+    get_missing_export_setup,
+)
 from marimo._export.exporter import (
     AutoExporter,
     Exporter,
@@ -86,7 +89,7 @@ async def get_export_availability(
     """
     responses:
         200:
-            description: Dependency readiness for server-backed exports
+            description: Readiness for server-backed exports
             content:
                 application/json:
                     schema:
@@ -96,11 +99,18 @@ async def get_export_availability(
     formats: list[ExportFormatAvailability] = []
     for export_format in SERVER_EXPORT_FORMATS:
         missing_packages = get_missing_export_packages(export_format)
+        missing_setup = (
+            []
+            if missing_packages
+            else await get_missing_export_setup(export_format)
+        )
         formats.append(
             ExportFormatAvailability(
                 format=export_format,
-                dependencies_available=not missing_packages,
+                dependencies_available=not missing_packages
+                and not missing_setup,
                 missing_packages=missing_packages,
+                missing_setup=missing_setup,
             )
         )
     return ExportAvailabilityResponse(source="server", formats=formats)

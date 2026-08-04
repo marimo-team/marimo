@@ -9,7 +9,7 @@ import time
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 from urllib.parse import quote
 
 import pytest
@@ -80,16 +80,22 @@ def test_export_availability_reports_server_dependencies(
     client: TestClient,
 ) -> None:
     get_session_manager(client).mode = SessionMode.RUN
+    probe = AsyncMock()
     with (
         patch.object(DependencyManager.nbformat, "has", return_value=False),
         patch.object(DependencyManager.nbconvert, "has", return_value=True),
-        patch.object(DependencyManager.playwright, "has", return_value=False),
+        patch.object(DependencyManager.playwright, "has", return_value=True),
+        patch(
+            "marimo._export.dependencies._is_playwright_chromium_installed",
+            new=probe,
+        ),
     ):
         response = client.get(
             "/api/export/availability",
             headers=token_header(),
         )
 
+    probe.assert_not_awaited()
     assert response.status_code == 200
     assert response.json() == {
         "source": "server",
@@ -98,28 +104,63 @@ def test_export_availability_reports_server_dependencies(
                 "format": "html",
                 "dependenciesAvailable": True,
                 "missingPackages": [],
+                "missingSetup": [],
             },
             {
                 "format": "markdown",
                 "dependenciesAvailable": True,
                 "missingPackages": [],
+                "missingSetup": [],
             },
             {
                 "format": "ipynb",
                 "dependenciesAvailable": False,
                 "missingPackages": ["nbformat"],
+                "missingSetup": [],
             },
             {
                 "format": "pdf",
                 "dependenciesAvailable": False,
                 "missingPackages": ["nbconvert[webpdf]"],
+                "missingSetup": [],
             },
             {
                 "format": "script",
                 "dependenciesAvailable": True,
                 "missingPackages": [],
+                "missingSetup": [],
             },
         ],
+    }
+
+
+def test_export_availability_reports_missing_pdf_setup(
+    client: TestClient,
+) -> None:
+    get_session_manager(client).mode = SessionMode.RUN
+    with (
+        patch.object(DependencyManager.nbformat, "has", return_value=True),
+        patch.object(DependencyManager.nbconvert, "has", return_value=True),
+        patch.object(DependencyManager.playwright, "has", return_value=True),
+        patch(
+            "marimo._export.dependencies._is_playwright_chromium_installed",
+            new=AsyncMock(return_value=False),
+        ),
+    ):
+        response = client.get(
+            "/api/export/availability",
+            headers=token_header(),
+        )
+
+    assert response.status_code == 200
+    pdf = next(
+        item for item in response.json()["formats"] if item["format"] == "pdf"
+    )
+    assert pdf == {
+        "format": "pdf",
+        "dependenciesAvailable": False,
+        "missingPackages": [],
+        "missingSetup": ["playwright-chromium"],
     }
 
 
