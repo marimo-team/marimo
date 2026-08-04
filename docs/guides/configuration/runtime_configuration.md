@@ -38,11 +38,30 @@ when working on notebooks with expensive cells.
     to help you work with expensive or side-effectful notebooks. marimo's
     can cache expensive functions in memory and expensive blocks of code to disk,
     letting you skip entire sections of your code and automatically loading
-    variables in memory on notebook startup. Read our [caching
-    guide](../../api/caching.md) to learn more.
+    variables in memory on notebook startup. marimo can also automatically
+    cache every executed cell notebook-wide. See [`cache_cells`](#cache-cells)
+    below. Read our [caching guide](../../api/caching.md) to learn more.
 
 _When sharing a notebook as an app with `marimo run`, this setting has
 no effect._
+
+## Cache cells { #cache-cells }
+
+By default, marimo only caches the functions or code blocks you explicitly
+decorate with [`mo.cache`][marimo.cache] or
+[`mo.persistent_cache`][marimo.persistent_cache]. You can instead have marimo
+attempt to cache every executed cell in the notebook by setting `cache_cells`
+in the runtime configuration:
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+cache_cells = true
+```
+
+This is not yet exposed in the notebook settings UI. Set it in
+`pyproject.toml` as shown above. See [Automatic cell
+caching](../../api/caching.md#automatic-cell-caching) for how this behaves
+and its current limitations.
 
 ## On module change
 
