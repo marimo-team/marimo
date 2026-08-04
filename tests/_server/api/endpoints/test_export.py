@@ -146,6 +146,10 @@ def test_export_availability_reports_missing_pdf_setup(
             "marimo._export.dependencies._is_playwright_chromium_installed",
             new=AsyncMock(return_value=False),
         ),
+        patch(
+            "marimo._export.dependencies.get_playwright_chromium_setup_commands",
+            return_value=["uv run playwright install chromium"],
+        ),
     ):
         response = client.get(
             "/api/export/availability",
@@ -160,8 +164,54 @@ def test_export_availability_reports_missing_pdf_setup(
         "format": "pdf",
         "dependenciesAvailable": False,
         "missingPackages": [],
-        "missingSetup": ["playwright-chromium"],
+        "missingSetup": [
+            {
+                "name": "playwright-chromium",
+                "command": "uv run playwright install chromium",
+            }
+        ],
     }
+
+
+def test_export_availability_handles_pdf_setup_probe_failure(
+    client: TestClient,
+) -> None:
+    get_session_manager(client).mode = SessionMode.RUN
+    error = RuntimeError("driver failed")
+    with (
+        patch.object(DependencyManager.nbformat, "has", return_value=True),
+        patch.object(DependencyManager.nbconvert, "has", return_value=True),
+        patch.object(DependencyManager.playwright, "has", return_value=True),
+        patch(
+            "marimo._export.dependencies._is_playwright_chromium_installed",
+            new=AsyncMock(side_effect=error),
+        ),
+        patch(
+            "marimo._export.dependencies.get_playwright_chromium_setup_commands",
+            return_value=["uv run playwright install chromium"],
+        ),
+        patch("marimo._export.dependencies.LOGGER.warning") as warning,
+    ):
+        response = client.get(
+            "/api/export/availability",
+            headers=token_header(),
+        )
+
+    assert response.status_code == 200
+    pdf = next(
+        item for item in response.json()["formats"] if item["format"] == "pdf"
+    )
+    assert pdf["dependenciesAvailable"] is False
+    assert pdf["missingSetup"] == [
+        {
+            "name": "playwright-chromium",
+            "command": "uv run playwright install chromium",
+        }
+    ]
+    warning.assert_called_once_with(
+        "Failed to check whether Playwright Chromium is installed",
+        exc_info=error,
+    )
 
 
 @with_session(SESSION_ID)

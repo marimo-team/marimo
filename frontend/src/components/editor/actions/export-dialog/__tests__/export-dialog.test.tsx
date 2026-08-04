@@ -287,7 +287,12 @@ describe("ExportDialog", () => {
               format: "pdf",
               dependenciesAvailable: false,
               missingPackages: [],
-              missingSetup: ["playwright-chromium"],
+              missingSetup: [
+                {
+                  name: "playwright-chromium",
+                  command: "uv run playwright install chromium",
+                },
+              ],
             },
           ],
         }),
@@ -300,7 +305,7 @@ describe("ExportDialog", () => {
       await screen.findByText("PDF export requires Playwright Chromium."),
     ).toBeVisible();
     expect(
-      screen.getByText("python -m playwright install chromium"),
+      screen.getByText("uv run playwright install chromium"),
     ).toBeVisible();
     expect(screen.getByTestId("export-submit")).toBeDisabled();
   });

@@ -4823,7 +4823,13 @@ export interface components {
       /** @enum {unknown} */
       format: "html" | "ipynb" | "markdown" | "pdf" | "script";
       missingPackages: string[];
-      missingSetup: "playwright-chromium"[];
+      missingSetup: components["schemas"]["ExportSetupRequirement"][];
+    };
+    /** ExportSetupRequirement */
+    ExportSetupRequirement: {
+      command: string;
+      /** @enum {unknown} */
+      name: "playwright-chromium";
     };
     /** FileCopyRequest */
     FileCopyRequest: {

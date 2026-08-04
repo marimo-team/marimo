@@ -14,12 +14,11 @@ import type {
 } from "./state";
 
 const SETUP_REQUIREMENTS: Record<
-  ExportSetupRequirement,
-  { description: string; command: string }
+  ExportSetupRequirement["name"],
+  { description: string }
 > = {
   "playwright-chromium": {
     description: "PDF export requires Playwright Chromium.",
-    command: "python -m playwright install chromium",
   },
 };
 
@@ -140,12 +139,12 @@ function ReasonNotice({
         <Notice>
           <span className="block min-w-0">
             {reason.requirements.map((requirement) => {
-              const details = SETUP_REQUIREMENTS[requirement];
+              const details = SETUP_REQUIREMENTS[requirement.name];
               return (
-                <span className="block" key={requirement}>
+                <span className="block" key={requirement.name}>
                   {details.description}
                   <code className="mt-1 block break-all font-mono">
-                    {details.command}
+                    {requirement.command}
                   </code>
                 </span>
               );

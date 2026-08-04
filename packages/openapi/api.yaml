@@ -1964,8 +1964,7 @@ components:
           type: array
         missingSetup:
           items:
-            enum:
-            - playwright-chromium
+            $ref: '#/components/schemas/ExportSetupRequirement'
           type: array
       required:
       - format
@@ -1973,6 +1972,18 @@ components:
       - missingPackages
       - missingSetup
       title: ExportFormatAvailability
+      type: object
+    ExportSetupRequirement:
+      properties:
+        command:
+          type: string
+        name:
+          enum:
+          - playwright-chromium
+      required:
+      - name
+      - command
+      title: ExportSetupRequirement
       type: object
     FileCopyRequest:
       properties:

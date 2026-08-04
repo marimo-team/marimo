@@ -217,7 +217,12 @@ describe("getExportFormatStatus", () => {
                 format: "pdf",
                 dependenciesAvailable: false,
                 missingPackages: [],
-                missingSetup: ["playwright-chromium"],
+                missingSetup: [
+                  {
+                    name: "playwright-chromium",
+                    command: "uv run playwright install chromium",
+                  },
+                ],
               },
             ],
           },
@@ -227,7 +232,12 @@ describe("getExportFormatStatus", () => {
       available: false,
       reason: {
         type: "missing-setup",
-        requirements: ["playwright-chromium"],
+        requirements: [
+          {
+            name: "playwright-chromium",
+            command: "uv run playwright install chromium",
+          },
+        ],
       },
     });
   });

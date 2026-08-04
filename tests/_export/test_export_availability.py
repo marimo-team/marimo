@@ -20,6 +20,7 @@ from marimo._export.dependencies import (
 )
 from marimo._export.exporter import Exporter
 from marimo._export.requests import IPYNBExportRequest
+from marimo._schemas.export import ExportSetupRequirement
 from marimo._schemas.export_options import (
     SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
@@ -80,17 +81,31 @@ def test_ipynb_requirement_uses_nbformat() -> None:
     ("chromium_installed", "missing_setup"),
     [
         (True, []),
-        (False, ["playwright-chromium"]),
+        (
+            False,
+            [
+                ExportSetupRequirement(
+                    name="playwright-chromium",
+                    command="uv run playwright install chromium",
+                )
+            ],
+        ),
     ],
 )
 async def test_pdf_setup_requires_playwright_chromium(
-    *, chromium_installed: bool, missing_setup: list[str]
+    *,
+    chromium_installed: bool,
+    missing_setup: list[ExportSetupRequirement],
 ) -> None:
     with (
         patch.object(DependencyManager.playwright, "has", return_value=True),
         patch(
             "marimo._export.dependencies._is_playwright_chromium_installed",
             new=AsyncMock(return_value=chromium_installed),
+        ),
+        patch(
+            "marimo._export.dependencies.get_playwright_chromium_setup_commands",
+            return_value=["uv run playwright install chromium"],
         ),
     ):
         assert await get_missing_export_setup("pdf") == missing_setup

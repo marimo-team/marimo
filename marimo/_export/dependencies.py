@@ -5,17 +5,21 @@ import asyncio
 import sys
 from typing import cast
 
+from marimo import _loggers
+from marimo._cli.install_hints import (
+    get_playwright_chromium_setup_commands,
+)
 from marimo._dependencies.dependencies import (
     DependencyLike,
     DependencyManager,
     DependencyRequirement,
 )
-from marimo._schemas.export_options import (
-    ExportSetupRequirement,
-    ServerExportFormat,
-)
+from marimo._schemas.export import ExportSetupRequirement
+from marimo._schemas.export_options import ServerExportFormat
 from marimo._utils.assert_never import assert_never
 from marimo._utils.async_path import isfile
+
+LOGGER = _loggers.marimo_logger()
 
 _IPYNB_DEPENDENCIES = (DependencyManager.nbformat,)
 _PDF_DEPENDENCIES = (
@@ -64,11 +68,24 @@ async def get_missing_export_setup(
     if export_format != "pdf" or not DependencyManager.playwright.has():
         return []
 
-    return (
-        []
-        if await _is_playwright_chromium_installed()
-        else ["playwright-chromium"]
-    )
+    try:
+        chromium_installed = await _is_playwright_chromium_installed()
+    except Exception as e:
+        LOGGER.warning(
+            "Failed to check whether Playwright Chromium is installed",
+            exc_info=e,
+        )
+        chromium_installed = False
+
+    if chromium_installed:
+        return []
+
+    return [
+        ExportSetupRequirement(
+            name="playwright-chromium",
+            command=get_playwright_chromium_setup_commands()[0],
+        )
+    ]
 
 
 async def _is_playwright_chromium_installed() -> bool:
