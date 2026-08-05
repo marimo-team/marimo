@@ -35,10 +35,7 @@ from __future__ import annotations
 import sys
 from types import ModuleType
 
-from marimo._code_mode._capabilities import (
-    capabilities,
-    load_capability,
-)
+from marimo._code_mode._capabilities import capabilities
 from marimo._code_mode._context import (
     AsyncCodeModeContext,
     CellStatusType,
@@ -54,11 +51,9 @@ __all__ = [
     "StaleCellError",
     "capabilities",
     "get_context",
-    "load_capability",
 ]
 
 
-# Lets us make `help(cm)` dynamic.
 class _CodeModeModule(ModuleType):
     @property
     def __doc__(self) -> str | None:
@@ -70,12 +65,16 @@ class _CodeModeModule(ModuleType):
         if not installed:
             return doc
 
-        names = ", ".join(installed)
+        modules = "\n".join(
+            f"    {name}    import {module}"
+            for name, module in installed.items()
+        )
         return (
             f"{doc}\n\n"
-            f"Installed capabilities: {names}\n\n"
-            "Run `cm.capabilities()` to list them, then "
-            "`cm.load_capability(name)` to load one."
+            "Installed capabilities:\n\n"
+            f"{modules}\n\n"
+            "Import a relevant module and call `help(module)` to learn "
+            "how to use it."
         )
 
     @__doc__.setter
