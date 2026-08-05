@@ -157,14 +157,26 @@ def get_notebook_serializer(
         path = Path(path)
 
     handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(path.suffix)
-    if handler is None and default is not None and contents is not None:
-        fallback = DEFAULT_NOTEBOOK_SERIALIZERS[default]
-        try:
-            notebook = fallback.deserialize(contents, filepath=str(path))
-        except SyntaxError:
-            notebook = None
-        if notebook is not None and not is_non_marimo_python_script(notebook):
-            handler = fallback
+    if (
+        handler is None
+        and path.suffix == ""
+        and default is not None
+        and contents is not None
+    ):
+        fallback = DEFAULT_NOTEBOOK_SERIALIZERS.get(default)
+        if fallback is not None:
+            from marimo._ast.parse import MarimoFileError
+
+            try:
+                notebook = fallback.deserialize(contents, filepath=str(path))
+            except SyntaxError:
+                # Preserve SyntaxError semantics for extensionless Python files.
+                handler = fallback
+            except MarimoFileError:
+                notebook = None
+            else:
+                if notebook is not None and not is_non_marimo_python_script(notebook):
+                    handler = fallback
     if handler is None:
         raise ValueError(
             f"No notebook serializer found for {path}. Supported extensions: {list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())}"
