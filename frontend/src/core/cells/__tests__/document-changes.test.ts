@@ -318,35 +318,34 @@ describe("toDocumentChanges", () => {
       `);
     });
 
-    it("mergeAllColumns emits set-config + reorder-cells", () => {
+    it("mergeAllColumns preserves column metadata and emits only reorder-cells", () => {
       setup("a", "b", "c");
-      const [, b] = state.cellIds.inOrderIds;
+      const [a, b] = state.cellIds.inOrderIds;
       state = dispatch(state, {
         type: "addColumnBreakpoint",
         payload: { cellId: b },
       });
 
-      const { changes } = resolve(state, {
+      // Cells carry explicit column metadata, as loaded from a notebook
+      // saved in "columns" width.
+      state = dispatch(state, {
+        type: "updateCellConfig",
+        payload: { cellId: a, config: { column: 0 } },
+      });
+      state = dispatch(state, {
+        type: "updateCellConfig",
+        payload: { cellId: b, config: { column: 1 } },
+      });
+
+      const { next, changes } = resolve(state, {
         type: "mergeAllColumns",
         payload: {},
       });
 
+      // The width-driven merge must not rewrite column configs: they keep
+      // `@app.cell(column=...)` in the saved notebook file (issue #3543).
       expect(changes).toMatchInlineSnapshot(`
         [
-          {
-            "cellId": "1",
-            "column": 0,
-            "disabled": false,
-            "hideCode": false,
-            "type": "set-config",
-          },
-          {
-            "cellId": "2",
-            "column": 0,
-            "disabled": false,
-            "hideCode": false,
-            "type": "set-config",
-          },
           {
             "cellIds": [
               "0",
@@ -357,6 +356,8 @@ describe("toDocumentChanges", () => {
           },
         ]
       `);
+      expect(next.cellData[b].config.column).toBe(1);
+      expect(next.cellIds.getColumns().length).toBe(1);
     });
   });
 

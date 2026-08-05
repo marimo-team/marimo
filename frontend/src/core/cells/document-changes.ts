@@ -287,9 +287,22 @@ export function toDocumentChanges(
     case "moveColumn":
     case "addColumnBreakpoint":
     case "deleteColumn":
-    case "mergeAllColumns":
     case "compactColumns":
       return columnChanges(prevState, newState);
+
+    // mergeAllColumns is dispatched when the app width changes away from
+    // "columns" (see edit-app.tsx). It merges the layout tree so cells
+    // render in a single column, but it must not rewrite each cell's column
+    // config: those configs are what keep `@app.cell(column=...)` metadata
+    // in the saved notebook file (issue #3543). Only the flat ordering is
+    // emitted so the server's document order stays in sync.
+    case "mergeAllColumns":
+      return [
+        {
+          type: "reorder-cells",
+          cellIds: newState.cellIds.inOrderIds,
+        },
+      ];
 
     // addColumn creates a new column with a new empty cell.
     // Emits create-cell for the new cell plus column layout changes.
