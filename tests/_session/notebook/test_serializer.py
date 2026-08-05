@@ -313,6 +313,38 @@ class TestGetFormatHandler:
         assert ".md" in DEFAULT_NOTEBOOK_SERIALIZERS
         assert ".qmd" in DEFAULT_NOTEBOOK_SERIALIZERS
 
+    def test_default_resolves_extensionless_marimo_notebook(
+        self, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "slurm_script"
+        contents = (
+            "import marimo\n\n"
+            "app = marimo.App()\n\n\n"
+            "@app.cell\n"
+            "def _():\n"
+            "    x = 1\n"
+            "    return\n"
+        )
+
+        handler = get_notebook_serializer(path, contents, default=".py")
+
+        assert isinstance(handler, PythonNotebookSerializer)
+
+    def test_default_rejects_extensionless_non_marimo_contents(
+        self, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "slurm_script"
+
+        with pytest.raises(ValueError, match="No notebook serializer found"):
+            get_notebook_serializer(path, "print('plain')", default=".py")
+
+    def test_default_requires_opt_in(self, tmp_path: Path) -> None:
+        path = tmp_path / "slurm_script"
+        contents = "import marimo\n\napp = marimo.App()\n"
+
+        with pytest.raises(ValueError, match="No notebook serializer found"):
+            get_notebook_serializer(path, contents)
+
 
 class TestDeserializationWithFilenames:
     """Test that filenames are propagated through the deserialization chain."""

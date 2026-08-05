@@ -6,6 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
+from marimo._ast.parse import is_non_marimo_python_script
 from marimo._schemas.serialization import (
     AppInstantiation,
     NotebookSerializationV1,
@@ -130,24 +131,40 @@ DEFAULT_NOTEBOOK_SERIALIZERS = {
 }
 
 
-def get_notebook_serializer(path: Path) -> NotebookSerializer:
+def get_notebook_serializer(
+    path: Path,
+    contents: str | None = None,
+    default: str | None = None,
+) -> NotebookSerializer:
     """Get the appropriate notebook serializer for a file.
 
     Args:
         path: File path
+        contents: Optional file contents. A path with an unrecognized
+            suffix (for example, Slurm's spooled copy of a submitted
+            notebook, which has no extension) resolves to the `default`
+            serializer when the contents are a marimo notebook.
+        default: Suffix of the serializer to fall back to
 
     Returns:
         Appropriate notebook serializer
 
     Raises:
-        ValueError: If no notebook serializer supports the file format
+        ValueError: If no notebook serializer supports the file
     """
     # Ensure path is a Path object
     if not isinstance(path, Path):
         path = Path(path)
 
-    ext = path.suffix
-    handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(ext)
+    handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(path.suffix)
+    if handler is None and default is not None and contents is not None:
+        fallback = DEFAULT_NOTEBOOK_SERIALIZERS[default]
+        try:
+            notebook = fallback.deserialize(contents, filepath=str(path))
+        except SyntaxError:
+            notebook = None
+        if notebook is not None and not is_non_marimo_python_script(notebook):
+            handler = fallback
     if handler is None:
         raise ValueError(
             f"No notebook serializer found for {path}. Supported extensions: {list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())}"

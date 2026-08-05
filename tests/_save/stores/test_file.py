@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
+import marimo._save.stores.file as file_mod
 from marimo._save.stores.file import FileStore
 
 
@@ -51,3 +54,24 @@ class TestFileStore:
         # Accessing the property triggers resolution.
         _ = store.save_path
         assert store._resolved_save_path is not None
+
+
+class TestDefaultSavePath:
+    def test_writable_notebook_dir(self, tmp_path, monkeypatch) -> None:
+        """The cache anchors next to the notebook when its directory is writable."""
+        monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+
+        path = FileStore()._default_save_path()
+
+        assert path == tmp_path / "__marimo__" / "cache"
+
+    def test_read_only_notebook_dir_falls_back_to_cwd(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """A read-only notebook directory anchors the cache to the working directory."""
+        monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+        monkeypatch.setattr(file_mod.os, "access", lambda *_args: False)
+
+        path = FileStore()._default_save_path()
+
+        assert path == Path("__marimo__", "cache")
