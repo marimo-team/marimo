@@ -55,6 +55,7 @@ with app.setup:
         o.SQLSchemaListPreviewNotification,
         o.DataColumnPreviewNotification,
         o.DataSourceConnectionsNotification,
+        o.DataSourceDiscoveryResultNotification,
         o.ValidateSQLResultNotification,
         o.QueryParamsSetNotification,
         o.QueryParamsAppendNotification,

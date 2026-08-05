@@ -93,6 +93,7 @@ class OSFileSystem(FileSystem):
                         is_marimo_file=not is_directory
                         and self._is_marimo_file(entry.path),
                         last_modified=entry_stat.st_mtime,
+                        size=None if is_directory else entry_stat.st_size,
                     )
                     if is_directory:
                         folders.append(info)
@@ -105,7 +106,7 @@ class OSFileSystem(FileSystem):
             files, key=natural_sort_file
         )
 
-    def _get_file_info(self, path: str) -> FileInfo:
+    def get_info(self, path: str) -> FileInfo:
         stat = os.stat(path)
         is_directory = os.path.isdir(path)
         return FileInfo(
@@ -115,6 +116,7 @@ class OSFileSystem(FileSystem):
             is_directory=is_directory,
             is_marimo_file=not is_directory and self._is_marimo_file(path),
             last_modified=stat.st_mtime,
+            size=None if is_directory else stat.st_size,
         )
 
     def get_details(
@@ -122,27 +124,54 @@ class OSFileSystem(FileSystem):
         path: str,
         encoding: str | None = None,
         contents: str | None = None,
+        max_bytes: int | None = None,
     ) -> FileDetailsResponse:
-        file_info = self._get_file_info(path)
+        if max_bytes is not None and max_bytes < 0:
+            raise ValueError("max_bytes must be non-negative")
+
+        file_info = self.get_info(path)
+        mime_type = mimetypes.guess_type(path)[0]
         is_base64 = False
-        actual_contents: str | bytes | None
+        is_too_large = False
+        actual_contents: str | None
         if file_info.is_directory:
             actual_contents = None
         elif contents is not None:
             actual_contents = contents
-        else:
-            actual_contents = self.open_file(path, encoding=encoding)
-            if isinstance(actual_contents, bytes):
-                actual_contents = base64.b64encode(actual_contents).decode(
-                    "utf-8"
-                )
+        elif (
+            max_bytes is not None
+            and file_info.size is not None
+            and file_info.size > max_bytes
+        ):
+            actual_contents = None
+            is_too_large = True
+        elif max_bytes is None:
+            opened = self.open_file(path, encoding=encoding)
+            if isinstance(opened, bytes):
+                actual_contents = base64.b64encode(opened).decode("utf-8")
                 is_base64 = True
-        mime_type = mimetypes.guess_type(path)[0]
+            else:
+                actual_contents = opened
+        else:
+            file_path = Path(path)
+            with file_path.open("rb") as file:
+                raw = file.read(max_bytes + 1)
+            if len(raw) > max_bytes:
+                actual_contents = None
+                is_too_large = True
+            else:
+                try:
+                    actual_contents = raw.decode(encoding or "utf-8")
+                except UnicodeDecodeError:
+                    actual_contents = base64.b64encode(raw).decode("utf-8")
+                    is_base64 = True
+
         return FileDetailsResponse(
             file=file_info,
             contents=actual_contents,
             mime_type=mime_type,
             is_base64=is_base64,
+            is_too_large=is_too_large,
         )
 
     def _is_marimo_file(self, path: str) -> bool:
@@ -205,19 +234,10 @@ class OSFileSystem(FileSystem):
             else:
                 notebook_code = converter.to_py()
             full_path.write_text(notebook_code, encoding="utf-8")
-            contents = notebook_code.encode("utf-8")
         else:
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_bytes(contents or b"")
-        # encoding latin-1 to get an invertible representation of the
-        # bytes as a string ...
-        return self.get_details(
-            str(full_path),
-            encoding="latin-1",
-            contents=(
-                contents.decode("latin-1") if contents is not None else None
-            ),
-        ).file
+        return self.get_info(str(full_path))
 
     async def stream_create_file(
         self,
@@ -272,9 +292,7 @@ class OSFileSystem(FileSystem):
                     pass
             raise
 
-        # `get_details` would re-read the file (and base64-encode binary),
-        # defeating the streaming win.
-        return self._get_file_info(str(full_path))
+        return self.get_info(str(full_path))
 
     def delete_file_or_directory(self, path: str) -> bool:
         if os.path.isdir(path):
@@ -291,7 +309,7 @@ class OSFileSystem(FileSystem):
             shutil.copytree(path, new_path)
         else:
             shutil.copy2(path, new_path)
-        return self.get_details(new_path).file
+        return self.get_info(new_path)
 
     def move_file_or_directory(self, path: str, new_path: str) -> FileInfo:
         if not _is_allowed_paths(path, new_path):
@@ -300,12 +318,12 @@ class OSFileSystem(FileSystem):
         if os.path.exists(new_path):
             raise ValueError(f"Destination path {new_path} already exists")
         safe_move(path, new_path)
-        return self.get_details(new_path).file
+        return self.get_info(new_path)
 
     def update_file(self, path: str, contents: str) -> FileInfo:
         file_path = Path(path)
         file_path.write_text(contents, encoding="utf-8")
-        return self.get_details(path, contents=contents).file
+        return self.get_info(path)
 
     def search(
         self,
@@ -405,6 +423,9 @@ class OSFileSystem(FileSystem):
                                 # This can be expensive, so we don't do it on search
                                 is_marimo_file=False,
                                 last_modified=entry_stat.st_mtime,
+                                size=None
+                                if is_directory
+                                else entry_stat.st_size,
                             )
                             results.append(file_info)
 

@@ -117,13 +117,13 @@ the [dataframes guide](../guides/working_with_data/dataframes.md) for details.
 
     ---
 
-    <a href="api/inputs/data_editor"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
+    <a href="../api/inputs/data_editor"><img src="/_static/example-thumbs/editable_dataframes.png" /></a>
 
 -   🛠️ [**Interactive dataframe transformer**](../api/inputs/dataframe.md)
 
     ---
 
-    <a href="api/inputs/dataframe"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
+    <a href="../api/inputs/dataframe"><img src="/_static/example-thumbs/dataframe_transformer.png" /></a>
 
 </div>
 
@@ -157,7 +157,7 @@ overview.
 
     ---
 
-    <a href="../guides/working_with_data/plotting#Plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
+    <a href="../guides/working_with_data/plotting#plotly"><img src="/_static/example-thumbs/plotly.png" /></a>
 
 -   🔭 [**Showing matplotlib plots**](outputs/plots.md)
 
@@ -190,7 +190,7 @@ overview.
 
     ---
 
-    <a href="outputs/stacks.md"><img src="/_static/example-thumbs/stacks.png" /></a>
+    <a href="outputs/stacks"><img src="/_static/example-thumbs/stacks.png" /></a>
 
 -   📁 [**Accordion toggle**](../api/layouts/accordion.md)
 
@@ -221,85 +221,85 @@ guide](../guides/interactivity.md) for rules governing how UI elements work.
 
     ---
 
-    <a href="../api/inputs/slider.md"><img src="/_static/example-thumbs/slider.png" /></a>
+    <a href="../api/inputs/slider"><img src="/_static/example-thumbs/slider.png" /></a>
 
 -   🧾 [**Dropdown**](../api/inputs/dropdown.md)
 
     ---
 
-    <a href="../api/inputs/dropdown.md"><img src="/_static/example-thumbs/dropdown.png" /></a>
+    <a href="../api/inputs/dropdown"><img src="/_static/example-thumbs/dropdown.png" /></a>
 
 -   👆 [**Multi-select**](../api/inputs/multiselect.md)
 
     ---
 
-    <a href="../api/inputs/multiselect.md"><img src="/_static/example-thumbs/multiselect.png" /></a>
+    <a href="../api/inputs/multiselect"><img src="/_static/example-thumbs/multiselect.png" /></a>
 
 -   🔘 [**Radio buttons**](../api/inputs/radio.md)
 
     ---
 
-    <a href="../api/inputs/radio.md"><img src="/_static/example-thumbs/radio.png" /></a>
+    <a href="../api/inputs/radio"><img src="/_static/example-thumbs/radio.png" /></a>
 
 -   ☑️ [**Checkbox**](../api/inputs/checkbox.md)
 
     ---
 
-    <a href="../api/inputs/checkbox.md"><img src="/_static/example-thumbs/checkbox.png" /></a>
+    <a href="../api/inputs/checkbox"><img src="/_static/example-thumbs/checkbox.png" /></a>
 
 -   📅 [**Date**](../api/inputs/dates.md)
 
     ---
 
-    <a href="../api/inputs/date.md"><img src="/_static/example-thumbs/date.png" /></a>
+    <a href="../api/inputs/dates"><img src="/_static/example-thumbs/date.png" /></a>
 
 -   📁 [**File**](../api/inputs/file.md)
 
     ---
 
-    <a href="../api/inputs/file.md"><img src="/_static/example-thumbs/file_upload.png" /></a>
+    <a href="../api/inputs/file"><img src="/_static/example-thumbs/file_upload.png" /></a>
 
 -   🔤 [**Text input**](../api/inputs/text.md)
 
     ---
 
-    <a href="../api/inputs/text.md"><img src="/_static/example-thumbs/text.png" /></a>
+    <a href="../api/inputs/text"><img src="/_static/example-thumbs/text.png" /></a>
 
 -   📝 [**Text area**](../api/inputs/text_area.md)
 
     ---
 
-    <a href="../api/inputs/text_area.md"><img src="/_static/example-thumbs/text_area.png" /></a>
+    <a href="../api/inputs/text_area"><img src="/_static/example-thumbs/text_area.png" /></a>
 
 -   🧑‍💻 [**Code editor**](../api/inputs/code_editor.md)
 
     ---
 
-    <a href="../api/inputs/code_editor.md"><img src="/_static/example-thumbs/code_editor.png" /></a>
+    <a href="../api/inputs/code_editor"><img src="/_static/example-thumbs/code_editor.png" /></a>
 
 -   🔍 [**Table**](../api/inputs/table.md)
 
     ---
 
-    <a href="../api/inputs/table.md"><img src="/_static/example-thumbs/tables.png" /></a>
+    <a href="../api/inputs/table"><img src="/_static/example-thumbs/tables.png" /></a>
 
 -   🎙️ [**Microphone**](../api/inputs/microphone.md)
 
     ---
 
-    <a href="../api/inputs/microphone.md"><img src="/_static/example-thumbs/microphone.png" /></a>
+    <a href="../api/inputs/microphone"><img src="/_static/example-thumbs/microphone.png" /></a>
 
 -   💬 [**Chat**](../api/inputs/chat.md)
 
     ---
 
-    <a href="../api/inputs/chat.md"><img src="/_static/example-thumbs/chat.png" /></a>
+    <a href="../api/inputs/chat"><img src="/_static/example-thumbs/chat.png" /></a>
 
 -   🔢 [**Matrix**](../api/inputs/matrix.md)
 
     ---
 
-    <a href="../api/inputs/matrix.md"><img src="/_static/example-thumbs/matrix.png" /></a>
+    <a href="../api/inputs/matrix"><img src="/_static/example-thumbs/matrix.png" /></a>
 
 </div>
 
@@ -314,18 +314,18 @@ other UI elements.
 
     ---
 
-    <a href="../api/inputs/form.md"><img src="/_static/example-thumbs/form.png" /></a>
+    <a href="../api/inputs/form"><img src="/_static/example-thumbs/form.png" /></a>
 
 -   🎒 [**Array**](../api/inputs/array.md)
 
     ---
 
-    <a href="../api/inputs/array.md"><img src="/_static/example-thumbs/array.png" /></a>
+    <a href="../api/inputs/array"><img src="/_static/example-thumbs/array.png" /></a>
 
 -   📖 [**Dictionary**](../api/inputs/dictionary.md)
 
     ---
 
-    <a href="../api/inputs/dictionary.md"><img src="/_static/example-thumbs/dictionary.png" /></a>
+    <a href="../api/inputs/dictionary"><img src="/_static/example-thumbs/dictionary.png" /></a>
 
 </div>

@@ -118,6 +118,7 @@ jobs:
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
+      pull-requests: write # required to post the coverage report comment
     defaults:
       run:
         working-directory: ./frontend
@@ -168,7 +169,22 @@ jobs:
         id: test
         env:
           TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
-        run: pnpm turbo test
+        run: pnpm turbo test:coverage
+
+      - name: 📊 Report coverage
+        # Runs even when tests fail (reportOnFailure writes the summary anyway).
+        # Fork PRs run with a read-only GITHUB_TOKEN, so posting the comment
+        # fails with 403 — don't fail the check for external contributors.
+        if: always()
+        continue-on-error: true
+        uses: davelosert/vitest-coverage-report-action@3c50566c523e04813df28de8f7c48dd97d663f1c # v2
+        with:
+          # Paths below are resolved relative to working-directory, so the
+          # effective locations are ./frontend/coverage/*.json (where vitest
+          # writes them — verified locally).
+          working-directory: ./frontend
+          json-summary-path: coverage/coverage-summary.json
+          json-final-path: coverage/coverage-final.json
 
       - name: Summarize typecheck failure
         if: failure() && steps.typecheck.outcome == 'failure'

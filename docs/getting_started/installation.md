@@ -40,11 +40,13 @@ detailed information on using marimo with `uv`, see our [uv
 guide](../guides/package_management/using_uv.md).
 ///
 
-/// admonition | Prefer VS Code/Cursor?
+/// admonition | Use our editor extensions
     type: tip
 
-[Try our extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
-which works in VS Code, Cursor, and other VS Code forks.
+Try our [VS Code
+extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+which works in VS Code, Cursor, and other VS Code forks, or our [PyCharm
+plugin](https://plugins.jetbrains.com/plugin/32416-marimo).
 ///
 
 

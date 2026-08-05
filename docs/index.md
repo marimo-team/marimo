@@ -82,7 +82,7 @@ reproducibility, maintainability, composability, and shareability.
 - 🖐️ **interactive:** [bind sliders, tables, plots, and more](guides/interactivity.md) to Python — no callbacks required
 - 🐍 **git-friendly:** stored as `.py` files
 - 🛢️ **designed for data**: query dataframes, databases, warehouses, and lakehouses [with SQL](guides/working_with_data/sql.md); filter and search [dataframes](guides/working_with_data/dataframes.md)
-- 🤖 **AI-native**: [connect agent CLIs](guides/generate_with_ai/marimo_pair/) like Claude Code to notebooks, or use our editor's [built-in AI features](guides/editor_features/ai_completion/)
+- 🤖 **AI-native**: [pair with AI agents](https://marimo.io/pair) like Claude Code, or use our editor's [built-in AI features](guides/editor_features/ai_completion/)
 - 🔬 **reproducible:** [no hidden state](guides/reactivity.md), deterministic execution, [built-in package management](guides/editor_features/package_management.md)
 - 🏃 **executable:** [execute as a Python script](guides/scripts.md), parameterized by CLI args
 - 🛜 **shareable**: [deploy as an interactive web app](guides/apps.md) or [slides](guides/apps.md#slides-layout), [run in the browser via WASM](guides/wasm.md)
@@ -179,6 +179,7 @@ statically analyzing your code.
 **Batteries-included.** marimo comes with [GitHub Copilot](guides/editor_features/ai_completion.md#github-copilot), AI assistants, Ruff
 code formatting, HTML export, fast code completion, a [VS Code
 extension](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo),
+a [PyCharm plugin](https://plugins.jetbrains.com/plugin/32416-marimo),
 an interactive dataframe viewer, and [many more](guides/editor_features/index.md)
 quality-of-life features.
 

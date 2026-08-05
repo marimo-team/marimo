@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from marimo._save.stores import Store
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 4
+MARIMO_CACHE_VERSION: int = 5
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -166,9 +166,25 @@ class Cache:
         memo: dict[int, Any] = {}  # Track processed objects to handle cycles
         for var, lookup in self._restore_order(self.contextual_defs()):
             value = self.defs.get(var, None)
-            scope[lookup] = self._restore_from_stub_if_needed(
-                value, scope, memo
-            )
+            # NB. if a dep already degraded to an `UnhashableStub`, this value
+            # can't materialize either; degrade it too rather than hit an opaque
+            # pickle error the ModuleNotFoundError handler below wouldn't catch.
+            degraded_dep = self._first_degraded_dep(value, scope)
+            if degraded_dep is not None:
+                scope[lookup] = UnhashableStub(
+                    var_name=var,
+                    error_msg=f"depends on unavailable '{degraded_dep}'",
+                )
+                continue
+            try:
+                scope[lookup] = self._restore_from_stub_if_needed(
+                    value, scope, memo
+                )
+            except ModuleNotFoundError as e:
+                # NB. optional dep absent here: degrade to an `UnhashableStub`
+                # instead of aborting the whole restore. It reschedules the
+                # producer only if a live consumer actually uses the value.
+                scope[lookup] = UnhashableStub(var_name=var, error_msg=str(e))
 
         for key, value in self.meta.items():
             self.meta[key] = self._restore_from_stub_if_needed(
@@ -200,13 +216,28 @@ class Cache:
 
         - A re-exec'd class/function needs the defs it references at
           definition time (bases, decorators, class-body calls).
+        - A cached wrapper (`is_cached`) is exempt: its body refs resolve at
+          call time, so a degraded one must not block the rebuild.
         - A pickled instance of a cell-defined class needs that class
           materialized first (tagged via `requires`).
         """
-        if isinstance(value, (ClassStub, FunctionStub)):
+        if isinstance(value, ClassStub) or (
+            isinstance(value, FunctionStub) and not value.is_cached
+        ):
             return _source_refs(value.code)
         requires = getattr(value, "requires", "")
         return {requires} if requires else set()
+
+    def _first_degraded_dep(
+        self, value: Any, scope: dict[str, Any]
+    ) -> Name | None:
+        """Name of the first dependency of *value* that degraded to an
+        `UnhashableStub` in *scope*, or `None` if all are available.
+        """
+        for dep in self._restore_deps(value):
+            if isinstance(scope.get(dep), UnhashableStub):
+                return dep
+        return None
 
     def _restore_order(
         self, contextual_defs: dict[tuple[Name, Name], Any]
@@ -394,6 +425,19 @@ class Cache:
 
         if inspect.ismodule(value):
             result = ModuleStub(value)
+        elif (
+            isinstance(value, CacheContext)
+            and inspect.isfunction(
+                wrapped := getattr(value, "__wrapped__", None)
+            )
+            and wrapped.__name__ != "<lambda>"
+            and getattr(wrapped, "__module__", "__main__") == "__main__"
+            and not getattr(value, "_bound", None)
+        ):
+            # A `@mo.cache` / `@mo.persistent_cache` wrapper: capture its
+            # decorated source so restore rebuilds a working wrapper rather than
+            # an `UnhashableStub`. Lambdas/bound copies can't round-trip source.
+            result = FunctionStub(value, is_cached=True)
         elif (
             inspect.isfunction(value)
             and value.__name__ != "<lambda>"

@@ -28,7 +28,7 @@ import { findCollapseRange, mergeOutlines } from "../dom/outline";
 import type { CellMessage } from "../kernel/messages";
 import { isErrorMime } from "../mime";
 import type { CellConfig } from "../network/types";
-import { isRtcEnabled } from "../rtc/state";
+import { canUseRtc, isRtcEnabled } from "../rtc/state";
 import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
@@ -927,6 +927,12 @@ const {
       cellLogs: [...nextState.cellLogs, ...getCellLogsForMessage(message)],
     };
   },
+  addLogs: (state, action: { logs: CellLog[] }) => {
+    return {
+      ...state,
+      cellLogs: [...state.cellLogs, ...action.logs],
+    };
+  },
   setCellIds: (state, action: { cellIds: CellId[] }) => {
     const isTheSame = isEqual(state.cellIds.inOrderIds, action.cellIds);
     if (isTheSame) {
@@ -1037,9 +1043,9 @@ const {
         };
       }
 
-      // Update codemirror if mounted
-      // If RTC is enabled, the editor view will already be updated, so we don't need to do this
-      if (!isRtcEnabled()) {
+      // Update codemirror if mounted. RTC-backed cells sync via Loro; others
+      // (e.g. scratchpad) still need an explicit editor update.
+      if (!isRtcEnabled() || !canUseRtc(cellId)) {
         const cellHandle = nextState.cellHandles[cellId].current;
         if (cellHandle?.editorViewOrNull) {
           updateEditorCodeFromPython(cellHandle.editorViewOrNull, code);
@@ -1697,6 +1703,13 @@ export {
   reducer as notebookReducer,
   notebookAtom,
 };
+
+/** Actions for dispatching outside of React. */
+const imperativeActions = createActions((action) => {
+  store.set(notebookAtom, (state) => reducer(state, action));
+});
+
+export const addLogs = imperativeActions.addLogs;
 
 /// ATOMS
 

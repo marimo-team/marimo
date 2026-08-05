@@ -218,3 +218,42 @@ describe("transitionCell serialization", () => {
     );
   });
 });
+
+describe("transitionCell stdin resolution", () => {
+  function stdinOutput(): OutputMessage {
+    return {
+      channel: "stdin",
+      mimetype: "text/plain",
+      data: "(Pdb) ",
+      timestamp: Date.now() as Seconds,
+    } as OutputMessage;
+  }
+
+  it("resolves a dangling pdb prompt when the cell goes idle", () => {
+    // A paused-pdb cell shows an unanswered stdin prompt (the debugger box);
+    // once it finishes (e.g. after quitting with `q`), the box is removed.
+    const cell = createCellRuntimeState({
+      status: "running",
+      debuggerActive: true,
+      consoleOutputs: [stdinOutput()],
+    });
+    const next = transitionCell(cell, {
+      cell_id: "cell-1",
+      status: "idle",
+    } as CellMessage);
+    expect(next.debuggerActive).toBe(false);
+    expect(next.consoleOutputs[0].response).toBe("");
+  });
+
+  it("leaves an unanswered prompt interactive while still running", () => {
+    const cell = createCellRuntimeState({
+      status: "running",
+      consoleOutputs: [stdinOutput()],
+    });
+    const next = transitionCell(cell, {
+      cell_id: "cell-1",
+      status: null,
+    } as CellMessage);
+    expect(next.consoleOutputs[0].response).toBeUndefined();
+  });
+});

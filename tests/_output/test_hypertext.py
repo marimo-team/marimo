@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import gc
+import weakref
+
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.hypertext import (
+    ContainerHtml,
     Html,
     patch_html_for_non_interactive_output,
 )
 from marimo._plugins.ui._impl.batch import batch as batch_plugin
 from marimo._plugins.ui._impl.input import button
 from marimo._plugins.ui._impl.table import table
+
+
+class _SingleChildContainer(ContainerHtml):
+    """Minimal ContainerHtml used to exercise the base-class contract."""
+
+    def _build_text(self) -> str:
+        return f"<div>{self._children[0].text}</div>"
 
 
 def test_html_initialization():
@@ -149,6 +160,39 @@ def test_html_center_live_updates_propagate():
     inner._text = "<div>updated</div>"
     assert "updated" in centered.text
     assert "initial" not in centered.text
+
+
+def test_container_html_retains_children() -> None:
+    # ContainerHtml must hold strong references to its children. UI elements
+    # are held only weakly by the UI registry, so a container that dropped its
+    # children (e.g. by freezing child.text) would let them be garbage
+    # collected -- the root cause of the .style()/.callout() interactivity bug.
+    child = Html("<span>child</span>")
+    child_ref = weakref.ref(child)
+
+    container = _SingleChildContainer([child])
+    assert "child" in container.text
+
+    # Drop our only strong handle; the container must keep the child alive.
+    del child
+    gc.collect()
+
+    assert child_ref() is not None, (
+        "ContainerHtml did not retain a strong reference to its child"
+    )
+
+
+def test_container_html_renders_children_live() -> None:
+    # ContainerHtml re-renders from each child's live text on every access, so
+    # mutable children (e.g. mo.status.spinner) keep updating rather than being
+    # frozen at construction time.
+    child = Html("<div>initial</div>")
+    container = _SingleChildContainer([child])
+    assert "initial" in container.text
+
+    child._text = "<div>updated</div>"
+    assert "updated" in container.text
+    assert "initial" not in container.text
 
 
 def test_html_callout():

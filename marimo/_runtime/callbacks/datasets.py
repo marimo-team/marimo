@@ -1,9 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
+from marimo._data.data_source_discovery import discover_data_sources
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,
@@ -11,6 +13,7 @@ from marimo._data.preview_column import (
 from marimo._messaging.notification import (
     DataColumnPreviewNotification,
     DataSourceConnectionsNotification,
+    DataSourceDiscoveryResultNotification,
     SQLDatabaseMetadata,
     SQLMetadata,
     SQLSchemaListPreviewNotification,
@@ -19,6 +22,7 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import (
+    DiscoverDataSourcesCommand,
     ListDataSourceConnectionCommand,
     ListSQLSchemasCommand,
     ListSQLTablesCommand,
@@ -52,6 +56,17 @@ class DatasetCallbacks:
         router.register(
             ListDataSourceConnectionCommand,
             self.preview_datasource_connection,
+        )
+        router.register(DiscoverDataSourcesCommand, self.discover_data_sources)
+
+    async def discover_data_sources(
+        self, request: DiscoverDataSourcesCommand
+    ) -> None:
+        broadcast_notification(
+            DataSourceDiscoveryResultNotification(
+                request_id=request.request_id,
+                sources=discover_data_sources(os.environ),
+            )
         )
 
     def get_engine_catalog(

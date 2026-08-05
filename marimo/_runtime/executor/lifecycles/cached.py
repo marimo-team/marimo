@@ -153,6 +153,13 @@ class CachedLifecycle:
             pin_modules=self._pin_modules,
         )
         self._attempts[cell_id] = attempt
+        LOGGER.debug(
+            "Cache %s for %s (key=%s_%s)",
+            "hit" if attempt.hit else "miss",
+            cell_id,
+            attempt.cache_type,
+            attempt.hash,
+        )
 
         restored = False
         if attempt.hit:
@@ -168,7 +175,8 @@ class CachedLifecycle:
             # Defer loading if restored and not a UI element.
             # TODO(dmadisetti): Attempt to restore UI elements as well.
             # Currently the UIElement class has UIDs that are session-specific.
-            if not self._restored_ui_defs(attempt, glbls):
+            ui_live = self._restored_ui_defs(attempt, glbls)
+            if not ui_live:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
@@ -220,10 +228,7 @@ class CachedLifecycle:
         try:
             attempt.update(
                 {**glbls},
-                meta={
-                    "return": run_result.output,
-                    "runtime": runtime,
-                },
+                meta={"return": run_result.output, "runtime": runtime},
                 preserve_pointers=False,
             )
             saved = self._loader.save_cache(attempt)
@@ -243,20 +248,25 @@ class CachedLifecycle:
 
     @staticmethod
     def _restored_ui_defs(attempt: Cache, glbls: MutableGlobals) -> bool:
-        """True if any def restored from the cache is a live UIElement."""
+        """True if the cell *defines* a live UIElement.
+
+        `stateful_refs` are excluded — UI the cell only *reads*, whose values a
+        hit's cached output already reflects. Only freshly-defined UI needs a
+        live run, to re-register under session-specific UIDs.
+        """
         from marimo._plugins.ui._core.ui_element import UIElement
 
         return any(
-            isinstance(glbls.get(name), UIElement) for name in attempt.defs
+            isinstance(glbls.get(name), UIElement)
+            for name in attempt.defs
+            if name not in attempt.stateful_refs
         )
 
     def _preflight_refs(self, cell: CellImpl, glbls: MutableGlobals) -> None:
-        """Detect UnhashableStub residues in refs and requeue producers.
+        """Requeue producers of any ref that restored as an `UnhashableStub`.
 
-        Walks `cell.refs` and checks each name in `glbls` for an
-        `UnhashableStub` instance. If any are found, invalidates each producer's
-        recorded manifest, drops this cell's attempt so teardown will no-op, and
-        raises `MarimoRescheduleError` with `cells_to_rerun` populated.
+        Invalidates each producer's manifest, drops this cell's attempt (so
+        teardown no-ops), and raises `MarimoRescheduleError`.
         """
         cell_id = cell.cell_id
         stub_vars: list[str] = []
@@ -306,7 +316,7 @@ class CachedLifecycle:
     def _invalidate(self, cell_id: CellId_t) -> None:
         """Invalidate `cell_id`'s manifest so it re-runs live.
 
-        Cells marked invalidated are skipped in future pre-flight check
+        Cells marked invalidated are skipped in future pre-flight checks
         to force reruns and prevent recursive deadlocks.
         """
         key = self._restored_keys.pop(cell_id, None)
@@ -314,7 +324,8 @@ class CachedLifecycle:
         if key is None:
             return
         try:
-            self._loader.store.clear(key)
+            # NB. mark stale, never clear: the entry isn't corrupt, only
+            # missing a dep here; it restores cleanly where the dep is present.
             self._loader.mark_stale(key)
         except Exception as e:
             LOGGER.warning("Manifest invalidate failed for %s: %s", key, e)

@@ -11,7 +11,7 @@
 _marimo integrates with [Pandas](https://pandas.pydata.org/) and
 [Polars](https://pola.rs) dataframes natively_.
 
-For a video overview on interactive dataframes, 
+For a video overview on interactive dataframes,
 check out our [YouTube tutorial](https://www.youtube.com/watch?v=ZTs7vHzsqlQ).
 
 ## Displaying dataframes
@@ -147,7 +147,7 @@ notebook.
 </figure>
 </div>
 
-The transformations you apply will turn into code which is accessible via the "code" tab. 
+The transformations you apply will turn into code which is accessible via the "code" tab.
 
 <div align="center">
 <figure>
@@ -198,7 +198,7 @@ transformed_df.value
 ///
 
 
-/// tab | live example 
+/// tab | live example
 
 /// marimo-embed
     size: large
@@ -479,7 +479,7 @@ When you run a SQL cell in marimo, you can get the output returned as a datafram
 </figure>
 </div>
 
-Alternatively you can also use the [marimo configuration file](../configuration/index.md#user-configuration) to configure the default SQL output. 
+Alternatively you can also use the [marimo configuration file](../configuration/index.md#user-settings) to configure the default SQL output.
 
 ```toml
 [runtime]

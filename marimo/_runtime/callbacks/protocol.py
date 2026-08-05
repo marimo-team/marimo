@@ -16,6 +16,13 @@ class KernelCallback(Protocol):
     def register(self, router: RequestRouter) -> None: ...
 
 
+@runtime_checkable
+class SupportsTeardown(Protocol):
+    """A callback that releases resources when the kernel tears down."""
+
+    def teardown(self) -> None: ...
+
+
 class GlobalsView(Protocol):
     """A view onto user-defined variables (kernel globals)."""
 

@@ -68,8 +68,8 @@ value. This is difficult to get working in Jupyter notebooks.
 marimo notebooks can be executed as Python scripts from the command-line (since
 they're stored as `.py` files). In contrast, this requires extra steps to
 do for Jupyter, such as copying and pasting the code out or using external
-frameworks. We also let you import symbols (functions, classes) defined in a 
-marimo notebook into other Python programs/notebooks, something you can't 
+frameworks. We also let you import symbols (functions, classes) defined in a
+marimo notebook into other Python programs/notebooks, something you can't
 easily do with Jupyter.
 
 **Shareability.**
@@ -494,6 +494,17 @@ marimo. Instead, use `dotenv.load_dotenv(dotenv.find_dotenv(usecwd=True))`.
 
 You can use any Python package. marimo cells run arbitrary Python code.
 
+<a name="faq-ai-agents"></a>
+
+### How do I use marimo with Claude Code or other AI agents?
+
+Use [marimo pair](https://marimo.io/pair), an agent skill that
+gives agent CLIs like Claude Code, Codex, and OpenCode full access to a running
+notebook: your agent can read variables, test logic in a scratchpad, run
+cells, and add or remove them. The marimo editor also has [built-in AI
+features](guides/editor_features/ai_completion.md), including a chat panel and
+code completion.
+
 <a name="faq-remote"></a>
 
 ### How do I use marimo on a remote server?
@@ -555,6 +566,21 @@ notebook to an `ipynb` file, or export to `HTML`:
 
 1. export to ipynb: `marimo export ipynb my_notebook.py -o my_notebook.ipynb --include-outputs`
 2. export to HTML: `marimo export html my_notebook.py -o my_notebook.html`
+
+<a name="faq-github-preview"></a>
+
+### How do I preview notebooks on GitHub?
+
+Here are a few ways to preview notebooks on GitHub:
+
+1. Export notebooks to ipynb.
+2. Install the marimo glance browser extension for
+[Chrome](https://chromewebstore.google.com/detail/marimo-glance/emnkplkdlpojjembfbkdagibhmippjfg) or
+[Firefox](https://addons.mozilla.org/en-US/firefox/addon/marimo-glance/), which
+lets you replace a notebook's raw Python source on GitHub or GitLab with an
+interactive notebook in one click. The marimo glance extension only works for notebooks compatible with [WebAssembly](guides/wasm.md).
+3. Use [molab's built-in GitHub previewer](guides/molab.md#mirror-notebooks-from-github).
+
 
 <a name="faq-app-deploy"></a>
 

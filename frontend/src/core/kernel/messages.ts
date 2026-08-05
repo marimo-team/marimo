@@ -44,6 +44,8 @@ export type SQLTableListPreview =
 export type SQLSchemaListPreview =
   NotificationMessageData<"sql-schema-list-preview">;
 export type ValidateSQLResult = NotificationMessageData<"validate-sql-result">;
+export type DataSourceDiscoveryResult =
+  NotificationMessageData<"data-source-discovery-result">;
 export type SecretKeysResult = NotificationMessageData<"secret-keys-result">;
 export type StartupLogs = NotificationMessageData<"startup-logs">;
 export type CellMessage = NotificationMessageData<"cell-op">;

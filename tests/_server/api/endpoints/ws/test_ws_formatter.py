@@ -9,7 +9,7 @@ from marimo._messaging.notification import (
 )
 from marimo._server.api.endpoints.ws.ws_formatter import (
     format_wire_message,
-    serialize_notification_for_websocket,
+    serialize_notification_for_wire,
 )
 
 
@@ -69,14 +69,14 @@ class TestFormatWireMessage:
 
 
 class TestSerializeNotificationForWebsocket:
-    """Tests for serialize_notification_for_websocket function."""
+    """Tests for serialize_notification_for_wire function."""
 
     def test_kernel_startup_error_notification(self) -> None:
         """Test serializing KernelStartupErrorNotification."""
         notification = KernelStartupErrorNotification(
             error="Failed to start kernel: module not found"
         )
-        result = serialize_notification_for_websocket(notification)
+        result = serialize_notification_for_wire(notification)
 
         parsed = json.loads(result)
         assert parsed["op"] == "kernel-startup-error"
@@ -91,7 +91,7 @@ class TestSerializeNotificationForWebsocket:
             title="Test Alert",
             description="This is a test alert message",
         )
-        result = serialize_notification_for_websocket(notification)
+        result = serialize_notification_for_wire(notification)
 
         parsed = json.loads(result)
         assert parsed["op"] == "alert"
@@ -105,7 +105,7 @@ class TestSerializeNotificationForWebsocket:
             description="Something went wrong",
             variant="danger",
         )
-        result = serialize_notification_for_websocket(notification)
+        result = serialize_notification_for_wire(notification)
 
         parsed = json.loads(result)
         assert parsed["op"] == "alert"
@@ -116,7 +116,7 @@ class TestSerializeNotificationForWebsocket:
         notification = KernelStartupErrorNotification(
             error='Error with "quotes" and special chars: <>&'
         )
-        result = serialize_notification_for_websocket(notification)
+        result = serialize_notification_for_wire(notification)
 
         # Should not raise
         parsed = json.loads(result)
@@ -134,7 +134,7 @@ class TestIntegration:
         {"op": "operation-name", "data": {...notification fields...}}
         """
         notification = KernelStartupErrorNotification(error="test error")
-        result = serialize_notification_for_websocket(notification)
+        result = serialize_notification_for_wire(notification)
 
         parsed = json.loads(result)
 

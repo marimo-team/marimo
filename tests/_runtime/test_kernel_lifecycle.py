@@ -3,24 +3,33 @@ from __future__ import annotations
 
 import asyncio
 import queue as _queue
-from typing import Any
+import threading
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from marimo._runtime.commands import (
+    CodeCompletionCommand,
+    CommandMessage,
     ExecuteCellsCommand,
     ModelCommand,
+    SetBreakpointsCommand,
     StopKernelCommand,
     UpdateUIElementCommand,
 )
 from marimo._runtime.kernel_lifecycle import (
     asyncio_queue_reader,
+    collapse_out_of_band,
     drain_stale,
     listen_messages,
     make_control_enqueuer,
+    threaded_queue_reader,
 )
 from marimo._types.ids import CellId_t, UIElementId, WidgetModelId
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
@@ -50,6 +59,29 @@ def _ui_update(
     return UpdateUIElementCommand(
         object_ids=[UIElementId(elem_id)], values=[value]
     )
+
+
+async def test_threaded_queue_reader_offloads_blocking_get(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    q: _queue.Queue[CommandMessage] = _queue.Queue()
+    command = StopKernelCommand()
+    q.put(command)
+
+    event_loop_thread = threading.current_thread()
+    reader_thread: threading.Thread | None = None
+    original_get = q.get
+
+    def tracked_get() -> CommandMessage:
+        nonlocal reader_thread
+        reader_thread = threading.current_thread()
+        return original_get()
+
+    monkeypatch.setattr(q, "get", tracked_get)
+
+    assert await threaded_queue_reader(q) is command
+    assert reader_thread is not None
+    assert reader_thread is not event_loop_thread
 
 
 async def test_listen_messages_exits_on_stop_command(
@@ -133,6 +165,35 @@ async def test_listen_messages_exits_when_reader_raises(
     kernel.handle_message.assert_not_called()
 
 
+async def test_listen_messages_survives_interrupted_read(
+    kernel: Any,
+    control: asyncio.Queue[Any],
+    ui: asyncio.Queue[Any],
+) -> None:
+    """A SIGINT-aborted queue read (EINTR) must not stop the control
+    loop."""
+    cmd = _execute()
+    reads: Iterator[CommandMessage | BaseException] = iter(
+        [
+            InterruptedError(4, "Interrupted function call"),
+            cmd,
+            StopKernelCommand(),
+        ]
+    )
+
+    async def interrupted_reader(_queue: object) -> CommandMessage:
+        result = next(reads)
+        if isinstance(result, BaseException):
+            raise result
+        return result
+
+    await listen_messages(kernel, control, ui, interrupted_reader)
+
+    # The dispatch after the EINTR proves the loop kept reading.
+    assert kernel.handle_message.await_count == 1
+    assert kernel.handle_message.await_args.args == (cmd,)
+
+
 async def test_listen_messages_merges_ui_updates(
     kernel: Any,
     control: asyncio.Queue[Any],
@@ -185,6 +246,45 @@ def test_drain_stale_returns_newest_pending(queue_factory: Any) -> None:
 
     assert drain_stale(q, latest=initial) is newest
     # Drained: nothing else remains.
+    assert q.empty()
+
+
+@pytest.mark.parametrize(
+    "queue_factory",
+    [asyncio.Queue, _queue.Queue],
+    ids=["asyncio", "threading"],
+)
+def test_collapse_out_of_band_returns_first_when_empty(
+    queue_factory: Any,
+) -> None:
+    q = queue_factory()
+    first = CodeCompletionCommand(id="r1", document="x.", cell_id="c1")
+    assert collapse_out_of_band(q, first=first) == [first]
+
+
+@pytest.mark.parametrize(
+    "queue_factory",
+    [asyncio.Queue, _queue.Queue],
+    ids=["asyncio", "threading"],
+)
+def test_collapse_out_of_band_keeps_latest_per_type(
+    queue_factory: Any,
+) -> None:
+    q = queue_factory()
+    completion_old = CodeCompletionCommand(
+        id="r1", document="x.", cell_id="c1"
+    )
+    breakpoints = SetBreakpointsCommand(breakpoints={"c1": [1]})
+    completion_new = CodeCompletionCommand(
+        id="r2", document="y.", cell_id="c1"
+    )
+    q.put_nowait(breakpoints)
+    q.put_nowait(completion_new)
+
+    result = collapse_out_of_band(q, first=completion_old)
+
+    # One command per type, latest wins, in first-seen order.
+    assert result == [completion_new, breakpoints]
     assert q.empty()
 
 

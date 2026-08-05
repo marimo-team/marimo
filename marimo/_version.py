@@ -3,8 +3,21 @@ from __future__ import annotations
 
 from importlib.metadata import PackageNotFoundError, version
 
-try:
-    __version__ = version("marimo")
-except PackageNotFoundError:
+_DISTRIBUTIONS = (
+    "marimo",  # Standard installation
+    "marimo-base",  # Slim distribution used by marimo.app
+)
+
+
+def _get_version() -> str:
+    for distribution in _DISTRIBUTIONS:
+        try:
+            return version(distribution)
+        except PackageNotFoundError:
+            continue
+
     # package is not installed
-    __version__ = "unknown"
+    return "unknown"
+
+
+__version__ = _get_version()

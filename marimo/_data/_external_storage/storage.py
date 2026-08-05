@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import mimetypes
+import re
 from datetime import timedelta
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
@@ -17,6 +19,10 @@ from marimo._data._external_storage.models import (
     StorageEntry,
     StorageListResult,
 )
+from marimo._data._external_storage.utils import (
+    paginate_entries,
+    parse_page_offset,
+)
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
@@ -28,12 +34,9 @@ if TYPE_CHECKING:
     from obstore import ObjectMeta
     from obstore.store import (
         AzureConfig,
-        AzureStore,
         GCSConfig,
-        GCSStore,
         ObjectStore,  # noqa: F401
         S3Config,
-        S3Store,
     )
 
 LOGGER = _loggers.marimo_logger()
@@ -47,9 +50,9 @@ class Obstore(StorageBackend["ObjectStore"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         page_token: str | None = None,
     ) -> StorageListResult:
-        offset = _parse_page_offset(page_token)
+        offset = parse_page_offset(page_token)
         storage_entries = self._list_storage_entries(prefix)
-        return _paginate_entries(storage_entries, offset=offset, limit=limit)
+        return paginate_entries(storage_entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         # Object stores commonly cap a single delimiter listing at ~1000
@@ -147,17 +150,31 @@ class Obstore(StorageBackend["ObjectStore"]):
             LOGGER.info("Failed to sign URL for %s", path)
             return None
 
-    def _get_config(
-        self, store: AzureStore | GCSStore | S3Store
-    ) -> AzureConfig | GCSConfig | S3Config | None:
+    @cached_property
+    def _config(self) -> AzureConfig | GCSConfig | S3Config | None:
+        """The store's config, or None for stores that don't have one.
+
+        obstore (0.11.0) panics rather than raises for perfectly valid stores:
+        an `S3Store` created with `allow_http=True` fails with "Expected config
+        prefix to start with aws_" (pyo3-object_store/src/aws/store.rs:254),
+        printing raw Rust output to stderr. The result is cached so such a
+        store panics once, rather than on every property read.
+        """
+        from obstore.store import AzureStore, GCSStore, S3Store
+
+        store = self.store
+        if not isinstance(store, (AzureStore, GCSStore, S3Store)):
+            return None
         try:
             return store.config
-        except BaseException:
-            # Sometimes, there will be a Rust panic when trying to get the config for invalid stores
-            LOGGER.exception(
-                "Failed to read store config for %s", type(store).__name__
+        except BaseException as e:
+            # PanicException derives from BaseException, not Exception
+            LOGGER.warning(
+                "Failed to read store config for %s: %s",
+                type(store).__name__,
+                e,
             )
-        return None
+            return None
 
     @property
     def protocol(self) -> KNOWN_STORAGE_TYPES | str:
@@ -170,17 +187,14 @@ class Obstore(StorageBackend["ObjectStore"]):
             S3Store,
         )
 
-        # Try the endpoint URL which can give a more accurate protocol
-        if not isinstance(self.store, (MemoryStore, HTTPStore, LocalStore)):
-            config = self._get_config(self.store)
-            if config is None:
-                return "unknown"
-
-            endpoint = config.get("endpoint")
-            if isinstance(endpoint, str) and (
-                protocol := detect_protocol_from_url(endpoint)
-            ):
-                return protocol
+        # Try the endpoint URL which can give a more accurate protocol,
+        # falling back to the store type if the config is unreadable.
+        config = self._config
+        endpoint = config.get("endpoint") if config else None
+        if isinstance(endpoint, str) and (
+            protocol := detect_protocol_from_url(endpoint)
+        ):
+            return protocol
 
         if isinstance(self.store, MemoryStore):
             return "in-memory"
@@ -216,11 +230,13 @@ class Obstore(StorageBackend["ObjectStore"]):
             if isinstance(self.store, LocalStore):
                 return None  # root
 
-            config = self._get_config(self.store)
+            config = self._config
             if config is None:
-                return None
+                # The config can be unreadable (see _config); the repr still
+                # carries the bucket/container name.
+                return _bucket_from_repr(self.store)
 
-            bucket = config.get("bucket")
+            bucket = config.get("bucket") or config.get("container_name")
             if bucket is None:
                 LOGGER.debug(
                     "No bucket found for storage backend. Config %s", config
@@ -252,9 +268,9 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
         limit: int = DEFAULT_FETCH_LIMIT,
         page_token: str | None = None,
     ) -> StorageListResult:
-        offset = _parse_page_offset(page_token)
+        offset = parse_page_offset(page_token)
         entries = self._list_storage_entries(prefix)
-        return _paginate_entries(entries, offset=offset, limit=limit)
+        return paginate_entries(entries, offset=offset, limit=limit)
 
     def _list_storage_entries(self, prefix: str | None) -> list[StorageEntry]:
         # If no prefix provided, we use empty string to list root entries
@@ -500,6 +516,16 @@ _URL_PATTERNS: list[tuple[str, CLOUD_STORAGE_TYPES]] = [
 ]
 
 
+# e.g. 'S3Store(bucket="my-bucket")', 'AzureStore(container_name="c", ...)'
+_STORE_REPR_NAME_RE = re.compile(r'(?:bucket|container_name)="([^"]*)"')
+
+
+def _bucket_from_repr(store: object) -> str | None:
+    """Best-effort bucket/container name for a store with an unreadable config."""
+    match = _STORE_REPR_NAME_RE.search(repr(store))
+    return match.group(1) if match else None
+
+
 def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:
     """Detect the storage provider from an endpoint URL."""
     url = url.strip().lower()
@@ -512,42 +538,3 @@ def detect_protocol_from_url(url: str) -> CLOUD_STORAGE_TYPES | None:
 def normalize_protocol(protocol: str) -> KNOWN_STORAGE_TYPES | None:
     """Normalize a protocol string (e.g. 's3a', 'gs', 'abfs') to a known storage type."""
     return _PROTOCOL_MAP.get(protocol.strip().lower())
-
-
-def _parse_page_offset(page_token: str | None) -> int:
-    if page_token is None:
-        return 0
-    try:
-        offset = int(page_token)
-    except ValueError as exc:
-        raise ValueError(f"Invalid storage page token: {page_token}") from exc
-    if offset < 0:
-        raise ValueError(f"Invalid storage page token: {page_token}")
-    return offset
-
-
-def _paginate_entries(
-    entries: list[StorageEntry],
-    *,
-    offset: int,
-    limit: int,
-) -> StorageListResult:
-    if limit < 1:
-        raise ValueError("Storage list limit must be positive")
-
-    total_entries = len(entries)
-    if total_entries > limit:
-        LOGGER.debug(
-            "Fetched %s entries, returning page offset %s with limit %s",
-            total_entries,
-            offset,
-            limit,
-        )
-
-    end = offset + limit
-    has_next_page = end < total_entries
-    next_page_token = str(end) if has_next_page else None
-    return StorageListResult(
-        entries=entries[offset:end],
-        next_page_token=next_page_token,
-    )

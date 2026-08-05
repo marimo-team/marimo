@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import sys
 from types import ModuleType
 from typing import Any
 
@@ -49,7 +50,17 @@ class ModuleStub:
         self.hash = hash
         # `str(...)`: some packages expose a non-str `__version__` (e.g.
         # torch's `TorchVersion`) that the manifest codec can't encode.
-        self.version = str(version or getattr(module, "__version__", "") or "")
+        version = str(version or getattr(module, "__version__", "") or "")
+        if not version:
+            # Submodule aliases (`import torch.nn as nn`) usually carry no own
+            # `__version__`; the pinned hash falls back to the root package's
+            # version, so capture that here too or the replayed placeholder
+            # version won't reproduce the hash on restore.
+            root = self.name.split(".", 1)[0]
+            version = str(
+                getattr(sys.modules.get(root), "__version__", "") or ""
+            )
+        self.version = version
 
     def load(self) -> Any:
         """Reload the module by name.

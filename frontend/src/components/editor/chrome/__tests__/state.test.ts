@@ -1,8 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { adaptForLocalStorage } from "@/utils/storage/jotai";
 import type { PanelLayout } from "../state";
 import { exportedForTesting } from "../state";
+
+// Panel visibility (and thus the default layout) depends on feature flags,
+// some of which default on in dev builds; pin them off for stable layouts.
+vi.mock("@/core/config/feature-flag", () => ({
+  getFeatureFlag: () => false,
+}));
 
 const { mergePanelLayout } = exportedForTesting;
 

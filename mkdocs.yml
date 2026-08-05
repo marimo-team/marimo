@@ -111,11 +111,9 @@ nav:
           - Using uv: guides/package_management/using_uv.md
       - Generate with AI:
           - Generate with AI: guides/generate_with_ai/index.md
-          - Using agent CLIs: guides/generate_with_ai/marimo_pair.md
-          - Skills: guides/generate_with_ai/skills.md
-          - Other tips for agent CLIs: guides/generate_with_ai/using_claude_code.md
-          - Using the marimo editor's AI features: guides/editor_features/ai_completion.md
-          - Prompts for the marimo editor: guides/generate_with_ai/prompts.md
+          - Pair with agents via marimo pair: guides/generate_with_ai/marimo_pair.md
+          - Customize your agent: guides/generate_with_ai/customize_your_agent.md
+          - The editor's AI assistant: guides/editor_features/ai_completion.md
           - Generate notebooks with marimo new: guides/generate_with_ai/text_to_notebook.md
       - Editor features:
           - Editor features: guides/editor_features/index.md
@@ -125,7 +123,6 @@ nav:
           - Understanding dataflow: guides/editor_features/dataflow.md
           - Module autoreloading: guides/editor_features/module_autoreloading.md
           - Hotkeys: guides/editor_features/hotkeys.md
-          - AI completion: guides/editor_features/ai_completion.md
           - Model Context Protocol: guides/editor_features/mcp.md
           - AI tools: guides/editor_features/tools.md
           - Agents: guides/editor_features/agents.md
@@ -143,6 +140,7 @@ nav:
           - Jupyter notebook: guides/exporting/jupyter_notebook.md
           - Quarto: guides/exporting/quarto.md
           - Jupyter Book: guides/exporting/jupyter_book.md
+          - MDX: guides/exporting/mdx.md
           - Python script: guides/exporting/python_script.md
           - Markdown: guides/exporting/markdown.md
           - WebAssembly HTML: guides/exporting/webassembly_html.md
@@ -369,6 +367,9 @@ repo_url: https://github.com/marimo-team/marimo
 site_description: The next generation of Python notebooks
 site_name: marimo
 site_url: https://docs.marimo.io
+validation:
+  links:
+    anchors: warn
 theme:
   favicon: _static/favicon-32x32.png
   features:
@@ -390,6 +391,9 @@ theme:
   font:
     code: Fira Mono
     text: PT Sans
+  icon:
+    admonition:
+      tip: material/lightbulb-outline
   logo: _static/marimo-logotype-horizontal.png
   name: material
   palette:

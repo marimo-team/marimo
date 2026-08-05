@@ -1,5 +1,6 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+import os
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -393,6 +394,91 @@ def test_anthropic_thinking_payload_translation(
     else:
         assert payload["type"] == "enabled"
         assert payload["budget_tokens"] > 0
+
+
+@pytest.mark.parametrize(
+    (
+        "api_key",
+        "environment",
+        "expected_provider",
+        "expected_kwargs",
+    ),
+    [
+        pytest.param(
+            "test-key",
+            {"GOOGLE_GENAI_USE_VERTEXAI": "true"},
+            "google",
+            {"api_key": "test-key"},
+            id="api_key",
+        ),
+        pytest.param(
+            "",
+            {"GOOGLE_API_KEY": "environment-key"},
+            "google",
+            {},
+            id="default_google",
+        ),
+        pytest.param(
+            "",
+            {
+                "GOOGLE_GENAI_USE_VERTEXAI": "true",
+                "GOOGLE_CLOUD_PROJECT": "test-project",
+                "GOOGLE_CLOUD_LOCATION": "europe-west1",
+            },
+            "google-cloud",
+            {
+                "project": "test-project",
+                "location": "europe-west1",
+            },
+            id="vertex",
+        ),
+        pytest.param(
+            "",
+            {
+                "GOOGLE_GENAI_USE_VERTEXAI": "true",
+                "GOOGLE_CLOUD_PROJECT": "test-project",
+            },
+            "google-cloud",
+            {
+                "project": "test-project",
+                "location": None,
+            },
+            id="vertex_default_location",
+        ),
+    ],
+)
+@pytest.mark.skipif(
+    not DependencyManager.google_ai.has()
+    or not DependencyManager.pydantic_ai.has(),
+    reason="google or pydantic_ai not installed",
+)
+def test_google_provider_selection(
+    api_key: str,
+    environment: dict[str, str],
+    expected_provider: str,
+    expected_kwargs: dict[str, str | None],
+) -> None:
+    """Route API-key and Vertex configs to their matching providers."""
+    with (
+        patch.dict(os.environ, environment, clear=True),
+        patch("pydantic_ai.providers.google.GoogleProvider") as mock_google,
+        patch(
+            "pydantic_ai.providers.google_cloud.GoogleCloudProvider"
+        ) as mock_google_cloud,
+    ):
+        provider = GoogleProvider(
+            "gemini-2.5-flash",
+            AnyProviderConfig(api_key=api_key, base_url=None),
+        )
+
+    if expected_provider == "google":
+        mock_google.assert_called_once_with(**expected_kwargs)
+        mock_google_cloud.assert_not_called()
+        assert provider.provider is mock_google.return_value
+    else:
+        mock_google.assert_not_called()
+        mock_google_cloud.assert_called_once_with(**expected_kwargs)
+        assert provider.provider is mock_google_cloud.return_value
 
 
 @pytest.mark.parametrize(

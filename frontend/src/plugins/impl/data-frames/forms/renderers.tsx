@@ -411,9 +411,12 @@ const ColumnFilterForm = <T extends FieldValues>({
 
   const columnRenderer = columnIdRenderer<T>();
   const children = [
-    renderZodSchema(columnIdSchema, form, `${path}.column_id` as Path<T>, [
-      columnRenderer,
-    ]),
+    renderZodSchema({
+      schema: columnIdSchema,
+      form,
+      path: `${path}.column_id` as Path<T>,
+      renderers: [columnRenderer],
+    }),
   ];
 
   // When column ID changes, get the new dtype and reset the operator
@@ -486,12 +489,12 @@ const ColumnFilterForm = <T extends FieldValues>({
     if (operandSchemas.length === 1) {
       children.push(
         <React.Fragment key="value">
-          {renderZodSchema(
-            operandSchemas[0],
+          {renderZodSchema({
+            schema: operandSchemas[0],
             form,
-            `${path}.value` as Path<T>,
-            [],
-          )}
+            path: `${path}.value` as Path<T>,
+            renderers: [],
+          })}
         </React.Fragment>,
       );
     }

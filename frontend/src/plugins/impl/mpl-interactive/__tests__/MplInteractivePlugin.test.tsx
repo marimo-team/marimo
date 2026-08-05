@@ -11,8 +11,9 @@ import { parseUserConfig } from "@/core/config/config-schema";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
 import { Logger } from "@/utils/Logger";
-import { MODEL_MANAGER, Model } from "@/plugins/impl/anywidget/model";
-import type { WidgetModelId } from "@/plugins/impl/anywidget/types";
+import { Model } from "@/plugins/impl/anywidget/model";
+import { WIDGET_REGISTRY } from "@/plugins/impl/anywidget/registry";
+import type { ModelState, WidgetModelId } from "@/plugins/impl/anywidget/types";
 import { visibleForTesting } from "../MplInteractivePlugin";
 
 const { ensureMplJs, injectCss, MplInteractiveSlot, resetMplJsLoading } =
@@ -118,7 +119,9 @@ describe("MplInteractivePlugin URL validation", () => {
   describe("injectCss", () => {
     it("refuses to append <link> for the PoC attack CSS URL", () => {
       const container = document.createElement("div");
-      const loggerSpy = vi.spyOn(Logger, "error").mockImplementation(() => {});
+      const loggerSpy = vi
+        .spyOn(Logger, "error")
+        .mockImplementation(() => undefined);
 
       const cleanup = injectCss(container, "http://127.0.0.1:8820/x.css");
 
@@ -136,7 +139,7 @@ describe("MplInteractivePlugin URL validation", () => {
       "data:text/css,body{background:red}",
     ])("refuses to append <link> for %s", (url) => {
       const container = document.createElement("div");
-      vi.spyOn(Logger, "error").mockImplementation(() => {});
+      vi.spyOn(Logger, "error").mockImplementation(() => undefined);
 
       injectCss(container, url);
 
@@ -194,8 +197,8 @@ function installMplFigureMock(): ReturnType<typeof vi.fn> {
   return ctor;
 }
 
-function makeModel(): Model<Record<string, never>> {
-  return new Model(
+function makeModel(): Model<ModelState> {
+  return new Model<ModelState>(
     {},
     {
       sendUpdate: vi.fn().mockResolvedValue(undefined),
@@ -222,7 +225,7 @@ function makeProps(modelId: WidgetModelId) {
 
 describe("MplInteractiveSlot rerun rebinding", () => {
   beforeEach(() => {
-    vi.spyOn(Logger, "error").mockImplementation(() => {});
+    vi.spyOn(Logger, "error").mockImplementation(() => undefined);
     resetMplJsLoading();
   });
 
@@ -235,8 +238,8 @@ describe("MplInteractiveSlot rerun rebinding", () => {
     const ctor = installMplFigureMock();
     const idA = asModelId("model-a");
     const idB = asModelId("model-b");
-    MODEL_MANAGER.set(idA, makeModel());
-    MODEL_MANAGER.set(idB, makeModel());
+    WIDGET_REGISTRY.setModel(idA, makeModel());
+    WIDGET_REGISTRY.setModel(idB, makeModel());
 
     const { container, rerender } = render(
       <MplInteractiveSlot {...makeProps(idA)} />,
@@ -267,7 +270,7 @@ describe("MplInteractiveSlot rerun rebinding", () => {
 
   it("detaches the previous model's listener on each rerun (no buildup)", async () => {
     installMplFigureMock();
-    // Unique ids: MODEL_MANAGER is a module singleton whose deferreds resolve
+    // Unique ids: WIDGET_REGISTRY is a module singleton whose deferreds resolve
     // once, so reusing ids from another test would return that test's models.
     const idA = asModelId("leak-a");
     const idB = asModelId("leak-b");
@@ -275,9 +278,9 @@ describe("MplInteractiveSlot rerun rebinding", () => {
     const modelA = makeModel();
     const modelB = makeModel();
     const modelC = makeModel();
-    MODEL_MANAGER.set(idA, modelA);
-    MODEL_MANAGER.set(idB, modelB);
-    MODEL_MANAGER.set(idC, modelC);
+    WIDGET_REGISTRY.setModel(idA, modelA);
+    WIDGET_REGISTRY.setModel(idB, modelB);
+    WIDGET_REGISTRY.setModel(idC, modelC);
 
     const onA = vi.spyOn(modelA, "on");
     const offA = vi.spyOn(modelA, "off");

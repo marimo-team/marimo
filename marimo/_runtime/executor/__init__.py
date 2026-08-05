@@ -21,10 +21,12 @@ from marimo._runtime.executor.lifecycles import (
     ExecutionLifecycle,
     Skip,
 )
+from marimo._runtime.executor.lifecycles.debugger import DebuggerLifecycle
 from marimo._runtime.executor.lifecycles.strict import StrictLifecycle
 
 __all__ = [
     "_EXECUTOR_REGISTRY",
+    "DebuggerLifecycle",
     "DefaultExecutor",
     "Evaluator",
     "ExecutionLifecycle",

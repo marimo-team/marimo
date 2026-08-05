@@ -8,6 +8,7 @@ import {
   downloadAsPDF,
   downloadByURL,
   downloadCellOutputAsImage,
+  downloadExportedFile,
   downloadHTMLAsImage,
   getImageDataUrlForCell,
   withLoadingToast,
@@ -195,7 +196,6 @@ describe("downloadAsPDF", () => {
 
     await expect(
       downloadAsPDF({
-        filename: "path/to/notebook.py",
         webpdf: false,
         preset: "slides",
       }),
@@ -205,9 +205,26 @@ describe("downloadAsPDF", () => {
       webpdf: false,
       preset: "slides",
       includeInputs: true,
-      rasterizeOutputs: true,
-      rasterScale: 4,
-      rasterServer: "static",
+      includeOutputs: true,
+    });
+  });
+
+  it("should send input and output selections", async () => {
+    mockExportAsPDF.mockRejectedValue(new Error("network"));
+
+    await expect(
+      downloadAsPDF({
+        webpdf: true,
+        includeInputs: false,
+        includeOutputs: false,
+      }),
+    ).rejects.toThrow("network");
+
+    expect(mockExportAsPDF).toHaveBeenCalledWith({
+      webpdf: true,
+      preset: "document",
+      includeInputs: false,
+      includeOutputs: false,
     });
   });
 });
@@ -373,8 +390,9 @@ describe("downloadHTMLAsImage", () => {
   it("should download image without prepare function", async () => {
     vi.mocked(toPng).mockResolvedValue(mockDataUrl);
 
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-
+    expect(
+      await downloadHTMLAsImage({ element: mockElement, filename: "test" }),
+    ).toBe(true);
     expect(toPng).toHaveBeenCalledWith(
       mockElement,
       expect.objectContaining({
@@ -435,8 +453,9 @@ describe("downloadHTMLAsImage", () => {
   it("should show error toast on failure", async () => {
     vi.mocked(toPng).mockRejectedValue(new Error("Failed"));
 
-    await downloadHTMLAsImage({ element: mockElement, filename: "test" });
-
+    expect(
+      await downloadHTMLAsImage({ element: mockElement, filename: "test" }),
+    ).toBe(false);
     expect(toast).toHaveBeenCalledWith({
       title: "Failed to download as PNG",
       description: "Failed",
@@ -572,6 +591,7 @@ describe("downloadByURL", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it("should create anchor, set attributes, click, and remove", () => {
@@ -582,5 +602,27 @@ describe("downloadByURL", () => {
     expect(mockAnchor.download).toBe("filename.png");
     expect(mockAnchor.click).toHaveBeenCalled();
     expect(mockAnchor.remove).toHaveBeenCalled();
+  });
+
+  it("downloads an exported file with its returned metadata", async () => {
+    let downloadedBlob: Blob | undefined;
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn((blob: Blob) => {
+        downloadedBlob = blob;
+        return "blob:export";
+      }),
+      revokeObjectURL: vi.fn(),
+    });
+
+    downloadExportedFile({
+      contents: "notebook",
+      filename: "résumé.qmd",
+      mediaType: "text/plain; charset=utf-8",
+    });
+
+    expect(downloadedBlob?.type).toBe("text/plain; charset=utf-8");
+    expect(await downloadedBlob?.text()).toBe("notebook");
+    expect(mockAnchor.download).toBe("résumé.qmd");
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith("blob:export");
   });
 });

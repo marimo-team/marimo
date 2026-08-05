@@ -35,11 +35,18 @@ export type GitHubCopilotStatus =
  */
 export type GitHubCopilotRequestStatus = "InProgress" | "Warning" | "Normal";
 
+/**
+ * Payload of Copilot's `statusNotification`/`didChangeStatus`. `kind` and
+ * `status` are open strings, not unions: this is a vendor shape we don't
+ * control, and an unrecognized value must not discard the notification.
+ */
 export interface GitHubCopilotStatusNotificationParams {
   busy: boolean;
-  kind: "Warning" | "Normal" | "Error" | null;
+  /** Known values: "Warning" | "Normal" | "Error" | "Inactive" */
+  kind: string | null;
   message: string | null;
-  status?: "InProgress" | "Warning" | "Normal";
+  /** Known values: "InProgress" | "Warning" | "Normal" */
+  status?: string;
 }
 
 export interface GitHubCopilotStatusResult {

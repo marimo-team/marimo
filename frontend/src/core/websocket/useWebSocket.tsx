@@ -5,12 +5,16 @@ import { Logger } from "@/utils/Logger";
 import { createPyodideConnection } from "../wasm/bridge";
 import { isWasm } from "../wasm/utils";
 import { BasicTransport } from "./transports/basic";
+import { SseTransport } from "./transports/sse";
 import { WsTransport } from "./transports/ws";
 import type { IConnectionTransport } from "./transports/transport";
 
 interface UseConnectionTransportOptions {
   url: () => string;
   static: boolean;
+  transportType: "websocket" | "sse";
+  /** Request headers for the SSE transport (auth); unused by WebSockets. */
+  headers: () => Record<string, string>;
   waitToConnect: () => Promise<void>;
   onOpen: (event: WebSocketEventMap["open"]) => void;
   onMessage: (event: WebSocketEventMap["message"]) => void;
@@ -18,8 +22,11 @@ interface UseConnectionTransportOptions {
   onError: (event: WebSocketEventMap["error"]) => void;
 }
 
-function createConnectionTransport(
-  options: Pick<UseConnectionTransportOptions, "url" | "static">,
+export function createConnectionTransport(
+  options: Pick<
+    UseConnectionTransportOptions,
+    "url" | "static" | "transportType" | "headers"
+  >,
 ): IConnectionTransport {
   if (options.static) {
     return BasicTransport.empty();
@@ -28,6 +35,9 @@ function createConnectionTransport(
     return createPyodideConnection();
   }
   // urlProvider is passed lazily; it may change after a runtime redirect.
+  if (options.transportType === "sse") {
+    return new SseTransport(options.url, options.headers);
+  }
   return new WsTransport(options.url);
 }
 

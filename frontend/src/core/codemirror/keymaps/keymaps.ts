@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import {
+  copyLineDown,
+  copyLineUp,
   cursorCharLeft,
   cursorCharRight,
   cursorLineDown,
@@ -94,6 +96,8 @@ export function keymapBundle(
 const OVERRIDDEN_COMMANDS = new Set<Command | undefined>([
   toggleComment,
   toggleBlockComment,
+  copyLineUp,
+  copyLineDown,
 ]);
 
 const defaultKeymap = once(() => {
@@ -110,6 +114,14 @@ const overrideKeymap = (keymap: HotkeyProvider): readonly KeyBinding[] => {
     {
       key: keymap.getHotkey("cell.toggleBlockComment").key,
       run: toggleBlockComment,
+    },
+    {
+      key: keymap.getHotkey("cell.copyLineUp").key,
+      run: copyLineUp,
+    },
+    {
+      key: keymap.getHotkey("cell.copyLineDown").key,
+      run: copyLineDown,
     },
   ];
 };

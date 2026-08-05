@@ -9,6 +9,7 @@ import {
   type TableFeature,
   type Updater,
 } from "@tanstack/react-table";
+import { browserLocale } from "@/core/i18n/locale";
 import type { DataType } from "@/core/kernel/messages";
 import { logNever } from "@/utils/assertNever";
 import {
@@ -40,7 +41,7 @@ export const ColumnFormattingFeature: TableFeature = {
     return {
       enableColumnFormatting: true,
       onColumnFormattingChange: makeStateUpdater("columnFormatting", table),
-      locale: navigator.language,
+      locale: browserLocale(),
     } as ColumnFormattingOptions;
   },
 

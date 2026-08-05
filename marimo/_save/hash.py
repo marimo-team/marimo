@@ -10,7 +10,7 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
 
-from marimo._ast.transformers import DeprivateVisitor, get_hashable_ast
+from marimo._ast.transformers import DeprivateVisitor
 from marimo._ast.variables import (
     get_cell_from_local,
     if_local_then_mangle,
@@ -140,14 +140,6 @@ def hash_raw_module(
 def hash_cell_impl(cell: CellImpl, hash_type: str = DEFAULT_HASH) -> bytes:
     return hash_module(cell.body, hash_type) + hash_module(
         cell.last_expr, hash_type
-    )
-
-
-def hash_function(
-    fn: Callable[..., Any], hash_type: str = DEFAULT_HASH
-) -> bytes:
-    return hash_raw_module(
-        DeprivateVisitor().visit(get_hashable_ast(fn)), hash_type
     )
 
 
@@ -305,7 +297,7 @@ class BlockHasher:
         if not external:
             ctx = get_and_update_context_from_scope(scope)
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
-            refs, scope, ctx
+            refs, scope, ctx, hash_type
         )
         self.stateful_refs = stateful_refs
 
@@ -570,11 +562,35 @@ class BlockHasher:
                 missing.add(ref)
         return _refs, missing
 
+    def _signed_stateful_bytes(
+        self, value: Any, label: str, hash_type: str = DEFAULT_HASH
+    ) -> bytes:
+        """Content bytes for a state/UI value, pickling as a last resort."""
+        signed = attempt_signed_bytes(value, label)
+        if isinstance(signed, bytes):
+            return signed
+
+        # A registered custom stub defines the object's bytes.
+        if (stub := maybe_get_custom_stub(value)) is not None:
+            return type_sign(stub.to_bytes(), "stub")
+
+        # Fallback for objects mapped to UI/State.
+        try:
+            return type_sign(deterministic_dumps(value, hash_type), "pickle")
+        except Exception as e:
+            # If stateful and unpicklable, the value can't be keyed, so raise
+            # instead of miskeying it.
+            raise TypeError(
+                f"Cached cell depends on a {label} value that is neither "
+                f"content-addressable nor picklable: {type(value).__name__}."
+            ) from e
+
     def extract_ref_state_and_normalize_scope(
         self,
         refs: set[Name],
         scope: dict[str, Any],
         ctx: RuntimeContext | None = None,
+        hash_type: str = DEFAULT_HASH,
     ) -> SerialRefs:
         """
         Preprocess the scope and references, and extract state references.
@@ -589,6 +605,7 @@ class BlockHasher:
             refs: A set of reference names.
             scope: A dictionary representing the current scope.
             ctx: An optional runtime context for stateful lookup.
+            hash_type: The hash algorithm used to serialize stateful values.
 
         Returns:
             SerialRefs tuple containing the following elements:
@@ -628,7 +645,9 @@ class BlockHasher:
                         repr(value).encode(), "pathstate"
                     )
                 else:
-                    scope[ref] = attempt_signed_bytes(value(), "state")
+                    scope[ref] = self._signed_stateful_bytes(
+                        value(), "state", hash_type
+                    )
                 if ctx:
                     for state_name in ctx.state_registry.bound_names(value):
                         scope[state_name] = scope[ref]
@@ -642,7 +661,9 @@ class BlockHasher:
             if ui is not None and (
                 ref not in scope or isinstance(scope[ref], UIElement)
             ):
-                scope[ref] = attempt_signed_bytes(ui.value, "ui")
+                scope[ref] = self._signed_stateful_bytes(
+                    ui.value, "ui", hash_type
+                )
                 if ctx:
                     for ui_name in ctx.ui_element_registry.bound_names(ui._id):
                         scope[ui_name] = scope[ref]
@@ -698,7 +719,22 @@ class BlockHasher:
         imports = get_imports(scope)
         for local_ref in sorted(refs):
             ref = if_local_then_mangle(local_ref, self.cell_id)
-            if ref in imports:
+            # An underscore import (e.g. `import marimo as _private`) is
+            # mangled in the cell, but a cached function that references
+            # it can surface the raw, unmangled name as a ref (its body
+            # is hashed in the function scope). Depending on the path the
+            # import may therefore appear in `imports` under either the
+            # mangled `ref` or the raw `local_ref`. Accept either so the
+            # module is treated as an import (and not pickled, which
+            # would raise `cannot pickle 'module' object`).
+            import_key: Name | None = (
+                ref
+                if ref in imports
+                else local_ref
+                if local_ref in imports
+                else None
+            )
+            if import_key is not None:
                 # TODO: There may be a way to tie this in with module watching.
                 # e.g. module watcher could mutate the version number based
                 # last updated timestamp.
@@ -707,15 +743,18 @@ class BlockHasher:
                 if self.pin_modules:
                     # Fall back to the in-scope value (which may be a module
                     # stub) so its replayed `__version__` reproduces the pinned
-                    # hash.
-                    module = sys.modules.get(imports[ref].module) or scope.get(
-                        local_ref
+                    # hash. The scope may hold the module under either the
+                    # mangled or the raw name, mirroring `import_key`.
+                    module = (
+                        sys.modules.get(imports[import_key].module)
+                        or scope.get(ref)
+                        or scope.get(local_ref)
                     )
                     version = getattr(module, "__version__", "") or ""
                     if not version:
                         module = sys.modules.get(
-                            imports[ref].namespace
-                        ) or scope.get(imports[ref].namespace)
+                            imports[import_key].namespace
+                        ) or scope.get(imports[import_key].namespace)
                         version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
@@ -754,6 +793,44 @@ class BlockHasher:
                 serial_value = hash_wrapped_functions(
                     value, self.hash_alg.name
                 )
+            # A restored stub — a placeholder left in scope for a value we
+            # could not materialize here (e.g. a tensor whose optional dep is
+            # absent in this environment). The `__marimo_unhashable__` protocol
+            # marker avoids importing the stub class into the hasher.
+            elif getattr(type(value), "__marimo_unhashable__", False):
+                digest = getattr(value, "content_hash", "")
+                type_name = getattr(value, "type_name", "") or ""
+                stub_module = (
+                    type_name.rsplit(".", 1)[0] if "." in type_name else ""
+                )
+                is_marimo_stub = stub_module.startswith("marimo")
+                if digest:
+                    # The stub carries the value's persisted content digest;
+                    # replay it so the key matches the native content hash
+                    # without recomputing `data_to_buffer(value)`.
+                    content_serialization[ref] = bytes.fromhex(digest)
+                elif is_marimo_stub:
+                    # No digest, but the stub stands in for a marimo-owned value
+                    # (e.g. a `persistent_cache` wrapper `_cache_call`). Native
+                    # dequeues those with zero contribution: the external-module
+                    # guard below is False for marimo modules (`not
+                    # __module__.startswith("marimo")`), so on the real value it
+                    # falls through to `refs.remove`. Mirror that here so a
+                    # restored marimo stub does not flip the consumer's key from
+                    # content- to execution-addressed.
+                    pass
+                elif local_ref in self.graph.definitions:
+                    # No digest: the stub stands in for a graph-defined
+                    # function/class/lambda, which the native run routes
+                    # through the execution path (via the `__main__` branch
+                    # below on the real value). Route by graph provenance so
+                    # this environment reproduces the same key.
+                    continue
+                # A digest-less stub that is neither marimo-owned nor
+                # graph-defined is dequeued with no content, matching native's
+                # fall-through behaviour.
+                refs.remove(local_ref)
+                continue
             # An external module variable is assumed to be pure, with module
             # pinning being the mechanism for invalidation.
             elif getattr(value, "__module__", "__main__") == "__main__":
@@ -835,7 +912,7 @@ class BlockHasher:
 
         # Need to run extract again for the expanded ref set.
         refs, _, stateful_refs = self.extract_ref_state_and_normalize_scope(
-            refs, scope, ctx
+            refs, scope, ctx, self.hash_alg.name
         )
         # Attempt content hash again on the extracted stateful refs.
         # Do not pass ctx — stateful values can change between cells,
@@ -1133,7 +1210,7 @@ def content_cache_attempt_from_base(
 
     # refine to values present
     refs = scoped_refs & previous_block.visitor.refs
-    # Required refs are made explicit incase the examined block does not
+    # Required refs are made explicit in case the examined block does not
     # specify them e.g.
     # @cache
     # def foo(x):
@@ -1150,7 +1227,7 @@ def content_cache_attempt_from_base(
     hasher = BlockHasher.from_parent(previous_block)
     ctx = get_and_update_context_from_scope(scope, required_refs)
     refs, _, stateful_refs = hasher.extract_ref_state_and_normalize_scope(
-        refs, scope, ctx
+        refs, scope, ctx, hasher.hash_alg.name
     )
 
     refs, _content, tmp_stateful_refs = hasher.collect_for_content_hash(

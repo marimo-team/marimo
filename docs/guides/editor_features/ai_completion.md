@@ -1,5 +1,14 @@
 # AI-assisted coding
 
+!!! tip "Using an agent CLI like Claude Code? Try marimo pair"
+
+    This guide covers the AI assistant built into the marimo editor, which
+    connects to an [LLM provider](#connecting-to-an-llm) that you configure.
+    If you'd rather work with an agent CLI such as Claude Code, Codex, or
+    OpenCode — driven from your terminal, on your existing subscription — use
+    [marimo pair](../generate_with_ai/marimo_pair.md) instead, which gives
+    your agent full access to your running notebook.
+
 marimo is an AI-native editor, with support for full-cell AI code generation:
 
 * generating new cells from a prompt
@@ -79,7 +88,7 @@ button to add entirely new cells to your notebook.
 #### Chat panel
 
 The chat panel on the left sidebar lets you chat with an LLM and ask questions
-aboutyour notebook. The LLM can also generate code cells that you can insert
+about your notebook. The LLM can also generate code cells that you can insert
 into your notebook.
 
 The chat panel currently supports the following modes:
@@ -168,10 +177,11 @@ You can still collaborate with an AI agent using [marimo pair](../generate_with_
 
 ## Agents
 
-!!! example "Experimental: Agents"
+!!! example "Experimental: Agents panel"
 
-    marimo also supports external AI agents like Claude Code, Codex, and Gemini CLI that can interact with your notebooks.
-    Learn more in the [agents](agents.md) guide.
+    marimo can also embed agents like Claude Code, Codex, and Gemini CLI
+    directly in the editor's chat panel. Learn more in the
+    [agents](agents.md) guide.
 
 ## Copilots
 
@@ -196,7 +206,7 @@ an AI pair programmer, similar to VS Code:
 </figure>
 </div>
 
-_GitHUb Copilot is not yet available in our conda distribution; please install
+_GitHub Copilot is not yet available in our conda distribution; please install
 marimo using `pip`/`uv` if you need Copilot._
 
 #### Advanced configuration

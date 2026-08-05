@@ -67,8 +67,8 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._runtime.virtual_file import VirtualFileStorageType
-    from marimo._server.models.models import InstantiateNotebookRequest
     from marimo._session.app_host import AppHostContext
+    from marimo._session.requests import InstantiateNotebookRequest
 
 LOGGER = _loggers.marimo_logger()
 
@@ -437,11 +437,14 @@ class SessionImpl(Session):
         self.room.broadcast(notification, except_consumer=from_consumer_id)
         self._event_bus.emit_notification_sent(self, notification)
 
-    def close(self) -> None:
+    def close(self, *, graceful: bool = False) -> None:
         """
         Close the session.
 
         This will close the session consumer, kernel, and all kiosk consumers.
+
+        When `graceful` is True, wait for the kernel to flush pending work
+        before killing it (see `KernelManager.close_kernel`).
         """
         if self._closed:
             return
@@ -452,7 +455,7 @@ class SessionImpl(Session):
         self._detach_extensions()
         # Close the room
         self.room.close()
-        self._kernel_manager.close_kernel()
+        self._kernel_manager.close_kernel(graceful=graceful)
 
     def instantiate(
         self,

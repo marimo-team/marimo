@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import os
 import subprocess
 import sys
@@ -15,6 +16,7 @@ from marimo._ast.app import App
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.commands import ExecuteStaleCellsCommand
 from marimo._runtime.runtime import Kernel
+from marimo._save.hash import BlockHasher
 from tests.conftest import ExecReqProvider
 
 
@@ -1524,7 +1526,7 @@ class TestSideEffects:
         k: Kernel, exec_req: ExecReqProvider
     ) -> None:
         # Actually doesn't test side effects, because there's
-        # no "context" level hash for functions. Placed here incase the
+        # no "context" level hash for functions. Placed here in case the
         # functionality does change in the future.
         await k.run(
             [
@@ -2813,3 +2815,80 @@ hash_val = cached_query._last_hash
         f"Expected different hashes when decorator ref changes, "
         f"got {first_hash} == {second_hash}"
     )
+
+
+@dataclasses.dataclass(frozen=True)
+class _Selection:
+    """Stand-in for a UI value (e.g. mo.ui.matplotlib selection) that is
+    picklable but neither a primitive nor a data-primitive."""
+
+    vertices: tuple[tuple[float, float], ...]
+
+
+def test_signed_stateful_bytes_content_varies() -> None:
+    # A stateful value that is not content-addressable must still hash by its
+    # content (pickle last-resort), so a consumer re-keys when it changes.
+    hasher = BlockHasher.__new__(BlockHasher)
+    a = hasher._signed_stateful_bytes(_Selection(((0.0, 0.0),)), "ui")
+    b = hasher._signed_stateful_bytes(_Selection(((1.0, 2.0),)), "ui")
+    assert isinstance(a, bytes)
+    assert isinstance(b, bytes)
+    assert a != b
+    # Same value -> same bytes (deterministic).
+    assert a == hasher._signed_stateful_bytes(_Selection(((0.0, 0.0),)), "ui")
+
+
+def test_signed_stateful_bytes_uses_custom_stub() -> None:
+    # A value with a registered custom stub hashes by the stub's canonical
+    # bytes (what the cache stores it as), not a generic pickle.
+    from marimo._save.encode import type_sign
+    from marimo._save.stubs import CUSTOM_STUBS, CustomStub, register_stub
+
+    @dataclasses.dataclass
+    class _Model:
+        payload: bytes
+
+    class _ModelStub(CustomStub):
+        __slots__ = ("payload",)
+
+        def __init__(self, obj: Any) -> None:
+            self.payload = obj.payload
+
+        def load(self, glbls: dict[str, Any]) -> Any:
+            del glbls
+            return _Model(self.payload)
+
+        @staticmethod
+        def get_type() -> type:
+            return _Model
+
+        def to_bytes(self) -> bytes:
+            return self.payload
+
+    register_stub(_Model, _ModelStub)
+    try:
+        hasher = BlockHasher.__new__(BlockHasher)
+        out = hasher._signed_stateful_bytes(_Model(b"abc"), "ui")
+        assert out == type_sign(b"abc", "stub")
+        # Distinct stub bytes -> distinct key.
+        assert out != hasher._signed_stateful_bytes(_Model(b"xyz"), "ui")
+    finally:
+        CUSTOM_STUBS.pop(_Model, None)
+
+
+def test_signed_stateful_bytes_bytearray_is_signed_bytes() -> None:
+    # A bytearray value must hash to signed, immutable bytes (not a raw,
+    # mutable bytearray), and vary by content.
+    hasher = BlockHasher.__new__(BlockHasher)
+    a = hasher._signed_stateful_bytes(bytearray(b"abc"), "ui")
+    b = hasher._signed_stateful_bytes(bytearray(b"xyz"), "ui")
+    assert type(a) is bytes
+    assert type(b) is bytes
+    assert a != b
+    assert a == hasher._signed_stateful_bytes(bytearray(b"abc"), "ui")
+
+
+def test_signed_stateful_bytes_unpicklable_raises() -> None:
+    hasher = BlockHasher.__new__(BlockHasher)
+    with pytest.raises(TypeError, match="neither"):
+        hasher._signed_stateful_bytes(lambda: None, "ui")

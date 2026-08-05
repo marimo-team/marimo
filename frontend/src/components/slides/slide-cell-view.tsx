@@ -202,7 +202,7 @@ export const SlideCellReadOnlyView = ({ cell }: { cell: RuntimeCell }) => {
   );
 
   const editor = (
-    <div className="marimo-cell">
+    <div className="marimo-cell" {...cellDomProps(cell.id, cell.name)}>
       <ReadonlyCode
         code={display.code}
         language={display.language}

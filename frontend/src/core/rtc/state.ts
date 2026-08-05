@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atomWithStorage } from "jotai/utils";
+import { SCRATCH_CELL_ID, type CellId } from "@/core/cells/ids";
 import { once } from "@/utils/once";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { getFeatureFlag } from "../config/feature-flag";
@@ -23,3 +24,11 @@ export const usernameAtom = atomWithStorage<string>(
 export const isRtcEnabled = once(() => {
   return getFeatureFlag("rtc_v2");
 });
+
+/**
+ * Whether this cell type can participate in real-time collaboration.
+ * Scratchpad cells are local-only.
+ */
+export function canUseRtc(cellId: CellId): boolean {
+  return cellId !== SCRATCH_CELL_ID;
+}

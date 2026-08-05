@@ -5,7 +5,12 @@ from dataclasses import dataclass
 from typing import Literal
 
 from marimo._save.loaders.json import JsonLoader
-from marimo._save.loaders.lazy import LazyLoader, WasmLazyLoader
+from marimo._save.loaders.lazy import (
+    LazyLoader,
+    WasmLazyLoader,
+    dump_cache_manifests,
+    flush_active_caches,
+)
 from marimo._save.loaders.loader import (
     BasePersistenceLoader,
     Loader,
@@ -59,5 +64,7 @@ __all__ = [
     "MemoryLoader",
     "PickleLoader",
     "WasmLazyLoader",
+    "dump_cache_manifests",
+    "flush_active_caches",
     "resolve_loader",
 ]

@@ -35,10 +35,11 @@ class QueueManagerImpl(QueueManager):
             | queue.Queue[commands.BatchableCommand]
         ) = context.Queue() if context is not None else queue.Queue()
 
-        # Code completion requests are sent through a separate queue
+        # Off-main-loop commands (completions + breakpoints) go through a
+        # separate queue so they apply even while a cell is executing.
         self.completion_queue: (
-            MPQueue[commands.CodeCompletionCommand]
-            | queue.Queue[commands.CodeCompletionCommand]
+            MPQueue[commands.OutOfBandCommand]
+            | queue.Queue[commands.OutOfBandCommand]
         ) = context.Queue() if context is not None else queue.Queue()
 
         self.win32_interrupt_queue: MPQueue[bool] | queue.Queue[bool] | None

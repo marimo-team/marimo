@@ -8,9 +8,12 @@ import subprocess
 import sys
 import textwrap
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 from marimo._runtime.commands import (
     ExecuteCellCommand,
+    ExecuteCellsCommand,
+    HTTPRequest,
 )
 from marimo._runtime.runtime import Kernel
 from marimo._utils import async_path
@@ -482,3 +485,53 @@ class TestEmbedTrace:
         assert "ZeroDivisionError: division by zero" in result
         assert (file_path + "&quot;, line 17") in result
         assert "y / x" in result
+
+
+def _http_request_with_headers(headers: dict[str, str]) -> HTTPRequest:
+    return HTTPRequest(
+        url={"path": "/", "port": None, "scheme": "http"},
+        base_url={"path": "/", "port": None, "scheme": "http"},
+        headers=headers,
+        query_params={},
+        path_params={},
+        cookies={},
+        meta={},
+        user={},
+    )
+
+
+class TestTraceContextPropagation:
+    @staticmethod
+    async def test_handle_message_attaches_request_trace_context(
+        k: Kernel,
+    ) -> None:
+        """The kernel links spans to the trace carried by the request."""
+        headers = {
+            "traceparent": (
+                "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+            )
+        }
+        command = ExecuteCellsCommand(
+            cell_ids=["0"],
+            codes=["x = 1"],
+            request=_http_request_with_headers(headers),
+        )
+
+        with patch(
+            "marimo._runtime.runtime.attach_trace_context"
+        ) as mock_attach:
+            await k.handle_message(command)
+
+        mock_attach.assert_called_once_with(headers)
+
+    @staticmethod
+    async def test_handle_message_without_request(k: Kernel) -> None:
+        """Commands without a request pass no headers (no-op propagation)."""
+        command = ExecuteCellsCommand(cell_ids=["0"], codes=["x = 1"])
+
+        with patch(
+            "marimo._runtime.runtime.attach_trace_context"
+        ) as mock_attach:
+            await k.handle_message(command)
+
+        mock_attach.assert_called_once_with(None)

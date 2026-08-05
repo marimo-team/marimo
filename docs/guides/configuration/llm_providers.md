@@ -319,7 +319,7 @@ Access curated open coding models tested and benchmarked for coding agents throu
 [ai.models]
 # Use opencode-go/ prefix for OpenCode Go models. Examples:
 chat_model = "opencode-go/kimi-k2.6"
-edit_model = "opencode-go/qwen3.6-plus"
+edit_model = "opencode-go/qwen3.7-plus"
 
 [ai.opencode_go]
 api_key = "your-opencode-api-key"

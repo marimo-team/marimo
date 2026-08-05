@@ -199,14 +199,14 @@ jobs:
         shell: bash
         run: |
           echo "Checking examples directory..."
-          uv run marimo check --ignore-scripts --strict examples/**.py
+          uv run marimo check --ignore-scripts --strict examples/
 
       - name: Check tutorial quality with marimo check
         shell: bash
         run: |
           echo "Checking tutorials..."
           uv run marimo check --ignore-scripts --fix \
-            marimo/_tutorials/**.py >> /dev/null \
+            marimo/_tutorials/ >> /dev/null \
             || echo "Errors expected"
           # Fail if there's a git diff
           if [[ -n "$(git status --porcelain marimo/_tutorials)" ]]; then

@@ -23,6 +23,7 @@ from marimo._runtime.complete import (
     _get_completion_info,
     _get_completion_option,
     _get_completion_options,
+    _get_completions,
     _get_docstring,
     _maybe_get_key_options,
     _resolve_chained_key_path,
@@ -34,6 +35,7 @@ from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
 HAS_PANDAS = DependencyManager.pandas.has()
+HAS_POLARS = DependencyManager.polars.has()
 
 
 def test_build_docstring_function_no_init():
@@ -1177,3 +1179,61 @@ def test_infer_skipped_once_timeout_elapsed() -> None:
     # First completion is under budget and infers; the rest are skipped.
     assert completions[0].infer_count == 1
     assert all(c.infer_count == 0 for c in completions[1:])
+
+
+def test_falls_back_to_interpreter_when_static_analysis_raises() -> None:
+    """A jedi static-analysis crash should not kill completion.
+
+    jedi's static analysis can raise while inferring some code (e.g.
+    resolving the generic return type of `polars.concat` crashes with
+    an AttributeError, https://github.com/davidhalter/jedi/issues/1990).
+    The interpreter-based fallback should still get a chance to run.
+
+    https://github.com/marimo-team/marimo/issues/10055
+    """
+
+    class MyData:
+        def with_columns(self) -> None: ...
+
+        def with_row_index(self) -> None: ...
+
+    glbls = {"my_obj": MyData()}
+
+    with mock.patch(
+        "marimo._runtime.complete._get_completions_with_script",
+        side_effect=AttributeError(
+            "'TreeInstance' object has no attribute 'with_generics'"
+        ),
+    ):
+        _script, completions = _get_completions(
+            ["my_obj = MyData()"], "my_obj.wi", glbls, threading.RLock()
+        )
+
+    names = [completion.name for completion in completions]
+    assert "with_columns" in names
+    assert "with_row_index" in names
+
+
+@pytest.mark.skipif(not HAS_POLARS, reason="polars not installed")
+def test_polars_concat_attribute_completion() -> None:
+    """Attribute completion works for variables assigned from `pl.concat`.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/10055:
+    jedi's static analysis crashes on `pl.concat(...)` (jedi#1990), which
+    used to skip the interpreter fallback and return no completions.
+    """
+    code = (
+        "import polars as pl\n"
+        'df_a = pl.DataFrame({"a": [1]})\n'
+        'df_b = pl.DataFrame({"a": [2]})\n'
+        "df_x = pl.concat([df_a, df_b])"
+    )
+    glbls: dict[str, Any] = {}
+    exec(code, glbls)
+
+    _script, completions = _get_completions(
+        [code], "df_x.wi", glbls, threading.RLock()
+    )
+
+    names = [completion.name for completion in completions]
+    assert "with_columns" in names

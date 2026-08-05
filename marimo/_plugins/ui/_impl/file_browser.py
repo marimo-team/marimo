@@ -182,6 +182,8 @@ class file_browser(
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
             navigating any level above the given path. Defaults to False.
+        value (str | Path | Sequence[str | Path], optional): File or directory
+            path, or sequence of paths, selected by default. Defaults to None.
         ignore_empty_dirs (bool, optional): If True, hide directories that contain
             no files (recursively). Directories are scanned up to 100 levels deep
             to prevent stack overflow from deeply nested structures. Directory
@@ -206,6 +208,7 @@ class file_browser(
         | Sequence[Literal["file", "directory"]] = "file",
         multiple: bool = True,
         restrict_navigation: bool = False,
+        value: str | Path | Sequence[str | Path] | None = None,
         *,
         filter: str | re.Pattern[str] | Callable[[Path], bool] | None = None,  # noqa: A002
         limit: int | None = None,
@@ -283,9 +286,43 @@ class file_browser(
         else:
             (wire_selection_mode,) = self._selection_mode
 
+        if value is None:
+            values: Sequence[str | Path] = ()
+        elif isinstance(value, Sequence) and not isinstance(value, str):
+            values = value
+        else:
+            values = (value,)
+
+        if not multiple and len(values) > 1:
+            raise ValueError(
+                "File browser with multiple=False cannot have more than one "
+                "default value."
+            )
+
+        initial_value: list[TypedFileBrowserFileInfo] = []
+        for selected_value in values:
+            selected_path = self._create_path(
+                normalize_path(self._create_path(selected_value))
+            )
+            is_directory = selected_path.is_dir()
+            kind = "directory" if is_directory else "file"
+            if kind not in self._selection_mode:
+                raise ValueError(
+                    f"Default value {selected_path} is a {kind}, but "
+                    f"selection_mode {self._selection_mode} does not allow it."
+                )
+            initial_value.append(
+                TypedFileBrowserFileInfo(
+                    id=str(selected_path),
+                    path=str(selected_path),
+                    name=selected_path.name,
+                    is_directory=is_directory,
+                )
+            )
+
         super().__init__(
             component_name=file_browser._name,
-            initial_value=[],
+            initial_value=initial_value,
             label=label,
             args={
                 "initial-path": str(self._initial_path),

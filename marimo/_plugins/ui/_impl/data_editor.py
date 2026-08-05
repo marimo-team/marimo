@@ -339,16 +339,9 @@ def _convert_value(
                 return datetime.date.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
-            elif dtype == nw.Float32 or dtype == nw.Float64:
+            elif hasattr(dtype, "is_float") and dtype.is_float():
                 return float(value)
-            elif (
-                dtype == nw.Int16
-                or dtype == nw.Int32
-                or dtype == nw.Int64
-                or dtype == nw.UInt16
-                or dtype == nw.UInt32
-                or dtype == nw.UInt64
-            ):
+            elif hasattr(dtype, "is_integer") and dtype.is_integer():
                 return int(value)
             elif (
                 dtype == nw.String
@@ -373,8 +366,13 @@ def _convert_value(
                     # If it's not a string or list, wrap it in a list
                     return [value]
             else:
-                LOGGER.warning(f"Unsupported dtype: {dtype}")
-                return str(value)
+                # narwhals maps some pandas extension dtypes (notably
+                # float16) to nw.Unknown. Stringifying here would coerce the
+                # whole column to object; fall through to the original-value
+                # coercion below, which keeps the column numeric.
+                LOGGER.debug(
+                    "Unhandled dtype %s; coercing from original value", dtype
+                )
 
         if original_value is None:
             return value

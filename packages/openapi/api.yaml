@@ -1,5 +1,28 @@
 components:
   schemas:
+    ActiveLineNotification:
+      description: "Reports the line a cell's frame watcher is currently executing.\n\
+        \n    Emitted on a timed heartbeat while a cell runs (only when the line\n\
+        \    changed), so the editor can highlight the live line. A `None` line\n\
+        \    clears the highlight (e.g. when the cell finishes).\n\n    Attributes:\n\
+        \        cell_id: Cell whose frame is being watched.\n        line: 1-based\
+        \ line within the cell, or `None` to clear."
+      properties:
+        cell_id:
+          $ref: '#/components/schemas/CellId'
+        line:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
+        op:
+          enum:
+          - active-line
+      required:
+      - op
+      - cell_id
+      title: ActiveLineNotification
+      type: object
     AddPackageRequest:
       description: 'This can be a remove package or a local package.
 
@@ -231,6 +254,22 @@ components:
           type: string
       required: []
       title: AnthropicConfig
+      type: object
+    AutoExportAsIPYNBRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsIPYNBRequest
+      type: object
+    AutoExportAsMarkdownRequest:
+      properties:
+        download:
+          type: boolean
+      required:
+      - download
+      title: AutoExportAsMarkdownRequest
       type: object
     BannerNotification:
       description: "Persistent banner message at top of notebook.\n\n    Attributes:\n\
@@ -1115,6 +1154,26 @@ components:
       - connections
       title: DataSourceConnectionsNotification
       type: object
+    DataSourceDiscoveryResultNotification:
+      description: "High-confidence datasource connections discovered by the kernel.\n\
+        \n    Attributes:\n        request_id: Request ID this responds to.\n    \
+        \    sources: Detected datasource connection configurations."
+      properties:
+        op:
+          enum:
+          - data-source-discovery-result
+        request_id:
+          type: string
+        sources:
+          items:
+            $ref: '#/components/schemas/DetectedDataSource'
+          type: array
+      required:
+      - op
+      - request_id
+      - sources
+      title: DataSourceDiscoveryResultNotification
+      type: object
     DataTable:
       description: "Represents a data table.\n\nAttributes:\n    source_type (DataTableSource):\
         \ Type of data source ('local', 'duckdb', 'connection').\n    source (str):\
@@ -1420,6 +1479,76 @@ components:
       - tree
       title: DependencyTreeResponse
       type: object
+    DetectedDataSource:
+      description: A secret-free datasource suggestion produced by the kernel.
+      properties:
+        category:
+          enum:
+          - catalog
+          - database
+          - object-storage
+        code:
+          type: string
+        confidence:
+          enum:
+          - high
+          - medium
+        configuration:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceConfiguration'
+          type: array
+        displayName:
+          type: string
+        id:
+          type: string
+        integration:
+          type: string
+        origins:
+          items:
+            $ref: '#/components/schemas/DetectedDataSourceOrigin'
+          type: array
+      required:
+      - id
+      - integration
+      - category
+      - displayName
+      - confidence
+      - origins
+      - configuration
+      - code
+      title: DetectedDataSource
+      type: object
+    DetectedDataSourceConfiguration:
+      properties:
+        field:
+          type: string
+        value:
+          anyOf:
+          - $ref: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+          - $ref: '#/components/schemas/SafeLiteralDiscoveryValue'
+          discriminator:
+            mapping:
+              environment-variable: '#/components/schemas/EnvironmentVariableDiscoveryValue'
+              safe-literal: '#/components/schemas/SafeLiteralDiscoveryValue'
+            propertyName: kind
+      required:
+      - field
+      - value
+      title: DetectedDataSourceConfiguration
+      type: object
+    DetectedDataSourceOrigin:
+      properties:
+        label:
+          type: string
+        type:
+          enum:
+          - configuration
+          - environment
+      required:
+      - type
+      - label
+      title: DetectedDataSourceOrigin
+      type: object
     DiagnosticsConfig:
       description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
         \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
@@ -1431,6 +1560,29 @@ components:
           type: boolean
       required: []
       title: DiagnosticsConfig
+      type: object
+    DiscoverDataSourcesCommand:
+      description: "Discover datasource connections from the live kernel environment\
+        \ and configuration.\n\n    Attributes:\n        request_id: Unique identifier\
+        \ for this request."
+      properties:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+        type:
+          enum:
+          - discover-data-sources
+      required:
+      - type
+      - requestId
+      title: DiscoverDataSourcesCommand
+      type: object
+    DiscoverDataSourcesRequest:
+      properties:
+        requestId:
+          $ref: '#/components/schemas/RequestId'
+      required:
+      - requestId
+      title: DiscoverDataSourcesRequest
       type: object
     DisplayConfig:
       description: "Configuration for display.\n\n    **Keys.**\n\n    - `theme`:\
@@ -1489,6 +1641,38 @@ components:
       - default_width
       - theme
       title: DisplayConfig
+      type: object
+    EnvironmentVariableDiscoveryValue:
+      description: A reference to an environment variable, never its value.
+      properties:
+        kind:
+          enum:
+          - environment-variable
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: EnvironmentVariableDiscoveryValue
+      type: object
+    EsmSpec:
+      description: "Where the frontend imports a widget's ESM from, and which version.\n\
+        \n    Specs travel only on kernel-authored notifications, never in model\n\
+        \    state: state is client-writable and echoed to peers, so executing\n \
+        \   code from it would let one client run code on another.\n\n    Attributes:\n\
+        \        url: URL to import the ESM from. A virtual file for inline\n    \
+        \        source; an external URL when `_esm` is itself a URL.\n        hash:\
+        \ Hash of the `_esm` string. Keys the frontend module cache\n            and\
+        \ signals code changes (hot reload)."
+      properties:
+        hash:
+          type: string
+        url:
+          type: string
+      required:
+      - url
+      - hash
+      title: EsmSpec
       type: object
     ExecuteCellCommand:
       description: "Execute a single cell.\n\n    Executes a cell with the provided\
@@ -1693,6 +1877,14 @@ components:
       properties:
         download:
           type: boolean
+        includeOutputs:
+          default: true
+          type: boolean
+        sortMode:
+          default: top-down
+          enum:
+          - top-down
+          - topological
       required:
       - download
       title: ExportAsIPYNBRequest
@@ -1701,6 +1893,15 @@ components:
       properties:
         download:
           type: boolean
+        flavor:
+          anyOf:
+          - enum:
+            - mdx
+            - mystmd
+            - pymdown
+            - qmd
+          - type: 'null'
+          default: null
       required:
       - download
       title: ExportAsMarkdownRequest
@@ -1710,22 +1911,14 @@ components:
         includeInputs:
           default: false
           type: boolean
+        includeOutputs:
+          default: true
+          type: boolean
         preset:
           default: document
           enum:
           - document
           - slides
-        rasterScale:
-          default: 4.0
-          type: number
-        rasterServer:
-          default: static
-          enum:
-          - live
-          - static
-        rasterizeOutputs:
-          default: true
-          type: boolean
         webpdf:
           type: boolean
       required:
@@ -1739,6 +1932,58 @@ components:
       required:
       - download
       title: ExportAsScriptRequest
+      type: object
+    ExportAvailabilityResponse:
+      properties:
+        formats:
+          items:
+            $ref: '#/components/schemas/ExportFormatAvailability'
+          type: array
+        source:
+          enum:
+          - server
+      required:
+      - source
+      - formats
+      title: ExportAvailabilityResponse
+      type: object
+    ExportFormatAvailability:
+      properties:
+        dependenciesAvailable:
+          type: boolean
+        format:
+          enum:
+          - html
+          - ipynb
+          - markdown
+          - pdf
+          - script
+        missingPackages:
+          items:
+            type: string
+          type: array
+        missingSetup:
+          items:
+            $ref: '#/components/schemas/ExportSetupRequirement'
+          type: array
+      required:
+      - format
+      - dependenciesAvailable
+      - missingPackages
+      - missingSetup
+      title: ExportFormatAvailability
+      type: object
+    ExportSetupRequirement:
+      properties:
+        command:
+          type: string
+        name:
+          enum:
+          - playwright-chromium
+      required:
+      - name
+      - command
+      title: ExportSetupRequirement
       type: object
     FileCopyRequest:
       properties:
@@ -1860,6 +2105,11 @@ components:
       type: object
     FileDetailsRequest:
       properties:
+        maxBytes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
         path:
           type: string
       required:
@@ -1876,6 +2126,9 @@ components:
         file:
           $ref: '#/components/schemas/FileInfo'
         isBase64:
+          default: false
+          type: boolean
+        isTooLarge:
           default: false
           type: boolean
         mimeType:
@@ -1914,6 +2167,11 @@ components:
           default: null
         path:
           type: string
+        size:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          default: null
       required:
       - id
       - path
@@ -2636,6 +2894,7 @@ components:
           - $ref: '#/components/schemas/ExecuteScratchpadCommand'
           - $ref: '#/components/schemas/ExecuteStaleCellsCommand'
           - $ref: '#/components/schemas/DebugCellCommand'
+          - $ref: '#/components/schemas/SetBreakpointsCommand'
           - $ref: '#/components/schemas/DeleteCellCommand'
           - $ref: '#/components/schemas/SyncGraphCommand'
           - $ref: '#/components/schemas/UpdateCellConfigCommand'
@@ -2650,6 +2909,7 @@ components:
           - $ref: '#/components/schemas/ListSQLSchemasCommand'
           - $ref: '#/components/schemas/ValidateSQLCommand'
           - $ref: '#/components/schemas/ListDataSourceConnectionCommand'
+          - $ref: '#/components/schemas/DiscoverDataSourcesCommand'
           - $ref: '#/components/schemas/StorageListEntriesCommand'
           - $ref: '#/components/schemas/StorageDownloadCommand'
           - $ref: '#/components/schemas/ListSecretKeysCommand'
@@ -2664,6 +2924,7 @@ components:
               create-notebook: '#/components/schemas/CreateNotebookCommand'
               debug-cell: '#/components/schemas/DebugCellCommand'
               delete-cell: '#/components/schemas/DeleteCellCommand'
+              discover-data-sources: '#/components/schemas/DiscoverDataSourcesCommand'
               execute-cells: '#/components/schemas/ExecuteCellsCommand'
               execute-scratchpad: '#/components/schemas/ExecuteScratchpadCommand'
               execute-stale-cells: '#/components/schemas/ExecuteStaleCellsCommand'
@@ -2679,6 +2940,7 @@ components:
               preview-sql-table: '#/components/schemas/PreviewSQLTableCommand'
               refresh-secrets: '#/components/schemas/RefreshSecretsCommand'
               rename-notebook: '#/components/schemas/RenameNotebookCommand'
+              set-breakpoints: '#/components/schemas/SetBreakpointsCommand'
               stop-kernel: '#/components/schemas/StopKernelCommand'
               storage-download: '#/components/schemas/StorageDownloadCommand'
               storage-list-entries: '#/components/schemas/StorageListEntriesCommand'
@@ -2760,6 +3022,7 @@ components:
           - $ref: '#/components/schemas/SQLTableListPreviewNotification'
           - $ref: '#/components/schemas/SQLSchemaListPreviewNotification'
           - $ref: '#/components/schemas/DataSourceConnectionsNotification'
+          - $ref: '#/components/schemas/DataSourceDiscoveryResultNotification'
           - $ref: '#/components/schemas/ValidateSQLResultNotification'
           - $ref: '#/components/schemas/StorageNamespacesNotification'
           - $ref: '#/components/schemas/StorageEntriesNotification'
@@ -2768,10 +3031,12 @@ components:
           - $ref: '#/components/schemas/CacheClearedNotification'
           - $ref: '#/components/schemas/CacheInfoNotification'
           - $ref: '#/components/schemas/FocusCellNotification'
+          - $ref: '#/components/schemas/ActiveLineNotification'
           - $ref: '#/components/schemas/NotebookDocumentTransactionNotification'
           - $ref: '#/components/schemas/ConsumerCapabilitiesNotification'
           discriminator:
             mapping:
+              active-line: '#/components/schemas/ActiveLineNotification'
               alert: '#/components/schemas/AlertNotification'
               banner: '#/components/schemas/BannerNotification'
               cache-cleared: '#/components/schemas/CacheClearedNotification'
@@ -2782,6 +3047,7 @@ components:
               consumer-capabilities: '#/components/schemas/ConsumerCapabilitiesNotification'
               data-column-preview: '#/components/schemas/DataColumnPreviewNotification'
               data-source-connections: '#/components/schemas/DataSourceConnectionsNotification'
+              data-source-discovery-result: '#/components/schemas/DataSourceDiscoveryResultNotification'
               datasets: '#/components/schemas/DatasetsNotification'
               focus-cell: '#/components/schemas/FocusCellNotification'
               function-call-result: '#/components/schemas/FunctionCallResultNotification'
@@ -3564,7 +3830,14 @@ components:
       title: ModelLifecycleNotification
       type: object
     ModelOpen:
-      description: Initial widget state on creation.
+      description: "Initial widget state on creation.\n\n    For anywidgets, the widget's\
+        \ ESM does not travel in `state`: the\n    comm strips `_esm` and sends an\
+        \ `EsmSpec` instead. `None` for\n    models with no ESM (e.g. traditional\
+        \ ipywidgets).\n\n    Attributes:\n        state: Initial trait values, minus\
+        \ `_esm`.\n        buffer_paths: Paths into `state` whose binary values were\n\
+        \            extracted into `buffers`.\n        buffers: Binary payloads,\
+        \ parallel to `buffer_paths`.\n        esm_spec: Where to import this widget's\
+        \ ESM from."
       properties:
         buffer_paths:
           items:
@@ -3578,6 +3851,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - open
@@ -3616,7 +3894,14 @@ components:
       title: ModelRequest
       type: object
     ModelUpdate:
-      description: State sync - changed traits only.
+      description: "State sync - changed traits only.\n\n    Attributes:\n       \
+        \ state: Changed trait values, minus `_esm` (see `ModelOpen`).\n        buffer_paths:\
+        \ Paths into `state` whose binary values were\n            extracted into\
+        \ `buffers`.\n        buffers: Binary payloads, parallel to `buffer_paths`.\n\
+        \        esm_spec: Present only when the widget's `_esm` changed on a\n  \
+        \          live model (hot reload, edit mode only). A spec whose\n       \
+        \     `hash` differs from the current one tells the frontend the\n       \
+        \     widget's code changed and views must be rebuilt."
       properties:
         buffer_paths:
           items:
@@ -3630,6 +3915,11 @@ components:
           items:
             $ref: '#/components/schemas/Base64String'
           type: array
+        esm_spec:
+          anyOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/EsmSpec'
+          default: null
         method:
           enum:
           - update
@@ -4476,6 +4766,19 @@ components:
       - table
       title: SQLTablePreviewNotification
       type: object
+    SafeLiteralDiscoveryValue:
+      description: Non-sensitive metadata that is safe to send to the frontend.
+      properties:
+        kind:
+          enum:
+          - safe-literal
+        value:
+          type: string
+      required:
+      - kind
+      - value
+      title: SafeLiteralDiscoveryValue
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -4652,7 +4955,14 @@ components:
         \ Python's webbrowser module (eg, `\"firefox\"` or `\"chrome\"`)\n    - `follow_symlink`:\
         \ if true, the server will follow symlinks it finds\n        inside its static\
         \ assets directory.\n    - `disable_file_downloads`: if true, the file download\
-        \ button will be\n        hidden in the file explorer."
+        \ button will be\n        hidden in the file explorer.\n    - `transport`:\
+        \ experimental. The transport used to stream kernel\n        messages to the\
+        \ frontend, typically set with the\n        `MARIMO_SERVER_TRANSPORT` environment\
+        \ variable. `\"websocket\"`\n        (default) uses the `/ws` WebSocket endpoint;\
+        \ `\"sse\"` uses\n        server-sent events over HTTP, for deployments behind\
+        \ proxies or\n        services that do not support WebSockets. Terminal, LSP,\
+        \ and\n        real-time collaboration still require WebSockets; RTC is disabled\n\
+        \        when using `\"sse\"`."
       properties:
         browser:
           anyOf:
@@ -4663,6 +4973,10 @@ components:
           type: boolean
         follow_symlink:
           type: boolean
+        transport:
+          enum:
+          - sse
+          - websocket
       required:
       - browser
       - follow_symlink
@@ -4671,6 +4985,50 @@ components:
     SessionId:
       format: session-id
       type: string
+    SetBreakpointsCommand:
+      description: "Set the live debugger's breakpoints (session-scoped, not persisted).\n\
+        \n    Replaces the full breakpoint set: the frontend always sends the complete\n\
+        \    map of cell id -> 1-based line numbers. Only meaningful when the\n  \
+        \  `debugger` experimental feature is enabled.\n\n    Attributes:\n      \
+        \  breakpoints: Map of cell id to lines that have a breakpoint.\n        request:\
+        \ HTTP request context if available."
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+        type:
+          enum:
+          - set-breakpoints
+      required:
+      - type
+      - breakpoints
+      title: SetBreakpointsCommand
+      type: object
+    SetBreakpointsRequest:
+      properties:
+        breakpoints:
+          additionalProperties:
+            items:
+              type: integer
+            type: array
+          type: object
+        request:
+          anyOf:
+          - $ref: '#/components/schemas/HTTPRequest'
+          - type: 'null'
+          default: null
+      required:
+      - breakpoints
+      title: SetBreakpointsRequest
+      type: object
     SetCode:
       description: Replace a cell's source code.
       properties:
@@ -5154,6 +5512,7 @@ components:
         backendType:
           enum:
           - fsspec
+          - huggingface
           - obstore
         displayName:
           type: string
@@ -5975,6 +6334,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Get cache statistics
+  /api/datasources/discover:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DiscoverDataSourcesRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Discover datasource connections
   /api/datasources/preview_column:
     post:
       parameters:
@@ -6110,6 +6490,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/Snippets'
           description: Load the snippets for the documentation page
+  /api/environment:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                properties:
+                  Binaries:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Experimental Flags:
+                    additionalProperties: {}
+                    type: object
+                  Locale:
+                    type: string
+                  OS:
+                    type: string
+                  OS Version:
+                    type: string
+                  Optional Dependencies:
+                    additionalProperties:
+                      type: string
+                    type: object
+                  Processor:
+                    type: string
+                  Python Version:
+                    type: string
+                  editable:
+                    type: boolean
+                  location:
+                    type: string
+                  marimo:
+                    type: string
+                required:
+                - marimo
+                - editable
+                - location
+                - OS
+                - OS Version
+                - Processor
+                - Python Version
+                - Locale
+                - Binaries
+                - Dependencies
+                - Optional Dependencies
+                - Experimental Flags
+                type: object
+          description: Environment information for issue reporting
   /api/export/auto_export/html:
     post:
       parameters:
@@ -6144,7 +6578,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsIPYNBRequest'
+              $ref: '#/components/schemas/AutoExportAsIPYNBRequest'
       responses:
         200:
           content:
@@ -6166,7 +6600,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ExportAsMarkdownRequest'
+              $ref: '#/components/schemas/AutoExportAsMarkdownRequest'
       responses:
         200:
           content:
@@ -6176,6 +6610,15 @@ paths:
           description: Export the notebook as a markdown
         400:
           description: File must be saved before downloading
+  /api/export/availability:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportAvailabilityResponse'
+          description: Readiness for server-backed exports
   /api/export/html:
     post:
       parameters:
@@ -6288,7 +6731,7 @@ paths:
                 type: string
           description: Export the notebook as a script
         400:
-          description: File must be saved before downloading
+          description: Invalid export request
   /api/export/update_cell_outputs:
     post:
       parameters:
@@ -6353,6 +6796,29 @@ paths:
               schema:
                 $ref: '#/components/schemas/FileDeleteResponse'
           description: Delete a file or directory
+  /api/files/download:
+    get:
+      parameters:
+      - description: Path of the file to download
+        in: query
+        name: path
+        required: true
+        schema:
+          type: string
+      responses:
+        200:
+          content:
+            application/octet-stream:
+              schema:
+                format: binary
+                type: string
+          description: Stream the file as an attachment
+        400:
+          description: Path is missing or is a directory
+        403:
+          description: File downloads are disabled
+        404:
+          description: File not found
   /api/files/file_details:
     post:
       requestBody:
@@ -6667,6 +7133,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
           description: Interrupt the kernel's execution
+  /api/kernel/pdb/breakpoints:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SetBreakpointsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+          description: Set the live debugger's breakpoints for the session.
   /api/kernel/pdb/pm:
     post:
       parameters:
@@ -7331,4 +7817,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

@@ -10,6 +10,7 @@ import pytest
 
 from marimo._ast import compiler
 from marimo._ast.cell_manager import CellManager
+from marimo._ast.sql_visitor import SQLRef
 from marimo._ast.visitor import ImportData, VariableData
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -272,7 +273,7 @@ class TestParseSQLCell:
         assert cell.refs == {"mo"}
         assert cell.language == "sql"
         assert cell.variable_data == {
-            "t1": [VariableData("table", qualified_name="t1")]
+            "t1": [VariableData("table", sql_ref=SQLRef(table="t1"))]
         }
 
     @staticmethod
@@ -302,7 +303,7 @@ class TestParseSQLCell:
         assert cell.refs == {"duckdb"}
         assert cell.language == "sql"
         assert cell.variable_data == {
-            "t1": [VariableData("table", qualified_name="t1")]
+            "t1": [VariableData("table", sql_ref=SQLRef(table="t1"))]
         }
 
     @staticmethod
@@ -518,6 +519,18 @@ class TestEndsWithSemicolon:
     @staticmethod
     def test_token_error_unterminated_triple_quote_with_semicolon() -> None:
         assert compiler.ends_with_semicolon('x = """unterminated;') is True
+
+    @staticmethod
+    def test_syntax_error_bad_coding_cookie() -> None:
+        # ast.parse on a str ignores a bad coding cookie, but the bytes-based
+        # tokenize() rejects it with a plain SyntaxError, not a TokenError.
+        code = "# -*- coding: bogus -*-\nx = 1"
+        assert compiler.ends_with_semicolon(code) is False
+
+    @staticmethod
+    def test_syntax_error_bad_coding_cookie_with_semicolon() -> None:
+        code = "# -*- coding: bogus -*-\nx = 1;"
+        assert compiler.ends_with_semicolon(code) is True
 
 
 class TestCompileCellFilename:

@@ -13,7 +13,7 @@ from marimo._server.files.os_file_system import (
     _generate_unique_path,
     _is_allowed_paths,
 )
-from marimo._server.models.files import FileDetailsResponse
+from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._utils.files import natural_sort
 
 
@@ -292,6 +292,57 @@ def test_list_files(test_dir: Path, fs: OSFileSystem) -> None:
     assert len(files) == 2  # Expecting 1 file and 1 directory
 
 
+def test_get_info_reports_file_size(test_dir: Path, fs: OSFileSystem) -> None:
+    file_path = test_dir / "sized.txt"
+    file_path.write_bytes(b"12345")
+
+    info = fs.get_info(str(file_path))
+
+    assert info.size == 5
+    assert info.is_directory is False
+
+
+def test_get_info_directory_has_no_size(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    directory = test_dir / "folder"
+    directory.mkdir()
+
+    info = fs.get_info(str(directory))
+
+    assert info.size is None
+    assert info.is_directory is True
+
+
+def test_metadata_operations_do_not_call_get_details(
+    test_dir: Path,
+    fs: OSFileSystem,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = test_dir / "source.txt"
+    source.write_text("source", encoding="utf-8")
+
+    def fail_get_details(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise AssertionError("metadata operation read file contents")
+
+    monkeypatch.setattr(fs, "get_details", fail_get_details)
+
+    created = fs.create_file_or_directory(
+        str(test_dir), "file", "created.txt", b"created"
+    )
+    copied = fs.copy_file_or_directory(
+        str(source), str(test_dir / "copied.txt")
+    )
+    moved = fs.move_file_or_directory(copied.path, str(test_dir / "moved.txt"))
+    updated = fs.update_file(moved.path, "updated")
+
+    assert created.size == len("created")
+    assert copied.size == len("source")
+    assert moved.size == len("source")
+    assert updated.size == len("updated")
+
+
 def test_list_files_with_broken_directory_symlink(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
@@ -317,6 +368,61 @@ def test_get_details(test_dir: Path, fs: OSFileSystem) -> None:
     assert file_info.contents == "some content"
     file_info2 = fs.get_details(str(file_path), contents="direct content")
     assert file_info2.contents == "direct content"
+
+
+def test_get_details_at_limit(test_dir: Path, fs: OSFileSystem) -> None:
+    file_path = test_dir / "exact.txt"
+    file_path.write_bytes(b"1234")
+
+    result = fs.get_details(str(file_path), max_bytes=4)
+
+    assert result.contents == "1234"
+    assert result.is_too_large is False
+
+
+def test_get_details_over_limit_does_not_open_file(
+    test_dir: Path,
+    fs: OSFileSystem,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_path = test_dir / "large.bin"
+    file_path.write_bytes(b"12345")
+
+    def fail_open(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise AssertionError("oversized file was opened")
+
+    monkeypatch.setattr(Path, "open", fail_open)
+
+    result = fs.get_details(str(file_path), max_bytes=4)
+
+    assert result.contents is None
+    assert result.is_base64 is False
+    assert result.is_too_large is True
+    assert result.file.size == 5
+
+
+def test_get_details_detects_file_growth_after_stat(
+    test_dir: Path,
+    fs: OSFileSystem,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    file_path = test_dir / "growing.txt"
+    file_path.write_bytes(b"12345")
+    stale_info = FileInfo(
+        id=str(file_path),
+        path=str(file_path),
+        name=file_path.name,
+        is_directory=False,
+        is_marimo_file=False,
+        size=4,
+    )
+    monkeypatch.setattr(fs, "get_info", lambda _path: stale_info)
+
+    result = fs.get_details(str(file_path), max_bytes=4)
+
+    assert result.contents is None
+    assert result.is_too_large is True
 
 
 @pytest.mark.parametrize("encoding", ["utf-8", "iso-8859-1"])

@@ -5,12 +5,12 @@ import io
 import os
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlparse
 
 import marimo._output.data.data as mo_data
 from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import normalize_dimension
-from marimo._plugins.core.media import io_to_data_url
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.image import ImageLike, _normalize_image
 
@@ -98,34 +98,44 @@ def _process_image_to_url(src: ImageLike) -> str:
 
     Returns:
         A string URL that can be used in an <img> tag.
-    """
-    try:
-        src = _normalize_image(src)
 
-        # different types handling
-        if isinstance(src, (io.BufferedReader, io.BytesIO)):
-            src.seek(0)
-            return mo_data.image(src.read()).url
-        elif isinstance(src, bytes):
-            return mo_data.image(src).url
-        elif isinstance(src, Path):
-            return mo_data.image(src.read_bytes(), ext=src.suffix).url
-        elif isinstance(src, str) and os.path.isfile(
-            expanded_path := os.path.expanduser(src)
-        ):
+    Raises:
+        ValueError: If the image cannot be processed, e.g. an unsupported
+            type or a string that is neither an existing file nor a URL.
+            Failing loudly is preferable to emitting a broken `<img>` that
+            silently renders nothing.
+    """
+    src = _normalize_image(src)
+
+    # different types handling
+    if isinstance(src, (io.BufferedReader, io.BytesIO)):
+        src.seek(0)
+        return mo_data.image(src.read()).url
+    elif isinstance(src, bytes):
+        return mo_data.image(src).url
+    elif isinstance(src, Path):
+        return mo_data.image(src.read_bytes(), ext=src.suffix).url
+    elif isinstance(src, str):
+        # An existing file on disk: embed its bytes.
+        expanded_path = os.path.expanduser(src)
+        if os.path.isfile(expanded_path):
             path = Path(expanded_path)
             return mo_data.image(path.read_bytes(), ext=path.suffix).url
-        else:
-            # If it's a URL or other string, try to use it directly
-            result = io_to_data_url(src, fallback_mime_type="image/png")
-            return (
-                result
-                if result is not None
-                else f"data:text/plain,Unable to process image: {src}"
-            )
-    except Exception as e:
-        # return an error message otherwise
-        error_message = f"Error processing image: {e!s}"
-        # Using a comment instead of print for logging
-        # print(f"Warning: {error_message}")
-        return f"data:text/plain,{error_message}"
+
+        # A data URL or a remote URL: use it directly.
+        if src.startswith("data:"):
+            return src
+        parsed = urlparse(src)
+        if parsed.scheme and parsed.netloc:
+            return src
+
+        # Neither a reachable file nor a URL: this would render an empty
+        # slider, so surface the problem instead.
+        raise ValueError(
+            f"Could not load image from {src!r}: it is not an existing file "
+            "path or a valid URL."
+        )
+
+    # `_normalize_image` only ever returns one of the types handled above (or
+    # raises), so this is a defensive guard rather than an expected path.
+    raise ValueError(f"Unsupported image type: {type(src)}")

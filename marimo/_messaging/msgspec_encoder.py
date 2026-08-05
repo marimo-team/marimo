@@ -119,6 +119,15 @@ def enc_hook(obj: Any) -> Any:
 
                 return json.loads(to_json(date_format="iso"))
 
+    # pint dumps as nested dicts/slots via __dict__; stringify for display.
+    if DependencyManager.pint.imported():
+        import pint  # type: ignore[import-untyped,import-not-found]
+
+        if isinstance(
+            obj, (pint.Quantity, pint.Unit, pint.util.UnitsContainer)
+        ):
+            return str(obj)
+
     # Handle shapely geometry objects from geopandas
     if DependencyManager.geopandas.imported():
         try:

@@ -39,7 +39,7 @@ import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
-import { isRtcEnabled } from "@/core/rtc/state";
+import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { isAppConnecting } from "@/core/websocket/connection-utils";
 import type { Theme } from "@/theme/useTheme";
@@ -342,7 +342,7 @@ const CellEditorInternal = ({
     saveOrNameNotebook,
   ]);
 
-  const rtcEnabled = isRtcEnabled();
+  const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
@@ -451,6 +451,7 @@ const CellEditorInternal = ({
       setIsEditorMounted(true);
       return;
     }
+    setIsEditorMounted(false);
     if (serializedEditorState !== null) {
       handleDeserializeEditor();
       setIsEditorMounted(true);
@@ -479,11 +480,12 @@ const CellEditorInternal = ({
     handleReconfigureEditor();
   }, [handleReconfigureEditor, extensions, editorViewRef]);
 
-  // Destroy the editor when the component is unmounted
+  // Destroy the editor when the component is unmounted. Read the ref in cleanup
+  // (not setup) so Activity hide/show cycles don't leave a stale destroyed view.
   useEffect(() => {
-    const ev = editorViewRef.current;
     return () => {
-      ev?.destroy();
+      editorViewRef.current?.destroy();
+      editorViewRef.current = null;
     };
   }, [editorViewRef]);
 
@@ -635,14 +637,18 @@ CellCodeMirrorEditor.displayName = "CellCodeMirrorEditor";
 // Wait until the websocket connection is open before rendering the editor
 // This is used for real-time collaboration since the backend needs the connection started
 // before connecting the rtc websockets
-function WithWaitUntilConnected<T extends {}>(
+function WithWaitUntilConnected<T extends Pick<CellEditorProps, "id">>(
   Component: React.ComponentType<T>,
 ) {
   const WaitUntilConnectedComponent = (props: T) => {
     const connection = useAtomValue(connectionAtom);
     const [rtcDoc, setRtcDoc] = useAtom(connectedDocAtom);
 
-    if (isAppConnecting(connection.state) || rtcDoc === undefined) {
+    if (
+      isRtcEnabled() &&
+      canUseRtc(props.id) &&
+      (isAppConnecting(connection.state) || rtcDoc === undefined)
+    ) {
       return (
         <div className="flex h-full w-full items-baseline p-4">
           <DelayMount milliseconds={1000} fallback={null}>

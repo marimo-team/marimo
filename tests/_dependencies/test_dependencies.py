@@ -8,6 +8,7 @@ import pytest
 from marimo._dependencies.dependencies import (
     Dependency,
     DependencyManager,
+    DependencyRequirement,
     _version_check,
 )
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -249,6 +250,44 @@ def test_require_many() -> None:
 
     assert excinfo.value.package_names == ["missing1", "missing2"]
     assert "for testing multiple dependencies" in str(excinfo.value)
+
+
+def test_missing_packages_returns_unique_install_names() -> None:
+    missing1 = Dependency(
+        "missing_module1", pkg_name_to_install="missing-package"
+    )
+    missing2 = Dependency(
+        "missing_module2", pkg_name_to_install="missing-package"
+    )
+    available = Dependency("available")
+
+    with (
+        patch.object(missing1, "has", return_value=False),
+        patch.object(missing2, "has", return_value=False),
+        patch.object(available, "has", return_value=True),
+    ):
+        assert DependencyManager.missing_packages(
+            missing1,
+            available,
+            missing2,
+        ) == ["missing-package"]
+
+
+def test_missing_packages_supports_grouped_requirement() -> None:
+    available = Dependency("available")
+    missing = Dependency("missing")
+    requirement = DependencyRequirement(
+        package="feature[extra]",
+        dependencies=(available, missing),
+    )
+
+    with (
+        patch.object(available, "has", return_value=True),
+        patch.object(missing, "has", return_value=False),
+    ):
+        assert DependencyManager.missing_packages(requirement) == [
+            "feature[extra]"
+        ]
 
 
 def test_require_many_uses_package_name() -> None:

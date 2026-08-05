@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 /**
- * Fake WebSocket that routes messages through MarimoComm / MODEL_MANAGER
+ * Fake WebSocket that routes messages through MarimoComm / WIDGET_REGISTRY
  * instead of a real network WebSocket.
  *
  * mpl.js expects a WebSocket-like object with:

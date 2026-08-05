@@ -2,18 +2,24 @@
 
 import { markdown } from "@codemirror/lang-markdown";
 import { sql } from "@codemirror/lang-sql";
+import {
+  defaultHighlightStyle,
+  syntaxHighlighting,
+} from "@codemirror/language";
 import CodeMirror, {
   EditorView,
   type ReactCodeMirrorProps,
 } from "@uiw/react-codemirror";
 import { CopyIcon, EyeIcon, EyeOffIcon, PlusIcon } from "lucide-react";
-import { memo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
+import { darkTheme } from "@/core/codemirror/theme/dark";
+import { lightTheme } from "@/core/codemirror/theme/light";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -70,35 +76,41 @@ export const ReadonlyCode = memo(
       language = "python",
       ...rest
     } = props;
-    const [hideCode, setHideCode] = useState(initiallyHideCode);
+    const [hideCode, setHideCode] = useState(!!initiallyHideCode);
+
+    const extensions = useMemo(
+      () => [
+        theme === "dark" ? darkTheme : lightTheme,
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        ...readonlyCodeExtensions(language),
+      ],
+      [theme, language],
+    );
 
     return (
       <div
         className={cn(
-          "relative hover-actions-parent w-full overflow-hidden",
+          "relative hover-actions-parent w-full overflow-hidden pb-1",
           className,
         )}
       >
-        {showHideCode && hideCode && (
-          <HideCodeButton
-            tooltip="Show code"
-            onClick={() => setHideCode(false)}
-          />
-        )}
         <div className="absolute top-0 right-0 my-1 mx-2 z-10 hover-action flex gap-2">
           {showCopyCode && <CopyButton text={code} />}
           {insertNewCell && <InsertNewCell code={code} />}
-          {showHideCode && !hideCode && (
-            <EyeCloseButton onClick={() => setHideCode(true)} />
+          {showHideCode && (
+            <ToggleCodeButton
+              hidden={hideCode}
+              onClick={() => setHideCode((prev) => !prev)}
+            />
           )}
         </div>
         <CodeMirror
           {...rest}
           className={cn("cm", hideCode && "opacity-20 h-8 overflow-hidden")}
-          theme={theme === "dark" ? "dark" : "light"}
+          theme="none"
           height="100%"
-          editable={!hideCode}
-          extensions={readonlyCodeExtensions(language)}
+          editable={false}
+          extensions={extensions}
           value={code}
           readOnly={true}
         />
@@ -116,39 +128,39 @@ const CopyButton = (props: { text: string }) => {
 
   return (
     <Tooltip content="Copy code" usePortal={false}>
-      <Button onClick={copy} size="xs" className="py-0" variant="secondary">
+      <Button
+        onClick={copy}
+        size="xs"
+        className="py-0"
+        variant="secondary"
+        aria-label="Copy code"
+      >
         <CopyIcon size={14} strokeWidth={1.5} />
       </Button>
     </Tooltip>
   );
 };
 
-const EyeCloseButton = (props: { onClick: () => void }) => {
+const ToggleCodeButton = (props: { hidden: boolean; onClick: () => void }) => {
   return (
-    <Tooltip content="Hide code" usePortal={false}>
+    <Tooltip
+      content={props.hidden ? "Show code" : "Hide code"}
+      usePortal={false}
+    >
       <Button
         onClick={props.onClick}
+        aria-label={props.hidden ? "Show code" : "Hide code"}
         size="xs"
         className="py-0"
         variant="secondary"
       >
-        <EyeOffIcon size={14} strokeWidth={1.5} />
+        {props.hidden ? (
+          <EyeIcon size={14} strokeWidth={1.5} />
+        ) : (
+          <EyeOffIcon size={14} strokeWidth={1.5} />
+        )}
       </Button>
     </Tooltip>
-  );
-};
-
-export const HideCodeButton = (props: {
-  tooltip?: string;
-  className?: string;
-  onClick: () => void;
-}) => {
-  return (
-    <div className={props.className} onClick={props.onClick}>
-      <Tooltip usePortal={false} content={props.tooltip}>
-        <EyeIcon className="hover-action w-5 h-5 text-muted-foreground cursor-pointer absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 opacity-80 hover:opacity-100 z-20" />
-      </Tooltip>
-    </div>
   );
 };
 
@@ -166,6 +178,7 @@ const InsertNewCell = (props: { code: string }) => {
         size="xs"
         className="py-0"
         variant="secondary"
+        aria-label="Add code to notebook"
       >
         <PlusIcon size={14} strokeWidth={1.5} />
       </Button>

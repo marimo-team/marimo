@@ -390,6 +390,13 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     try:
         import pty
 
+        # TODO(akshayka): Someone should clean this up to make it safe on
+        # macOS.
+        #
+        # NOTE: On macOS, pty.fork() is documented as unsafe when mixed with
+        # higher-level system APIs, and forking a multi-threaded process (as
+        # the server is) can segfault the child before it reaches execve().
+        # See https://docs.python.org/3/library/pty.html
         child_pid, fd = pty.fork()
         if child_pid == 0:
             # Child process - set up the shell environment

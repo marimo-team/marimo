@@ -136,7 +136,7 @@ def _(mo):
     mo.md(r"""
     ## Copy data from Postgres to duckdb
 
-    To prevent duckdb from continuously re-reading tables from PostgresSQL, you can copy the PostgresSQL databases into DuckDB. Note that this will consume your system's RAM.
+    To prevent duckdb from continuously re-reading tables from PostgreSQL, you can copy the PostgreSQL databases into DuckDB. Note that this will consume your system's RAM.
     """)
     return
 
@@ -156,9 +156,9 @@ def _(mo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    ## Execute queries directly in PostgresSQL
+    ## Execute queries directly in PostgreSQL
 
-    Run queries directly in PostgresSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
+    Run queries directly in PostgreSQL using duckdb's `postgres_query` function. In some cases this may be faster than executing queries in duckdb.
     """)
     return
 

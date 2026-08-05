@@ -1,11 +1,24 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
 from marimo._utils.paths import notebook_output_dir
+
+
+def export_manifest_name(notebook_filename: str | None) -> str:
+    """Export-manifest filename for a notebook, from its filename stem.
+
+    Kernel and exporter derive it identically so they agree on the file. A
+    dotfile so it can't collide with a cache key. NB. only the stem is used, so
+    two same-named notebooks writing to a shared cache dir would collide.
+    """
+    stem = Path(notebook_filename).stem if notebook_filename else "notebook"
+    slug = re.sub(r"[^0-9A-Za-z._-]+", "-", stem).strip("-") or "notebook"
+    return f".{slug}-export.json"
 
 
 def _valid_path(path: Path) -> bool:

@@ -6,7 +6,6 @@ import io
 import token as token_types
 import warnings
 from pathlib import Path
-from textwrap import dedent
 from tokenize import TokenInfo, tokenize
 from typing import (
     TYPE_CHECKING,
@@ -16,6 +15,7 @@ from typing import (
     cast,
 )
 
+from marimo._ast.dedent import fixed_dedent
 from marimo._ast.names import DEFAULT_CELL_NAME, SETUP_CELL_NAME
 from marimo._schemas.serialization import (
     AppInstantiation,
@@ -62,26 +62,6 @@ def split_source_lines(text: str) -> list[str]:
     `\\x1c`-`\\x1e` separators, and Unicode line separators.
     """
     return text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
-
-
-def fixed_dedent(text: str) -> str:
-    """Manually edited code, can dedent"""
-    # Added robustness for AI generated code
-    lines = text.splitlines()
-    for line in lines:
-        if content := line.lstrip():
-            indent = line[: len(line) - len(content)]
-            break
-    else:
-        # Quit early, no clear leading spaces
-        return dedent(text)
-
-    def refill(line: str) -> str:
-        if not line.startswith(indent):
-            return indent + line
-        return line
-
-    return dedent("\n".join(map(refill, lines)))
 
 
 def unwrap_cell_body(formatted: str) -> str:
@@ -1217,6 +1197,7 @@ UNEXPECTED_STATEMENT_BODY_CELL_VIOLATION = (
 UNEXPECTED_KEYWORD_VALUE_VIOLATION = "Unexpected value for keyword argument"
 ONLY_HEADER_EXTRACTED_VIOLATION = "Only able to extract header."
 NON_MARIMO_PYTHON_SCRIPT_VIOLATION = "non-marimo Python content beyond header"
+NON_MARIMO_MARKDOWN_VIOLATION = "markdown without marimo cells or metadata"
 EXPECTED_RUN_GUARD_VIOLATION = "Expected run guard statement"
 SCANNER_UNPARSABLE_CELL_VIOLATION = (
     "Cell contains a syntax error and could not be parsed"
@@ -1241,5 +1222,12 @@ def all_violations_soft(violations: list[Violation]) -> bool:
 def is_non_marimo_python_script(notebook: NotebookSerialization) -> bool:
     return any(
         (v.description == NON_MARIMO_PYTHON_SCRIPT_VIOLATION)
+        for v in notebook.violations
+    )
+
+
+def is_non_marimo_markdown(notebook: NotebookSerialization) -> bool:
+    return any(
+        (v.description == NON_MARIMO_MARKDOWN_VIOLATION)
         for v in notebook.violations
     )

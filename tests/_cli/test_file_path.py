@@ -242,9 +242,15 @@ def test_validate_name_with_markdown_file():
 
 def test_validate_name_with_markdown_file_remote() -> None:
     markdown_tutorial = "https://github.com/marimo-team/marimo/blob/main/marimo/_tutorials/markdown_format.md"
-    assert validate_name(
-        markdown_tutorial, allow_new_file=True, allow_directory=False
-    )[0].endswith("markdown_format.md")
+    with patch("marimo._utils.requests.get") as mock_get:
+        mock_get.return_value = Response(
+            200,
+            b"# Markdown tutorial\n",
+            {},
+        )
+        assert validate_name(
+            markdown_tutorial, allow_new_file=True, allow_directory=False
+        )[0].endswith("markdown_format.md")
 
 
 def test_validate_name_with_jupyter_notebook():

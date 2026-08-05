@@ -1,0 +1,942 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import asyncio
+import base64
+import mimetypes
+import sys
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+from marimo import _loggers
+from marimo._ast.names import DEFAULT_CELL_NAME
+from marimo._config.config import (
+    DEFAULT_CONFIG,
+    DisplayConfig,
+    MarimoConfig,
+    SharingConfig,
+)
+from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._config.utils import deep_copy
+from marimo._convert.common.dom_traversal import (
+    replace_public_files_with_data_uris,
+    replace_virtual_files_with_data_uris,
+)
+from marimo._convert.common.filename import (
+    get_download_filename,
+    get_filename,
+)
+from marimo._convert.converters import MarimoConvert
+from marimo._convert.ipynb.from_ir import (
+    NBCONVERT_REMOVE_INPUT_TAG,
+    convert_from_ir_to_ipynb,
+)
+from marimo._convert.markdown.flavor import (
+    markdown_output_filename,
+    normalize_markdown_flavor,
+)
+from marimo._convert.script import convert_from_ir_to_script
+from marimo._export._status import emit_pdf_export_status
+from marimo._export.dependencies import require_export_dependencies
+from marimo._export.requests import (
+    ExportResult,
+    HTMLExportRequest,
+    IPYNBExportRequest,
+    MarkdownExportRequest,
+    PDFExportRequest,
+    ScriptExportRequest,
+    WASMExportRequest,
+)
+from marimo._messaging.mimetypes import KnownMimeType
+from marimo._messaging.notification import ModelOpen
+from marimo._runtime.virtual_file import read_virtual_file
+from marimo._schemas.export_options import IPYNBExportOptions
+from marimo._schemas.notebook import NotebookV1
+from marimo._schemas.session import NotebookSessionV1
+from marimo._server.tokens import SkewProtectionToken
+from marimo._templates import (
+    static_notebook_template,
+    wasm_notebook_template,
+)
+from marimo._utils import async_path
+from marimo._utils.code import hash_code
+from marimo._utils.data_uri import build_data_url
+from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.paths import marimo_package_path, notebook_output_dir
+from marimo._version import __version__
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from traitlets.config import Config
+
+LOGGER = _loggers.marimo_logger()
+
+# Root directory for static assets
+ROOT = (marimo_package_path() / "_static").resolve()
+
+VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
+VIRTUAL_FILE_ALLOWED_TAGS = {"img", "audio", "video"}
+# Maximum file size to inline as a data URI in exported HTML (10 MB).
+# Files exceeding this limit are replaced with a text/plain placeholder
+# so users see a clear message instead of a broken link.
+MAX_VIRTUAL_FILE_INLINE_BYTES = 10 * 1024 * 1024
+
+
+def _nbconvert_tag_remove_config() -> Config:
+    """Build a traitlets config that strips inputs from cells tagged with
+    `NBCONVERT_REMOVE_INPUT_TAG`. Used to honor `hide_code=True` in nbconvert
+    exports."""
+    from traitlets.config import Config
+
+    config = Config()
+    config.TagRemovePreprocessor.enabled = True
+    config.TagRemovePreprocessor.remove_input_tags = (
+        NBCONVERT_REMOVE_INPUT_TAG,
+    )
+    return config
+
+
+# JupyterLab's stylesheet (shipped with nbconvert) styles the code input area
+# with `overflow: hidden` and leaves the `<pre>` at the default `white-space:
+# pre`. In JupyterLab that is fine because the editor scrolls; in a PDF there is
+# no scrolling, so long lines are clipped and the text is lost entirely.
+# Outputs already wrap (`.jp-OutputArea-output pre` sets `word-break`), so this
+# only targets the input area.
+#
+# `!important` is required because this is inlined ahead of the JupyterLab
+# rules; the slides PDF path overrides nbconvert styling the same way.
+WEBPDF_CODE_WRAP_CSS = """\
+/* marimo: wrap long code lines instead of clipping them (#9421) */
+.jp-InputArea-editor {
+  overflow: visible !important;
+}
+.jp-InputArea-editor .highlight pre {
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+"""
+
+
+def _inline_code_wrap_css(nb: Any, resources: Any) -> tuple[Any, Any]:
+    """Inline `WEBPDF_CODE_WRAP_CSS`, as an nbconvert preprocessor.
+
+    Preprocessors run after nbconvert populates `resources`, so appending here
+    is what gets the stylesheet into the rendered HTML.
+    """
+    inlining = resources.setdefault("inlining", {})
+    inlining.setdefault("css", []).append(WEBPDF_CODE_WRAP_CSS)
+    return nb, resources
+
+
+def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
+    if sys.platform == "win32":
+        # marimo installs the Selector policy during import. The spawned render
+        # process restores Proactor before Playwright creates its subprocess loop.
+        asyncio.set_event_loop_policy(None)
+
+    from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
+
+    web_exporter = WebPDFExporter(  # type: ignore[no-untyped-call]
+        config=_nbconvert_tag_remove_config(),
+    )
+    web_exporter.exclude_input = not include_inputs
+    web_exporter.allow_chromium_download = True
+    web_exporter.register_preprocessor(  # type: ignore[no-untyped-call]
+        _inline_code_wrap_css, enabled=True
+    )
+    pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+    return pdf_data
+
+
+def _render_webpdf(notebook: Any, include_inputs: bool) -> Any:
+    if sys.platform != "win32":
+        return _render_webpdf_with_nbconvert(notebook, include_inputs)
+
+    from concurrent.futures import ProcessPoolExecutor
+    from multiprocessing import get_context
+
+    with ProcessPoolExecutor(
+        max_workers=1,
+        mp_context=get_context("spawn"),
+    ) as pool:
+        return pool.submit(
+            _render_webpdf_with_nbconvert,
+            notebook,
+            include_inputs,
+        ).result()
+
+
+def export_script(request: ScriptExportRequest) -> ExportResult:
+    return ExportResult(
+        contents=convert_from_ir_to_script(request.notebook),
+        download_filename=get_download_filename(
+            request.notebook.filename, "script.py"
+        ),
+        did_error=False,
+    )
+
+
+def export_markdown(request: MarkdownExportRequest) -> ExportResult:
+    source_filename = (
+        request.options.source_filename or request.notebook.filename
+    )
+    export_filename = request.options.filename or source_filename
+    flavor = normalize_markdown_flavor(
+        request.options.flavor,
+        filename=export_filename or "notebook.md",
+    )
+    return ExportResult(
+        contents=MarimoConvert.from_ir(request.notebook).to_markdown(
+            filename=source_filename,
+            flavor=flavor,
+        ),
+        download_filename=markdown_output_filename(export_filename, flavor),
+        did_error=False,
+    )
+
+
+class Exporter:
+    # Virtual file URL format constants
+    _VIRTUAL_FILE_PATTERN = "./@file/"
+    _VIRTUAL_FILE_PREFIX_WITH_SLASH = "/@file/"
+
+    def export_as_html(
+        self,
+        request: HTMLExportRequest,
+    ) -> tuple[str, str]:
+        index_html = get_html_contents()
+        filename = get_filename(request.filename)
+
+        # Configure notebook with display and sharing settings
+        config = self._prepare_display_config(
+            request.display_config, request.sharing_config
+        )
+
+        # Serialize notebook state
+        session_snapshot = deep_copy(request.snapshot.session)
+        notebook_snapshot = deep_copy(request.snapshot.notebook)
+
+        # Replace virtual files in HTML outputs with data URIs
+        session_snapshot, replaced_files = self._inline_virtual_files(
+            session_snapshot
+        )
+
+        # Inline references to files in the notebook's `public/` folder so
+        # the exported HTML is self-contained. Without this, `mo.md` images
+        # like `![alt](public/image.png)` break when the HTML is opened
+        # outside the notebook's directory.
+        public_dir = Path(filename).resolve().parent / "public"
+        self._inline_public_files(session_snapshot, public_dir)
+
+        app_code = request.app_code
+
+        # Prepare code for export
+        code = self._prepare_code(
+            request.options.include_code,
+            app_code,
+            notebook_snapshot,
+            session_snapshot,
+        )
+
+        # Build fallback virtual_files dict for files not in HTML outputs.
+        # Widget ESM referenced only by model notifications (e.g. a
+        # composed child never displayed on its own) appears in no HTML
+        # output, so the inline pass above cannot see it.
+        model_notifications = list(request.snapshot.model_notifications)
+        esm_urls = [
+            self._normalize_virtual_file_url(n.message.esm_spec.url)
+            for n in model_notifications
+            if isinstance(n.message, ModelOpen)
+            and n.message.esm_spec is not None
+        ]
+        virtual_files = self._build_virtual_files_dict(
+            [*request.options.files, *esm_urls],
+            replaced_files,
+            max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
+        )
+
+        # Generate final HTML
+        code_hash = hash_code(app_code)
+        html = static_notebook_template(
+            html=index_html,
+            user_config=config,
+            config_overrides={},
+            server_token=SkewProtectionToken("static"),
+            app_config=request.app_config,
+            filepath=filename,
+            code=code,
+            code_hash=code_hash,
+            session_snapshot=session_snapshot,
+            notebook_snapshot=notebook_snapshot,
+            files=virtual_files,
+            model_notifications=model_notifications,
+            asset_url=request.options.asset_url,
+        )
+
+        download_filename = get_download_filename(filename, "html")
+        return html, download_filename
+
+    def _prepare_display_config(
+        self,
+        display_config: DisplayConfig,
+        sharing_config: SharingConfig | None = None,
+    ) -> MarimoConfig:
+        """Prepare config with display and sharing settings for static notebook."""
+        config: MarimoConfig = deep_copy(DEFAULT_CONFIG)
+        config["display"] = display_config
+        if sharing_config:
+            config["sharing"] = sharing_config
+        return config
+
+    @staticmethod
+    def _iter_html_data_strings(
+        session_snapshot: NotebookSessionV1,
+    ) -> Iterator[tuple[dict[str, Any], str, str]]:
+        """Yield (output_data_dict, mime_type, data) for each `text/html`
+        string output.
+
+        Only `text/html` outputs are returned: non-HTML mime entries (e.g.
+        `text/plain`, `application/json`) must not be HTML-parsed, since
+        their content is opaque to the attribute-replacement logic.
+        """
+        for cell in session_snapshot["cells"]:
+            for output in cell["outputs"]:
+                if output["type"] != "data":
+                    continue
+                for mime_type, data in output["data"].items():
+                    if mime_type != "text/html":
+                        continue
+                    if isinstance(data, str):
+                        yield output["data"], mime_type, data
+
+    def _inline_virtual_files(
+        self, session_snapshot: NotebookSessionV1
+    ) -> tuple[NotebookSessionV1, set[str]]:
+        """Replace virtual file URLs with data URIs in session outputs.
+
+        Returns:
+            Tuple of (modified_snapshot, set_of_replaced_files)
+        """
+        replaced_files: set[str] = set()
+
+        for data_dict, mime_type, data in self._iter_html_data_strings(
+            session_snapshot
+        ):
+            if self._VIRTUAL_FILE_PATTERN not in data:
+                continue
+            processed, files = replace_virtual_files_with_data_uris(
+                data,
+                allowed_tags=VIRTUAL_FILE_ALLOWED_TAGS,
+                allowed_attributes=VIRTUAL_FILE_ALLOWED_ATTRIBUTES,
+                max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
+            )
+            replaced_files.update(files)
+            data_dict[mime_type] = processed
+
+        return session_snapshot, replaced_files
+
+    def _inline_public_files(
+        self,
+        session_snapshot: NotebookSessionV1,
+        public_dir: Path,
+    ) -> None:
+        """Replace `public/`-prefixed file paths in HTML outputs with data URIs.
+
+        Mutates `session_snapshot` in-place.
+        """
+        if not public_dir.exists():
+            return
+
+        for data_dict, mime_type, data in self._iter_html_data_strings(
+            session_snapshot
+        ):
+            if "public/" not in data:
+                continue
+            processed, _ = replace_public_files_with_data_uris(
+                data,
+                public_dir=public_dir,
+                max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
+            )
+            data_dict[mime_type] = processed
+
+    def _prepare_code(
+        self,
+        include_code: bool,
+        app_code: str,
+        notebook_snapshot: NotebookV1,
+        session_snapshot: NotebookSessionV1,
+    ) -> str:
+        """Prepare code for export, optionally clearing it."""
+        if not include_code:
+            # Clear code and console outputs
+            for nb_cell in notebook_snapshot["cells"]:
+                nb_cell["code"] = ""
+                nb_cell["name"] = DEFAULT_CELL_NAME
+            for snapshot_cell in session_snapshot["cells"]:
+                snapshot_cell["console"] = []
+            return ""
+
+        return app_code
+
+    def _normalize_virtual_file_url(self, url: str) -> str:
+        """Normalize virtual file URL format from /@file/ to ./@file/."""
+        if url.startswith(self._VIRTUAL_FILE_PATTERN):
+            return url
+        return url.replace(
+            self._VIRTUAL_FILE_PREFIX_WITH_SLASH,
+            self._VIRTUAL_FILE_PATTERN,
+            1,
+        )
+
+    def _build_virtual_files_dict(
+        self,
+        file_urls: list[str],
+        replaced_files: set[str],
+        max_inline_bytes: int | None = None,
+    ) -> dict[str, str]:
+        """Build dict of virtual files not already inlined in HTML.
+
+        Args:
+            file_urls: List of virtual file URLs from request
+            replaced_files: Set of URLs already replaced in HTML outputs
+            max_inline_bytes: Maximum file size in bytes to inline.
+                Files larger than this are skipped. None means no limit.
+
+        Returns:
+            Dict mapping file URLs to data URIs
+        """
+        virtual_files: dict[str, str] = {}
+
+        for file_url in file_urls:
+            # Skip files already replaced in HTML outputs
+            normalized_url = self._normalize_virtual_file_url(file_url)
+            if normalized_url in replaced_files:
+                LOGGER.debug(
+                    "Skipping virtual file %s (already inlined in HTML)",
+                    file_url,
+                )
+                continue
+
+            # Process virtual file URLs. Export requests use `/@file/`,
+            # while runtime-created virtual files use the relative
+            # `./@file/` form.
+            if not file_url.startswith(
+                (
+                    self._VIRTUAL_FILE_PREFIX_WITH_SLASH,
+                    self._VIRTUAL_FILE_PATTERN,
+                )
+            ):
+                continue
+
+            data_uri = self._read_virtual_file_as_data_uri(
+                file_url, max_inline_bytes=max_inline_bytes
+            )
+            if data_uri:
+                virtual_files[normalized_url.removeprefix(".")] = data_uri
+
+        return virtual_files
+
+    def _read_virtual_file_as_data_uri(
+        self,
+        file_url: str,
+        max_inline_bytes: int | None = None,
+    ) -> str | None:
+        """Read a virtual file and convert it to a data URI.
+
+        Args:
+            file_url: Virtual file URL in `/@file/{byte_length}-{filename}`
+                or `./@file/{byte_length}-{filename}` format.
+            max_inline_bytes: Maximum file size in bytes to inline.
+                Files larger than this are skipped. None means no limit.
+
+        Returns:
+            Data URI string, or None if file cannot be read
+        """
+        # Extract byte_length and filename from either URL form.
+        if file_url.startswith(self._VIRTUAL_FILE_PATTERN):
+            virtual_file = file_url[len(self._VIRTUAL_FILE_PATTERN) :]
+        elif file_url.startswith(self._VIRTUAL_FILE_PREFIX_WITH_SLASH):
+            virtual_file = file_url[
+                len(self._VIRTUAL_FILE_PREFIX_WITH_SLASH) :
+            ]
+        else:
+            LOGGER.warning("Invalid virtual file URL in export: %s", file_url)
+            return None
+
+        try:
+            byte_length_str, basename = virtual_file.split("-", 1)
+            byte_length = int(byte_length_str)
+        except Exception as e:
+            LOGGER.warning(
+                "Invalid virtual file URL in export: %s. Error: %s",
+                file_url,
+                e,
+            )
+            return None
+
+        if max_inline_bytes is not None and byte_length > max_inline_bytes:
+            LOGGER.info(
+                "Skipping virtual file %s (%d bytes exceeds"
+                " %d byte inline limit)",
+                file_url,
+                byte_length,
+                max_inline_bytes,
+            )
+            return None
+
+        try:
+            buffer_contents = read_virtual_file(basename, byte_length)
+        except Exception as e:
+            LOGGER.warning(
+                "File not found in export: %s. Error: %s", file_url, e
+            )
+            return None
+
+        mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
+        return build_data_url(
+            cast(KnownMimeType, mime_type),
+            base64.b64encode(buffer_contents),
+        )
+
+    def export_as_ipynb(
+        self,
+        request: IPYNBExportRequest,
+    ) -> str:
+        """Export notebook as .ipynb, optionally including outputs if session_view provided."""
+        require_export_dependencies("ipynb", "for IPYNB export")
+        return convert_from_ir_to_ipynb(
+            request.app,
+            sort_mode=request.options.sort_mode,
+            session_view=request.session_view,
+        )
+
+    def export_as_wasm(
+        self,
+        request: WASMExportRequest,
+    ) -> tuple[str, str]:
+        """Export notebook as a WASM-powered standalone HTML file."""
+        index_html = get_html_contents()
+        filename = get_filename(request.filename)
+
+        config = self._prepare_display_config(
+            request.display_config, request.sharing_config
+        )
+        # Remove autosave
+        config["save"]["autosave"] = "off"
+
+        html = wasm_notebook_template(
+            html=index_html,
+            version=__version__,
+            filename=filename,
+            mode=request.options.mode,
+            user_config=config,
+            config_overrides={},
+            app_config=request.app_config,
+            code=request.code,
+            asset_url=request.options.asset_url,
+            show_code=request.options.show_code,
+            session_snapshot=request.session_snapshot,
+            notebook_snapshot=request.notebook_snapshot,
+        )
+
+        download_filename = get_download_filename(filename, "wasm.html")
+
+        return html, download_filename
+
+    def export_as_pdf(
+        self,
+        request: PDFExportRequest,
+    ) -> bytes | None:
+        """Export notebook as a PDF.
+
+        Args:
+            request: Notebook data, PDF options, and optional rendered outputs.
+
+        Returns:
+            PDF data
+        """
+        # We check for all dependencies upfront since standard export failing
+        # falls back to webpdf (which requires playwright).
+        # We don't want users to reinstall again after the first failure.
+        # Webpdf is generally more resilient to errors than standard export.
+        require_export_dependencies("pdf", "for PDF export")
+
+        ipynb_json_str = self.export_as_ipynb(
+            IPYNBExportRequest(
+                app=request.app,
+                options=IPYNBExportOptions(sort_mode="top-down"),
+                session_view=request.session_view,
+            )
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+        if request.png_fallbacks:
+            from marimo._export._nbformat_png_fallbacks import (
+                inject_png_fallbacks_into_notebook,
+            )
+
+            inject_png_fallbacks_into_notebook(
+                notebook,
+                png_fallbacks=request.png_fallbacks,
+            )
+
+        # Try standard PDF export first (requires pandoc + TeX)
+        # and fall back to webpdf if it fails
+        from nbconvert.utils.exceptions import (  # type: ignore[import-not-found]
+            ConversionException,
+        )
+        from nbconvert.utils.pandoc import (  # type: ignore[import-not-found]
+            PandocMissing,
+        )
+
+        def _emit_webpdf_fallback_status() -> None:
+            emit_pdf_export_status(
+                request.status_callback,
+                phase="render_fallback",
+                message=(
+                    "standard PDF export failed; falling back to WebPDF..."
+                ),
+            )
+
+        if not request.options.webpdf:
+            try:
+                from nbconvert import (  # type: ignore[import-not-found]
+                    PDFExporter,
+                )
+
+                emit_pdf_export_status(
+                    request.status_callback,
+                    phase="render",
+                    message="rendering PDF via standard exporter...",
+                )
+                exporter = PDFExporter(  # type: ignore[no-untyped-call]
+                    config=_nbconvert_tag_remove_config(),
+                )
+                exporter.exclude_input = not request.options.include_inputs
+                pdf_data, _resources = exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
+                if isinstance(pdf_data, bytes):
+                    return pdf_data
+                LOGGER.error("PDF data is not bytes: %s", pdf_data)
+                return None
+            except OSError as e:
+                # LatexFailed (IOError) or xelatex not on PATH
+                _emit_webpdf_fallback_status()
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
+                    e,
+                )
+            except (PandocMissing, ConversionException) as e:
+                _emit_webpdf_fallback_status()
+                LOGGER.info(
+                    "Standard PDF export failed, falling back to webpdf: %s",
+                    e,
+                )
+            except Exception as e:
+                _emit_webpdf_fallback_status()
+                LOGGER.error(
+                    "Standard PDF export failed, falling back to webpdf.",
+                    exc_info=e,
+                )
+
+        emit_pdf_export_status(
+            request.status_callback,
+            phase="render",
+            message="rendering PDF via WebPDF...",
+        )
+        pdf_data = _render_webpdf(notebook, request.options.include_inputs)
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
+
+    async def export_as_slides_pdf(
+        self,
+        request: PDFExportRequest,
+    ) -> bytes | None:
+        """Export a slides notebook as PDF using reveal.js + Playwright.
+
+        Converts to iPynb with Jupyter slideshow metadata, renders to
+        reveal.js HTML via nbconvert's SlidesExporter, then uses
+        Playwright (async API) to print to PDF via ?print-pdf mode.
+
+        Must be called from an async context since Playwright's async API
+        is required when running inside an asyncio event loop.
+
+        Args:
+            request: Notebook data, PDF options, and optional rendered outputs.
+
+        Returns:
+            PDF data
+        """
+        require_export_dependencies("pdf", "for PDF export")
+
+        ipynb_json_str = self.export_as_ipynb(
+            IPYNBExportRequest(
+                app=request.app,
+                options=IPYNBExportOptions(sort_mode="top-down"),
+                session_view=request.session_view,
+            )
+        )
+
+        import nbformat
+
+        notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+        if request.png_fallbacks:
+            from marimo._export._nbformat_png_fallbacks import (
+                inject_png_fallbacks_into_notebook,
+            )
+
+            inject_png_fallbacks_into_notebook(
+                notebook,
+                png_fallbacks=request.png_fallbacks,
+            )
+        emit_pdf_export_status(
+            request.status_callback,
+            phase="render",
+            message="rendering slides PDF...",
+        )
+        return await self._export_slides_as_pdf(
+            notebook, request.options.include_inputs
+        )
+
+    @staticmethod
+    def _to_file_uri(path: str) -> str:
+        import os
+        from urllib.request import pathname2url
+
+        return f"file://{pathname2url(os.path.abspath(path))}"
+
+    @staticmethod
+    def _slide_type_for_cell(cell: Any, include_inputs: bool) -> str:
+        if include_inputs:
+            return "slide"
+        cell_type = str(cell.get("cell_type", ""))
+        if cell_type != "code":
+            return "slide"
+        outputs = cell.get("outputs", [])
+        if isinstance(outputs, list) and outputs:
+            return "slide"
+        return "skip"
+
+    @staticmethod
+    async def _export_slides_as_pdf(
+        notebook: Any,
+        include_inputs: bool,
+    ) -> bytes | None:
+        """Render slides notebook to PDF using Playwright async API."""
+        import os
+        import tempfile
+
+        from nbconvert import SlidesExporter
+
+        # Add slideshow metadata so each cell becomes a slide.
+        for cell in notebook.cells:
+            if "slideshow" not in cell.metadata:
+                cell.metadata["slideshow"] = {}
+            cell.metadata["slideshow"]["slide_type"] = (
+                Exporter._slide_type_for_cell(cell, include_inputs)
+            )
+
+        # Convert to reveal.js HTML
+        slides_exporter = SlidesExporter(  # type: ignore[no-untyped-call]
+            config=_nbconvert_tag_remove_config(),
+        )
+        slides_exporter.exclude_input = not include_inputs
+        html_data, _resources = slides_exporter.from_notebook_node(notebook)
+
+        # Write HTML to a temp file for Playwright to load
+        with tempfile.NamedTemporaryFile(
+            suffix=".html", delete=False, mode="w", encoding="utf-8"
+        ) as f:
+            f.write(html_data)
+            temp_path = f.name
+
+        try:
+            from playwright.async_api import (  # type: ignore[import-not-found]
+                async_playwright,
+            )
+
+            async with async_playwright() as playwright:
+                browser = await playwright.chromium.launch()
+                try:
+                    page = await browser.new_page()
+                    # ?print-pdf tells reveal.js to use a linear print layout
+                    temp_uri = Exporter._to_file_uri(temp_path)
+                    await page.goto(
+                        f"{temp_uri}?print-pdf",
+                        wait_until="networkidle",
+                    )
+                    await page.evaluate(
+                        """
+                        () => {
+                          const reveal = window.Reveal;
+                          if (
+                            reveal &&
+                            typeof reveal.layout === "function"
+                          ) {
+                            reveal.layout();
+                          }
+                        }
+                        """
+                    )
+                    await page.wait_for_timeout(300)
+                    await page.add_style_tag(
+                        content=(
+                            ".pdf-page:last-of-type {"
+                            " page-break-after: auto !important;"
+                            " break-after: auto !important;"
+                            "}"
+                        )
+                    )
+                    pdf_data = await page.pdf(
+                        print_background=True,
+                        prefer_css_page_size=True,
+                    )
+                finally:
+                    await browser.close()
+        finally:
+            try:
+                os.unlink(temp_path)
+            except OSError:
+                LOGGER.debug("Failed to remove temp slide HTML: %s", temp_path)
+
+        if not isinstance(pdf_data, bytes):
+            LOGGER.error("Slides PDF data is not bytes: %s", pdf_data)
+            return None
+        return pdf_data
+
+    def export_assets(self, directory: Path) -> None:
+        # Copy assets to the same directory as the notebook
+        dirpath = Path(directory)
+        LOGGER.debug(f"Copying assets to {dirpath}")
+        if not dirpath.exists():
+            dirpath.mkdir(parents=True, exist_ok=True)
+
+        import shutil
+        import stat
+
+        shutil.copytree(
+            ROOT,
+            dirpath,
+            dirs_exist_ok=True,
+            copy_function=shutil.copyfile,
+            ignore=(shutil.ignore_patterns("index.html")),
+        )
+        # copytree calls copystat() on directories, which may copy read-only permissions from the source (e.g., /nix/store).
+        # Restore the write bit so marimo can create additional files.
+        dirpath.chmod(dirpath.stat().st_mode | stat.S_IWUSR)
+        assets_dir = dirpath / "assets"
+        if assets_dir.is_dir():
+            assets_dir.chmod(assets_dir.stat().st_mode | stat.S_IWUSR)
+
+    def export_public_folder(
+        self, directory: Path, marimo_file: MarimoPath
+    ) -> bool:
+        FOLDER_NAME = "public"
+        public_dir = marimo_file.path.parent / FOLDER_NAME
+
+        if public_dir.exists():
+            import shutil
+
+            # Copy public folder to the same directory as the notebook
+            dirpath = Path(directory)
+            if not dirpath.exists():
+                dirpath.mkdir(parents=True, exist_ok=True)
+
+            target_dir = dirpath / FOLDER_NAME
+            if target_dir == public_dir:
+                # Skip if source and target are the same
+                return True
+
+            LOGGER.debug(f"Copying public folder to {dirpath}")
+            shutil.copytree(
+                public_dir,
+                target_dir,
+                dirs_exist_ok=True,
+            )
+            return True
+
+        return False
+
+
+async def render_pdf(request: PDFExportRequest) -> bytes | None:
+    exporter = Exporter()
+    if request.options.preset == "slides":
+        return await exporter.export_as_slides_pdf(request)
+    return exporter.export_as_pdf(request)
+
+
+class AutoExporter:
+    def __init__(self) -> None:
+        # Cache directories we've already created to avoid redundant checks
+        self._created_dirs: set[Path] = set()
+        # Thread pool for blocking I/O operations
+        self._executor = ThreadPoolExecutor(
+            max_workers=4, thread_name_prefix="export"
+        )
+
+    async def _save_file(
+        self, filename: str | None, content: str, extension: str
+    ) -> None:
+        notebook_path = get_filename(filename)
+        download_name = get_download_filename(filename, extension)
+        export_dir = notebook_output_dir(notebook_path)
+
+        await self._ensure_export_dir_async(export_dir)
+        filepath = export_dir / download_name
+
+        # Run blocking file I/O in thread pool
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            self._executor, self._write_file_sync, filepath, content
+        )
+
+    async def save_html(self, filename: str | None, html: str) -> None:
+        await self._save_file(filename, html, "html")
+
+    async def save_md(self, filename: str | None, markdown: str) -> None:
+        await self._save_file(filename, markdown, "md")
+
+    async def save_ipynb(self, filename: str | None, ipynb: str) -> None:
+        await self._save_file(filename, ipynb, "ipynb")
+
+    def _write_file_sync(self, filepath: Path, content: str) -> None:
+        """Synchronous file write (runs in thread pool)"""
+        if content == "":
+            return
+        filepath.write_text(content, encoding="utf-8")
+
+    async def _ensure_export_dir_async(self, export_dir: Path) -> None:
+        """Async directory creation with caching to avoid redundant checks"""
+        # Fast path: already created this directory
+        if export_dir in self._created_dirs:
+            return
+
+        await async_path.mkdir(export_dir, parents=True, exist_ok=True)
+
+        # Cache that we've created this directory
+        self._created_dirs.add(export_dir)
+
+    def cleanup(self) -> None:
+        """Cleanup resources"""
+        self._executor.shutdown(wait=False)
+
+
+def get_html_contents() -> str:
+    if GLOBAL_SETTINGS.DEVELOPMENT_MODE:
+        from marimo._utils import requests
+
+        # Fetch from a CDN
+        LOGGER.info(
+            "Fetching index.html from jsdelivr because in development mode"
+        )
+        url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist/index.html"
+        return requests.get(url).text()
+
+    index_html = Path(ROOT) / "index.html"
+    return index_html.read_text(encoding="utf-8")

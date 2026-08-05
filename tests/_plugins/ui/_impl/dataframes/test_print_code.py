@@ -568,7 +568,7 @@ def test_print_code_expand_dict_nested_dict_pandas() -> None:
         real_result,
     )
 
-    assert list(code_result.columns) == ["other", "a", "nested"]
+    assert list(code_result.columns) == ["a", "nested", "other"]
 
 
 @pytest.mark.skipif(

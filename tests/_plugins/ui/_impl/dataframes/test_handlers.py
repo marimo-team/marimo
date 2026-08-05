@@ -1857,6 +1857,7 @@ class TestTransformHandler:
         create_test_dataframes(
             {"A": [1, 2], "B": [10, 20]},
             include=[
+                "pandas",
                 "polars",
                 "pyarrow",
                 "ibis",
@@ -1874,6 +1875,46 @@ class TestTransformHandler:
             match="Expand dict requires a struct-like column with named fields",
         ):
             apply(df, transform)
+
+    @staticmethod
+    @pytest.mark.parametrize(
+        "df",
+        create_test_dataframes(
+            {
+                "id": [1, 2],
+                "d": [{"x": 10, "y": 20}, {"x": 30, "y": 40}],
+                "name": ["a", "b"],
+            },
+            include=["pandas", "polars"],
+        ),
+    )
+    def test_expand_dict_preserves_column_position(
+        df: DataFrameType,
+    ) -> None:
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="d"
+        )
+        result = collect_df(apply(df, transform))
+        assert result.columns == ["id", "x", "y", "name"]
+
+    @staticmethod
+    def test_expand_dict_pandas_na_like_values_treated_as_empty() -> None:
+        pd = pytest.importorskip("pandas")
+        df = pd.DataFrame(
+            {
+                "d": pd.Series(
+                    [{"x": 1}, None, pd.NA, pd.NaT, float("nan")],
+                    dtype=object,
+                ),
+                "id": [1, 2, 3, 4, 5],
+            }
+        )
+        transform = ExpandDictTransform(
+            type=TransformType.EXPAND_DICT, column_id="d"
+        )
+        result = collect_df(apply(df, transform))
+        assert result.columns == ["x", "id"]
+        assert result["x"].is_null().sum() == 4
 
     @staticmethod
     @pytest.mark.parametrize(

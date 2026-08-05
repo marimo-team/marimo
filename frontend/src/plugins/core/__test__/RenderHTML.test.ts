@@ -114,6 +114,50 @@ describe("parseHtml", () => {
     expect(result.key).toBe("https://cdn.example.com/b.png-0");
   });
 
+  test("checked task-list checkbox is keyed by index and checked state", () => {
+    const html = '<li><input type="checkbox" checked disabled> item</li>';
+    const result = parseHtml({ html }) as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const checkbox = result.props.children[0];
+    expect(checkbox.key).toBe("checkbox-0-true");
+  });
+
+  test("unchecked task-list checkbox is keyed by index and checked state", () => {
+    const html = '<li><input type="checkbox" disabled> item</li>';
+    const result = parseHtml({ html }) as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const checkbox = result.props.children[0];
+    expect(checkbox.key).toBe("checkbox-0-false");
+  });
+
+  test("task list: item reused at same position gets a new key when checked state flips", () => {
+    // Simulates editing markdown so an unchecked item now sits where a
+    // checked item used to be (e.g. an earlier checked item was deleted).
+    const before = parseHtml({
+      html: '<ul><li><input type="checkbox" checked disabled> a</li></ul>',
+    }) as React.ReactElement<{ children: React.ReactElement }>;
+    const after = parseHtml({
+      html: '<ul><li><input type="checkbox" disabled> b</li></ul>',
+    }) as React.ReactElement<{ children: React.ReactElement }>;
+    const beforeLi = before.props.children as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const afterLi = after.props.children as React.ReactElement<{
+      children: React.ReactElement[];
+    }>;
+    const beforeKey = beforeLi.props.children[0].key;
+    const afterKey = afterLi.props.children[0].key;
+    expect(beforeKey).not.toBe(afterKey);
+  });
+
+  test("non-checkbox input is left alone", () => {
+    const html = '<input type="text" value="hi">';
+    const result = parseHtml({ html }) as React.ReactElement;
+    expect(result.key).toBeNull();
+  });
+
   test("codehilite with copy button", () => {
     const html =
       '<div class="codehilite"><pre><code>console.log("Hello");</code></pre></div>';

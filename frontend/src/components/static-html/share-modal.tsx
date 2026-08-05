@@ -40,7 +40,7 @@ export const ShareStaticNotebookModal: React.FC<{
           e.preventDefault();
 
           onClose();
-          const html = await exportAsHTML({
+          const { contents: html } = await exportAsHTML({
             download: false,
             includeCode: true,
             files: VirtualFileTracker.INSTANCE.filenames(),

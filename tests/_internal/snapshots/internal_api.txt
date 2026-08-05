@@ -7,6 +7,7 @@ commands
   CreateNotebookCommand
   DebugCellCommand
   DeleteCellCommand
+  DiscoverDataSourcesCommand
   ExecuteCellCommand
   ExecuteCellsCommand
   ExecuteScratchpadCommand

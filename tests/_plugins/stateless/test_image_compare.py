@@ -290,12 +290,26 @@ async def test_image_compare_local_file(
         assert len(get_context().virtual_file_registry.registry) == 2
 
 
-async def test_image_compare_error_handling() -> None:
-    # This should not raise an exception, but handle the error gracefully
-    result = image_compare(
-        before_image="invalid_path_that_does_not_exist.png",
-        after_image="another_invalid_path.png",
-    )
+async def test_image_compare_invalid_source_raises() -> None:
+    # A string that is neither an existing file nor a URL previously produced a
+    # broken <img> that silently rendered nothing; it should now fail loudly so
+    # the user gets feedback instead of an empty output.
+    with pytest.raises(ValueError, match="not an existing file path or a"):
+        image_compare(
+            before_image="invalid_path_that_does_not_exist.png",
+            after_image="https://marimo.io/logo.png",
+        )
 
-    # Should still generate HTML even with invalid images
+    with pytest.raises(ValueError, match="not an existing file path or a"):
+        image_compare(
+            before_image="https://marimo.io/logo.png",
+            after_image="another_invalid_path.png",
+        )
+
+
+async def test_image_compare_data_url() -> None:
+    # Data URLs are already renderable and should be passed through as-is.
+    data_url = "data:image/png;base64,iVBORw0KGgo="
+    result = image_compare(before_image=data_url, after_image=data_url)
     assert "marimo-image-comparison" in result.text
+    assert "data:image/png;base64" in result.text

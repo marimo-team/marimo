@@ -132,7 +132,7 @@ See third_party_licenses.txt for license texts.
 ├── package.json:  Apache-2.0
 └── license files: Apache
 
-@marimo-team/codemirror-languageserver@1.15.14 [license(s): BSD, BSD-3-Clause]
+@marimo-team/codemirror-languageserver@2.0.0 [license(s): BSD, BSD-3-Clause]
 ├── package.json:  BSD-3-Clause
 └── readme files: BSD
 
@@ -148,10 +148,6 @@ See third_party_licenses.txt for license texts.
 @mui/material@6.4.11 [license(s): MIT]
 ├── package.json:  MIT
 └── license files: MIT
-
-@open-rpc/client-js@1.8.1 [license(s): Apache, Apache-2.0]
-├── package.json:  Apache-2.0
-└── license files: Apache
 
 @paralleldrive/cuid2@2.2.2 [license(s): MIT]
 ├── package.json:  MIT

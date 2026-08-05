@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { describe, expect, it } from "vitest";
-import type { Data } from "../matplotlib-renderer";
-import { visibleForTesting } from "../matplotlib-renderer";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  type Data,
+  MatplotlibRenderer,
+  type MatplotlibState,
+  visibleForTesting,
+} from "../matplotlib-renderer";
 
 const {
   pixelToData,
@@ -183,5 +187,69 @@ describe("isInAxes", () => {
 
   it("returns false for a point below axes", () => {
     expect(isInAxes({ x: 300, y: 351 }, LINEAR_AXES)).toBe(false);
+  });
+});
+
+describe("MatplotlibRenderer", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("restores a new selection when the chart changes", () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ addEventListener: vi.fn() })),
+    );
+    vi.stubGlobal(
+      "requestAnimationFrame",
+      vi.fn(() => 1),
+    );
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+
+    const value = {
+      type: "box",
+      has_selection: true,
+      data: { x_min: 2, x_max: 4, y_min: 2, y_max: 4 },
+    } as const;
+    const state: MatplotlibState = {
+      ...LINEAR_AXES,
+      axesPixelBounds: [0, 0, 100, 100],
+      yBounds: [0, 10],
+      chartBase64: "first",
+      width: 100,
+      height: 100,
+      selectionColor: "blue",
+      selectionOpacity: 0.15,
+      strokeWidth: 2,
+      debounce: false,
+      value: { has_selection: false },
+      setValue: vi.fn(),
+    };
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    const renderer = new MatplotlibRenderer(container, {
+      state,
+      signal: controller.signal,
+    });
+
+    // Cell reruns reuse the renderer, updating the chart and initial value together.
+    renderer.update({ ...state, chartBase64: "second", value });
+
+    const canvas = container.querySelector("canvas");
+    expect(canvas).not.toBeNull();
+    if (!canvas) {
+      return;
+    }
+    vi.spyOn(canvas, "getBoundingClientRect").mockReturnValue(
+      DOMRect.fromRect({ width: 100, height: 100 }),
+    );
+    canvas.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 30, clientY: 70 }),
+    );
+
+    expect(canvas.style.cursor).toBe("move");
+    controller.abort();
   });
 });

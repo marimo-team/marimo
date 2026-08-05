@@ -30,19 +30,23 @@ from marimo._server.models.models import (
     DebugCellRequest,
     ExecuteCellsRequest,
     ExecuteScratchpadRequest,
-    InstantiateNotebookRequest,
     InvokeFunctionRequest,
     KernelStatusResponse,
     ModelRequest,
+    SetBreakpointsRequest,
     SuccessResponse,
-    UpdateUIElementValuesRequest,
 )
 from marimo._server.router import APIRouter
+from marimo._server.sse import wait_for_http_disconnect
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._server.workspace import MarimoFileKey
 from marimo._session.consumer_policy import (
     TakeoverDecision,
     can_take_over_editing,
+)
+from marimo._session.requests import (
+    InstantiateNotebookRequest,
+    UpdateUIElementValuesRequest,
 )
 from marimo._session.types import KernelState
 from marimo._types.ids import ConsumerId
@@ -344,15 +348,8 @@ async def execute_code(
 
     async def _watch_disconnect() -> None:
         """Wait for client disconnect and interrupt the kernel."""
-        while True:
-            # request._receive is the ASGI `receive` callable. Although
-            # it's a private Starlette attribute, it's the standard way to
-            # detect disconnects and doesn't race with StreamingResponse
-            # (which only writes to the send channel, never reads receive).
-            message = await request._receive()
-            if message.get("type") == "http.disconnect":
-                session.try_interrupt()
-                return
+        await wait_for_http_disconnect(request)
+        session.try_interrupt()
 
     async def sse_generator() -> AsyncGenerator[str, None]:
         disconnect_task = asyncio.create_task(_watch_disconnect())
@@ -364,8 +361,10 @@ async def execute_code(
         run_id = str(uuid4())
         try:
             listener = ScratchCellListener(run_id=run_id)
-            with session.scoped(listener):
-                async with session.scratchpad_lock:
+            # Ensure we take a lock on the scratchpad before scoping the
+            # listener. See #10035.
+            async with session.scratchpad_lock:
+                with session.scoped(listener):
                     http_req = HTTPRequest.from_request(request)
                     server_url, auth_token = get_code_mode_credentials(
                         app_state, request
@@ -389,6 +388,12 @@ async def execute_code(
                         yield event
 
                 yield build_done_event(session, listener)
+        except asyncio.CancelledError:
+            # On ASGI spec < 2.4, Starlette consumes http.disconnect
+            # itself and cancels this generator before _watch_disconnect
+            # observes it; still interrupt the kernel on the way out.
+            session.try_interrupt()
+            raise
         finally:
             await cancel_and_wait(disconnect_task)
 
@@ -451,6 +456,35 @@ async def run_post_mortem(
                         $ref: "#/components/schemas/SuccessResponse"
     """
     return await dispatch_control_request(request, DebugCellRequest)
+
+
+@router.post("/pdb/breakpoints")
+@requires("edit")
+async def set_breakpoints(
+    *,
+    request: Request,
+) -> BaseResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SetBreakpointsRequest"
+    responses:
+        200:
+            description: Set the live debugger's breakpoints for the session.
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SuccessResponse"
+    """
+    return await dispatch_control_request(request, SetBreakpointsRequest)
 
 
 @router.post("/restart_session")

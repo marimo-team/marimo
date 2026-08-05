@@ -15,6 +15,10 @@ interface Props extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
   cellId: CellId;
   canMoveX?: boolean;
+  /**
+   * If true, dragging is disabled (e.g. while presenting).
+   */
+  disabled?: boolean;
 }
 
 /**
@@ -42,7 +46,7 @@ function isTransformNoop(transform: Transform | null) {
 
 export const SortableCell = React.forwardRef(
   (
-    { cellId, canMoveX, ...props }: Props,
+    { cellId, canMoveX, disabled, ...props }: Props,
     ref: React.ForwardedRef<HTMLDivElement>,
   ) => {
     // This hook re-renders every time _any_ cell is dragged,
@@ -54,7 +58,7 @@ export const SortableCell = React.forwardRef(
       transform,
       transition,
       isDragging,
-    } = useSortable({ id: cellId.toString() });
+    } = useSortable({ id: cellId.toString(), disabled });
 
     // Perf:
     // If the transform is a noop, keep it as null

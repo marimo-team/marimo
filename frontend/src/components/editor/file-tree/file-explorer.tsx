@@ -62,16 +62,14 @@ import type { FileInfo } from "@/core/network/types";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
-import { deserializeBlob } from "@/utils/blob";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
-import { downloadBlob } from "@/utils/download";
-import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { openNotebook } from "@/utils/links";
 import type { FilePath } from "@/utils/paths";
 import { makeDuplicateName } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { useTreeDndManager } from "./dnd-wrapper";
+import { downloadFile } from "./download";
 import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
@@ -393,7 +391,7 @@ const Show = ({
 };
 
 const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
-  const { openFile, sendFileDetails } = useRequestClient();
+  const { openFile } = useRequestClient();
   const disableFileDownloads = useAtomValue(disableFileDownloadsAtom);
 
   const fileType: FileIconType = node.data.isDirectory
@@ -645,23 +643,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
             <>
               <DropdownMenuItem
                 onSelect={async () => {
-                  const details = await sendFileDetails({
-                    path: node.data.path,
-                  });
-                  if (details.isBase64 && details.contents) {
-                    const blob = deserializeBlob(
-                      base64ToDataURL(
-                        details.contents as Base64String,
-                        details.mimeType || "application/octet-stream",
-                      ),
-                    );
-                    downloadBlob(blob, node.data.name);
-                  } else {
-                    downloadBlob(
-                      new Blob([details.contents || ""]),
-                      node.data.name,
-                    );
-                  }
+                  await downloadFile(node.data.path, node.data.name);
                 }}
                 data-testid="file-explorer-download-menu-item"
               >

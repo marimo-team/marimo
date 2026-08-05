@@ -9,6 +9,7 @@ import CoreweaveDarkIcon from "@marimo-team/llm-info/icons/coreweave-dark.svg?in
 import { DatabaseZapIcon, GlobeIcon, HardDriveIcon } from "lucide-react";
 import GoogleCloudIcon from "@/components/databases/icons/google-cloud-storage.svg?inline";
 import GoogleDriveIcon from "@/components/databases/icons/google-drive.svg?inline";
+import HuggingfaceIcon from "@/components/databases/icons/huggingface.svg?inline";
 import { GitHubIcon } from "@/components/icons/github";
 import type { KnownStorageProtocol } from "@/core/storage/types";
 import { useTheme } from "@/theme/useTheme";
@@ -28,6 +29,7 @@ const PROTOCOL_ICONS: Record<KnownStorageProtocol, IconEntry> = {
   file: HardDriveIcon,
   "in-memory": DatabaseZapIcon,
   gdrive: { src: GoogleDriveIcon },
+  hf: { src: HuggingfaceIcon },
   github: GitHubIcon,
 };
 

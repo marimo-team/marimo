@@ -100,6 +100,7 @@ def run_in_docker(
     *,
     port: int | None,
     debug: bool = False,
+    execute_opengraph_generators: bool = False,
 ) -> None:
     echo(f"Starting {green('containerized')} marimo notebook")
 
@@ -144,6 +145,8 @@ def run_in_docker(
             host,
         ]
     )
+    if execute_opengraph_generators:
+        container_command.append("--execute-opengraph-generators")
     if file_path is not None:
         container_command.append(file_path)
 

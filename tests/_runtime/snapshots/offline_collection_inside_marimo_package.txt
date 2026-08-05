@@ -1,0 +1,5 @@
+marimo/_smoke_tests/_offline_collect_probe.py::MarimoTestBlock_0::test_param[1]
+marimo/_smoke_tests/_offline_collect_probe.py::MarimoTestBlock_0::test_param[2]
+marimo/_smoke_tests/_offline_collect_probe.py::MarimoTestBlock_0::test_uses_fixture
+
+3 tests collected in Ns

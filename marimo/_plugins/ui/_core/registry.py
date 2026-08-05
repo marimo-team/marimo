@@ -181,7 +181,10 @@ class UIElementRegistry:
         except ContextNotInitializedError:
             pass
         else:
-            ctx.function_registry.delete(namespace=object_id)
+            # GC finalizers may run under a context that does not own this
+            # registry; only delete functions from the owning context.
+            if ctx.ui_element_registry is self:
+                ctx.function_registry.delete(namespace=object_id)
 
         if object_id in self._bindings:
             del self._bindings[object_id]

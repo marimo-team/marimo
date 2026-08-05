@@ -214,6 +214,7 @@ def start(
     sandbox_mode: SandboxMode | None = None,
     startup_tip: CliTip | None = None,
     show_tracebacks: bool | None = None,
+    execute_opengraph_generators: bool = False,
 ) -> None:
     """
     Start the server.
@@ -322,6 +323,7 @@ def start(
         watch=watch,
         sandbox_mode=sandbox_mode,
         isolate_apps=isolate_apps,
+        execute_opengraph_generators=execute_opengraph_generators,
     )
 
     log_level = "info" if development_mode else "error"

@@ -777,8 +777,13 @@ def test_get_dataframe_csv() -> None:
     import polars as pl
 
     data = "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/stocks.csv"
-    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
-    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
+    fake_payload = b"symbol,price\nMSFT,39.81\nAAPL,28.13\n"
+    with unittest.mock.patch(
+        "urllib.request.urlopen",
+        return_value=io.BytesIO(fake_payload),
+    ):
+        chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
+        assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
@@ -790,8 +795,18 @@ def test_get_dataframe_json() -> None:
     data = (
         "https://cdn.jsdelivr.net/npm/vega-datasets@v1.29.0/data/barley.json"
     )
-    chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
-    assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
+    fake_payload = json.dumps(
+        [
+            {"yield": 27.0, "variety": "Manchuria", "site": "University Farm"},
+            {"yield": 48.9, "variety": "Manchuria", "site": "Waseca"},
+        ]
+    ).encode("utf-8")
+    with unittest.mock.patch(
+        "urllib.request.urlopen",
+        return_value=io.BytesIO(fake_payload),
+    ):
+        chart = altair_chart(alt.Chart(data).mark_point().encode(x="values:Q"))
+        assert isinstance(chart.dataframe, (pd.DataFrame, pl.DataFrame))
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

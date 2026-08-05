@@ -9,8 +9,11 @@ import type { JsonString } from "@/utils/json/base64";
 import type {
   CodeCompletionRequest,
   CopyNotebookRequest,
+  EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportAsScriptRequest,
+  ExportedFile,
   FileCopyRequest,
   FileCopyResponse,
   FileCreateRequest,
@@ -73,6 +76,7 @@ export interface RawBridge {
   code_complete(request: CodeCompletionRequest): Promise<string>;
   read_code(): Promise<{ contents: string }>;
   read_snippets(): Promise<Snippets>;
+  get_environment_info(): Promise<EnvironmentInfo>;
   format(request: FormatCellsRequest): Promise<FormatResponse>;
   save(request: SaveNotebookRequest): Promise<string>;
   copy(request: CopyNotebookRequest): Promise<string>;
@@ -94,8 +98,11 @@ export interface RawBridge {
   load_packages(request: string): Promise<string>;
   read_file(request: string): Promise<string>;
   set_interrupt_buffer(request: Uint8Array): Promise<string>;
-  export_html(request: ExportAsHTMLRequest): Promise<string>;
-  export_markdown(request: ExportAsMarkdownRequest): Promise<string>;
+  export_html(request: ExportAsHTMLRequest): Promise<ExportedFile<string>>;
+  export_markdown(
+    request: ExportAsMarkdownRequest,
+  ): Promise<ExportedFile<string>>;
+  export_script(request: ExportAsScriptRequest): Promise<ExportedFile<string>>;
 }
 
 export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
@@ -103,9 +110,11 @@ export type BridgePayload<T extends keyof RawBridge> = T extends keyof RawBridge
   : undefined;
 
 export type SerializedBridge = {
-  [P in keyof RawBridge]: RawBridge[P] extends (
+  [P in Exclude<keyof RawBridge, "save">]: RawBridge[P] extends (
     payload: string,
   ) => Promise<unknown>
     ? (payload: string) => Promise<string>
     : RawBridge[P];
+} & {
+  save(payload: string): Promise<void>;
 };

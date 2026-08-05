@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom } from "jotai";
+import { isNotebookPage } from "../mode";
 import { waitFor } from "../state/jotai";
 import { type ConnectionStatus, WebSocketState } from "../websocket/types";
 
@@ -15,6 +16,20 @@ export function waitForConnectionOpen() {
   return waitFor(connectionAtom, (value) => {
     return value.state === WebSocketState.OPEN;
   });
+}
+
+/**
+ * Waits for the kernel connection, but only on pages that open one. Non-notebook
+ * pages (home, gallery) never connect, so waiting there would hang forever.
+ *
+ * Use for requests that the marimo server can serve without a session, but that
+ * should still wait for the kernel when a notebook is open.
+ */
+export function waitForConnectionOpenIfNotebook() {
+  if (!isNotebookPage()) {
+    return Promise.resolve();
+  }
+  return waitForConnectionOpen();
 }
 
 export const isConnectingAtom = atom((get) => {

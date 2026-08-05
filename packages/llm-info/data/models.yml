@@ -1,5 +1,15 @@
 anthropic:
 
+  - name: Claude Opus 5
+    model: claude-opus-5
+    description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
   - name: Claude Fable 5
     model: claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -91,6 +101,46 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: GPT-5.6
+    model: gpt-5.6
+    description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Luna
+    model: gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 1, output: 6}
+
+  - name: GPT-5.6 Sol
+    model: gpt-5.6-sol
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Terra
+    model: gpt-5.6-terra
+    description: "Balanced model in OpenAI's GPT-5.6 series, suited for everyday coding, reasoning, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 2.5, output: 15}
+
   - name: GPT-5.5
     model: gpt-5.5
     description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
@@ -161,6 +211,26 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Gemini 3.6 Flash
+    model: gemini-3.6-flash
+    description: "Google's high-efficiency model for coding, agentic workflows, and web and app development"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-21
+    cost: {input: 1.5, output: 7.5}
+
+  - name: Gemini 3.5 Flash Lite
+    model: gemini-3.5-flash-lite
+    description: "Google's high-efficiency model with upgraded agentic capabilities, suited for focused subagent tasks in multi-agent workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-21
+    cost: {input: 0.3, output: 2.5}
+
   - name: Gemini 3.5 Flash
     model: gemini-3.5-flash
     description: "Google's high-efficiency multimodal model, bringing near-Pro level coding and reasoning at Flash-tier cost and speed"
@@ -199,14 +269,24 @@ google:
     output_types: [text]
     release_date: 2026-04-02
 
+  - name: Nano Banana 2 Lite
+    model: gemini-3.1-flash-lite-image
+    description: "Google's fastest, most cost-efficient Gemini image model for high-velocity text-to-image generation and visual exploration"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text, image]
+    release_date: 2026-06-30
+    cost: {input: 0.25, output: 30}
+
   - name: Nano Banana 2
-    model: gemini-3.1-flash-image-preview
+    model: gemini-3.1-flash-image
     description: "Google's image generation and editing model, delivering Pro-level visual quality at Flash speed"
     roles: [chat, edit]
     capabilities: [thinking]
     input_types: [text, image, pdf]
     output_types: [text, image]
-    release_date: 2026-02-26
+    release_date: 2026-05-28
     cost: {input: 0.5, output: 60}
 
   - name: Gemini 3.1 Pro Preview
@@ -229,7 +309,77 @@ google:
     release_date: 2026-02-19
     cost: {input: 2, output: 12}
 
+  - name: Claude Opus 5
+    model: claude-opus-5@default
+    description: "Anthropic Claude Opus 5 on Google Vertex AI only (not available via the Gemini API)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
+  - name: Claude Sonnet 5
+    model: claude-sonnet-5@default
+    description: "Anthropic Claude Sonnet 5 on Google Vertex AI only (not available via the Gemini API)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
+  - name: Claude Opus 4.8
+    model: claude-opus-4-8@default
+    description: "Anthropic Claude Opus 4.8 on Google Vertex AI only (not available via the Gemini API)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-28
+    cost: {input: 5, output: 25}
+
 bedrock:
+  - name: Claude Opus 5 (Global)
+    model: global.anthropic.claude-opus-5
+    description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
+  - name: GPT-5.6 Luna
+    model: openai.gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 1, output: 6}
+
+  - name: GPT-5.6 Sol
+    model: openai.gpt-5.6-sol
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Terra
+    model: openai.gpt-5.6-terra
+    description: "Balanced model in OpenAI's GPT-5.6 series, suited for everyday coding, reasoning, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 2.5, output: 15}
+
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -240,8 +390,28 @@ bedrock:
     release_date: 2026-06-09
     cost: {input: 10, output: 50}
 
-  - name: Claude Sonnet 5
-    model: anthropic.claude-sonnet-5
+  - name: Claude Sonnet 5 (Global)
+    model: global.anthropic.claude-sonnet-5
+    description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-30
+    cost: {input: 2, output: 10}
+
+  - name: Claude Fable 5 (Global)
+    model: global.anthropic.claude-fable-5
+    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-06-09
+    cost: {input: 10, output: 50}
+
+  - name: Claude Sonnet 5 (Global)
+    model: global.anthropic.claude-sonnet-5
     description: "Anthropic's most agentic Sonnet model yet, built for planning, tool use, and autonomous multi-step work at Sonnet pricing"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
@@ -321,6 +491,56 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: Claude Opus 5
+    model: claude-opus-5
+    description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
+  - name: GPT-5.6 Luna
+    model: gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 1, output: 6}
+
+  - name: GPT-5.6 Sol
+    model: gpt-5.6-sol
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5, output: 30}
+
+  - name: GPT-5.6 Terra
+    model: gpt-5.6-terra
+    description: "Balanced model in OpenAI's GPT-5.6 series, suited for everyday coding, reasoning, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 2.5, output: 15}
+
+  - name: GPT Chat Latest
+    model: gpt-chat-latest
+    description: "OpenAI's stable chat-latest alias that always resolves to the latest Instant chat model used in ChatGPT"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-05-05
+    cost: {input: 5, output: 30}
+
   - name: Claude Fable 5
     model: claude-fable-5
     description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
@@ -573,6 +793,15 @@ github:
     cost: {input: 0, output: 0}
 
 ollama:
+  - name: kimi-k3
+    model: kimi-k3
+    description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-16
+
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash
     description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"
@@ -682,6 +911,36 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Kimi K3
+    model: moonshotai/Kimi-K3
+    description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-16
+    cost: {input: 3, output: 15}
+
+  - name: MiniMax M3
+    model: MiniMaxAI/MiniMax-M3
+    description: "Multimodal foundation model from MiniMax with a 1M-token context window, suited for long-horizon agentic work and coding"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-06-12
+    cost: {input: 0.23, output: 0.96}
+
+  - name: Granite 4.1 8B
+    model: ibm-granite/granite-4.1-8b
+    description: "Dense 8B decoder-only model from IBM's Granite 4.1 family with a 131K-token context window, designed for enterprise tasks"
+    roles: [chat, edit]
+    capabilities: [tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-04-29
+    cost: {input: 0.05, output: 0.1}
+
   - name: DeepSeek V4-Flash
     model: deepseek-ai/DeepSeek-V4-Flash
     description: "DeepSeek V4-Flash is an MoE model with 1M context length great for coding, reasoning, and agentic workloads"
@@ -721,6 +980,16 @@ wandb:
     output_types: [text]
     release_date: 2026-04-07
     cost: {input: 1.4, output: 4.4}
+
+  - name: Nemotron 3 Ultra
+    model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
+    description: "Open frontier-reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-06-04
+    cost: {input: 0.75, output: 2.75}
 
   - name: NVIDIA Nemotron 3 Super 120B
     model: nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8
@@ -813,6 +1082,56 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: Qwen3.8 Max
+    model: qwen3.8-max
+    description: "Flagship multimodal reasoning model in Alibaba's Qwen3.8 series, intended for complex reasoning, visual understanding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-03
+    cost: {input: 2, output: 6}
+
+  - name: GPT-5.6 Luna (2x usage)
+    model: gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 0.1, output: 0.6}
+
+  - name: Kimi K3 (2x usage)
+    model: kimi-k3
+    description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-16
+    cost: {input: 3, output: 15}
+
+  - name: Grok 4.5
+    model: grok-4.5
+    description: "xAI's smartest model with frontier performance on coding, knowledge work, and STEM"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-07-08
+    cost: {input: 2, output: 6}
+
+  - name: Hy3
+    model: hy3
+    description: "Tencent's 295B-parameter Mixture-of-Experts model (21B active) built for reasoning, agentic workflows, and production use"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-07-06
+    cost: {input: 0.14, output: 0.58}
+
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash
     description: "Efficiency-optimized Mixture-of-Experts model from DeepSeek with 284B total parameters and 13B activated parameters, supporting a 1M-token context window"
@@ -892,16 +1211,6 @@ opencode-go:
     output_types: [text]
     release_date: 2026-05-21
     cost: {input: 2.5, output: 7.5}
-
-  - name: Qwen3.6 Plus
-    model: qwen3.6-plus
-    description: "Qwen 3.6 Plus builds on a hybrid architecture that combines efficient linear attention with sparse mixture-of-experts routing, enabling strong scalability and high-performance inference"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-04-02
-    cost: {input: 0.5, output: 3}
 
   - name: MiniMax M3 (3x usage)
     model: minimax-m3

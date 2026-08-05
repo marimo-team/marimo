@@ -363,6 +363,20 @@ def test_ws_requires_authentication(client: TestClient) -> None:
     assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
 
 
+def test_ws_rejects_invalid_token(client: TestClient) -> None:
+    """An incorrect access_token must be rejected, not just a missing one."""
+    with pytest.raises(WebSocketDisconnect) as exc_info:
+        with client.websocket_connect(
+            "/ws?session_id=123&access_token=wrong-token"
+        ):
+            raise AssertionError(
+                "Should not be able to connect with an invalid token"
+            )
+
+    assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+    assert exc_info.value.reason == "MARIMO_UNAUTHORIZED"
+
+
 def test_ws_sync_requires_authentication(client: TestClient) -> None:
     """Test that WebSocket sync endpoint requires authentication."""
     # Try to connect without any authentication headers

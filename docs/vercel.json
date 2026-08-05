@@ -696,6 +696,21 @@
       "permanent": true
     },
     {
+      "source": "/guides/generate_with_ai/prompts/",
+      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/generate_with_ai/skills/",
+      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "permanent": true
+    },
+    {
+      "source": "/guides/generate_with_ai/using_claude_code/",
+      "destination": "/guides/generate_with_ai/customize_your_agent/",
+      "permanent": true
+    },
+    {
       "source": "/:path*.html",
       "destination": "/:path*/",
       "permanent": true

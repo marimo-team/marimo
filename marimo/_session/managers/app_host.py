@@ -90,7 +90,7 @@ class AppHostQueueManager(QueueManagerProto):
         self.set_ui_element_queue: QueueType[commands.BatchableCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.UI_ELEMENT)
         )
-        self.completion_queue: QueueType[commands.CodeCompletionCommand] = (
+        self.completion_queue: QueueType[commands.OutOfBandCommand] = (
             _AppHostPushQueue(app_host, session_id, Channel.COMPLETION)
         )
         self.input_queue: QueueType[str] = _AppHostPushQueue(
@@ -213,7 +213,8 @@ class AppHostKernelManager(KernelManager):
         # Run-mode threads can't be interrupted
         pass
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
+        del graceful  # unsupported: shutdown is delegated to the app host.
         self.queue_manager.close_queues()
         self._app_host.stop_kernel(self._session_id)
 

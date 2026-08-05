@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { MenuIcon } from "lucide-react";
-import React from "react";
+import React, { useRef } from "react";
 import { useLocale } from "react-aria";
 import { Button } from "@/components/editor/inputs/Inputs";
 import {
@@ -33,7 +33,8 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
   disabled = false,
   tooltip = "Actions",
 }) => {
-  const actions = useNotebookActions();
+  const exportDialogReturnFocusRef = useRef<HTMLButtonElement>(null);
+  const actions = useNotebookActions({ exportDialogReturnFocusRef });
   const { locale } = useLocale();
   // Create tooltip content with keyboard shortcut decoration
   const tooltipContent = (
@@ -50,6 +51,7 @@ export const NotebookMenuDropdown: React.FC<Props> = ({
 
   const button = (
     <Button
+      ref={exportDialogReturnFocusRef}
       aria-label="Config"
       shape="circle"
       size="small"

@@ -1,10 +1,29 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import gc
+import weakref
+from dataclasses import dataclass, field
+from typing import Any, cast
+
+import pytest
+
 from marimo import ui
+from marimo._plugins.ui._core.registry import UIElementRegistry
+from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._runtime.context import get_context
+from marimo._runtime.functions import EmptyArgs, Function
 from marimo._runtime.runtime import Kernel
+from marimo._types.ids import UIElementId
 from tests.conftest import ExecReqProvider
+
+
+@dataclass
+class _CyclicDummy:
+    cycle: _CyclicDummy = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.cycle = self
 
 
 async def test_cached_element_still_registered(
@@ -190,3 +209,65 @@ async def test_dont_delete_element_with_wrong_python_id(
     # If the Python id doesn't match, don't delete the object.
     get_context().ui_element_registry.delete(s._id, -1)
     assert get_context().ui_element_registry.get_object(s._id) == s
+
+
+def test_finalizer_does_not_delete_functions_from_non_owner_context(
+    executing_kernel: Kernel,
+) -> None:
+    del executing_kernel
+    ctx = get_context()
+    owner_registry = UIElementRegistry()
+    object_id = UIElementId("shared-object-id")
+    function = Function(
+        name="function",
+        arg_cls=EmptyArgs,
+        function=lambda _args: None,
+    )
+    ctx.function_registry.register(namespace=object_id, function=function)
+
+    dummy = _CyclicDummy()
+    owner_registry.register(
+        object_id,
+        cast("UIElement[Any, Any]", dummy),
+    )
+    finalizer = weakref.finalize(
+        dummy,
+        owner_registry.delete,
+        object_id,
+        id(dummy),
+    )
+    del dummy
+
+    gc.collect()
+
+    assert not finalizer.alive
+    assert (
+        ctx.function_registry.get_function(object_id, "function") is function
+    )
+    with pytest.raises(KeyError):
+        owner_registry.get_object(object_id)
+
+
+def test_owner_registry_delete_removes_function_namespace(
+    executing_kernel: Kernel,
+) -> None:
+    del executing_kernel
+    ctx = get_context()
+    object_id = UIElementId("owned-object-id")
+    function = Function(
+        name="function",
+        arg_cls=EmptyArgs,
+        function=lambda _args: None,
+    )
+    ctx.function_registry.register(namespace=object_id, function=function)
+    dummy = _CyclicDummy()
+    ctx.ui_element_registry.register(
+        object_id,
+        cast("UIElement[Any, Any]", dummy),
+    )
+
+    ctx.ui_element_registry.delete(object_id, id(dummy))
+
+    assert ctx.function_registry.get_function(object_id, "function") is None
+    with pytest.raises(KeyError):
+        ctx.ui_element_registry.get_object(object_id)

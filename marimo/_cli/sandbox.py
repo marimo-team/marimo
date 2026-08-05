@@ -512,29 +512,30 @@ def run_in_sandbox(
 
         atexit.register(cleanup_constraint_file)
 
-    # On Unix, run `uv` in its own session so that (a) the tty no longer
-    # delivers SIGINT/SIGTERM to it directly and (b) we can signal the whole
-    # subtree with a single killpg. The signal handlers below are then the
-    # sole path for forwarding signals from the CLI down to uv, the inner
-    # marimo server, and the kernel.
     if sys.platform == "win32":
+        # The console already delivers Ctrl-C to uv and the inner server;
+        # forwarding CTRL_C_EVENT would rebroadcast to the whole console,
+        # including ourselves (#4842). Let the inner server drive shutdown.
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
         process = subprocess.Popen(uv_cmd, env=env)
     else:
+        # On Unix, run `uv` in its own session so that (a) the tty no
+        # longer delivers SIGINT/SIGTERM to it directly and (b) we can
+        # signal the whole subtree with a single killpg. The signal
+        # handlers below are then the sole path for forwarding signals
+        # from the CLI down to uv, the inner marimo server, and the
+        # kernel.
         process = subprocess.Popen(uv_cmd, env=env, start_new_session=True)
 
-    def handler(sig: int, frame: object) -> None:
-        del frame
-        try:
-            if sys.platform == "win32":
-                os.kill(process.pid, signal.CTRL_C_EVENT)
-            else:
+        def handler(sig: int, frame: object) -> None:
+            del frame
+            try:
                 os.killpg(process.pid, sig)
-        except ProcessLookupError:
-            # Process may have already been terminated.
-            pass
+            except ProcessLookupError:
+                # Process may have already been terminated.
+                pass
 
-    signal.signal(signal.SIGINT, handler)
-    if sys.platform != "win32":
+        signal.signal(signal.SIGINT, handler)
         signal.signal(signal.SIGTERM, handler)
         signal.signal(signal.SIGHUP, handler)
 

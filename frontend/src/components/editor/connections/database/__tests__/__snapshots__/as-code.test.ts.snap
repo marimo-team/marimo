@@ -4,7 +4,7 @@ exports[`generateDatabaseCode > basic connections > bigquery 1`] = `
 "import json
 import sqlmodel
 
-credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+credentials = json.loads(r"""{"type": "service_account", "project_id": "test"}""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
@@ -87,6 +87,12 @@ exports[`generateDatabaseCode > basic connections > duckdb 1`] = `
 
 DATABASE_URL = "data.duckdb"
 engine = duckdb.connect(DATABASE_URL, read_only=True)"
+`;
+
+exports[`generateDatabaseCode > basic connections > iceberg configured catalog 1`] = `
+"from pyiceberg.catalog import load_catalog
+
+catalog = load_catalog("my_catalog")"
 `;
 
 exports[`generateDatabaseCode > basic connections > iceberg dynamodb 1`] = `
@@ -388,8 +394,24 @@ import sqlmodel
 
 _project = os.environ.get("ENV_PROJECT")
 _dataset = os.environ.get("ENV_DATASET")
-credentials = json.loads("""{"type": "service_account", "project_id": "test"}""")
+credentials = json.loads(r"""{"type": "service_account", "project_id": "test"}""")
 engine = sqlmodel.create_engine(f"bigquery://{_project}/{_dataset}", credentials_info=credentials)"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials_json as a file path 1`] = `
+"import sqlmodel
+
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_path="/etc/secrets/bigquery.json")"
+`;
+
+exports[`generateDatabaseCode > connections with secrets > bigquery with credentials_json as secret 1`] = `
+"import json
+import os
+import sqlmodel
+
+_credentials_json = os.environ.get("BIGQUERY_CREDENTIALS_JSON")
+credentials = json.loads(_credentials_json)
+engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
 exports[`generateDatabaseCode > connections with secrets > clickhouse with all connection details as secrets 1`] = `
@@ -493,7 +515,7 @@ exports[`generateDatabaseCode > edge cases > bigquery with long credentials 1`] 
 "import json
 import sqlmodel
 
-credentials = json.loads("""xxxxxxxxxx""")
+credentials = json.loads(r"""xxxxxxxxxx""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
@@ -735,7 +757,7 @@ exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 1`
 "import json
 import sqlmodel
 
-credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
+credentials = json.loads(r"""{"type": "service_account", "project_id": "test"""")
 engine = sqlmodel.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
@@ -743,7 +765,7 @@ exports[`generateDatabaseCode > security cases > bigquery with malformed JSON 2`
 "import json
 import sqlalchemy
 
-credentials = json.loads("""{"type": "service_account", "project_id": "test"""")
+credentials = json.loads(r"""{"type": "service_account", "project_id": "test"""")
 engine = sqlalchemy.create_engine(f"bigquery://my-project/my_dataset", credentials_info=credentials)"
 `;
 
