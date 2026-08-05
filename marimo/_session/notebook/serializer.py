@@ -175,7 +175,9 @@ def get_notebook_serializer(
             except MarimoFileError:
                 notebook = None
             else:
-                if notebook is not None and not is_non_marimo_python_script(notebook):
+                if notebook is not None and not is_non_marimo_python_script(
+                    notebook
+                ):
                     handler = fallback
     if handler is None:
         raise ValueError(
