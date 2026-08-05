@@ -198,6 +198,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const [hasPreviewed, setHasPreviewed] = useState(false);
   const sessionBaselineRef = useRef<string | null>(null);
+  // Mirrors hasPreviewed for synchronous reads in the [enabled] effect below,
+  // since that effect must not depend on hasPreviewed (it would re-fire on preview).
+  const hasPreviewedRef = useRef(false);
 
   useEffect(() => {
     if (enabled) {
@@ -206,7 +209,19 @@ export const AiCompletionEditor: React.FC<Props> = ({
         currentCode,
       );
     } else {
+      // Safety net: if the AI panel is closed/switched without going through
+      // handleDeclineCompletion (e.g. hotkey toggle, toolbar toggle, or
+      // switching AI to another cell), restore the previewed baseline so we
+      // don't leave unaccepted suggestion code in the cell.
+      const restore = codeToRestoreOnReject({
+        hasPreviewed: hasPreviewedRef.current,
+        baseline: sessionBaselineRef.current,
+      });
+      if (restore !== null) {
+        onChange(restore);
+      }
       sessionBaselineRef.current = null;
+      hasPreviewedRef.current = false;
       setHasPreviewed(false);
     }
     // Only re-capture when the AI panel opens/closes for this cell
@@ -223,14 +238,18 @@ export const AiCompletionEditor: React.FC<Props> = ({
     );
     onChange(completion);
     setHasPreviewed(true);
+    hasPreviewedRef.current = true;
     runCell();
   };
 
   const handleAcceptCompletion = () => {
-    acceptChange(completion);
-    setCompletion("");
+    // Clear preview flags before acceptChange so the [enabled] restore
+    // effect can't undo an Accept-after-preview if it fires afterwards.
+    hasPreviewedRef.current = false;
     setHasPreviewed(false);
     sessionBaselineRef.current = null;
+    acceptChange(completion);
+    setCompletion("");
   };
 
   const handleDeclineCompletion = () => {
@@ -244,6 +263,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     declineChange();
     setCompletion("");
     setHasPreviewed(false);
+    hasPreviewedRef.current = false;
     sessionBaselineRef.current = null;
   };
 
@@ -255,6 +275,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
           onChange(restore);
         }
         setHasPreviewed(false);
+        hasPreviewedRef.current = false;
       }
       if (inputRef.current?.view) {
         storePrompt(inputRef.current.view);

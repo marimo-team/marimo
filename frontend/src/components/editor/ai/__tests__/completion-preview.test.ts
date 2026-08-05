@@ -37,6 +37,39 @@ describe("codeToRestoreOnReject", () => {
   });
 });
 
+describe("codeToRestoreOnReject used as the [enabled]-effect safety net", () => {
+  // The ai-completion-editor's `[enabled]` effect reuses codeToRestoreOnReject
+  // to decide whether to restore the baseline when the AI panel closes
+  // without going through handleDeclineCompletion (hotkey toggle, toolbar
+  // toggle, or switching AI to another cell).
+  it("restores baseline when panel closes after a preview run", () => {
+    const restore = codeToRestoreOnReject({
+      hasPreviewed: true,
+      baseline: "original code",
+    });
+    expect(restore).toBe("original code");
+  });
+
+  it("does nothing when panel closes without ever previewing", () => {
+    const restore = codeToRestoreOnReject({
+      hasPreviewed: false,
+      baseline: "original code",
+    });
+    expect(restore).toBeNull();
+  });
+
+  it("does nothing when accept already cleared the preview flags first", () => {
+    // handleAcceptCompletion clears hasPreviewedRef/sessionBaselineRef before
+    // calling acceptChange, so even if the effect races in afterwards it
+    // must not undo the accept.
+    const restore = codeToRestoreOnReject({
+      hasPreviewed: false,
+      baseline: null,
+    });
+    expect(restore).toBeNull();
+  });
+});
+
 describe("shouldRestoreBeforeResubmit", () => {
   it("is true only after preview", () => {
     expect(shouldRestoreBeforeResubmit(true)).toBe(true);
