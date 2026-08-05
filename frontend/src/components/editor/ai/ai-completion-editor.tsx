@@ -247,6 +247,22 @@ export const AiCompletionEditor: React.FC<Props> = ({
     sessionBaselineRef.current = null;
   };
 
+  const handlePromptSubmit = useCallback(() => {
+    if (!isLoading) {
+      if (shouldRestoreBeforeResubmit(hasPreviewed)) {
+        const restore = sessionBaselineRef.current;
+        if (restore !== null) {
+          onChange(restore);
+        }
+        setHasPreviewed(false);
+      }
+      if (inputRef.current?.view) {
+        storePrompt(inputRef.current.view);
+      }
+      handleSubmit();
+    }
+  }, [hasPreviewed, handleSubmit, isLoading, onChange]);
+
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
   // Set default output area to below if not specified
@@ -367,21 +383,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 setInput(newValue);
                 setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
-              onSubmit={() => {
-                if (!isLoading) {
-                  if (shouldRestoreBeforeResubmit(hasPreviewed)) {
-                    const restore = sessionBaselineRef.current;
-                    if (restore !== null) {
-                      onChange(restore);
-                    }
-                    setHasPreviewed(false);
-                  }
-                  if (inputRef.current?.view) {
-                    storePrompt(inputRef.current.view);
-                  }
-                  handleSubmit();
-                }
-              }}
+              onSubmit={handlePromptSubmit}
               onKeyDown={createAiCompletionOnKeydown({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
@@ -395,7 +397,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 <SendButton
                   isLoading={isLoading}
                   onStop={stop}
-                  onSendClick={handleSubmit}
+                  onSendClick={handlePromptSubmit}
                   isEmpty={!input.trim()}
                   showStopLabel={true}
                 />
