@@ -793,6 +793,15 @@ github:
     cost: {input: 0, output: 0}
 
 ollama:
+  - name: DeepSeek V4 Flash 0731
+    model: deepseek-v4-flash:0731
+    description: "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-07-31
+
   - name: kimi-k3
     model: kimi-k3
     description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
@@ -911,6 +920,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: DeepSeek V4 Flash 0731
+    model: deepseek-ai/DeepSeek-V4-Flash-0731
+    description: "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-07-31
+    cost: {input: 0.13, output: 0.28}
+
   - name: Kimi K3
     model: moonshotai/Kimi-K3
     description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
