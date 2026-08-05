@@ -252,19 +252,34 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setCompletion("");
   };
 
-  const handleDeclineCompletion = () => {
+  const restorePreviewIfNeeded = () => {
     const restore = codeToRestoreOnReject({
-      hasPreviewed,
+      hasPreviewed: hasPreviewedRef.current,
       baseline: sessionBaselineRef.current,
     });
     if (restore !== null) {
       onChange(restore);
     }
-    declineChange();
-    setCompletion("");
     setHasPreviewed(false);
     hasPreviewedRef.current = false;
+  };
+
+  // Reject discards the suggestion but keeps the prompt open for refinement.
+  const handleDeclineCompletion = () => {
+    restorePreviewIfNeeded();
+    stop();
+    setCompletion("");
+    setShowInputPrompt(true);
+    inputRef.current?.view?.focus();
+  };
+
+  // Close the AI panel entirely (X / PromptInput onClose).
+  const handleCloseCompletion = () => {
+    restorePreviewIfNeeded();
+    stop();
+    setCompletion("");
     sessionBaselineRef.current = null;
+    declineChange();
   };
 
   const handlePromptSubmit = useCallback(() => {
@@ -398,7 +413,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <PromptInput
               inputRef={inputRef}
               className="h-full my-0 py-2 flex items-center"
-              onClose={handleDeclineCompletion}
+              onClose={handleCloseCompletion}
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
@@ -465,10 +480,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               variant="text"
               size="icon"
               disabled={isLoading}
-              onClick={() => {
-                stop();
-                handleDeclineCompletion();
-              }}
+              onClick={handleCloseCompletion}
             >
               <XIcon className="text-(--red-10)" size={16} />
             </Button>
