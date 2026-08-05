@@ -155,7 +155,7 @@ export const RunCompletionButton: React.FC<{
   size?: "xs" | "sm";
   className?: string;
   borderless?: boolean;
-}> = ({ isLoading, onRun, size = "sm", className, borderless = false }) => {
+}> = ({ isLoading, onRun, size = "sm", className = "", borderless = false }) => {
   return (
     <Tooltip content="Run suggested code without accepting">
       <Button
@@ -167,7 +167,7 @@ export const RunCompletionButton: React.FC<{
         className={`h-6 text-(--blue-11) bg-(--blue-3)/60 hover:bg-(--blue-3)
     dark:bg-(--blue-4)/80 dark:hover:bg-(--blue-3) rounded px-3 font-semibold
     active:bg-(--blue-5) dark:active:bg-(--blue-4)
-    border-(--blue-6) border hover:shadow-xs ${borderless && "border-none rounded-md"} ${className}`}
+    border-(--blue-6) border hover:shadow-xs ${borderless ? "border-none rounded-md" : ""} ${className}`}
       >
         <PlayIcon className="h-2.5 w-2.5 mr-1" />
         Run
