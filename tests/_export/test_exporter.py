@@ -940,18 +940,34 @@ async def test_export_ipynb_resolves_lazy(
         assert rendered not in result.contents
 
 
-async def test_export_html_keeps_lazy_placeholder(
+@pytest.mark.parametrize(
+    ("lazy_arg", "expected_marker", "should_resolve"),
+    [
+        pytest.param('"EAGER_VALUE"', "EAGER_VALUE", True, id="eager_value"),
+        pytest.param(
+            'lambda: "SYNC_RESULT"', "SYNC_RESULT", True, id="sync_callable"
+        ),
+        pytest.param(
+            "_make_async()", "ASYNC_RESULT", False, id="async_callable"
+        ),
+    ],
+)
+async def test_export_html_resolves_lazy(
     tmp_path: Path,
+    lazy_arg: str,
+    expected_marker: str,
+    should_resolve: bool,
 ) -> None:
-    """HTML export ships interactive widgets and leaves `mo.lazy` as a placeholder.
+    """HTML export resolves sync mo.lazy content eagerly.
 
-    Static HTML exports don't resolve `mo.lazy` because the global
-    `is_non_interactive` flag would also switch tables/altair/plotly/etc.
-    to non-interactive fallbacks. A lazy-specific resolution path can be
-    added later as a follow-up.
+    Uses a lazy-specific flag (not is_non_interactive) so that interactive
+    widgets like tables, altair, and plotly stay in their full JS form.
+    Async callables can't be awaited from __new__ and stay as placeholders.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/9624.
     """
     notebook = tmp_path / "lazy_notebook.py"
-    _write_lazy_notebook(notebook, 'lambda: "SYNC_RESULT"')
+    _write_lazy_notebook(notebook, lazy_arg)
 
     result = await export_html(
         HTMLFileExportRequest(
@@ -964,8 +980,15 @@ async def test_export_html_keeps_lazy_placeholder(
         )
     )
 
-    assert "marimo-lazy" in result.contents
-    assert "SYNC_RESULT" not in result.contents
+    # In HTML export the session data is JSON-embedded; < and > are encoded
+    # as </> to prevent XSS, so check the escaped form.
+    json_span = f"\\u003Cspan\\u003E{expected_marker}\\u003C/span\\u003E"
+    if should_resolve:
+        assert json_span in result.contents
+        assert "marimo-lazy" not in result.contents
+    else:
+        assert "marimo-lazy" in result.contents
+        assert json_span not in result.contents
 
 
 def test_export_as_html_code_hash_consistency(
