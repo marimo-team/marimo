@@ -58,10 +58,10 @@ in the runtime configuration:
 cache_cells = true
 ```
 
-This is not yet exposed in the notebook settings UI. Set it in
-`pyproject.toml` as shown above. See [Automatic cell
-caching](../../api/caching.md#automatic-cell-caching) for how this behaves
-and its current limitations.
+Set it in `pyproject.toml` as shown above, or in the notebook's PEP 723
+metadata. See [Automatic cell
+caching](../../api/caching.md#automatic-cell-caching) for how this behaves and
+its current limitations.
 
 ## On module change
 
