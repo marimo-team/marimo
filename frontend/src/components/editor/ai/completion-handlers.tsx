@@ -155,13 +155,7 @@ export const RunCompletionButton: React.FC<{
   size?: "xs" | "sm";
   className?: string;
   borderless?: boolean;
-}> = ({
-  isLoading,
-  onRun,
-  size = "sm",
-  className,
-  borderless = false,
-}) => {
+}> = ({ isLoading, onRun, size = "sm", className, borderless = false }) => {
   return (
     <Tooltip content="Run suggested code without accepting">
       <Button

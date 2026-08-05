@@ -5,7 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { RunCompletionButton } from "../completion-handlers";
 
 describe("RunCompletionButton", () => {
-  const renderButton = (props: React.ComponentProps<typeof RunCompletionButton>) =>
+  const renderButton = (
+    props: React.ComponentProps<typeof RunCompletionButton>,
+  ) =>
     render(
       <TooltipProvider>
         <RunCompletionButton {...props} />
