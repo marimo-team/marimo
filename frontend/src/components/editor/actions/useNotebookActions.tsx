@@ -534,6 +534,7 @@ export function useNotebookActions({
       hotkey: "global.collapseAllSections",
       handle: collapseAllCells,
       redundant: true,
+      additionalKeywords: ["fold", "headers"],
     },
     {
       icon: <ChevronDownCircleIcon size={14} strokeWidth={1.5} />,
@@ -541,6 +542,7 @@ export function useNotebookActions({
       hotkey: "global.expandAllSections",
       handle: expandAllCells,
       redundant: true,
+      additionalKeywords: ["unfold", "headers"],
     },
     {
       divider: true,
