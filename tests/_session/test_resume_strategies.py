@@ -155,6 +155,21 @@ def test_edit_mode_ignores_creation_key_when_file_resolves() -> None:
     assert repository.get_sync(old_session_id) is session
 
 
+def test_edit_mode_reclaims_closed_session() -> None:
+    """A CLOSED session (main consumer's socket closed but its disconnect
+    not yet processed) is reclaimed like an orphaned one."""
+    repository = SessionRepository()
+    strategy = EditModeResumeStrategy(repository, os.path.abspath)
+
+    old_session_id = SessionId("old-session")
+    closed_session = create_mock_session("test.py", ConnectionState.CLOSED)
+    repository.add_sync(old_session_id, closed_session)
+
+    result = strategy.try_resume(SessionId("new-session"), "test.py")
+
+    assert result is closed_session
+
+
 def test_edit_mode_resume_open_session_not_resumed() -> None:
     """Test that edit mode doesn't resume a session with a live editor."""
     repository = SessionRepository()
@@ -174,6 +189,23 @@ def test_edit_mode_resume_open_session_not_resumed() -> None:
 
     # Original session should remain unchanged
     assert repository.get_sync(old_session_id) is open_session
+
+
+def test_edit_mode_connecting_session_not_resumed() -> None:
+    """A session mid-handshake must not be stolen by another connection."""
+    repository = SessionRepository()
+    strategy = EditModeResumeStrategy(repository, os.path.abspath)
+
+    old_session_id = SessionId("old-session")
+    connecting_session = create_mock_session(
+        "test.py", ConnectionState.CONNECTING
+    )
+    repository.add_sync(old_session_id, connecting_session)
+
+    result = strategy.try_resume(SessionId("new-session"), "test.py")
+
+    assert result is None
+    assert repository.get_sync(old_session_id) is connecting_session
 
 
 def test_edit_mode_resume_different_file() -> None:
