@@ -112,6 +112,9 @@
     --cm-reactive-reference-color-light: #005f87;
     --cm-reactive-reference-color-dark: #2a7aa5;
     --cm-reactive-reference-border-color: #bad3de;
+    --cm-search-match-background-light: #99ff7780;
+    --cm-search-match-background-dark: #22bb0070;
+    --cm-search-match-selected-background-dark: #6199ff88;
   }
 
   .dark,
