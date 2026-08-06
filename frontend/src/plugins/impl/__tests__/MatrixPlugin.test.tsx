@@ -413,3 +413,342 @@ describe("MatrixPlugin", () => {
     expect(cell.getAttribute("tabindex")).toBe("0");
   });
 });
+
+describe("MatrixPlugin cell editing", () => {
+  it("double-click opens an editor prefilled with the exact value", () => {
+    const plugin = new MatrixPlugin();
+    const props = makeProps();
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+
+    const input = getByTestId("matrix-input-0-0") as HTMLInputElement;
+    expect(input.value).toBe("1");
+  });
+
+  it("commits a typed scientific-notation value on Enter", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({ setValue: setValueMock });
+    const { getByTestId, queryByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "2.32e7" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [23_200_000, 2],
+      [3, 4],
+    ]);
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
+  });
+
+  it("does not snap typed values to step", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({ setValue: setValueMock });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "2.5" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // step is 1, but the typed value is exact
+    expect(setValueMock).toHaveBeenCalledWith([
+      [2.5, 2],
+      [3, 4],
+    ]);
+  });
+
+  it("commits on blur", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({ setValue: setValueMock });
+    const { getByTestId, queryByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.blur(input);
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [42, 2],
+      [3, 4],
+    ]);
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
+  });
+
+  it("Escape cancels without committing", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({ setValue: setValueMock });
+    const { getByTestId, queryByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "42" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(setValueMock).not.toHaveBeenCalled();
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
+  });
+
+  it("ignores invalid input", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({ setValue: setValueMock });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "abc" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).not.toHaveBeenCalled();
+  });
+
+  it("clamps typed values to bounds", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        maxValue: [
+          [10, 10],
+          [10, 10],
+        ],
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    const input = getByTestId("matrix-input-0-0");
+    fireEvent.change(input, { target: { value: "50" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [10, 2],
+      [3, 4],
+    ]);
+  });
+
+  it("mirrors typed values in symmetric mode", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        symmetric: true,
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-1"));
+    const input = getByTestId("matrix-input-0-1");
+    fireEvent.change(input, { target: { value: "7" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [0, 7],
+      [7, 0],
+    ]);
+  });
+
+  it("Enter opens the editor from the keyboard", () => {
+    const plugin = new MatrixPlugin();
+    const props = makeProps();
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "Enter" });
+
+    const input = getByTestId("matrix-input-0-0") as HTMLInputElement;
+    expect(input.value).toBe("1");
+  });
+
+  it("typing a digit starts editing seeded with that digit", () => {
+    const plugin = new MatrixPlugin();
+    const props = makeProps();
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "5" });
+
+    const input = getByTestId("matrix-input-0-0") as HTMLInputElement;
+    expect(input.value).toBe("5");
+  });
+
+  it("does not open an editor on disabled cells", () => {
+    const plugin = new MatrixPlugin();
+    const props = makeProps({
+      data: {
+        ...makeProps().data,
+        disabled: [
+          [true, false],
+          [false, false],
+        ],
+      },
+    });
+    const { getByTestId, queryByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "Enter" });
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
+  });
+});
+
+describe("MatrixPlugin modifier scrubbing", () => {
+  it("shift+drag scrubs at 10x step", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1, shiftKey: true });
+    fireEvent.pointerMove(container, { clientX: 130, shiftKey: true });
+    fireEvent.pointerUp(container);
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [30, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("alt+drag scrubs at 0.1x step", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1, altKey: true });
+    fireEvent.pointerMove(container, { clientX: 130, altKey: true });
+    fireEvent.pointerUp(container);
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [0.3, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("pressing shift mid-drag rescales future movement without jumping", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(container, { clientX: 130 }); // +3
+    fireEvent.pointerMove(container, { clientX: 130, shiftKey: true }); // rebase
+    fireEvent.pointerMove(container, { clientX: 160, shiftKey: true }); // +30
+    fireEvent.pointerUp(container);
+
+    expect(setValueMock).toHaveBeenLastCalledWith([
+      [33, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("shift+ArrowUp increments by 10x step", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [5, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), {
+      key: "ArrowUp",
+      shiftKey: true,
+    });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [15, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("alt+ArrowDown decrements by 0.1x step", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [5, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), {
+      key: "ArrowDown",
+      altKey: true,
+    });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [4.9, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("PageUp and PageDown step by 10x", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [5, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+
+    fireEvent.keyDown(cell, { key: "PageUp" });
+    expect(setValueMock).toHaveBeenCalledWith([
+      [15, 0],
+      [0, 0],
+    ]);
+
+    fireEvent.keyDown(cell, { key: "PageDown" });
+    expect(setValueMock).toHaveBeenCalledWith([
+      [-5, 0],
+      [0, 0],
+    ]);
+  });
+});
