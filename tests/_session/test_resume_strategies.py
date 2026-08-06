@@ -129,6 +129,28 @@ def test_edit_mode_resume_after_rename_matches_resolved_path() -> None:
     assert result is session
 
 
+def test_edit_mode_ignores_creation_key_when_file_resolves() -> None:
+    """A recreated file must not match a session that moved away from it."""
+    repository = SessionRepository()
+    original = os.path.join(os.sep, "workspace", "original.py")
+    renamed = os.path.join(os.sep, "workspace", "renamed.py")
+    strategy = EditModeResumeStrategy(
+        repository,
+        lambda key: original if key == "original.py" else None,
+    )
+
+    session = create_mock_session(
+        renamed, ConnectionState.ORPHANED, initialization_id="original.py"
+    )
+    old_session_id = SessionId("old-session")
+    repository.add_sync(old_session_id, session)
+
+    result = strategy.try_resume(SessionId("new-session"), "original.py")
+
+    assert result is None
+    assert repository.get_sync(old_session_id) is session
+
+
 def test_edit_mode_resume_open_session_not_resumed() -> None:
     """Test that edit mode doesn't resume a session with a live editor."""
     repository = SessionRepository()

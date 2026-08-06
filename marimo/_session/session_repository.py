@@ -64,19 +64,19 @@ class SessionRepository:
     ) -> list[Session]:
         """Get all sessions for a notebook file key.
 
-        A session matches on the key it was created under
-        (`initialization_id`) or, when `resolved_path` is provided, on its
-        current filesystem path. File keys can be workspace-relative, so
+        When `resolved_path` is provided, a session matches on its current
+        filesystem path. Otherwise, it matches on the key it was created
+        under (`initialization_id`). File keys can be workspace-relative, so
         callers must resolve them through the workspace (not against the
         server CWD) before comparing to session paths.
         """
         return [
             session
             for session in self._sessions.values()
-            if session.initialization_id == file_key
-            or (
-                resolved_path is not None
-                and session.app_file_manager.path == resolved_path
+            if (
+                session.app_file_manager.path == resolved_path
+                if resolved_path is not None
+                else session.initialization_id == file_key
             )
         ]
 
