@@ -2,7 +2,15 @@
 
 import { EditorView } from "@codemirror/view";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ReadonlyCode } from "../readonly-python-code";
@@ -10,6 +18,8 @@ import { ReadonlyCode } from "../readonly-python-code";
 const themeState = vi.hoisted(() => ({
   value: "light" as "light" | "dark",
 }));
+
+let originalRangeGetClientRects: PropertyDescriptor | undefined;
 
 vi.mock("@/theme/useTheme", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/theme/useTheme")>();
@@ -21,10 +31,27 @@ vi.mock("@/theme/useTheme", async (importOriginal) => {
 
 beforeAll(() => {
   SetupMocks.resizeObserver();
+  originalRangeGetClientRects = Object.getOwnPropertyDescriptor(
+    Range.prototype,
+    "getClientRects",
+  );
   Object.defineProperty(Range.prototype, "getClientRects", {
     configurable: true,
     value: () => [],
   });
+});
+
+afterAll(() => {
+  // Keep the shared JSDOM prototype unchanged for other test files.
+  if (originalRangeGetClientRects) {
+    Object.defineProperty(
+      Range.prototype,
+      "getClientRects",
+      originalRangeGetClientRects,
+    );
+  } else {
+    Reflect.deleteProperty(Range.prototype, "getClientRects");
+  }
 });
 
 beforeEach(() => {

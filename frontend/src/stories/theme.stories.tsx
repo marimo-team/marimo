@@ -121,16 +121,26 @@ export const ThemeComparison: Story = {
 
 const ReadonlyCodeThemeFixture = (): React.ReactNode => {
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [initialTheme] = useState(
+    () => store.get(userConfigAtom).display.theme,
+  );
 
   useEffect(() => {
-    const previousConfig = store.get(userConfigAtom);
-    store.set(userConfigAtom, {
-      ...previousConfig,
-      display: { ...previousConfig.display, theme },
-    });
-
-    return () => store.set(userConfigAtom, previousConfig);
+    store.set(userConfigAtom, (config) => ({
+      ...config,
+      display: { ...config.display, theme },
+    }));
   }, [theme]);
+
+  useEffect(() => {
+    // Leave Storybook's theme in the state it had before this fixture mounted.
+    return () => {
+      store.set(userConfigAtom, (config) => ({
+        ...config,
+        display: { ...config.display, theme: initialTheme },
+      }));
+    };
+  }, [initialTheme]);
 
   return (
     <div className="max-w-3xl space-y-3" style={{ colorScheme: theme }}>
