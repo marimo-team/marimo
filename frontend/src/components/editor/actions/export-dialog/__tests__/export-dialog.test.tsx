@@ -320,16 +320,22 @@ describe("ExportDialog", () => {
     expect(screen.getByTestId("export-submit")).toBeDisabled();
     expect(screen.getByTestId("export-format-pdf")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+    const installButton = screen.getByRole("button", { name: "Install" });
+    const pdfTab = screen.getByTestId("export-format-pdf");
+    const htmlTab = screen.getByTestId("export-format-html");
+
+    fireEvent.click(installButton);
 
     await waitFor(() =>
       expect(installExportRequirements).toHaveBeenCalledWith({ format: "pdf" }),
     );
-    expect(screen.getByRole("button", { name: "Install" })).toHaveAttribute(
-      "aria-busy",
-      "true",
-    );
-    expect(screen.getByTestId("export-format-html")).toBeDisabled();
+    expect(installButton).toHaveAttribute("aria-busy", "true");
+    expect(htmlTab).toBeDisabled();
+
+    fireEvent.click(installButton);
+    fireEvent.click(htmlTab);
+    expect(installExportRequirements).toHaveBeenCalledOnce();
+    expect(pdfTab).toHaveAttribute("data-state", "active");
 
     install.resolve(
       serverAvailability(
@@ -410,6 +416,29 @@ describe("ExportDialog", () => {
       ).not.toBeInTheDocument();
     },
   );
+
+  it("allows requirement installation when kiosk is false", async () => {
+    window.history.replaceState(null, "", "/?kiosk=false");
+    store.set(
+      requestClientAtom,
+      MockRequestClient.create({
+        getExportAvailability: vi.fn().mockResolvedValue(
+          serverAvailability(
+            formatAvailability("pdf", {
+              dependenciesAvailable: false,
+              missingSetup: [PLAYWRIGHT_SETUP],
+            }),
+          ),
+        ),
+      }),
+    );
+
+    renderDialog("pdf");
+
+    expect(
+      await screen.findByRole("button", { name: "Install" }),
+    ).toBeVisible();
+  });
 
   it("restores the install action when installation fails", async () => {
     const error = new HTTPError(500, "Server Error", {

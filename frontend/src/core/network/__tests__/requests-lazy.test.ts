@@ -126,6 +126,24 @@ describe("createLazyRequests", () => {
     });
   });
 
+  it("sends instantiate without waiting for the kernel", async () => {
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+    const request = {
+      objectIds: [uiElementId("obj1")],
+      values: [],
+    };
+
+    await lazyRequests.sendInstantiate(request);
+
+    expect(mockInit).toHaveBeenCalledOnce();
+    expect(waitForConnectionOpen).toHaveBeenCalledOnce();
+    expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
+    expect(mockDelegate.sendInstantiate).toHaveBeenCalledWith(request);
+  });
+
   it("should call init once before first request", async () => {
     const lazyRequests = createLazyRequests(
       mockDelegate,

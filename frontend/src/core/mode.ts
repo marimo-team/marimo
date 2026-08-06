@@ -100,8 +100,8 @@ export const kioskModeAtom = atom<boolean>(false);
 export function useInstallAllowed(): boolean {
   const { mode } = useAtomValue(viewStateAtom);
   const kioskMode = useAtomValue(kioskModeAtom);
-  const kioskRequested = new URLSearchParams(window.location.search).has(
-    KnownQueryParams.kiosk,
-  );
+  const kioskRequested =
+    new URLSearchParams(window.location.search).get(KnownQueryParams.kiosk) ===
+    "true";
   return mode !== "read" && !kioskMode && !kioskRequested;
 }
