@@ -3,6 +3,7 @@
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Filenames } from "@/utils/filenames";
+import { Paths } from "@/utils/paths";
 import type { ExportAsMarkdownRequest, MarkdownExportFlavor } from "./types";
 
 const MARKDOWN_EXTENSIONS = {
@@ -20,7 +21,7 @@ function getNotebookStem(): string | undefined {
   if (!filename) {
     return undefined;
   }
-  const basename = filename.split("/").pop() ?? filename;
+  const basename = Paths.basename(filename);
   return Filenames.withoutExtension(basename);
 }
 

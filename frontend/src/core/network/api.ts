@@ -25,7 +25,11 @@ function parseContentDispositionFilename(
 
   const rfc5987Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
   if (rfc5987Match) {
-    return decodeURIComponent(rfc5987Match[1]);
+    try {
+      return decodeURIComponent(rfc5987Match[1]);
+    } catch {
+      return undefined;
+    }
   }
 
   const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);

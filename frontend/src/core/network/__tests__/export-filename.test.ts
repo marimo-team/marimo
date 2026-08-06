@@ -18,6 +18,11 @@ describe("default export filenames", () => {
     expect(getDefaultExportFilename("pdf")).toBe("my_notebook.pdf");
   });
 
+  it("handles Windows-style notebook paths", () => {
+    store.set(filenameAtom, "C:\\Users\\me\\my_notebook.py");
+    expect(getDefaultExportFilename("html")).toBe("my_notebook.html");
+  });
+
   it("derives markdown filenames from the selected flavor", () => {
     expect(getDefaultMarkdownExportFilename("qmd")).toBe("my_notebook.qmd");
     expect(getDefaultMarkdownExportFilename("mystmd")).toBe(

@@ -216,6 +216,26 @@ describe("API", () => {
     });
   });
 
+  it("falls back to a default filename when RFC 5987 encoding is malformed", async () => {
+    const response = new Response("markdown", {
+      headers: {
+        "Content-Disposition": "attachment; filename*=UTF-8''%E0%A4%A",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse(
+        { data: "markdown", response },
+        { defaultFilename: "download.md" },
+      ),
+    ).resolves.toEqual({
+      contents: "markdown",
+      filename: "download.md",
+      mediaType: "text/plain; charset=utf-8",
+    });
+  });
+
   it("rejects export responses without a media type", async () => {
     await expect(
       API.handleExportResponse(
