@@ -17,6 +17,7 @@ from marimo._runtime.context.types import (
 from marimo._runtime.control_flow import MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
+    MarimoRescheduleError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
@@ -183,6 +184,11 @@ class AppScriptRunner:
         if exc is None:
             outputs[cid] = result.output
             return
+        if isinstance(exc, MarimoRescheduleError):
+            # Stale-cache signal from a lifecycle; `cells_to_rerun` includes
+            # this cell, so requeueing (producers first) retries it live.
+            self._scheduler.requeue_for_rerun(exc.cells_to_rerun)
+            return
         if not isinstance(exc, BaseException):
             # Defensive check descendants, since all exceptions are expected to
             # be wrapper..
@@ -241,6 +247,24 @@ class AppScriptRunner:
             if not FORMATTERS.is_empty():
                 register_formatters()
 
+            # NB. attached here rather than __init__: config resolution
+            # needs the runtime context, and the notebook's inline
+            # [tool.marimo.runtime] table merges by filename.
+            runtime_config = get_context().marimo_config.get("runtime", {})
+            if runtime_config.get("cache_cells", False):
+                from marimo._runtime.executor.lifecycles.cached import (
+                    CachedLifecycle,
+                )
+
+                self._evaluator.lifecycles = [
+                    CachedLifecycle(
+                        self.app.graph,
+                        pin_modules=bool(
+                            runtime_config.get("pin_modules", True)
+                        ),
+                    )
+                ]
+
             post_execute_hooks: list[Callable[[], Any]] = []
             if DependencyManager.matplotlib.has():
                 from marimo._output.mpl import close_figures
@@ -265,5 +289,10 @@ class AppScriptRunner:
         except MarimoRuntimeException as e:
             raise e.__cause__ from None  # type: ignore
         finally:
+            from marimo._save.loaders import flush_active_caches
+
+            # NB. joins background blob writes; without this, cache entries
+            # can drop at interpreter exit.
+            flush_active_caches()
             if installed_script_context:
                 teardown_context()
