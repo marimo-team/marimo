@@ -107,6 +107,11 @@
     /* Codemirror editor */
     --cm-background: light-dark(var(--background), #282c34);
     --cm-comment: light-dark(#708090, #6b7280);
+    --cm-selection-background-light: #d7d4f0;
+    --cm-selection-background-dark: #1177cc80;
+    --cm-reactive-reference-color-light: #005f87;
+    --cm-reactive-reference-color-dark: #2a7aa5;
+    --cm-reactive-reference-border-color: #bad3de;
   }
 
   .dark,
