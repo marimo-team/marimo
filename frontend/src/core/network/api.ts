@@ -16,13 +16,41 @@ function getBaseUriWithoutQueryParams(): string {
   return url.toString();
 }
 
-function getExportFilename(response: Response): string {
-  const contentDisposition = response.headers.get("Content-Disposition");
-  const match = contentDisposition?.match(/filename\*=UTF-8''([^;]+)/i);
-  if (!match) {
-    throw new Error("Export response is missing a filename");
+function parseContentDispositionFilename(
+  contentDisposition: string | null,
+): string | undefined {
+  if (!contentDisposition) {
+    return undefined;
   }
-  return decodeURIComponent(match[1]);
+
+  const rfc5987Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+  if (rfc5987Match) {
+    return decodeURIComponent(rfc5987Match[1]);
+  }
+
+  const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+  if (quotedMatch) {
+    return quotedMatch[1];
+  }
+
+  const unquotedMatch = contentDisposition.match(/filename=([^;]+)/i);
+  if (unquotedMatch) {
+    return unquotedMatch[1].trim();
+  }
+
+  return undefined;
+}
+
+function getExportFilename(response: Response): string | undefined {
+  const filename = parseContentDispositionFilename(
+    response.headers.get("Content-Disposition"),
+  );
+  if (!filename) {
+    Logger.warn(
+      "Export response is missing a readable Content-Disposition filename",
+    );
+  }
+  return filename;
 }
 
 /**
@@ -129,11 +157,14 @@ export const API = {
     }
     return Promise.resolve(response.data as T);
   },
-  handleExportResponse: async <T extends BlobPart>(response: {
-    data?: T | undefined;
-    error?: Record<string, unknown>;
-    response: Response;
-  }): Promise<ExportedFile<T>> => {
+  handleExportResponse: async <T extends BlobPart>(
+    response: {
+      data?: T | undefined;
+      error?: Record<string, unknown>;
+      response: Response;
+    },
+    opts: { defaultFilename: string },
+  ): Promise<ExportedFile<T>> => {
     const contents = await API.handleResponse<T>(response);
     const mediaType = response.response.headers.get("Content-Type");
     if (!mediaType) {
@@ -142,7 +173,7 @@ export const API = {
 
     return {
       contents,
-      filename: getExportFilename(response.response),
+      filename: getExportFilename(response.response) ?? opts.defaultFilename,
       mediaType,
     };
   },

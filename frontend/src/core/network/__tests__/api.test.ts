@@ -105,7 +105,10 @@ describe("API", () => {
     });
 
     await expect(
-      API.handleExportResponse({ data: "markdown", response }),
+      API.handleExportResponse(
+        { data: "markdown", response },
+        { defaultFilename: "download.md" },
+      ),
     ).resolves.toEqual({
       contents: "markdown",
       filename: "résumé.qmd",
@@ -113,27 +116,119 @@ describe("API", () => {
     });
   });
 
-  it("rejects export responses without a filename", async () => {
+  it("parses quoted Content-Disposition filenames", async () => {
+    const response = new Response("html", {
+      headers: {
+        "Content-Disposition": 'inline; filename="notebook.html"',
+        "Content-Type": "text/html; charset=utf-8",
+      },
+    });
+
     await expect(
-      API.handleExportResponse({
-        data: "markdown",
-        response: new Response(null, {
-          headers: { "Content-Type": "text/plain" },
-        }),
-      }),
-    ).rejects.toThrow("Export response is missing a filename");
+      API.handleExportResponse(
+        { data: "html", response },
+        { defaultFilename: "download.html" },
+      ),
+    ).resolves.toEqual({
+      contents: "html",
+      filename: "notebook.html",
+      mediaType: "text/html; charset=utf-8",
+    });
+  });
+
+  it("parses unquoted Content-Disposition filenames", async () => {
+    const response = new Response("pdf", {
+      headers: {
+        "Content-Disposition": "attachment; filename=notebook.pdf",
+        "Content-Type": "application/pdf",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse(
+        { data: "pdf", response },
+        { defaultFilename: "download.pdf" },
+      ),
+    ).resolves.toEqual({
+      contents: "pdf",
+      filename: "notebook.pdf",
+      mediaType: "application/pdf",
+    });
+  });
+
+  it("prefers RFC 5987 filenames over quoted fallbacks", async () => {
+    const response = new Response("markdown", {
+      headers: {
+        "Content-Disposition":
+          "attachment; filename=\"wrong.md\"; filename*=UTF-8''notebook.md",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse(
+        { data: "markdown", response },
+        { defaultFilename: "download.md" },
+      ),
+    ).resolves.toEqual({
+      contents: "markdown",
+      filename: "notebook.md",
+      mediaType: "text/plain; charset=utf-8",
+    });
+  });
+
+  it("falls back to a default filename when headers are missing", async () => {
+    const response = new Response("markdown", {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse(
+        { data: "markdown", response },
+        { defaultFilename: "download.md" },
+      ),
+    ).resolves.toEqual({
+      contents: "markdown",
+      filename: "download.md",
+      mediaType: "text/plain; charset=utf-8",
+    });
+  });
+
+  it("falls back to a default filename when Content-Disposition is unparsable", async () => {
+    const response = new Response("markdown", {
+      headers: {
+        "Content-Disposition": "attachment",
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    });
+
+    await expect(
+      API.handleExportResponse(
+        { data: "markdown", response },
+        { defaultFilename: "download.md" },
+      ),
+    ).resolves.toEqual({
+      contents: "markdown",
+      filename: "download.md",
+      mediaType: "text/plain; charset=utf-8",
+    });
   });
 
   it("rejects export responses without a media type", async () => {
     await expect(
-      API.handleExportResponse({
-        data: "markdown",
-        response: new Response(null, {
-          headers: {
-            "Content-Disposition": "attachment; filename*=UTF-8''notebook.md",
-          },
-        }),
-      }),
+      API.handleExportResponse(
+        {
+          data: "markdown",
+          response: new Response(null, {
+            headers: {
+              "Content-Disposition": "attachment; filename*=UTF-8''notebook.md",
+            },
+          }),
+        },
+        { defaultFilename: "download.md" },
+      ),
     ).rejects.toThrow("Export response is missing a media type");
   });
 });
