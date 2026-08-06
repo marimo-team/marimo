@@ -52,17 +52,33 @@ class SessionRepository:
                 return session
         return None
 
-    def get_by_file_key(self, file_key: MarimoFileKey) -> Session | None:
+    def get_by_file_key(
+        self, file_key: MarimoFileKey, resolved_path: str | None = None
+    ) -> Session | None:
         """Get a session by file key."""
-        import os
+        sessions = self.get_all_by_file_key(file_key, resolved_path)
+        return sessions[0] if sessions else None
 
-        for session in self._sessions.values():
-            if (
-                session.initialization_id == file_key
-                or session.app_file_manager.path == os.path.abspath(file_key)
-            ):
-                return session
-        return None
+    def get_all_by_file_key(
+        self, file_key: MarimoFileKey, resolved_path: str | None = None
+    ) -> list[Session]:
+        """Get all sessions for a notebook file key.
+
+        A session matches on the key it was created under
+        (`initialization_id`) or, when `resolved_path` is provided, on its
+        current filesystem path. File keys can be workspace-relative, so
+        callers must resolve them through the workspace (not against the
+        server CWD) before comparing to session paths.
+        """
+        return [
+            session
+            for session in self._sessions.values()
+            if session.initialization_id == file_key
+            or (
+                resolved_path is not None
+                and session.app_file_manager.path == resolved_path
+            )
+        ]
 
     def get_by_file_path(self, file_path: str) -> list[Session]:
         """Get all sessions associated with a file path."""
