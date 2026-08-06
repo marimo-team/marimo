@@ -65,11 +65,27 @@ class TestDefaultSavePath:
 
         assert path == tmp_path / "__marimo__" / "cache"
 
-    def test_read_only_notebook_dir_falls_back_to_cwd(
+    def test_unwritable_target_falls_back_to_cwd(
         self, tmp_path, monkeypatch
     ) -> None:
-        """A read-only notebook directory anchors the cache to the working directory."""
+        """A cache directory that cannot be created anchors to the working directory."""
         monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+
+        def deny_mkdir(self: Path, *_args: object, **_kwargs: object) -> None:
+            raise PermissionError(f"read-only: {self}")
+
+        monkeypatch.setattr(Path, "mkdir", deny_mkdir)
+
+        path = FileStore()._default_save_path()
+
+        assert path == Path("__marimo__", "cache")
+
+    def test_existing_read_only_target_falls_back_to_cwd(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """An existing cache directory that is not writable anchors to the working directory."""
+        monkeypatch.setattr(file_mod, "notebook_dir", lambda: tmp_path)
+        (tmp_path / "__marimo__" / "cache").mkdir(parents=True)
         monkeypatch.setattr(file_mod.os, "access", lambda *_args: False)
 
         path = FileStore()._default_save_path()

@@ -19,6 +19,7 @@ with app.setup:
 @app.cell
 def _():
     with mo.persistent_cache("extensionless"):
+        print("computed")
         value = 42
     print(f"value={value}")
     return
@@ -38,7 +39,7 @@ def test_persistent_cache_in_extensionless_script(tmp_path: Path) -> None:
     spool_path = tmp_path / "slurm_script"
     spool_path.write_text(NOTEBOOK_SOURCE, encoding="utf-8")
 
-    for run in range(2):  # second run exercises the cache-hit path
+    for run in range(2):
         result = subprocess.run(
             [sys.executable, str(spool_path)],
             capture_output=True,
@@ -48,6 +49,10 @@ def test_persistent_cache_in_extensionless_script(tmp_path: Path) -> None:
         )
         assert result.returncode == 0, (run, result.stderr)
         assert "value=42" in result.stdout
+        # The first run computes; the second restores from the cache, so
+        # the block body must not re-execute.
+        block_ran = "computed" in result.stdout
+        assert block_ran == (run == 0), (run, result.stdout)
 
     cache_dir = tmp_path / "__marimo__" / "cache"
     assert cache_dir.is_dir()

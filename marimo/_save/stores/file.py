@@ -43,8 +43,17 @@ class FileStore(Store):
 
     def _default_save_path(self) -> Path:
         root = notebook_dir()
-        if root is not None and os.access(root, os.W_OK):
-            return notebook_output_dir(root) / "cache"
+        if root is not None:
+            # Probe the actual write target: with `sys.pycache_prefix` set
+            # it lives under the prefix, not under the notebook directory.
+            target = notebook_output_dir(root) / "cache"
+            try:
+                target.mkdir(parents=True, exist_ok=True)
+            except OSError:
+                pass
+            else:
+                if os.access(target, os.W_OK):
+                    return target
         # The notebook can be unnamed, or its directory read-only (Slurm
         # runs jobs from a spooled copy under /var/spool). Anchor to the
         # working directory instead.

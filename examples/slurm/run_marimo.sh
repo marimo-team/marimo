@@ -8,4 +8,4 @@
 # Runs the marimo editor on a compute node against the *original* notebook
 # file. Connect from your laptop with:
 #   ssh -L 3000:NODE:3000 you@cluster
-uvx marimo edit --sandbox notebook.py --headless --port 3000
+uvx marimo edit --sandbox submit_notebook.py --headless --port 3000

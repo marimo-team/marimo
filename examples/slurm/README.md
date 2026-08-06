@@ -11,6 +11,10 @@ default).
 
 ## Interactive: marimo editor on a compute node
 
+[`run_marimo.sh`](run_marimo.sh) opens
+[`submit_notebook.py`](submit_notebook.py); swap in your own notebook path
+to edit something else.
+
 ```bash
 sbatch run_marimo.sh
 squeue -u $USER                      # find the compute node
@@ -37,6 +41,7 @@ Tips for shared clusters:
 - `uv`'s wheel cache lives in `~/.cache/uv`; point `UV_CACHE_DIR` at a shared
   or project filesystem so compute nodes reuse downloads.
 - If your home and cache live on different mounts, set `UV_LINK_MODE=copy`.
-- `mo.persistent_cache` writes to `__marimo__/cache/` next to the notebook —
-  on a shared filesystem the cache outlives the job, so resubmissions skip
-  completed work.
+- `mo.persistent_cache` writes to `__marimo__/cache/` next to the notebook,
+  or under the job's working directory when the notebook's directory is not
+  writable (as with Slurm's spooled batch copies) — on a shared filesystem
+  the cache outlives the job, so resubmissions skip completed work.

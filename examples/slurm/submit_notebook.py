@@ -50,28 +50,32 @@ def _():
     parser.add_argument("--seed", type=int, default=42)
 
     if mo.running_in_notebook():
-        args = parser.parse_args([])
+        _args = parser.parse_args([])
     else:
-        args = parser.parse_args()
-    return (args,)
+        _args = parser.parse_args()
+    # Unpack into plain values: the cache keys on the values a cached cell
+    # reads, and primitives hash by content (a Namespace does not).
+    n, seed = _args.n, _args.seed
+    return n, seed
 
 
 @app.cell
-def _(args):
+def _(n, seed):
     # Stand-in for real work. The cache persists to disk, so a resubmitted
-    # job with the same arguments restores instead of recomputing.
+    # job with the same arguments restores instead of recomputing, while
+    # new values of `n` or `seed` recompute.
     with mo.persistent_cache("monte_carlo_pi"):
         _start = time.perf_counter()
-        _rng = np.random.default_rng(args.seed)
-        _points = _rng.random((args.n, 2))
+        _rng = np.random.default_rng(seed)
+        _points = _rng.random((n, 2))
         pi_estimate = 4.0 * float(((_points**2).sum(axis=1) <= 1.0).mean())
         elapsed = time.perf_counter() - _start
     return elapsed, pi_estimate
 
 
 @app.cell
-def _(args, elapsed, pi_estimate):
-    print(f"pi ~= {pi_estimate:.6f} (n={args.n:,}, {elapsed:.2f}s)")
+def _(elapsed, n, pi_estimate):
+    print(f"pi ~= {pi_estimate:.6f} (n={n:,}, {elapsed:.2f}s)")
     return
 
 
