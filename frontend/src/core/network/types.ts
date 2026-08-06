@@ -26,6 +26,8 @@ export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
 export type ExportAvailabilityResponse = schemas["ExportAvailabilityResponse"];
+export type InstallExportRequirementsRequest =
+  schemas["InstallExportRequirementsRequest"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
 
 export interface ExportedFile<T extends BlobPart = BlobPart> {
@@ -219,6 +221,9 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
   getExportAvailability: () => Promise<ExportAvailabilityResponse>;
+  installExportRequirements: (
+    request: InstallExportRequirementsRequest,
+  ) => Promise<ExportAvailabilityResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<ExportedFile<string>>;
   exportAsIPYNB: (
     request: ExportAsIPYNBRequest,

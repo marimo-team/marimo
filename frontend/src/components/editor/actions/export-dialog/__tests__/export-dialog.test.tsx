@@ -13,12 +13,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { Dialog } from "@/components/ui/dialog";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { viewStateAtom } from "@/core/mode";
+import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { requestClientAtom } from "@/core/network/requests";
+import { createErrorToastingRequests } from "@/core/network/requests-toasting";
+import type { ExportAvailabilityResponse } from "@/core/network/types";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
 import * as copyModule from "@/utils/copy";
+import { Deferred } from "@/utils/Deferred";
+import { HTTPError } from "@/utils/errors";
 import { ExportDialog } from "../export-dialog";
 import {
   DEFAULT_EXPORT_OPTIONS,
@@ -27,12 +31,20 @@ import {
   lastExportFormatAtom,
 } from "../state";
 
-const { exportNotebookMock } = vi.hoisted(() => ({
+const { exportNotebookMock, toastMock } = vi.hoisted(() => ({
   exportNotebookMock: vi.fn().mockResolvedValue(undefined),
+  toastMock: vi.fn(() => ({
+    dismiss: vi.fn(),
+    update: vi.fn(),
+  })),
 }));
 
 vi.mock("@/utils/copy", () => ({
   copyToClipboard: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: toastMock,
 }));
 
 vi.mock("@/core/wasm/utils", async (importOriginal) => {
@@ -67,6 +79,32 @@ async function waitForExportEnabled() {
   );
 }
 
+type FormatAvailability = ExportAvailabilityResponse["formats"][number];
+
+function formatAvailability(
+  format: FormatAvailability["format"],
+  overrides: Partial<Omit<FormatAvailability, "format">> = {},
+): FormatAvailability {
+  return {
+    format,
+    dependenciesAvailable: true,
+    missingPackages: [],
+    missingSetup: [],
+    ...overrides,
+  };
+}
+
+function serverAvailability(
+  ...formats: FormatAvailability[]
+): ExportAvailabilityResponse {
+  return { source: "server", formats };
+}
+
+const PLAYWRIGHT_SETUP = {
+  name: "playwright-chromium",
+  command: "uv run playwright install chromium",
+} as const;
+
 describe("ExportDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -74,8 +112,10 @@ describe("ExportDialog", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
+    store.set(kioskModeAtom, false);
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
+    window.history.replaceState(null, "", "/");
     vi.mocked(isWasm).mockReturnValue(false);
     vi.stubGlobal("matchMedia", () => ({
       matches: false,
@@ -248,54 +288,74 @@ describe("ExportDialog", () => {
     expect(tablist).toHaveAttribute("aria-orientation", "vertical");
   });
 
-  it("keeps unavailable formats visible and names missing packages", async () => {
+  it("installs missing packages and applies refreshed availability", async () => {
+    const install = new Deferred<ExportAvailabilityResponse>();
+    const installExportRequirements = vi.fn(() => install.promise);
+    const getExportAvailability = vi.fn().mockResolvedValue(
+      serverAvailability(
+        formatAvailability("ipynb", {
+          dependenciesAvailable: false,
+          missingPackages: ["nbformat"],
+        }),
+        formatAvailability("pdf", {
+          dependenciesAvailable: false,
+          missingPackages: ["nbconvert[webpdf]", "nbformat"],
+        }),
+      ),
+    );
     store.set(
       requestClientAtom,
       MockRequestClient.create({
-        getExportAvailability: vi.fn().mockResolvedValue({
-          source: "server",
-          formats: [
-            {
-              format: "pdf",
-              dependenciesAvailable: false,
-              missingPackages: ["nbconvert[webpdf]"],
-              missingSetup: [],
-            },
-          ],
-        }),
+        getExportAvailability,
+        installExportRequirements,
       }),
     );
 
     renderDialog("pdf");
 
-    expect(await screen.findByText("nbconvert[webpdf]")).toBeVisible();
-    expect(
-      screen.getByText(/where marimo is running to use this export/),
-    ).toBeVisible();
+    const packages = await screen.findByText("nbconvert[webpdf], nbformat");
+    expect(packages.parentElement).toHaveTextContent(
+      "PDF export requires nbconvert[webpdf], nbformat.",
+    );
     expect(screen.getByTestId("export-submit")).toBeDisabled();
     expect(screen.getByTestId("export-format-pdf")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Install" }));
+
+    await waitFor(() =>
+      expect(installExportRequirements).toHaveBeenCalledWith({ format: "pdf" }),
+    );
+    expect(screen.getByRole("button", { name: "Install" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(screen.getByTestId("export-format-html")).toBeDisabled();
+
+    install.resolve(
+      serverAvailability(
+        formatAvailability("ipynb"),
+        formatAvailability("pdf"),
+      ),
+    );
+    await waitForExportEnabled();
+    expect(getExportAvailability).toHaveBeenCalledOnce();
+
+    fireEvent.click(screen.getByTestId("export-format-ipynb"));
+    expect(screen.getByTestId("export-submit")).toBeEnabled();
   });
 
   it("explains missing Playwright Chromium setup", async () => {
     store.set(
       requestClientAtom,
       MockRequestClient.create({
-        getExportAvailability: vi.fn().mockResolvedValue({
-          source: "server",
-          formats: [
-            {
-              format: "pdf",
+        getExportAvailability: vi.fn().mockResolvedValue(
+          serverAvailability(
+            formatAvailability("pdf", {
               dependenciesAvailable: false,
-              missingPackages: [],
-              missingSetup: [
-                {
-                  name: "playwright-chromium",
-                  command: "uv run playwright install chromium",
-                },
-              ],
-            },
-          ],
-        }),
+              missingSetup: [PLAYWRIGHT_SETUP],
+            }),
+          ),
+        ),
       }),
     );
 
@@ -305,9 +365,92 @@ describe("ExportDialog", () => {
       await screen.findByText("PDF export requires Playwright Chromium."),
     ).toBeVisible();
     expect(
-      screen.getByText("uv run playwright install chromium"),
-    ).toBeVisible();
+      screen.queryByText("uv run playwright install chromium"),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("export-submit")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Install" })).toBeVisible();
+  });
+
+  it.each([
+    ["read mode", "read", false, false],
+    ["connected kiosk mode", "edit", true, false],
+    ["pre-connection kiosk mode", "edit", false, true],
+  ] as const)(
+    "shows the setup command when installation is not allowed in %s",
+    async (_label, mode, kioskMode, kioskRequested) => {
+      store.set(viewStateAtom, { mode, cellAnchor: null });
+      store.set(kioskModeAtom, kioskMode);
+      if (kioskRequested) {
+        window.history.replaceState(null, "", "/?kiosk=true");
+      }
+      store.set(
+        requestClientAtom,
+        MockRequestClient.create({
+          getExportAvailability: vi.fn().mockResolvedValue(
+            serverAvailability(
+              formatAvailability("pdf", {
+                dependenciesAvailable: false,
+                missingSetup: [PLAYWRIGHT_SETUP],
+              }),
+            ),
+          ),
+        }),
+      );
+
+      renderDialog("pdf");
+
+      expect(
+        await screen.findByText("PDF export requires Playwright Chromium."),
+      ).toBeVisible();
+      expect(
+        screen.getByText("uv run playwright install chromium"),
+      ).toBeVisible();
+      expect(
+        screen.queryByRole("button", { name: "Install" }),
+      ).not.toBeInTheDocument();
+    },
+  );
+
+  it("restores the install action when installation fails", async () => {
+    const error = new HTTPError(500, "Server Error", {
+      detail: "Playwright Chromium installation failed. Check the server logs.",
+    });
+    const installExportRequirements = vi.fn().mockRejectedValue(error);
+    const getExportAvailability = vi.fn().mockResolvedValue(
+      serverAvailability(
+        formatAvailability("pdf", {
+          dependenciesAvailable: false,
+          missingPackages: ["nbconvert[webpdf]"],
+        }),
+      ),
+    );
+    store.set(
+      requestClientAtom,
+      createErrorToastingRequests(
+        MockRequestClient.create({
+          getExportAvailability,
+          installExportRequirements,
+        }),
+      ),
+    );
+
+    renderDialog("pdf");
+
+    const install = await screen.findByRole("button", { name: "Install" });
+    fireEvent.click(install);
+
+    await waitFor(() =>
+      expect(toastMock).toHaveBeenCalledWith({
+        title: "Failed to install export requirements",
+        description:
+          "Playwright Chromium installation failed. Check the server logs.",
+        variant: "danger",
+      }),
+    );
+    expect(install).toBeEnabled();
+    expect(install).toHaveAttribute("aria-busy", "false");
+    expect(screen.getByTestId("export-submit")).toBeDisabled();
+    expect(getExportAvailability).toHaveBeenCalledOnce();
   });
 
   it("announces requirement checks as status updates", () => {

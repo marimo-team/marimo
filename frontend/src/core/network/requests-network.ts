@@ -413,6 +413,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getExportAvailability: () => {
       return getClient().GET("/api/export/availability").then(handleResponse);
     },
+    installExportRequirements: (request) => {
+      return getClient()
+        .POST("/api/export/requirements/install", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
     exportAsHTML: async (request) => {
       if (
         process.env.NODE_ENV === "development" ||

@@ -26,6 +26,10 @@ type AllRequests = EditRequests & RunRequests;
 //   executing. Use for user-initiated actions that should "just work" and
 //   kick off the kernel if needed (e.g., clicking Run).
 //
+// - startConnectionWithoutKernel: Initializes the runtime and waits for an open
+//   connection. Use for session-scoped server requests that do not need an
+//   instantiated kernel.
+//
 // - waitForConnectionOpen: Waits for an existing connection but won't start one.
 //   Use for operations that depend on a running kernel but shouldn't be the
 //   trigger to start it (e.g., saving, interrupting).
@@ -38,6 +42,7 @@ type Action =
   | "throwError"
   | "dropRequest"
   | "startConnection"
+  | "startConnectionWithoutKernel"
   | "waitForConnectionOpen"
   | "serverOnly";
 
@@ -45,7 +50,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   // These will start a connection if not already connected and then wait until the connection is open
   sendComponentValues: "startConnection",
   sendModelValue: "startConnection",
-  sendInstantiate: "startConnection",
+  sendInstantiate: "startConnectionWithoutKernel",
   sendRun: "startConnection",
   sendDeleteCell: "startConnection",
   sendRunScratchpad: "startConnection",
@@ -106,6 +111,9 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   // Served by the marimo server without a kernel session
   getEnvironmentInfo: "serverOnly",
   getExportAvailability: "serverOnly",
+
+  // Session-scoped server operations
+  installExportRequirements: "startConnectionWithoutKernel",
 
   // Home operations throw errors
   getRecentFiles: "startConnection",
@@ -186,13 +194,12 @@ export function createLazyRequests(
           await waitForKernelToBeInstantiated();
           return request(...args);
 
+        case "startConnectionWithoutKernel":
         case "startConnection":
           // Start connection and wait for it to be open
           await initOnce(runtimeManager);
           await waitForConnectionOpen();
-          if (key !== "sendInstantiate") {
-            // We don't need to wait for kernel to be instantiated if we are sending an instantiate request
-            // otherwise we will wait forever
+          if (action === "startConnection") {
             await waitForKernelToBeInstantiated();
           }
           return request(...args);
