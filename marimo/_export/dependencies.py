@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
 from typing import cast
 
@@ -15,13 +16,17 @@ from marimo._dependencies.dependencies import (
     DependencyRequirement,
 )
 from marimo._schemas.export import ExportSetupRequirement
-from marimo._schemas.export_options import ServerExportFormat
+from marimo._schemas.export_options import (
+    ExportSetupRequirementName,
+    ServerExportFormat,
+)
 from marimo._utils.assert_never import assert_never
 from marimo._utils.async_path import isfile
 
 LOGGER = _loggers.marimo_logger()
 
 _IPYNB_DEPENDENCIES = (DependencyManager.nbformat,)
+_PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS = 600
 _PDF_DEPENDENCIES = (
     DependencyRequirement(
         package="nbconvert[webpdf]",
@@ -59,6 +64,43 @@ def get_missing_export_packages(
     return DependencyManager.missing_packages(
         *_dependencies_for_format(export_format)
     )
+
+
+async def _install_playwright_chromium() -> None:
+    try:
+        result = await asyncio.to_thread(
+            subprocess.run,
+            [sys.executable, "-m", "playwright", "install", "chromium"],
+            capture_output=True,
+            text=True,
+            timeout=_PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        LOGGER.error(
+            "Playwright Chromium installation timed out after %s seconds",
+            _PLAYWRIGHT_INSTALL_TIMEOUT_SECONDS,
+        )
+        raise RuntimeError(
+            "Playwright Chromium installation failed. Check the server logs."
+        ) from None
+    if result.returncode != 0:
+        LOGGER.error(
+            "Failed to install Playwright Chromium: %s",
+            result.stderr or result.stdout,
+        )
+        raise RuntimeError(
+            "Playwright Chromium installation failed. Check the server logs."
+        )
+
+
+async def install_export_setup(
+    requirement: ExportSetupRequirementName,
+) -> None:
+    match requirement:
+        case "playwright-chromium":
+            await _install_playwright_chromium()
+        case _:
+            assert_never(requirement)
 
 
 async def get_missing_export_setup(

@@ -24,6 +24,7 @@ from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._export.dependencies import (
     get_missing_export_packages,
     get_missing_export_setup,
+    install_export_setup,
 )
 from marimo._export.exporter import (
     AutoExporter,
@@ -41,6 +42,7 @@ from marimo._export.requests import (
 )
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import asdict
+from marimo._runtime.commands import InstallPackagesCommand
 from marimo._schemas.export import (
     ExportAsHTMLRequest,
     ExportAsIPYNBRequest,
@@ -49,6 +51,7 @@ from marimo._schemas.export import (
     ExportAsScriptRequest,
     ExportAvailabilityResponse,
     ExportFormatAvailability,
+    InstallExportRequirementsRequest,
     UpdateCellOutputsRequest,
     to_html_export_options,
     to_ipynb_export_options,
@@ -59,9 +62,12 @@ from marimo._schemas.export_options import (
     SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
     MarkdownExportOptions,
+    ServerExportFormat,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
+    enforce_consumer_capability,
+    install_packages_on_server,
     notify_server_missing_packages,
     parse_request,
 )
@@ -80,6 +86,33 @@ router = APIRouter()
 auto_exporter = AutoExporter()
 
 
+async def _get_export_format_availability(
+    export_format: ServerExportFormat,
+) -> ExportFormatAvailability:
+    missing_packages = get_missing_export_packages(export_format)
+    missing_setup = (
+        []
+        if missing_packages
+        else await get_missing_export_setup(export_format)
+    )
+    return ExportFormatAvailability(
+        format=export_format,
+        dependencies_available=not missing_packages and not missing_setup,
+        missing_packages=missing_packages,
+        missing_setup=missing_setup,
+    )
+
+
+async def _get_export_availability() -> ExportAvailabilityResponse:
+    return ExportAvailabilityResponse(
+        source="server",
+        formats=[
+            await _get_export_format_availability(export_format)
+            for export_format in SERVER_EXPORT_FORMATS
+        ],
+    )
+
+
 @router.get("/availability")
 @requires("read")
 async def get_export_availability(
@@ -96,24 +129,69 @@ async def get_export_availability(
                         $ref: "#/components/schemas/ExportAvailabilityResponse"
     """
     del request
-    formats: list[ExportFormatAvailability] = []
-    for export_format in SERVER_EXPORT_FORMATS:
-        missing_packages = get_missing_export_packages(export_format)
-        missing_setup = (
-            []
-            if missing_packages
-            else await get_missing_export_setup(export_format)
+    return await _get_export_availability()
+
+
+@router.post("/requirements/install")
+@requires("edit")
+async def install_export_requirements(
+    request: Request,
+) -> ExportAvailabilityResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/InstallExportRequirementsRequest"
+    responses:
+        200:
+            description: Updated readiness for server-backed exports
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ExportAvailabilityResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=InstallExportRequirementsRequest)
+    command = InstallPackagesCommand(
+        manager=app_state.app_config_manager.package_manager,
+        versions={},
+        source="server",
+    )
+    enforce_consumer_capability(app_state, command)
+
+    format_availability = await _get_export_format_availability(body.format)
+    if format_availability.missing_packages:
+        await install_packages_on_server(
+            {package: "" for package in format_availability.missing_packages}
         )
-        formats.append(
-            ExportFormatAvailability(
-                format=export_format,
-                dependencies_available=not missing_packages
-                and not missing_setup,
-                missing_packages=missing_packages,
-                missing_setup=missing_setup,
-            )
+        format_availability = await _get_export_format_availability(
+            body.format
         )
-    return ExportAvailabilityResponse(source="server", formats=formats)
+
+    # Setup can only be probed after its Python packages are importable.
+    for requirement in format_availability.missing_setup:
+        await install_export_setup(requirement.name)
+
+    availability = await _get_export_availability()
+    target = next(
+        item for item in availability.formats if item.format == body.format
+    )
+    if not target.dependencies_available:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR,
+            detail=(
+                f"Failed to install requirements for "
+                f"{body.format.upper()} export. Check the server logs."
+            ),
+        )
+    return availability
 
 
 @router.post("/html")

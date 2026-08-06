@@ -260,7 +260,6 @@ T = TypeVar("T")
 
 
 async def install_packages_on_server(
-    manager: str,
     versions: dict[str, str],
 ) -> None:
     """Install packages into the server's own Python environment.
@@ -268,18 +267,34 @@ async def install_packages_on_server(
     Used when the server itself needs a package (e.g. nbformat for
     IPYNB auto-export when running with --sandbox).
     """
+    import asyncio
     import sys
 
-    from marimo._runtime.packages.package_managers import (
-        create_package_manager,
+    from marimo._runtime.packages.package_manager import PackageManager
+    from marimo._runtime.packages.pypi_package_manager import (
+        PipPackageManager,
+        UvPackageManager,
     )
 
-    pkg_manager = create_package_manager(manager, python_exe=sys.executable)
-    if not pkg_manager.is_manager_installed():
-        pkg_manager.alert_not_installed()
-        return
+    pip = PipPackageManager(python_exe=sys.executable)
+    uv = UvPackageManager.for_pip_install(sys.executable)
+    pkg_manager: PackageManager
+    if await asyncio.to_thread(uv.is_manager_installed):
+        pkg_manager = uv
+    elif await asyncio.to_thread(pip.is_manager_installed):
+        pkg_manager = pip
+    else:
+        raise RuntimeError(
+            "No package installer is available for the server Python."
+        )
+
     for pkg, version in versions.items():
-        await pkg_manager.install(pkg, version=version or None)
+        installed = await pkg_manager.install(pkg, version=version or None)
+        if not installed:
+            raise RuntimeError(
+                f"Failed to install {pkg} into the server Python. "
+                "Check the server logs."
+            )
 
 
 def notify_server_missing_packages(
