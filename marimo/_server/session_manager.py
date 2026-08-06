@@ -288,6 +288,10 @@ class SessionManager:
         except Exception as e:
             return False, str(e)
 
+        renamed_path = session.app_file_manager.path
+        if renamed_path is not None:
+            self.workspace.register_allowed_path(renamed_path)
+
         # Emit the session notebook renamed event
         await self._event_bus.emit_session_notebook_renamed(session, old_path)
 

@@ -73,7 +73,9 @@ def test_edit_mode_resume_workspace_relative_key() -> None:
     repository = SessionRepository()
     # The notebook lives outside the CWD, like `marimo edit notebooks/`
     # run from a project root.
-    resolved = os.path.join(os.sep, "workspace", "notebooks", "example.py")
+    resolved = os.path.abspath(
+        os.path.join(os.sep, "workspace", "notebooks", "example.py")
+    )
     strategy = EditModeResumeStrategy(
         repository,
         lambda key: resolved if key == "example.py" else None,
@@ -113,7 +115,7 @@ def test_edit_mode_resume_after_rename_matches_resolved_path() -> None:
     """A session keeps its creation key after a rename; the resolved path
     of the new key must still find it."""
     repository = SessionRepository()
-    resolved = os.path.join(os.sep, "workspace", "renamed.py")
+    resolved = os.path.abspath(os.path.join(os.sep, "workspace", "renamed.py"))
     strategy = EditModeResumeStrategy(
         repository,
         lambda key: resolved if key == "renamed.py" else None,
@@ -132,8 +134,10 @@ def test_edit_mode_resume_after_rename_matches_resolved_path() -> None:
 def test_edit_mode_ignores_creation_key_when_file_resolves() -> None:
     """A recreated file must not match a session that moved away from it."""
     repository = SessionRepository()
-    original = os.path.join(os.sep, "workspace", "original.py")
-    renamed = os.path.join(os.sep, "workspace", "renamed.py")
+    original = os.path.abspath(
+        os.path.join(os.sep, "workspace", "original.py")
+    )
+    renamed = os.path.abspath(os.path.join(os.sep, "workspace", "renamed.py"))
     strategy = EditModeResumeStrategy(
         repository,
         lambda key: original if key == "original.py" else None,
