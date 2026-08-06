@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
+import { KnownQueryParams } from "@/core/constants";
 import { isIslands } from "@/core/islands/utils";
 import { assertExists } from "@/utils/assertExists";
 import { invariant } from "@/utils/invariant";
@@ -98,5 +99,9 @@ export const kioskModeAtom = atom<boolean>(false);
  */
 export function useInstallAllowed(): boolean {
   const { mode } = useAtomValue(viewStateAtom);
-  return mode !== "read";
+  const kioskMode = useAtomValue(kioskModeAtom);
+  const kioskRequested =
+    new URLSearchParams(window.location.search).get(KnownQueryParams.kiosk) ===
+    "true";
+  return mode !== "read" && !kioskMode && !kioskRequested;
 }

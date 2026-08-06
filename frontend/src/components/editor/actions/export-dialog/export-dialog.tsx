@@ -28,13 +28,17 @@ export const ExportDialog: React.FC<{
   const {
     dialogRef,
     isExporting,
+    isInstalling,
+    canInstall,
     formats,
     options,
     selected,
     selectFormat,
     updateOptions,
+    installRequirements,
     submit,
   } = useExportDialog({ initialFormat, onClose });
+  const isBusy = isExporting || isInstalling;
   const desktopLayout = useMediaQuery(DESKTOP_LAYOUT_QUERY);
   const {
     format,
@@ -86,7 +90,7 @@ export const ExportDialog: React.FC<{
               <TabsTrigger
                 key={candidate}
                 value={candidate}
-                disabled={isExporting}
+                disabled={isBusy}
                 className="min-w-0 justify-start gap-2 px-2.5 py-2 text-xs data-[state=active]:shadow-xs sm:w-full sm:text-sm"
                 data-testid={`export-format-${candidate}`}
               >
@@ -119,13 +123,15 @@ export const ExportDialog: React.FC<{
               format={format}
               formatLabel={definition.label}
               status={status}
+              onInstall={canInstall ? installRequirements : undefined}
+              isInstalling={isInstalling}
             />
 
             {usesBrowserPrint ? null : (
               <FormatOptions
                 options={options}
                 updateOptions={updateOptions}
-                disabled={isExporting}
+                disabled={isBusy}
               />
             )}
           </TabsContent>
@@ -173,7 +179,7 @@ export const ExportDialog: React.FC<{
           ) : null}
           <Button
             type="button"
-            disabled={!status.available || isExporting}
+            disabled={!status.available || isBusy}
             aria-busy={isExporting}
             onClick={submit}
             className={cn(
