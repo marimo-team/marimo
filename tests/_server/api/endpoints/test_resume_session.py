@@ -11,6 +11,7 @@ from marimo._messaging.notification import (
     CellNotification,
     KernelReadyNotification,
 )
+from marimo._server.workspace import DirectoryWorkspace
 from marimo._session import Session
 from marimo._types.ids import SessionId
 from marimo._utils.parse_dataclass import parse_raw
@@ -19,9 +20,11 @@ from tests._server.api.endpoints.ws_helpers import (
     create_response,
     headers,
 )
-from tests._server.mocks import get_session_manager
+from tests._server.mocks import get_session_manager, workspace_scope
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from starlette.testclient import TestClient
 
 
@@ -109,6 +112,49 @@ def test_refresh_session(client: TestClient) -> None:
     # Check the session switch IDs
     assert not get_session(client, "456")
     assert get_session(client, "789")
+
+
+def test_refresh_resumes_directory_workspace_session(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Regression: directory workspaces serve workspace-relative file keys.
+
+    Refreshing the browser (a new connection with a new session id and the
+    same relative key) must resume the existing session; resolving the key
+    against the server CWD instead created a new kernel per refresh.
+    """
+    notebook = tmp_path / "notebooks" / "example.py"
+    notebook.parent.mkdir()
+    notebook.write_text(
+        "import marimo\n\napp = marimo.App()\n\n"
+        "@app.cell\ndef _():\n    x = 1\n    return (x,)\n"
+    )
+    workspace = DirectoryWorkspace(
+        str(notebook.parent), include_markdown=False
+    )
+    session_manager = get_session_manager(client)
+
+    with workspace_scope(client, workspace):
+        with client.websocket_connect(
+            "/ws?session_id=dir1&file=example.py&access_token=fake-token"
+        ) as websocket:
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
+            assert data["data"]["resumed"] is False
+
+        # Simulated refresh: new session id, same workspace-relative key
+        with client.websocket_connect(
+            "/ws?session_id=dir2&file=example.py&access_token=fake-token"
+        ) as websocket:
+            data = websocket.receive_json()
+            assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
+            data = websocket.receive_json()
+            assert data["op"] == "kernel-ready"
+            assert data["data"]["resumed"] is True
+
+        assert len(session_manager.sessions) == 1
+        assert get_session(client, SessionId("dir2"))
+        session_manager.close_session(SessionId("dir2"))
 
 
 def test_save_session(client: TestClient) -> None:

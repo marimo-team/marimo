@@ -134,7 +134,9 @@ class SessionManager:
         )
 
         # Initialize resume strategy
-        self._resume_strategy = create_resume_strategy(mode, self._repository)
+        self._resume_strategy = create_resume_strategy(
+            mode, self._repository, self._resolve_file_key
+        )
 
         # Add recents tracking listener
         self.recents = RecentFilesManager()
@@ -286,6 +288,10 @@ class SessionManager:
         except Exception as e:
             return False, str(e)
 
+        renamed_path = session.app_file_manager.path
+        if renamed_path is not None:
+            self.workspace.register_allowed_path(renamed_path)
+
         # Emit the session notebook renamed event
         await self._event_bus.emit_session_notebook_renamed(session, old_path)
 
@@ -318,7 +324,25 @@ class SessionManager:
         self, file_key: MarimoFileKey
     ) -> Session | None:
         """Get a session by file key."""
-        return self._repository.get_by_file_key(file_key)
+        return self._repository.get_by_file_key(
+            file_key, resolved_path=self._resolve_file_key(file_key)
+        )
+
+    def _resolve_file_key(self, file_key: MarimoFileKey) -> str | None:
+        """Best-effort canonical absolute path for a file key.
+
+        File keys can be workspace-relative, so resolving against the server
+        CWD is wrong; the workspace owns the resolution. Returns None when
+        the key has no backing file (untitled notebooks) or cannot be
+        resolved (deleted file, path outside the workspace); session lookups
+        then fall back to matching the key a session was created under.
+        """
+        from marimo._utils.http import HTTPException
+
+        try:
+            return self.workspace.resolve(file_key)
+        except HTTPException:
+            return None
 
     def maybe_resume_session(
         self, new_session_id: SessionId, file_key: MarimoFileKey
