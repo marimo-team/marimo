@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -41,9 +42,12 @@ class FileStore(Store):
         return self._resolved_save_path
 
     def _default_save_path(self) -> Path:
-        if (root := notebook_dir()) is not None:
+        root = notebook_dir()
+        if root is not None and os.access(root, os.W_OK):
             return notebook_output_dir(root) / "cache"
-        # This can happen if the notebook file is unnamed.
+        # The notebook can be unnamed, or its directory read-only (Slurm
+        # runs jobs from a spooled copy under /var/spool). Anchor to the
+        # working directory instead.
         return Path("__marimo__", "cache")
 
     def _init_save_path(self) -> None:
