@@ -2,30 +2,60 @@
 
 import type { CellData } from "@/core/cells/types";
 import { GridLayoutPlugin } from "./grid-layout/plugin";
+import type { GridLayout, SerializedGridLayout } from "./grid-layout/types";
 import { SlidesLayoutPlugin } from "./slides-layout/plugin";
+import type {
+  SerializedSlidesLayout,
+  SlidesLayout,
+} from "./slides-layout/types";
 import type { ICellRendererPlugin, LayoutType } from "./types";
+import type {
+  SerializedVerticalLayout,
+  VerticalLayout,
+} from "./vertical-layout/types.ts";
 import { VerticalLayoutPlugin } from "./vertical-layout/vertical-layout";
 
-// If more renderers are added, we may want to consider lazy loading them.
-// oxlint-disable-next-line typescript/no-explicit-any
-export const cellRendererPlugins: ICellRendererPlugin<any, any>[] = [
-  GridLayoutPlugin,
-  SlidesLayoutPlugin,
-  VerticalLayoutPlugin,
-];
+export interface LayoutDataByType {
+  vertical: VerticalLayout;
+  grid: GridLayout;
+  slides: SlidesLayout;
+}
 
-export function deserializeLayout({
+interface SerializedLayoutDataByType {
+  vertical: SerializedVerticalLayout;
+  grid: SerializedGridLayout;
+  slides: SerializedSlidesLayout;
+}
+
+type CellRendererPluginByType = {
+  [K in LayoutType]: ICellRendererPlugin<
+    SerializedLayoutDataByType[K],
+    LayoutDataByType[K]
+  >;
+};
+
+// If more renderers are added, we may want to consider lazy loading them.
+const cellRendererPluginMap: CellRendererPluginByType = {
+  vertical: VerticalLayoutPlugin,
+  grid: GridLayoutPlugin,
+  slides: SlidesLayoutPlugin,
+};
+
+export function getCellRendererPlugin<K extends LayoutType>(
+  type: K,
+): CellRendererPluginByType[K] {
+  return cellRendererPluginMap[type];
+}
+
+export function deserializeLayout<K extends LayoutType>({
   type,
   data,
   cells,
 }: {
-  type: LayoutType;
+  type: K;
   data: unknown;
   cells: CellData[];
-}) {
-  const plugin = cellRendererPlugins.find((plugin) => plugin.type === type);
-  if (plugin === undefined) {
-    throw new Error(`Unknown layout type: ${type}`);
-  }
-  return plugin.deserializeLayout(data, cells);
+}): LayoutDataByType[K] {
+  const plugin = getCellRendererPlugin(type);
+  return plugin.deserializeLayout(data as SerializedLayoutDataByType[K], cells);
 }

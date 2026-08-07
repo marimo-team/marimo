@@ -1,6 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { deserializeLayout } from "@/components/editor/renderers/plugins";
-import type { LayoutType } from "@/components/editor/renderers/types";
+import {
+  deserializeLayout,
+  type LayoutDataByType,
+} from "@/components/editor/renderers/plugins";
+import {
+  LAYOUT_TYPES,
+  type LayoutType,
+} from "@/components/editor/renderers/types";
+import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
 import type { UIElementId } from "../cells/ids";
@@ -9,8 +16,8 @@ import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
 import {
   initialLayoutState,
-  type LayoutData,
   type LayoutState,
+  type SetLayoutDataPayload,
 } from "../layout/layout";
 import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
@@ -61,29 +68,50 @@ export function buildCellData(data: KernelReadyData): CellData[] {
 /**
  * Build layout state from kernel-ready data.
  */
-export function buildLayoutState(
-  data: KernelReadyData,
-  cells: CellData[],
-  setLayoutData: (payload: {
-    layoutView: LayoutType;
-    data: LayoutData;
-  }) => void,
-): LayoutState {
+export function buildLayoutState(opts: {
+  data: KernelReadyData;
+  cells: CellData[];
+  setLayoutData: (payload: SetLayoutDataPayload) => void;
+}): LayoutState {
+  const { data, cells, setLayoutData } = opts;
   const layoutState = initialLayoutState();
   const { layout } = data;
 
-  if (layout) {
-    const layoutType = layout.type as LayoutType;
-    const layoutData = deserializeLayout({
-      type: layoutType,
-      data: layout.data,
-      cells,
-    });
-    layoutState.selectedLayout = layoutType;
-    layoutState.layoutData[layoutType] = layoutData;
-    setLayoutData({ layoutView: layoutType, data: layoutData });
+  if (!layout) {
+    return layoutState;
   }
 
+  const layoutType = layout.type as LayoutType;
+  if (!LAYOUT_TYPES.includes(layoutType)) {
+    Logger.warn(
+      `Ignoring unknown layout type "${layout.type}"; falling back to default.`,
+    );
+    return layoutState;
+  }
+
+  const apply = <K extends LayoutType>(
+    type: K,
+    onApply: (payload: { layoutView: K; data: LayoutDataByType[K] }) => void,
+  ) => {
+    const layoutData = deserializeLayout({ type, data: layout.data, cells });
+    layoutState.selectedLayout = type;
+    layoutState.layoutData[type] = layoutData;
+    onApply({ layoutView: type, data: layoutData });
+  };
+
+  switch (layoutType) {
+    case "vertical":
+      apply("vertical", setLayoutData);
+      break;
+    case "grid":
+      apply("grid", setLayoutData);
+      break;
+    case "slides":
+      apply("slides", setLayoutData);
+      break;
+    default:
+      logNever(layoutType);
+  }
   return layoutState;
 }
 
@@ -105,10 +133,7 @@ export function handleKernelReady(
   opts: {
     autoInstantiate: boolean;
     setCells: (cells: CellData[], layout: LayoutState) => void;
-    setLayoutData: (payload: {
-      layoutView: LayoutType;
-      data: LayoutData;
-    }) => void;
+    setLayoutData: (payload: SetLayoutDataPayload) => void;
     setCapabilities: (capabilities: Capabilities) => void;
     setKernelState: (state: KernelState) => void;
     setAppConfig: (config: AppConfig) => void;
@@ -140,7 +165,7 @@ export function handleKernelReady(
     hasExistingCells && !resumed ? existingCells : buildCellData(data);
 
   // Set up layout and cells
-  const layoutState = buildLayoutState(data, cells, setLayoutData);
+  const layoutState = buildLayoutState({ data, cells, setLayoutData });
   setCells(cells, layoutState);
 
   // Set app config and capabilities
