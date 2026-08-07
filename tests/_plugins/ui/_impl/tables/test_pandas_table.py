@@ -2358,6 +2358,20 @@ class TestPandasTableManager(unittest.TestCase):
         expected = [{"value": value} for value in series.astype(str)]
         assert json_data == expected
 
+    @pytest.mark.requires("pint_pandas")
+    def test_to_json_str_pint_pandas_preserves_null(self) -> None:
+        """Extension columns with missing values serialize missing values as null."""
+        import pandas as pd
+        import pint_pandas  # noqa: F401
+
+        df = pd.DataFrame(
+            {"length": pd.array([1.0, None], dtype="pint[meter]")}
+        )
+        manager = self.factory.create()(df)
+        json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"length": "1.0 meter"}, {"length": None}]
+
     @pytest.mark.requires("pint")
     def test_to_json_str_object_column_of_pint_quantities(self) -> None:
         """Object columns of bare pint.Quantity stringify instead of nested dicts."""
@@ -2424,6 +2438,20 @@ class TestPandasTableManager(unittest.TestCase):
             json_data = json.loads(manager.to_json_str())
 
         assert json_data == [{"value": 1.1}, {"value": 2.2}, {"value": 3.3}]
+
+    def test_to_json_str_extension_column_preserves_null(self) -> None:
+        """Extension-array stringification converts valid values to str and missing values to null."""
+        import pandas as pd
+
+        df = pd.DataFrame({"value": pd.Series([1.1, None])})
+        manager = self.factory.create()(df)
+        with patch(
+            "marimo._plugins.ui._impl.tables.pandas_table._extension_column_needs_stringify",
+            return_value=True,
+        ):
+            json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"value": "1.1"}, {"value": None}]
 
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,
