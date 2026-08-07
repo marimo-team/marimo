@@ -176,7 +176,7 @@ class ToolManager:
         return ToolDefinition(
             name=namespaced_name or mcp_tool.name,
             description=mcp_tool.description or "No description available",
-            parameters=mcp_tool.inputSchema,
+            parameters=mcp_tool.input_schema,
             source="mcp",
             # MCP tools available in ask mode and agent mode
             # TODO: Determine which tools to support in agent mode

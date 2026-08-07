@@ -449,20 +449,22 @@ class MCPClient:
             error_message: The error message to include
 
         Returns:
-            CallToolResult with isError=True and the error message
+            CallToolResult with is_error=True and the error message
         """
         # Based on the MCP SDK error handling:
         # https://modelcontextprotocol.io/docs/concepts/tools#error-handling
         from mcp.types import CallToolResult, TextContent
 
         return CallToolResult(
-            isError=True,
+            is_error=True,
             content=[TextContent(type="text", text=error_message)],
         )
 
     def is_error_result(self, result: CallToolResult) -> bool:
         """Check if a CallToolResult represents an error."""
-        return hasattr(result, "isError") and result.isError is True
+        return bool(
+            getattr(result, "is_error", getattr(result, "isError", False))
+        )
 
     async def invoke_tool(
         self,
@@ -574,7 +576,7 @@ class MCPClient:
                 )
 
         # Log if this was an error result (for debugging purposes)
-        if hasattr(result, "isError") and result.isError:
+        if self.is_error_result(result):
             LOGGER.debug(
                 f"Extracted text content from error result: {len(text_contents)} items"
             )
@@ -731,10 +733,13 @@ class MCPClient:
             # Create MCP tool with metadata
             # Note: MCP SDK Tool constructor uses _meta parameter (with underscore)
             # but exposes the data as .meta attribute (without underscore) after creation
+            schema = getattr(
+                tool, "input_schema", getattr(tool, "inputSchema", {})
+            )
             mcp_tool = Tool(
                 name=tool.name,
                 description=tool.description,
-                inputSchema=tool.inputSchema,
+                input_schema=schema,
                 _meta={
                     "server_name": server_name,
                     "namespaced_name": namespaced_name,

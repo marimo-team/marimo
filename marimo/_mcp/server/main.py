@@ -37,7 +37,7 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
             "marimo[mcp]",
         )
 
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
@@ -54,13 +54,9 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
             enable_dns_rebinding_protection=False,
         )
 
-    mcp = FastMCP(
+    mcp = MCPServer(
         "marimo-mcp-server",
-        stateless_http=True,
         log_level="WARNING",
-        # Change base path from /mcp to /server
-        streamable_http_path="/server",
-        transport_security=transport_security,
     )
 
     # Create context for tools and prompts
@@ -77,7 +73,12 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
         mcp.prompt()(prompt_with_context.as_mcp_prompt_fn())
 
     # Initialize streamable HTTP app
-    mcp_app = mcp.streamable_http_app()
+    mcp_app = mcp.streamable_http_app(
+        # Change base path from /mcp to /server
+        stateless_http=True,
+        streamable_http_path="/server",
+        transport_security=transport_security,
+    )
 
     # Middleware to require edit scope
     class RequiresEditMiddleware(BaseHTTPMiddleware):

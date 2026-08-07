@@ -82,43 +82,26 @@ class StreamableHTTPTransportConnector(MCPTransportConnector):
     async def connect(
         self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
     ) -> TransportConnectorResponse:
-        # Import MCP SDK components for streamable HTTP transport
-        # Try for latest MCP SDK v2.0
-        try:
-            import httpx
+        import httpx2
 
-            from mcp.client.streamable_http import streamable_http_client
+        from mcp.client.streamable_http import streamable_http_client
 
-            # Type narrowing for mypy
-            assert "url" in server_def.config
-            config = cast("MCPServerStreamableHttpConfig", server_def.config)
+        # Type narrowing for mypy
+        assert "url" in server_def.config
+        config = cast("MCPServerStreamableHttpConfig", server_def.config)
 
-            headers = config.get("headers", {})
-            http_client = httpx.AsyncClient(
-                headers=headers, timeout=server_def.timeout
+        headers = config.get("headers", {})
+        http_client = httpx2.AsyncClient(
+            headers=headers, timeout=server_def.timeout
+        )
+
+        # Establish streamable HTTP connection
+        read, write = await exit_stack.enter_async_context(
+            streamable_http_client(
+                config["url"],
+                http_client=http_client,
             )
-
-            # Establish streamable HTTP connection
-            read, write, *_ = await exit_stack.enter_async_context(
-                streamable_http_client(
-                    config["url"],
-                    http_client=http_client,
-                )
-            )
-        # Fallback to ealierst implementation of MCP SDK v1.8 to v1.28
-        except ImportError:
-            from mcp.client.streamable_http import streamablehttp_client
-
-            assert "url" in server_def.config
-            config = cast("MCPServerStreamableHttpConfig", server_def.config)
-
-            read, write, *_ = await exit_stack.enter_async_context(
-                streamablehttp_client(
-                    config["url"],
-                    headers=config.get("headers", {}),
-                    timeout=server_def.timeout,
-                )
-            )
+        )
 
         return read, write
 
