@@ -175,6 +175,10 @@ export const Chatbot: React.FC<Props> = (props) => {
   const activeRequestIdRef = useRef<string | null>(null);
   const lastAbortReasonRef = useRef<string | null>(null);
   const [abortNotice, setAbortNotice] = useState<string | null>(null);
+  const clearAbortState = () => {
+    lastAbortReasonRef.current = null;
+    setAbortNotice(null);
+  };
 
   const { data: backendMessages } = useAsyncData(async () => {
     const response = await props.get_chat_history({});
@@ -238,8 +242,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           // Client-generated id used to (a) route chunks back to this stream
           // and (b) ask the kernel to cancel just this run on Stop.
           const requestId = generateUUID();
-          setAbortNotice(null);
-          lastAbortReasonRef.current = null;
+          clearAbortState();
 
           const stream = new ReadableStream<UIMessageChunk>({
             start(controller) {
@@ -319,14 +322,14 @@ export const Chatbot: React.FC<Props> = (props) => {
           isAbort: true,
           streamReason: lastAbortReasonRef.current,
         });
-        lastAbortReasonRef.current = null;
+        clearAbortState();
         if (reason != null) {
           const description = describeChatAbortReason(reason);
           Logger.debug("Chat stream aborted", { reason, finishReason });
           setAbortNotice(description);
         }
       } else {
-        setAbortNotice(null);
+        clearAbortState();
       }
 
       props.setValue(messages);
@@ -347,7 +350,12 @@ export const Chatbot: React.FC<Props> = (props) => {
       if (!parsedMessage.success) {
         return;
       }
-      if (parsedMessage.data.content) {
+      // Only record abort reasons for the active request. Late chunks from a
+      // cancelled run must not overwrite the next turn's reason
+      if (
+        parsedMessage.data.content &&
+        parsedMessage.data.message_id === activeRequestIdRef.current
+      ) {
         const abortReason = getAbortReasonFromChunk(parsedMessage.data.content);
         if (abortReason !== undefined) {
           lastAbortReasonRef.current = abortReason;
@@ -370,6 +378,9 @@ export const Chatbot: React.FC<Props> = (props) => {
       setMessages(newMessages);
 
       props.setValue(newMessages);
+      if (newMessages.length === 0) {
+        clearAbortState();
+      }
     }
   };
 
@@ -419,6 +430,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     props.setValue([]);
     props.delete_chat_history({});
     clearError();
+    clearAbortState();
   };
 
   return (

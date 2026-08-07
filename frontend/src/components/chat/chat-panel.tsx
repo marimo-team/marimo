@@ -541,6 +541,10 @@ const ChatPanelBody = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastAbortReasonRef = useRef<string | null>(null);
   const [abortNotice, setAbortNotice] = useState<string | null>(null);
+  const clearAbortState = useEvent(() => {
+    lastAbortReasonRef.current = null;
+    setAbortNotice(null);
+  });
   const runtimeManager = useRuntimeManager();
   const { invokeAiTool, sendRun } = useRequestClient();
   const { openModal, closeModal } = useImperativeModal();
@@ -631,14 +635,14 @@ const ChatPanelBody = () => {
           isAbort: true,
           streamReason: lastAbortReasonRef.current,
         });
-        lastAbortReasonRef.current = null;
+        clearAbortState();
         if (reason != null) {
           const description = describeChatAbortReason(reason);
           Logger.debug("Chat stream aborted", { reason, finishReason });
           setAbortNotice(description);
         }
       } else {
-        setAbortNotice(null);
+        clearAbortState();
       }
 
       tryFlushQueuedMessages(messages, { isError, isAbort });
@@ -661,7 +665,7 @@ const ChatPanelBody = () => {
   });
 
   const sendUserMessage = useEvent((parts: ChatMessagePart[]) => {
-    setAbortNotice(null);
+    clearAbortState();
     sendMessage({ role: "user", parts });
   });
 
@@ -735,7 +739,8 @@ const ChatPanelBody = () => {
   useEffect(() => {
     setIsScrolledToBottom(true);
     clearQueuedMessages();
-  }, [activeChatId, clearQueuedMessages]);
+    clearAbortState();
+  }, [activeChatId, clearQueuedMessages, clearAbortState]);
 
   useEffect(() => {
     if (!isScrolledToBottom) {
@@ -867,6 +872,7 @@ const ChatPanelBody = () => {
   );
 
   const handleReload = () => {
+    clearAbortState();
     regenerate();
   };
 
