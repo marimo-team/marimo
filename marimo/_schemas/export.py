@@ -119,5 +119,9 @@ class ExportAvailabilityResponse(msgspec.Struct, rename="camel", frozen=True):
     formats: list[ExportFormatAvailability]
 
 
+class InstallExportRequirementsRequest(msgspec.Struct, rename="camel"):
+    format: ServerExportFormat
+
+
 class UpdateCellOutputsRequest(msgspec.Struct, rename="camel"):
     cell_ids_to_output: dict[CellId_t, MimeBundleTuple]

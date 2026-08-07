@@ -2526,6 +2526,19 @@ components:
       - msg
       title: ImportStarError
       type: object
+    InstallExportRequirementsRequest:
+      properties:
+        format:
+          enum:
+          - html
+          - ipynb
+          - markdown
+          - pdf
+          - script
+      required:
+      - format
+      title: InstallExportRequirementsRequest
+      type: object
     InstallPackagesCommand:
       description: "Install Python packages.\n\n    Installs missing packages using\
         \ the specified package manager. Triggered\n    automatically on import errors\
@@ -6710,6 +6723,26 @@ paths:
           description: File must be saved before downloading
         500:
           description: Export failed or dependencies missing
+  /api/export/requirements/install:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallExportRequirementsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportAvailabilityResponse'
+          description: Updated readiness for server-backed exports
   /api/export/script:
     post:
       parameters:

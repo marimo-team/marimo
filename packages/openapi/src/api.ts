@@ -1124,6 +1124,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/requirements/install": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["InstallExportRequirementsRequest"];
+        };
+      };
+      responses: {
+        /** @description Updated readiness for server-backed exports */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ExportAvailabilityResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/script": {
     parameters: {
       query?: never;
@@ -5146,6 +5187,11 @@ export interface components {
       msg: string;
       /** @enum {unknown} */
       type: "import-star";
+    };
+    /** InstallExportRequirementsRequest */
+    InstallExportRequirementsRequest: {
+      /** @enum {unknown} */
+      format: "html" | "ipynb" | "markdown" | "pdf" | "script";
     };
     /**
      * InstallPackagesCommand
