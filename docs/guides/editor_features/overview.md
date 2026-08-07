@@ -72,7 +72,30 @@ mode](#command-mode) for notebook navigation.
 - `dd` - delete empty cell
 - `:w` - save notebook
 
+**Escape without command mode:**
+
+By default, `Esc` leaves the cell editor and enters command mode. Set the option below to `false` to keep `Esc` from switching modes; it will still close completions and signature help:
+
+/// tab | User config
+
+```toml title="marimo.toml"
+[keymap]
+enter_command_mode_on_escape = false
+```
+
+///
+
+/// tab | pyproject.toml
+
+```toml title="pyproject.toml"
+[tool.marimo.keymap]
+enter_command_mode_on_escape = false
+```
+
+///
+
 **Custom vimrc:**
+
 
 You can customize your vim experience by adding a `.vimrc` configuration in the user settings or pyproject.toml
 
