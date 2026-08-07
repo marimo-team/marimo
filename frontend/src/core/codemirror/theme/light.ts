@@ -11,7 +11,7 @@ export const lightTheme = [
       background: "#ffffff",
       foreground: "#000000",
       caret: "#000000",
-      selection: "#d7d4f0",
+      selection: "var(--cm-selection-background)",
       lineHighlight: "#cceeff44",
       gutterBackground: "var(--color-background)",
       gutterForeground: "var(--gray-10)",
@@ -45,14 +45,16 @@ export const lightTheme = [
     ],
   }),
   EditorView.theme({
+    "&": {
+      "--cm-selection-background": "var(--cm-selection-background-light)",
+    },
     ".mo-cm-reactive-reference": {
       fontWeight: "400",
-      color: "#005f87",
-      borderBottom: "2px solid #bad3de",
+      color: "var(--cm-reactive-reference-color-light)",
+      borderBottom: "2px solid var(--cm-reactive-reference-border-color)",
     },
     ".mo-cm-reactive-reference-hover": {
       cursor: "pointer",
-      borderBottomWidth: "3px",
     },
   }),
 ];

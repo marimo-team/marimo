@@ -282,6 +282,14 @@ class TestNotebookWorkspace(unittest.TestCase):
 
     # ----- security: DirectoryWorkspace -----
 
+    def test_directory_workspace_resolve_normalizes_dotdot(self):
+        workspace = DirectoryWorkspace(self.test_dir, include_markdown=False)
+        key = os.path.join(
+            "nested", "..", os.path.basename(self.test_file1.name)
+        )
+
+        assert workspace.resolve(key) == self.test_file1.name
+
     def test_directory_workspace_new_file_prefix_does_not_leak(self):
         """`__new__` prefix returns None — does not bypass containment.
 
