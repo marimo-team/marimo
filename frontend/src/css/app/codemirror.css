@@ -1,14 +1,18 @@
 @reference "../globals.css";
 
 .light .cm-selectionBackground {
-  /* This is the background for selected text when focused,
-  but we want to use it when not in focus either because we
-  will often lose focus during find/replace or in another editor */
-  background-color: #d7d4f0 !important;
+  /* Keep drawn selections visible when focus moves to find/replace or another editor. */
+  background-color: var(
+    --cm-selection-background,
+    var(--cm-selection-background-light)
+  ) !important;
 }
 
 .dark .cm-selectionBackground {
-  background-color: #1177cc80 !important;
+  background-color: var(
+    --cm-selection-background,
+    var(--cm-selection-background-dark)
+  ) !important;
 }
 
 .cm-focused.cm-focused {
@@ -125,7 +129,7 @@
 /* -- Codeium -- */
 
 .cm-codeium-cycle {
-  font-size: 9px;
+  font-size: 0.5625rem;
   background-color: var(--sky-3);
   padding: 2px;
   border-radius: 2px;
@@ -133,7 +137,7 @@
 }
 
 .cm-codeium-cycle-key {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-family: monospace;
   display: inline-block;
   padding: 2px;

@@ -11,7 +11,7 @@ export const darkTheme = [
       background: "var(--cm-background)",
       foreground: "#abb2bf",
       caret: "#528bff",
-      selection: "#3E4451",
+      selection: "var(--cm-selection-background)",
       lineHighlight: "#2c313c",
       gutterBackground: "var(--color-background)",
       gutterForeground: "var(--gray-10)",
@@ -36,15 +36,16 @@ export const darkTheme = [
     ],
   }),
   EditorView.theme({
+    "&": {
+      "--cm-selection-background": "var(--cm-selection-background-dark)",
+    },
     ".mo-cm-reactive-reference": {
       fontWeight: "400",
-      color: "#2a7aa5",
-      borderBottom: "2px solid #bad3de",
+      color: "var(--cm-reactive-reference-color-dark)",
+      borderBottom: "2px solid var(--cm-reactive-reference-border-color)",
     },
     ".mo-cm-reactive-reference-hover": {
       cursor: "pointer",
-      borderBottomWidth: "3px",
-      borderBottomColor: "#4a90a5",
     },
   }),
 ];
