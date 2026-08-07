@@ -373,6 +373,15 @@ export class AwarenessPlugin implements PluginValue {
   private scopeId: ScopeId;
   private getUserId?: () => Uid;
 
+  private dispatchEffects(effects: StateEffect<unknown>[]) {
+    if (effects.length === 0) {
+      return;
+    }
+    Promise.resolve().then(() => {
+      this.view.dispatch({ effects });
+    });
+  }
+
   constructor(
     view: EditorView,
     doc: LoroDoc,
@@ -404,19 +413,15 @@ export class AwarenessPlugin implements PluginValue {
             effects.push(effect);
           }
         }
-        this.view.dispatch({
-          effects,
-        });
+        this.dispatchEffects(effects);
       } else if (e.by === "checkout") {
         // TODO: better way
-        this.view.dispatch({
-          effects: [
-            remoteAwarenessEffect.of({
-              type: "checkout",
-              checkout: this.doc.isDetached(),
-            }),
-          ],
-        });
+        this.dispatchEffects([
+          remoteAwarenessEffect.of({
+            type: "checkout",
+            checkout: this.doc.isDetached(),
+          }),
+        ]);
       }
     });
   }
