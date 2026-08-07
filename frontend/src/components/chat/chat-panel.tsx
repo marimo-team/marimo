@@ -562,6 +562,7 @@ const ChatPanelBody = () => {
     id: chatId,
   } = useChat({
     id: activeChatId,
+    experimental_throttle: 100,
     sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
     transport: new DefaultChatTransport({
