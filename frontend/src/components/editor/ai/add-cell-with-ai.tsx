@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
+import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
@@ -117,8 +118,7 @@ export const AddCellWithAI: React.FC<{
   };
 
   const { sendMessage, stop, status, addToolOutput } = useChat({
-    // Throttle the messages and data updates to 100ms
-    experimental_throttle: 100,
+    throttle: AI_SDK_UI_THROTTLE_MS,
     transport: new StreamingChunkTransport(
       {
         api: runtimeManager.getAiURL("completion").toString(),

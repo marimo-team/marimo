@@ -92,6 +92,17 @@ export const renderUIMessage = ({
         );
       case "file":
         return <AttachmentRenderer attachment={part} key={index} />;
+      case "reasoning-file":
+        return (
+          <AttachmentRenderer
+            key={index}
+            attachment={{
+              type: "file",
+              mediaType: part.mediaType,
+              url: part.url,
+            }}
+          />
+        );
       case "dynamic-tool":
         return (
           <ToolCallView
@@ -127,6 +138,12 @@ export const renderUIMessage = ({
             subtitle={part.title ? part.url : undefined}
             href={part.url}
           />
+        );
+      case "custom":
+        return (
+          <div key={index} className="text-sm text-gray-500">
+            {part.kind}
+          </div>
         );
       case "step-start":
         return null;
