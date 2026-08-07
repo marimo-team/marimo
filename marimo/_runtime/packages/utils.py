@@ -4,13 +4,67 @@ from __future__ import annotations
 import dataclasses
 import os
 import re
+import subprocess
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from marimo._utils.platform import is_pyodide
+from marimo._utils.subprocess import safe_popen
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+
+
+def run_package_command(
+    command: list[str],
+    *,
+    capture_output: bool = False,
+    text: bool | None = None,
+    encoding: str | None = None,
+    check: bool = False,
+    timeout: float | None = None,
+) -> subprocess.CompletedProcess[Any]:
+    """Run a package-manager command to completion.
+
+    Package commands run in their own session so that signals aimed at
+    the kernel's or server's process group (cell interrupts, notebook
+    close, Ctrl-C at the terminal) never abort them midway.
+    `start_new_session` is ignored on Windows, where interrupts don't
+    use signals.
+    """
+    kwargs: dict[str, Any] = {}
+    if capture_output:
+        kwargs["capture_output"] = capture_output
+    if text is not None:
+        kwargs["text"] = text
+    if encoding is not None:
+        kwargs["encoding"] = encoding
+    if check:
+        kwargs["check"] = check
+    if timeout is not None:
+        kwargs["timeout"] = timeout
+    return subprocess.run(command, start_new_session=True, **kwargs)
+
+
+def popen_package_command(
+    command: list[str],
+) -> subprocess.Popen[bytes] | None:
+    """Stream a package-manager command's combined output as bytes.
+
+    Same session isolation as `run_package_command`, though the command
+    is only protected while the kernel lives: its output is piped to the
+    kernel, so it can die on SIGPIPE if the kernel exits mid-command.
+    Output stays as unbuffered bytes to preserve ANSI codes in real
+    time. Returns None if the subprocess cannot be created.
+    """
+    return safe_popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        universal_newlines=False,
+        bufsize=0,
+        start_new_session=True,
+    )
 
 
 def in_virtual_environment() -> bool:
