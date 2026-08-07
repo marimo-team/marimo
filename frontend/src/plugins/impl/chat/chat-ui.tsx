@@ -26,6 +26,11 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import {
+  describeChatAbortReason,
+  getAbortReasonFromChunk,
+  resolveChatAbortReason,
+} from "@/components/chat/chat-abort";
 import { renderUIMessage } from "@/components/chat/chat-display";
 import {
   convertToFileUIPart,
@@ -168,6 +173,8 @@ export const Chatbot: React.FC<Props> = (props) => {
   // different message_id are stale (from an aborted-but-not-yet-cancelled run
   // on the kernel) and must be dropped
   const activeRequestIdRef = useRef<string | null>(null);
+  const lastAbortReasonRef = useRef<string | null>(null);
+  const [abortNotice, setAbortNotice] = useState<string | null>(null);
 
   const { data: backendMessages } = useAsyncData(async () => {
     const response = await props.get_chat_history({});
@@ -231,6 +238,8 @@ export const Chatbot: React.FC<Props> = (props) => {
           // Client-generated id used to (a) route chunks back to this stream
           // and (b) ask the kernel to cancel just this run on Stop.
           const requestId = generateUUID();
+          setAbortNotice(null);
+          lastAbortReasonRef.current = null;
 
           const stream = new ReadableStream<UIMessageChunk>({
             start(controller) {
@@ -297,15 +306,30 @@ export const Chatbot: React.FC<Props> = (props) => {
       },
     }),
     messages: initialMessages,
-    onFinish: (message) => {
+    onFinish: ({ messages, isAbort, finishReason }) => {
       setFiles(undefined);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      Logger.debug("Finished streaming message:", message);
+      Logger.debug("Finished streaming message:", { finishReason, isAbort });
 
-      props.setValue(message.messages);
+      if (isAbort) {
+        const reason = resolveChatAbortReason({
+          isAbort: true,
+          streamReason: lastAbortReasonRef.current,
+        });
+        lastAbortReasonRef.current = null;
+        if (reason != null) {
+          const description = describeChatAbortReason(reason);
+          Logger.debug("Chat stream aborted", { reason, finishReason });
+          setAbortNotice(description);
+        }
+      } else {
+        setAbortNotice(null);
+      }
+
+      props.setValue(messages);
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -322,6 +346,12 @@ export const Chatbot: React.FC<Props> = (props) => {
       );
       if (!parsedMessage.success) {
         return;
+      }
+      if (parsedMessage.data.content) {
+        const abortReason = getAbortReasonFromChunk(parsedMessage.data.content);
+        if (abortReason !== undefined) {
+          lastAbortReasonRef.current = abortReason;
+        }
       }
       routeIncomingChatChunk(parsedMessage.data, {
         controllerRef: frontendStreamControllerRef,
@@ -481,6 +511,12 @@ export const Chatbot: React.FC<Props> = (props) => {
             <Button variant="outline" size="sm" onClick={() => regenerate()}>
               Retry
             </Button>
+          </div>
+        )}
+
+        {abortNotice && !isLoading && !error && (
+          <div className="flex justify-center py-2">
+            <span className="text-xs text-muted-foreground">{abortNotice}</span>
           </div>
         )}
       </div>

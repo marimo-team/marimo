@@ -176,14 +176,17 @@ export function useStagedCells(store: JotaiStore) {
       case "message-metadata":
       case "tool-input-available":
       case "tool-output-available":
+      case "tool-approval-response":
       case "reasoning-start":
       case "reasoning-delta":
       case "reasoning-end":
       case "file":
+      case "reasoning-file":
       case "source-document":
       case "source-url":
       case "tool-input-start":
       case "tool-input-delta":
+      case "custom":
         Logger.debug(chunk.type, { chunk });
         break;
       default:
