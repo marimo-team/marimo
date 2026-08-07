@@ -145,6 +145,12 @@ or try creating a new variable instead.
         df["another_column"] = [3, 4]
         ```
 
+### Interrupts
+
+Click the stop button to interrupt a running cell and terminate processes your
+notebook started. Interrupting a cell also cancels execution of any queued
+dependent cells.
+
 ## Global variable names must be unique
 
 **marimo requires that every global variable be defined by only one cell.**

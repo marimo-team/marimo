@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import sys
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -30,6 +32,50 @@ def test_create_package_managers() -> None:
     with pytest.raises(RuntimeError) as e:
         create_package_manager("foobar")
     assert "Unknown package manager" in str(e)
+
+
+def test_spawns_go_through_session_wrappers() -> None:
+    """Package-manager subprocesses must be spawned via the wrappers in
+    marimo._runtime.packages.utils (run_package_command /
+    popen_package_command), which run them in their own session so that
+    cell interrupts and shutdown signals cannot kill them.
+    """
+    from marimo._runtime.packages import package_manager as pm_module
+
+    assert pm_module.__file__ is not None
+    banned_subprocess_calls = {
+        "run",
+        "Popen",
+        "call",
+        "check_call",
+        "check_output",
+    }
+    offenders: list[str] = []
+    for path in sorted(Path(pm_module.__file__).parent.glob("*.py")):
+        if path.name == "utils.py":
+            # The wrappers themselves live here
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            func = node.func
+            is_direct_subprocess_call = (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "subprocess"
+                and func.attr in banned_subprocess_calls
+            )
+            is_safe_popen_call = (
+                isinstance(func, ast.Name) and func.id == "safe_popen"
+            )
+            if is_direct_subprocess_call or is_safe_popen_call:
+                offenders.append(f"{path.name}:{node.lineno}")
+
+    assert not offenders, (
+        "Spawn package-manager subprocesses via run_package_command or "
+        "popen_package_command from marimo._runtime.packages.utils, not "
+        f"directly: {offenders}"
+    )
 
 
 def test_create_package_manager_with_python_exe() -> None:
@@ -391,7 +437,9 @@ async def test_package_manager_run_without_callback() -> None:
         result = await pm.run(["echo", "test"], log_callback=None)
 
         assert result is True
-        mock_run.assert_called_once_with(["echo", "test"])
+        mock_run.assert_called_once_with(
+            ["echo", "test"], start_new_session=True
+        )
 
 
 async def test_package_manager_run_with_callback() -> None:
