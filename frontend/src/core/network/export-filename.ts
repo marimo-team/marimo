@@ -4,15 +4,11 @@ import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { Filenames } from "@/utils/filenames";
 import { Paths } from "@/utils/paths";
-import type { ExportAsMarkdownRequest, MarkdownExportFlavor } from "./types";
-
-const MARKDOWN_EXTENSIONS = {
-  pymdown: "md",
-  qmd: "qmd",
-  mystmd: "myst.md",
-  mdx: "mdx",
-} satisfies Record<MarkdownExportFlavor, string>;
-const DEFAULT_MARKDOWN_EXTENSION: MarkdownExportFlavor = "pymdown";
+import {
+  DEFAULT_MARKDOWN_FLAVOR,
+  MARKDOWN_EXTENSIONS,
+} from "./markdown-export";
+import type { ExportAsMarkdownRequest } from "./types";
 
 const DEFAULT_EXPORT_FILENAME = "download";
 
@@ -36,6 +32,6 @@ export function getDefaultExportFilename(extension: string): string {
 export function getDefaultMarkdownExportFilename(
   flavor: ExportAsMarkdownRequest["flavor"],
 ): string {
-  const extension = MARKDOWN_EXTENSIONS[flavor ?? DEFAULT_MARKDOWN_EXTENSION];
+  const extension = MARKDOWN_EXTENSIONS[flavor ?? DEFAULT_MARKDOWN_FLAVOR];
   return getDefaultExportFilename(extension);
 }
