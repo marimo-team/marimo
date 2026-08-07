@@ -57,6 +57,37 @@ export function getVisibleOptions<V>(
 }
 
 /**
+ * Resolve a proposed multi-select value against min/max bounds.
+ *
+ * - Additions past `maxSelections` drop the oldest (slice to the last N).
+ * - Removals that would fall below `minSelections` are rejected (returns
+ *   `null`, signalling the caller to leave the current value unchanged).
+ * - Additions that are still below `minSelections` are allowed, so an empty
+ *   start can build up to the minimum.
+ *
+ * Returns the value to apply, or `null` to reject the change.
+ */
+export function clampSelection<V>(
+  next: V[],
+  current: V[],
+  bounds: { maxSelections?: number; minSelections?: number },
+): V[] | null {
+  const { maxSelections, minSelections } = bounds;
+  let arr = next;
+  if (maxSelections != null && arr.length > maxSelections) {
+    arr = arr.slice(-maxSelections);
+  }
+  if (
+    minSelections != null &&
+    arr.length < current.length &&
+    arr.length < minSelections
+  ) {
+    return null;
+  }
+  return arr;
+}
+
+/**
  * Decide which bulk rows the menu shows for the current search/cap state.
  *
  * When searching, the select-side spec carries the unselected matches and the
@@ -74,9 +105,19 @@ export function getBulkActions<V>(params: {
   value: V[];
   searchQuery: string;
   maxSelections: number | undefined;
+  minSelections: number | undefined;
 }): Array<BulkActionSpec<V>> {
-  const { options, filteredOptions, value, searchQuery, maxSelections } =
-    params;
+  const {
+    options,
+    filteredOptions,
+    value,
+    searchQuery,
+    maxSelections,
+    minSelections,
+  } = params;
+
+  // A positive floor makes any bulk clear that would drop below it invalid.
+  const floored = minSelections != null && minSelections > 0;
 
   if (options.length <= 2 || maxSelections === 1) {
     return [];
@@ -103,7 +144,12 @@ export function getBulkActions<V>(params: {
     if (!capped && unselectedMatches.length > 0) {
       specs.push({ kind: "select-matching", items: unselectedMatches });
     }
-    if (selectedMatches.length > 0) {
+    // Only offer "deselect matching" when it can't drop below the floor.
+    if (
+      selectedMatches.length > 0 &&
+      (minSelections == null ||
+        value.length - selectedMatches.length >= minSelections)
+    ) {
       specs.push({ kind: "deselect-matching", items: selectedMatches });
     }
     return specs;
@@ -116,6 +162,10 @@ export function getBulkActions<V>(params: {
       enabled: options.some((o) => !o.disabled && !selected.has(o.value)),
     });
   }
-  specs.push({ kind: "deselect-all", enabled: value.length > 0 });
+  // "Deselect all" clears to zero, so a positive floor disables it.
+  specs.push({
+    kind: "deselect-all",
+    enabled: value.length > 0 && !floored,
+  });
   return specs;
 }

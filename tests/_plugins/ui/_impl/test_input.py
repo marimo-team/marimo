@@ -526,6 +526,45 @@ def test_multiselect() -> None:
         ms = ui.multiselect(options=options_list, max_selections=-10)
 
 
+def test_multiselect_min_selections() -> None:
+    options_list = ["Apples", "Oranges", "Bananas"]
+
+    # Valid min_selections is accepted and wired through to the frontend.
+    ms = ui.multiselect(options=options_list, min_selections=1)
+    assert ms.value == []
+    assert ms._args.args["min-selections"] == 1
+
+    # min_selections == 0 is allowed (equivalent to no minimum).
+    ms = ui.multiselect(options=options_list, min_selections=0)
+    assert ms._args.args["min-selections"] == 0
+
+    # An empty initial value below the minimum is allowed: "choose at least
+    # one" is a normal starting state, enforced by the frontend on interaction.
+    ms = ui.multiselect(options=options_list, min_selections=2)
+    assert ms.value == []
+
+    # Exact-size selection: min == max pins the number of selections.
+    ms = ui.multiselect(
+        options=options_list, min_selections=2, max_selections=2
+    )
+    assert ms._args.args["min-selections"] == 2
+    assert ms._args.args["max-selections"] == 2
+
+    # Negative minimum is invalid.
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(options=options_list, min_selections=-1)
+
+    # Minimum greater than the number of options is unsatisfiable.
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(options=options_list, min_selections=4)
+
+    # Minimum greater than the maximum is contradictory.
+    with pytest.raises(ValueError):
+        ms = ui.multiselect(
+            options=options_list, min_selections=3, max_selections=2
+        )
+
+
 def test_multiselect_non_string_options() -> None:
     # Integer options
     options_list = [1, 2, 3]

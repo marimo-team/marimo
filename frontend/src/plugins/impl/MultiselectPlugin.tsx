@@ -11,6 +11,7 @@ interface Data {
   options: string[];
   fullWidth: boolean;
   maxSelections?: number | undefined;
+  minSelections?: number | undefined;
   disabled: boolean;
 }
 
@@ -25,6 +26,7 @@ export class MultiselectPlugin implements IPlugin<T, Data> {
     options: z.array(z.string()),
     fullWidth: z.boolean().default(false),
     maxSelections: z.number().optional(),
+    minSelections: z.number().optional(),
     disabled: z.boolean().default(false),
   });
 
@@ -59,6 +61,7 @@ export const Multiselect = ({
   setValue,
   fullWidth,
   maxSelections,
+  minSelections,
   disabled,
 }: MultiselectProps): JSX.Element => {
   const id = useId();
@@ -78,6 +81,7 @@ export const Multiselect = ({
         }
         multiple={true}
         maxSelections={maxSelections}
+        minSelections={minSelections}
         pinSelected={true}
         compactChipTrigger={true}
         fullWidth={fullWidth}

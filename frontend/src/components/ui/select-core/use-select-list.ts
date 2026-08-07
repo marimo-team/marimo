@@ -22,6 +22,11 @@ interface UseSelectListParams<V> {
   multiple: boolean;
   /** Cap on multi-select size. At the cap, picking another drops the oldest. */
   maxSelections?: number;
+  /**
+   * Floor on multi-select size. At the floor, deselecting is a no-op and bulk
+   * clears that would drop below it are suppressed.
+   */
+  minSelections?: number;
   /** Single-select only: re-picking the current value clears it to null. */
   allowSelectNone?: boolean;
   /** Match predicate over `(label, query)`; defaults to the strict word match. */
@@ -134,6 +139,7 @@ interface ToggleParams<V> {
   onChange: (next: V[] | V | null) => void;
   multiple: boolean;
   maxSelections: number | undefined;
+  minSelections: number | undefined;
   allowSelectNone: boolean | undefined;
   selected: ReadonlySet<V>;
 }
@@ -144,6 +150,7 @@ function useToggle<V>({
   onChange,
   multiple,
   maxSelections,
+  minSelections,
   allowSelectNone,
   selected,
 }: ToggleParams<V>): {
@@ -164,6 +171,10 @@ function useToggle<V>({
 
     const current = asArray(value);
     if (selected.has(candidate)) {
+      // At the floor, refuse to deselect below the minimum.
+      if (minSelections != null && current.length <= minSelections) {
+        return;
+      }
       onChange(current.filter((v) => v !== candidate));
       return;
     }
@@ -186,6 +197,7 @@ interface BulkParams<V> {
   filteredOptions: Array<Option<V>>;
   searchQuery: string;
   maxSelections: number | undefined;
+  minSelections: number | undefined;
 }
 
 /** Bulk-row specs paired with run closures; inert for single-select. */
@@ -197,6 +209,7 @@ function useBulk<V>({
   filteredOptions,
   searchQuery,
   maxSelections,
+  minSelections,
 }: BulkParams<V>): { bulkActions: Array<BulkAction<V>> } {
   const bulkActions = useMemo<Array<BulkAction<V>>>(() => {
     if (!multiple) {
@@ -208,6 +221,7 @@ function useBulk<V>({
       value: asArray(value),
       searchQuery,
       maxSelections,
+      minSelections,
     });
     return specs.map((spec): BulkAction<V> => {
       switch (spec.kind) {
@@ -257,6 +271,7 @@ function useBulk<V>({
     value,
     searchQuery,
     maxSelections,
+    minSelections,
     onChange,
   ]);
 
@@ -276,6 +291,7 @@ export function useSelectList<V>({
   onChange,
   multiple,
   maxSelections,
+  minSelections,
   allowSelectNone,
   filterFn = multiselectFilterFn,
   pinSelected = false,
@@ -311,6 +327,7 @@ export function useSelectList<V>({
     onChange,
     multiple,
     maxSelections,
+    minSelections,
     allowSelectNone,
     selected,
   });
@@ -323,6 +340,7 @@ export function useSelectList<V>({
     filteredOptions,
     searchQuery,
     maxSelections,
+    minSelections,
   });
 
   const setSearchQuery = (query: string): void => {

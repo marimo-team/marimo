@@ -9,6 +9,7 @@ import { OptionRow } from "./option-row";
 import { renderSlot, type Slot } from "./render-slot";
 import type { BulkAction, Option, OptionState } from "./types";
 import { useSelectList } from "./use-select-list";
+import { clampSelection } from "./utils";
 
 /** Above this many options the list virtualizes. */
 export const VIRTUALIZE_THRESHOLD = 200;
@@ -38,6 +39,8 @@ interface SelectListProps<V> {
   multiple: boolean;
   /** Cap on multi-select size. At the cap, picking another drops the oldest. */
   maxSelections?: number;
+  /** Floor on multi-select size. At the floor, deselecting is a no-op. */
+  minSelections?: number;
   /** Single-select only: re-picking the current value clears it to null. */
   allowSelectNone?: boolean;
   /** Float the (frozen) selection to the top of the idle menu, with a separator. */
@@ -70,6 +73,7 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
     onChange,
     multiple,
     maxSelections,
+    minSelections,
     allowSelectNone,
     pinSelected = false,
     compactChipTrigger = false,
@@ -90,6 +94,7 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
     onChange,
     multiple,
     maxSelections,
+    minSelections,
     allowSelectNone,
     pinSelected,
   });
@@ -102,11 +107,17 @@ export function SelectList<V>(props: SelectListProps<V>): React.JSX.Element {
       onChange(next);
       return;
     }
-    let arr = Array.isArray(next) ? next : [];
-    if (maxSelections != null && arr.length > maxSelections) {
-      arr = arr.slice(-maxSelections);
+    const arr = Array.isArray(next) ? next : [];
+    const resolved = clampSelection(arr, Array.isArray(value) ? value : [], {
+      maxSelections,
+      minSelections,
+    });
+    // `null` means the change would drop below the minimum: leave the
+    // controlled value untouched so the widget reverts.
+    if (resolved == null) {
+      return;
     }
-    onChange(arr);
+    onChange(resolved);
   };
 
   // Bulk rows render as raw CommandItem (not ComboboxItem) so Combobox's per-item

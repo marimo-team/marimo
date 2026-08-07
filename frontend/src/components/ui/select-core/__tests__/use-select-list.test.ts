@@ -90,6 +90,51 @@ describe("useSelectList - multi toggle", () => {
     expect(onChange).toHaveBeenCalledWith(["b", "c"]);
   });
 
+  it("refuses to deselect below minSelections (no-op at the floor)", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useSelectList({
+        options: opts,
+        value: ["a"],
+        onChange,
+        multiple: true,
+        minSelections: 1,
+      }),
+    );
+    act(() => result.current.toggle("a"));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("allows deselect while above minSelections", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useSelectList({
+        options: opts,
+        value: ["a", "b"],
+        onChange,
+        multiple: true,
+        minSelections: 1,
+      }),
+    );
+    act(() => result.current.toggle("a"));
+    expect(onChange).toHaveBeenCalledWith(["b"]);
+  });
+
+  it("still allows adding when at the minimum", () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() =>
+      useSelectList({
+        options: opts,
+        value: ["a"],
+        onChange,
+        multiple: true,
+        minSelections: 1,
+      }),
+    );
+    act(() => result.current.toggle("b"));
+    expect(onChange).toHaveBeenCalledWith(["a", "b"]);
+  });
+
   it("isChecked reflects membership", () => {
     const { result } = renderHook(() =>
       useSelectList({
