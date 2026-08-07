@@ -8,5 +8,12 @@ export const MARKDOWN_EXTENSIONS = {
   mystmd: "myst.md",
   mdx: "mdx",
 } satisfies Record<MarkdownExportFlavor, string>;
+export const MARKDOWN_SUFFIXES = [
+  ".myst.md",
+  ".markdown",
+  ".qmd",
+  ".mdx",
+  ".md",
+];
 
 export const DEFAULT_MARKDOWN_FLAVOR: MarkdownExportFlavor = "pymdown";
