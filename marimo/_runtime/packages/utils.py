@@ -28,13 +28,9 @@ def run_package_command(
 
     Package commands run in their own session so that signals aimed at
     the kernel's or server's process group (cell interrupts, notebook
-    close, Ctrl-C at the terminal) never abort them midway. In exchange,
-    an in-flight command runs to completion even if marimo exits first.
+    close, Ctrl-C at the terminal) never abort them midway.
     `start_new_session` is ignored on Windows, where interrupts don't
     use signals.
-
-    An enforcement test requires every subprocess spawn in this package
-    to go through these wrappers.
     """
     kwargs: dict[str, Any] = {}
     if capture_output:
@@ -55,9 +51,11 @@ def popen_package_command(
 ) -> subprocess.Popen[bytes] | None:
     """Stream a package-manager command's combined output as bytes.
 
-    Same session isolation as `run_package_command`. Output stays as
-    unbuffered bytes to preserve ANSI codes in real time. Returns None
-    if the subprocess cannot be created.
+    Same session isolation as `run_package_command`, though the command
+    is only protected while the kernel lives: its output is piped to the
+    kernel, so it can die on SIGPIPE if the kernel exits mid-command.
+    Output stays as unbuffered bytes to preserve ANSI codes in real
+    time. Returns None if the subprocess cannot be created.
     """
     return safe_popen(
         command,
