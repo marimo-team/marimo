@@ -1031,13 +1031,15 @@ def __():
         # Rename to the second file
         session = session_manager.get_session(session_id)
         assert session is not None
-        session.app_file_manager.rename(str(new_path))
-        assert new_path.exists()
         success, error = await session_manager.rename_session(
             session_id, str(new_path)
         )
         assert success
         assert error is None
+        assert new_path.exists()
+        assert (
+            session_manager.get_session_by_file_key(str(new_path)) is session
+        )
 
         # Modify the new file
         operations.clear()
