@@ -141,7 +141,7 @@ export const renderUIMessage = ({
         );
       case "custom":
         return (
-          <div key={index} className="text-sm text-gray-500">
+          <div key={index} className="text-sm text-muted-foreground">
             {part.kind}
           </div>
         );
