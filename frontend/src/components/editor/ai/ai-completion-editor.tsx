@@ -8,7 +8,7 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import React, { useCallback, useEffect, useId, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
@@ -43,7 +43,14 @@ import {
   AcceptCompletionButton,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
+  RunCompletionButton,
 } from "./completion-handlers";
+import {
+  captureSessionBaseline,
+  codeToRestoreOnReject,
+  originalCodeForMerge,
+  shouldRestoreBeforeResubmit,
+} from "./completion-preview";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
 import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 
@@ -189,18 +196,108 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const { theme } = useTheme();
 
+  const [hasPreviewed, setHasPreviewed] = useState(false);
+  const sessionBaselineRef = useRef<string | null>(null);
+  // Mirrors hasPreviewed for synchronous reads in the [enabled] effect below,
+  // since that effect must not depend on hasPreviewed (it would re-fire on preview).
+  const hasPreviewedRef = useRef(false);
+
+  useEffect(() => {
+    if (enabled) {
+      sessionBaselineRef.current = captureSessionBaseline(
+        sessionBaselineRef.current,
+        currentCode,
+      );
+    } else {
+      // Safety net: if the AI panel is closed/switched without going through
+      // handleDeclineCompletion (e.g. hotkey toggle, toolbar toggle, or
+      // switching AI to another cell), restore the previewed baseline so we
+      // don't leave unaccepted suggestion code in the cell.
+      const restore = codeToRestoreOnReject({
+        hasPreviewed: hasPreviewedRef.current,
+        baseline: sessionBaselineRef.current,
+      });
+      if (restore !== null) {
+        onChange(restore);
+      }
+      sessionBaselineRef.current = null;
+      hasPreviewedRef.current = false;
+      setHasPreviewed(false);
+    }
+    // Only re-capture when the AI panel opens/closes for this cell
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- intentional: freeze baseline on enable
+  }, [enabled]);
+
+  const handlePreviewRun = () => {
+    if (!completion.trim() || isLoading) {
+      return;
+    }
+    sessionBaselineRef.current = captureSessionBaseline(
+      sessionBaselineRef.current,
+      currentCode,
+    );
+    onChange(completion);
+    setHasPreviewed(true);
+    hasPreviewedRef.current = true;
+    runCell();
+  };
+
   const handleAcceptCompletion = () => {
+    // Clear preview flags before acceptChange so the [enabled] restore
+    // effect can't undo an Accept-after-preview if it fires afterwards.
+    hasPreviewedRef.current = false;
+    setHasPreviewed(false);
+    sessionBaselineRef.current = null;
     acceptChange(completion);
     setCompletion("");
   };
 
+  const restorePreviewIfNeeded = () => {
+    const restore = codeToRestoreOnReject({
+      hasPreviewed: hasPreviewedRef.current,
+      baseline: sessionBaselineRef.current,
+    });
+    if (restore !== null) {
+      onChange(restore);
+    }
+    setHasPreviewed(false);
+    hasPreviewedRef.current = false;
+  };
+
   // Reject discards the suggestion but keeps the prompt open for refinement.
   const handleDeclineCompletion = () => {
+    restorePreviewIfNeeded();
     stop();
     setCompletion("");
     setShowInputPrompt(true);
     inputRef.current?.view?.focus();
   };
+
+  // Close the AI panel entirely (X / PromptInput onClose).
+  const handleCloseCompletion = () => {
+    restorePreviewIfNeeded();
+    stop();
+    setCompletion("");
+    sessionBaselineRef.current = null;
+    declineChange();
+  };
+
+  const handlePromptSubmit = useCallback(() => {
+    if (!isLoading) {
+      if (shouldRestoreBeforeResubmit(hasPreviewed)) {
+        const restore = sessionBaselineRef.current;
+        if (restore !== null) {
+          onChange(restore);
+        }
+        setHasPreviewed(false);
+        hasPreviewedRef.current = false;
+      }
+      if (inputRef.current?.view) {
+        storePrompt(inputRef.current.view);
+      }
+      handleSubmit();
+    }
+  }, [hasPreviewed, handleSubmit, isLoading, onChange]);
 
   const showCompletionBanner =
     enabled && triggerImmediately && (completion || isLoading);
@@ -222,6 +319,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         status={isLoading ? "loading" : "generated"}
         onAccept={handleAcceptCompletion}
         onReject={handleDeclineCompletion}
+        onPreviewRun={handlePreviewRun}
         showInputPrompt={showInputPrompt}
         setShowInputPrompt={setShowInputPrompt}
         runCell={runCell}
@@ -250,7 +348,14 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const renderCompletionEditor = () => {
     if (completion && enabled) {
-      return renderMergeEditor(currentCode, completion);
+      return renderMergeEditor(
+        originalCodeForMerge({
+          hasPreviewed,
+          baseline: sessionBaselineRef.current,
+          currentCode,
+        }),
+        completion,
+      );
     }
     // If there is no completion and there is previous cell code, it means there is an AI change to the cell.
     // And we want to render the previous cell code as the original
@@ -261,6 +366,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
 
   const completionButtons = (
     <>
+      <RunCompletionButton
+        isLoading={isLoading}
+        onRun={handlePreviewRun}
+        size="xs"
+        borderless={true}
+        className="hover:shadow-none"
+      />
       <AcceptCompletionButton
         isLoading={isLoading}
         onAccept={handleAcceptCompletion}
@@ -301,23 +413,13 @@ export const AiCompletionEditor: React.FC<Props> = ({
             <PromptInput
               inputRef={inputRef}
               className="h-full my-0 py-2 flex items-center"
-              onClose={() => {
-                declineChange();
-                setCompletion("");
-              }}
+              onClose={handleCloseCompletion}
               value={input}
               onChange={(newValue) => {
                 setInput(newValue);
                 setCompletionBody(getAICompletionBody({ input: newValue }));
               }}
-              onSubmit={() => {
-                if (!isLoading) {
-                  if (inputRef.current?.view) {
-                    storePrompt(inputRef.current.view);
-                  }
-                  handleSubmit();
-                }
-              }}
+              onSubmit={handlePromptSubmit}
               onKeyDown={createAiCompletionOnKeydown({
                 handleAcceptCompletion,
                 handleDeclineCompletion,
@@ -331,7 +433,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
                 <SendButton
                   isLoading={isLoading}
                   onStop={stop}
-                  onSendClick={handleSubmit}
+                  onSendClick={handlePromptSubmit}
                   isEmpty={!input.trim()}
                   showStopLabel={true}
                 />
@@ -378,11 +480,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
               variant="text"
               size="icon"
               disabled={isLoading}
-              onClick={() => {
-                stop();
-                declineChange();
-                setCompletion("");
-              }}
+              onClick={handleCloseCompletion}
             >
               <XIcon className="text-(--red-10)" size={16} />
             </Button>
@@ -402,6 +500,7 @@ interface CompletionBannerProps {
   status: "loading" | "generated";
   onAccept: () => void;
   onReject: () => void;
+  onPreviewRun: () => void;
   showInputPrompt: boolean;
   setShowInputPrompt: (show: boolean) => void;
   runCell: () => void;
@@ -412,6 +511,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
   status,
   onAccept,
   onReject,
+  onPreviewRun,
   className,
   showInputPrompt,
   setShowInputPrompt,
@@ -464,6 +564,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
       </div>
 
       <div className="flex flex-row items-center gap-2 ml-auto">
+        <RunCompletionButton
+          isLoading={isLoading}
+          onRun={onPreviewRun}
+          size="xs"
+          borderless={true}
+          className="hover:shadow-none"
+        />
         <AcceptCompletionButton
           isLoading={isLoading}
           onAccept={onAccept}

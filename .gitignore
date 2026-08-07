@@ -136,3 +136,6 @@ site
 
 .agents/
 *skills*
+
+# Local agent worktrees
+.worktrees/
