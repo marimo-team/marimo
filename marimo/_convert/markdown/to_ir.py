@@ -44,7 +44,6 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownImportContext,
     MarkdownImportDialect,
 )
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
@@ -91,12 +90,13 @@ def extract_attribs(
 
 def _is_code_tag(text: str) -> bool:
     head = text.split("\n")[0].strip()
-    legacy_format = bool(re.search(r"\{.*python.*\}", head))
-    legacy_format |= bool(re.search(r"\{.*sql.*\}", head))
-    if DependencyManager.new_superfences.has_required_version(quiet=True):
-        supported_format = bool(re.search(r".*\{.*marimo.*\}", head))
-        return legacy_format or supported_format
-    return legacy_format
+    # ```python {.marimo attr=...}, and the legacy
+    # ```{.python.marimo attr=...} form we still read
+    return bool(
+        re.search(r"\{.*python.*\}", head)
+        or re.search(r"\{.*sql.*\}", head)
+        or re.search(r"\{.*marimo.*\}", head)
+    )
 
 
 def _get_language(text: str) -> str:
