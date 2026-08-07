@@ -92,6 +92,8 @@ class NotebookSessionV1(BaseDict):
     metadata: NotebookSessionMetadata
     # The cells in the notebook
     cells: list[Cell]
+    # Widget/UI element values at time of export
+    ui_values: Optional[dict[str, Any]]
 
     # In future, we may want to add
     # - variables
