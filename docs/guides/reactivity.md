@@ -147,9 +147,7 @@ or try creating a new variable instead.
 
 ### Interrupts
 
-Click the stop button to interrupt a running cell and terminate processes your
-notebook started. Interrupting a cell also cancels execution of any queued
-dependent cells.
+Click the stop button to interrupt a running cell. On Unix-like systems, this also terminates subprocesses started by the cell (except those started in a new session). Interrupting a cell also cancels execution of any queued dependent cells.
 
 ## Global variable names must be unique
 
