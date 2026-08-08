@@ -364,3 +364,45 @@ def test_contains_instance_no_iter_dict() -> None:
     assert (
         contains_instance(collection, int) is False
     )  # Cannot probe opaque collection
+
+
+def test_contains_instance_with_extra_children() -> None:
+    class Container:
+        def __init__(self, children):
+            self.children = children
+
+    def get_children(value):
+        if isinstance(value, Container):
+            return value.children
+        return None
+
+    nested = Container([1, "a", Container([2, 3.0])])
+    assert (
+        contains_instance(nested, float, extra_children=get_children) is True
+    )
+    assert contains_instance(nested, str, extra_children=get_children) is True
+    assert (
+        contains_instance(nested, bytes, extra_children=get_children) is False
+    )
+    # Without extra_children, the utility has no way to see inside the
+    # custom container and should not find anything.
+    assert contains_instance(nested, float) is False
+
+
+def test_contains_instance_extra_children_not_called_for_builtins() -> None:
+    # extra_children is not consulted for values that are themselves a
+    # raw list/tuple/dict; those use the normal built-in traversal
+    # instead. It may still be called on their non-container leaf
+    # elements (e.g. plain ints), which is fine and expected.
+    seen = []
+
+    def get_children(value):
+        seen.append(value)
+        return
+
+    outer = [1, (2, 3), {"a": 4}]
+    contains_instance(outer, str, extra_children=get_children)
+
+    assert outer not in seen
+    assert (2, 3) not in seen
+    assert {"a": 4} not in seen
