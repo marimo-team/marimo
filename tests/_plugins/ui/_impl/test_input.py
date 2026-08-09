@@ -393,6 +393,19 @@ def test_radio_from_dataframe() -> None:
     assert radio.value == "b"
 
 
+def test_radio_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.radio(options=["1", "2", "3"], value="4")
+
+    assert "is not a valid option" in str(e.value)
+
+    radio = ui.radio(options=["1", "2", "3"], value="1")
+    with pytest.raises(ValueError) as e:
+        radio._update("4")
+
+    assert "is not a valid option" in str(e.value)
+
+
 def test_dropdown() -> None:
     dd = ui.dropdown(options=["1", "2", "3"])
     assert dd.value is None
@@ -464,6 +477,19 @@ def test_dropdown_with_non_string_options() -> None:
 def test_dropdown_lots_of_options() -> None:
     dropdown = ui.dropdown(options={str(i): i for i in range(2000)})
     assert dropdown._component_args["searchable"] is True
+
+
+def test_dropdown_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.dropdown(options=["1", "2", "3"], value="4")
+
+    assert "is not a valid option" in str(e.value)
+
+    dd = ui.dropdown(options=["1", "2", "3"], value="1")
+    with pytest.raises(ValueError) as e:
+        dd._update(["4"])
+
+    assert "is not a valid option" in str(e.value)
 
 
 def test_dropdown_disabled() -> None:
@@ -593,6 +619,19 @@ def test_multiselect_too_many_options() -> None:
         ui.multiselect(options={str(i): i for i in range(200000)})
 
     assert "maximum number" in str(e.value)
+
+
+def test_multiselect_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.multiselect(options=["1", "2", "3"], value=["4"])
+
+    assert "is not a valid option" in str(e.value)
+
+    ms = ui.multiselect(options=["1", "2", "3"], value=["1"])
+    with pytest.raises(ValueError) as e:
+        ms._update(["1", "4"])
+
+    assert "is not a valid option" in str(e.value)
 
 
 def test_multiselect_disabled() -> None:
