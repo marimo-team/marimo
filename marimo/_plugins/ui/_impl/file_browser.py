@@ -260,11 +260,7 @@ class file_browser(
         values = _normalize_values(value, multiple=multiple)
 
         # Save the Path class and client used to construct paths
-        path_source = (
-            values[0]
-            if not initial_path and values and not restrict_navigation
-            else initial_path
-        )
+        path_source = values[0] if values else initial_path
         self._path_cls: type[Path]
         if isinstance(path_source, str):
             self._path_cls = Path
