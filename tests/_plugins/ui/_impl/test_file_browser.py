@@ -164,6 +164,27 @@ def test_restricted_file_browser_does_not_infer_initial_path(
     assert fb._initial_path == tmp_path
 
 
+def test_restricted_file_browser_accepts_symlinked_cwd_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_directory = tmp_path / "real"
+    real_directory.mkdir()
+    symlinked_directory = tmp_path / "symlink"
+    try:
+        symlinked_directory.symlink_to(real_directory)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    selected = symlinked_directory / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(symlinked_directory)
+
+    fb = file_browser(value=selected, restrict_navigation=True)
+
+    assert fb.path() == selected
+
+
 def test_restricted_file_browser_rejects_unreachable_default_value(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

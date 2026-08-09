@@ -103,6 +103,15 @@ def _common_parent(paths: Sequence[Path]) -> Path:
     return candidate
 
 
+def _is_path_within(path: Path, parent: Path) -> bool:
+    """Return whether `path` resolves within `parent`."""
+    try:
+        path.resolve(strict=True).relative_to(parent.resolve())
+    except (ValueError, RuntimeError, OSError):
+        return False
+    return True
+
+
 @dataclass
 class ListDirectoryArgs:
     path: str
@@ -320,7 +329,7 @@ class file_browser(
 
         if restrict_navigation:
             for selected_path in selected_paths:
-                if not selected_path.parent.is_relative_to(self._initial_path):
+                if not _is_path_within(selected_path, self._initial_path):
                     raise ValueError(
                         f"Default value {selected_path} is outside the "
                         f"restricted initial path {self._initial_path}."
@@ -480,12 +489,7 @@ class file_browser(
         path = self._create_path(args.path)
 
         if self._restrict_navigation:
-            try:
-                path.resolve(strict=True).relative_to(
-                    self._initial_path.resolve()
-                )
-            # NB. RuntimeError vs OSError depends on the version of python.
-            except (ValueError, RuntimeError, OSError):
+            if not _is_path_within(path, self._initial_path):
                 raise RuntimeError(
                     "Navigation is restricted; navigating outside the initial path is not allowed."
                 ) from None
