@@ -247,9 +247,7 @@ def _():
 
     import pydantic_ai.ui.vercel_ai.response_types as vercel
 
-    # Matches mo.ui.chat / frontend USER_CANCELLED_ABORT_REASON. AbortChunk
-    # with reason= is available on marimo's minimum pydantic-ai
-    # (pydantic-ai-slim>=1.107.0).
+    # Matches mo.ui.chat / frontend USER_CANCELLED_ABORT_REASON.
     USER_CANCELLED_ABORT_REASON = "user_cancelled"
 
 
