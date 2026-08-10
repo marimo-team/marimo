@@ -46,6 +46,9 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "capabilities": {
+          "web_search": "off",
+        },
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
@@ -120,6 +123,9 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "capabilities": {
+          "web_search": "off",
+        },
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,

@@ -145,13 +145,18 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         tools: list[ToolDefinition] | None = None,
         toolsets: Sequence[AbstractToolset[None]] | None = None,
         extra_capabilities: Sequence[AbstractCapability[None]] | None = None,
+        enable_capabilities: bool = True,
         system_prompt: str,
     ) -> Agent[None, DeferredToolRequests | str]:
         """Create a Pydantic AI agent."""
         from pydantic_ai import Agent
 
         model = self.create_model()
-        capabilities = self._build_agent_capabilities(model)
+        capabilities = (
+            self._build_agent_capabilities(model)
+            if enable_capabilities
+            else []
+        )
         if extra_capabilities:
             capabilities.extend(extra_capabilities)
         agent_toolsets, output_type = self._resolve_agent_toolsets(
@@ -213,6 +218,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         max_tokens: int | None,
         additional_tools: list[ToolDefinition],
         stream_options: StreamOptions,
+        enable_capabilities: bool = True,
     ) -> StreamingResponse:
         """Return a streaming response from the given messages. The response are AI SDK events."""
         tools = (self.config.tools or []) + additional_tools
@@ -222,6 +228,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             max_tokens=max_tokens,
             tools=tools,
             system_prompt=system_prompt,
+            enable_capabilities=enable_capabilities,
         )
         stream_options.span_info.tool_count = len(tools) + len(
             agent.root_capability.capabilities
@@ -261,6 +268,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         max_tokens: int,
         additional_tools: list[ToolDefinition],
         span_info: SpanInfo,
+        enable_capabilities: bool = True,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -272,6 +280,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             max_tokens=max_tokens,
             tools=tools,
             system_prompt=system_prompt,
+            enable_capabilities=enable_capabilities,
         )
         span_info.tool_count = len(tools) + len(
             agent.root_capability.capabilities
@@ -338,18 +347,22 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
         capabilities: list[AbstractCapability[None]] = []
 
-        if DependencyManager.duckduckgo_search.has():
-            capabilities.append(WebSearch(local="duckduckgo"))
-        elif WebSearchTool in supported:
-            capabilities.append(WebSearch())
+        if (
+            self.config.capabilities
+            and self.config.capabilities.get("web_search") == "on"
+        ):
+            if DependencyManager.duckduckgo_search.has():
+                capabilities.append(WebSearch(local="duckduckgo"))
+            elif WebSearchTool in supported:
+                capabilities.append(WebSearch())
 
-        if DependencyManager.markdownify.has():
-            capabilities.append(WebFetch(local=True))
-        elif WebFetchTool in supported:
-            capabilities.append(WebFetch())
+            if DependencyManager.markdownify.has():
+                capabilities.append(WebFetch(local=True))
+            elif WebFetchTool in supported:
+                capabilities.append(WebFetch())
 
-        if XSearchTool in supported:
-            capabilities.append(XSearch())
+            if XSearchTool in supported:
+                capabilities.append(XSearch())
 
         LOGGER.debug(
             "Capabilities: %s for model: %s", capabilities, self.model

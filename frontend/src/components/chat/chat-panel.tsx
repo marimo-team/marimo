@@ -36,7 +36,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import { replaceMessagesInChat } from "@/core/ai/chat-utils";
-import { useModelChange } from "@/core/ai/config";
+import { useAIConfigActions } from "@/core/ai/config";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { useStagedAICellsActions } from "@/core/ai/staged-cells";
@@ -91,6 +91,7 @@ import {
 } from "./chat-abort";
 import { renderUIMessage } from "./chat-display";
 import { ChatHistoryPopover } from "./chat-history-popover";
+import { CapabilitiesPopover } from "./capabilities-popover";
 import {
   type ChatMessagePart,
   convertToFileUIPart,
@@ -298,7 +299,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
     const currentModel = ai?.models?.chat_model || DEFAULT_AI_MODEL;
     const currentProvider = AiModelId.parse(currentModel).providerId;
 
-    const { saveModeChange } = useModelChange();
+    const { saveModeChange } = useAIConfigActions();
 
     const modeOptions: {
       value: CopilotMode;
@@ -326,8 +327,9 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
       {
         value: "code_mode",
-        label: "Code Mode (experimental)",
-        subtitle: "AI with access to the notebook's kernel. Use with caution.",
+        label: "Code Mode",
+        subtitle:
+          "AI with access to the notebook's kernel. Can overwrite changes.",
         Icon: CodeIcon,
       },
     ];
@@ -382,6 +384,7 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
               showAddCustomModelDocs={true}
               forRole="chat"
             />
+            <CapabilitiesPopover />
           </div>
           <div className="flex flex-row">
             <AddContextButton

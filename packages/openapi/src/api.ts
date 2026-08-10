@@ -3646,6 +3646,22 @@ export interface components {
       /** @default false */
       upgrade?: boolean | null;
     };
+    /**
+     * AiCapabilitiesConfig
+     * @description Configuration for optional AI capabilities.
+     *
+     *         These are capabilities that can be attached to a chat agent
+     *
+     *         **Keys.**
+     *
+     *         - `web_search`: if `"on"`, let the AI assistant search the web when the
+     *             configured model supports it (natively, or via a local fallback).
+     *             Defaults to `"off"`.
+     */
+    AiCapabilitiesConfig: {
+      /** @enum {unknown} */
+      web_search?: "off" | "on";
+    };
     /** AiCompletionContext */
     AiCompletionContext: {
       /** @default  */
@@ -3688,6 +3704,7 @@ export interface components {
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `models`: the models to use for AI completions
+     *         - `capabilities`: optional AI capabilities, e.g. web search
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
      *         - `google`: the Google AI config
@@ -3705,6 +3722,7 @@ export interface components {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
+      capabilities?: components["schemas"]["AiCapabilitiesConfig"];
       custom_providers?: {
         [key: string]: components["schemas"]["OpenAiConfig"];
       };

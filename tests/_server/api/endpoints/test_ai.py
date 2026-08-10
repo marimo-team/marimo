@@ -394,6 +394,10 @@ class TestAnthropicAiEndpoints:
             _assert_completion_prompt_in_messages(
                 stream_completion_mock, "Help me create a dataframe"
             )
+            assert (
+                stream_completion_mock.call_args.kwargs["enable_capabilities"]
+                is False
+            )
 
     @staticmethod
     @with_session(SESSION_ID)
@@ -546,6 +550,7 @@ class TestGoogleAiEndpoints:
             # Assert the prompt it was called with
             completion_mock.assert_called_once()
             call_kwargs = completion_mock.call_args.kwargs
+            assert call_kwargs["enable_capabilities"] is False
             messages = call_kwargs["messages"]
             assert len(messages) == 1
             assert messages[0].parts[0].text == (
@@ -684,6 +689,12 @@ def test_chat_without_code(
         assert response.status_code == 200, response.text
         # Verify stream_completion was called
         mock_stream_completion.assert_called_once()
+        assert (
+            mock_stream_completion.call_args.kwargs.get(
+                "enable_capabilities", True
+            )
+            is True
+        )
 
 
 @pytest.mark.requires("openai", "pydantic_ai")

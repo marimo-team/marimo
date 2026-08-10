@@ -10,6 +10,7 @@ from typing import (
 from starlette.exceptions import HTTPException
 
 from marimo._config.config import (
+    AiCapabilitiesConfig,
     AiConfig,
     CopilotMode,
     MarimoConfig,
@@ -37,6 +38,7 @@ class AnyProviderConfig:
     client_pem: str | None = None
     extra_headers: dict[str, str] | None = None
     tools: list[ToolDefinition] | None = None
+    capabilities: AiCapabilitiesConfig | None = None
 
     def __post_init__(self) -> None:
         # Only include tools if they are available
@@ -206,6 +208,7 @@ class AnyProviderConfig:
             "client_pem": ai_config.get("client_pem", None),
             "extra_headers": ai_config.get("extra_headers", None),
             "tools": _get_tools(config.get("mode", "manual")),
+            "capabilities": config.get("capabilities", None),
         }
 
         return AnyProviderConfig(**kwargs)
@@ -224,6 +227,7 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
+            capabilities=config.get("capabilities", None),
         )
 
     @classmethod
@@ -243,6 +247,7 @@ class AnyProviderConfig:
             api_key=key,
             ssl_verify=True,
             tools=_get_tools(config.get("mode", "manual")),
+            capabilities=config.get("capabilities", None),
         )
 
     @classmethod
@@ -253,6 +258,7 @@ class AnyProviderConfig:
             base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
             tools=_get_tools(config.get("mode", "manual")),
+            capabilities=config.get("capabilities", None),
         )
 
     @classmethod

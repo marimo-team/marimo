@@ -163,6 +163,7 @@ async def ai_completion(
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
         additional_tools=[],
+        enable_capabilities=False,
         stream_options=StreamOptions(
             span_info=SpanInfo(
                 endpoint="completion",
@@ -312,6 +313,7 @@ async def ai_inline_completion(
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
             additional_tools=[],
+            enable_capabilities=False,
             span_info=SpanInfo(
                 endpoint="inline_completion",
                 model=model,

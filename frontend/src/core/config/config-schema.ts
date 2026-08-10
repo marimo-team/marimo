@@ -60,6 +60,13 @@ const AiConfigSchema = z
   })
   .loose();
 
+export const AI_CAPABILITIES = ["web_search"] as const;
+export type AiCapability = (typeof AI_CAPABILITIES)[number];
+
+const AiCapabilitiesSchema = z.object({
+  web_search: z.enum(["off", "on"]).prefault("off"),
+});
+
 const AiModelsSchema = z.object({
   chat_model: z.string().nullish(),
   edit_model: z.string().nullish(),
@@ -169,6 +176,7 @@ export const UserConfigSchema = z
         max_tokens: z.number().int().positive().nullable().optional(),
         mode: z.enum(COPILOT_MODES).prefault("manual"),
         inline_tooltip: z.boolean().prefault(false),
+        capabilities: AiCapabilitiesSchema.prefault({ web_search: "off" }),
         open_ai: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),

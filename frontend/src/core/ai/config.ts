@@ -5,6 +5,7 @@ import { useAtom } from "jotai";
 import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { userConfigAtom } from "@/core/config/config";
 import type {
+  AiCapability,
   AIModelKey,
   CopilotMode,
   UserConfig,
@@ -28,7 +29,7 @@ const getModelKeyForRole = (forRole: SupportedRole): AIModelKey | null => {
 /**
  * Hook for saving model and mode changes.
  */
-export const useModelChange = () => {
+export const useAIConfigActions = () => {
   const [userConfig, setUserConfig] = useAtom(userConfigAtom);
   const { saveUserConfig } = useRequestClient();
 
@@ -74,5 +75,22 @@ export const useModelChange = () => {
     await saveConfig(newConfig);
   };
 
-  return { saveModelChange, saveModeChange };
+  const saveCapabilityChange = async (
+    capability: AiCapability,
+    enabled: boolean,
+  ) => {
+    const newConfig: Partial<UserConfig> = {
+      ai: {
+        ...userConfig.ai,
+        capabilities: {
+          ...userConfig.ai?.capabilities,
+          [capability]: enabled ? "on" : "off",
+        },
+      },
+    };
+
+    await saveConfig(newConfig);
+  };
+
+  return { saveModelChange, saveModeChange, saveCapabilityChange };
 };

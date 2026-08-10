@@ -1027,6 +1027,32 @@ class TestGetAiConfig:
         assert result == {"api_key": "test-key"}
 
 
+class TestGetCapabilities:
+    """Tests for capability config wiring."""
+
+    def test_wired_into_for_openai(self):
+        config: AiConfig = {
+            "open_ai": {"api_key": "test-key"},
+            "capabilities": {"web_search": "on"},
+        }
+        assert AnyProviderConfig.for_openai(config).capabilities == {
+            "web_search": "on"
+        }
+
+    def test_wired_into_for_anthropic(self):
+        config: AiConfig = {
+            "anthropic": {"api_key": "test-key"},
+            "capabilities": {"web_search": "on"},
+        }
+        assert AnyProviderConfig.for_anthropic(config).capabilities == {
+            "web_search": "on"
+        }
+
+    def test_wired_into_for_openrouter_defaults_none(self):
+        config: AiConfig = {"openrouter": {"api_key": "test-key"}}
+        assert AnyProviderConfig.for_openrouter(config).capabilities is None
+
+
 class TestUtilityFunctions:
     """Tests for utility functions."""
 

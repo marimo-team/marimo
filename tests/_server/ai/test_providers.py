@@ -980,14 +980,19 @@ def test_custom_provider_non_openrouter_omits_cache_settings() -> None:
 @pytest.mark.requires("pydantic_ai")
 def test_build_agent_capabilities_from_native_tool_support() -> None:
     """Provider-adaptive tools are enabled based on the model profile's
-    supported native tools when no local search/fetch deps are installed."""
+    supported native tools when no local search/fetch deps are installed
+    and web search is explicitly turned on."""
     from pydantic_ai.native_tools import (
         WebFetchTool,
         WebSearchTool,
         XSearchTool,
     )
 
-    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        capabilities={"web_search": "on"},
+    )
     provider = OpenAIProvider("gpt-4", config)
 
     model = MagicMock(name="model")
@@ -1010,6 +1015,74 @@ def test_build_agent_capabilities_from_native_tool_support() -> None:
         "WebSearch",
         "XSearch",
     ]
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_agent_capabilities_uses_local_fallbacks() -> None:
+    """Enabled web capabilities use local fallbacks without native support."""
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        capabilities={"web_search": "on"},
+    )
+    provider = OpenAIProvider("gpt-4", config)
+
+    model = MagicMock(name="model")
+    model.profile.supported_native_tools = set()
+    web_search = MagicMock(name="web_search")
+    web_fetch = MagicMock(name="web_fetch")
+
+    with (
+        patch.object(
+            DependencyManager.duckduckgo_search, "has", return_value=True
+        ),
+        patch.object(DependencyManager.markdownify, "has", return_value=True),
+        patch(
+            "pydantic_ai.capabilities.WebSearch", return_value=web_search
+        ) as mock_web_search,
+        patch(
+            "pydantic_ai.capabilities.WebFetch", return_value=web_fetch
+        ) as mock_web_fetch,
+    ):
+        capabilities = provider._build_agent_capabilities(model)
+
+    assert capabilities == [web_search, web_fetch]
+    mock_web_search.assert_called_once_with(local="duckduckgo")
+    mock_web_fetch.assert_called_once_with(local=True)
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_agent_capabilities_disabled_when_off() -> None:
+    """Provider-adaptive capabilities are disabled when configured off."""
+    from pydantic_ai.native_tools import (
+        WebFetchTool,
+        WebSearchTool,
+        XSearchTool,
+    )
+
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        capabilities={"web_search": "off"},
+    )
+    provider = OpenAIProvider("gpt-4", config)
+
+    model = MagicMock(name="model")
+    model.profile.supported_native_tools = {
+        WebSearchTool,
+        WebFetchTool,
+        XSearchTool,
+    }
+
+    with (
+        patch.object(
+            DependencyManager.duckduckgo_search, "has", return_value=False
+        ),
+        patch.object(DependencyManager.markdownify, "has", return_value=False),
+    ):
+        capabilities = provider._build_agent_capabilities(model)
+
+    assert capabilities == []
 
 
 @pytest.mark.requires("pydantic_ai")
