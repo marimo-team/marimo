@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
@@ -11,6 +10,7 @@ from marimo._runtime import dataflow
 from marimo._runtime.app.common import RunOutput
 from marimo._runtime.context.types import (
     get_context,
+    initialize_context,
     runtime_context_installed,
     teardown_context,
 )
@@ -32,11 +32,13 @@ from marimo._runtime.patches import (
 from marimo._runtime.runner.result import RunResult
 from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import run_coroutine_blocking
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from marimo._ast.app import InternalApp
+    from marimo._runtime.context.types import RuntimeContext
 
 
 class AppScriptRunner:
@@ -74,7 +76,7 @@ class AppScriptRunner:
 
     # _run_synchronous and _run_asynchronous are deliberate near-twins:
     # the only difference is the await on the cell step. Keeping them
-    # as separate methods (rather than wrapping with asyncio.run
+    # as separate methods (rather than driving an event loop
     # unconditionally) preserves the no-event-loop guarantee for purely
     # synchronous apps.
     def _run_synchronous(
@@ -145,6 +147,32 @@ class AppScriptRunner:
                             hook()
         return outputs, glbls
 
+    async def _run_asynchronous_in_context(
+        self,
+        context: RuntimeContext,
+        post_execute_hooks: list[Callable[[], Any]],
+    ) -> RunOutput:
+        """`_run_asynchronous`, but safe to await on any thread.
+
+        `run_coroutine_blocking` hands this coroutine to a worker thread when
+        the caller already has a running event loop, which is what happens
+        when an async notebook is executed from inside another notebook via
+        `app.run()` or `await app.embed()`. The runtime context is
+        thread-local, so reinstall it when the body lands on a thread that
+        doesn't have one; on the common path it is already installed and this
+        is a no-op.
+        """
+        installed = not runtime_context_installed()
+        if installed:
+            initialize_context(context)
+        try:
+            return await self._run_asynchronous(
+                post_execute_hooks=post_execute_hooks,
+            )
+        finally:
+            if installed:
+                teardown_context()
+
     def _handle_run_result(
         self,
         cid: CellId_t,
@@ -212,8 +240,6 @@ class AppScriptRunner:
             from marimo._output.formatting import FORMATTERS
 
             if not FORMATTERS.is_empty():
-                from marimo._runtime.context import get_context
-
                 register_formatters(
                     theme=get_context().marimo_config["display"]["theme"]
                 )
@@ -225,8 +251,9 @@ class AppScriptRunner:
                 post_execute_hooks.append(close_figures)
 
             if is_async:
-                outputs, defs = asyncio.run(
-                    self._run_asynchronous(
+                outputs, defs = run_coroutine_blocking(
+                    self._run_asynchronous_in_context(
+                        get_context(),
                         post_execute_hooks=post_execute_hooks,
                     )
                 )
