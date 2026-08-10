@@ -49,6 +49,17 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
     minHeight: "2rem",
   };
 
+  // The slider's width="100%" images resolve against its shadow-DOM wrappers (circular),
+  // so size the images explicitly and letterbox with object-fit to keep them aligned.
+  const hasExplicitDimensions = width !== undefined || height !== undefined;
+  const imageStyle: React.CSSProperties | undefined = hasExplicitDimensions
+    ? {
+        width: width,
+        height: height,
+        objectFit: "contain",
+      }
+    : undefined;
+
   // If an image fails to load, the slider collapses to nothing; surface a
   // visible error instead of silently rendering an empty output.
   if (failedSrcs.size > 0) {
@@ -67,12 +78,18 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
 
   return (
     <div style={containerStyle}>
-      <ImgComparisonSlider value={value} direction={direction}>
+      <ImgComparisonSlider
+        value={value}
+        direction={direction}
+        // inline-block leaves a baseline gap below the slider; align to top.
+        style={{ verticalAlign: "top" }}
+      >
         <img
           slot="first"
           src={beforeSrc}
           alt="Before"
           width="100%"
+          style={imageStyle}
           onError={() => handleError(beforeSrc)}
         />
         <img
@@ -80,6 +97,7 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
           src={afterSrc}
           alt="After"
           width="100%"
+          style={imageStyle}
           onError={() => handleError(afterSrc)}
         />
       </ImgComparisonSlider>
