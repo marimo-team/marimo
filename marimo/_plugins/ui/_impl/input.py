@@ -702,7 +702,10 @@ class radio(UIElement[str | None, Any]):
         return radio(options=options, label=label, **kwargs)
 
     def _convert_value(self, value: str | None) -> Any:
-        return self.options[value] if value is not None else None
+        if value is None:
+            return None
+        _validate_option_name(value, self.options)
+        return self.options[value]
 
 
 @mddoc
@@ -948,6 +951,17 @@ def _to_option_name(option: Any) -> str:
         return repr(option)
 
 
+def _validate_option_name(option_name: str, options: dict[str, Any]) -> None:
+    """Raise a helpful error if `option_name` isn't one of `options`."""
+    if option_name not in options:
+        raise ValueError(
+            f"The option name '{option_name}' "
+            "is not a valid option. "
+            "Please use one of the following options: "
+            f"{list(options.keys())}"
+        )
+
+
 @mddoc
 class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
@@ -1076,13 +1090,7 @@ class dropdown(UIElement[list[str], Any]):
         if value:
             assert len(value) == 1, "Dropdowns only support a single value"
             self._selected_key = value[0]
-            if self._selected_key not in self.options:
-                raise ValueError(
-                    f"The option name '{self._selected_key}' "
-                    "is not a valid option. "
-                    "Please use one of the following options: "
-                    f"{list(self.options.keys())}"
-                )
+            _validate_option_name(self._selected_key, self.options)
             return self.options[value[0]]
         else:
             self._selected_key = None
@@ -1195,6 +1203,8 @@ class multiselect(UIElement[list[str], list[object]]):
         return multiselect(options=options, label=label, **kwargs)
 
     def _convert_value(self, value: list[str]) -> list[object]:
+        for v in value:
+            _validate_option_name(v, self.options)
         return [self.options[v] for v in value]
 
 
