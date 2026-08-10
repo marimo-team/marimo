@@ -98,7 +98,9 @@ async def list_files(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=FileListRequest)
-    # Use workspace's directory as default, fall back to cwd
+    # Use workspace's directory as default, fall back to cwd.
+    # NB. This isn't a security boundary; the workspace is just the initial view
+    # for the browser.
     directory = app_state.session_manager.workspace.directory
     root = body.path or directory or file_system.get_root()
     files = file_system.list_files(root)
