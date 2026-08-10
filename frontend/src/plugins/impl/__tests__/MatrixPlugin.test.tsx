@@ -562,6 +562,41 @@ describe("MatrixPlugin cell editing", () => {
     ]);
   });
 
+  it("keeps the symmetric mirror within the transpose cell's bounds", () => {
+    // Asymmetric per-cell bounds on a symmetric matrix: [0][1] allows up to
+    // 100, but its transpose [1][0] is capped at 5. Editing [0][1] must not
+    // smuggle an out-of-bounds value into the mirror, and the pair must stay
+    // equal — so the shared value is clamped to the intersection (max 5).
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        symmetric: true,
+        maxValue: [
+          [100, 100],
+          [5, 100],
+        ],
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.doubleClick(getByTestId("matrix-cell-0-1"));
+    const input = getByTestId("matrix-input-0-1");
+    fireEvent.change(input, { target: { value: "7" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [0, 5],
+      [5, 0],
+    ]);
+  });
+
   it("Enter opens the editor from the keyboard", () => {
     const plugin = new MatrixPlugin();
     const props = makeProps();

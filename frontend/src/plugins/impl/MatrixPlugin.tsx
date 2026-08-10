@@ -146,16 +146,23 @@ const MatrixComponent = ({
     [minValue, maxValue],
   );
 
+  // The single mutation chokepoint for every edit path (drag, arrow, type).
+  // Bounds are enforced here so no path can escape them. In symmetric mode
+  // the pair must stay equal *and* respect both cells' bounds, so the shared
+  // value is clamped to the intersection of the two ranges.
   const withCellValue = useCallback(
     (base: T, row: number, col: number, newValue: number): T => {
       const copy = base.map((r) => [...r]);
-      copy[row][col] = newValue;
       if (symmetric && row !== col) {
-        copy[col][row] = newValue;
+        const shared = clampValue(clampValue(newValue, row, col), col, row);
+        copy[row][col] = shared;
+        copy[col][row] = shared;
+      } else {
+        copy[row][col] = clampValue(newValue, row, col);
       }
       return copy;
     },
-    [symmetric],
+    [symmetric, clampValue],
   );
 
   const startEditing = useCallback(
