@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import abc
 import re
-import subprocess
 import sys
 from collections.abc import Callable
 from typing import TYPE_CHECKING
@@ -14,8 +13,11 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._runtime.packages.utils import append_version
-from marimo._utils.subprocess import safe_popen
+from marimo._runtime.packages.utils import (
+    append_version,
+    popen_package_command,
+    run_package_command,
+)
 
 if TYPE_CHECKING:
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -156,17 +158,11 @@ class PackageManager(abc.ABC):
 
         if log_callback is None:
             # Original behavior - just run the command without capturing output
-            completed_process = subprocess.run(command)
+            completed_process = run_package_command(command)
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = safe_popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=False,  # Keep as bytes to preserve ANSI codes
-            bufsize=0,  # Unbuffered for real-time output
-        )
+        proc = popen_package_command(command)
 
         if proc is None:
             return False

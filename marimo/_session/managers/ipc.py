@@ -8,9 +8,7 @@ via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
 from __future__ import annotations
 
 import os
-import signal
 import subprocess
-import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -35,7 +33,10 @@ from marimo._session._venv import (
 from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
-from marimo._utils.subprocess import try_kill_process_and_group
+from marimo._utils.subprocess import (
+    interrupt_kernel_process,
+    try_kill_process_and_group,
+)
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -382,14 +383,11 @@ class IPCKernelManagerImpl(KernelManager):
         if self._process is None:
             return
 
-        if self._process.pid is not None:
-            q = self.queue_manager.win32_interrupt_queue
-            if sys.platform == "win32" and q is not None:
-                LOGGER.debug("Queueing interrupt request for kernel.")
-                q.put_nowait(True)
-            else:
-                LOGGER.debug("Sending SIGINT to kernel")
-                os.kill(self._process.pid, signal.SIGINT)
+        if self._process.pid is not None and self.is_alive():
+            interrupt_kernel_process(
+                self._process.pid,
+                self.queue_manager.win32_interrupt_queue,
+            )
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         del graceful  # unsupported here: IPC shutdown never waits for exit.

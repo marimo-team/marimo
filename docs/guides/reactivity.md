@@ -145,6 +145,14 @@ or try creating a new variable instead.
         df["another_column"] = [3, 4]
         ```
 
+### Interrupts
+
+Click the stop button to interrupt a running cell. On Unix-like systems, this
+also interrupts subprocesses in the kernel's process group. To keep a
+subprocess running after an interrupt, start it in a new session, for example
+with `subprocess.Popen(..., start_new_session=True)`. Interrupting a cell also
+cancels execution of any queued dependent cells.
+
 ## Global variable names must be unique
 
 **marimo requires that every global variable be defined by only one cell.**

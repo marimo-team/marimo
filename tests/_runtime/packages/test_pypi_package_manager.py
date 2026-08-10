@@ -40,6 +40,9 @@ def _assert_cmd_called_once_with(
     mock.assert_called_once()
     call_args, call_kwargs = mock.call_args
     assert _normalize_cmd(call_args[0]) == _normalize_cmd(expected_cmd)
+    # Package-manager commands always run in their own session so that
+    # cell interrupts don't abort them
+    assert call_kwargs.pop("start_new_session", None) is True
     assert call_kwargs == expected_kwargs
 
 
@@ -142,6 +145,7 @@ async def test_install(mock_run: MagicMock):
 
     mock_run.assert_called_once_with(
         [PY_EXE, "-m", "pip", "install", "package1", "package2"],
+        start_new_session=True,
     )
     assert result is True
 
@@ -174,6 +178,7 @@ async def test_uninstall(mock_run: MagicMock):
             "package1",
             "package2",
         ],
+        start_new_session=True,
     )
     assert result is True
 
@@ -196,6 +201,7 @@ def test_list_packages(mock_run: MagicMock):
         capture_output=True,
         text=True,
         encoding="utf-8",
+        start_new_session=True,
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
@@ -237,7 +243,7 @@ def test_poetry_generate_cmd_version_two_prefers_without_dev(
         ["poetry", "show", "--without", "dev"],
         capture_output=True,
         text=True,
-        check=False,
+        start_new_session=True,
     )
 
 
