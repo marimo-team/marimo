@@ -51,11 +51,11 @@ const ImageComparisonComponent: React.FC<ImageComparisonData> = ({
 
   // The slider's width="100%" images resolve against its shadow-DOM wrappers (circular),
   // so size the images explicitly and letterbox with object-fit to keep them aligned.
-  const hasExplicitDimensions = width !== undefined || height !== undefined;
-  const imageStyle: React.CSSProperties | undefined = hasExplicitDimensions
+  // Treat empty strings as "not provided" (normalize_dimension passes them through).
+  const imageStyle: React.CSSProperties | undefined = width || height
     ? {
-        width: width,
-        height: height,
+        width: width || undefined,
+        height: height || undefined,
         objectFit: "contain",
       }
     : undefined;

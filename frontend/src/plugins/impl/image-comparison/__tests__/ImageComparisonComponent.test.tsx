@@ -93,6 +93,28 @@ describe("ImageComparisonComponent", () => {
     }
   });
 
+  it("applies height-only sizing to both images", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} height="300px" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.height).toBe("300px");
+      expect((img as HTMLElement).style.objectFit).toBe("contain");
+    }
+  });
+
+  it("treats empty-string dimensions as not provided", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} width="" height="" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.width).toBe("");
+      expect((img as HTMLElement).style.height).toBe("");
+    }
+  });
+
   it("leaves images unstyled when no dimensions are given", () => {
     const { getAllByAltText } = render(
       <ImageComparisonComponent {...baseProps} />,
