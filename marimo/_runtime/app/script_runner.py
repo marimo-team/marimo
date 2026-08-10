@@ -162,15 +162,16 @@ class AppScriptRunner:
         doesn't have one; on the common path it is already installed and this
         is a no-op.
         """
-        installed = not runtime_context_installed()
-        if installed:
+        installed_context = False
+        if not runtime_context_installed():
             initialize_context(context)
+            installed_context = True
         try:
             return await self._run_asynchronous(
                 post_execute_hooks=post_execute_hooks,
             )
         finally:
-            if installed:
+            if installed_context:
                 teardown_context()
 
     def _handle_run_result(
