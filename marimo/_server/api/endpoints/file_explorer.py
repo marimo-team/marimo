@@ -49,6 +49,27 @@ if TYPE_CHECKING:
 
 LOGGER = _loggers.marimo_logger()
 
+# Design note on scope and path handling (please read).
+#
+# Every endpoint below is gated by `@requires("edit")`, so it is reachable only
+# in edit mode, not by a run-mode viewer (`read` scope). Edit-mode marimo is
+# equivalent to a standard IDE, which allows file traversal and arbitrary file
+# read/write. Moreover, edit-mode marimo is, by design, equivalent to
+# arbitrary code execution. As such, there is no privilege escalation or
+# unexpected file read/write vulnerability in these endpoints.
+#
+# See marimo's security model and disclosure policy in docs/security.md
+# (https://docs.marimo.io/security/) before drafting an advisory for this file.
+#
+# A brief checklist if you are considering disclosing a vulnerability:
+#   - Is unexpected or unintended code execution possible?
+#   - Are unauthenticated users allowed unintended environment details?
+#   - Are unauthenticated users allowed unintended file system access?
+#   - Are unauthenticated users allowed unintended arbitrary code execution?
+#
+# The marimo team takes security seriously, and we welcome responsible
+# disclosure of any vulnerabilities. We are happy to discuss any reports.
+
 # Router for file system endpoints
 router = APIRouter()
 
