@@ -397,13 +397,15 @@ def test_radio_invalid_value() -> None:
     with pytest.raises(ValueError) as e:
         ui.radio(options=["1", "2", "3"], value="4")
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
     radio = ui.radio(options=["1", "2", "3"], value="1")
     with pytest.raises(ValueError) as e:
         radio._update("4")
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
 
 def test_dropdown() -> None:
@@ -483,13 +485,15 @@ def test_dropdown_invalid_value() -> None:
     with pytest.raises(ValueError) as e:
         ui.dropdown(options=["1", "2", "3"], value="4")
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
     dd = ui.dropdown(options=["1", "2", "3"], value="1")
     with pytest.raises(ValueError) as e:
         dd._update(["4"])
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
 
 def test_dropdown_disabled() -> None:
@@ -625,13 +629,15 @@ def test_multiselect_invalid_value() -> None:
     with pytest.raises(ValueError) as e:
         ui.multiselect(options=["1", "2", "3"], value=["4"])
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
     ms = ui.multiselect(options=["1", "2", "3"], value=["1"])
     with pytest.raises(ValueError) as e:
         ms._update(["1", "4"])
 
-    assert "is not a valid option" in str(e.value)
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
 
 def test_multiselect_disabled() -> None:
