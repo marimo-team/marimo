@@ -76,6 +76,18 @@ function hasJSONSchemaShape(metadata: Record<string, unknown>): boolean {
   return JSON_SCHEMA_SHAPE_KEYS.some((key) => key in metadata);
 }
 
+function getZodSchemaType(schema: unknown): string {
+  const definitions = schema as unknown as {
+    def?: { type?: unknown };
+    _zod?: { def?: { type?: unknown } };
+  };
+  const type = definitions.def?.type ?? definitions._zod?.def?.type;
+  if (typeof type !== "string") {
+    throw new Error("Unable to determine the Zod schema type");
+  }
+  return type;
+}
+
 function rewriteSharedReferences(
   value: unknown,
   componentName: string,
@@ -115,6 +127,9 @@ function toComponentSchemas(
   const registry = z.registry<{ id: string }>();
   registry.add(schema, { id: componentName });
   const unrepresentablePaths = new Set<string>();
+  // Zod may visit the same emitted path more than once, such as for both an
+  // underlying custom schema and its metadata-bearing clone. The path is valid
+  // when any visit provides an explicit JSON Schema representation.
   const representedPaths = new Set<string>();
 
   const result = z.toJSONSchema(registry, {
@@ -122,7 +137,7 @@ function toComponentSchemas(
     unrepresentable: "any",
     uri: (id) => `#/components/schemas/${id}`,
     override: ({ jsonSchema, path, zodSchema }) => {
-      const type = (zodSchema._zod.def as { type: string }).type;
+      const type = getZodSchemaType(zodSchema);
       if (!UNREPRESENTABLE_ZOD_TYPES.has(type)) {
         return;
       }

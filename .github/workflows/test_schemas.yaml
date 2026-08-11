@@ -145,15 +145,26 @@ jobs:
             const displayName = process.env.DISPLAY_NAME || 'Schema';
             const regenerationCommand = process.env.REGENERATION_COMMAND;
 
-            const remediation = regenerationCommand
-              ? `\n\nThis file is generated. If the Zod change is intentional, regenerate it with:\n\n\`\`\`sh\n${regenerationCommand}\n\`\`\`\n\nIf the artifact is already current, this is a breaking plugin API change. Restore backward compatibility before merging.`
-              : '';
-
-            const output = `Breaking changes detected in the ${displayName}!
-
-            \`\`\`
-            ${breakingChanges}
-            \`\`\`${remediation}`;
+            const outputLines = [
+              `Breaking changes detected in the ${displayName}!`,
+              '',
+              '```',
+              breakingChanges,
+              '```',
+            ];
+            if (regenerationCommand) {
+              outputLines.push(
+                '',
+                'This file is generated. If the Zod change is intentional, regenerate it with:',
+                '',
+                '```sh',
+                regenerationCommand,
+                '```',
+                '',
+                'If the artifact is already current, this is a breaking plugin API change. Restore backward compatibility before merging.',
+              );
+            }
+            const output = outputLines.join('\n');
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,

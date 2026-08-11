@@ -13,7 +13,10 @@ import {
   type PluginOpenAPIDocument,
 } from "./plugin-schema";
 
-const SCHEMA_PATH = resolve(process.cwd(), "plugins.openapi.yaml");
+const SCHEMA_PATH = resolve(
+  import.meta.dirname,
+  "../../../plugins.openapi.yaml",
+);
 const REGENERATE_COMMAND =
   "pnpm --filter @marimo-team/frontend plugins:generate-schema";
 
@@ -21,9 +24,66 @@ const REGENERATE_COMMAND =
 // registries directly and should not allocate or import schema-generation code.
 const ALL_PLUGINS = [...UI_PLUGINS, ...LAYOUT_PLUGINS];
 
+function schemaPath(...segments: PropertyKey[]): string {
+  return JSON.stringify(segments);
+}
+
+const ANY_WIDGET_MODEL_ID_PATH = schemaPath("properties", "modelId");
+const DATA_TABLE_STATS_COMPONENTS = new Set([
+  "marimo-table.get_column_summaries.output",
+  "marimo-table.preview_column.output",
+]);
+const DATA_TABLE_STATS_FIELDS = [
+  "min",
+  "max",
+  "std",
+  "mean",
+  "median",
+  "p5",
+  "p25",
+  "p75",
+  "p95",
+] as const;
+const DATA_TABLE_NAN_PATHS = new Set(
+  DATA_TABLE_STATS_FIELDS.flatMap((field) => [
+    schemaPath("properties", "stats", "properties", field, "anyOf", 1),
+    schemaPath(
+      "properties",
+      "stats",
+      "additionalProperties",
+      "properties",
+      field,
+      "anyOf",
+      1,
+    ),
+  ]),
+);
+const DATA_TABLE_BIN_DATE_PATHS = new Set([
+  schemaPath(
+    "properties",
+    "bin_values",
+    "additionalProperties",
+    "items",
+    "properties",
+    "bin_start",
+    "anyOf",
+    2,
+  ),
+  schemaPath(
+    "properties",
+    "bin_values",
+    "additionalProperties",
+    "items",
+    "properties",
+    "bin_end",
+    "anyOf",
+    2,
+  ),
+]);
+
 const livePluginOverrides: BuildPluginSpecOptions = {
   unrepresentableSchemaOverride: ({ componentName, path, type }) => {
-    const pathText = path.map(String).join(".");
+    const pathKey = schemaPath(...path);
 
     // These validators accept values that JSON cannot encode directly. Their
     // explicit wire representations live here to avoid adding schema metadata
@@ -31,21 +91,21 @@ const livePluginOverrides: BuildPluginSpecOptions = {
     if (
       componentName === "marimo-anywidget.data" &&
       type === "custom" &&
-      pathText.includes("modelId")
+      pathKey === ANY_WIDGET_MODEL_ID_PATH
     ) {
       return { type: "string", minLength: 1 };
     }
     if (
-      (componentName === "marimo-table.get_column_summaries.output" ||
-        componentName === "marimo-table.preview_column.output") &&
-      type === "nan"
+      DATA_TABLE_STATS_COMPONENTS.has(componentName) &&
+      type === "nan" &&
+      DATA_TABLE_NAN_PATHS.has(pathKey)
     ) {
       return { type: "number" };
     }
     if (
       componentName === "marimo-table.get_column_summaries.output" &&
       type === "custom" &&
-      (pathText.includes("bin_start") || pathText.includes("bin_end"))
+      DATA_TABLE_BIN_DATE_PATHS.has(pathKey)
     ) {
       return { type: "string", format: "date-time" };
     }

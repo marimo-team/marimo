@@ -179,7 +179,7 @@
     "lint:oxlint": "oxlint --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "preview": "vite preview",
-    "plugins:generate-schema": "UPDATE_PLUGIN_SCHEMA=1 vitest run src/plugins/__tests__/plugin-schema.test.ts",
+    "plugins:generate-schema": "cross-env UPDATE_PLUGIN_SCHEMA=1 vitest run src/plugins/__tests__/plugin-schema.test.ts",
     "dev:quarto": "VITE_MARIMO_ISLANDS=true vite",
     "dev:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
     "build:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
