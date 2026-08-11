@@ -4,6 +4,14 @@ import { describe, expect, it } from "vitest";
 import { ChartSchema } from "../schemas";
 
 describe("ChartSchema", () => {
+  it("keeps a known axis column type", () => {
+    const result = ChartSchema.parse({
+      general: { xColumn: { field: "count", type: "integer" } },
+    });
+
+    expect(result.general?.xColumn?.type).toBe("integer");
+  });
+
   it("normalizes an unrecognized axis column type", () => {
     const result = ChartSchema.parse({
       general: { xColumn: { field: "geom", type: "geometry" } },
