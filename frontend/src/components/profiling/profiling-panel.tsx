@@ -9,6 +9,7 @@ import {
   componentRenderCountAtom,
   domNodeCountAtom,
   editorViewCountAtom,
+  profilerEventsAtom,
   profilingEnabledAtom,
   resetProfilingAtom,
   wsMessageCountAtom,
@@ -25,6 +26,7 @@ export const ProfilingPanel: React.FC = () => {
   const editorViewCount = useAtomValue(editorViewCountAtom);
   const domNodeCount = useAtomValue(domNodeCountAtom);
   const wsMessageRate = useAtomValue(wsMessageRateAtom);
+  const profilerEvents = useAtomValue(profilerEventsAtom);
   const resetProfiling = useSetAtom(resetProfilingAtom);
   const lastMessageCountRef = useRef(0);
 
@@ -68,6 +70,25 @@ export const ProfilingPanel: React.FC = () => {
     (a, b) => b[1] - a[1],
   );
 
+  const profilerRollup = new Map<
+    string,
+    { count: number; total: number; max: number }
+  >();
+  for (const event of profilerEvents) {
+    const entry = profilerRollup.get(event.id) ?? {
+      count: 0,
+      total: 0,
+      max: 0,
+    };
+    entry.count += 1;
+    entry.total += event.actualDuration;
+    entry.max = Math.max(entry.max, event.actualDuration);
+    profilerRollup.set(event.id, entry);
+  }
+  const sortedProfiler = [...profilerRollup.entries()].toSorted(
+    (a, b) => b[1].total - a[1].total,
+  );
+
   const exportJson = () => {
     void navigator.clipboard.writeText(
       JSON.stringify(
@@ -77,6 +98,7 @@ export const ProfilingPanel: React.FC = () => {
           editorViewCount,
           wsMessageRate,
           domNodeCount,
+          profilerEvents,
         },
         null,
         2,
@@ -131,6 +153,24 @@ export const ProfilingPanel: React.FC = () => {
             <div key={name} className="flex flex-row justify-between py-0.5">
               <span>{name}</span>
               <span>{count}</span>
+            </div>
+          ))
+        )}
+
+        <div className="font-semibold mt-3">Slowest renders</div>
+        {sortedProfiler.length === 0 ? (
+          <div className="opacity-70">
+            Render durations require a development build (or a
+            react-dom/profiling alias).
+          </div>
+        ) : (
+          sortedProfiler.map(([id, { count, total, max }]) => (
+            <div key={id} className="flex flex-row justify-between py-0.5">
+              <span>{id}</span>
+              <span>
+                {count} renders · {total.toFixed(1)} ms total · avg{" "}
+                {(total / count).toFixed(1)} ms · max {max.toFixed(1)} ms
+              </span>
             </div>
           ))
         )}

@@ -5,6 +5,7 @@ import type React from "react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   componentRenderCountAtom,
+  profilerEventsAtom,
   profilingEnabledAtom,
 } from "@/core/profiling/atoms";
 import { store } from "@/core/state/jotai";
@@ -18,6 +19,7 @@ describe("ProfilingPanel", () => {
   beforeEach(() => {
     store.set(profilingEnabledAtom, false);
     store.set(componentRenderCountAtom, {});
+    store.set(profilerEventsAtom, []);
   });
 
   afterEach(() => {
@@ -66,5 +68,42 @@ describe("ProfilingPanel", () => {
     expect(JSON.parse(writeText.mock.calls[0][0])).toEqual(
       expect.objectContaining({ componentRenderCounts: { Cell: 5 } }),
     );
+  });
+
+  test("shows slowest renders rollup when profiler events exist", () => {
+    store.set(profilingEnabledAtom, true);
+    store.set(profilerEventsAtom, [
+      {
+        id: "Cell",
+        phase: "update",
+        actualDuration: 3,
+        baseDuration: 10,
+        timestamp: 1,
+      },
+      {
+        id: "Cell",
+        phase: "update",
+        actualDuration: 5,
+        baseDuration: 10,
+        timestamp: 2,
+      },
+      {
+        id: "OutputArea",
+        phase: "update",
+        actualDuration: 20,
+        baseDuration: 30,
+        timestamp: 3,
+      },
+    ]);
+
+    render(<ProfilingPanel />, { wrapper });
+
+    expect(screen.getByText("OutputArea")).toBeTruthy();
+    expect(
+      screen.getByText(
+        /1 renders · 20\.0 ms total · avg 20\.0 ms · max 20\.0 ms/,
+      ),
+    ).toBeTruthy();
+    expect(screen.getByText(/2 renders · 8\.0 ms total/)).toBeTruthy();
   });
 });

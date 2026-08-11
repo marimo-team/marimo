@@ -42,6 +42,7 @@ import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
 import { useProfiling } from "@/core/profiling/useProfiling";
+import { ProfilingWrapper } from "@/core/profiling/profiling-wrapper";
 
 const METADATA_KEY = "__metadata__";
 
@@ -385,21 +386,23 @@ export const OutputArea = React.memo(
     const Container = allowExpand ? ExpandableOutput : Div;
 
     return (
-      <ErrorBoundary>
-        <Container
-          title={title}
-          cellId={cellId}
-          forceExpand={forceExpand}
-          id={CellOutputId.create(cellId)}
-          className={cn(
-            stale && "marimo-output-stale",
-            loading && "marimo-output-loading",
-            className,
-          )}
-        >
-          <OutputRenderer cellId={cellId} message={output} />
-        </Container>
-      </ErrorBoundary>
+      <ProfilingWrapper name="OutputArea">
+        <ErrorBoundary>
+          <Container
+            title={title}
+            cellId={cellId}
+            forceExpand={forceExpand}
+            id={CellOutputId.create(cellId)}
+            className={cn(
+              stale && "marimo-output-stale",
+              loading && "marimo-output-loading",
+              className,
+            )}
+          >
+            <OutputRenderer cellId={cellId} message={output} />
+          </Container>
+        </ErrorBoundary>
+      </ProfilingWrapper>
     );
   },
 );

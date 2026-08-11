@@ -19,6 +19,7 @@ import {
   OVERRIDABLE_LAYOUT_TYPES,
 } from "./types";
 import { useProfiling } from "@/core/profiling/useProfiling";
+import { ProfilingWrapper } from "@/core/profiling/profiling-wrapper";
 
 interface Props {
   appConfig: AppConfig;
@@ -100,5 +101,5 @@ export const PluginCellRenderer = (props: PluginCellRendererProps) => {
     />
   );
 
-  return body;
+  return <ProfilingWrapper name="PluginCellRenderer">{body}</ProfilingWrapper>;
 };

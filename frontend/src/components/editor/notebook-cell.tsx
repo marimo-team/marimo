@@ -94,6 +94,7 @@ import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
 import { useProfiling } from "@/core/profiling/useProfiling";
+import { ProfilingWrapper } from "@/core/profiling/profiling-wrapper";
 
 /**
  * Hook for handling cell completion logic
@@ -295,35 +296,33 @@ const CellComponent = (props: CellProps) => {
     [editorView],
   );
 
-  if (cellId === SETUP_CELL_ID) {
-    return (
-      <SetupCellComponent
-        {...props}
-        cellId={cellId}
-        editorView={editorView}
-        setEditorView={(ev) => {
-          editorView.current = ev;
-        }}
-      />
-    );
-  }
-
-  // Present mode is handled by EditableCellComponent with the edit chrome
-  // hidden, so that the output DOM is not remounted when toggling modes.
-  if (mode === "edit" || mode === "present") {
-    return (
-      <EditableCellComponent
-        {...props}
-        cellId={cellId}
-        editorView={editorView}
-        setEditorView={(ev) => {
-          editorView.current = ev;
-        }}
-      />
-    );
-  }
-
-  return <ReadonlyCellComponent cellId={cellId} />;
+  return (
+    <ProfilingWrapper name="Cell">
+      {cellId === SETUP_CELL_ID ? (
+        <SetupCellComponent
+          {...props}
+          cellId={cellId}
+          editorView={editorView}
+          setEditorView={(ev) => {
+            editorView.current = ev;
+          }}
+        />
+      ) : mode === "edit" || mode === "present" ? (
+        // Present mode is handled by EditableCellComponent with the edit chrome
+        // hidden, so that the output DOM is not remounted when toggling modes.
+        <EditableCellComponent
+          {...props}
+          cellId={cellId}
+          editorView={editorView}
+          setEditorView={(ev) => {
+            editorView.current = ev;
+          }}
+        />
+      ) : (
+        <ReadonlyCellComponent cellId={cellId} />
+      )}
+    </ProfilingWrapper>
+  );
 };
 
 const ReadonlyCellComponent = forwardRef(
