@@ -401,9 +401,11 @@ x = as_marimo_element.count
         assert "css" not in wrapped._component_args
 
     @staticmethod
-    async def test_esm_spec_hash() -> None:
-        # The component no longer carries the code hash; it lives on
-        # the ESM spec the comm minted at open.
+    async def test_esm_spec_hash(
+        executing_kernel: Kernel,  # noqa: ARG004
+    ) -> None:
+        # The model notification remains the source of ESM. Virtual-file
+        # specs are also referenced by the component to retain their storage.
         class JSWidget(_anywidget.AnyWidget):
             _esm = ""
             value = traitlets.Int(0).tag(sync=True)
@@ -423,6 +425,9 @@ x = as_marimo_element.count
         comm2 = wrapped2.widget.comm
         assert isinstance(comm2, MarimoComm)
         assert comm2.esm_spec is not None
+        assert wrapped2._component_args["esm-url"] == comm2.esm_spec.url
+        assert wrapped2._component_args["esm-hash"] == comm2.esm_spec.hash
+        assert wrapped2._component_args["esm-url"].startswith("./@file/")
         assert comm2.esm_spec.hash == hash_code(JSWidget2._esm)
 
     @staticmethod

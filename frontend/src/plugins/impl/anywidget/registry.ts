@@ -117,6 +117,7 @@ export class WidgetRegistry implements WidgetResolver {
     modelId: WidgetModelId;
     el: HTMLElement;
     signal: AbortSignal;
+    viewSpec?: EsmSpec;
   }): Promise<void> {
     return this.#getOrCreateRuntime(options.modelId).createView(options);
   }
