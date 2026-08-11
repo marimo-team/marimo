@@ -101,8 +101,10 @@ export const ColumnName = ({
   columnName: React.ReactNode;
   dataType: DataType;
 }) => {
-  const Icon = DATA_TYPE_ICON[dataType] ?? DATA_TYPE_ICON.unknown;
-  const color = getDataTypeColor(dataType);
+  const resolvedDataType =
+    DATA_TYPE_ICON[dataType] === undefined ? "unknown" : dataType;
+  const Icon = DATA_TYPE_ICON[resolvedDataType];
+  const color = getDataTypeColor(resolvedDataType);
 
   return (
     <div className="flex flex-row items-center gap-1.5">
