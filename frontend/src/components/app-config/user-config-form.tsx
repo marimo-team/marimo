@@ -985,6 +985,32 @@ export const UserConfigForm: React.FC = () => {
                   </div>
                 )}
               />
+              <OverriddenFormField
+                control={form.control}
+                name="display.code_lens"
+                render={({ field, override }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Code lens</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="code-lens-checkbox"
+                          checked={override.value}
+                          disabled={override.isOverridden}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+
+                    <FormDescription>
+                      Shows inline icons in cell editors that link datasources,
+                      storage buckets, and caches to their panels.
+                    </FormDescription>
+                  </div>
+                )}
+              />
             </SettingGroup>
             <SettingGroup title="Outputs">
               <OverriddenFormField

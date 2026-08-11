@@ -141,6 +141,10 @@ describe("codeLensBundle", () => {
     return [...v.dom.querySelectorAll<HTMLElement>(".mo-code-lens")];
   }
 
+  it("returns an empty extension when disabled via `display.code_lens`", () => {
+    expect(codeLensBundle(cellId("cell1"), false)).toEqual([]);
+  });
+
   it("renders a lens at a dataframe declaration", async () => {
     seedStore({ tables: [DF_TABLE] });
     const v = await mount("df = load()\nx = 1");

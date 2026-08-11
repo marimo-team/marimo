@@ -66,6 +66,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
+        "code_lens": true,
         "dataframes": "rich",
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
@@ -139,6 +140,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
+        "code_lens": true,
         "dataframes": "rich",
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
