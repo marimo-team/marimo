@@ -22,6 +22,9 @@ export type AutoExportAsMarkdownRequest =
   schemas["AutoExportAsMarkdownRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
+export type MarkdownExportFlavor = NonNullable<
+  ExportAsMarkdownRequest["flavor"]
+>;
 export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
