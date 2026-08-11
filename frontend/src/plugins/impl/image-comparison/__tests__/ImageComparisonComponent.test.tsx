@@ -68,4 +68,62 @@ describe("ImageComparisonComponent", () => {
     expect(error?.textContent).toContain("…");
     expect(error?.textContent).not.toContain("A".repeat(200));
   });
+
+  it("sizes both images explicitly when dimensions are given", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} width="300px" height="300px" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.width).toBe("300px");
+      expect((img as HTMLElement).style.height).toBe("300px");
+      // Letterbox identically so the slider's clip stays aligned.
+      expect((img as HTMLElement).style.objectFit).toBe("contain");
+    }
+  });
+
+  it("applies a single dimension to both images when only one is given", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} width="300px" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.width).toBe("300px");
+      expect((img as HTMLElement).style.objectFit).toBe("contain");
+    }
+  });
+
+  it("applies height-only sizing to both images", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} height="300px" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.height).toBe("300px");
+      expect((img as HTMLElement).style.objectFit).toBe("contain");
+    }
+  });
+
+  it("treats empty-string dimensions as not provided", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} width="" height="" />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      expect((img as HTMLElement).style.width).toBe("");
+      expect((img as HTMLElement).style.height).toBe("");
+    }
+  });
+
+  it("leaves images unstyled when no dimensions are given", () => {
+    const { getAllByAltText } = render(
+      <ImageComparisonComponent {...baseProps} />,
+    );
+
+    for (const img of getAllByAltText(/Before|After/)) {
+      // No explicit sizing: the slider keeps its intrinsic-size behavior.
+      expect((img as HTMLElement).style.width).toBe("");
+      expect((img as HTMLElement).style.height).toBe("");
+    }
+  });
 });
