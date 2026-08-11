@@ -5,7 +5,11 @@ import type { CSSProperties } from "react";
 import { TreeChevron } from "@/components/editor/file-tree/tree-actions";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
-import { DATA_TYPE_ICON, getDataTypeColor } from "../datasets/icons";
+import {
+  DATA_TYPE_ICON,
+  getDataTypeColor,
+  resolveDataType,
+} from "../datasets/icons";
 
 export const RotatingChevron: React.FC<{ isExpanded: boolean }> = ({
   isExpanded,
@@ -101,8 +105,7 @@ export const ColumnName = ({
   columnName: React.ReactNode;
   dataType: DataType;
 }) => {
-  const resolvedDataType =
-    DATA_TYPE_ICON[dataType] === undefined ? "unknown" : dataType;
+  const resolvedDataType = resolveDataType(dataType);
   const Icon = DATA_TYPE_ICON[resolvedDataType];
   const color = getDataTypeColor(resolvedDataType);
 
