@@ -1,0 +1,18 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+import { describe, expect, it } from "vitest";
+import { columnToFieldTypesSchema } from "../schema";
+
+describe("columnToFieldTypesSchema", () => {
+  it("normalizes an unrecognized field type without discarding other fields", () => {
+    const result = columnToFieldTypesSchema.parse([
+      ["geom", ["geometry", "geometry"]],
+      ["label", ["string", "object"]],
+    ]);
+
+    expect(result).toEqual([
+      ["geom", ["unknown", "geometry"]],
+      ["label", ["string", "object"]],
+    ]);
+  });
+});
