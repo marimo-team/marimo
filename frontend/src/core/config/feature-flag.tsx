@@ -13,7 +13,6 @@ export interface ExperimentalFeatures {
   external_agents: boolean;
   debugger: boolean; // Live frame-watching debugger (gutter breakpoints + pdb)
   line_timing: boolean; // Green active-line highlight + per-line elapsed timer
-  editor_code_lens: boolean; // Inline icons in cell editors linking datasources/buckets/caches to their panels
   // Add new feature flags here
 }
 
@@ -25,7 +24,6 @@ const defaultValues: ExperimentalFeatures = {
   external_agents: import.meta.env.DEV,
   debugger: false,
   line_timing: false,
-  editor_code_lens: import.meta.env.DEV,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(
