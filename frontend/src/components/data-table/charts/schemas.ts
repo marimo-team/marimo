@@ -28,7 +28,7 @@ export const BinSchema = z.object({
 
 const BaseColumnSchema = z.object({
   field: z.string().optional(),
-  type: z.enum([...DATA_TYPES, EMPTY_VALUE]).optional(),
+  type: z.enum([...DATA_TYPES, EMPTY_VALUE]).catch("unknown").optional(),
   selectedDataType: z.enum([...SELECTABLE_DATA_TYPES, EMPTY_VALUE]).optional(),
   sort: z.enum(SORT_TYPES).default("ascending").optional(),
   timeUnit: z.enum(TIME_UNITS).optional(),
@@ -102,7 +102,7 @@ export const ChartSchema = z.object({
       fields: z.array(
         z.object({
           field: z.string(),
-          type: z.enum(DATA_TYPES),
+          type: z.enum(DATA_TYPES).catch("unknown"),
         }),
       ),
     })
