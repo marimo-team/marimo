@@ -291,7 +291,7 @@ export function shouldFlushQueue(opts: {
 export function useMessageQueue() {
   const [messages, setMessages] = useState<QueuedUserMessage[]>([]);
   // Mirror the queue in a ref so `flushNext` reads the latest value even when
-  // invoked from a callback (e.g. `onFinish`) captured on an earlier render.
+  // invoked from a callback (e.g. `onFinish`) in the same tick as `enqueue`.
   const messagesRef = useRef<QueuedUserMessage[]>([]);
   const hasQueuedRef = useRef(false);
   messagesRef.current = messages;
