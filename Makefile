@@ -98,6 +98,11 @@ fe-test:
 e2e:
 	cd frontend; pnpm playwright install; pnpm playwright test
 
+.PHONY: perf-snapshot
+# ⚡ Capture performance metrics as a markdown table for PR descriptions
+perf-snapshot:
+	./scripts/perf-snapshot.sh
+
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
