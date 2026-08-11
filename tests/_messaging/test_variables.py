@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import gc
 import os
 from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -218,22 +220,41 @@ def test_get_variable_preview_bytesarray() -> None:
     create_dataframes({"A": list(range(1000000)), "B": ["x"] * 1000000}),
 )
 def test_get_variable_preview_dataframe(df: Any) -> None:
+    from marimo._plugins.ui._impl.tables.narwhals_table import (
+        NarwhalsTableManager,
+    )
+
+    with patch.object(
+        NarwhalsTableManager, "as_frame", MagicMock()
+    ) as mock_as_frame:
+        preview = get_variable_preview(df)
+        mock_as_frame.assert_not_called()
+    assert "2 columns" in preview
+
+    # RSS guard is pandas-only: Python ints are large enough to detect copies
+    # above macOS arm64 allocator noise (~18MB).
+    if not DependencyManager.pandas.has():
+        return
+
+    import pandas as pd
+
+    if not isinstance(df, pd.DataFrame):
+        return
+
     import psutil
 
     process = psutil.Process(os.getpid())
 
+    gc.collect()
     mem_before = process.memory_info().rss
-    preview = get_variable_preview(df)
+    get_variable_preview(df)
     mem_after = process.memory_info().rss
 
     mem_diff_mb = (mem_after - mem_before) / (1024 * 1024)
 
-    # Threshold is well under copying the 1M-row frame but loose enough to
-    # absorb allocator noise on macOS arm64 runners.
-    assert mem_diff_mb < 15, (
+    assert mem_diff_mb < 25, (
         f"Memory increased by {mem_diff_mb}MB during preview"
     )
-    assert "2 columns" in preview
 
 
 class TestStringifyVariableValue:
