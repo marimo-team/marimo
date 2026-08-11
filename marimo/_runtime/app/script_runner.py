@@ -152,15 +152,13 @@ class AppScriptRunner:
         context: RuntimeContext,
         post_execute_hooks: list[Callable[[], Any]],
     ) -> RunOutput:
-        """`_run_asynchronous`, but safe to await on any thread.
+        """Run the app's cells asynchronously under `context`.
 
-        `run_coroutine_blocking` hands this coroutine to a worker thread when
-        the caller already has a running event loop, which is what happens
-        when an async notebook is executed from inside another notebook via
-        `app.run()` or `await app.embed()`. The runtime context is
-        thread-local, so reinstall it when the body lands on a thread that
-        doesn't have one; on the common path it is already installed and this
-        is a no-op.
+        The runtime context is thread-local. If the awaiting thread has no
+        context installed, `context` is installed for the duration of the run
+        and torn down afterwards; a thread that already has one is left
+        untouched. This makes the coroutine safe to await on a thread other
+        than the one `context` was created on.
         """
         installed_context = False
         if not runtime_context_installed():
