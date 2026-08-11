@@ -1005,8 +1005,8 @@ export const UserConfigForm: React.FC = () => {
                     </FormItem>
 
                     <FormDescription>
-                      Shows inline icons in cell editors that link datasources,
-                      storage buckets, and caches to their panels.
+                      Shows inline icons in cell editors for datasources and
+                      storage buckets.
                     </FormDescription>
                   </div>
                 )}
