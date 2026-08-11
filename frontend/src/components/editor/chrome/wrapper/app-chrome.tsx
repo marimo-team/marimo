@@ -46,6 +46,7 @@ import {
   LazyLogsPanel,
   LazyOutlinePanel,
   LazyPackagesPanel,
+  LazyProfilingPanel,
   LazyScratchpadPanel,
   LazySecretsPanel,
   LazySessionPanel,
@@ -313,6 +314,7 @@ export const AppChrome: React.FC<PropsWithChildren> = ({ children }) => {
     errors: <LazyErrorsPanel.Component />,
     scratchpad: <LazyScratchpadPanel.Component />,
     tracing: <LazyTracingPanel.Component />,
+    profiling: <LazyProfilingPanel.Component />,
     secrets: <LazySecretsPanel.Component />,
     logs: <LazyLogsPanel.Component />,
     terminal: (

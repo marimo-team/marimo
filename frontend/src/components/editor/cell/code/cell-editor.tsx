@@ -39,6 +39,10 @@ import type { UserConfig } from "@/core/config/config-schema";
 import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { connectionAtom } from "@/core/network/connection";
 import { useRequestClient } from "@/core/network/requests";
+import {
+  decrementEditorViewCount,
+  incrementEditorViewCount,
+} from "@/core/profiling/useProfiling";
 import { canUseRtc, isRtcEnabled } from "@/core/rtc/state";
 import { useSaveNotebook } from "@/core/saving/save-component";
 import { isAppConnecting } from "@/core/websocket/connection-utils";
@@ -367,6 +371,7 @@ const CellEditorInternal = ({
       }),
     });
     setEditorView(ev);
+    incrementEditorViewCount();
     // Initialize the language adapter
     if (!rtcEnabled) {
       switchLanguage(ev, {
@@ -437,6 +442,7 @@ const CellEditorInternal = ({
       });
     }
     setEditorView(ev);
+    incrementEditorViewCount();
     // Clear the serialized state so that we don't re-create the editor next time
     cellActions.clearSerializedEditorState({ cellId });
   });
@@ -485,6 +491,7 @@ const CellEditorInternal = ({
   useEffect(() => {
     return () => {
       editorViewRef.current?.destroy();
+      decrementEditorViewCount();
       editorViewRef.current = null;
     };
   }, [editorViewRef]);

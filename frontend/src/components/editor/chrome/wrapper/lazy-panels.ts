@@ -62,6 +62,9 @@ export const LazySnippetsPanel = reactLazyWithPreload(
 export const LazyTracingPanel = reactLazyWithPreload(
   () => import("../panels/tracing-panel"),
 );
+export const LazyProfilingPanel = reactLazyWithPreload(
+  () => import("../panels/profiling-panel"),
+);
 export const LazyCachePanel = reactLazyWithPreload(
   () => import("../panels/cache-panel"),
 );
@@ -84,6 +87,7 @@ export const PANEL_PRELOADERS: Record<PanelType, () => void> = {
   errors: safePreload(LazyErrorsPanel),
   scratchpad: safePreload(LazyScratchpadPanel),
   tracing: safePreload(LazyTracingPanel),
+  profiling: safePreload(LazyProfilingPanel),
   secrets: safePreload(LazySecretsPanel),
   logs: safePreload(LazyLogsPanel),
   terminal: safePreload(LazyTerminal),

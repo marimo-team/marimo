@@ -13,6 +13,7 @@ import type {
 } from "@/core/kernel/messages";
 import { TRANSPORT_EXHAUSTED_REASON } from "@/core/websocket/transports/ws";
 import { useConnectionTransport } from "@/core/websocket/useWebSocket";
+import { incrementWsMessageCount } from "@/core/profiling/useProfiling";
 import { renderHTML } from "@/plugins/core/RenderHTML";
 import {
   handleWidgetMessage,
@@ -535,6 +536,7 @@ export function useMarimoKernelConnection(opts: {
      */
     onMessage: (e) => {
       try {
+        incrementWsMessageCount();
         handleMessage(e);
       } catch (error) {
         Logger.error("Failed to handle message", e.data, error);

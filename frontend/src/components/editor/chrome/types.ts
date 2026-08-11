@@ -7,6 +7,7 @@ import {
   DatabaseZapIcon,
   FileTextIcon,
   FolderTreeIcon,
+  GaugeIcon,
   KeyRoundIcon,
   type LucideIcon,
   NetworkIcon,
@@ -39,6 +40,7 @@ export type PanelType =
   | "errors"
   | "scratchpad"
   | "tracing"
+  | "profiling"
   | "secrets"
   | "logs"
   | "terminal"
@@ -149,6 +151,14 @@ export const PANELS: PanelDescriptor[] = [
     tooltip: "View tracing",
     defaultSection: "developer-panel",
     additionalKeywords: ["profiling", "performance"],
+  },
+  {
+    type: "profiling",
+    Icon: GaugeIcon,
+    label: "Profiling",
+    tooltip: "View render counts",
+    defaultSection: "developer-panel",
+    additionalKeywords: ["performance", "render", "metrics"],
   },
   {
     type: "secrets",

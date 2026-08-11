@@ -12,6 +12,7 @@ export const componentRenderCountAtom = atom<Record<string, number>>({});
 export const atomSubscriberCountAtom = atom<Record<string, number>>({});
 
 export const editorViewCountAtom = atom(0);
+export const wsMessageCountAtom = atom(0);
 export const wsMessageRateAtom = atom(0);
 export const domNodeCountAtom = atom(0);
 
@@ -19,6 +20,7 @@ export const resetProfilingAtom = atom(null, (_get, set) => {
   set(componentRenderCountAtom, {});
   set(atomSubscriberCountAtom, {});
   set(editorViewCountAtom, 0);
+  set(wsMessageCountAtom, 0);
   set(wsMessageRateAtom, 0);
   set(domNodeCountAtom, 0);
 });
