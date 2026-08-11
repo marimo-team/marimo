@@ -13,7 +13,7 @@ import {
   TableIcon,
   ViewIcon,
 } from "@/components/databases/namespace-icons";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
+import { DATA_TYPE_ICON, resolveDataType } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
 import {
   type ConnectionName,
@@ -149,7 +149,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
   );
 
   const columnItems = table.columns.map((column) => {
-    const TypeIcon = DATA_TYPE_ICON[column.type];
+    const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
     return (
       <div
         key={column.name}
@@ -288,7 +288,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
 };
 
 export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
-  const TypeIcon = DATA_TYPE_ICON[column.type];
+  const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
 
   const typeBadge = (
     <Badge

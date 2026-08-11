@@ -8,10 +8,10 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { type FieldTypes, toFieldTypes } from "@/components/data-table/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
-import { DATA_TYPES } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
+import { columnToFieldTypesSchema } from "./data-frames/schema";
 import {
   BulkEdit,
   type DataEditorProps,
@@ -44,14 +44,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       }),
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
-      fieldTypes: z
-        .array(
-          z.tuple([
-            z.coerce.string(),
-            z.tuple([z.enum(DATA_TYPES), z.string()]),
-          ]),
-        )
-        .nullish(),
+      fieldTypes: columnToFieldTypesSchema.nullish(),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
