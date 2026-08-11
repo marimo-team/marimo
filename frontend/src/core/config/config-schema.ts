@@ -154,6 +154,7 @@ export const UserConfigSchema = z
           }),
         locale: z.string().nullable().optional(),
         reference_highlighting: z.boolean().prefault(true),
+        code_lens: z.boolean().prefault(true),
       })
       .prefault({}),
     package_management: z

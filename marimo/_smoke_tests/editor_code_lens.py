@@ -19,9 +19,10 @@ def _(mo):
     mo.md(r"""
     # Editor code lens
 
-    Cache icons require the `cache_panel` experimental flag (on by default in
-    dev builds; otherwise run `setFeatureFlag("cache_panel", true)` in the
-    browser console).
+    On by default; disable with `display.code_lens = false` in your marimo
+    config. Cache icons also require the `cache_panel` experimental flag (on
+    by default in dev builds; otherwise run `setFeatureFlag("cache_panel",
+    true)` in the browser console).
 
     Each cell below creates something that gets a small inline icon next to
     it in the editor. Clicking the icon opens the matching panel:

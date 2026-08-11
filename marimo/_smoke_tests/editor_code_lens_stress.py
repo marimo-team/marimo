@@ -20,8 +20,8 @@ def _(mo):
     # Editor code lens (stress test)
 
     Stress-tests editor code lens with many datasources, SQL engines, storage
-    buckets, and cache sites. Cache icons require the `cache_panel` flag (on
-    in dev builds).
+    buckets, and cache sites. Code lens is on by default (`display.code_lens`);
+    cache icons also require the `cache_panel` flag (on in dev builds).
 
     Current notebook scale: 200 tables, 50 engines, 50 buckets, 100 cache sites.
     """)
