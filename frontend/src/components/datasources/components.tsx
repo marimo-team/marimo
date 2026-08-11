@@ -101,7 +101,7 @@ export const ColumnName = ({
   columnName: React.ReactNode;
   dataType: DataType;
 }) => {
-  const Icon = DATA_TYPE_ICON[dataType];
+  const Icon = DATA_TYPE_ICON[dataType] ?? DATA_TYPE_ICON.unknown;
   const color = getDataTypeColor(dataType);
 
   return (

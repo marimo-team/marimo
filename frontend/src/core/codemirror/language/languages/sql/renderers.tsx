@@ -149,7 +149,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
   );
 
   const columnItems = table.columns.map((column) => {
-    const TypeIcon = DATA_TYPE_ICON[column.type];
+    const TypeIcon = DATA_TYPE_ICON[column.type] ?? DATA_TYPE_ICON.unknown;
     return (
       <div
         key={column.name}
@@ -288,7 +288,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
 };
 
 export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
-  const TypeIcon = DATA_TYPE_ICON[column.type];
+  const TypeIcon = DATA_TYPE_ICON[column.type] ?? DATA_TYPE_ICON.unknown;
 
   const typeBadge = (
     <Badge
