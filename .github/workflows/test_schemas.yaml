@@ -5,6 +5,7 @@ on:
     paths:
       - "marimo/_schemas/**/*.yaml"
       - "packages/openapi/api.yaml"
+      - "frontend/plugins.openapi.yaml"
       - ".github/workflows/test_schemas.yaml"
 
 concurrency:
@@ -23,6 +24,7 @@ jobs:
       session: ${{ steps.filter.outputs.session }}
       notebook: ${{ steps.filter.outputs.notebook }}
       notifications: ${{ steps.filter.outputs.notifications }}
+      plugins: ${{ steps.filter.outputs.plugins }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
@@ -40,6 +42,9 @@ jobs:
               - '.github/workflows/test_schemas.yaml'
             notifications:
               - 'marimo/_schemas/generated/notifications.yaml'
+              - '.github/workflows/test_schemas.yaml'
+            plugins:
+              - 'frontend/plugins.openapi.yaml'
               - '.github/workflows/test_schemas.yaml'
 
   check-schemas:
@@ -64,6 +69,11 @@ jobs:
             path: marimo/_schemas/generated/notifications.yaml
             display_name: Notifications Schema
             condition: ${{ needs.changes.outputs.notifications == 'true' }}
+          - name: plugins
+            path: frontend/plugins.openapi.yaml
+            display_name: Plugin API specification
+            regeneration_command: pnpm --filter @marimo-team/frontend plugins:generate-schema
+            condition: ${{ needs.changes.outputs.plugins == 'true' }}
     steps:
       - name: Checkout current branch
         if: ${{ matrix.schema.condition }}
@@ -94,7 +104,14 @@ jobs:
       - name: Compare ${{ matrix.schema.display_name }}
         if: ${{ matrix.schema.condition }}
         id: compare
+        env:
+          REGENERATION_COMMAND: ${{ matrix.schema.regeneration_command }}
         run: |
+          if [ ! -f main/${{ matrix.schema.path }} ]; then
+            echo "No main-branch baseline exists for ${{ matrix.schema.path }}; skipping the initial compatibility check"
+            exit 0
+          fi
+
           set +e
           OUTPUT=$(java -jar openapi-diff.jar main/${{ matrix.schema.path }} current/${{ matrix.schema.path }} --fail-on-incompatible 2>&1)
           EXIT_CODE=$?
@@ -106,6 +123,9 @@ jobs:
             echo "EOF" >> $GITHUB_OUTPUT
             echo "Breaking changes detected:"
             echo "$OUTPUT"
+            if [ -n "$REGENERATION_COMMAND" ]; then
+              echo "::error file=${{ matrix.schema.path }}::Breaking plugin API change detected. If this artifact is stale, run '$REGENERATION_COMMAND' and commit it. If it is current, restore backward compatibility in the Zod contract."
+            fi
             exit 1
           else
             echo "No breaking changes detected"
@@ -118,16 +138,22 @@ jobs:
         env:
           BREAKING_CHANGES: ${{ steps.compare.outputs.breaking_changes }}
           DISPLAY_NAME: ${{ matrix.schema.display_name }}
+          REGENERATION_COMMAND: ${{ matrix.schema.regeneration_command }}
         with:
           script: |
             const breakingChanges = process.env.BREAKING_CHANGES || 'No details available';
             const displayName = process.env.DISPLAY_NAME || 'Schema';
+            const regenerationCommand = process.env.REGENERATION_COMMAND;
+
+            const remediation = regenerationCommand
+              ? `\n\nThis file is generated. If the Zod change is intentional, regenerate it with:\n\n\`\`\`sh\n${regenerationCommand}\n\`\`\`\n\nIf the artifact is already current, this is a breaking plugin API change. Restore backward compatibility before merging.`
+              : '';
 
             const output = `Breaking changes detected in the ${displayName}!
 
             \`\`\`
             ${breakingChanges}
-            \`\`\``;
+            \`\`\`${remediation}`;
 
             github.rest.issues.createComment({
               issue_number: context.issue.number,

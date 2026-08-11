@@ -1,0 +1,5237 @@
+openapi: 3.1.0
+info:
+  title: marimo plugin contracts
+  version: 1.0.0
+  description: |-
+    Machine-checkable description of every registered frontend plugin's
+    Zod-backed data and RPC contracts. This is not an HTTP API: each
+    synthetic GET models what consumers must accept and each PUT models
+    what producers may write, allowing OpenAPI diff tooling to enforce
+    backward compatibility in both directions.
+    Regenerate with: pnpm --filter @marimo-team/frontend plugins:generate-schema
+tags:
+  - name: plugin-data
+    description: Data supplied when rendering a plugin.
+  - name: rpc-input
+    description: Arguments supplied to a plugin RPC function.
+  - name: rpc-output
+    description: Values returned by a plugin RPC function.
+paths:
+  /plugins/marimo-accordion/data:
+    summary: marimo-accordion data
+    get:
+      operationId: read_marimo_accordion_data
+      summary: Read marimo-accordion data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-accordion data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-accordion.data"
+    put:
+      operationId: write_marimo_accordion_data
+      summary: Write marimo-accordion data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-accordion.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-anywidget/data:
+    summary: marimo-anywidget data
+    get:
+      operationId: read_marimo_anywidget_data
+      summary: Read marimo-anywidget data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-anywidget data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-anywidget.data"
+    put:
+      operationId: write_marimo_anywidget_data
+      summary: Write marimo-anywidget data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-anywidget.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-button/data:
+    summary: marimo-button data
+    get:
+      operationId: read_marimo_button_data
+      summary: Read marimo-button data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-button data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-button.data"
+    put:
+      operationId: write_marimo_button_data
+      summary: Write marimo-button data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-button.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-callout-output/data:
+    summary: marimo-callout-output data
+    get:
+      operationId: read_marimo_callout_output_data
+      summary: Read marimo-callout-output data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-callout-output data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-callout-output.data"
+    put:
+      operationId: write_marimo_callout_output_data
+      summary: Write marimo-callout-output data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-callout-output.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-carousel/data:
+    summary: marimo-carousel data
+    get:
+      operationId: read_marimo_carousel_data
+      summary: Read marimo-carousel data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-carousel data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-carousel.data"
+    put:
+      operationId: write_marimo_carousel_data
+      summary: Write marimo-carousel data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-carousel.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/data:
+    summary: marimo-chatbot data
+    get:
+      operationId: read_marimo_chatbot_data
+      summary: Read marimo-chatbot data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-chatbot data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.data"
+    put:
+      operationId: write_marimo_chatbot_data
+      summary: Write marimo-chatbot data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/cancel_prompt/input:
+    summary: marimo-chatbot cancel_prompt input
+    get:
+      operationId: read_marimo_chatbot_cancel_prompt_input
+      summary: Read marimo-chatbot cancel_prompt input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-chatbot cancel_prompt input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.cancel_prompt.input"
+    put:
+      operationId: write_marimo_chatbot_cancel_prompt_input
+      summary: Write marimo-chatbot cancel_prompt input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.cancel_prompt.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/cancel_prompt/output:
+    summary: marimo-chatbot cancel_prompt output
+    get:
+      operationId: read_marimo_chatbot_cancel_prompt_output
+      summary: Read marimo-chatbot cancel_prompt output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-chatbot cancel_prompt output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.cancel_prompt.output"
+    put:
+      operationId: write_marimo_chatbot_cancel_prompt_output
+      summary: Write marimo-chatbot cancel_prompt output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.cancel_prompt.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/delete_chat_history/input:
+    summary: marimo-chatbot delete_chat_history input
+    get:
+      operationId: read_marimo_chatbot_delete_chat_history_input
+      summary: Read marimo-chatbot delete_chat_history input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-chatbot delete_chat_history input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.delete_chat_history.input"
+    put:
+      operationId: write_marimo_chatbot_delete_chat_history_input
+      summary: Write marimo-chatbot delete_chat_history input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.delete_chat_history.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/delete_chat_history/output:
+    summary: marimo-chatbot delete_chat_history output
+    get:
+      operationId: read_marimo_chatbot_delete_chat_history_output
+      summary: Read marimo-chatbot delete_chat_history output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-chatbot delete_chat_history output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.delete_chat_history.output"
+    put:
+      operationId: write_marimo_chatbot_delete_chat_history_output
+      summary: Write marimo-chatbot delete_chat_history output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.delete_chat_history.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/delete_chat_message/input:
+    summary: marimo-chatbot delete_chat_message input
+    get:
+      operationId: read_marimo_chatbot_delete_chat_message_input
+      summary: Read marimo-chatbot delete_chat_message input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-chatbot delete_chat_message input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.delete_chat_message.input"
+    put:
+      operationId: write_marimo_chatbot_delete_chat_message_input
+      summary: Write marimo-chatbot delete_chat_message input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.delete_chat_message.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/delete_chat_message/output:
+    summary: marimo-chatbot delete_chat_message output
+    get:
+      operationId: read_marimo_chatbot_delete_chat_message_output
+      summary: Read marimo-chatbot delete_chat_message output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-chatbot delete_chat_message output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.delete_chat_message.output"
+    put:
+      operationId: write_marimo_chatbot_delete_chat_message_output
+      summary: Write marimo-chatbot delete_chat_message output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.delete_chat_message.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/get_chat_history/input:
+    summary: marimo-chatbot get_chat_history input
+    get:
+      operationId: read_marimo_chatbot_get_chat_history_input
+      summary: Read marimo-chatbot get_chat_history input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-chatbot get_chat_history input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.get_chat_history.input"
+    put:
+      operationId: write_marimo_chatbot_get_chat_history_input
+      summary: Write marimo-chatbot get_chat_history input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.get_chat_history.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/get_chat_history/output:
+    summary: marimo-chatbot get_chat_history output
+    get:
+      operationId: read_marimo_chatbot_get_chat_history_output
+      summary: Read marimo-chatbot get_chat_history output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-chatbot get_chat_history output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.get_chat_history.output"
+    put:
+      operationId: write_marimo_chatbot_get_chat_history_output
+      summary: Write marimo-chatbot get_chat_history output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.get_chat_history.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/send_prompt/input:
+    summary: marimo-chatbot send_prompt input
+    get:
+      operationId: read_marimo_chatbot_send_prompt_input
+      summary: Read marimo-chatbot send_prompt input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-chatbot send_prompt input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.send_prompt.input"
+    put:
+      operationId: write_marimo_chatbot_send_prompt_input
+      summary: Write marimo-chatbot send_prompt input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.send_prompt.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-chatbot/functions/send_prompt/output:
+    summary: marimo-chatbot send_prompt output
+    get:
+      operationId: read_marimo_chatbot_send_prompt_output
+      summary: Read marimo-chatbot send_prompt output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-chatbot send_prompt output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-chatbot.send_prompt.output"
+    put:
+      operationId: write_marimo_chatbot_send_prompt_output
+      summary: Write marimo-chatbot send_prompt output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-chatbot.send_prompt.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-checkbox/data:
+    summary: marimo-checkbox data
+    get:
+      operationId: read_marimo_checkbox_data
+      summary: Read marimo-checkbox data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-checkbox data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-checkbox.data"
+    put:
+      operationId: write_marimo_checkbox_data
+      summary: Write marimo-checkbox data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-checkbox.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-code-editor/data:
+    summary: marimo-code-editor data
+    get:
+      operationId: read_marimo_code_editor_data
+      summary: Read marimo-code-editor data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-code-editor data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-code-editor.data"
+    put:
+      operationId: write_marimo_code_editor_data
+      summary: Write marimo-code-editor data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-code-editor.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-data-editor/data:
+    summary: marimo-data-editor data
+    get:
+      operationId: read_marimo_data_editor_data
+      summary: Read marimo-data-editor data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-data-editor data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-data-editor.data"
+    put:
+      operationId: write_marimo_data_editor_data
+      summary: Write marimo-data-editor data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-data-editor.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-data-explorer/data:
+    summary: marimo-data-explorer data
+    get:
+      operationId: read_marimo_data_explorer_data
+      summary: Read marimo-data-explorer data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-data-explorer data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-data-explorer.data"
+    put:
+      operationId: write_marimo_data_explorer_data
+      summary: Write marimo-data-explorer data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-data-explorer.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/data:
+    summary: marimo-dataframe data
+    get:
+      operationId: read_marimo_dataframe_data
+      summary: Read marimo-dataframe data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-dataframe data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.data"
+    put:
+      operationId: write_marimo_dataframe_data
+      summary: Write marimo-dataframe data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/download_as/input:
+    summary: marimo-dataframe download_as input
+    get:
+      operationId: read_marimo_dataframe_download_as_input
+      summary: Read marimo-dataframe download_as input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe download_as input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.download_as.input"
+    put:
+      operationId: write_marimo_dataframe_download_as_input
+      summary: Write marimo-dataframe download_as input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.download_as.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/download_as/output:
+    summary: marimo-dataframe download_as output
+    get:
+      operationId: read_marimo_dataframe_download_as_output
+      summary: Read marimo-dataframe download_as output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe download_as output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.download_as.output"
+    put:
+      operationId: write_marimo_dataframe_download_as_output
+      summary: Write marimo-dataframe download_as output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.download_as.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_column_values/input:
+    summary: marimo-dataframe get_column_values input
+    get:
+      operationId: read_marimo_dataframe_get_column_values_input
+      summary: Read marimo-dataframe get_column_values input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe get_column_values input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_column_values.input"
+    put:
+      operationId: write_marimo_dataframe_get_column_values_input
+      summary: Write marimo-dataframe get_column_values input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_column_values.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_column_values/output:
+    summary: marimo-dataframe get_column_values output
+    get:
+      operationId: read_marimo_dataframe_get_column_values_output
+      summary: Read marimo-dataframe get_column_values output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe get_column_values output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_column_values.output"
+    put:
+      operationId: write_marimo_dataframe_get_column_values_output
+      summary: Write marimo-dataframe get_column_values output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_column_values.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_dataframe/input:
+    summary: marimo-dataframe get_dataframe input
+    get:
+      operationId: read_marimo_dataframe_get_dataframe_input
+      summary: Read marimo-dataframe get_dataframe input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe get_dataframe input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_dataframe.input"
+    put:
+      operationId: write_marimo_dataframe_get_dataframe_input
+      summary: Write marimo-dataframe get_dataframe input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_dataframe.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_dataframe/output:
+    summary: marimo-dataframe get_dataframe output
+    get:
+      operationId: read_marimo_dataframe_get_dataframe_output
+      summary: Read marimo-dataframe get_dataframe output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe get_dataframe output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_dataframe.output"
+    put:
+      operationId: write_marimo_dataframe_get_dataframe_output
+      summary: Write marimo-dataframe get_dataframe output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_dataframe.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_size_bytes/input:
+    summary: marimo-dataframe get_size_bytes input
+    get:
+      operationId: read_marimo_dataframe_get_size_bytes_input
+      summary: Read marimo-dataframe get_size_bytes input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe get_size_bytes input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_size_bytes.input"
+    put:
+      operationId: write_marimo_dataframe_get_size_bytes_input
+      summary: Write marimo-dataframe get_size_bytes input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_size_bytes.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/get_size_bytes/output:
+    summary: marimo-dataframe get_size_bytes output
+    get:
+      operationId: read_marimo_dataframe_get_size_bytes_output
+      summary: Read marimo-dataframe get_size_bytes output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe get_size_bytes output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.get_size_bytes.output"
+    put:
+      operationId: write_marimo_dataframe_get_size_bytes_output
+      summary: Write marimo-dataframe get_size_bytes output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.get_size_bytes.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/search/input:
+    summary: marimo-dataframe search input
+    get:
+      operationId: read_marimo_dataframe_search_input
+      summary: Read marimo-dataframe search input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-dataframe search input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.search.input"
+    put:
+      operationId: write_marimo_dataframe_search_input
+      summary: Write marimo-dataframe search input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.search.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dataframe/functions/search/output:
+    summary: marimo-dataframe search output
+    get:
+      operationId: read_marimo_dataframe_search_output
+      summary: Read marimo-dataframe search output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-dataframe search output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dataframe.search.output"
+    put:
+      operationId: write_marimo_dataframe_search_output
+      summary: Write marimo-dataframe search output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dataframe.search.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-date/data:
+    summary: marimo-date data
+    get:
+      operationId: read_marimo_date_data
+      summary: Read marimo-date data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-date data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-date.data"
+    put:
+      operationId: write_marimo_date_data
+      summary: Write marimo-date data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-date.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-date-range/data:
+    summary: marimo-date-range data
+    get:
+      operationId: read_marimo_date_range_data
+      summary: Read marimo-date-range data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-date-range data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-date-range.data"
+    put:
+      operationId: write_marimo_date_range_data
+      summary: Write marimo-date-range data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-date-range.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-datetime/data:
+    summary: marimo-datetime data
+    get:
+      operationId: read_marimo_datetime_data
+      summary: Read marimo-datetime data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-datetime data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-datetime.data"
+    put:
+      operationId: write_marimo_datetime_data
+      summary: Write marimo-datetime data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-datetime.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dict/data:
+    summary: marimo-dict data
+    get:
+      operationId: read_marimo_dict_data
+      summary: Read marimo-dict data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-dict data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dict.data"
+    put:
+      operationId: write_marimo_dict_data
+      summary: Write marimo-dict data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dict.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-download/data:
+    summary: marimo-download data
+    get:
+      operationId: read_marimo_download_data
+      summary: Read marimo-download data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-download data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-download.data"
+    put:
+      operationId: write_marimo_download_data
+      summary: Write marimo-download data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-download.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-download/functions/load/input:
+    summary: marimo-download load input
+    get:
+      operationId: read_marimo_download_load_input
+      summary: Read marimo-download load input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-download load input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-download.load.input"
+    put:
+      operationId: write_marimo_download_load_input
+      summary: Write marimo-download load input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-download.load.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-download/functions/load/output:
+    summary: marimo-download load output
+    get:
+      operationId: read_marimo_download_load_output
+      summary: Read marimo-download load output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-download load output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-download.load.output"
+    put:
+      operationId: write_marimo_download_load_output
+      summary: Write marimo-download load output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-download.load.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-dropdown/data:
+    summary: marimo-dropdown data
+    get:
+      operationId: read_marimo_dropdown_data
+      summary: Read marimo-dropdown data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-dropdown data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-dropdown.data"
+    put:
+      operationId: write_marimo_dropdown_data
+      summary: Write marimo-dropdown data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-dropdown.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-file/data:
+    summary: marimo-file data
+    get:
+      operationId: read_marimo_file_data
+      summary: Read marimo-file data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-file data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-file.data"
+    put:
+      operationId: write_marimo_file_data
+      summary: Write marimo-file data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-file.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-file-browser/data:
+    summary: marimo-file-browser data
+    get:
+      operationId: read_marimo_file_browser_data
+      summary: Read marimo-file-browser data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-file-browser data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-file-browser.data"
+    put:
+      operationId: write_marimo_file_browser_data
+      summary: Write marimo-file-browser data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-file-browser.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-file-browser/functions/list_directory/input:
+    summary: marimo-file-browser list_directory input
+    get:
+      operationId: read_marimo_file_browser_list_directory_input
+      summary: Read marimo-file-browser list_directory input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-file-browser list_directory input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-file-browser.list_directory.input"
+    put:
+      operationId: write_marimo_file_browser_list_directory_input
+      summary: Write marimo-file-browser list_directory input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-file-browser.list_directory.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-file-browser/functions/list_directory/output:
+    summary: marimo-file-browser list_directory output
+    get:
+      operationId: read_marimo_file_browser_list_directory_output
+      summary: Read marimo-file-browser list_directory output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-file-browser list_directory output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-file-browser.list_directory.output"
+    put:
+      operationId: write_marimo_file_browser_list_directory_output
+      summary: Write marimo-file-browser list_directory output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-file-browser.list_directory.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-form/data:
+    summary: marimo-form data
+    get:
+      operationId: read_marimo_form_data
+      summary: Read marimo-form data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-form data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-form.data"
+    put:
+      operationId: write_marimo_form_data
+      summary: Write marimo-form data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-form.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-form/functions/validate/input:
+    summary: marimo-form validate input
+    get:
+      operationId: read_marimo_form_validate_input
+      summary: Read marimo-form validate input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-form validate input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-form.validate.input"
+    put:
+      operationId: write_marimo_form_validate_input
+      summary: Write marimo-form validate input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-form.validate.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-form/functions/validate/output:
+    summary: marimo-form validate output
+    get:
+      operationId: read_marimo_form_validate_output
+      summary: Read marimo-form validate output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-form validate output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-form.validate.output"
+    put:
+      operationId: write_marimo_form_validate_output
+      summary: Write marimo-form validate output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-form.validate.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-image-comparison/data:
+    summary: marimo-image-comparison data
+    get:
+      operationId: read_marimo_image_comparison_data
+      summary: Read marimo-image-comparison data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-image-comparison data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-image-comparison.data"
+    put:
+      operationId: write_marimo_image_comparison_data
+      summary: Write marimo-image-comparison data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-image-comparison.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-json-output/data:
+    summary: marimo-json-output data
+    get:
+      operationId: read_marimo_json_output_data
+      summary: Read marimo-json-output data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-json-output data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-json-output.data"
+    put:
+      operationId: write_marimo_json_output_data
+      summary: Write marimo-json-output data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-json-output.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-lazy/data:
+    summary: marimo-lazy data
+    get:
+      operationId: read_marimo_lazy_data
+      summary: Read marimo-lazy data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-lazy data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-lazy.data"
+    put:
+      operationId: write_marimo_lazy_data
+      summary: Write marimo-lazy data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-lazy.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-lazy/functions/load/input:
+    summary: marimo-lazy load input
+    get:
+      operationId: read_marimo_lazy_load_input
+      summary: Read marimo-lazy load input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-lazy load input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-lazy.load.input"
+    put:
+      operationId: write_marimo_lazy_load_input
+      summary: Write marimo-lazy load input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-lazy.load.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-lazy/functions/load/output:
+    summary: marimo-lazy load output
+    get:
+      operationId: read_marimo_lazy_load_output
+      summary: Read marimo-lazy load output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-lazy load output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-lazy.load.output"
+    put:
+      operationId: write_marimo_lazy_load_output
+      summary: Write marimo-lazy load output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-lazy.load.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-matplotlib/data:
+    summary: marimo-matplotlib data
+    get:
+      operationId: read_marimo_matplotlib_data
+      summary: Read marimo-matplotlib data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-matplotlib data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-matplotlib.data"
+    put:
+      operationId: write_marimo_matplotlib_data
+      summary: Write marimo-matplotlib data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-matplotlib.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-matrix/data:
+    summary: marimo-matrix data
+    get:
+      operationId: read_marimo_matrix_data
+      summary: Read marimo-matrix data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-matrix data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-matrix.data"
+    put:
+      operationId: write_marimo_matrix_data
+      summary: Write marimo-matrix data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-matrix.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-mermaid/data:
+    summary: marimo-mermaid data
+    get:
+      operationId: read_marimo_mermaid_data
+      summary: Read marimo-mermaid data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-mermaid data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-mermaid.data"
+    put:
+      operationId: write_marimo_mermaid_data
+      summary: Write marimo-mermaid data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-mermaid.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-microphone/data:
+    summary: marimo-microphone data
+    get:
+      operationId: read_marimo_microphone_data
+      summary: Read marimo-microphone data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-microphone data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-microphone.data"
+    put:
+      operationId: write_marimo_microphone_data
+      summary: Write marimo-microphone data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-microphone.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-mime-renderer/data:
+    summary: marimo-mime-renderer data
+    get:
+      operationId: read_marimo_mime_renderer_data
+      summary: Read marimo-mime-renderer data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-mime-renderer data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-mime-renderer.data"
+    put:
+      operationId: write_marimo_mime_renderer_data
+      summary: Write marimo-mime-renderer data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-mime-renderer.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-mpl-interactive/data:
+    summary: marimo-mpl-interactive data
+    get:
+      operationId: read_marimo_mpl_interactive_data
+      summary: Read marimo-mpl-interactive data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-mpl-interactive data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-mpl-interactive.data"
+    put:
+      operationId: write_marimo_mpl_interactive_data
+      summary: Write marimo-mpl-interactive data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-mpl-interactive.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-multiselect/data:
+    summary: marimo-multiselect data
+    get:
+      operationId: read_marimo_multiselect_data
+      summary: Read marimo-multiselect data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-multiselect data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-multiselect.data"
+    put:
+      operationId: write_marimo_multiselect_data
+      summary: Write marimo-multiselect data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-multiselect.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-nav-menu/data:
+    summary: marimo-nav-menu data
+    get:
+      operationId: read_marimo_nav_menu_data
+      summary: Read marimo-nav-menu data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-nav-menu data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-nav-menu.data"
+    put:
+      operationId: write_marimo_nav_menu_data
+      summary: Write marimo-nav-menu data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-nav-menu.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-number/data:
+    summary: marimo-number data
+    get:
+      operationId: read_marimo_number_data
+      summary: Read marimo-number data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-number data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-number.data"
+    put:
+      operationId: write_marimo_number_data
+      summary: Write marimo-number data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-number.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-outline/data:
+    summary: marimo-outline data
+    get:
+      operationId: read_marimo_outline_data
+      summary: Read marimo-outline data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-outline data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-outline.data"
+    put:
+      operationId: write_marimo_outline_data
+      summary: Write marimo-outline data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-outline.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-panel/data:
+    summary: marimo-panel data
+    get:
+      operationId: read_marimo_panel_data
+      summary: Read marimo-panel data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-panel data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-panel.data"
+    put:
+      operationId: write_marimo_panel_data
+      summary: Write marimo-panel data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-panel.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-panel/functions/send_to_widget/input:
+    summary: marimo-panel send_to_widget input
+    get:
+      operationId: read_marimo_panel_send_to_widget_input
+      summary: Read marimo-panel send_to_widget input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-panel send_to_widget input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-panel.send_to_widget.input"
+    put:
+      operationId: write_marimo_panel_send_to_widget_input
+      summary: Write marimo-panel send_to_widget input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-panel.send_to_widget.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-panel/functions/send_to_widget/output:
+    summary: marimo-panel send_to_widget output
+    get:
+      operationId: read_marimo_panel_send_to_widget_output
+      summary: Read marimo-panel send_to_widget output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-panel send_to_widget output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-panel.send_to_widget.output"
+    put:
+      operationId: write_marimo_panel_send_to_widget_output
+      summary: Write marimo-panel send_to_widget output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-panel.send_to_widget.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-plotly/data:
+    summary: marimo-plotly data
+    get:
+      operationId: read_marimo_plotly_data
+      summary: Read marimo-plotly data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-plotly data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-plotly.data"
+    put:
+      operationId: write_marimo_plotly_data
+      summary: Write marimo-plotly data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-plotly.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-progress/data:
+    summary: marimo-progress data
+    get:
+      operationId: read_marimo_progress_data
+      summary: Read marimo-progress data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-progress data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-progress.data"
+    put:
+      operationId: write_marimo_progress_data
+      summary: Write marimo-progress data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-progress.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-radio/data:
+    summary: marimo-radio data
+    get:
+      operationId: read_marimo_radio_data
+      summary: Read marimo-radio data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-radio data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-radio.data"
+    put:
+      operationId: write_marimo_radio_data
+      summary: Write marimo-radio data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-radio.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-range-slider/data:
+    summary: marimo-range-slider data
+    get:
+      operationId: read_marimo_range_slider_data
+      summary: Read marimo-range-slider data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-range-slider data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-range-slider.data"
+    put:
+      operationId: write_marimo_range_slider_data
+      summary: Write marimo-range-slider data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-range-slider.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-refresh/data:
+    summary: marimo-refresh data
+    get:
+      operationId: read_marimo_refresh_data
+      summary: Read marimo-refresh data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-refresh data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-refresh.data"
+    put:
+      operationId: write_marimo_refresh_data
+      summary: Write marimo-refresh data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-refresh.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-routes/data:
+    summary: marimo-routes data
+    get:
+      operationId: read_marimo_routes_data
+      summary: Read marimo-routes data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-routes data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-routes.data"
+    put:
+      operationId: write_marimo_routes_data
+      summary: Write marimo-routes data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-routes.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-slider/data:
+    summary: marimo-slider data
+    get:
+      operationId: read_marimo_slider_data
+      summary: Read marimo-slider data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-slider data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-slider.data"
+    put:
+      operationId: write_marimo_slider_data
+      summary: Write marimo-slider data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-slider.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-stat/data:
+    summary: marimo-stat data
+    get:
+      operationId: read_marimo_stat_data
+      summary: Read marimo-stat data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-stat data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-stat.data"
+    put:
+      operationId: write_marimo_stat_data
+      summary: Write marimo-stat data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-stat.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-switch/data:
+    summary: marimo-switch data
+    get:
+      operationId: read_marimo_switch_data
+      summary: Read marimo-switch data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-switch data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-switch.data"
+    put:
+      operationId: write_marimo_switch_data
+      summary: Write marimo-switch data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-switch.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/data:
+    summary: marimo-table data
+    get:
+      operationId: read_marimo_table_data
+      summary: Read marimo-table data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-table data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.data"
+    put:
+      operationId: write_marimo_table_data
+      summary: Write marimo-table data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/calculate_top_k_rows/input:
+    summary: marimo-table calculate_top_k_rows input
+    get:
+      operationId: read_marimo_table_calculate_top_k_rows_input
+      summary: Read marimo-table calculate_top_k_rows input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table calculate_top_k_rows input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.calculate_top_k_rows.input"
+    put:
+      operationId: write_marimo_table_calculate_top_k_rows_input
+      summary: Write marimo-table calculate_top_k_rows input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.calculate_top_k_rows.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/calculate_top_k_rows/output:
+    summary: marimo-table calculate_top_k_rows output
+    get:
+      operationId: read_marimo_table_calculate_top_k_rows_output
+      summary: Read marimo-table calculate_top_k_rows output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table calculate_top_k_rows output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.calculate_top_k_rows.output"
+    put:
+      operationId: write_marimo_table_calculate_top_k_rows_output
+      summary: Write marimo-table calculate_top_k_rows output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.calculate_top_k_rows.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/download_as/input:
+    summary: marimo-table download_as input
+    get:
+      operationId: read_marimo_table_download_as_input
+      summary: Read marimo-table download_as input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table download_as input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.download_as.input"
+    put:
+      operationId: write_marimo_table_download_as_input
+      summary: Write marimo-table download_as input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.download_as.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/download_as/output:
+    summary: marimo-table download_as output
+    get:
+      operationId: read_marimo_table_download_as_output
+      summary: Read marimo-table download_as output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table download_as output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.download_as.output"
+    put:
+      operationId: write_marimo_table_download_as_output
+      summary: Write marimo-table download_as output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.download_as.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_column_summaries/input:
+    summary: marimo-table get_column_summaries input
+    get:
+      operationId: read_marimo_table_get_column_summaries_input
+      summary: Read marimo-table get_column_summaries input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_column_summaries input accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_column_summaries.input"
+    put:
+      operationId: write_marimo_table_get_column_summaries_input
+      summary: Write marimo-table get_column_summaries input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_column_summaries.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_column_summaries/output:
+    summary: marimo-table get_column_summaries output
+    get:
+      operationId: read_marimo_table_get_column_summaries_output
+      summary: Read marimo-table get_column_summaries output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_column_summaries output accepted by a plugin
+            consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_column_summaries.output"
+    put:
+      operationId: write_marimo_table_get_column_summaries_output
+      summary: Write marimo-table get_column_summaries output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_column_summaries.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_data_url/input:
+    summary: marimo-table get_data_url input
+    get:
+      operationId: read_marimo_table_get_data_url_input
+      summary: Read marimo-table get_data_url input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_data_url input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_data_url.input"
+    put:
+      operationId: write_marimo_table_get_data_url_input
+      summary: Write marimo-table get_data_url input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_data_url.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_data_url/output:
+    summary: marimo-table get_data_url output
+    get:
+      operationId: read_marimo_table_get_data_url_output
+      summary: Read marimo-table get_data_url output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_data_url output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_data_url.output"
+    put:
+      operationId: write_marimo_table_get_data_url_output
+      summary: Write marimo-table get_data_url output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_data_url.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_row_ids/input:
+    summary: marimo-table get_row_ids input
+    get:
+      operationId: read_marimo_table_get_row_ids_input
+      summary: Read marimo-table get_row_ids input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_row_ids input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_row_ids.input"
+    put:
+      operationId: write_marimo_table_get_row_ids_input
+      summary: Write marimo-table get_row_ids input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_row_ids.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_row_ids/output:
+    summary: marimo-table get_row_ids output
+    get:
+      operationId: read_marimo_table_get_row_ids_output
+      summary: Read marimo-table get_row_ids output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_row_ids output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_row_ids.output"
+    put:
+      operationId: write_marimo_table_get_row_ids_output
+      summary: Write marimo-table get_row_ids output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_row_ids.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_size_bytes/input:
+    summary: marimo-table get_size_bytes input
+    get:
+      operationId: read_marimo_table_get_size_bytes_input
+      summary: Read marimo-table get_size_bytes input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table get_size_bytes input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_size_bytes.input"
+    put:
+      operationId: write_marimo_table_get_size_bytes_input
+      summary: Write marimo-table get_size_bytes input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_size_bytes.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/get_size_bytes/output:
+    summary: marimo-table get_size_bytes output
+    get:
+      operationId: read_marimo_table_get_size_bytes_output
+      summary: Read marimo-table get_size_bytes output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table get_size_bytes output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.get_size_bytes.output"
+    put:
+      operationId: write_marimo_table_get_size_bytes_output
+      summary: Write marimo-table get_size_bytes output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.get_size_bytes.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/preview_column/input:
+    summary: marimo-table preview_column input
+    get:
+      operationId: read_marimo_table_preview_column_input
+      summary: Read marimo-table preview_column input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table preview_column input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.preview_column.input"
+    put:
+      operationId: write_marimo_table_preview_column_input
+      summary: Write marimo-table preview_column input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.preview_column.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/preview_column/output:
+    summary: marimo-table preview_column output
+    get:
+      operationId: read_marimo_table_preview_column_output
+      summary: Read marimo-table preview_column output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table preview_column output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.preview_column.output"
+    put:
+      operationId: write_marimo_table_preview_column_output
+      summary: Write marimo-table preview_column output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.preview_column.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/search/input:
+    summary: marimo-table search input
+    get:
+      operationId: read_marimo_table_search_input
+      summary: Read marimo-table search input
+      tags:
+        - rpc-input
+      responses:
+        "200":
+          description: marimo-table search input accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.search.input"
+    put:
+      operationId: write_marimo_table_search_input
+      summary: Write marimo-table search input
+      tags:
+        - rpc-input
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.search.input"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-table/functions/search/output:
+    summary: marimo-table search output
+    get:
+      operationId: read_marimo_table_search_output
+      summary: Read marimo-table search output
+      tags:
+        - rpc-output
+      responses:
+        "200":
+          description: marimo-table search output accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-table.search.output"
+    put:
+      operationId: write_marimo_table_search_output
+      summary: Write marimo-table search output
+      tags:
+        - rpc-output
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-table.search.output"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-tabs/data:
+    summary: marimo-tabs data
+    get:
+      operationId: read_marimo_tabs_data
+      summary: Read marimo-tabs data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-tabs data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-tabs.data"
+    put:
+      operationId: write_marimo_tabs_data
+      summary: Write marimo-tabs data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-tabs.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-tex/data:
+    summary: marimo-tex data
+    get:
+      operationId: read_marimo_tex_data
+      summary: Read marimo-tex data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-tex data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-tex.data"
+    put:
+      operationId: write_marimo_tex_data
+      summary: Write marimo-tex data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-tex.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-text/data:
+    summary: marimo-text data
+    get:
+      operationId: read_marimo_text_data
+      summary: Read marimo-text data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-text data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-text.data"
+    put:
+      operationId: write_marimo_text_data
+      summary: Write marimo-text data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-text.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-text-area/data:
+    summary: marimo-text-area data
+    get:
+      operationId: read_marimo_text_area_data
+      summary: Read marimo-text-area data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-text-area data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-text-area.data"
+    put:
+      operationId: write_marimo_text_area_data
+      summary: Write marimo-text-area data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-text-area.data"
+      responses:
+        "204":
+          description: Accepted.
+  /plugins/marimo-vega/data:
+    summary: marimo-vega data
+    get:
+      operationId: read_marimo_vega_data
+      summary: Read marimo-vega data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-vega data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-vega.data"
+    put:
+      operationId: write_marimo_vega_data
+      summary: Write marimo-vega data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-vega.data"
+      responses:
+        "204":
+          description: Accepted.
+components:
+  schemas:
+    marimo-accordion.data:
+      type: object
+      properties:
+        labels:
+          type: array
+          items:
+            type: string
+        multiple:
+          type: boolean
+      required:
+        - labels
+        - multiple
+    marimo-anywidget.data:
+      type: object
+      properties:
+        modelId:
+          type: string
+          minLength: 1
+      required:
+        - modelId
+    marimo-button.data:
+      type: object
+      properties:
+        label:
+          type: string
+        kind:
+          default: neutral
+          type: string
+          enum:
+            - neutral
+            - success
+            - warn
+            - danger
+            - info
+            - alert
+        disabled:
+          default: false
+          type: boolean
+        fullWidth:
+          default: false
+          type: boolean
+        tooltip:
+          type: string
+        keyboardShortcut:
+          type: string
+      required:
+        - label
+    marimo-callout-output.data:
+      type: object
+      properties:
+        html:
+          type: string
+        kind:
+          default: neutral
+          type: string
+          enum:
+            - neutral
+            - success
+            - warn
+            - danger
+            - info
+            - alert
+        title:
+          type: string
+      required:
+        - html
+    marimo-carousel.data:
+      type: object
+      properties:
+        index:
+          anyOf:
+            - type: string
+            - type: "null"
+        height:
+          anyOf:
+            - anyOf:
+                - type: string
+                - type: number
+            - type: "null"
+    marimo-chatbot.data:
+      type: object
+      properties:
+        prompts:
+          default: []
+          type: array
+          items:
+            type: string
+        showConfigurationControls:
+          type: boolean
+        maxHeight:
+          type: number
+        config:
+          type: object
+          properties:
+            max_tokens:
+              anyOf:
+                - type: number
+                - type: "null"
+            temperature:
+              anyOf:
+                - type: number
+                - type: "null"
+            top_p:
+              anyOf:
+                - type: number
+                - type: "null"
+            top_k:
+              anyOf:
+                - type: number
+                - type: "null"
+            frequency_penalty:
+              anyOf:
+                - type: number
+                - type: "null"
+            presence_penalty:
+              anyOf:
+                - type: number
+                - type: "null"
+          required:
+            - max_tokens
+            - temperature
+            - top_p
+            - top_k
+            - frequency_penalty
+            - presence_penalty
+        allowAttachments:
+          anyOf:
+            - type: boolean
+            - type: array
+              items:
+                type: string
+        disabled:
+          default: false
+          type: boolean
+      required:
+        - showConfigurationControls
+        - config
+        - allowAttachments
+    marimo-chatbot.cancel_prompt.input:
+      type: object
+      properties:
+        request_id:
+          type: string
+      required:
+        - request_id
+    marimo-chatbot.cancel_prompt.output:
+      type: "null"
+    marimo-chatbot.delete_chat_history.input:
+      type: object
+      properties: {}
+    marimo-chatbot.delete_chat_history.output:
+      type: "null"
+    marimo-chatbot.delete_chat_message.input:
+      type: object
+      properties:
+        index:
+          type: number
+      required:
+        - index
+    marimo-chatbot.delete_chat_message.output:
+      type: "null"
+    marimo-chatbot.get_chat_history.input:
+      type: object
+      properties: {}
+    marimo-chatbot.get_chat_history.output:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              role:
+                type: string
+                enum:
+                  - system
+                  - user
+                  - assistant
+              content:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              parts:
+                type: array
+                items: {}
+              metadata:
+                anyOf:
+                  - {}
+                  - type: "null"
+            required:
+              - id
+              - role
+              - content
+              - parts
+              - metadata
+      required:
+        - messages
+    marimo-chatbot.send_prompt.input:
+      type: object
+      properties:
+        request_id:
+          type: string
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              role:
+                type: string
+                enum:
+                  - system
+                  - user
+                  - assistant
+              content:
+                anyOf:
+                  - type: string
+                  - type: "null"
+              parts:
+                type: array
+                items: {}
+              metadata:
+                anyOf:
+                  - {}
+                  - type: "null"
+            required:
+              - id
+              - role
+              - content
+              - parts
+              - metadata
+        config:
+          type: object
+          properties:
+            max_tokens:
+              anyOf:
+                - type: number
+                - type: "null"
+            temperature:
+              anyOf:
+                - type: number
+                - type: "null"
+            top_p:
+              anyOf:
+                - type: number
+                - type: "null"
+            top_k:
+              anyOf:
+                - type: number
+                - type: "null"
+            frequency_penalty:
+              anyOf:
+                - type: number
+                - type: "null"
+            presence_penalty:
+              anyOf:
+                - type: number
+                - type: "null"
+          required:
+            - max_tokens
+            - temperature
+            - top_p
+            - top_k
+            - frequency_penalty
+            - presence_penalty
+      required:
+        - request_id
+        - messages
+        - config
+    marimo-chatbot.send_prompt.output: {}
+    marimo-checkbox.data:
+      type: object
+      properties:
+        initialValue:
+          type: boolean
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+    marimo-code-editor.data:
+      type: object
+      properties:
+        initialValue:
+          type: string
+        language:
+          default: python
+          type: string
+        placeholder:
+          type: string
+        theme:
+          type: string
+          enum:
+            - light
+            - dark
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        disabled:
+          type: boolean
+        minHeight:
+          type: number
+        maxHeight:
+          type: number
+        showCopyButton:
+          type: boolean
+        debounce:
+          default: false
+          anyOf:
+            - type: boolean
+            - type: number
+      required:
+        - initialValue
+        - placeholder
+        - label
+    marimo-data-editor.data:
+      type: object
+      properties:
+        initialValue:
+          type: object
+          properties:
+            edits:
+              type: array
+              items:
+                type: object
+                properties:
+                  rowIdx:
+                    type: number
+                  columnId:
+                    type: string
+                  value: {}
+                required:
+                  - rowIdx
+                  - columnId
+                  - value
+          required:
+            - edits
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        data:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties: {}
+                additionalProperties: {}
+        fieldTypes:
+          anyOf:
+            - type: array
+              items:
+                type: array
+                prefixItems:
+                  - type: string
+                  - type: array
+                    prefixItems:
+                      - default: unknown
+                        type: string
+                        enum:
+                          - string
+                          - boolean
+                          - integer
+                          - number
+                          - date
+                          - datetime
+                          - time
+                          - unknown
+                      - type: string
+            - type: "null"
+        editableColumns:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: string
+              const: all
+        columnSizingMode:
+          default: auto
+          type: string
+          enum:
+            - auto
+            - fit
+      required:
+        - initialValue
+        - label
+        - data
+        - editableColumns
+    marimo-data-explorer.data:
+      type: object
+      properties:
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        data:
+          type: string
+      required:
+        - data
+    marimo-dataframe.data:
+      type: object
+      properties:
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        pageSize:
+          default: 5
+          type: number
+        showDownload:
+          default: true
+          type: boolean
+        dataframeName:
+          type: string
+        columns:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - anyOf:
+                  - type: string
+                  - type: number
+              - type: string
+              - type: string
+        lazy:
+          default: false
+          type: boolean
+      required:
+        - columns
+    marimo-dataframe.download_as.input:
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+            - csv
+            - json
+            - parquet
+            - tsv
+      required:
+        - format
+    marimo-dataframe.download_as.output:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        error:
+          anyOf:
+            - type: string
+            - type: "null"
+        missing_packages:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+      required:
+        - url
+        - filename
+    marimo-dataframe.get_column_values.input:
+      type: object
+      properties:
+        column:
+          type: string
+      required:
+        - column
+    marimo-dataframe.get_column_values.output:
+      type: object
+      properties:
+        values:
+          type: array
+          items: {}
+        too_many_values:
+          type: boolean
+      required:
+        - values
+        - too_many_values
+    marimo-dataframe.get_dataframe.input:
+      type: object
+      properties: {}
+    marimo-dataframe.get_dataframe.output:
+      type: object
+      properties:
+        url:
+          type: string
+        total_rows:
+          type: number
+        row_headers:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: array
+                prefixItems:
+                  - default: unknown
+                    type: string
+                    enum:
+                      - string
+                      - boolean
+                      - integer
+                      - number
+                      - date
+                      - datetime
+                      - time
+                      - unknown
+                  - type: string
+        field_types:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: array
+                prefixItems:
+                  - default: unknown
+                    type: string
+                    enum:
+                      - string
+                      - boolean
+                      - integer
+                      - number
+                      - date
+                      - datetime
+                      - time
+                      - unknown
+                  - type: string
+        column_types_per_step:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              prefixItems:
+                - type: string
+                - type: array
+                  prefixItems:
+                    - default: unknown
+                      type: string
+                      enum:
+                        - string
+                        - boolean
+                        - integer
+                        - number
+                        - date
+                        - datetime
+                        - time
+                        - unknown
+                    - type: string
+        python_code:
+          anyOf:
+            - type: string
+            - type: "null"
+        sql_code:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - url
+        - total_rows
+        - row_headers
+        - field_types
+        - column_types_per_step
+    marimo-dataframe.get_size_bytes.input:
+      type: object
+      properties: {}
+    marimo-dataframe.get_size_bytes.output:
+      type: object
+      properties:
+        size_bytes:
+          anyOf:
+            - type: number
+            - type: "null"
+    marimo-dataframe.search.input:
+      type: object
+      properties:
+        sort:
+          type: array
+          items:
+            type: object
+            properties:
+              by:
+                type: string
+              descending:
+                type: boolean
+            required:
+              - by
+              - descending
+        query:
+          type: string
+        filters:
+          $ref: "#/components/schemas/marimo-dataframe.search.input.def.schema0"
+        page_number:
+          type: number
+        page_size:
+          type: number
+      required:
+        - page_number
+        - page_size
+    marimo-dataframe.search.input.def.schema0:
+      type: object
+      properties:
+        type:
+          default: group
+          type: string
+          const: group
+        operator:
+          default: and
+          type: string
+          enum:
+            - and
+            - or
+        children:
+          type: array
+          items:
+            anyOf:
+              - type: object
+                properties:
+                  column_id:
+                    description: '{"label":"Column","special":"column_id"}'
+                    anyOf:
+                      - type: string
+                        minLength: 1
+                      - type: number
+                  operator:
+                    type: string
+                    enum:
+                      - is_true
+                      - is_false
+                      - ==
+                      - "!="
+                      - ">"
+                      - ">="
+                      - <
+                      - <=
+                      - between
+                      - is_null
+                      - is_not_null
+                      - equals
+                      - does_not_equal
+                      - contains
+                      - regex
+                      - starts_with
+                      - ends_with
+                      - in
+                      - not_in
+                      - is_empty
+                    description: '{"label":" "}'
+                  type:
+                    default: condition
+                    type: string
+                    const: condition
+                  value:
+                    description: '{"label":"Value"}'
+                  negate:
+                    default: false
+                    type: boolean
+                required:
+                  - column_id
+                  - operator
+                description: '{"direction":"row","special":"column_filter"}'
+              - $ref: "#/components/schemas/marimo-dataframe.search.input.def.schema0"
+        negate:
+          default: false
+          type: boolean
+    marimo-dataframe.search.output:
+      type: object
+      properties:
+        data:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties: {}
+                additionalProperties: {}
+        total_rows:
+          type: number
+      required:
+        - data
+        - total_rows
+    marimo-date.data:
+      type: object
+      properties:
+        initialValue:
+          type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          type: string
+        stop:
+          type: string
+        step:
+          type: string
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - start
+        - stop
+    marimo-date-range.data:
+      type: object
+      properties:
+        initialValue:
+          type: array
+          prefixItems:
+            - type: string
+            - type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          type: string
+        stop:
+          type: string
+        step:
+          type: string
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - start
+        - stop
+    marimo-datetime.data:
+      type: object
+      properties:
+        initialValue:
+          type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          type: string
+        stop:
+          type: string
+        step:
+          type: string
+        precision:
+          default: minute
+          type: string
+          enum:
+            - hour
+            - minute
+            - second
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - start
+        - stop
+    marimo-dict.data:
+      type: object
+      properties:
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        elementIds:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+      required:
+        - label
+        - elementIds
+    marimo-download.data:
+      type: object
+      properties:
+        data:
+          type: string
+        disabled:
+          default: false
+          type: boolean
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        lazy:
+          default: false
+          type: boolean
+      required:
+        - data
+    marimo-download.load.input:
+      type: object
+      properties: {}
+    marimo-download.load.output:
+      type: object
+      properties:
+        data:
+          type: string
+        filename:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - data
+    marimo-dropdown.data:
+      type: object
+      properties:
+        initialValue:
+          type: array
+          items:
+            type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        options:
+          type: array
+          items:
+            type: string
+        allowSelectNone:
+          type: boolean
+        fullWidth:
+          default: false
+          type: boolean
+        searchable:
+          default: false
+          type: boolean
+        disabled:
+          default: false
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - options
+        - allowSelectNone
+    marimo-file.data:
+      type: object
+      properties:
+        filetypes:
+          type: array
+          items:
+            type: string
+        multiple:
+          type: boolean
+        kind:
+          type: string
+          enum:
+            - button
+            - area
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        max_size:
+          type: number
+      required:
+        - filetypes
+        - multiple
+        - kind
+        - label
+        - max_size
+    marimo-file-browser.data:
+      type: object
+      properties:
+        initialPath:
+          type: string
+        filetypes:
+          type: array
+          items:
+            type: string
+        selectionMode:
+          type: string
+        multiple:
+          type: boolean
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        restrictNavigation:
+          type: boolean
+      required:
+        - initialPath
+        - filetypes
+        - selectionMode
+        - multiple
+        - label
+        - restrictNavigation
+    marimo-file-browser.list_directory.input:
+      type: object
+      properties:
+        path:
+          type: string
+      required:
+        - path
+    marimo-file-browser.list_directory.output:
+      type: object
+      properties:
+        files:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              path:
+                type: string
+              name:
+                type: string
+              is_directory:
+                type: boolean
+            required:
+              - id
+              - path
+              - name
+              - is_directory
+        total_count:
+          type: number
+        is_truncated:
+          type: boolean
+      required:
+        - files
+        - total_count
+        - is_truncated
+    marimo-form.data:
+      type: object
+      properties:
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        elementId:
+          type: string
+        bordered:
+          default: true
+          type: boolean
+        loading:
+          default: false
+          type: boolean
+        submitButtonLabel:
+          default: Submit
+          type: string
+        submitButtonTooltip:
+          type: string
+        submitButtonDisabled:
+          default: false
+          type: boolean
+        clearOnSubmit:
+          default: false
+          type: boolean
+        showClearButton:
+          default: false
+          type: boolean
+        clearButtonLabel:
+          default: Clear
+          type: string
+        clearButtonTooltip:
+          type: string
+        shouldValidate:
+          type: boolean
+      required:
+        - label
+        - elementId
+    marimo-form.validate.input:
+      type: object
+      properties:
+        value: {}
+      required:
+        - value
+    marimo-form.validate.output:
+      anyOf:
+        - type: string
+        - type: "null"
+    marimo-image-comparison.data:
+      type: object
+      properties:
+        beforeSrc:
+          type: string
+        afterSrc:
+          type: string
+        value:
+          default: 50
+          type: number
+          minimum: 0
+          maximum: 100
+        direction:
+          default: horizontal
+          type: string
+          enum:
+            - horizontal
+            - vertical
+        width:
+          type: string
+        height:
+          type: string
+      required:
+        - beforeSrc
+        - afterSrc
+    marimo-json-output.data:
+      type: object
+      properties:
+        name:
+          anyOf:
+            - type: string
+            - type: "null"
+        jsonData: {}
+        valueTypes:
+          default: python
+          type: string
+          enum:
+            - json
+            - python
+      required:
+        - jsonData
+    marimo-lazy.data:
+      type: object
+      properties:
+        showLoadingIndicator:
+          default: false
+          type: boolean
+    marimo-lazy.load.input:
+      type: object
+      properties: {}
+    marimo-lazy.load.output:
+      type: object
+      properties:
+        html:
+          type: string
+      required:
+        - html
+    marimo-matplotlib.data:
+      type: object
+      properties:
+        chartBase64:
+          type: string
+        xBounds:
+          type: array
+          prefixItems:
+            - type: number
+            - type: number
+        yBounds:
+          type: array
+          prefixItems:
+            - type: number
+            - type: number
+        axesPixelBounds:
+          type: array
+          prefixItems:
+            - type: number
+            - type: number
+            - type: number
+            - type: number
+        width:
+          type: number
+        height:
+          type: number
+        selectionColor:
+          default: "#3b82f6"
+          type: string
+        selectionOpacity:
+          default: 0.15
+          type: number
+        strokeWidth:
+          default: 2
+          type: number
+        debounce:
+          type: boolean
+        xScale:
+          default: linear
+          type: string
+          enum:
+            - linear
+            - log
+        yScale:
+          default: linear
+          type: string
+          enum:
+            - linear
+            - log
+      required:
+        - chartBase64
+        - xBounds
+        - yBounds
+        - axesPixelBounds
+        - width
+        - height
+        - debounce
+    marimo-matrix.data:
+      type: object
+      properties:
+        initialValue:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        minValue:
+          anyOf:
+            - type: array
+              items:
+                type: array
+                items:
+                  type: number
+            - type: "null"
+        maxValue:
+          anyOf:
+            - type: array
+              items:
+                type: array
+                items:
+                  type: number
+            - type: "null"
+        step:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+        precision:
+          type: number
+        rowLabels:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        columnLabels:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        symmetric:
+          type: boolean
+        debounce:
+          default: false
+          type: boolean
+        scientific:
+          type: boolean
+        disabled:
+          type: array
+          items:
+            type: array
+            items:
+              type: boolean
+      required:
+        - initialValue
+        - label
+        - step
+        - precision
+        - symmetric
+        - scientific
+        - disabled
+    marimo-mermaid.data:
+      type: object
+      properties:
+        diagram:
+          type: string
+        theme:
+          type: string
+        theme_variables:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+      required:
+        - diagram
+    marimo-microphone.data:
+      type: object
+      properties:
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+    marimo-mime-renderer.data:
+      type: object
+      properties:
+        mime:
+          type: string
+        data:
+          anyOf:
+            - type: string
+            - type: "null"
+            - type: object
+              propertyNames:
+                type: string
+              additionalProperties: {}
+            - type: array
+              items: {}
+      required:
+        - mime
+        - data
+    marimo-mpl-interactive.data:
+      type: object
+      properties:
+        mplJsUrl:
+          type: string
+        cssUrl:
+          type: string
+        toolbarImages:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+        width:
+          type: number
+        height:
+          type: number
+      required:
+        - mplJsUrl
+        - cssUrl
+        - toolbarImages
+        - width
+        - height
+    marimo-multiselect.data:
+      type: object
+      properties:
+        initialValue:
+          type: array
+          items:
+            type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        options:
+          type: array
+          items:
+            type: string
+        fullWidth:
+          default: false
+          type: boolean
+        maxSelections:
+          type: number
+        disabled:
+          default: false
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - options
+    marimo-nav-menu.data:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            anyOf:
+              - type: object
+                properties:
+                  label:
+                    type: string
+                  href:
+                    type: string
+                  description:
+                    anyOf:
+                      - type: string
+                      - type: "null"
+                required:
+                  - label
+                  - href
+              - type: object
+                properties:
+                  label:
+                    type: string
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label:
+                          type: string
+                        href:
+                          type: string
+                        description:
+                          anyOf:
+                            - type: string
+                            - type: "null"
+                      required:
+                        - label
+                        - href
+                required:
+                  - label
+                  - items
+        orientation:
+          type: string
+          enum:
+            - horizontal
+            - vertical
+      required:
+        - items
+        - orientation
+    marimo-number.data:
+      type: object
+      properties:
+        initialValue:
+          anyOf:
+            - type: number
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          anyOf:
+            - type: number
+            - type: "null"
+        stop:
+          anyOf:
+            - type: number
+            - type: "null"
+        step:
+          type: number
+        debounce:
+          default: false
+          type: boolean
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - label
+    marimo-outline.data:
+      type: object
+      properties:
+        label:
+          type: string
+    marimo-panel.data:
+      type: object
+      properties:
+        extensionUrl:
+          anyOf:
+            - type: string
+            - type: "null"
+        docs_json:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties: {}
+        render_json:
+          type: object
+          properties:
+            roots:
+              type: object
+              propertyNames:
+                type: string
+              additionalProperties:
+                type: string
+          required:
+            - roots
+          additionalProperties: {}
+      required:
+        - extensionUrl
+        - docs_json
+        - render_json
+    marimo-panel.send_to_widget.input:
+      type: object
+      properties:
+        message: {}
+        buffers:
+          type: array
+          items:
+            type: string
+      required:
+        - message
+        - buffers
+    marimo-panel.send_to_widget.output:
+      type: "null"
+    marimo-plotly.data:
+      type: object
+      properties:
+        figure:
+          type: object
+          properties: {}
+          additionalProperties: {}
+        config:
+          type: object
+          properties: {}
+          additionalProperties: {}
+      required:
+        - figure
+        - config
+    marimo-progress.data:
+      type: object
+      properties:
+        title:
+          type: string
+        subtitle:
+          type: string
+        progress:
+          anyOf:
+            - type: number
+            - type: boolean
+        total:
+          type: number
+        eta:
+          type: number
+        rate:
+          type: number
+      required:
+        - progress
+    marimo-radio.data:
+      type: object
+      properties:
+        initialValue:
+          anyOf:
+            - type: string
+            - type: "null"
+        inline:
+          default: false
+          type: boolean
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        options:
+          type: array
+          items:
+            type: string
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - options
+    marimo-range-slider.data:
+      type: object
+      properties:
+        initialValue:
+          type: array
+          items:
+            type: number
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          type: number
+        stop:
+          type: number
+        step:
+          type: number
+        steps:
+          anyOf:
+            - type: array
+              items:
+                type: number
+            - type: "null"
+        debounce:
+          default: false
+          type: boolean
+        orientation:
+          default: horizontal
+          type: string
+          enum:
+            - horizontal
+            - vertical
+        showValue:
+          default: false
+          type: boolean
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - start
+        - stop
+        - steps
+    marimo-refresh.data:
+      type: object
+      properties:
+        options:
+          default: []
+          type: array
+          items:
+            anyOf:
+              - type: string
+              - type: number
+                minimum: 0.1
+        defaultInterval:
+          anyOf:
+            - type: string
+            - type: number
+              minimum: 0.1
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - label
+    marimo-routes.data:
+      type: object
+      properties:
+        routes:
+          type: array
+          items:
+            type: string
+      required:
+        - routes
+    marimo-slider.data:
+      type: object
+      properties:
+        initialValue:
+          type: number
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        start:
+          type: number
+        stop:
+          type: number
+        step:
+          type: number
+        steps:
+          anyOf:
+            - type: array
+              items:
+                type: number
+            - type: "null"
+        debounce:
+          default: false
+          type: boolean
+        orientation:
+          default: horizontal
+          type: string
+          enum:
+            - horizontal
+            - vertical
+        showValue:
+          default: false
+          type: boolean
+        fullWidth:
+          default: false
+          type: boolean
+        includeInput:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - start
+        - stop
+        - steps
+    marimo-stat.data:
+      type: object
+      properties:
+        value:
+          anyOf:
+            - type: string
+            - type: number
+            - type: boolean
+        label:
+          type: string
+        caption:
+          type: string
+        bordered:
+          default: false
+          type: boolean
+        direction:
+          type: string
+          enum:
+            - increase
+            - decrease
+        target_direction:
+          default: increase
+          type: string
+          enum:
+            - increase
+            - decrease
+        slot: {}
+    marimo-switch.data:
+      type: object
+      properties:
+        initialValue:
+          type: boolean
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        disabled:
+          type: boolean
+      required:
+        - initialValue
+        - label
+    marimo-table.data:
+      type: object
+      properties:
+        initialValue:
+          anyOf:
+            - type: array
+              items:
+                type: number
+            - type: array
+              items:
+                type: object
+                properties:
+                  rowId:
+                    type: string
+                  columnName:
+                    type: string
+                required:
+                  - rowId
+                  - columnName
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        data:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties: {}
+                additionalProperties: {}
+        rawData:
+          anyOf:
+            - anyOf:
+                - type: string
+                - type: array
+                  items:
+                    type: object
+                    properties: {}
+                    additionalProperties: {}
+            - type: "null"
+        totalRows:
+          anyOf:
+            - type: number
+            - type: string
+              const: too_many
+        pagination:
+          default: false
+          type: boolean
+        pageSize:
+          default: 10
+          type: number
+        selection:
+          default: null
+          anyOf:
+            - type: string
+              enum:
+                - single
+                - multi
+                - single-cell
+                - multi-cell
+            - type: "null"
+        showDownload:
+          default: false
+          type: boolean
+        showFilters:
+          default: false
+          type: boolean
+        showColumnSummaries:
+          default: true
+          anyOf:
+            - type: boolean
+            - type: string
+              enum:
+                - stats
+                - chart
+        showDataTypes:
+          default: true
+          type: boolean
+        showPageSizeSelector:
+          default: true
+          type: boolean
+        showColumnExplorer:
+          default: true
+          type: boolean
+        showRowExplorer:
+          default: true
+          type: boolean
+        showChartBuilder:
+          default: true
+          type: boolean
+        showSearch:
+          default: true
+          type: boolean
+        rowHeaders:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - type: string
+              - type: array
+                prefixItems:
+                  - default: unknown
+                    type: string
+                    enum:
+                      - string
+                      - boolean
+                      - integer
+                      - number
+                      - date
+                      - datetime
+                      - time
+                      - unknown
+                  - type: string
+        freezeColumnsLeft:
+          type: array
+          items:
+            type: string
+        freezeColumnsRight:
+          type: array
+          items:
+            type: string
+        hiddenColumns:
+          type: array
+          items:
+            type: string
+        textJustifyColumns:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+            enum:
+              - left
+              - center
+              - right
+        wrappedColumns:
+          type: array
+          items:
+            type: string
+        columnWidths:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: integer
+            exclusiveMinimum: 0
+            maximum: 9007199254740991
+        headerTooltip:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: string
+        fieldTypes:
+          anyOf:
+            - type: array
+              items:
+                type: array
+                prefixItems:
+                  - type: string
+                  - type: array
+                    prefixItems:
+                      - default: unknown
+                        type: string
+                        enum:
+                          - string
+                          - boolean
+                          - integer
+                          - number
+                          - date
+                          - datetime
+                          - time
+                          - unknown
+                      - type: string
+            - type: "null"
+        totalColumns:
+          type: number
+        maxColumns:
+          default: all
+          anyOf:
+            - type: number
+            - type: string
+              const: all
+        hasStableRowId:
+          default: false
+          type: boolean
+        maxHeight:
+          type: number
+        cellStyles:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            propertyNames:
+              type: string
+            additionalProperties:
+              type: object
+              properties: {}
+              additionalProperties: {}
+        hoverTemplate:
+          type: string
+        cellHoverTexts:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            propertyNames:
+              type: string
+            additionalProperties:
+              anyOf:
+                - type: string
+                - type: "null"
+        lazy:
+          default: false
+          type: boolean
+        preload:
+          default: false
+          type: boolean
+      required:
+        - initialValue
+        - label
+        - data
+        - totalRows
+        - rowHeaders
+        - totalColumns
+    marimo-table.calculate_top_k_rows.input:
+      type: object
+      properties:
+        column:
+          type: string
+        k:
+          type: number
+      required:
+        - column
+        - k
+    marimo-table.calculate_top_k_rows.output:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: array
+            prefixItems:
+              - {}
+              - type: number
+      required:
+        - data
+    marimo-table.download_as.input:
+      type: object
+      properties:
+        format:
+          type: string
+          enum:
+            - csv
+            - json
+            - parquet
+            - tsv
+      required:
+        - format
+    marimo-table.download_as.output:
+      type: object
+      properties:
+        url:
+          type: string
+        filename:
+          type: string
+        error:
+          anyOf:
+            - type: string
+            - type: "null"
+        missing_packages:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+      required:
+        - url
+        - filename
+    marimo-table.get_column_summaries.input:
+      type: object
+      properties: {}
+      additionalProperties: {}
+    marimo-table.get_column_summaries.output:
+      type: object
+      properties:
+        data:
+          anyOf:
+            - anyOf:
+                - type: string
+                - type: array
+                  items:
+                    type: object
+                    properties: {}
+                    additionalProperties: {}
+            - type: "null"
+        stats:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: object
+            properties:
+              total:
+                anyOf:
+                  - type: number
+                  - type: "null"
+              nulls:
+                anyOf:
+                  - type: number
+                  - type: "null"
+              unique:
+                anyOf:
+                  - type: number
+                  - type: "null"
+              "true":
+                anyOf:
+                  - type: number
+                  - type: "null"
+              "false":
+                anyOf:
+                  - type: number
+                  - type: "null"
+              min:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              max:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              std:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              mean:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              median:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              p5:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              p25:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              p75:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+              p95:
+                anyOf:
+                  - anyOf:
+                      - type: number
+                      - type: number
+                      - type: string
+                  - type: "null"
+            required:
+              - total
+              - nulls
+              - unique
+              - "true"
+              - "false"
+              - min
+              - max
+              - std
+              - mean
+              - median
+              - p5
+              - p25
+              - p75
+              - p95
+        bin_values:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                bin_start:
+                  anyOf:
+                    - type: number
+                    - type: string
+                    - type: string
+                      format: date-time
+                bin_end:
+                  anyOf:
+                    - type: number
+                    - type: string
+                    - type: string
+                      format: date-time
+                count:
+                  type: number
+              required:
+                - bin_start
+                - bin_end
+                - count
+        value_counts:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: array
+            items:
+              type: object
+              properties:
+                value:
+                  type: string
+                count:
+                  type: number
+              required:
+                - value
+                - count
+        show_charts:
+          type: boolean
+        is_disabled:
+          type: boolean
+      required:
+        - data
+        - stats
+        - bin_values
+        - value_counts
+        - show_charts
+    marimo-table.get_data_url.input:
+      type: object
+      properties: {}
+      additionalProperties: {}
+    marimo-table.get_data_url.output:
+      type: object
+      properties:
+        data_url:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties: {}
+                additionalProperties: {}
+        format:
+          type: string
+          enum:
+            - csv
+            - json
+            - arrow
+      required:
+        - data_url
+        - format
+    marimo-table.get_row_ids.input:
+      type: object
+      properties: {}
+      additionalProperties: {}
+    marimo-table.get_row_ids.output:
+      type: object
+      properties:
+        row_ids:
+          type: array
+          items:
+            type: number
+        all_rows:
+          type: boolean
+        error:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - row_ids
+        - all_rows
+        - error
+    marimo-table.get_size_bytes.input:
+      type: object
+      properties: {}
+    marimo-table.get_size_bytes.output:
+      type: object
+      properties:
+        size_bytes:
+          anyOf:
+            - type: number
+            - type: "null"
+    marimo-table.preview_column.input:
+      type: object
+      properties:
+        column:
+          type: string
+      required:
+        - column
+    marimo-table.preview_column.output:
+      type: object
+      properties:
+        chart_spec:
+          anyOf:
+            - type: string
+            - type: "null"
+        chart_code:
+          anyOf:
+            - type: string
+            - type: "null"
+        error:
+          anyOf:
+            - type: string
+            - type: "null"
+        missing_packages:
+          anyOf:
+            - type: array
+              items:
+                type: string
+            - type: "null"
+        stats:
+          anyOf:
+            - type: object
+              properties:
+                total:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                nulls:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                unique:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                "true":
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                "false":
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                min:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                max:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                std:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                mean:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                median:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                p5:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                p25:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                p75:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+                p95:
+                  anyOf:
+                    - anyOf:
+                        - type: number
+                        - type: number
+                        - type: string
+                    - type: "null"
+              required:
+                - total
+                - nulls
+                - unique
+                - "true"
+                - "false"
+                - min
+                - max
+                - std
+                - mean
+                - median
+                - p5
+                - p25
+                - p75
+                - p95
+            - type: "null"
+      required:
+        - chart_spec
+        - chart_code
+        - error
+        - missing_packages
+        - stats
+    marimo-table.search.input:
+      type: object
+      properties:
+        sort:
+          type: array
+          items:
+            type: object
+            properties:
+              by:
+                type: string
+              descending:
+                type: boolean
+            required:
+              - by
+              - descending
+        query:
+          type: string
+        filters:
+          $ref: "#/components/schemas/marimo-table.search.input.def.schema0"
+        page_number:
+          type: number
+        page_size:
+          type: number
+        max_columns:
+          anyOf:
+            - type: number
+            - type: "null"
+      required:
+        - page_number
+        - page_size
+    marimo-table.search.input.def.schema0:
+      type: object
+      properties:
+        type:
+          default: group
+          type: string
+          const: group
+        operator:
+          default: and
+          type: string
+          enum:
+            - and
+            - or
+        children:
+          type: array
+          items:
+            anyOf:
+              - type: object
+                properties:
+                  column_id:
+                    description: '{"label":"Column","special":"column_id"}'
+                    anyOf:
+                      - type: string
+                        minLength: 1
+                      - type: number
+                  operator:
+                    type: string
+                    enum:
+                      - is_true
+                      - is_false
+                      - ==
+                      - "!="
+                      - ">"
+                      - ">="
+                      - <
+                      - <=
+                      - between
+                      - is_null
+                      - is_not_null
+                      - equals
+                      - does_not_equal
+                      - contains
+                      - regex
+                      - starts_with
+                      - ends_with
+                      - in
+                      - not_in
+                      - is_empty
+                    description: '{"label":" "}'
+                  type:
+                    default: condition
+                    type: string
+                    const: condition
+                  value:
+                    description: '{"label":"Value"}'
+                  negate:
+                    default: false
+                    type: boolean
+                required:
+                  - column_id
+                  - operator
+                description: '{"direction":"row","special":"column_filter"}'
+              - $ref: "#/components/schemas/marimo-table.search.input.def.schema0"
+        negate:
+          default: false
+          type: boolean
+    marimo-table.search.output:
+      type: object
+      properties:
+        data:
+          anyOf:
+            - type: string
+            - type: array
+              items:
+                type: object
+                properties: {}
+                additionalProperties: {}
+        total_rows:
+          anyOf:
+            - type: number
+            - type: string
+              const: too_many
+        cell_styles:
+          anyOf:
+            - type: object
+              propertyNames:
+                type: string
+              additionalProperties:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  type: object
+                  properties: {}
+                  additionalProperties: {}
+            - type: "null"
+        cell_hover_texts:
+          anyOf:
+            - type: object
+              propertyNames:
+                type: string
+              additionalProperties:
+                type: object
+                propertyNames:
+                  type: string
+                additionalProperties:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+            - type: "null"
+        raw_data:
+          anyOf:
+            - anyOf:
+                - type: string
+                - type: array
+                  items:
+                    type: object
+                    properties: {}
+                    additionalProperties: {}
+            - type: "null"
+      required:
+        - data
+        - total_rows
+        - cell_styles
+    marimo-tabs.data:
+      type: object
+      properties:
+        tabs:
+          type: array
+          items:
+            type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        orientation:
+          default: horizontal
+          type: string
+          enum:
+            - horizontal
+            - vertical
+      required:
+        - tabs
+        - label
+    marimo-tex.data:
+      type: object
+      properties: {}
+    marimo-text.data:
+      type: object
+      properties:
+        initialValue:
+          type: string
+        placeholder:
+          type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        kind:
+          default: text
+          type: string
+          enum:
+            - text
+            - password
+            - email
+            - url
+        maxLength:
+          type: number
+        minLength:
+          type: number
+        fullWidth:
+          default: false
+          type: boolean
+        disabled:
+          type: boolean
+        debounce:
+          anyOf:
+            - type: boolean
+            - type: number
+        passwordHasValue:
+          type: boolean
+      required:
+        - initialValue
+        - placeholder
+        - label
+    marimo-text-area.data:
+      type: object
+      properties:
+        initialValue:
+          type: string
+        placeholder:
+          type: string
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        maxLength:
+          type: number
+        minLength:
+          type: number
+        disabled:
+          type: boolean
+        debounce:
+          anyOf:
+            - type: boolean
+            - type: number
+        rows:
+          default: 4
+          type: number
+        fullWidth:
+          default: false
+          type: boolean
+      required:
+        - initialValue
+        - placeholder
+        - label
+    marimo-vega.data:
+      type: object
+      properties:
+        spec:
+          type: object
+          properties: {}
+          additionalProperties: {}
+        chartSelection:
+          default: true
+          anyOf:
+            - type: boolean
+            - type: string
+              const: point
+            - type: string
+              const: interval
+        fieldSelection:
+          default: true
+          anyOf:
+            - type: boolean
+            - type: array
+              items:
+                type: string
+        embedOptions:
+          default: {}
+          type: object
+          properties: {}
+          additionalProperties: {}
+      required:
+        - spec
