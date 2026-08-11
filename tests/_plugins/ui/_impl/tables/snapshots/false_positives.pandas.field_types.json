@@ -1,0 +1,23 @@
+[
+  [
+    "raw_binary",
+    [
+      "string",
+      "object"
+    ]
+  ],
+  [
+    "wkt_looking",
+    [
+      "string",
+      "str"
+    ]
+  ],
+  [
+    "h3_int",
+    [
+      "integer",
+      "int64"
+    ]
+  ]
+]
