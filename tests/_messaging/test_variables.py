@@ -233,6 +233,9 @@ def test_get_variable_preview_dataframe(df: Any) -> None:
 
     # RSS guard is pandas-only: Python ints are large enough to detect copies
     # above macOS arm64 allocator noise (~18MB).
+    if not DependencyManager.pandas.has():
+        return
+
     import pandas as pd
 
     if not isinstance(df, pd.DataFrame):
