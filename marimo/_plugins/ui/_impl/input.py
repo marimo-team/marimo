@@ -962,6 +962,26 @@ def _validate_option_name(option_name: str, options: dict[str, Any]) -> None:
         )
 
 
+def _validate_unique_option_names(options: Sequence[Any]) -> None:
+    """Raise a helpful error if two options map to the same display name.
+
+    `dropdown` and `multiselect` key their option map on `_to_option_name(...)`;
+    without this check, colliding names would silently overwrite each other and
+    drop options (e.g. `["a", "a"]`, or `[1, "1"]` where an `int` and a `str`
+    both map to `"1"`).
+    """
+    seen: dict[str, Any] = {}
+    for option in options:
+        name = _to_option_name(option)
+        if name in seen:
+            raise ValueError(
+                f"Duplicate option name '{name}': options {seen[name]!r} and "
+                f"{option!r} both map to the same name. "
+                "Option names must be unique."
+            )
+        seen[name] = option
+
+
 @mddoc
 class dropdown(UIElement[list[str], Any]):
     """A dropdown selector.
@@ -1043,6 +1063,7 @@ class dropdown(UIElement[list[str], Any]):
             searchable = True
 
         if not isinstance(options, dict):
+            _validate_unique_option_names(options)
             options = {_to_option_name(option): option for option in options}
 
             if value is not None and not isinstance(value, str):
@@ -1165,6 +1186,7 @@ class multiselect(UIElement[list[str], list[object]]):
             )
 
         if not isinstance(options, dict):
+            _validate_unique_option_names(options)
             options = {_to_option_name(option): option for option in options}
 
             if value is not None and not isinstance(value, str):

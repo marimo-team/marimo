@@ -496,6 +496,35 @@ def test_dropdown_invalid_value() -> None:
     assert "['1', '2', '3']" in str(e.value)
 
 
+def test_dropdown_duplicate_option_names_raise() -> None:
+    # Repeated names collapse silently without this guard.
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.dropdown(options=["a", "a", "b"])
+
+    # Distinct values that stringify to the same name (int 1 vs str "1").
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.dropdown(options=[1, "1"])
+
+    # Non-colliding options are unaffected; all are kept.
+    dd = ui.dropdown(options=[1, "2", 3])
+    assert len(dd.options) == 3
+
+    # Explicit dict input is untouched (keys are already unique).
+    dd = ui.dropdown(options={"a": 1, "b": 2})
+    assert len(dd.options) == 2
+
+
+def test_multiselect_duplicate_option_names_raise() -> None:
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.multiselect(options=["a", "a", "b"])
+
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.multiselect(options=[1, "1"])
+
+    ms = ui.multiselect(options=[1, "2", 3])
+    assert len(ms.options) == 3
+
+
 def test_dropdown_disabled() -> None:
     dd = ui.dropdown(options=["1", "2", "3"])
     assert dd._component_args["disabled"] is False
