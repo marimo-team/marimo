@@ -146,7 +146,7 @@ export const ProfilingPanel: React.FC = () => {
         <div className="font-semibold mt-3">Atom subscriber activity</div>
         {sortedAtoms.length === 0 ? (
           <div className="opacity-70">
-            None recorded. Populated by the incremental-atom work (Track B.2).
+            None recorded. Implementation of incremental-atom work pending.
           </div>
         ) : (
           sortedAtoms.map(([name, count]) => (
