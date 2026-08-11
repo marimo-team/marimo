@@ -15,6 +15,7 @@ import { Tooltip } from "../../ui/tooltip";
 import "./cell-status.css";
 import { formatDistanceToNow } from "date-fns";
 import { formatElapsedTime, Time } from "@/utils/time";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 export interface CellStatusComponentProps extends Pick<
   CellRuntimeState,
@@ -40,6 +41,8 @@ export const CellStatusComponent: React.FC<CellStatusComponentProps> = ({
   lastRunStartTimestamp,
   uninstantiated,
 }) => {
+  useProfiling("CellStatusComponent");
+
   if (!editing) {
     return null;
   }

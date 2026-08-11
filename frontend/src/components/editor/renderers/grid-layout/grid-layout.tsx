@@ -43,6 +43,7 @@ import { cn } from "@/utils/cn";
 import { Maps } from "@/utils/maps";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 type Props = ICellRendererProps<GridLayout>;
 
@@ -396,6 +397,7 @@ const GridCell = memo(
     stale,
   }: GridCellProps) => {
     const loading = outputIsLoading(status);
+    useProfiling("GridCell");
 
     const isOutputEmpty = output == null || output.data === "";
     // If not reading, show code when there is no output

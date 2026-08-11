@@ -41,6 +41,7 @@ import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
 import { MarimoTracebackOutput } from "./output/MarimoTracebackOutput";
 import { renderMimeIcon } from "./renderMimeIcon";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 const METADATA_KEY = "__metadata__";
 
@@ -367,6 +368,8 @@ export const OutputArea = React.memo(
     forceExpand,
     className,
   }: OutputAreaProps) => {
+    useProfiling("OutputArea");
+
     if (output == null) {
       return null;
     }

@@ -18,6 +18,7 @@ import {
   type LayoutType,
   OVERRIDABLE_LAYOUT_TYPES,
 } from "./types";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 interface Props {
   appConfig: AppConfig;
@@ -86,6 +87,7 @@ export const PluginCellRenderer = (props: PluginCellRendererProps) => {
   const notebook = useNotebook();
   const { setCurrentLayoutData } = useLayoutActions();
   const cells = flattenTopLevelNotebookCells(notebook);
+  useProfiling("PluginCellRenderer");
 
   const Renderer = plugin.Component;
   const body = (

@@ -10,6 +10,7 @@ import type { CellId } from "@/core/cells/ids";
 import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { mergeRefs } from "@/utils/mergeRefs";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 interface Props extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
@@ -59,6 +60,7 @@ export const SortableCell = React.forwardRef(
       transition,
       isDragging,
     } = useSortable({ id: cellId.toString(), disabled });
+    useProfiling("SortableCell");
 
     // Perf:
     // If the transform is a noop, keep it as null

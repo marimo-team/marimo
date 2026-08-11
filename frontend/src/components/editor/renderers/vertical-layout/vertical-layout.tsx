@@ -59,6 +59,7 @@ import { cellDomProps } from "../../common";
 import type { ICellRendererPlugin, ICellRendererProps } from "../types";
 import { useDelayVisibility } from "./useDelayVisibility";
 import { VerticalLayoutWrapper } from "./vertical-layout-wrapper";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 type VerticalLayout = null;
 type VerticalLayoutProps = ICellRendererProps<VerticalLayout>;
@@ -344,6 +345,7 @@ const VerticalCell = memo(
     showErrorTracebacks,
   }: VerticalCellProps) => {
     const cellRef = useRef<HTMLDivElement>(null);
+    useProfiling("VerticalCell");
 
     const outputStale = outputIsStale(
       {

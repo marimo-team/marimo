@@ -93,6 +93,7 @@ import {
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
+import { useProfiling } from "@/core/profiling/useProfiling";
 
 /**
  * Hook for handling cell completion logic
@@ -274,6 +275,7 @@ const CellComponent = (props: CellProps) => {
   const ref = useCellHandle(cellId);
 
   useCellRenderCount().countRender();
+  useProfiling("CellComponent");
 
   Logger.debug("Rendering Cell", cellId);
 
