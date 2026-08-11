@@ -5,7 +5,7 @@ import base64
 import dataclasses
 import sys
 import traceback
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -962,24 +962,27 @@ def _validate_option_name(option_name: str, options: dict[str, Any]) -> None:
         )
 
 
-def _validate_unique_option_names(options: Sequence[Any]) -> None:
-    """Raise a helpful error if two options map to the same display name.
+def _build_option_map(options: Iterable[Any]) -> dict[str, Any]:
+    """Build the `{display name: option}` map, raising if two names collide.
 
-    `dropdown` and `multiselect` key their option map on `_to_option_name(...)`;
-    without this check, colliding names would silently overwrite each other and
+    `dropdown` and `multiselect` key their option map on `_to_option_name(...)`.
+    Without this check, colliding names would silently overwrite each other and
     drop options (e.g. `["a", "a"]`, or `[1, "1"]` where an `int` and a `str`
-    both map to `"1"`).
+    both map to `"1"`). Validating and building in a single pass avoids
+    consuming a single-use iterable twice and calls `_to_option_name` once per
+    option.
     """
-    seen: dict[str, Any] = {}
+    result: dict[str, Any] = {}
     for option in options:
         name = _to_option_name(option)
-        if name in seen:
+        if name in result:
             raise ValueError(
-                f"Duplicate option name '{name}': options {seen[name]!r} and "
+                f"Duplicate option name '{name}': options {result[name]!r} and "
                 f"{option!r} both map to the same name. "
                 "Option names must be unique."
             )
-        seen[name] = option
+        result[name] = option
+    return result
 
 
 @mddoc
@@ -1063,8 +1066,7 @@ class dropdown(UIElement[list[str], Any]):
             searchable = True
 
         if not isinstance(options, dict):
-            _validate_unique_option_names(options)
-            options = {_to_option_name(option): option for option in options}
+            options = _build_option_map(options)
 
             if value is not None and not isinstance(value, str):
                 value = _to_option_name(value)
@@ -1186,8 +1188,7 @@ class multiselect(UIElement[list[str], list[object]]):
             )
 
         if not isinstance(options, dict):
-            _validate_unique_option_names(options)
-            options = {_to_option_name(option): option for option in options}
+            options = _build_option_map(options)
 
             if value is not None and not isinstance(value, str):
                 value = [_to_option_name(v) for v in value]
