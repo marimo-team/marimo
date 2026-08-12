@@ -104,7 +104,7 @@ api_key = "sk-proj-..."
 !!! note "OpenAI-compatible providers"
     If your model does not start with `openai/`, it will not be routed to the OpenAI config, and likely will be routed to the OpenAI-compatible config.
 
-> **Tip:** Any OpenAI-compatible multi-model gateway works with the same `base_url` pattern — for example [DaoXE](https://daoxe.com/?utm_source=github&utm_medium=organic&utm_campaign=marimo&utm_content=llm_providers) at `https://api.daoxe.com/v1`.
+> **Tip:** The same `base_url` pattern works with any OpenAI-compatible multi-model gateway — point `base_url` at the gateway's OpenAI-compatible endpoint and use the API key it issues.
 
 
 ??? tip "Reasoning models (o1, o3, etc.)"
