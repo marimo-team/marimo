@@ -43,6 +43,22 @@ def _(date, pd):
 def _(PandasTableManagerFactory, dataframe, json):
     manager = PandasTableManagerFactory.create()(dataframe)
     json_data = json.loads(manager.to_json_str())
+    assert json_data == [
+        {
+            "complex": "(1+2j)",
+            "timedelta": "1 days 00:00:00",
+            "date": "2020-01-01",
+            "bytes": "b'ab'",
+            "extension": "(1.0,)",
+        },
+        {
+            "complex": None,
+            "timedelta": None,
+            "date": None,
+            "bytes": None,
+            "extension": None,
+        },
+    ]
     json_data
     return
 
