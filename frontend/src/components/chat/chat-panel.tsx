@@ -343,12 +343,12 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
 
     return (
       <TooltipProvider>
-        <div className="px-3 py-2 border-t border-border/20 flex flex-row flex-wrap items-center justify-between gap-1">
-          <div className="flex items-center gap-2">
+        <div className="px-3 py-2 border-t border-border/20 flex flex-wrap items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <Select value={currentMode} onValueChange={saveModeChange}>
-              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5">
+              <SelectTrigger className="h-6 text-xs border-border shadow-none! ring-0! bg-muted hover:bg-muted/30 py-0 px-2 gap-1.5 shrink-0">
                 {CurrentModeIcon && <CurrentModeIcon className="h-3 w-3" />}
-                <span>{CurrentModeLabel}</span>
+                <span className="text-nowrap">{CurrentModeLabel}</span>
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
@@ -379,14 +379,14 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
             </Select>
             <AIModelDropdown
               placeholder="Model"
-              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm"
+              triggerClassName="h-6 text-xs shadow-none! ring-0! bg-muted hover:bg-muted/30 rounded-sm max-w-[200px]"
               iconSize="small"
               showAddCustomModelDocs={true}
               forRole="chat"
             />
             <CapabilitiesPopover />
           </div>
-          <div className="flex flex-row">
+          <div className="flex flex-row ml-auto">
             <AddContextButton
               handleAddContext={onAddContext}
               isLoading={isLoading}
@@ -448,8 +448,8 @@ const ChatInput: React.FC<ChatInputProps> = memo(
     });
 
     return (
-      <div className="relative shrink-0 min-h-[80px] flex flex-col border-t">
-        <div className={cn("px-2 py-3 flex-1", inputClassName)}>
+      <div className="relative shrink-0 flex flex-col border-t">
+        <div className={cn("px-2 py-1.5", inputClassName)}>
           <PromptInput
             className="max-h-[400px]"
             inputRef={inputRef}

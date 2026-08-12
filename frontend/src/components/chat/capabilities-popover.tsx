@@ -29,7 +29,7 @@ export const CapabilitiesPopover: React.FC = () => {
           variant="text"
           size="icon"
           className={cn(
-            "h-6 w-6 bg-muted hover:bg-muted/30",
+            "h-6 w-6 shrink-0 bg-muted hover:bg-muted/30",
             webSearchOn && "text-primary",
           )}
         >
