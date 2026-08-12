@@ -246,7 +246,9 @@ class file_browser(
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False.
+            navigating any level above the given path. Defaults to False. In an
+            app served with `marimo run`, navigation is always restricted to the
+            initial path, regardless of this value.
         value (str | Path | Sequence[str | Path], optional): File or directory
             path, or sequence of paths, selected by default. Defaults to None.
         ignore_empty_dirs (bool, optional): If True, hide directories that contain
@@ -516,7 +518,7 @@ class file_browser(
             if not _is_path_within(path, self._initial_path):
                 raise RuntimeError(
                     "Navigation is restricted; navigating outside the initial path is not allowed."
-                ) from None
+                )
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 
