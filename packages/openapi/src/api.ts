@@ -3704,7 +3704,7 @@ export interface components {
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `models`: the models to use for AI completions
-     *         - `capabilities`: optional AI capabilities, e.g. web search
+     *         - `capabilities`: optional AI capabilities
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
      *         - `google`: the Google AI config
