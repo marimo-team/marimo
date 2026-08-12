@@ -29,14 +29,12 @@ minimumReleaseAgeExclude:
   - js-cookie@3.0.7
   # Renovate security update: ws@8.21.0
   - ws@8.21.0
-  # Renovate security update: turbo@2.9.14
-  - turbo@2.9.14
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
   # Transitive/direct deps where the resolved version lacks SLSA provenance
   # but an earlier-published version had it. Verified no known takeovers as
-  # of 2026-05-12 — these are publishing-pipeline changes, not incidents.
+  # of 2026-05-12  these are publishing-pipeline changes, not incidents.
   - "@octokit/endpoint@9.0.6"
   - "@octokit/plugin-paginate-rest@9.2.2"
   - "@swc/core@1.12.14"
