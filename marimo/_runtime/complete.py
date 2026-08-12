@@ -84,6 +84,9 @@ _MATH_DISPLAY_DOLLAR_PATTERN = re.compile(
 _MATH_INLINE_DOLLAR_PATTERN = re.compile(
     r"(?<![\\$])\$(?!\$)([^$\n]+?)(?<!\\)\$(?!\$)"
 )
+_DOCSTRING_PLACEHOLDER_PATTERN = re.compile(
+    r"(?<!\{)\{[A-Za-z_][A-Za-z0-9_]*\}(?!\})"
+)
 
 
 def _contains_math_syntax(text: str) -> bool:
@@ -234,11 +237,19 @@ def _param_types_from_signatures(
     return param_types
 
 
-def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
+def _get_raw_docstring(
+    completion: jedi.api.classes.BaseName,
+) -> str | None:
     try:
-        raw_body = cast(str, completion.docstring(raw=True))
+        return cast(str, completion.docstring(raw=True))
     except Exception:
         LOGGER.debug("Failed to get docstring for %s", completion.name)
+        return None
+
+
+def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
+    raw_body = _get_raw_docstring(completion)
+    if raw_body is None:
         return ""
 
     # Glean raw signatures
@@ -278,6 +289,15 @@ def _get_docstring(completion: jedi.api.classes.BaseName) -> str:
         init_docstring or None,
         tuple(sorted_param_types),
     )
+
+
+def _docstring_placeholders(
+    completion: jedi.api.classes.BaseName,
+) -> set[str]:
+    raw_docstring = _get_raw_docstring(completion)
+    if not raw_docstring:
+        return set()
+    return set(_DOCSTRING_PLACEHOLDER_PATTERN.findall(raw_docstring))
 
 
 def _get_type_hint(completion: jedi.api.classes.BaseName) -> str:
@@ -341,6 +361,7 @@ def _get_completion_option(
     completion: jedi.api.classes.Completion,
     compute_completion_info: bool,
     compute_type: bool = True,
+    completion_info_override: str | None = None,
 ) -> CompletionOption:
     name = completion.name
     # `completion.type` triggers jedi inference and can be surprisingly
@@ -353,7 +374,9 @@ def _get_completion_option(
 
     kind = completion.type
 
-    if compute_completion_info:
+    if completion_info_override is not None:
+        completion_info = completion_info_override
+    elif compute_completion_info:
         # Show the completion's own documentation. For a parameter this is the
         # description of that single parameter, which
         # `patch_jedi_parameter_completion` extracts from the enclosing
@@ -375,6 +398,7 @@ def _get_completion_options(
     prefix: str,
     limit: int,
     timeout: float,
+    completion_info_overrides: dict[str, str] | None = None,
 ) -> list[CompletionOption]:
     # For large completion sets (e.g. `pd.`, ~140 attrs), building per-item
     # docstrings costs seconds of jedi inference that the user will never read.
@@ -394,6 +418,11 @@ def _get_completion_options(
                 compute_completion_info=compute_docstrings
                 and under_time_budget,
                 compute_type=under_time_budget,
+                completion_info_override=(
+                    completion_info_overrides.get(completion.name)
+                    if completion_info_overrides
+                    else None
+                ),
             )
         )
     return completion_options
@@ -445,6 +474,47 @@ def _get_completions_with_interpreter(
         LOGGER.debug("Completion worker acquired globals lock")
         completions = script.complete()
     return script, completions
+
+
+def _get_runtime_completion_info(
+    document: str,
+    static_completions: list[jedi.api.classes.Completion],
+    glbls: dict[str, Any],
+    glbls_lock: threading.RLock,
+) -> dict[str, str]:
+    """Resolve dynamic docstrings only when static docs have placeholders."""
+    static_by_name = {
+        completion.name: placeholders
+        for completion in static_completions
+        if (placeholders := _docstring_placeholders(completion))
+    }
+    if not static_by_name or not glbls_lock.acquire(blocking=False):
+        return {}
+
+    try:
+        # Earlier statements can make Interpreter prefer static definitions
+        # over the live objects in globals.
+        runtime_document = document.rsplit("\n", 1)[-1].lstrip()
+        runtime_completions = jedi.Interpreter(
+            runtime_document, [glbls]
+        ).complete()
+        completion_info: dict[str, str] = {}
+        for runtime_completion in runtime_completions:
+            static_placeholders = static_by_name.get(runtime_completion.name)
+            if static_placeholders is None or not (
+                static_placeholders
+                - _docstring_placeholders(runtime_completion)
+            ):
+                continue
+            info = _get_completion_info(runtime_completion)
+            if info:
+                completion_info[runtime_completion.name] = info
+        return completion_info
+    except Exception as e:
+        LOGGER.debug("Failed to get runtime docstrings: %s", str(e))
+        return {}
+    finally:
+        glbls_lock.release()
 
 
 # TODO move this to a global utility module
@@ -773,11 +843,23 @@ def complete(
             # We're not blocking the kernel so we can afford to take longer
             timeout = 2
 
+        completion_info_overrides = (
+            _get_runtime_completion_info(
+                request.document,
+                completions,
+                glbls,
+                glbls_lock,
+            )
+            if not isinstance(script, jedi.Interpreter)
+            and len(completions) <= docstrings_limit
+            else {}
+        )
         options = _get_completion_options(
             completions,
             prefix=prefix,
             limit=docstrings_limit,
             timeout=timeout,
+            completion_info_overrides=completion_info_overrides,
         )
         _write_completion_result(
             stream=stream,
