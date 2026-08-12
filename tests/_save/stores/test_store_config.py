@@ -70,3 +70,36 @@ class TestGetStoreFromConfig:
         config = {"args": {}}
         store = _get_store_from_config(config)
         assert isinstance(store, DEFAULT_STORE)
+
+
+class TestGetStore:
+    """get_store reads the store from top-level `[cache].store`."""
+
+    def _store_for(self, monkeypatch, config) -> object:
+        from marimo._save import stores as stores_mod
+
+        class _Mgr:
+            def get_config(self):
+                return config
+
+        monkeypatch.setattr(
+            "marimo._config.manager.get_default_config_manager",
+            lambda **_kwargs: _Mgr(),
+        )
+        return stores_mod.get_store()
+
+    def test_top_level_cache_store(self, monkeypatch) -> None:
+        store = self._store_for(
+            monkeypatch,
+            {
+                "cache": {
+                    "store": {"type": "file", "args": {"save_path": "/tmp/a"}}
+                }
+            },
+        )
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/a"
+
+    def test_no_cache_config_uses_default(self, monkeypatch) -> None:
+        store = self._store_for(monkeypatch, {})
+        assert isinstance(store, DEFAULT_STORE)

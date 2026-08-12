@@ -3855,6 +3855,20 @@ export interface components {
       op: "cache-cleared";
     };
     /**
+     * CacheConfig
+     * @description Configuration for caching.
+     *
+     *         `verification` is the signature-checking posture; `store` is the backing
+     *         store, or a list of stores composed into a `TieredStore`.
+     */
+    CacheConfig: {
+      store?:
+        | components["schemas"]["StoreConfig"][]
+        | components["schemas"]["StoreConfig"];
+      /** @enum {unknown} */
+      verification?: "off" | "on" | "strict";
+    };
+    /**
      * CacheInfoNotification
      * @description Execution cache statistics.
      *
@@ -5740,6 +5754,7 @@ export interface components {
      */
     MarimoConfig: {
       ai?: components["schemas"]["AiConfig"];
+      cache?: components["schemas"]["CacheConfig"];
       completion: components["schemas"]["CompletionConfig"];
       datasources?: components["schemas"]["DatasourcesConfig"];
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
@@ -5755,6 +5770,7 @@ export interface components {
       save: components["schemas"]["SaveConfig"];
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
+      signing?: components["schemas"]["SigningConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
@@ -6763,6 +6779,22 @@ export interface components {
     ShutdownSessionRequest: {
       sessionId: components["schemas"]["SessionId"];
     };
+    /**
+     * SigningConfig
+     * @description Cache-signing trust and identity.
+     *
+     *         `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+     *         advisory label. Trusting a key allows arbitrary code execution from its
+     *         holder on this machine — a cache restore is `pickle.loads` — so there is no
+     *         lesser cache-only grant. `private_key_path` is this machine's signing
+     *         identity; it is never serialized to the frontend.
+     */
+    SigningConfig: {
+      private_key_path?: string;
+      trusted_signers?: {
+        [key: string]: string;
+      };
+    };
     /** Snippet */
     Snippet: {
       sections: components["schemas"]["SnippetSection"][];
@@ -7035,7 +7067,7 @@ export interface components {
     };
     /**
      * StoreConfig
-     * @description Configuration for cache stores.
+     * @description Configuration for a single cache store.
      */
     StoreConfig: {
       args?: Record<string, any>;
