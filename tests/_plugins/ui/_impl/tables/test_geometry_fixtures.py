@@ -165,11 +165,14 @@ class TestGeoArrowCharacterization:
 class TestDuckDBCharacterization:
     def test_geometry_types_unknown(self) -> None:
         conn = geo.duckdb_spatial_connection()
-        relation = geo.duckdb_geometry_relation(conn)
-        manager = get_table_manager(relation)
-        field_types = dict(manager.get_field_types())
-        assert field_types["a"][0] == "integer"
-        assert field_types["geom"] == ("unknown", "Unknown")
+        try:
+            relation = geo.duckdb_geometry_relation(conn)
+            manager = get_table_manager(relation)
+            field_types = dict(manager.get_field_types())
+            assert field_types["a"][0] == "integer"
+            assert field_types["geom"] == ("unknown", "Unknown")
+        finally:
+            conn.close()
 
 
 @pytest.mark.requires("ibis")
@@ -235,7 +238,7 @@ class TestFalsePositiveBaselines:
 
 
 class TestOrdinaryBaselines:
-    """Byte-identical ordinary-table payloads for backends without one."""
+    """Ordinary-table payload baselines for backends without one."""
 
     @pytest.mark.requires("pyarrow")
     def test_pyarrow(self) -> None:

@@ -4,9 +4,9 @@
 One factory function per fixture. Geo sources cover GeoPandas, GeoArrow
 (WKB and WKT), DuckDB spatial, and ibis. False-positive fixtures look
 like geometry but must never be detected as geometry. Ordinary data
-feeds the byte-identical baselines.
+feeds the ordinary-table payload baselines.
 
-Callers gate on ``pytest.mark.requires(...)``; functions assume their
+Callers gate on `pytest.mark.requires(...)`; functions assume their
 libraries are installed except the duckdb spatial helpers, which skip
 when the extension cannot load.
 """
@@ -56,7 +56,7 @@ def gdf_point_missing_crs() -> gpd_mod.GeoDataFrame:
 
 
 def gdf_multi_geometry() -> gpd_mod.GeoDataFrame:
-    """Two geometry columns with independent CRS; ``geom_a`` is active."""
+    """Two geometry columns with independent CRS; `geom_a` is active."""
     import geopandas as gpd
     from shapely.geometry import Point
 
@@ -223,7 +223,7 @@ def arrow_other_geoarrow() -> pa_mod.Table:
 def duckdb_spatial_connection() -> duckdb_mod.DuckDBPyConnection:
     """In-memory connection with the spatial extension, or skip.
 
-    ``INSTALL spatial`` downloads the extension, so network-blocked
+    `INSTALL spatial` downloads the extension, so network-blocked
     runners skip these fixtures instead of failing.
     """
     import duckdb
@@ -290,7 +290,7 @@ def pandas_shapely_object_column() -> Any:
 
 
 def ordinary_data() -> dict[str, list[Any]]:
-    """Small typed payload for byte-identical baselines."""
+    """Small typed payload for ordinary-table baselines."""
     return {
         "int": [1, 2, 3],
         "float": [1.5, 2.5, 3.5],
