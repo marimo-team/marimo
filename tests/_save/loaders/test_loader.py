@@ -209,8 +209,8 @@ class TestLazyLoader(ABCTestLoader):
     def _instance(self) -> Loader:
         # These exercise generic loader mechanics (hit/miss, blob handling)
         # with hand-written unsigned manifests; signing behavior is covered in
-        # test_lazy_signing.py. mode="off" serves unsigned entries as-is.
-        return LazyLoader("test", store=self.store, mode="off")
+        # test_lazy_signing.py. verification="off" serves unsigned entries as-is.
+        return LazyLoader("test", store=self.store, verification="off")
 
     def teardown_method(self) -> None:
         if self.value and hasattr(self.value, "flush"):

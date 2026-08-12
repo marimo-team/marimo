@@ -33,6 +33,22 @@ class TestGetStoreFromConfig:
         assert isinstance(store, FileStore)
         assert store.save_path.as_posix() == "/tmp/test"
 
+    def test_legacy_store_key_still_selects_the_store(self) -> None:
+        """The old `experimental.cache` reader spelled the key `store`.
+
+        Reading only `type` would silently hand such a config the default
+        store — the cache would still appear to work while never hitting.
+        """
+        config = {"store": "file", "args": {"save_path": "/tmp/legacy"}}
+        store = _get_store_from_config(config)
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/legacy"
+
+    def test_type_wins_over_legacy_store_key(self) -> None:
+        config = {"store": "redis", "type": "file"}
+        store = _get_store_from_config(config)
+        assert isinstance(store, FileStore)
+
     def test_multi_item_list(self) -> None:
         """Test that a list with multiple items returns a TieredStore."""
         config = [
@@ -70,3 +86,106 @@ class TestGetStoreFromConfig:
         config = {"args": {}}
         store = _get_store_from_config(config)
         assert isinstance(store, DEFAULT_STORE)
+
+
+class TestGetStore:
+    """get_store reads top-level [cache].store, falling back to experimental."""
+
+    def _store_for(self, monkeypatch, config) -> object:
+        from marimo._save import stores as stores_mod
+
+        class _Mgr:
+            def get_config(self):
+                return config
+
+        monkeypatch.setattr(
+            "marimo._config.manager.get_default_config_manager",
+            lambda **_kwargs: _Mgr(),
+        )
+        return stores_mod.get_store()
+
+    def test_top_level_cache_store(self, monkeypatch) -> None:
+        store = self._store_for(
+            monkeypatch,
+            {
+                "cache": {
+                    "store": {"type": "file", "args": {"save_path": "/tmp/a"}}
+                }
+            },
+        )
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/a"
+
+    def test_experimental_cache_fallback(self, monkeypatch) -> None:
+        store = self._store_for(
+            monkeypatch,
+            {
+                "experimental": {
+                    "cache": {"type": "file", "args": {"save_path": "/tmp/b"}}
+                }
+            },
+        )
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/b"
+
+    def test_top_level_supersedes_experimental(self, monkeypatch) -> None:
+        store = self._store_for(
+            monkeypatch,
+            {
+                "cache": {
+                    "store": {
+                        "type": "file",
+                        "args": {"save_path": "/tmp/top"},
+                    }
+                },
+                "experimental": {
+                    "cache": {
+                        "type": "file",
+                        "args": {"save_path": "/tmp/exp"},
+                    }
+                },
+            },
+        )
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/top"
+
+    def test_no_cache_config_uses_default(self, monkeypatch) -> None:
+        store = self._store_for(monkeypatch, {})
+        assert isinstance(store, DEFAULT_STORE)
+
+
+class TestCacheStoreProvenance:
+    """cache_store_is_untrusted flags a store set by a project/script layer."""
+
+    def _untrusted_for(self, monkeypatch, overrides) -> bool:
+        from marimo._save import stores as stores_mod
+
+        class _Mgr:
+            def get_config_overrides(self):
+                # project + script + env, merged (env never sets a store).
+                return overrides
+
+        monkeypatch.setattr(
+            "marimo._config.manager.get_default_config_manager",
+            lambda **_kwargs: _Mgr(),
+        )
+        return stores_mod.cache_store_is_untrusted()
+
+    def test_project_store_is_untrusted(self, monkeypatch) -> None:
+        assert self._untrusted_for(
+            monkeypatch, {"cache": {"store": {"type": "rest"}}}
+        )
+
+    def test_experimental_project_store_is_untrusted(
+        self, monkeypatch
+    ) -> None:
+        assert self._untrusted_for(
+            monkeypatch, {"experimental": {"cache": {"type": "file"}}}
+        )
+
+    def test_no_override_store_is_trusted(self, monkeypatch) -> None:
+        # Store set only in the (trusted) user layer never appears in overrides.
+        assert not self._untrusted_for(monkeypatch, {})
+        assert not self._untrusted_for(
+            monkeypatch, {"cache": {"verification": "on"}}
+        )

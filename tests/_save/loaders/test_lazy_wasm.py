@@ -225,9 +225,9 @@ class TestLazyLoaderBatchPath:
     def test_restore_uses_batch_path(self) -> None:
         inner = DictStore()
         store = LazyStore(inner=inner)
-        # mode="off": this exercises the batch-restore mechanics, not signing
+        # verification="off": this exercises the batch-restore mechanics, not signing
         # (covered in test_lazy_signing.py); the seeded manifest is unsigned.
-        loader = LazyLoader("test_batch", store=store, mode="off")
+        loader = LazyLoader("test_batch", store=store, verification="off")
 
         # Seed a cache manually
         base = Path("test_batch") / "hash1"
@@ -261,8 +261,8 @@ class TestLazyLoaderBatchPath:
         # (no threads in Pyodide) via `_dispatch_write`.
         inner = DictStore()
         store = WasmLazyStore(inner=inner)
-        # mode="off": exercises the synchronous WASM write path, not signing.
-        loader = WasmLazyLoader("test_sync", store=store, mode="off")
+        # verification="off": exercises the synchronous WASM write path, not signing.
+        loader = WasmLazyLoader("test_sync", store=store, verification="off")
 
         cache = Cache(
             defs={"x": 42, "y": "hello"},
@@ -380,7 +380,7 @@ class TestRestoreTripwire:
     ) -> None:
         self._patch_failing_codec(monkeypatch)
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_native", store=store, mode="off")
+        loader = LazyLoader("trip_native", store=store, verification="off")
 
         base = Path("trip_native") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -404,7 +404,7 @@ class TestRestoreTripwire:
         # Exercises the WASM `_read_blobs` variant (get_batch, no threads).
         self._patch_failing_codec(monkeypatch)
         store = WasmLazyStore(inner=DictStore())
-        loader = WasmLazyLoader("trip_wasm", store=store, mode="off")
+        loader = WasmLazyLoader("trip_wasm", store=store, verification="off")
 
         base = Path("trip_wasm") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -431,7 +431,7 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_return", store=store, mode="off")
+        loader = LazyLoader("trip_return", store=store, verification="off")
 
         base = Path("trip_return") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -459,7 +459,9 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = WasmLazyStore(inner=DictStore())
-        loader = WasmLazyLoader("trip_return_wasm", store=store, mode="off")
+        loader = WasmLazyLoader(
+            "trip_return_wasm", store=store, verification="off"
+        )
 
         base = Path("trip_return_wasm") / "h"
         good_ref = (base / "good.pickle").as_posix()
@@ -488,7 +490,7 @@ class TestRestoreTripwire:
         from marimo._save.hash import HashKey
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_ui", store=store, mode="off")
+        loader = LazyLoader("trip_ui", store=store, verification="off")
 
         ui_ref = (Path("trip_ui") / "h" / "ui.pickle").as_posix()
         store.put(ui_ref, b"__FAIL__")
@@ -534,7 +536,7 @@ class TestRestoreTripwire:
         )
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("trip_import", store=store, mode="off")
+        loader = LazyLoader("trip_import", store=store, verification="off")
         bad_ref = (Path("trip_import") / "h" / "bad.faildep").as_posix()
         store.put(bad_ref, b"unused")
         self._seed(
@@ -601,7 +603,7 @@ class TestStaleKeys:
         from marimo._save.loaders.lazy import _cache_state
 
         store = LazyStore(inner=DictStore())
-        loader = LazyLoader("stale_test", store=store, mode="off")
+        loader = LazyLoader("stale_test", store=store, verification="off")
 
         base = Path("stale_test") / "h"
         var_ref = (base / "v.pickle").as_posix()

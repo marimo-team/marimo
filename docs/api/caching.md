@@ -263,6 +263,82 @@ def my_decorator(func):
 ```
 
 In this instance, the cache will work as expected because the decorated function has the same signature and metadata as the original function.
+
+## Cache signing and trust
+
+Restoring a persistent cache entry deserializes it with `pickle`, which runs
+whatever code the entry tells it to. So reading a cache someone else wrote means
+running code they chose.
+
+To keep that from happening by accident, marimo signs every cache entry it
+writes with an [Ed25519](https://ed25519.cr.yp.to/) key and checks the signature
+before restoring one. An entry that does not verify against a key you trust is
+recomputed rather than loaded.
+
+You do not need to configure anything for this. On a local cache, marimo signs
+with a machine-local key it creates on first use, so your own entries verify and
+a cache written elsewhere does not.
+
+### Sharing a cache between machines
+
+To read entries written on another machine — a CI job that populates a shared
+store, or a colleague's cache — you have to say whose key you trust. A key is
+identified by its *fingerprint*: `"SHA256:"` followed by base64, in the style of
+an SSH key fingerprint.
+
+```toml title="~/.config/marimo/marimo.toml"
+[signing]
+# This machine's signing identity.
+private_key_path = "~/.marimo/cache_key.pem"
+
+[signing.trusted_signers]
+# fingerprint = label. The label is a note to yourself; only the
+# fingerprint decides anything.
+"SHA256:kV9x2c...q8" = "CI cache key"
+"SHA256:abc9f1...4d" = "Alice"
+```
+
+!!! danger "Trusting a key grants code execution"
+    A cache restore is `pickle.loads`, so trusting a fingerprint lets whoever
+    holds that key run arbitrary code on your machine. There is no narrower
+    "cache-only" version of this grant. Add a fingerprint only if you would run
+    a script that person handed you.
+
+### Verification postures
+
+```toml title="~/.config/marimo/marimo.toml"
+[cache]
+verification = "on"  # "off" | "on" | "strict"
+```
+
+| Cache entry | `off` | `on` (default) | `strict` |
+|---|---|---|---|
+| Trusted key, valid signature | served | served | served |
+| Foreign key, bad signature, or unsigned | served **unchecked** | **miss** — recomputed | **raises** |
+| On write | not signed | signed | signed |
+
+`off` is the only setting that will hand you unverified bytes. `on` fails safe:
+an entry it cannot verify is treated as a cache miss, so the worst case is
+recomputing. `strict` fails closed and raises, which is what you want in CI,
+where a cache that silently stops hitting is a bug you would rather hear about.
+
+If the `cryptography` package is not installed, marimo cannot sign or verify.
+Under `on` it keeps working without serving unverified bytes — every read misses
+and every write is skipped — and under `strict` it raises.
+
+### Where trust can be configured
+
+`[signing]` and `[cache].verification` are read **only** from your own user
+configuration and the environment. marimo ignores them in `pyproject.toml`, in
+notebook script metadata, and in any `.marimo.toml` found inside a project
+directory.
+
+This is deliberate: those files travel with the code. A repository that could
+name its own signing key as trusted, or turn verification off, could ship a
+poisoned cache entry that runs on `git clone` — exactly the attack signing
+exists to prevent. `[cache].store` may still be set per-project, because the
+bytes a store returns are still verified before anything is deserialized.
+
 ## Comparison with `functools.cache`
 
 Here is a table comparing marimo's cache with `functools.cache`:

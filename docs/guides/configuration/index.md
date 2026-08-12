@@ -92,10 +92,18 @@ default_width = "full"
 default_sql_output = "native"
 ```
 
-You can override any user configuration setting in this way. To find these settings run `marimo config show`.
+You can override most user configuration settings in this way. To find these settings run `marimo config show`.
 
 !!! note "Overridden settings"
     Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
+
+!!! warning "Settings that repositories cannot override"
+    A `pyproject.toml` and a notebook's script metadata travel with the code, so
+    whoever wrote the repository controls them. `signing` and
+    `cache.verification`, which decide
+    [whose cached code you will unpickle](../../api/caching.md#cache-signing-and-trust),
+    are ignored there — and in any `.marimo.toml` found inside a project
+    directory. Set them in your own user configuration instead.
 
 ### Script metadata configuration
 
@@ -116,6 +124,10 @@ You can also configure marimo settings directly in your notebook files using scr
     Script metadata configuration has the highest precedence, followed by `pyproject.toml` configuration, then user configuration:
 
     **Script config > pyproject.toml config > user config**
+
+    This ordering applies to the settings those layers are allowed to set. The
+    security-sensitive settings listed above are read only from user
+    configuration, no matter which layer sets them.
 
 ## Environment variables
 

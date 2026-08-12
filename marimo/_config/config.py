@@ -592,13 +592,42 @@ class SharingConfig(TypedDict):
 
 @dataclass
 class StoreConfig(TypedDict, total=False):
-    """Configuration for cache stores."""
+    """Configuration for a single cache store."""
 
     type: StoreKey
     args: dict[str, Any]
 
 
-CacheConfig = list[StoreConfig] | StoreConfig
+# One store, or a list composed into a TieredStore.
+CacheStoreConfig = list[StoreConfig] | StoreConfig
+
+CacheVerification = Literal["off", "on", "strict"]
+
+
+class CacheConfig(TypedDict, total=False):
+    """Configuration for caching.
+
+    `verification` is the signature-checking posture; `store` is the backing
+    store(s). Promoted from the former `experimental.cache`, which is still
+    read as a fallback for `store`.
+    """
+
+    verification: CacheVerification
+    store: CacheStoreConfig
+
+
+class SigningConfig(TypedDict, total=False):
+    """Cache-signing trust and identity.
+
+    `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+    advisory label. Trusting a key allows arbitrary code execution from its
+    holder on this machine — a cache restore is `pickle.loads` — so there is no
+    lesser cache-only grant. `private_key_path` is this machine's signing
+    identity; it is never serialized to the frontend.
+    """
+
+    trusted_signers: dict[str, str]
+    private_key_path: str
 
 
 class ExperimentalConfig(TypedDict, total=False):
@@ -616,7 +645,8 @@ class ExperimentalConfig(TypedDict, total=False):
     line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
-    cache: CacheConfig
+    # NB. superseded by the top-level `cache` config; still read as a fallback.
+    cache: CacheStoreConfig
     execution_type: ExecutionType
 
 
@@ -648,6 +678,8 @@ class MarimoConfig(TypedDict):
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 @mddoc
@@ -715,6 +747,8 @@ class PartialMarimoConfig(TypedDict, total=False):
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -829,7 +863,12 @@ def merge_config(
     # Fields that should be replaced instead of merged.
     # These are "record" types where keys can be added/removed,
     # as opposed to config objects where you only set specific fields.
-    replace_paths = frozenset({"ai.custom_providers"})
+    # `signing.trusted_signers` is replaced so a higher-priority layer can
+    # narrow or revoke trust: a deep merge would union the fingerprints, making
+    # it impossible to remove a previously-anchored signer.
+    replace_paths = frozenset(
+        {"ai.custom_providers", "signing.trusted_signers"}
+    )
 
     merged = cast(
         MarimoConfig,

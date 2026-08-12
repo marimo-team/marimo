@@ -5,7 +5,7 @@ import copy
 from typing import cast
 
 from marimo import _loggers
-from marimo._config.config import CacheConfig, StoreKey
+from marimo._config.config import CacheStoreConfig, StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
@@ -33,18 +33,38 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: CacheConfig | None = (
-        get_default_config_manager(current_path=current_path)
-        .get_config()
-        .get("experimental", {})
-        .get("cache", None)
+    config = get_default_config_manager(current_path=current_path).get_config()
+    # Top-level [cache].store supersedes the legacy experimental.cache location.
+    store_config: CacheStoreConfig | None = config.get("cache", {}).get(
+        "store"
     )
+    if store_config is None:
+        store_config = config.get("experimental", {}).get("cache", None)
 
-    return _get_store_from_config(cache_config)
+    return _get_store_from_config(store_config)
+
+
+def cache_store_is_untrusted(current_path: str | None = None) -> bool:
+    """Whether `cache.store` was set by an untrusted (project/script) layer.
+
+    The user layer is trusted and the env layer never sets a store, so a store
+    config present in the merged *overrides* (project pyproject.toml or notebook
+    header) is untrusted origin. Used to stop the unsigned pickle loader from
+    being redirected at an attacker-chosen store.
+    """
+    from marimo._config.manager import get_default_config_manager
+
+    overrides = get_default_config_manager(
+        current_path=current_path
+    ).get_config_overrides()
+    store = overrides.get("cache", {}).get("store")
+    if store is None:
+        store = overrides.get("experimental", {}).get("cache")
+    return store is not None
 
 
 def _get_store_from_config(
-    config: CacheConfig | None,
+    config: CacheStoreConfig | None,
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
@@ -65,7 +85,19 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = cast(StoreKey, config.get("store", DEFAULT_STORE_KEY))
+        # `type` is the documented key. The legacy `experimental.cache` reader
+        # spelled it `store`, so accept that too rather than silently falling
+        # back to the default store — a silent cache miss is the worst outcome
+        # here, since the cache still "works" while never hitting.
+        store_type = cast(StoreKey, config.get("type") or DEFAULT_STORE_KEY)
+        if "type" not in config and "store" in config:
+            store_type = cast(StoreKey, config["store"])  # type: ignore[typeddict-item]
+            LOGGER.warning(
+                "Cache store config uses the legacy key `store = %r`; rename "
+                "it to `type = %r`.",
+                store_type,
+                store_type,
+            )
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
