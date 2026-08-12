@@ -144,15 +144,19 @@ def _stringify_preserving_nulls(
     return stringified
 
 
-def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
-    """Whether an extension-array column should be cast to str for JSON."""
+def _extension_column_needs_stringify(
+    series: pd.Series[Any],
+    notna: pd.Series[bool] | None = None,
+) -> bool:
+    """Whether an extension-array column needs a string cast for JSON."""
     from pandas.api.types import is_extension_array_dtype
 
     try:
         if not is_extension_array_dtype(series.dtype):
             return False
 
-        notna = series.notna()
+        if notna is None:
+            notna = series.notna()
         if not notna.any():
             return False
 
@@ -295,6 +299,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 from pandas.api.types import (
                     is_complex_dtype,
+                    is_extension_array_dtype,
                     is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
@@ -304,29 +309,41 @@ class PandasTableManagerFactory(TableManagerFactory):
                 result = _data.copy()  # to avoid SettingWithCopyWarning
                 try:
                     for col in result.columns:
-                        dtype = result[col].dtype
-                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
-                        # We want to preserve the original display
+                        series = result[col]
+                        dtype = series.dtype
+                        # Complex dtypes become {'imag': num, 'real': num} by default.
+                        # Preserve their display values instead.
                         if is_complex_dtype(dtype):
-                            result[col] = result[col].apply(str)
-                        if _extension_column_needs_stringify(result[col]):
-                            # Extension arrays with rich Python values (e.g.
-                            # pint-pandas) serialize to nested dicts via
-                            # to_dict; stringify to preserve display.
-                            result[col] = result[col].astype(str)
+                            result[col] = _stringify_preserving_nulls(series)
+
+                        notna = (
+                            series.notna()
+                            if is_extension_array_dtype(dtype)
+                            else None
+                        )
+                        if _extension_column_needs_stringify(series, notna):
+                            # Extension arrays with rich Python values serialize to nested
+                            # dictionaries through to_dict. Preserve their display values.
+                            result[col] = _stringify_preserving_nulls(
+                                series, notna
+                            )
+
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
-                            result[col] = result[col].apply(str)
+                            result[col] = _stringify_preserving_nulls(series)
                         if is_object_dtype(dtype):
-                            # Check if column contains date objects (not datetime), and convert them to string
-                            # Typically, this will change to YYYY-MM-DD format
+                            # Convert date objects to the YYYY-MM-DD display form.
                             inferred_dtype = self._infer_dtype(col)
                             if inferred_dtype == "date":
-                                result[col] = result[col].apply(str)
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
                             elif inferred_dtype == "bytes":
-                                # Cast bytes to string to avoid overflow error
-                                result[col] = result[col].apply(str)
+                                # Convert bytes to strings to avoid an overflow error.
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
 
                 except Exception as e:
                     LOGGER.error(
