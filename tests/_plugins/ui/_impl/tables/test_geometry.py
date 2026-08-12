@@ -3,10 +3,17 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Literal
 
 import pytest
 
+from marimo import _loggers
+from marimo._plugins import ui
+from marimo._plugins.ui._impl.table import (
+    ColumnSummariesArgs,
+    SearchTableArgs,
+    SortArgs,
+)
 from marimo._plugins.ui._impl.tables.geometry import (
     GEOMETRY_CELL_CAP,
     GeometryColumnInfo,
@@ -16,6 +23,7 @@ from marimo._plugins.ui._impl.tables.geometry import (
 from marimo._plugins.ui._impl.tables.narwhals_table import (
     NarwhalsTableManager,
 )
+from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from tests._plugins.ui._impl.tables import geometry_fixtures as geo
 
@@ -175,6 +183,54 @@ class TestGeoPandasManager:
         manager = get_table_manager(geo.gdf_point_known_crs())
 
         assert manager.get_unique_column_values("geometry") == []
+
+
+@pytest.mark.requires("geopandas")
+class TestHostGuards:
+    def test_chart_fallback_drops_geometry(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        frame = geo.gdf_point_known_crs().assign(value=[1, 2])
+        table = ui.table(frame, show_column_summaries=True)
+
+        def fail_bin_values(*_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("Intentional bin failure")
+
+        def column_names_as_chart_data(
+            manager: TableManager[Any],
+        ) -> tuple[str, Literal["csv"]]:
+            return ",".join(manager.get_column_names()), "csv"
+
+        monkeypatch.setattr(table._manager, "get_bin_values", fail_bin_values)
+        monkeypatch.setattr(
+            type(table),
+            "_to_chart_data_url",
+            staticmethod(column_names_as_chart_data),
+        )
+
+        summaries = table._get_column_summaries(ColumnSummariesArgs())
+
+        assert summaries.data == "name,value"
+
+    def test_sort_is_ignored(self) -> None:
+        table = ui.table(geo.gdf_point_known_crs())
+
+        with _loggers.capture_output() as (_, _, records):
+            response = table._search(
+                SearchTableArgs(
+                    page_size=10,
+                    page_number=0,
+                    sort=[SortArgs(by="geometry", descending=True)],
+                )
+            )
+
+        rows = json.loads(response.data)
+        assert [row["name"] for row in rows] == ["a", "b"]
+        assert any(
+            record.getMessage()
+            == "Ignoring sort on geometry column 'geometry'"
+            for record in records
+        )
 
 
 class TestManagerTemplateHook:

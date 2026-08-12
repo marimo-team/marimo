@@ -245,6 +245,7 @@ class DependencyManager:
     ruff = Dependency("ruff")
     black = Dependency("black")
     geopandas = Dependency("geopandas")
+    shapely = Dependency("shapely")
     pint = Dependency("pint")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
