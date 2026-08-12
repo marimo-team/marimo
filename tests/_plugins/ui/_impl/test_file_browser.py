@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from marimo._plugins.ui._impl import file_browser as fb_module
 from marimo._plugins.ui._impl.file_browser import (
     FileBrowserFileInfo,
     ListDirectoryArgs,
@@ -73,6 +74,49 @@ def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
         pytest.skip("Cannot create symlinks on this system")
 
     assert _is_path_within(escape, jail) is False
+
+
+def test_run_mode_confines_list_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    fb = file_browser(initial_path=tmp_path)
+    (tmp_path / "inside").mkdir()
+
+    resp = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+    assert any(f["name"] == "inside" for f in resp.files)
+
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
+
+
+def test_edit_mode_lists_outside_initial_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "edit")
+    fb = file_browser(initial_path=tmp_path)
+
+    resp = fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
+    assert isinstance(resp, ListDirectoryResponse)
+
+
+def test_run_mode_sends_restrict_navigation_true(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=False)
+
+    assert fb._component_args["restrict-navigation"] is True  # pyright: ignore[reportPrivateUsage]
+
+
+def test_edit_mode_restrict_navigation_true_still_restricts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "edit")
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=True)
+
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
 
 
 def test_file_browser_init(tmp_path: Path) -> None:

@@ -15,6 +15,7 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
+from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import Function
 from marimo._utils.files import natural_sort
 from marimo._utils.paths import is_cloudpath, normalize_path
@@ -347,7 +348,10 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        self._restrict_navigation = restrict_navigation
+        in_run_mode = get_mode() == "run"
+        # In an app (run mode), confine navigation to initial_path even when
+        # restrict_navigation is False. run mode always restricts.
+        self._restrict_navigation = restrict_navigation or in_run_mode
         self._ignore_empty_dirs = ignore_empty_dirs
 
         if filter is None:
@@ -387,7 +391,7 @@ class file_browser(
                 "selection-mode": wire_selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
-                "restrict-navigation": restrict_navigation,
+                "restrict-navigation": self._restrict_navigation,
             },
             functions=(
                 Function(
