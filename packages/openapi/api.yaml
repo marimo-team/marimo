@@ -58,18 +58,6 @@ components:
       - package
       title: AddPackageRequest
       type: object
-    AiCapabilitiesConfig:
-      description: "Configuration for optional AI capabilities.\n\n    These are capabilities\
-        \ that can be attached to a chat agent\n\n    **Keys.**\n\n    - `web_search`:\
-        \ if `True`, let the AI assistant search the web when the\n        configured\
-        \ model supports it (natively, or via a local fallback).\n        Defaults\
-        \ to `False`."
-      properties:
-        web_search:
-          type: boolean
-      required: []
-      title: AiCapabilitiesConfig
-      type: object
     AiCompletionContext:
       properties:
         plainText:
@@ -135,15 +123,15 @@ components:
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
         `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
-        \    - `models`: the models to use for AI completions\n    - `capabilities`:\
-        \ optional AI capabilities\n    - `open_ai`: the OpenAI config\n    - `anthropic`:\
-        \ the Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
-        \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
-        \ Ollama config\n    - `github`: the GitHub config\n    - `openrouter`: the\
-        \ OpenRouter config\n    - `wandb`: the Weights & Biases config\n    - `opencode_go`:\
-        \ the OpenCode Go config\n    - `custom_providers`: a dict of custom OpenAI-compatible\
-        \ providers\n    - `open_ai_compatible`: the OpenAI-compatible config (deprecated,\
-        \ use custom_providers)"
+        \    - `models`: the models to use for AI completions\n    - `open_ai`: the\
+        \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
+        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
+        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
+        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
+        \ the Weights & Biases config\n    - `opencode_go`: the OpenCode Go config\n\
+        \    - `custom_providers`: a dict of custom OpenAI-compatible providers\n\
+        \    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use\
+        \ custom_providers)"
       properties:
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
@@ -151,8 +139,6 @@ components:
           $ref: '#/components/schemas/OpenAiConfig'
         bedrock:
           $ref: '#/components/schemas/BedrockConfig'
-        capabilities:
-          $ref: '#/components/schemas/AiCapabilitiesConfig'
         custom_providers:
           additionalProperties:
             $ref: '#/components/schemas/OpenAiConfig'
@@ -641,6 +627,15 @@ components:
       - content
       title: ChatMessage
       type: object
+    ChatOptions:
+      description: Used to configure capabilities of the AI agent.
+      properties:
+        webSearch:
+          default: false
+          type: boolean
+      required: []
+      title: ChatOptions
+      type: object
     ChatRequest:
       description: 'UIMessages are expected to be AI SDK messages.
 
@@ -653,6 +648,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        options:
+          $ref: '#/components/schemas/ChatOptions'
         tools:
           anyOf:
           - items:

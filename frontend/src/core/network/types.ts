@@ -131,6 +131,7 @@ export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
+export type ChatOptions = schemas["ChatOptions"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
 export type LspHealthResponse = schemas["LspHealthResponse"];

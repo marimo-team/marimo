@@ -303,6 +303,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         request: Request,
         max_tokens: int | None,
         stream_options: StreamOptions,
+        enable_capabilities: bool = False,
     ) -> StreamingResponse:
         """Return code-mode streaming responses"""
         from marimo._server.ai.tools.code_mode import (
@@ -316,6 +317,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             tools=[],
             toolsets=[build_execute_code_toolset(session, request)],
             extra_capabilities=references_capability(),
+            enable_capabilities=enable_capabilities,
             system_prompt=system_prompt,
         )
 
@@ -347,22 +349,18 @@ class PydanticProvider(ABC, Generic[ProviderT]):
         )
         capabilities: list[AbstractCapability[None]] = []
 
-        if (
-            self.config.capabilities
-            and self.config.capabilities.get("web_search") is True
-        ):
-            if DependencyManager.duckduckgo_search.has():
-                capabilities.append(WebSearch(local="duckduckgo"))
-            elif WebSearchTool in supported:
-                capabilities.append(WebSearch())
+        if DependencyManager.duckduckgo_search.has():
+            capabilities.append(WebSearch(local="duckduckgo"))
+        elif WebSearchTool in supported:
+            capabilities.append(WebSearch())
 
-            if DependencyManager.markdownify.has():
-                capabilities.append(WebFetch(local=True))
-            elif WebFetchTool in supported:
-                capabilities.append(WebFetch())
+        if DependencyManager.markdownify.has():
+            capabilities.append(WebFetch(local=True))
+        elif WebFetchTool in supported:
+            capabilities.append(WebFetch())
 
-            if XSearchTool in supported:
-                capabilities.append(XSearch())
+        if XSearchTool in supported:
+            capabilities.append(XSearch())
 
         LOGGER.debug(
             "Capabilities: %s for model: %s", capabilities, self.model

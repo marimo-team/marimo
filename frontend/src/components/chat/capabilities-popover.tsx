@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { SlidersHorizontalIcon } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
@@ -11,26 +11,28 @@ import {
 } from "@/components/ui/popover";
 import { ExternalLink } from "@/components/ui/links";
 import { Switch } from "@/components/ui/switch";
-import { useAIConfigActions } from "@/core/ai/config";
-import { aiAtom } from "@/core/config/config";
+import { chatOptionsAtom } from "@/core/ai/state";
 import { cn } from "@/utils/cn";
 
 export const CapabilitiesPopover: React.FC = () => {
-  const ai = useAtomValue(aiAtom);
-  const webSearchOn = ai?.capabilities?.web_search ?? false;
-  const { saveCapabilityChange } = useAIConfigActions();
+  const [chatOptions, setChatOptions] = useAtom(chatOptionsAtom);
+  const webSearchOn = chatOptions.webSearch;
 
   return (
     <Popover>
       <PopoverTrigger asChild={true}>
         <Button
           aria-label="Capabilities"
-          title="Capabilities"
+          title={
+            webSearchOn ? "Capabilities (web search enabled)" : "Capabilities"
+          }
+          data-active={webSearchOn || undefined}
           variant="text"
           size="icon"
           className={cn(
             "h-6 w-6 shrink-0 bg-muted hover:bg-muted/30",
-            webSearchOn && "text-primary",
+            webSearchOn &&
+              "bg-primary/15 text-primary ring-1 ring-primary/30 opacity-100 hover:bg-primary/20",
           )}
         >
           <SlidersHorizontalIcon className="h-3.5 w-3.5" />
@@ -52,10 +54,11 @@ export const CapabilitiesPopover: React.FC = () => {
           </div>
           <Switch
             id="web-search-toggle"
+            aria-label="Web search"
             size="sm"
             checked={webSearchOn}
-            onCheckedChange={(checked) =>
-              saveCapabilityChange("web_search", checked)
+            onCheckedChange={(webSearch) =>
+              setChatOptions((options) => ({ ...options, webSearch }))
             }
           />
         </label>

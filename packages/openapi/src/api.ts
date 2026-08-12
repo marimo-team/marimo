@@ -3646,21 +3646,6 @@ export interface components {
       /** @default false */
       upgrade?: boolean | null;
     };
-    /**
-     * AiCapabilitiesConfig
-     * @description Configuration for optional AI capabilities.
-     *
-     *         These are capabilities that can be attached to a chat agent
-     *
-     *         **Keys.**
-     *
-     *         - `web_search`: if `True`, let the AI assistant search the web when the
-     *             configured model supports it (natively, or via a local fallback).
-     *             Defaults to `False`.
-     */
-    AiCapabilitiesConfig: {
-      web_search?: boolean;
-    };
     /** AiCompletionContext */
     AiCompletionContext: {
       /** @default  */
@@ -3703,7 +3688,6 @@ export interface components {
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
      *         - `models`: the models to use for AI completions
-     *         - `capabilities`: optional AI capabilities
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
      *         - `google`: the Google AI config
@@ -3721,7 +3705,6 @@ export interface components {
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
-      capabilities?: components["schemas"]["AiCapabilitiesConfig"];
       custom_providers?: {
         [key: string]: components["schemas"]["OpenAiConfig"];
       };
@@ -4051,6 +4034,14 @@ export interface components {
       role: "assistant" | "system" | "user";
     };
     /**
+     * ChatOptions
+     * @description Used to configure capabilities of the AI agent.
+     */
+    ChatOptions: {
+      /** @default false */
+      webSearch?: boolean;
+    };
+    /**
      * ChatRequest
      * @description UIMessages are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
@@ -4059,6 +4050,7 @@ export interface components {
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
+      options?: components["schemas"]["ChatOptions"];
       /** @default null */
       tools?: components["schemas"]["ToolDefinition"][] | null;
       uiMessages: Record<string, any>[];

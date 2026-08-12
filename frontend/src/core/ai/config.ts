@@ -6,7 +6,6 @@ import { merge } from "lodash-es";
 import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { userConfigAtom } from "@/core/config/config";
 import type {
-  AiCapability,
   AIModelKey,
   CopilotMode,
   UserConfig,
@@ -17,9 +16,6 @@ import { useRequestClient } from "@/core/network/requests";
 export type SupportedRole = Extract<Role, "chat" | "autocomplete" | "edit">;
 
 interface AiConfigPatch {
-  capabilities?: Partial<
-    NonNullable<NonNullable<UserConfig["ai"]>["capabilities"]>
-  >;
   mode?: CopilotMode;
   models?: Partial<NonNullable<NonNullable<UserConfig["ai"]>["models"]>>;
 }
@@ -72,16 +68,5 @@ export const useAIConfigActions = () => {
     await saveConfig(newConfig);
   };
 
-  const saveCapabilityChange = async (
-    capability: AiCapability,
-    enabled: boolean,
-  ) => {
-    const newConfig: AiConfigPatch = {
-      capabilities: { [capability]: enabled },
-    };
-
-    await saveConfig(newConfig);
-  };
-
-  return { saveModelChange, saveModeChange, saveCapabilityChange };
+  return { saveModelChange, saveModeChange };
 };

@@ -235,6 +235,7 @@ async def ai_chat(
             session_id=session_id,
         ),
     )
+    enable_capabilities = body.options.web_search
 
     if mode == "code_mode":
         return await provider.stream_completion_harness(
@@ -243,6 +244,7 @@ async def ai_chat(
             session=session,
             request=request,
             max_tokens=max_tokens,
+            enable_capabilities=enable_capabilities,
             stream_options=stream_options,
         )
 
@@ -251,6 +253,7 @@ async def ai_chat(
         system_prompt=system_prompt,
         max_tokens=max_tokens,
         additional_tools=additional_tools,
+        enable_capabilities=enable_capabilities,
         stream_options=stream_options,
     )
 

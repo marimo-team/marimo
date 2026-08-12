@@ -44,6 +44,7 @@ import {
   activeChatAtom,
   type Chat,
   type ChatId,
+  chatOptionsAtom,
   chatStateAtom,
   pendingAiPromptAtom,
 } from "@/core/ai/state";
@@ -601,6 +602,7 @@ const ChatPanelBody = () => {
           const completionBody = {
             uiMessages: options.messages,
             includeOtherCode: getCodes(""),
+            options: store.get(chatOptionsAtom),
           };
 
           // Call this here to ensure the value is not stale

@@ -305,22 +305,6 @@ class AiModelConfig(TypedDict):
 
 
 @dataclass
-class AiCapabilitiesConfig(TypedDict, total=False):
-    """Configuration for optional AI capabilities.
-
-    These are capabilities that can be attached to a chat agent
-
-    **Keys.**
-
-    - `web_search`: if `True`, let the AI assistant search the web when the
-        configured model supports it (natively, or via a local fallback).
-        Defaults to `False`.
-    """
-
-    web_search: NotRequired[bool]
-
-
-@dataclass
 class AiConfig(TypedDict, total=False):
     """Configuration options for AI.
 
@@ -332,7 +316,6 @@ class AiConfig(TypedDict, total=False):
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
     - `models`: the models to use for AI completions
-    - `capabilities`: optional AI capabilities
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
     - `google`: the Google AI config
@@ -353,8 +336,6 @@ class AiConfig(TypedDict, total=False):
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
     models: AiModelConfig
-    capabilities: NotRequired[AiCapabilitiesConfig]
-
     # providers
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
