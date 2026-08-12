@@ -33,6 +33,7 @@ from marimo._config.reader import (
     read_marimo_config,
     read_pyproject_marimo_config,
     sanitize_pyproject_dict,
+    strip_untrusted_config,
 )
 from marimo._config.secrets import (
     mask_secrets,
@@ -42,6 +43,7 @@ from marimo._config.secrets import (
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._config.utils import (
     get_or_create_user_config_path,
+    is_trusted_user_config_path,
 )
 from marimo._utils.env import env_to_value
 
@@ -228,6 +230,8 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
             project_config = self._resolve_vimrc(project_config)
+            # A cloned repo's pyproject.toml cannot anchor cache-signing trust.
+            project_config = strip_untrusted_config(project_config)
         except Exception as e:
             LOGGER.warning("Failed to read project config: %s", e)
             return {}
@@ -455,6 +459,8 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             )
             if marimo_config is None:
                 return {}
+            # PEP 723 script metadata cannot anchor cache-signing trust.
+            marimo_config = strip_untrusted_config(marimo_config)
 
         except Exception as e:
             LOGGER.warning("Failed to read script config: %s", e)
@@ -528,6 +534,11 @@ class UserConfigManager(MarimoConfigReader):
                 LOGGER.error("Failed to read user config at %s", path)
                 LOGGER.error(str(e))
                 return DEFAULT_CONFIG
+            if not is_trusted_user_config_path(path):
+                # A `.marimo.toml` discovered by walking up from the cwd is
+                # project-origin, not user-owned. Strip its cache-trust keys
+                # like any other untrusted layer.
+                strip_untrusted_config(user_config, is_user_layer=True)
             return merge_default_config(user_config)
         else:
             LOGGER.debug("No config found; loading default settings.")

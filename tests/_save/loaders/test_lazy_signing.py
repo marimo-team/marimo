@@ -1203,3 +1203,97 @@ class TestWasmSignatureEviction:
         assert not store.hit(blob_key)
         # The rejected blob is no longer advertised for export bundling.
         assert blob_key not in store.export_keys()
+
+
+# ---------------------------------------------------------------------------
+# Provenance: an untrusted config layer cannot anchor trust (RFC §1.1)
+# ---------------------------------------------------------------------------
+
+
+class TestUntrustedLayerCannotAnchorTrust(_FileStoreLoaderTest):
+    """The attack cache signing exists to stop.
+
+    A repository ships a signed cache plus a `pyproject.toml` that trusts the
+    key which signed it. If that layer could anchor trust, cloning the repo and
+    opening the notebook would `pickle.loads` the attacker's bytes. The
+    fingerprint must not survive the merge, so the entry stays unverifiable:
+    a miss under `on`, a raise under `strict` — never served.
+    """
+
+    def _committed_signed_cache(self, hash_val: str) -> str:
+        """Write a signed entry the way a hostile repo would ship one.
+
+        Returns the fingerprint of the key that signed it.
+        """
+        attacker, _ = _keypair()
+        writer = self._loader(signer=attacker)
+        assert writer.save_cache(_simple_cache(hash_val=hash_val, payload=1))
+        writer.flush()
+        return attacker.fingerprint()
+
+    def _policy_for_project(self, tmp_path: Path, attacker_fp: str) -> Any:
+        from marimo._save.signing_policy import get_signing_policy
+
+        (tmp_path / "pyproject.toml").write_text(
+            "[tool.marimo.signing.trusted_signers]\n"
+            f'"{attacker_fp}" = "totally legit CI key"\n'
+            "[tool.marimo.cache]\n"
+            'verification = "off"\n'
+        )
+        notebook = tmp_path / "notebook.py"
+        notebook.write_text("import marimo as mo")
+        return get_signing_policy(str(notebook))
+
+    def test_pyproject_fingerprint_is_not_trusted(
+        self, tmp_path: Path
+    ) -> None:
+        attacker_fp = self._committed_signed_cache("committed")
+        policy = self._policy_for_project(tmp_path, attacker_fp)
+
+        assert attacker_fp not in policy.trusted_signers
+        # The same layer also tried to switch verification off entirely.
+        assert policy.verification != "off"
+
+    def test_committed_signed_cache_misses_under_on(
+        self, tmp_path: Path
+    ) -> None:
+        attacker_fp = self._committed_signed_cache("committed_on")
+        policy = self._policy_for_project(tmp_path, attacker_fp)
+
+        reader = self._loader(
+            signer=None,
+            trusted_signers=policy.trusted_signers,
+            verification=policy.verification,
+        )
+        assert reader.load_cache(key("committed_on")) is None
+
+    def test_committed_signed_cache_raises_under_strict(
+        self, tmp_path: Path
+    ) -> None:
+        attacker_fp = self._committed_signed_cache("committed_strict")
+        policy = self._policy_for_project(tmp_path, attacker_fp)
+        _, unrelated_verifier = _keypair()
+
+        reader = self._loader(
+            signer=unrelated_verifier,
+            trusted_signers=policy.trusted_signers,
+            verification="strict",
+        )
+        with pytest.raises(CacheSignatureError):
+            reader.load_cache(key("committed_strict"))
+
+    def test_same_fingerprint_in_user_config_does_verify(self) -> None:
+        """Control: the mechanism works, only the *layer* was rejected.
+
+        Without this, the tests above would pass even if verification were
+        broken outright.
+        """
+        attacker_fp = self._committed_signed_cache("committed_control")
+        reader = self._loader(
+            signer=None,
+            trusted_signers={attacker_fp},
+            verification="on",
+        )
+        loaded = reader.load_cache(key("committed_control"))
+        assert loaded is not None
+        assert loaded.defs["payload"] == 1
