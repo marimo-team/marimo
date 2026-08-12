@@ -5,9 +5,15 @@ import os
 import re
 from pathlib import Path
 
+from marimo import _loggers
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
-from marimo._utils.paths import notebook_output_dir
+from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
+
+LOGGER = _loggers.marimo_logger()
+
+# Resolves against the working directory as a fallback.
+FALLBACK_SAVE_PATH = Path(MARIMO_DIR_NAME, "cache")
 
 
 def export_manifest_name(notebook_filename: str | None) -> str:
@@ -24,6 +30,16 @@ def export_manifest_name(notebook_filename: str | None) -> str:
 
 def _valid_path(path: Path) -> bool:
     return path.exists() and path.stat().st_size > 0
+
+
+def _writable_dir(path: Path) -> bool:
+    """Whether `path` is a writable directory. Creates it if absent."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    # NB. mkdir is a no-op on an existing directory, whatever its mode.
+    return os.access(path, os.W_OK)
 
 
 class FileStore(Store):
@@ -43,21 +59,21 @@ class FileStore(Store):
 
     def _default_save_path(self) -> Path:
         root = notebook_dir()
-        if root is not None:
-            # Probe the actual write target: with `sys.pycache_prefix` set
-            # it lives under the prefix, not under the notebook directory.
-            target = notebook_output_dir(root) / "cache"
-            try:
-                target.mkdir(parents=True, exist_ok=True)
-            except OSError:
-                pass
-            else:
-                if os.access(target, os.W_OK):
-                    return target
-        # The notebook can be unnamed, or its directory read-only (Slurm
-        # runs jobs from a spooled copy under /var/spool). Anchor to the
-        # working directory instead.
-        return Path("__marimo__", "cache")
+        if root is None:
+            return FALLBACK_SAVE_PATH
+
+        # Probe the write target, which `sys.pycache_prefix` can move out of
+        # the notebook's directory.
+        target = notebook_output_dir(root) / "cache"
+        if _writable_dir(target):
+            return target
+
+        LOGGER.warning(
+            "Could not write to the cache directory %s. Caching to %s instead.",
+            target,
+            FALLBACK_SAVE_PATH.resolve(),
+        )
+        return FALLBACK_SAVE_PATH
 
     def _init_save_path(self) -> None:
         self.save_path.mkdir(parents=True, exist_ok=True)

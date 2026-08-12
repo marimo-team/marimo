@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol
 
-from marimo._ast.parse import is_non_marimo_python_script
+from marimo._ast.parse import MarimoFileError, is_non_marimo_python_script
 from marimo._schemas.serialization import (
     AppInstantiation,
     NotebookSerializationV1,
@@ -140,10 +140,9 @@ def get_notebook_serializer(
 
     Args:
         path: File path
-        contents: Optional file contents. A path with an unrecognized
-            suffix (for example, Slurm's spooled copy of a submitted
-            notebook, which has no extension) resolves to the `default`
-            serializer when the contents are a marimo notebook.
+        contents: Optional file contents. If the contents are a marimo
+            notebook, a path with no suffix resolves to the `default`
+            serializer.
         default: Suffix of the serializer to fall back to
 
     Returns:
@@ -157,28 +156,27 @@ def get_notebook_serializer(
         path = Path(path)
 
     handler = DEFAULT_NOTEBOOK_SERIALIZERS.get(path.suffix)
+    # E.g. ./script (no suffix) with contents that are a marimo notebook.
     if (
         handler is None
         and path.suffix == ""
         and default is not None
         and contents is not None
     ):
+        # Certain runners (like sbatch) may pass a script with no suffix. If the
+        # contents are a marimo notebook, we can use the default (python) serializer.
         fallback = DEFAULT_NOTEBOOK_SERIALIZERS.get(default)
         if fallback is not None:
-            from marimo._ast.parse import MarimoFileError
-
             try:
+                # Relatively unusual path, so full deserialization seems
+                # acceptable.
                 notebook = fallback.deserialize(contents, filepath=str(path))
-            except SyntaxError:
-                # Preserve SyntaxError semantics for extensionless Python files.
-                handler = fallback
-            except MarimoFileError:
-                notebook = None
-            else:
-                if notebook is not None and not is_non_marimo_python_script(
-                    notebook
-                ):
+                if not is_non_marimo_python_script(notebook):
                     handler = fallback
+            except MarimoFileError:
+                # Parses, but declares no `marimo.App`. Reject it like any
+                # other unsupported file.
+                pass
     if handler is None:
         raise ValueError(
             f"No notebook serializer found for {path}. Supported extensions: {list(DEFAULT_NOTEBOOK_SERIALIZERS.keys())}"

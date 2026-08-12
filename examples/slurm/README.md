@@ -41,7 +41,7 @@ Tips for shared clusters:
 - `uv`'s wheel cache lives in `~/.cache/uv`; point `UV_CACHE_DIR` at a shared
   or project filesystem so compute nodes reuse downloads.
 - If your home and cache live on different mounts, set `UV_LINK_MODE=copy`.
-- `mo.persistent_cache` writes to `__marimo__/cache/` next to the notebook,
-  or under the job's working directory when the notebook's directory is not
-  writable (as with Slurm's spooled batch copies) — on a shared filesystem
-  the cache outlives the job, so resubmissions skip completed work.
+- `mo.persistent_cache` writes to `__marimo__/cache/` next to the notebook. If
+  that directory is not writable, it will write under the job's working
+  directory instead. If you use the cache, consider launching jobs from a shared
+  file system, such that resubmissions will correctly skip completed work.
