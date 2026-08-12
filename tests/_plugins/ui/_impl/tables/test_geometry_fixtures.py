@@ -21,18 +21,18 @@ snapshot = snapshotter(__file__)
 
 @pytest.mark.requires("geopandas")
 class TestGeoPandasCharacterization:
-    def test_flattens_geodataframe_on_ingest(self) -> None:
+    def test_preserves_geodataframe_on_ingest(self) -> None:
         import geopandas as gpd
 
         manager = get_table_manager(geo.gdf_point_known_crs())
         native = manager.data.to_native()
-        assert not isinstance(native, gpd.GeoDataFrame)
+        assert isinstance(native, gpd.GeoDataFrame)
 
-    def test_geometry_column_types_unknown(self) -> None:
+    def test_geometry_column_types_geometry(self) -> None:
         manager = get_table_manager(geo.gdf_point_known_crs())
         assert dict(manager.get_field_types()) == {
             "name": ("string", "str"),
-            "geometry": ("unknown", "geometry"),
+            "geometry": ("geometry", "geometry"),
         }
 
     @pytest.mark.parametrize(
@@ -42,60 +42,60 @@ class TestGeoPandasCharacterization:
                 geo.gdf_point_missing_crs,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_multi_geometry,
                 [
-                    ("geom_a", ("unknown", "geometry")),
-                    ("geom_b", ("unknown", "geometry")),
+                    ("geom_a", ("geometry", "geometry")),
+                    ("geom_b", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_no_active_geometry,
                 [
                     ("a", ("integer", "int64")),
-                    ("g", ("unknown", "geometry")),
+                    ("g", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_stale_pointer,
                 [
                     ("name", ("string", "str")),
-                    ("geom", ("unknown", "geometry")),
+                    ("geom", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_dropped_active,
-                [("geom_b", ("unknown", "geometry"))],
+                [("geom_b", ("geometry", "geometry"))],
             ),
             (
                 geo.gdf_with_null,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_all_null,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_mixed_types,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_3d,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
         ],

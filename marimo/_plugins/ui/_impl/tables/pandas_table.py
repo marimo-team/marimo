@@ -11,12 +11,15 @@ import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
+)
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryEncoding,
+    format_geometry_cell,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -170,18 +173,6 @@ def _extension_column_needs_stringify(
         return True
 
 
-def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
-    # Convert to pandas dataframe since geopandas will fail on
-    # certain operations (like to_json(orient="records"))
-    if DependencyManager.geopandas.imported():
-        import geopandas as gpd  # type: ignore
-        import pandas as pd
-
-        if isinstance(data, gpd.GeoDataFrame):
-            return pd.DataFrame(data)
-    return data
-
-
 class PandasTableManagerFactory(TableManagerFactory):
     @staticmethod
     def package_name() -> str:
@@ -196,7 +187,6 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
-                data = _maybe_convert_geopandas_to_pandas(data)
                 data = self._handle_multi_col_indexes(data)
                 data = self._handle_non_string_column_names(data)
                 self._original_data = data
@@ -305,12 +295,32 @@ class PandasTableManagerFactory(TableManagerFactory):
                     is_timedelta64_ns_dtype,
                 )
 
-                _data = self.apply_formatting(format_mapping)._original_data
-                result = _data.copy()  # to avoid SettingWithCopyWarning
+                formatted = self.apply_formatting(format_mapping)
+                # Copy to avoid SettingWithCopyWarning.
+                result = formatted._original_data.copy()
+                geometry_columns = formatted._geometry_columns
+                if geometry_columns:
+                    result = pd.DataFrame(result)
                 try:
                     for col in result.columns:
                         series = result[col]
                         dtype = series.dtype
+                        geometry_info = geometry_columns.get(str(col))
+                        if geometry_info is not None:
+                            geometry_encoding = geometry_info.encoding
+
+                            def _format_cell(
+                                value: Any,
+                                encoding: GeometryEncoding = geometry_encoding,
+                            ) -> Any:
+                                return format_geometry_cell(value, encoding)
+
+                            result[col] = pd.Series(
+                                [_format_cell(value) for value in series],
+                                index=result.index,
+                                dtype=object,
+                            )
+                            continue
                         # Complex dtypes become {'imag': num, 'real': num} by default.
                         # Preserve their display values instead.
                         if is_complex_dtype(dtype):
@@ -534,9 +544,9 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 return [(names[0], self._map_dtype_to_field_type(index.dtype))]
 
-            # We override the default implementation to use pandas's
-            # internal fields since they get displayed in the UI.
-            def get_field_type(
+            # Override the dtype mapper to use pandas's internal fields
+            # since they get displayed in the UI.
+            def _get_field_type_from_dtype(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
@@ -584,6 +594,8 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
+                if column in self._geometry_columns:
+                    return []
                 return self._original_data[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
         return PandasTableManager

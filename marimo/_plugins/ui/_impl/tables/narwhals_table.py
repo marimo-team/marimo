@@ -21,6 +21,10 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    find_geometry_columns,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
@@ -190,6 +194,8 @@ class NarwhalsTableManager(
     ) -> list[tuple[Any, int]]:
         if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
+        if column in self._geometry_columns:
+            return []
 
         frame = self.as_lazy_frame()
         _unique_name = "__len_count__"
@@ -266,7 +272,19 @@ class NarwhalsTableManager(
     def nw_schema(self) -> nw.Schema:
         return cast(nw.Schema, self.data.collect_schema())
 
+    @cached_property
+    def _geometry_columns(self) -> dict[str, GeometryColumnInfo]:
+        return find_geometry_columns(self.data)
+
     def get_field_type(
+        self, column_name: str
+    ) -> tuple[FieldType, ExternalDataType]:
+        info = self._geometry_columns.get(column_name)
+        if info is not None:
+            return ("geometry", info.external_type)
+        return self._get_field_type_from_dtype(column_name)
+
+    def _get_field_type_from_dtype(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
@@ -313,6 +331,8 @@ class NarwhalsTableManager(
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
+                continue
+            if column in self._geometry_columns:
                 continue
             if is_narwhals_string_type(dtype):
                 # Cast to string as pandas may fail for certain values
@@ -393,7 +413,10 @@ class NarwhalsTableManager(
             # As of Oct 2025, DuckDB does not support "nearest" interpolation
             quantile_interpolation = "linear"
 
-        if is_narwhals_string_type(dtype):
+        if column in self._geometry_columns:
+            # Geometry columns report only total and nulls.
+            pass
+        elif is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
         elif dtype == nw.Boolean:
             exprs.update(
@@ -681,6 +704,8 @@ class NarwhalsTableManager(
         return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        if column in self._geometry_columns:
+            return []
         frame = self.data.select(nw.col(column))
         if is_narwhals_lazyframe(frame):
             frame = frame.collect()
