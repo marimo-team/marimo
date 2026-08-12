@@ -130,6 +130,20 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
+def _stringify_preserving_nulls(
+    series: pd.Series[Any],
+    notna: pd.Series[bool] | None = None,
+) -> pd.Series[Any]:
+    """Convert values to strings and preserve missing values."""
+    if notna is None:
+        notna = series.notna()
+
+    stringified = series.apply(str)
+    if not notna.all():
+        stringified = stringified.astype(object).where(notna, None)
+    return stringified
+
+
 def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
     """Whether an extension-array column should be cast to str for JSON."""
     from pandas.api.types import is_extension_array_dtype

@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
     _extension_column_needs_stringify,
+    _stringify_preserving_nulls,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from tests.mocks import snapshotter
@@ -2387,6 +2388,30 @@ class TestPandasTableManager(unittest.TestCase):
             "pandas.api.types.is_extension_array_dtype", return_value=True
         ):
             assert not _extension_column_needs_stringify(series)
+
+    def test_stringify_preserving_nulls(self) -> None:
+        series = pd.Series(["value", None], dtype="string")
+
+        result = _stringify_preserving_nulls(series)
+
+        assert result.dtype == object
+        assert result.tolist() == ["value", None]
+
+    def test_stringify_preserving_nulls_skips_mask_for_complete_series(
+        self,
+    ) -> None:
+        series = Mock()
+        notna = Mock()
+        stringified = Mock()
+        series.apply.return_value = stringified
+        notna.all.return_value = True
+
+        result = _stringify_preserving_nulls(series, notna)
+
+        assert result is stringified
+        series.notna.assert_not_called()
+        stringified.astype.assert_not_called()
+        stringified.where.assert_not_called()
 
     def test_extension_column_needs_stringify_for_rich_extension_values(
         self,
