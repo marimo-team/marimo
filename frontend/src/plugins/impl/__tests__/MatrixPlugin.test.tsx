@@ -857,6 +857,8 @@ describe("MatrixPlugin modifier scrubbing", () => {
   });
 
   it("keeps tiny step values instead of rounding them to zero", () => {
+    // 2e-14 sits below the absolute noise threshold for values of ordinary
+    // magnitude; the tolerance must scale with the step to preserve it.
     const plugin = new MatrixPlugin();
     const setValueMock = vi.fn();
     const props = makeProps({
@@ -868,7 +870,7 @@ describe("MatrixPlugin modifier scrubbing", () => {
       data: {
         ...makeProps().data,
         step: [
-          [1e-13, 1],
+          [2e-14, 1],
           [1, 1],
         ],
       },
@@ -878,7 +880,7 @@ describe("MatrixPlugin modifier scrubbing", () => {
     fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "ArrowUp" });
 
     expect(setValueMock).toHaveBeenCalledWith([
-      [1e-13, 0],
+      [2e-14, 0],
       [0, 0],
     ]);
   });

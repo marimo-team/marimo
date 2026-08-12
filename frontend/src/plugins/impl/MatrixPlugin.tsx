@@ -68,10 +68,17 @@ const stepMultiplier = (e: { shiftKey: boolean; altKey: boolean }): number => {
   return 1;
 };
 
-/** Strip floating-point noise from step arithmetic (e.g. 3 * 0.1). */
-const cleanFloat = (x: number): number => {
+/**
+ * Strip floating-point noise from step arithmetic (e.g. 3 * 0.1).
+ * The noise tolerance scales with the step so that legitimately tiny
+ * results (e.g. from a 2e-14 step) are preserved, while noise left over
+ * from arithmetic on ordinary magnitudes (e.g. the 5.55e-17 residue of
+ * 0.3 - 3 * 0.1) still snaps away.
+ */
+const cleanFloat = (x: number, step: number): number => {
   const rounded = Number(x.toFixed(12));
-  const tolerance = Number.EPSILON * Math.max(1, Math.abs(x)) * 100;
+  const tolerance =
+    Number.EPSILON * Math.max(Math.abs(x), Math.abs(step)) * 100;
   return Math.abs(x - rounded) <= tolerance ? rounded : x;
 };
 
@@ -296,7 +303,7 @@ const MatrixComponent = ({
         displayValue,
         row,
         col,
-        cleanFloat(startValue + steps * cellStep),
+        cleanFloat(startValue + steps * cellStep, cellStep),
       );
       if (copy) {
         setDraft(copy);
@@ -361,7 +368,7 @@ const MatrixComponent = ({
         displayValue,
         row,
         col,
-        cleanFloat(displayValue[row][col] + delta),
+        cleanFloat(displayValue[row][col] + delta, delta),
       );
       if (copy) {
         setDraft(copy);
