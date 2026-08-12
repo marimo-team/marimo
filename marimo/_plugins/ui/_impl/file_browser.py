@@ -331,6 +331,10 @@ class file_browser(
                 )
             )
 
+        uses_default_root = not initial_path_provided and (
+            not selected_paths or restrict_navigation
+        )
+
         # Make a Path object
         if not initial_path:
             initial_path = (
@@ -372,7 +376,7 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        if in_run_mode and not initial_path_provided and not selected_paths:
+        if in_run_mode and uses_default_root:
             _warn_default_root_once(self._initial_path)
         self._ignore_empty_dirs = ignore_empty_dirs
 

@@ -137,6 +137,25 @@ def test_run_mode_warns_once_for_default_root(
     assert "initial_path" in calls[0][0]
 
 
+def test_run_mode_warns_for_default_root_with_restricted_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(value=selected, restrict_navigation=True)
+
+    assert len(calls) == 1
+    assert "initial_path" in calls[0][0]
+
+
 def test_run_mode_no_warn_with_explicit_initial_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
