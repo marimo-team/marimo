@@ -177,7 +177,7 @@ describe("MatrixPlugin", () => {
 
   it("validates with zod schema", () => {
     const plugin = new MatrixPlugin();
-    const result = plugin.validator.safeParse({
+    const payload = {
       initialValue: [
         [1, 2],
         [3, 4],
@@ -198,8 +198,12 @@ describe("MatrixPlugin", () => {
         [false, false],
         [false, false],
       ],
-    });
-    expect(result.success).toBe(true);
+    };
+    // debounce is optional and defaults off
+    expect(plugin.validator.parse(payload).debounce).toBe(false);
+    expect(
+      plugin.validator.safeParse({ ...payload, step: null }).success,
+    ).toBe(false);
   });
 
   it("displays values in scientific notation", () => {
@@ -386,6 +390,38 @@ describe("MatrixPlugin", () => {
     ]);
   });
 
+  it("with debounce, defers setValue until the drag ends", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        debounce: true,
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(container, { clientX: 130 });
+
+    // The dragged value renders locally but is not emitted yet.
+    expect(cell.textContent).toBe("3.0");
+    expect(setValueMock).not.toHaveBeenCalled();
+
+    fireEvent.pointerUp(container);
+    expect(setValueMock).toHaveBeenCalledExactlyOnceWith([
+      [3, 0],
+      [0, 0],
+    ]);
+  });
+
   it("sets aria attributes on cells", () => {
     const plugin = new MatrixPlugin();
     const props = makeProps({
@@ -437,7 +473,9 @@ describe("MatrixPlugin cell editing", () => {
     fireEvent.change(input, { target: { value: "2.32e7" } });
     fireEvent.keyDown(input, { key: "Enter" });
 
-    expect(setValueMock).toHaveBeenCalledWith([
+    // Exactly once: the blur fired while refocusing the cell must not
+    // commit a second time.
+    expect(setValueMock).toHaveBeenCalledExactlyOnceWith([
       [23_200_000, 2],
       [3, 4],
     ]);
@@ -495,11 +533,11 @@ describe("MatrixPlugin cell editing", () => {
     expect(queryByTestId("matrix-input-0-0")).toBeNull();
   });
 
-  it("ignores invalid input", () => {
+  it("discards invalid input and closes the editor", () => {
     const plugin = new MatrixPlugin();
     const setValueMock = vi.fn();
     const props = makeProps({ setValue: setValueMock });
-    const { getByTestId } = render(plugin.render(props));
+    const { getByTestId, queryByTestId } = render(plugin.render(props));
 
     fireEvent.doubleClick(getByTestId("matrix-cell-0-0"));
     const input = getByTestId("matrix-input-0-0");
@@ -507,6 +545,7 @@ describe("MatrixPlugin cell editing", () => {
     fireEvent.keyDown(input, { key: "Enter" });
 
     expect(setValueMock).not.toHaveBeenCalled();
+    expect(queryByTestId("matrix-input-0-0")).toBeNull();
   });
 
   it("clamps typed values to bounds", () => {
@@ -595,6 +634,42 @@ describe("MatrixPlugin cell editing", () => {
       [0, 5],
       [5, 0],
     ]);
+  });
+
+  it("emits nothing when clamping leaves the value unchanged", () => {
+    // Already at the transpose's cap of 5: dragging or typing past it must
+    // not fire setValue with an identical matrix.
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 5],
+        [5, 0],
+      ],
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        symmetric: true,
+        maxValue: [
+          [100, 100],
+          [5, 100],
+        ],
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-1");
+    const container = getByTestId("marimo-plugin-matrix");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerMove(container, { clientX: 130 });
+    fireEvent.pointerUp(container);
+
+    fireEvent.doubleClick(cell);
+    const input = getByTestId("matrix-input-0-1");
+    fireEvent.change(input, { target: { value: "7" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(setValueMock).not.toHaveBeenCalled();
   });
 
   it("Enter opens the editor from the keyboard", () => {

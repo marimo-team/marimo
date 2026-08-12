@@ -149,16 +149,23 @@ const MatrixComponent = ({
   // The single mutation chokepoint for every edit path (drag, arrow, type).
   // Bounds are enforced here so no path can escape them. In symmetric mode
   // the pair must stay equal *and* respect both cells' bounds, so the shared
-  // value is clamped to the intersection of the two ranges.
+  // value is clamped to the intersection of the two ranges. Returns null
+  // when the clamped value is already in place, so callers can skip
+  // redundant updates.
   const withCellValue = useCallback(
-    (base: T, row: number, col: number, newValue: number): T => {
+    (base: T, row: number, col: number, newValue: number): T | null => {
+      const mirrored = symmetric && row !== col;
+      let clamped = clampValue(newValue, row, col);
+      if (mirrored) {
+        clamped = clampValue(clamped, col, row);
+      }
+      if (clamped === base[row][col]) {
+        return null;
+      }
       const copy = base.map((r) => [...r]);
-      if (symmetric && row !== col) {
-        const shared = clampValue(clampValue(newValue, row, col), col, row);
-        copy[row][col] = shared;
-        copy[col][row] = shared;
-      } else {
-        copy[row][col] = clampValue(newValue, row, col);
+      copy[row][col] = clamped;
+      if (mirrored) {
+        copy[col][row] = clamped;
       }
       return copy;
     },
@@ -209,16 +216,15 @@ const MatrixComponent = ({
       // Typed values are clamped to bounds but not snapped to `step`,
       // so exact values like 2.32e7 survive.
       if (text !== "" && Number.isFinite(parsed)) {
-        const newValue = clampValue(parsed, edit.row, edit.col);
-        if (newValue !== value[edit.row][edit.col]) {
-          const copy = withCellValue(value, edit.row, edit.col, newValue);
+        const copy = withCellValue(value, edit.row, edit.col, parsed);
+        if (copy) {
           setDraft(copy);
           setValue(copy);
         }
       }
       cell?.focus();
     },
-    [clampValue, value, withCellValue, setValue, setEditing],
+    [value, withCellValue, setValue, setEditing],
   );
 
   const cancelEdit = useCallback(() => {
@@ -282,18 +288,20 @@ const MatrixComponent = ({
       const dx = e.clientX - startX;
       const cellStep = step[row][col] * multiplier;
       const steps = Math.round(dx / PIXELS_PER_STEP);
-      const rawValue = cleanFloat(startValue + steps * cellStep);
-      const newValue = clampValue(rawValue, row, col);
-
-      if (newValue !== displayValue[row][col]) {
-        const copy = withCellValue(displayValue, row, col, newValue);
+      const copy = withCellValue(
+        displayValue,
+        row,
+        col,
+        cleanFloat(startValue + steps * cellStep),
+      );
+      if (copy) {
         setDraft(copy);
         if (!debounce) {
           setValue(copy);
         }
       }
     },
-    [step, clampValue, displayValue, withCellValue, debounce, setValue],
+    [step, displayValue, withCellValue, debounce, setValue],
   );
 
   const handlePointerUp = useCallback(() => {
@@ -345,27 +353,18 @@ const MatrixComponent = ({
           return;
       }
       e.preventDefault();
-      const newValue = clampValue(
-        cleanFloat(displayValue[row][col] + delta),
+      const copy = withCellValue(
+        displayValue,
         row,
         col,
+        cleanFloat(displayValue[row][col] + delta),
       );
-
-      if (newValue !== displayValue[row][col]) {
-        const copy = withCellValue(displayValue, row, col, newValue);
+      if (copy) {
         setDraft(copy);
         setValue(copy);
       }
     },
-    [
-      disabled,
-      startEditing,
-      step,
-      displayValue,
-      clampValue,
-      withCellValue,
-      setValue,
-    ],
+    [disabled, startEditing, step, displayValue, withCellValue, setValue],
   );
 
   const hasRowLabels = rowLabels != null && rowLabels.length > 0;
