@@ -363,6 +363,33 @@ class TestPandasTableManager(unittest.TestCase):
         json_data = self.factory_create_json_from_df(df)
         assert json_data[0]["complex"] == "(1+2j)"
 
+    def test_to_json_stringified_dtypes_preserve_nulls(self) -> None:
+        df = pd.DataFrame(
+            {
+                "complex": [1 + 2j, complex(nan, nan)],
+                "timedelta": [pd.Timedelta(days=1), pd.NaT],
+                "date": [datetime.date(2020, 1, 1), None],
+                "bytes": [b"ab", None],
+            }
+        )
+
+        json_data = self.factory_create_json_from_df(df)
+
+        assert json_data == [
+            {
+                "complex": "(1+2j)",
+                "timedelta": "1 days 00:00:00",
+                "date": "2020-01-01",
+                "bytes": "b'ab'",
+            },
+            {
+                "complex": None,
+                "timedelta": None,
+                "date": None,
+                "bytes": None,
+            },
+        ]
+
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(),
         reason="numpy not installed",
@@ -2449,6 +2476,14 @@ class TestPandasTableManager(unittest.TestCase):
             json_data = json.loads(manager.to_json_str())
 
         assert json_data == [{"value": 1.1}, {"value": 2.2}, {"value": 3.3}]
+
+    def test_to_json_str_extension_column_preserves_null(self) -> None:
+        series = pd.Series([(1.0,), None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        json_data = json.loads(manager.to_json_str())
+
+        assert json_data == [{"value": "(1.0,)"}, {"value": None}]
 
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,
