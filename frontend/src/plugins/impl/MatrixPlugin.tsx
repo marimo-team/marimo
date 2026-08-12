@@ -69,7 +69,11 @@ const stepMultiplier = (e: { shiftKey: boolean; altKey: boolean }): number => {
 };
 
 /** Strip floating-point noise from step arithmetic (e.g. 3 * 0.1). */
-const cleanFloat = (x: number): number => Number(x.toPrecision(12));
+const cleanFloat = (x: number): number => {
+  const rounded = Number(x.toFixed(12));
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(x)) * 100;
+  return Math.abs(x - rounded) <= tolerance ? rounded : x;
+};
 
 interface EditState {
   row: number;

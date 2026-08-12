@@ -301,6 +301,26 @@ describe("MatrixPlugin", () => {
     ]);
   });
 
+  it("ArrowUp preserves significant digits in large cell values", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [1_234_567_890_123, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "ArrowUp" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [1_234_567_890_124, 0],
+      [0, 0],
+    ]);
+  });
+
   it("ArrowDown decrements cell value", () => {
     const plugin = new MatrixPlugin();
     const setValueMock = vi.fn();
@@ -832,6 +852,33 @@ describe("MatrixPlugin modifier scrubbing", () => {
 
     expect(setValueMock).toHaveBeenCalledWith([
       [4.9, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("keeps tiny step values instead of rounding them to zero", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [0, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+      data: {
+        ...makeProps().data,
+        step: [
+          [1e-13, 1],
+          [1, 1],
+        ],
+      },
+    });
+    const { getByTestId } = render(plugin.render(props));
+
+    fireEvent.keyDown(getByTestId("matrix-cell-0-0"), { key: "ArrowUp" });
+
+    expect(setValueMock).toHaveBeenCalledWith([
+      [1e-13, 0],
       [0, 0],
     ]);
   });
