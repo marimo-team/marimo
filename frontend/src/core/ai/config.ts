@@ -27,7 +27,7 @@ const getModelKeyForRole = (forRole: SupportedRole): AIModelKey | null => {
 };
 
 /**
- * Hook for saving model and mode changes.
+ * Hook for saving AI config changes
  */
 export const useAIConfigActions = () => {
   const [userConfig, setUserConfig] = useAtom(userConfigAtom);

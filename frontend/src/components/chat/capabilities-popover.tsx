@@ -45,7 +45,7 @@ export const CapabilitiesPopover: React.FC = () => {
             <span className="text-sm font-semibold">Web search</span>
             <span className="text-xs text-muted-foreground">
               Search the web when the model supports it.{" "}
-              <ExternalLink href="https://docs.marimo.io/guides/editor_features/tools/?h=web+search#web-search-and-fetch">
+              <ExternalLink href="https://docs.marimo.io/guides/editor_features/tools#web-search-and-fetch">
                 Learn more
               </ExternalLink>
             </span>
