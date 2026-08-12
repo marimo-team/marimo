@@ -42,6 +42,7 @@ if TYPE_CHECKING:
     from marimo._save.hash import HashKey
     from marimo._save.loaders import Loader
     from marimo._save.loaders.lazy import LazyLoader
+    from marimo._save.signing_policy import SigningPolicy
     from marimo._save.stores import Store
 
 # NB. Increment on cache breaking changes.
@@ -77,6 +78,10 @@ class CacheState:
 
     store: Store
     hash_memo: dict[str, bytes] = field(default_factory=dict)
+    # Cache-signing policy resolved once for the session from the effective
+    # config (user/env only; project/script trust is stripped upstream). A
+    # `LazyLoader` reads it as the default trust/identity source.
+    signing_policy: SigningPolicy | None = None
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)
