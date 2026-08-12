@@ -2428,12 +2428,12 @@ class TestPandasTableManager(unittest.TestCase):
         self,
     ) -> None:
         series = Mock()
-        notna = Mock()
+        notna_mask = Mock()
         stringified = Mock()
         series.apply.return_value = stringified
-        notna.all.return_value = True
+        notna_mask.all.return_value = True
 
-        result = _stringify_preserving_nulls(series, notna)
+        result = _stringify_preserving_nulls(series, notna_mask)
 
         assert result is stringified
         series.notna.assert_not_called()

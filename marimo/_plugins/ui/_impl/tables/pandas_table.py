@@ -132,21 +132,21 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
 
 def _stringify_preserving_nulls(
     series: pd.Series[Any],
-    notna: pd.Series[bool] | None = None,
+    notna_mask: pd.Series[bool] | None = None,
 ) -> pd.Series[Any]:
     """Convert values to strings and preserve missing values."""
-    if notna is None:
-        notna = series.notna()
+    if notna_mask is None:
+        notna_mask = series.notna()
 
     stringified = series.apply(str)
-    if not notna.all():
-        stringified = stringified.astype(object).where(notna, None)
+    if not notna_mask.all():
+        stringified = stringified.astype(object).where(notna_mask, None)
     return stringified
 
 
 def _extension_column_needs_stringify(
     series: pd.Series[Any],
-    notna: pd.Series[bool] | None = None,
+    notna_mask: pd.Series[bool] | None = None,
 ) -> bool:
     """Whether an extension-array column needs a string cast for JSON."""
     from pandas.api.types import is_extension_array_dtype
@@ -155,14 +155,14 @@ def _extension_column_needs_stringify(
         if not is_extension_array_dtype(series.dtype):
             return False
 
-        if notna is None:
-            notna = series.notna()
-        if not notna.any():
+        if notna_mask is None:
+            notna_mask = series.notna()
+        if not notna_mask.any():
             return False
 
         # Position-based sample: avoids dropna() copies and .at on
         # duplicate labels (which can return a Series instead of a scalar).
-        sample = series.iat[int(notna.to_numpy().argmax())]
+        sample = series.iat[int(notna_mask.to_numpy().argmax())]
         serialized = json.loads(json.dumps(sample, default=enc_hook))
         return not isinstance(serialized, (str, int, float, bool, type(None)))
     except Exception:
@@ -316,16 +316,18 @@ class PandasTableManagerFactory(TableManagerFactory):
                         if is_complex_dtype(dtype):
                             result[col] = _stringify_preserving_nulls(series)
 
-                        notna = (
+                        notna_mask = (
                             series.notna()
                             if is_extension_array_dtype(dtype)
                             else None
                         )
-                        if _extension_column_needs_stringify(series, notna):
+                        if _extension_column_needs_stringify(
+                            series, notna_mask
+                        ):
                             # Extension arrays with rich Python values serialize to nested
                             # dictionaries through to_dict. Preserve their display values.
                             result[col] = _stringify_preserving_nulls(
-                                series, notna
+                                series, notna_mask
                             )
 
                         if is_timedelta64_dtype(
