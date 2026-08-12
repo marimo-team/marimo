@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
-import { NoKernelConnectedError, prettyError } from "@/utils/errors";
+import { HTTPError, NoKernelConnectedError, prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
 import { useConnectToRuntime } from "../runtime/config";
 import { store } from "../state/jotai";
@@ -43,12 +43,15 @@ export function createErrorToastingRequests(
     previewSQLTableList: "Failed to fetch SQL table list",
     previewSQLSchemaList: "Failed to fetch SQL schema list",
     previewDataSourceConnection: "Failed to preview data source connection",
+    discoverDataSources: "Failed to discover data sources",
     validateSQL: "Failed to validate SQL",
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
+    getEnvironmentInfo: "", // No toast
     sendListFiles: "Failed to list files",
     sendSearchFiles: "Failed to search files",
     sendPdb: "Failed to start debug session",
+    sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
     sendDeleteFileOrFolder: "Failed to delete file or folder",
     sendCopyFileOrFolder: "Failed to duplicate file or folder",
@@ -61,9 +64,11 @@ export function createErrorToastingRequests(
     getWorkspaceFiles: "Failed to get workspace files",
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
+    getExportAvailability: "", // No toast
     exportAsHTML: "Failed to export HTML",
     exportAsIPYNB: "Failed to export ipynb",
     exportAsMarkdown: "Failed to export Markdown",
+    exportAsScript: "Failed to export Script",
     exportAsPDF: "Failed to export PDF",
     autoExportAsHTML: "", // No toast
     autoExportAsMarkdown: "", // No toast
@@ -106,6 +111,14 @@ export function createErrorToastingRequests(
           });
           Logger.error(`Failed to handle request: ${key}`, error);
           // Rethrow the error so that the caller can handle it
+          throw error;
+        }
+
+        // A capability 403: the connection is read-only for this action. The
+        // live capability notification already moved the UI to viewer state,
+        // so don't alarm the user with an error toast.
+        if (error instanceof HTTPError && error.status === 403) {
+          Logger.warn(`Request refused, connection is read-only: ${key}`);
           throw error;
         }
 

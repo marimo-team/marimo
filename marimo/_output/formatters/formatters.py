@@ -195,6 +195,14 @@ def register_formatters(theme: Theme = "light") -> None:
     case, the trade-off is worth it.
     """
 
+    # Descriptor-based anywidgets open their comm before formatting. Install
+    # the comm provider eagerly because local modules skip formatter hooks.
+    from marimo._plugins.ui._impl.anywidget.comm_provider import (
+        install_anywidget_comm_provider,
+    )
+
+    install_anywidget_comm_provider()
+
     # For modules that are already imported, register their formatters
     # immediately; their import hook wouldn't be triggered since they are
     # already imported. This is relevant when executing as a script.

@@ -2,6 +2,7 @@
 import type { EditorState, Transaction } from "@codemirror/state";
 import type { EditorView, ViewUpdate } from "@codemirror/view";
 import { getCM } from "@replit/codemirror-vim";
+import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
 
 export function isAtStartOfEditor(ev: { state: EditorState }) {
   const main = ev.state.selection.main;
@@ -34,6 +35,48 @@ export function moveToEndOfEditor(ev: EditorView | undefined) {
       anchor: ev.state.doc.length,
       head: ev.state.doc.length,
     },
+  });
+}
+
+/** We delay the focus and move to end of the editor until React has rendered the prefilled value. */
+export function focusInputAndMoveToEnd(
+  ref: React.RefObject<ReactCodeMirrorRef | null>,
+) {
+  requestAnimationFrame(() => {
+    const view = ref.current?.view;
+    if (!view) {
+      return;
+    }
+    view.focus();
+    moveToEndOfEditor(view);
+  });
+}
+
+/**
+ * Scrolls the `.marimo-cell` that owns `view` into view.
+ *
+ * `EditorView.scrollIntoView` doesn't work in columns mode: it stops at the
+ * first overflowing ancestor even if that ancestor doesn't actually scroll,
+ * so it never reaches the real horizontally-scrolling container. The
+ * browser's native `Element.scrollIntoView` doesn't have that problem.
+ *
+ * Deferred a frame so CodeMirror's own scroll settles first; otherwise it
+ * clamps this scroll right back.
+ *
+ * https://github.com/marimo-team/marimo/issues/10222
+ */
+export function scrollOwnerCell(view: EditorView): void {
+  const cell = view.dom.closest(".marimo-cell");
+  if (!cell) {
+    return;
+  }
+
+  requestAnimationFrame(() => {
+    cell.scrollIntoView({
+      behavior: "instant",
+      block: "nearest",
+      inline: "nearest",
+    });
   });
 }
 

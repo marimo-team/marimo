@@ -45,9 +45,9 @@ def test_get_row_headers_pandas() -> None:
     df_multi = pd.DataFrame({"A": range(3)}, index=arrays)
     assert _get_row_headers(df_multi) in [
         # pandas 2.x
-        [("", ("string", "object")), ("", ("string", "object"))],
+        [("Index0", ("string", "object")), ("Index1", ("string", "object"))],
         # pandas 3.x (StringDtype default)
-        [("", ("string", "str")), ("", ("string", "str"))],
+        [("Index0", ("string", "str")), ("Index1", ("string", "str"))],
     ]
 
     # Test with RangeIndex
@@ -57,7 +57,7 @@ def test_get_row_headers_pandas() -> None:
     # Test with categorical Index
     df_cat = pd.DataFrame({"A": range(3)})
     df_cat.index = pd.CategoricalIndex(["a", "b", "c"])
-    assert _get_row_headers(df_cat) == [("", ("string", "category"))]
+    assert _get_row_headers(df_cat) == [("Index0", ("string", "category"))]
 
     # Test with named categorical Index
     df_cat = pd.DataFrame({"A": range(3)})

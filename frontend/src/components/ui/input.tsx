@@ -195,7 +195,7 @@ export const OnBlurredInput = React.forwardRef<
       onChange={(event) => setInternalValue(event.target.value)}
       onBlur={() => setValue(internalValue || "")}
       onKeyDown={(event) => {
-        if (event.key !== "Enter") {
+        if (event.key !== "Enter" || event.shiftKey) {
           return;
         }
         setValue(internalValue || "");

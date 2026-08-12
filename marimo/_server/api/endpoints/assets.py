@@ -32,13 +32,13 @@ from marimo._server.api.auth import TOKEN_QUERY_PARAM
 from marimo._server.api.deps import AppState
 from marimo._server.files.path_validator import PathValidator
 from marimo._server.router import APIRouter
-from marimo._server.templates.templates import (
+from marimo._session.model import SessionMode
+from marimo._templates import (
     home_page_template,
     inject_script,
     json_script,
     notebook_page_template,
 )
-from marimo._session.model import SessionMode
 from marimo._utils.async_path import AsyncPath
 from marimo._utils.paths import (
     MARIMO_DIR_NAME,
@@ -228,6 +228,9 @@ def og_thumbnail(*, request: Request) -> Response:
             base_url=app_state.base_url,
             mode=app_state.mode.value,
         ),
+        execute_generator=(
+            app_state.session_manager.execute_opengraph_generators
+        ),
     )
     title = opengraph.title or "marimo"
     image = opengraph.image
@@ -407,6 +410,9 @@ async def index(request: Request) -> Response:
             else None,
             asset_url=app_state.asset_url,
             html_head=app_state.html_head,
+            execute_opengraph_generators=(
+                app_state.session_manager.execute_opengraph_generators
+            ),
         )
 
         # Inject service worker registration with the notebook ID

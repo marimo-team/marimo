@@ -23,6 +23,29 @@ from marimo._types.ids import VariableName
 
 NO_SCHEMA_NAME = ""
 
+# Probe name that no real DB connection defines.
+_MISSING_ATTRIBUTE_PROBE = "_marimo_does_not_exist_"
+_MISSING_ATTRIBUTE_SENTINEL = object()
+
+
+def fabricates_attributes(var: Any) -> bool:
+    """Return True if `var` invents attributes via a catch-all `__getattr__`.
+
+    Used to reject objects (e.g. ignite metrics) that pass every getattr-based
+    duck-type check. Prefer this over `getattr_static` so connection proxies
+    that forward `__getattr__` still work.
+
+    See https://github.com/marimo-team/marimo/issues/10213.
+    """
+    try:
+        return (
+            getattr(var, _MISSING_ATTRIBUTE_PROBE, _MISSING_ATTRIBUTE_SENTINEL)
+            is not _MISSING_ATTRIBUTE_SENTINEL
+        )
+    except Exception:
+        # Not a usable connection if __getattr__ raises unexpectedly.
+        return True
+
 
 @dataclass
 class InferenceConfig(ABC):

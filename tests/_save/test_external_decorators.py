@@ -118,6 +118,20 @@ class TestDecoratorImports:
     async def test_decorator_in_kernel(
         lazy_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
+        # The `@mo.cache` functions in `transitive_imports` bind their
+        # caching context the first time the module is imported. If that
+        # first import happens inside a kernel cell (as it would below),
+        # they bind to the kernel's globals instead of their own module
+        # scope, corrupting their pinned hash. Import the module here —
+        # outside any cell execution — so the external binding is correct
+        # regardless of test execution order (e.g. under pytest-xdist,
+        # where this test may run before its siblings that would
+        # otherwise prime this state).
+        for module in list(sys.modules.keys()):
+            if module.startswith("tests._save.external_decorators"):
+                del sys.modules[module]
+        import tests._save.external_decorators.transitive_imports  # noqa: F401
+
         k = lazy_kernel
         await k.run(
             [

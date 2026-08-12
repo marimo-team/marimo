@@ -2,6 +2,7 @@
 
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
+import { escapePythonString, resolveJsonCredential } from "../json-credentials";
 import { isSecret, unprefixSecret } from "../secrets";
 import { type DatabaseConnection, DatabaseConnectionSchema } from "./schemas";
 
@@ -415,8 +416,14 @@ ${formatUrlParams(params, (inner) => `              ${inner}`)},
 }
 
 class BigQueryGenerator extends CodeGenerator<"bigquery"> {
+  private get credential() {
+    return resolveJsonCredential(this.connection.credentials_json, (v) =>
+      this.secrets.print("credentials_json", v),
+    );
+  }
+
   generateImports(): string[] {
-    return ["import json"];
+    return this.credential.kind === "path" ? [] : ["import json"];
   }
 
   generateConnectionCode(): string {
@@ -428,9 +435,16 @@ class BigQueryGenerator extends CodeGenerator<"bigquery"> {
       "dataset",
       this.connection.dataset,
     );
+    const credential = this.credential;
+
+    if (credential.kind === "path") {
+      return dedent(`
+        engine = ${this.orm}.create_engine(f"bigquery://${project}/${dataset}", credentials_path="${escapePythonString(credential.path)}")
+      `);
+    }
 
     return dedent(`
-      credentials = json.loads("""${this.connection.credentials_json}""")
+      credentials = ${credential.expr}
       engine = ${this.orm}.create_engine(f"bigquery://${project}/${dataset}", credentials_info=credentials)
     `);
   }
@@ -589,7 +603,22 @@ class TrinoGenerator extends CodeGenerator<"trino"> {
 }
 
 class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
+  private getCatalogOptions(): Record<
+    string,
+    string | number | boolean | undefined
+  > {
+    return Object.fromEntries(
+      Object.entries(this.connection.catalog).filter(
+        ([key, value]) => value != null && value !== "" && key !== "type",
+      ),
+    );
+  }
+
   generateImports(): string[] {
+    if (Object.keys(this.getCatalogOptions()).length === 0) {
+      return ["from pyiceberg.catalog import load_catalog"];
+    }
+
     switch (this.connection.catalog.type) {
       case "REST":
         return ["from pyiceberg.catalog.rest import RestCatalog"];
@@ -607,15 +636,12 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
   }
 
   generateConnectionCode(): string {
-    let options: Record<string, string | number | boolean | undefined> = {
-      ...this.connection.catalog,
-    };
-    // Remove k='type' and v=nullish values
-    options = Object.fromEntries(
-      Object.entries(options).filter(
-        ([k, v]) => v != null && v !== "" && k !== "type",
-      ),
-    );
+    const name = `"${this.connection.name}"`;
+    const options = this.getCatalogOptions();
+    if (Object.keys(options).length === 0) {
+      return `catalog = load_catalog(${name})`;
+    }
+
     // Convert to secrets if they are secrets
     for (const [k, v] of Object.entries(options)) {
       if (isSecret(v)) {
@@ -630,8 +656,6 @@ class PyIcebergGenerator extends CodeGenerator<"iceberg"> {
       options,
       (line) => `${indent}${line}`,
     );
-
-    const name = `"${this.connection.name}"`;
 
     switch (this.connection.catalog.type) {
       case "REST":

@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId, requestId, uiElementId } from "@/__tests__/branded";
 import type { RuntimeManager } from "../../runtime/runtime";
 import { createLazyRequests } from "../requests-lazy";
-import type { EditRequests, RunRequests } from "../types";
+import type {
+  EditRequests,
+  ExportAvailabilityResponse,
+  RunRequests,
+} from "../types";
 
 // Mock the connection module
 vi.mock("../connection", async () => {
@@ -54,6 +58,52 @@ describe("createLazyRequests", () => {
     } as unknown as EditRequests & RunRequests;
   });
 
+  it("passes server-only requests through without starting a kernel", async () => {
+    const environment = { marimo: "1.2.3" };
+    mockDelegate.getEnvironmentInfo = vi
+      .fn()
+      .mockResolvedValue(environment) as EditRequests["getEnvironmentInfo"];
+
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await expect(lazyRequests.getEnvironmentInfo()).resolves.toEqual(
+      environment,
+    );
+    expect(mockInit).not.toHaveBeenCalled();
+    expect(mockDelegate.getEnvironmentInfo).toHaveBeenCalledOnce();
+  });
+
+  it("gets export availability without starting a kernel", async () => {
+    const availability: ExportAvailabilityResponse = {
+      source: "server",
+      formats: [
+        {
+          format: "ipynb",
+          dependenciesAvailable: false,
+          missingPackages: ["nbformat"],
+          missingSetup: [],
+        },
+      ],
+    };
+    mockDelegate.getExportAvailability = vi
+      .fn()
+      .mockResolvedValue(availability) as EditRequests["getExportAvailability"];
+
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await expect(lazyRequests.getExportAvailability()).resolves.toEqual(
+      availability,
+    );
+    expect(mockInit).not.toHaveBeenCalled();
+    expect(mockDelegate.getExportAvailability).toHaveBeenCalledOnce();
+  });
+
   it("should call init once before first request", async () => {
     const lazyRequests = createLazyRequests(
       mockDelegate,
@@ -63,6 +113,21 @@ describe("createLazyRequests", () => {
     await lazyRequests.sendRun({ cellIds: [cellId("cell1")], codes: ["code"] });
 
     expect(mockInit).toHaveBeenCalledTimes(1);
+  });
+
+  it("starts the kernel for datasource discovery", async () => {
+    mockDelegate.discoverDataSources = vi.fn().mockResolvedValue(null);
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await lazyRequests.discoverDataSources({
+      requestId: requestId("discovery"),
+    });
+
+    expect(mockInit).toHaveBeenCalledOnce();
+    expect(mockDelegate.discoverDataSources).toHaveBeenCalledOnce();
   });
 
   it("should only call init once across multiple requests", async () => {

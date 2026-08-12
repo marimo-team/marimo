@@ -1,7 +1,6 @@
 # Gotchas
 
-Loaded on demand via the `gotchas` capability (`load_capability`). Do not read
-this file from disk.
+Loaded on demand via the `gotchas` capability (`load_capability`).
 
 ## Private variables are cell-scoped
 

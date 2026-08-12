@@ -49,6 +49,7 @@ import {
   addContextCompletion,
   CONTEXT_TRIGGER,
 } from "@/components/editor/ai/completion-utils";
+import { pendingAiPromptAtom } from "@/core/ai/state";
 import {
   Select,
   SelectContent,
@@ -72,6 +73,7 @@ import {
   SendButton,
 } from "../chat-components";
 import { useFileState } from "../chat-utils";
+import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import { ReadyToChatBlock } from "./blocks";
 import {
   convertFilesToResourceLinks,
@@ -305,6 +307,7 @@ interface PromptAreaProps {
   onModeChange?: (mode: string) => void;
   sessionModels?: SessionModelState | null;
   onModelChange?: (modelId: string) => void;
+  inputRef: React.RefObject<ReactCodeMirrorRef | null>;
 }
 
 const PromptArea = memo<PromptAreaProps>(
@@ -322,8 +325,8 @@ const PromptArea = memo<PromptAreaProps>(
     onModeChange,
     sessionModels,
     onModelChange,
+    inputRef,
   }) => {
-    const inputRef = useRef<ReactCodeMirrorRef | null>(null);
     const promptCompletions: AdditionalCompletions | undefined = useMemo(() => {
       if (!commands) {
         return undefined;
@@ -660,6 +663,8 @@ const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
+  const promptInputRef = useRef<ReactCodeMirrorRef | null>(null);
+  const [pendingPrompt, setPendingPrompt] = useAtom(pendingAiPromptAtom);
   const { files, addFiles, clearFiles, removeFile } = useFileState();
   const [sessionModels, setSessionModels] = useState<SessionModelState | null>(
     null,
@@ -973,6 +978,34 @@ const AgentPanel: React.FC = () => {
     },
   );
 
+  // Consume a prompt queued by another part of the app (e.g. error auto-fix).
+  useEffect(() => {
+    if (
+      !activeSessionId ||
+      !agent ||
+      isLoading ||
+      connectionState.status !== "connected" ||
+      !pendingPrompt
+    ) {
+      return;
+    }
+    setPendingPrompt(null);
+    if (pendingPrompt.submit) {
+      void handlePromptSubmit(undefined, pendingPrompt.prompt);
+    } else {
+      setPromptValue(pendingPrompt.prompt);
+      focusInputAndMoveToEnd(promptInputRef);
+    }
+  }, [
+    activeSessionId,
+    agent,
+    isLoading,
+    connectionState.status,
+    pendingPrompt,
+    setPendingPrompt,
+    handlePromptSubmit,
+  ]);
+
   // Handler for stopping the current operation
   const handleStop = useEvent(async () => {
     if (!activeSessionId || !agent) {
@@ -1187,6 +1220,7 @@ const AgentPanel: React.FC = () => {
           onModeChange={handleModeChange}
           sessionModels={sessionModels}
           onModelChange={handleModelChange}
+          inputRef={promptInputRef}
         />
       </>
     );

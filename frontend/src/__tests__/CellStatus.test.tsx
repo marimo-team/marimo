@@ -3,11 +3,10 @@
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import type { Seconds } from "@/utils/time";
+import { formatElapsedTime, type Seconds } from "@/utils/time";
 import {
   CellStatusComponent,
   ElapsedTime,
-  formatElapsedTime,
 } from "../components/editor/cell/CellStatus";
 
 // Mock date-fns to have consistent date formatting in tests

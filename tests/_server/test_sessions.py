@@ -2,9 +2,11 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import os
 import queue
+import signal
 import sys
 import threading
 import time
@@ -271,6 +273,105 @@ def test_kernel_manager_interrupt(tmp_path: Path) -> None:
         assert not kernel_manager.is_alive()
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="interrupts don't reach subprocesses on Windows",
+)
+def test_kernel_manager_interrupt_reaches_subprocesses(
+    tmp_path: Path,
+) -> None:
+    queue_manager = QueueManagerImpl(use_multiprocessing=True)
+    kernel_manager = KernelManagerImpl(
+        queue_manager=queue_manager,
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=get_default_config_manager(current_path=None),
+        virtual_file_storage="shared_memory",
+        redirect_console_to_browser=False,
+    )
+
+    kernel_manager.start_kernel()
+    assert kernel_manager.kernel_task is not None
+    assert kernel_manager.is_alive()
+
+    pid_file = tmp_path / "pids.txt"
+    queue_manager.control_queue.put(
+        CreateNotebookCommand(
+            execution_requests=(
+                ExecuteCellCommand(
+                    cell_id="1",
+                    code=inspect.cleandoc(
+                        f"""
+                        import os
+                        import subprocess
+                        child = subprocess.Popen(["sleep", "600"])
+                        detached = subprocess.Popen(
+                            ["sleep", "600"], start_new_session=True
+                        )
+                        with open("{pid_file}.tmp", 'w') as f:
+                            f.write(str(child.pid) + " " + str(detached.pid))
+                        os.replace("{pid_file}.tmp", "{pid_file}")
+                        child.wait()
+                        """
+                    ),
+                ),
+            ),
+            cell_ids=("1",),
+            set_ui_element_value_request=UpdateUIElementCommand(
+                object_ids=[], values=[]
+            ),
+            auto_run=True,
+        )
+    )
+
+    # Wait for the cell to report the pids of the two subprocesses. The
+    # cell moves the fully written file into place, so existence implies
+    # complete contents.
+    child_pid = detached_pid = -1
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        if pid_file.exists():
+            child_pid, detached_pid = (
+                int(pid) for pid in pid_file.read_text().split()
+            )
+            break
+        time.sleep(0.1)
+
+    def terminated(pid: int) -> bool:
+        # An interrupted child of the kernel may linger as a zombie until
+        # the kernel reaps it; gone and zombie both count as terminated.
+        import psutil
+
+        try:
+            return psutil.Process(pid).status() == psutil.STATUS_ZOMBIE
+        except psutil.NoSuchProcess:
+            return True
+
+    try:
+        assert child_pid > 0
+        assert detached_pid > 0
+        kernel_manager.interrupt_kernel()
+
+        deadline = time.time() + 10
+        while time.time() < deadline and not terminated(child_pid):
+            time.sleep(0.1)
+        # The interrupt reaches subprocesses in the kernel's process group
+        assert terminated(child_pid)
+        # ... but spares subprocesses that detached into their own session
+        assert not terminated(detached_pid)
+        # ... and the kernel itself survives to serve future runs
+        assert kernel_manager.is_alive()
+    finally:
+        for pid in (child_pid, detached_pid):
+            if pid > 0:
+                with contextlib.suppress(ProcessLookupError):
+                    os.kill(pid, signal.SIGKILL)
+        kernel_manager.close_kernel()
+        kernel_manager.kernel_task.join(timeout=5)
+        assert not kernel_manager.is_alive()
+
+
 session_id = SessionId("test_session_id")
 
 
@@ -415,7 +516,7 @@ def test_session_with_kiosk_consumers() -> None:
 
     # Assert startup of kiosk consumer
     assert session.room.main_consumer != kiosk_consumer
-    assert kiosk_consumer in session.room.consumers
+    assert kiosk_consumer.consumer_id in session.room.consumers
     kiosk_consumer.on_attach.assert_called_once()
     assert kiosk_consumer.on_detach.call_count == 0
     assert session.connection_state() == ConnectionState.OPEN
@@ -930,13 +1031,15 @@ def __():
         # Rename to the second file
         session = session_manager.get_session(session_id)
         assert session is not None
-        session.app_file_manager.rename(str(new_path))
-        assert new_path.exists()
         success, error = await session_manager.rename_session(
             session_id, str(new_path)
         )
         assert success
         assert error is None
+        assert new_path.exists()
+        assert (
+            session_manager.get_session_by_file_key(str(new_path)) is session
+        )
 
         # Modify the new file
         operations.clear()

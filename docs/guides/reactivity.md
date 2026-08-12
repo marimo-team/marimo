@@ -145,6 +145,14 @@ or try creating a new variable instead.
         df["another_column"] = [3, 4]
         ```
 
+### Interrupts
+
+Click the stop button to interrupt a running cell. On Unix-like systems, this
+also interrupts subprocesses in the kernel's process group. To keep a
+subprocess running after an interrupt, start it in a new session, for example
+with `subprocess.Popen(..., start_new_session=True)`. Interrupting a cell also
+cancels execution of any queued dependent cells.
+
 ## Global variable names must be unique
 
 **marimo requires that every global variable be defined by only one cell.**
@@ -167,6 +175,13 @@ help keep the number of global variables in your notebook small.
 Variables prefixed with an underscore (_e.g._, `_x`) are "local" to a
 cell: they can't be read by other cells. Multiple cells can reuse the same
 local variables names.
+
+!!! note "Underscore-prefixed imports"
+    Imported names are also variables, so an import bound to an
+    underscore-prefixed name (`import numpy as _np`, or `from ibis import _`)
+    is local to the cell that imports it. When the imported symbol itself
+    starts with an underscore and you want to use it across cells, alias it
+    to a name without a leading underscore: `from ibis import _ as d`.
 
 #### Encapsulating code in functions
 

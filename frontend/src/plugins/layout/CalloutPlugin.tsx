@@ -18,6 +18,10 @@ interface Data {
    * The kind of callout
    */
   kind: Intent;
+  /**
+   * An optional bold title line
+   */
+  title?: string;
 }
 
 export class CalloutPlugin implements IStatelessPlugin<Data> {
@@ -26,9 +30,12 @@ export class CalloutPlugin implements IStatelessPlugin<Data> {
   validator = z.object({
     html: z.string(),
     kind: zodIntent,
+    title: z.string().optional(),
   });
 
   render({ data }: IStatelessPluginProps<Data>): JSX.Element {
-    return <CalloutOutput html={data.html} kind={data.kind} />;
+    return (
+      <CalloutOutput html={data.html} kind={data.kind} title={data.title} />
+    );
   }
 }

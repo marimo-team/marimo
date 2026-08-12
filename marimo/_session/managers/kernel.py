@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import os
-import signal
-import sys
 import threading
 import time
 from multiprocessing import connection, get_context
@@ -21,7 +19,10 @@ from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.print import print_
-from marimo._utils.subprocess import try_kill_process_and_group
+from marimo._utils.subprocess import (
+    interrupt_kernel_process,
+    try_kill_process_and_group,
+)
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -234,16 +235,13 @@ class KernelManagerImpl(KernelManager):
             # no interruptions in run mode
             return
 
-        if self.kernel_task.pid is not None:
-            q = self.queue_manager.win32_interrupt_queue
-            if sys.platform == "win32" and q is not None:
-                LOGGER.debug("Queueing interrupt request for kernel.")
-                q.put_nowait(True)
-            else:
-                LOGGER.debug("Sending SIGINT to kernel")
-                os.kill(self.kernel_task.pid, signal.SIGINT)
+        if self.kernel_task.pid is not None and self.kernel_task.is_alive():
+            interrupt_kernel_process(
+                self.kernel_task.pid,
+                self.queue_manager.win32_interrupt_queue,
+            )
 
-    def close_kernel(self) -> None:
+    def close_kernel(self, *, graceful: bool = False) -> None:
         assert self.kernel_task is not None, "kernel not started"
 
         if isinstance(self.kernel_task, threading.Thread):
@@ -256,11 +254,18 @@ class KernelManagerImpl(KernelManager):
                 )
             return
 
-        # Otherwise, we have something that is `ProcessLike`
-        if self.profile_path is not None and self.kernel_task.is_alive():
+        # Otherwise, we have something that is `ProcessLike`.
+        # A graceful shutdown asks the kernel to stop cleanly so it can flush
+        # pending work (cache writes, export manifest) before we kill it. The
+        # join below is what makes this opt-in: it blocks the caller, and the
+        # live server closes sessions on the event loop, which must not stall.
+        wants_clean_stop = graceful or self.profile_path is not None
+        if wants_clean_stop and self.kernel_task.is_alive():
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
             )
+
+        if self.profile_path is not None and self.kernel_task.is_alive():
             # Hack: Wait for kernel to exit and write out profile;
             # joining the process hangs, but not sure why.
             print_(
@@ -273,6 +278,9 @@ class KernelManagerImpl(KernelManager):
             time.sleep(1)
 
         self.queue_manager.close_queues()
+        # Give the kernel time for a clean shutdown (flush caches, etc.)
+        if graceful and self.kernel_task.is_alive():
+            self.kernel_task.join(timeout=5)
         try:
             try_kill_process_and_group(self.kernel_task)
         except ProcessLookupError:

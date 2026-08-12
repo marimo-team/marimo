@@ -50,7 +50,10 @@ import {
 import { smartMatch } from "@/utils/smartMatch";
 import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
-import { getColumnCountForDisplay } from "../hooks/use-column-visibility";
+import {
+  getColumnCountForDisplay,
+  getUserColumnVisibilityCounts,
+} from "../hooks/use-column-visibility";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -90,6 +93,7 @@ export function ColumnExplorerPanel<TData>({
     totalColumns: effectiveTotalColumns,
     hiddenColumns: hiddenColumnCount,
   } = getColumnCountForDisplay(table, totalColumns);
+  const { visible: visibleColumnCount } = getUserColumnVisibilityCounts(table);
 
   const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,
@@ -108,17 +112,34 @@ export function ColumnExplorerPanel<TData>({
           value={columns?.map(([columnName]) => columnName).join(",\n") || ""}
           className="h-3 w-3"
         />
-        {hiddenColumnCount > 0 && (
-          <Button
-            type="button"
-            variant="link"
-            size="xs"
-            className="h-auto p-0"
-            onClick={() => table.resetColumnVisibility(true)}
-          >
-            Unhide all
-          </Button>
-        )}
+        <div className="ml-auto flex items-center gap-1">
+          <Tooltip content="Show all columns" delayDuration={400}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="gap-1"
+              disabled={hiddenColumnCount === 0}
+              onClick={() => table.toggleAllColumnsVisible(true)}
+            >
+              <EyeIcon className="w-3 h-3" />
+              Show all
+            </Button>
+          </Tooltip>
+          <Tooltip content="Hide all columns" delayDuration={400}>
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="gap-1"
+              disabled={visibleColumnCount === 0}
+              onClick={() => table.toggleAllColumnsVisible(false)}
+            >
+              <EyeOffIcon className="w-3 h-3" />
+              Hide all
+            </Button>
+          </Tooltip>
+        </div>
       </div>
       <Command className="h-5/6 bg-background" shouldFilter={false}>
         <CommandInput

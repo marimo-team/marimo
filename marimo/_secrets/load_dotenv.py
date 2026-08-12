@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from marimo._dependencies.dependencies import DependencyManager
 
@@ -72,11 +73,49 @@ def load_to_environ(env_dict: dict[str, str | None]) -> None:
         os.environ[key] = value
 
 
+# The escape sequences that python-dotenv decodes inside double-quoted
+# values; we mirror them so both parsers agree on what a value means.
+_ESCAPES = {
+    "\\": "\\",
+    "'": "'",
+    '"': '"',
+    "a": "\a",
+    "b": "\b",
+    "f": "\f",
+    "n": "\n",
+    "r": "\r",
+    "t": "\t",
+    "v": "\v",
+}
+_ESCAPE_SEQUENCE = re.compile(r"\\([\\'\"abfnrtv])")
+
+
+def escape_dotenv_value(value: str) -> str:
+    """Escape a value so it can be written as a double-quoted .env value.
+
+    The inverse of the unescaping done by `_drop_quotes` (and by
+    python-dotenv). Newlines are escaped as well, since a raw newline would
+    otherwise split the value across lines.
+    """
+    return (
+        value.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+    )
+
+
 def _drop_quotes(value: str) -> str:
     # Handle quoted values (both single and double quotes)
-    if (value.startswith("'") and value.endswith("'")) or (
-        value.startswith('"') and value.endswith('"')
-    ):
+    if len(value) < 2:
+        return value
+    if value.startswith("'") and value.endswith("'"):
+        # Single-quoted values are taken literally.
         return value[1:-1]
+    if value.startswith('"') and value.endswith('"'):
+        # Double-quoted values may contain escape sequences.
+        return _ESCAPE_SEQUENCE.sub(
+            lambda match: _ESCAPES[match.group(1)], value[1:-1]
+        )
 
     return value

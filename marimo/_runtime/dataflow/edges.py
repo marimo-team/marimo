@@ -210,12 +210,17 @@ def compute_edges_for_cell(
                 continue
             if language == "sql" and cell.language == "sql":
                 # Edges between SQL cells need to respect hierarchy.
-                if sql_ref and not sql_ref.matches_hierarchical_ref(
-                    variable_name,
-                    other_variable_data.qualified_name or name,
-                    kind=cast(SQLTypes, other_variable_data.kind),
-                ):
-                    continue
+                if sql_ref:
+                    other_sql_ref = other_variable_data.sql_ref
+                    qualified_name = (
+                        other_sql_ref.qualified_name if other_sql_ref else name
+                    )
+                    if not sql_ref.matches_hierarchical_ref(
+                        variable_name,
+                        qualified_name,
+                        kind=cast(SQLTypes, other_variable_data.kind),
+                    ):
+                        continue
             parents.add(other_id)
 
         # Next, any cell that deletes this referenced variable is made

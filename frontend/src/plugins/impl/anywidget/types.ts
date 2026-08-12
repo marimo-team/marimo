@@ -10,6 +10,10 @@ export type EventHandler = (...args: any[]) => void;
  */
 export type WidgetModelId = TypedString<"WidgetModelId">;
 
+export function isWidgetModelId(value: unknown): value is WidgetModelId {
+  return typeof value === "string" && value.length > 0;
+}
+
 /**
  * AnyWidget model state with buffers.
  */
@@ -24,4 +28,14 @@ export interface WireFormat<T = Record<string, unknown>> {
   state: T;
   bufferPaths: (string | number)[][];
   buffers: Base64String[];
+}
+
+/**
+ * Where a widget's ESM can be imported from, and which version.
+ * Structural mirror of the backend `EsmSpec`; `hash` keys the module
+ * cache and detects code changes (hot reload).
+ */
+export interface EsmSpec {
+  url: string;
+  hash: string;
 }

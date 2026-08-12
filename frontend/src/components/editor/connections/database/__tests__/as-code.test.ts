@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import { prefixPath } from "../../paths";
 import { prefixSecret } from "../../secrets";
 import { type ConnectionLibrary, generateDatabaseCode } from "../as-code";
 import type { DatabaseConnection } from "../schemas";
@@ -165,6 +166,17 @@ describe("generateDatabaseCode", () => {
     },
   };
 
+  const icebergConfiguredCatalogConnection: DatabaseConnection = {
+    type: "iceberg",
+    name: "my_catalog",
+    catalog: {
+      type: "REST",
+      uri: undefined,
+      warehouse: undefined,
+      token: undefined,
+    },
+  };
+
   const icebergSqlConnection: DatabaseConnection = {
     type: "iceberg",
     name: "my_catalog",
@@ -309,6 +321,11 @@ describe("generateDatabaseCode", () => {
       ["chdb", chdbConnection, "chdb"],
       ["timeplus", timeplusConnection, "sqlalchemy"],
       ["trino", trinoConnection, "sqlmodel"],
+      [
+        "iceberg configured catalog",
+        icebergConfiguredCatalogConnection,
+        "pyiceberg",
+      ],
       ["iceberg rest", icebergRestConnection, "pyiceberg"],
       ["iceberg sql", icebergSqlConnection, "pyiceberg"],
       ["iceberg hive", icebergHiveConnection, "pyiceberg"],
@@ -380,6 +397,22 @@ describe("generateDatabaseCode", () => {
           ...bigqueryConnection,
           project: prefixSecret("ENV_PROJECT"),
           dataset: prefixSecret("ENV_DATASET"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials_json as secret",
+        {
+          ...bigqueryConnection,
+          credentials_json: prefixSecret("BIGQUERY_CREDENTIALS_JSON"),
+        },
+        "sqlmodel",
+      ],
+      [
+        "bigquery with credentials_json as a file path",
+        {
+          ...bigqueryConnection,
+          credentials_json: prefixPath("/etc/secrets/bigquery.json"),
         },
         "sqlmodel",
       ],

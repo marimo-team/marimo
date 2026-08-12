@@ -33,6 +33,89 @@ async def test_cell_output(
     assert k.debugger._last_traceback is None
 
 
+async def test_debugger_lifecycle_gated_by_flag(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    from marimo._runtime.executor import DebuggerLifecycle
+
+    k = execution_kernel
+    await k.run([exec_req.get("1")])
+
+    def lifecycles(user_config: Any, debugger: Any) -> list[Any]:
+        runner = Runner(
+            roots=set(k.graph.cells.keys()),
+            graph=k.graph,
+            glbls=k.globals,
+            debugger=debugger,
+            hooks=NotebookCellHooks(),
+            user_config=user_config,
+        )
+        return runner._evaluator.lifecycles
+
+    def with_flag(value: bool) -> Any:
+        experimental = {**k.user_config.get("experimental", {})}
+        experimental["debugger"] = value
+        return {**k.user_config, "experimental": experimental}
+
+    def has_debugger(items: list[Any]) -> bool:
+        return any(isinstance(item, DebuggerLifecycle) for item in items)
+
+    # On when the flag is set and a debugger is present.
+    assert has_debugger(lifecycles(with_flag(True), k.debugger))
+    # Off when the flag is unset.
+    assert not has_debugger(lifecycles(with_flag(False), k.debugger))
+    # Off when there is no debugger, even with the flag on.
+    assert not has_debugger(lifecycles(with_flag(True), None))
+
+
+async def test_line_timing_lifecycle_gated_by_flag(
+    execution_kernel: Kernel, exec_req: ExecReqProvider
+) -> None:
+    from marimo._runtime.executor import DebuggerLifecycle
+
+    k = execution_kernel
+    await k.run([exec_req.get("1")])
+
+    def lifecycles(user_config: Any, debugger: Any) -> list[Any]:
+        runner = Runner(
+            roots=set(k.graph.cells.keys()),
+            graph=k.graph,
+            glbls=k.globals,
+            debugger=debugger,
+            hooks=NotebookCellHooks(),
+            user_config=user_config,
+        )
+        return [
+            item
+            for item in runner._evaluator.lifecycles
+            if isinstance(item, DebuggerLifecycle)
+        ]
+
+    def with_flags(**flags: bool) -> Any:
+        experimental = {**k.user_config.get("experimental", {}), **flags}
+        return {**k.user_config, "experimental": experimental}
+
+    # line_timing alone: one lifecycle, watching without a debugger — even
+    # when a debugger instance is available.
+    for debugger in (None, k.debugger):
+        items = lifecycles(
+            with_flags(debugger=False, line_timing=True), debugger
+        )
+        assert len(items) == 1
+        assert items[0]._watcher._debugger is None
+
+    # Both flags: exactly one lifecycle (a single settrace hook), holding the
+    # debugger.
+    items = lifecycles(with_flags(debugger=True, line_timing=True), k.debugger)
+    assert len(items) == 1
+    assert items[0]._watcher._debugger is k.debugger
+
+    # Both off: absent.
+    assert not lifecycles(
+        with_flags(debugger=False, line_timing=False), k.debugger
+    )
+
+
 async def test_traceback_includes_lineno(
     execution_kernel: Kernel, exec_req: ExecReqProvider
 ) -> None:

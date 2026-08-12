@@ -22,12 +22,20 @@ Options:
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
+- `--execute/--no-execute`: Run the notebook before exporting and embed its outputs as a preview. Where possible, this uses an isolated environment pinned to WASM-compatible packages
 
 Note that WebAssembly notebooks have [limitations](../wasm.md#limitations); in particular,
 [many but not all packages work](../wasm.md#packages). If your notebook runs both
 locally and in the browser, use [PEP 508 environment
 markers](../wasm.md#platform-specific-dependencies-pep-508) in script metadata to
 exclude native-only dependencies from WASM installs.
+
+Run `marimo check notebook.py --select MW` before exporting to catch WASM
+incompatibilities early:
+
+- [MW001](../lint_rules/rules/incompatible_import.md): an incompatible import
+- [MW002](../lint_rules/rules/unsafe_system_call.md): an unsafe system call
+- [MW003](../lint_rules/rules/incompatible_package.md): a dependency without a WASM-compatible wheel
 
 !!! note "Note"
 
@@ -57,6 +65,224 @@ exclude native-only dependencies from WASM installs.
     ```
     npx wrangler deploy
     ```
+
+## Exporting with cached execution { #exporting-with-cached-execution }
+
+With caching, you can publish WebAssembly notebooks whose cells are expensive
+or cannot run in the browser (a small `torch` training run, for example). If your
+notebook has [automatic cell
+caching](../../api/caching.md#automatic-cell-caching) enabled, `--execute` runs
+the notebook once and bundles the resulting cell cache into the export. When the
+exported notebook loads, each cached cell hydrates from that bundle instead of
+recomputing in WebAssembly. The rest of the notebook stays fully live and
+interactive.
+
+Bundling a cache needs both the runtime setting and the `--execute` flag:
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+cache_cells = true
+```
+
+```bash
+marimo export html-wasm notebook.py -o output_dir --execute
+```
+
+marimo copies the cached entries into a `public/cache/` directory alongside the
+export. At load time, the browser runtime fetches them over HTTP instead of
+recomputing the corresponding cells.
+
+### Cached values from packages WebAssembly cannot install { #native-only-objects }
+
+A cached cell can define a top-level value from a package that WebAssembly
+cannot install, like a `torch.nn.Module`. You do not need to keep such values
+out of the cache. When the exported notebook cannot correctly restore
+variables from cache, marimo binds the variable to a stub instead of raising
+an error. The notebook will load normally and behave normally as the
+evaluation of the stubbed variable is deferred until an attempt to use it.
+
+When an incompatible variable load is triggered, marimo will attempt to
+recompute its definition from the notebook, which in turn may fail if the
+behavior is not compatible with the WebAssembly environment.
+
+For instance, if the browser does not have a package a new cell needs, the rerun fails:
+
+```python
+# /// script
+# dependencies = [
+#     "marimo",
+#     "torch; sys_platform != 'emscripten'",  # native-only; excluded from WASM
+# ]
+#
+# [tool.marimo.runtime]
+# cache_cells = true
+# ///
+
+# --- Cell 1 ---
+
+import torch # load deferred; torch is not available in the browser
+import numpy as np
+
+# --- Cell 2 --- # Cell 2 is cached and skipped
+model = torch.nn.Linear(4, 2)
+# ... train the model ...
+
+# --- Cell 3 --- # Cell 3 is cached and skipped
+x = np.array(model(torch.rand(1, 4)))
+x # Output is initially visible!
+
+# --- Cell 4 --- # If this is a new cell it'll still work! `x` is loaded from cache.
+x + x # numpy values can be used in the browser, so this works fine
+
+# --- Cell 5 --- # If this is a new cell, this will fail
+np.array(model(torch.rand(1, 4)))
+```
+
+In the exported notebook, `model` hydrates as a stub. Displaying outputs or
+referencing the variable in other cached cells still works. Calling `model(...)`
+in the new Cell 5 reruns this cell live. That rerun needs `torch`, which is
+unavailable in the browser, so it fails there.
+
+To run inference on such a model in the browser, cache a portable form of it
+instead of calling the stub. [`moutils.onnx.OnnxRuntime`](https://github.com/marimo-team/moutils#onnx-runtime-adapter)
+does this for PyTorch and JAX models: it exports the model to ONNX, and the
+runtime it returns is itself cacheable. In the browser, that runtime runs
+inference with `onnxruntime-web` instead of the original framework.
+
+!!! note "This is a point-in-time snapshot"
+
+    Cache bundling covers only the cells whose cache is valid at export time.
+    Editing a cell, or changing an input it depends on, invalidates that
+    cell's cache. Then the browser must run the cell's real code instead of
+    hydrating it from the bundle. If that code needs a package WebAssembly
+    cannot install (like `torch`), the cell reports an error. After such a
+    change, re-run and re-export the notebook.
+
+### Caching precomputed values { #precomputed-values }
+
+An alternative to caching for runtime evaluation is precomputing every
+possible output of a cell and bundling them into the export. This is useful for
+notebooks that have a small, known set of states, such as those with dropdowns
+or sliders that index into a fixed list of options. By precomputing every
+reachable output ahead of time, you can avoid waiting for the cache to warm up
+during use.
+
+The pattern has four parts:
+
+1. Expose UI elements as indices into fixed option lists of plain, hashable
+   values (strings, numbers) — not the objects or callables the indices
+   select. UI-defining cells always rerun live on load, even on a cache hit,
+   so keep them free of anything that touches an unavailable package.
+2. Pull the expensive computation into a plain function keyed on those indices,
+   decorated with `@mo.persistent_cache(method="lazy")`. Use `method="lazy"`:
+   `method="pickle"` does not bundle well for the WASM export.
+3. Add a cell that calls that function for every combination of indices,
+   guarded to run only outside the browser, for example with
+   `sys.platform != "emscripten"`.
+4. Return WASM-native values (numbers, `numpy` arrays, strings) from the
+   cached function, so cells that use the result work directly in the
+   browser.
+
+```python
+# /// script
+# dependencies = [
+#     "marimo",
+#     "torch; sys_platform != 'emscripten'",  # native-only; excluded from WASM
+# ]
+#
+# [tool.marimo.runtime]
+# cache_cells = true
+# ///
+
+# --- Cell 1 --- # setup; not UI-defining, so a cache hit can skip it entirely
+import sys
+import torch
+import marimo as mo
+
+FN_LABELS = ["x^2", "sin(x)"]
+
+# --- Cell 2 --- # UI-defining cells always rerun live on load, so keep them
+# to plain, hashable literals like FN_LABELS above
+fn = mo.ui.dropdown(
+    options={label: i for i, label in enumerate(FN_LABELS)}, value="x^2"
+)
+fn
+
+# --- Cell 3 --- # the expensive part, keyed on the dropdown's index
+@mo.persistent_cache(method="lazy")
+def compute(fn_idx):
+    x = torch.linspace(-1, 1, 100)
+    y = x**2 if fn_idx == 0 else torch.sin(x)
+    return {"label": FN_LABELS[fn_idx], "x": x.numpy(), "y": y.numpy()}
+
+# --- Cell 4 ---
+result = compute(fn.value)
+result
+
+# --- Cell 5 --- # warm the cache for every dropdown option before exporting
+if sys.platform != "emscripten":
+    for _fn_idx in range(len(FN_LABELS)):
+        compute(_fn_idx)
+```
+
+Export with `marimo export html-wasm notebook.py -o output_dir --execute`.
+The precompute cell runs during that server-side pass and populates one
+cache entry per dropdown option. All of them get bundled into
+`public/cache/`. In the browser, every dropdown selection is already
+cached, so switching between options never triggers a live rerun.
+
+## Including local modules and wheels
+
+`marimo export html-wasm` includes Python modules imported by your notebook
+when they resolve to local files. For example, if `notebook.py` imports `foo`
+and `foo.py` lives in the same directory, marimo builds a pure-Python wheel for
+`foo.py`, copies it to `public/wheels` in the export directory, and installs
+the wheel when the notebook starts in the browser.
+
+```text
+notebooks/
+|-- notebook.py
+`-- foo.py
+```
+
+```python title="notebooks/notebook.py"
+import foo
+```
+
+```bash
+marimo export html-wasm notebooks/notebook.py -o output_dir
+```
+
+Package imports keep their package layout. A local `foo.py` is written into the
+wheel as top-level `foo.py`, while a local package such as `helpers/__init__.py`
+stays under `helpers/`. If a local module imports another local module, the
+imported file is included in the export too.
+
+Local module resolution requires [`uv`](https://docs.astral.sh/uv/). Install it
+with `pip install "marimo[sandbox]"` or use the
+[uv installation guide](https://docs.astral.sh/uv/getting-started/installation/).
+
+For local modules outside the notebook directory, configure
+[`pythonpath`](../configuration/runtime_configuration.md#python-path) so marimo
+can resolve the import.
+
+If you already build a local wheel, reference it from the notebook's
+[inline script metadata](../package_management/inlining_dependencies.md):
+
+```python
+# /// script
+# dependencies = ["my-package"]
+# [tool.uv.sources]
+# my-package = { path = "dist/my_package-0.1.0-py3-none-any.whl" }
+# ///
+```
+
+During export, marimo copies the referenced wheel to `public/wheels` and
+rewrites the browser metadata to install that hosted wheel URL.
+
+Local modules and wheels run in Pyodide at browser startup. Imported
+third-party packages must be available in Pyodide or installable from a
+WASM-compatible wheel.
 
 ## Testing the export
 

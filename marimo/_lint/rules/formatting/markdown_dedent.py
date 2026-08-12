@@ -69,7 +69,7 @@ class MarkdownDedentRule(LintRule):
 
     async def check(self, ctx: RuleContext) -> None:
         """Check for markdown cells with indented content."""
-        from marimo._lint.linter import (
+        from marimo._utils.generated_with import (
             contents_differ_excluding_generated_with,
         )
 

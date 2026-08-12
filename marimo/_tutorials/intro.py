@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.2"
+__generated_with = "0.23.15"
 app = marimo.App()
 
 
@@ -64,10 +64,10 @@ def _(mo):
 def _(mo):
     mo.md(
         """
-        Tip: This is a tutorial notebook. You can create your own notebooks
-        by entering `marimo edit` at the command line.
+        This is a tutorial notebook. Create your own notebooks
+        with `marimo edit` at the command line.
         """
-    ).callout()
+    ).callout(kind="info", title="Creating your own notebooks")
     return
 
 

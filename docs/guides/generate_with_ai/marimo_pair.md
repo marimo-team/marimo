@@ -1,7 +1,7 @@
 # Collaborate with agents using marimo pair
 
 Give your agent CLIs (such as Claude Code, Codex, and OpenCode) full access to running marimo notebooks with the **[marimo
-pair](https://github.com/marimo-team/marimo-pair)** agent skill.
+pair](https://marimo.io/pair)** agent skill.
 
 marimo pair is the recommended way to collaborate on marimo notebooks with
 agents. It lets your agent read variables, test logic in a scratchpad, run
@@ -41,11 +41,11 @@ Then pair on your first notebook by pasting the following in your agent CLI:
 /marimo-pair pair with me on my_notebook.py
 ```
 
-## Sandbox with molab 
+## Cloud sandbox with molab
 
-You can also connect to marimo notebooks running on [molab](https://molab.marimo.io/notebooks). This gives you a free sandbox for your agent and also makes it easy to share your work afterwards. 
+You can also connect to marimo notebooks running on [molab](https://molab.marimo.io/notebooks). This gives you a free sandbox for your agent and also makes it easy to share your work afterwards.
 
-To connect an agent, start a notebook on molab and open the actions panel in the upper right corner. From this menu you need to click "Pair with an agent". 
+To connect an agent, start a notebook on molab and open the actions panel in the upper right corner. From this menu you need to click "Pair with an agent".
 
 <div align="center">
   <img src="/_static/marimo-pair-molab.png" alt="Screenshot of a molab notebook showing the option to pair with an agent from the actions panel"/>

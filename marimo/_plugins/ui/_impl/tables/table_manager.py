@@ -208,6 +208,14 @@ class TableManager(abc.ABC, Generic[T]):
             for column_name in self.get_column_names()
         ]
 
+    def with_index_as_columns(self) -> TableManager[Any]:
+        """Return a manager whose row index is exposed as regular columns.
+
+        Backends without a row-index concept return themselves unchanged; only
+        pandas has a non-trivial index to flatten.
+        """
+        return self
+
     @abc.abstractmethod
     def take(self, count: int, offset: int) -> TableManager[Any]:
         pass

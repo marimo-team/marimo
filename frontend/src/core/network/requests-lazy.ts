@@ -29,12 +29,17 @@ type AllRequests = EditRequests & RunRequests;
 // - waitForConnectionOpen: Waits for an existing connection but won't start one.
 //   Use for operations that depend on a running kernel but shouldn't be the
 //   trigger to start it (e.g., saving, interrupting).
+//
+// - serverOnly: Calls the HTTP delegate directly without touching the kernel.
+//   Use for requests served by the marimo server itself, which resolve without
+//   a session (e.g., fetching environment diagnostics).
 
 type Action =
   | "throwError"
   | "dropRequest"
   | "startConnection"
-  | "waitForConnectionOpen";
+  | "waitForConnectionOpen"
+  | "serverOnly";
 
 const ACTIONS: Record<keyof AllRequests, Action> = {
   // These will start a connection if not already connected and then wait until the connection is open
@@ -46,11 +51,13 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendRunScratchpad: "startConnection",
   saveAppConfig: "startConnection",
   saveCellConfig: "startConnection",
+  discoverDataSources: "startConnection",
 
   // Export operations start a connection
   exportAsHTML: "startConnection",
   exportAsIPYNB: "startConnection",
   exportAsMarkdown: "startConnection",
+  exportAsScript: "startConnection",
   exportAsPDF: "startConnection",
   readCode: "startConnection",
   sendCopy: "throwError",
@@ -96,6 +103,10 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendFileDetails: "throwError",
   openFile: "throwError",
 
+  // Served by the marimo server without a kernel session
+  getEnvironmentInfo: "serverOnly",
+  getExportAvailability: "serverOnly",
+
   // Home operations throw errors
   getRecentFiles: "startConnection",
   getWorkspaceFiles: "startConnection",
@@ -108,6 +119,7 @@ const ACTIONS: Record<keyof AllRequests, Action> = {
   sendStdin: "waitForConnectionOpen",
   sendInterrupt: "waitForConnectionOpen",
   sendPdb: "waitForConnectionOpen",
+  sendSetBreakpoints: "waitForConnectionOpen",
   sendInstallMissingPackages: "waitForConnectionOpen",
   readSnippets: "waitForConnectionOpen",
   previewDatasetColumn: "waitForConnectionOpen",
@@ -154,6 +166,10 @@ export function createLazyRequests(
       }
 
       switch (action) {
+        case "serverOnly":
+          // Served by the marimo server itself; no kernel required
+          return request(...args);
+
         case "dropRequest":
           Logger.debug(
             `Dropping request: ${key}, since not connected to a kernel.`,

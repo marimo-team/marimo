@@ -14,6 +14,34 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
+class TestModuleStubVersion:
+    @staticmethod
+    def test_submodule_alias_captures_root_version(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A submodule with no own `__version__` pins the root package's,
+        so a version-pinned cache reproduces its hash on restore even when
+        the package is absent (e.g. `import torch.nn as nn` in WASM)."""
+        import types
+
+        root = types.ModuleType("_marimo_pkg_ver_test")
+        root.__version__ = "9.9.9"
+        sub = types.ModuleType("_marimo_pkg_ver_test.sub")  # no __version__
+        monkeypatch.setitem(sys.modules, root.__name__, root)
+        monkeypatch.setitem(sys.modules, sub.__name__, sub)
+
+        assert ModuleStub(sub).version == "9.9.9"
+        # An explicit version still wins over the fallback.
+        assert ModuleStub(sub, version="1.2.3").version == "1.2.3"
+
+    @staticmethod
+    def test_no_version_anywhere_is_empty() -> None:
+        import types
+
+        mod = types.ModuleType("_marimo_no_ver_test")
+        assert ModuleStub(mod).version == ""
+
+
 class TestModuleStubLoad:
     @staticmethod
     def test_load_existing_module() -> None:
@@ -30,6 +58,7 @@ class TestModuleStubLoad:
         stub = ModuleStub.__new__(ModuleStub)
         stub.name = "marimo_definitely_not_a_real_module_xyz"
         stub.hash = ""
+        stub.version = ""
         result = stub.load()
         assert isinstance(result, MissingModule)
         assert result.__missing__ is True
@@ -54,6 +83,7 @@ class TestModuleStubLoad:
             stub = ModuleStub.__new__(ModuleStub)
             stub.name = mod_name
             stub.hash = ""
+            stub.version = ""
             with pytest.raises(ModuleNotFoundError) as exc_info:
                 stub.load()
             # The error is about the transitive dep, not our module.

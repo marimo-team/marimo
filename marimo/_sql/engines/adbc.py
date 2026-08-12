@@ -17,6 +17,7 @@ from marimo._sql.engines.types import (
     InferenceConfig,
     SQLConnection,
     default_inference_config,
+    fabricates_attributes,
 )
 from marimo._sql.utils import convert_to_output, is_cheap_dialect
 from marimo._types.ids import VariableName
@@ -459,6 +460,9 @@ class AdbcDBAPIEngine(SQLConnection[AdbcDbApiConnection]):
         var_type = type(var)
         var_type_name = f"{var_type.__module__}.{var_type.__qualname__}"
         if var_type_name == "ibis.common.deferred.Deferred":
+            return False
+
+        if fabricates_attributes(var):
             return False
 
         try:

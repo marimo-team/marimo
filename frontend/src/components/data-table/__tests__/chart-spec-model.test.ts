@@ -178,6 +178,104 @@ describe("ColumnChartSpecModel", () => {
     expect(summary2.spec?.data?.values).toEqual(mockBinValues.integer);
   });
 
+  it("should render only a null bar for all-null numeric columns", () => {
+    const allNullStats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
+      number: { nulls: 12, total: 12 },
+    };
+    const allNullBins: Record<ColumnName, BinValues> = {
+      number: [],
+    };
+    const model = new ColumnChartSpecModel(
+      [],
+      mockFieldTypes,
+      allNullStats,
+      allNullBins,
+      {},
+      { includeCharts: true },
+    );
+    const summary = model.getHeaderSummary("number");
+    expect(summary.spec).toBeDefined();
+    // @ts-expect-error hconcat should be available
+    expect(summary.spec?.hconcat).toBeUndefined();
+    // @ts-expect-error data.values should be available
+    expect(summary.spec?.data?.values).toEqual([
+      { bin_start: null, bin_end: null, count: 12 },
+    ]);
+    // Full-width null-only chart (not the thin hconcat null strip)
+    expect(summary.spec?.width).toBe(70);
+    // Full-height tooltip hit area uses pixel y/y2 (no aggregate:max)
+    // @ts-expect-error layer should be available
+    expect(summary.spec?.layer?.[1]?.encoding?.y).toEqual({ value: 0 });
+    // @ts-expect-error layer should be available
+    expect(summary.spec?.layer?.[1]?.encoding?.y2).toEqual({ value: 30 });
+    expect(summary.spec).toMatchSnapshot();
+  });
+
+  it("should ignore NaN bins and not mutate stored bin values", () => {
+    const nanOnlyBins: Record<ColumnName, BinValues> = {
+      number: [
+        { bin_start: Number.NaN, bin_end: 0.1, count: 0 },
+        { bin_start: Number.NaN, bin_end: 1, count: 0 },
+      ],
+    };
+    const stats: Record<ColumnName, Partial<ColumnHeaderStats>> = {
+      number: { nulls: 12, total: 12 },
+    };
+    const model = new ColumnChartSpecModel(
+      [],
+      mockFieldTypes,
+      stats,
+      nanOnlyBins,
+      {},
+      { includeCharts: true },
+    );
+    const first = model.getHeaderSummary("number");
+    const second = model.getHeaderSummary("number");
+    // All NaN bins are invalid → null-only chart
+    // @ts-expect-error hconcat should be available
+    expect(first.spec?.hconcat).toBeUndefined();
+    expect(first.spec?.width).toBe(70);
+    // Stored bins must not grow across getHeaderSummary calls
+    expect(nanOnlyBins.number).toHaveLength(2);
+    expect(second.spec).toEqual(first.spec);
+  });
+
+  it("should render a null bar for all-null temporal columns", () => {
+    const model = new ColumnChartSpecModel(
+      [],
+      mockFieldTypes,
+      { datetime: { nulls: 12, total: 12 } },
+      { datetime: [] },
+      {},
+      { includeCharts: true },
+    );
+    const summary = model.getHeaderSummary("datetime");
+    expect(summary.spec).toBeDefined();
+    // @ts-expect-error data.values
+    expect(summary.spec?.data?.values).toEqual([
+      { bin_start: null, bin_end: null, count: 12 },
+    ]);
+    expect(summary.spec?.width).toBe(70);
+    // Same full-height hover hit area as numeric all-null charts
+    // @ts-expect-error layer should be available
+    expect(summary.spec?.layer?.[1]?.encoding?.y).toEqual({ value: 0 });
+    // @ts-expect-error layer should be available
+    expect(summary.spec?.layer?.[1]?.encoding?.y2).toEqual({ value: 30 });
+    expect(summary.spec).toMatchSnapshot();
+  });
+
+  it("should return null when numeric bins are empty and there are no nulls", () => {
+    const model = new ColumnChartSpecModel(
+      [],
+      mockFieldTypes,
+      { number: { min: 0, max: 1 } },
+      { number: [] },
+      {},
+      { includeCharts: true },
+    );
+    expect(model.getHeaderSummary("number").spec).toBeNull();
+  });
+
   it("should handle datetime bin values", () => {
     const model = new ColumnChartSpecModel(
       [],
@@ -191,7 +289,10 @@ describe("ColumnChartSpecModel", () => {
     const summary = model.getHeaderSummary("datetime");
     expect(summary.spec).toBeDefined();
     // @ts-expect-error data.values should be available
-    expect(summary.spec?.data?.values).toEqual(mockBinValues.datetime);
+    expect(summary.spec?.data?.values).toEqual([
+      ...mockBinValues.datetime,
+      { bin_start: null, bin_end: null, count: 10 },
+    ]);
 
     expect(summary.spec).toMatchSnapshot();
 

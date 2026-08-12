@@ -12,7 +12,7 @@ import pickle
 import pytest
 
 from marimo._runtime.exceptions import (
-    MarimoCancelCellError,
+    MarimoRescheduleError,
     MarimoUnhashableCacheError,
 )
 from marimo._save.cache import Cache
@@ -46,7 +46,7 @@ class TestUnhashableStub:
         err = MarimoUnhashableCacheError(
             cells_to_rerun=set(), variables=[], error_details=""
         )
-        assert isinstance(err, MarimoCancelCellError)
+        assert isinstance(err, MarimoRescheduleError)
 
     def test_pickle_roundtrip(self) -> None:
         original = UnhashableStub(None, var_name="f", error_msg="oops")

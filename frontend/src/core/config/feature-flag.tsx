@@ -11,6 +11,8 @@ export interface ExperimentalFeatures {
   rtc_v2: boolean;
   cache_panel: boolean;
   external_agents: boolean;
+  debugger: boolean; // Live frame-watching debugger (gutter breakpoints + pdb)
+  line_timing: boolean; // Green active-line highlight + per-line elapsed timer
   // Add new feature flags here
 }
 
@@ -18,8 +20,10 @@ const defaultValues: ExperimentalFeatures = {
   markdown: true,
   wasm_layouts: false,
   rtc_v2: false,
-  cache_panel: false,
+  cache_panel: import.meta.env.DEV,
   external_agents: import.meta.env.DEV,
+  debugger: false,
+  line_timing: false,
 };
 
 export function getFeatureFlag<T extends keyof ExperimentalFeatures>(

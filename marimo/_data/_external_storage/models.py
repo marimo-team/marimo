@@ -12,7 +12,7 @@ from marimo._utils.assert_never import log_never
 
 CLOUD_STORAGE_TYPES = Literal["s3", "gcs", "azure", "cloudflare", "coreweave"]
 KNOWN_STORAGE_TYPES = Literal[CLOUD_STORAGE_TYPES, "http", "file", "in-memory"]
-BackendType = Literal["fsspec", "obstore"]
+BackendType = Literal["fsspec", "obstore", "huggingface"]
 SIGNED_URL_EXPIRATION = 60
 
 

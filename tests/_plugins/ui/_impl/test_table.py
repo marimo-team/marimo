@@ -1116,12 +1116,14 @@ def test_table_with_frozen_columns() -> None:
     not DependencyManager.pandas.has(), reason="Pandas not installed"
 )
 class TestFrozenRowHeaders:
-    def test_freeze_unnamed_pandas_index_rejected(self) -> None:
+    def test_freeze_unnamed_pandas_index(self) -> None:
         import pandas as pd
 
+        # An unnamed index is exposed as the row header "Index0", so it has a
+        # stable name that can be frozen like any named index.
         df = pd.DataFrame({"a": [1, 2, 3]}, index=["x", "y", "z"])
-        with pytest.raises(ValueError, match="unnamed row index"):
-            ui.table(df, freeze_columns_left=[""])
+        table = ui.table(df, freeze_columns_left=["Index0"])
+        assert table._component_args["freeze-columns-left"] == ["Index0"]
 
     def test_freeze_named_pandas_index(self) -> None:
         import pandas as pd
@@ -1274,6 +1276,31 @@ def test_table_hidden_columns_row_header_raises() -> None:
         match=f"Cannot control visibility for row index '{name}'",
     ):
         ui.table(df, hidden_columns=[name])
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+def test_get_data_url_includes_named_index() -> None:
+    import pandas as pd
+
+    from marimo._plugins.ui._impl.charts.altair_transformer import (
+        _data_to_csv_string,
+    )
+
+    df = pd.DataFrame(
+        {"v": [1, 2, 3]},
+        index=pd.Index(["a", "b", "c"], name="k"),
+    )
+    table = ui.table(df)
+    response = table._get_data_url(EmptyArgs())
+    assert response.data_url  # produced without error
+
+    # The flattened manager exposes the index as a column.
+    flattened = table._searched_manager.with_index_as_columns()
+    assert "k" in flattened.get_column_names()
+    csv = _data_to_csv_string(flattened.data)
+    assert "k" in csv.splitlines()[0]
 
 
 @pytest.mark.parametrize(
@@ -2396,13 +2423,13 @@ def test_json_multi_col_idx_table() -> None:
     json_data = json.loads(table._component_args["data"])
     assert json_data == [
         {
-            "": "All",
+            "Index0": "All",
             INDEX_COLUMN_NAME: 0,
             "basic_amt,NSW": 1,
             "basic_amt,QLD": 1,
         },
         {
-            "": "Full",
+            "Index0": "Full",
             INDEX_COLUMN_NAME: 1,
             "basic_amt,NSW": 0,
             "basic_amt,QLD": 1,

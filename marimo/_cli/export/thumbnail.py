@@ -16,12 +16,18 @@ from marimo._cli.export._common import (
     is_multi_target,
     run_python_subprocess,
 )
+from marimo._cli.export.output import STDERR
 from marimo._cli.install_hints import get_playwright_chromium_setup_commands
 from marimo._cli.parse_args import parse_args
 from marimo._cli.print import echo, green, red, yellow
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._server.export import run_app_then_export_as_html
-from marimo._server.export._html_asset_server import HtmlAssetServer
+from marimo._export._html_asset_server import HtmlAssetServer
+from marimo._export.file import export_html
+from marimo._export.requests import (
+    HTMLFileExportRequest,
+    NotebookExecutionOptions,
+)
+from marimo._schemas.export_options import HTMLExportOptions
 from marimo._server.utils import asyncio_run
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import marimo_package_path, maybe_make_dirs
@@ -119,21 +125,34 @@ async def _render_html(
     venv_python: str | None = None,
 ) -> str:
     if not execute:
-        from marimo._server.export import export_as_html_without_execution
-
-        result = await export_as_html_without_execution(
-            marimo_path, include_code=True, asset_url=asset_url
+        result = await export_html(
+            HTMLFileExportRequest(
+                path=marimo_path,
+                options=HTMLExportOptions(
+                    files=(),
+                    include_code=True,
+                    asset_url=asset_url,
+                ),
+            )
         )
         return result.text
 
     if venv_python is None:
         cli_args = parse_args(args) if args else {}
-        result = await run_app_then_export_as_html(
-            marimo_path,
-            include_code=include_code,
-            cli_args=cli_args,
-            argv=list(args),
-            asset_url=asset_url,
+        result = await export_html(
+            HTMLFileExportRequest(
+                path=marimo_path,
+                options=HTMLExportOptions(
+                    files=(),
+                    include_code=include_code,
+                    asset_url=asset_url,
+                ),
+                execution=NotebookExecutionOptions(
+                    cli_args=cli_args,
+                    argv=list(args),
+                    stderr=STDERR,
+                ),
+            )
         )
         return result.text
 
@@ -162,7 +181,12 @@ import json
 import sys
 
 from marimo._cli.parse_args import parse_args
-from marimo._server.export import run_app_then_export_as_html
+from marimo._export.file import export_html
+from marimo._export.requests import (
+    HTMLFileExportRequest,
+    NotebookExecutionOptions,
+)
+from marimo._schemas.export_options import HTMLExportOptions
 from marimo._utils.marimo_path import MarimoPath
 
 payload = json.loads(sys.argv[1])
@@ -173,12 +197,19 @@ asset_url = payload.get("asset_url")
 
 cli_args = parse_args(tuple(args)) if args else {}
 result = asyncio.run(
-    run_app_then_export_as_html(
-        path,
-        include_code=include_code,
-        cli_args=cli_args,
-        argv=list(args),
-        asset_url=asset_url,
+    export_html(
+        HTMLFileExportRequest(
+            path=path,
+            options=HTMLExportOptions(
+                files=(),
+                include_code=include_code,
+                asset_url=asset_url,
+            ),
+            execution=NotebookExecutionOptions(
+                cli_args=cli_args,
+                argv=list(args),
+            ),
+        )
     )
 )
 sys.stdout.write(result.text)

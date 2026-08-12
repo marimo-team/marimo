@@ -156,3 +156,32 @@ def test_sigint_with_no_scheduler_and_no_cell_is_noop() -> None:
         interrupt_handler = construct_interrupt_handler()
         # No exception raised.
         interrupt_handler(signal.SIGINT, None)
+
+
+def test_ignore_console_ctrl_c_keeps_interrupt_main_working() -> None:
+    """`interrupt_main()` (the deliberate interrupt path) must still fire
+    the SIGINT handler after `ignore_console_ctrl_c()`. Runs in a
+    subprocess to leave the test runner's console handling untouched."""
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent(
+        """
+        import signal, sys, threading, _thread
+        from marimo._runtime.win32_interrupt_handler import (
+            ignore_console_ctrl_c,
+        )
+
+        fired = threading.Event()
+        signal.signal(signal.SIGINT, lambda *args: fired.set())
+        ignore_console_ctrl_c()
+        threading.Timer(0.1, _thread.interrupt_main).start()
+        fired.wait(5)
+        sys.exit(0 if fired.is_set() else 1)
+        """
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", script], timeout=30, capture_output=True
+    )
+    assert completed.returncode == 0, completed.stderr.decode()

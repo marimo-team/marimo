@@ -117,6 +117,14 @@ class Loader(ABC):
         prefix = CACHE_PREFIX.get(key.cache_type, "U_")
         return Path(f"{prefix}{key.hash}")
 
+    def flush(self) -> None:
+        """Drain any pending asynchronous writes so results are durable.
+
+        No-op by default; backends that dispatch writes to background threads
+        (e.g. the lazy loader) override this to join them before shutdown.
+        """
+        return
+
     def cache_attempt(
         self,
         defs: set[Name],
@@ -229,6 +237,13 @@ class BasePersistenceLoader(Loader):
 
     def cache_hit(self, key: HashKey) -> bool:
         return self.store.hit(str(self.build_path(key)))
+
+    def mark_stale(self, manifest_key: str) -> None:
+        """Force a manifest to miss for the rest of the session.
+
+        No-op by default; loaders with a session-scoped store override this to
+        record the key as stale.
+        """
 
     def save_cache(self, cache: Cache) -> bool:
         blob = self.to_blob(cache)

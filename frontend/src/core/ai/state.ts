@@ -21,6 +21,17 @@ export interface AiCompletionCell {
 
 export const aiCompletionCellAtom = atom<AiCompletionCell | null>(null);
 
+/**
+ * A prompt queued to be delivered to the AI assistant panel.
+ * The active panel consumes this on mount/when ready, then clears it.
+ */
+export interface PendingAiPrompt {
+  prompt: string;
+  submit: boolean;
+}
+
+export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
+
 const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
 export const includeOtherCellsAtom = atomWithStorage<boolean>(
   INCLUDE_OTHER_CELLS_KEY,

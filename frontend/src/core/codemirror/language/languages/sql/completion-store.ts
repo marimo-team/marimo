@@ -109,7 +109,11 @@ class SQLCompletionStore {
     return {
       shouldAddLocalTables: true,
       schema: builder.build(),
-      defaultSchema: default_schema ?? undefined,
+      defaultSchema:
+        default_schema ??
+        (defaultDb?.schemas.length === 1
+          ? defaultDb.schemas[0]?.name
+          : undefined),
     };
   }
 

@@ -10,6 +10,16 @@ export default defineConfig({
         ? ["default", "github-actions"]
         : ["default"],
     environment: "jsdom",
+    // Coverage is opt-in via `--coverage` (see the `test:coverage` script) so
+    // it never slows down the default `pnpm test` run. CI enables it to post a
+    // PR comment. `reportOnFailure` keeps the summary available even when tests
+    // fail; `json-summary` is what the PR-comment action reads.
+    coverage: {
+      provider: "v8",
+      include: ["src/**"],
+      reportOnFailure: true,
+      reporter: ["text", "html", "json-summary", "json"],
+    },
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["src/__tests__/setup.ts"],
     sequence: {

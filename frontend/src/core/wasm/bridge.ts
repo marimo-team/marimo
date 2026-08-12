@@ -16,8 +16,11 @@ import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import type {
   EditRequests,
+  EnvironmentInfo,
   ExportAsHTMLRequest,
   ExportAsMarkdownRequest,
+  ExportAsScriptRequest,
+  ExportedFile,
   FileCopyResponse,
   FileCreateResponse,
   FileDeleteResponse,
@@ -38,7 +41,7 @@ import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
 import { createShareableLink } from "./share";
-import { wasmInitializationAtom, wasmInitStatusAtom } from "./state";
+import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import type { SaveWorkerSchema } from "./worker/save-worker";
@@ -59,6 +62,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
   private rpc!: ReturnType<typeof getWorkerRPC<WorkerSchema>>;
   private saveRpc: SaveWorker | undefined;
+  private pendingSessionSave: Promise<unknown> = Promise.resolve();
   private interruptBuffer?: Uint8Array;
   private messageConsumer:
     | ((message: MessageEvent<string>) => void)
@@ -120,11 +124,16 @@ export class PyodideBridge implements RunRequests, EditRequests {
       // By initializing after, we get hits on cached network requests
       this.saveRpc = this.getSaveWorker();
       this.setInterruptBuffer();
-      store.set(wasmInitStatusAtom, "ready");
+      store.set(wasmInitStateAtom, { kind: "ready" });
       this.initialized.resolve();
     });
     this.rpc.addMessageListener("initializingMessage", ({ message }) => {
-      store.set(wasmInitializationAtom, message);
+      // Only bump the progress label while still loading — if we've already
+      // reached "ready" or "error", a late message shouldn't roll us back.
+      const current = store.get(wasmInitStateAtom);
+      if (current.kind === "loading") {
+        store.set(wasmInitStateAtom, { kind: "loading", message });
+      }
     });
     this.rpc.addMessageListener("initializedError", ({ error }) => {
       // If already initialized, surface as a toast and leave the deferred /
@@ -138,7 +147,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
         });
         return;
       }
-      store.set(wasmInitStatusAtom, "error");
+      store.set(wasmInitStateAtom, { kind: "error", message: error });
       this.initialized.reject(new Error(error));
     });
     this.rpc.addMessageListener("kernelMessage", ({ message }) => {
@@ -221,18 +230,24 @@ export class PyodideBridge implements RunRequests, EditRequests {
       return null;
     }
 
-    await this.saveRpc.saveNotebook(request);
+    const durableSave = this.saveRpc.saveNotebook(request);
+    // Generated exports read the session-owned app in the main worker.
+    this.pendingSessionSave = this.pendingSessionSave
+      .catch(() => undefined)
+      .then(async () => {
+        await durableSave;
+        await this.rpc.proxy.request.saveNotebook(request);
+      });
+    void this.pendingSessionSave.catch((error) => {
+      Logger.error(error);
+    });
+
+    await durableSave;
     const code = await this.readCode();
     if (code.contents) {
       notebookFileStore.saveFile(code.contents);
       fallbackFileStore.saveFile(code.contents);
     }
-    // Also save to the other worker, since this is needed for
-    // exporting to HTML
-    // Fire-and-forget
-    void this.rpc.proxy.request.saveNotebook(request).catch((error) => {
-      Logger.error(error);
-    });
     return null;
   };
 
@@ -249,6 +264,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
   };
 
   sendPdb: EditRequests["sendPdb"] = async () => {
+    throwNotImplemented();
+  };
+
+  sendSetBreakpoints: EditRequests["sendSetBreakpoints"] = async () => {
     throwNotImplemented();
   };
 
@@ -500,6 +519,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
   exportAsHTML: EditRequests["exportAsHTML"] = async (
     request: ExportAsHTMLRequest,
   ) => {
+    await this.pendingSessionSave;
     if (
       process.env.NODE_ENV === "development" ||
       process.env.NODE_ENV === "test"
@@ -510,17 +530,29 @@ export class PyodideBridge implements RunRequests, EditRequests {
       functionName: "export_html",
       payload: request,
     });
-    return response as string;
+    return response as ExportedFile<string>;
   };
 
   exportAsMarkdown: EditRequests["exportAsMarkdown"] = async (
     request: ExportAsMarkdownRequest,
   ) => {
+    await this.pendingSessionSave;
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_markdown",
       payload: request,
     });
-    return response as string;
+    return response as ExportedFile<string>;
+  };
+
+  exportAsScript: EditRequests["exportAsScript"] = async (
+    request: ExportAsScriptRequest,
+  ) => {
+    await this.pendingSessionSave;
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "export_script",
+      payload: request,
+    });
+    return response as ExportedFile<string>;
   };
 
   previewDatasetColumn: EditRequests["previewDatasetColumn"] = async (
@@ -619,12 +651,30 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return null;
   };
 
+  discoverDataSources: EditRequests["discoverDataSources"] = async (
+    request,
+  ) => {
+    await this.putControlRequest({
+      type: "discover-data-sources",
+      ...request,
+    });
+    return null;
+  };
+
   getUsageStats = throwNotImplemented;
+  getEnvironmentInfo: EditRequests["getEnvironmentInfo"] = async () => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "get_environment_info",
+      payload: undefined,
+    });
+    return response as EnvironmentInfo;
+  };
   openTutorial = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;
   getRunningNotebooks = throwNotImplemented;
   shutdownSession = throwNotImplemented;
+  getExportAvailability = throwNotImplemented;
   exportAsIPYNB = throwNotImplemented;
   exportAsPDF = throwNotImplemented;
   autoExportAsHTML = throwNotImplemented;

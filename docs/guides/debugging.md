@@ -44,6 +44,23 @@ def _():
     </video>
     Clicking on the cell link will also take you to the cell where the error occurred.
 
+### Live debugger
+
+!!! warning "Experimental Feature"
+    The live debugger is currently experimental and under active development. Features and APIs may change.
+
+Enable **Debugger** under experimental settings to turn on a live debugger for
+the notebook editor:
+
+- Click a line in the gutter to set a breakpoint on it. Click it again to
+  remove it. Breakpoints are session-only; they're not saved to the notebook
+  file.
+- While a cell is running, the line it's currently executing is highlighted.
+- When execution reaches a breakpoint, the cell drops into `pdb` just like
+  `breakpoint()` does.
+
+This setting requires a page refresh to take effect.
+
 ### Postmortem debugging
 
 If your code raises an exception, you can use postmortem debugging to inspect

@@ -34,10 +34,13 @@ def initial_capabilities(
 
     has_live_editor = session.connection_state() == ConnectionState.OPEN
 
+    # A secondary connection defaults to an interactor: it can drive UI state
+    # but not edit the notebook. Pure read-only (interact=False) is opt-in, set
+    # by a deployment's capability provider rather than the local default.
     if connection_params.kiosk or has_live_editor:
-        return ConsumerCapabilities(edit=False, interact=False)
+        return ConsumerCapabilities.INTERACTOR
 
-    return ConsumerCapabilities(edit=True, interact=True)
+    return ConsumerCapabilities.EDITOR
 
 
 def can_take_over_editing(

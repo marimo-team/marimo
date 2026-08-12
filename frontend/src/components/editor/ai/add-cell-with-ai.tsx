@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
+import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import type { ToolNotebookContext } from "@/core/ai/tools/base";
 import { useCellActions } from "@/core/cells/cells";
@@ -117,8 +118,7 @@ export const AddCellWithAI: React.FC<{
   };
 
   const { sendMessage, stop, status, addToolOutput } = useChat({
-    // Throttle the messages and data updates to 100ms
-    experimental_throttle: 100,
+    throttle: AI_SDK_UI_THROTTLE_MS,
     transport: new StreamingChunkTransport(
       {
         api: runtimeManager.getAiURL("completion").toString(),
@@ -231,6 +231,13 @@ export const AddCellWithAI: React.FC<{
 
   const handleDeclineCompletion = () => {
     deleteAllStagedCells();
+    // Focus the input so the user can refine the prompt.
+    inputRef.current?.view?.focus();
+  };
+
+  const handleClose = () => {
+    deleteAllStagedCells();
+    onClose();
   };
 
   const inputComponent = (
@@ -238,10 +245,7 @@ export const AddCellWithAI: React.FC<{
       <SparklesIcon className="size-4 text-(--blue-11) mr-2" />
       <PromptInput
         inputRef={inputRef}
-        onClose={() => {
-          deleteAllStagedCells();
-          onClose();
-        }}
+        onClose={handleClose}
         value={input}
         onChange={(newValue) => {
           setInput(newValue);
@@ -254,7 +258,12 @@ export const AddCellWithAI: React.FC<{
           hasCompletion,
         })}
       />
-      <Button variant="text" size="sm" className="mb-0 px-1" onClick={onClose}>
+      <Button
+        variant="text"
+        size="sm"
+        className="mb-0 px-1"
+        onClick={handleClose}
+      >
         <XIcon className="size-4" />
       </Button>
     </div>

@@ -21,10 +21,17 @@ beforeAll(() => {
 
 type Row = Record<string, unknown>;
 
+// Select, index, and nameless columns are non-hideable in production
+// (see columns.tsx), so the harness mirrors that to keep visibility counts
+// aligned with the real table.
 const TEST_COLUMNS: ColumnDef<Row>[] = [
-  { id: SELECT_COLUMN_ID, accessorKey: SELECT_COLUMN_ID },
-  { id: INDEX_COLUMN_NAME, accessorKey: INDEX_COLUMN_NAME },
-  { id: "__m_column__0", accessorKey: "__m_column__0" },
+  { id: SELECT_COLUMN_ID, accessorKey: SELECT_COLUMN_ID, enableHiding: false },
+  {
+    id: INDEX_COLUMN_NAME,
+    accessorKey: INDEX_COLUMN_NAME,
+    enableHiding: false,
+  },
+  { id: "__m_column__0", accessorKey: "__m_column__0", enableHiding: false },
   {
     id: "customer_name",
     accessorKey: "customer_name",
@@ -101,6 +108,7 @@ describe("ColumnVisibilityDropdown", () => {
     renderAndOpen({ initiallyHidden: ["cust_age"] });
     expect(getOptionTexts()).toEqual([
       "Show all",
+      "Hide all",
       "cust_age",
       "customer_name",
       "order_total",
@@ -117,6 +125,7 @@ describe("ColumnVisibilityDropdown", () => {
 
     expect(getOptionTexts()).toEqual([
       "Show all",
+      "Hide all",
       "cust_age",
       "customer_name",
       "order_total",
@@ -132,6 +141,7 @@ describe("ColumnVisibilityDropdown", () => {
     fireEvent.click(getColumnOption("customer_name"));
     expect(getOptionTexts()).toEqual([
       "Show all",
+      "Hide all",
       "cust_age",
       "customer_name",
       "order_total",
@@ -144,6 +154,7 @@ describe("ColumnVisibilityDropdown", () => {
     // Reopen sorts both hidden columns first, preserving table order.
     expect(getOptionTexts()).toEqual([
       "Show all",
+      "Hide all",
       "customer_name",
       "cust_age",
       "order_total",
@@ -184,6 +195,52 @@ describe("ColumnVisibilityDropdown", () => {
       getColumnOption("order_total").querySelector(".lucide-eye-off"),
     ).toBeNull();
     expect(getColumnOption("Show all")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("'Hide all' hides every hideable column", () => {
+    renderAndOpen();
+    fireEvent.click(getColumnOption("Hide all"));
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(
+      getColumnOption("order_total").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(getColumnOption("Hide all")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disables 'Hide all' when every column is already hidden", () => {
+    renderAndOpen({
+      initiallyHidden: ["customer_name", "cust_age", "order_total"],
+    });
+    expect(getColumnOption("Hide all")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("'Hide all' leaves non-hideable columns visible", () => {
+    renderAndOpen({ nonHideable: ["customer_name"] });
+    fireEvent.click(getColumnOption("Hide all"));
+
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    const nonHideable = getColumnOption("customer_name");
+    expect(nonHideable).toHaveAttribute("aria-disabled", "true");
+    expect(nonHideable.querySelector(".lucide-eye-off")).toBeNull();
+    // Every hideable column is now hidden, so the action gates off.
+    expect(getColumnOption("Hide all")).toHaveAttribute(
       "aria-disabled",
       "true",
     );

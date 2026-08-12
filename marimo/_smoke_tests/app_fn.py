@@ -43,7 +43,7 @@ def subtraction(a: "int", b: "int") -> "int":
 
 
 @app.function
-# Comments inbetween
+# Comments in between
 def multiply(a, b) -> int:
     return a * b
 

@@ -15,8 +15,10 @@
     width: unset;
   }
 
-  /* If the first output is the only child, make it flex 1 */
-  > *:only-child > .output:only-child {
+  /* If the first output is the only child, make it flex 1. Cells are wrapped
+     in a `data-cell-id`/`data-cell-name` div (see `cellDomProps`), so `.output`
+     is a grandchild rather than a direct child here. */
+  > *:only-child:has(> .output:only-child, > * > .output:only-child) {
     flex: 1;
   }
 

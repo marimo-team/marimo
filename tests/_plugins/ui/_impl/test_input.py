@@ -393,6 +393,21 @@ def test_radio_from_dataframe() -> None:
     assert radio.value == "b"
 
 
+def test_radio_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.radio(options=["1", "2", "3"], value="4")
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
+
+    radio = ui.radio(options=["1", "2", "3"], value="1")
+    with pytest.raises(ValueError) as e:
+        radio._update("4")
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
+
+
 def test_dropdown() -> None:
     dd = ui.dropdown(options=["1", "2", "3"])
     assert dd.value is None
@@ -464,6 +479,50 @@ def test_dropdown_with_non_string_options() -> None:
 def test_dropdown_lots_of_options() -> None:
     dropdown = ui.dropdown(options={str(i): i for i in range(2000)})
     assert dropdown._component_args["searchable"] is True
+
+
+def test_dropdown_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.dropdown(options=["1", "2", "3"], value="4")
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
+
+    dd = ui.dropdown(options=["1", "2", "3"], value="1")
+    with pytest.raises(ValueError) as e:
+        dd._update(["4"])
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
+
+
+def test_dropdown_duplicate_option_names_raise() -> None:
+    # Repeated names collapse silently without this guard.
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.dropdown(options=["a", "a", "b"])
+
+    # Distinct values that stringify to the same name (int 1 vs str "1").
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.dropdown(options=[1, "1"])
+
+    # Non-colliding options are unaffected; all are kept.
+    dd = ui.dropdown(options=[1, "2", 3])
+    assert len(dd.options) == 3
+
+    # Explicit dict input is untouched (keys are already unique).
+    dd = ui.dropdown(options={"a": 1, "b": 2})
+    assert len(dd.options) == 2
+
+
+def test_multiselect_duplicate_option_names_raise() -> None:
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.multiselect(options=["a", "a", "b"])
+
+    with pytest.raises(ValueError, match="Duplicate option name"):
+        ui.multiselect(options=[1, "1"])
+
+    ms = ui.multiselect(options=[1, "2", 3])
+    assert len(ms.options) == 3
 
 
 def test_dropdown_disabled() -> None:
@@ -593,6 +652,21 @@ def test_multiselect_too_many_options() -> None:
         ui.multiselect(options={str(i): i for i in range(200000)})
 
     assert "maximum number" in str(e.value)
+
+
+def test_multiselect_invalid_value() -> None:
+    with pytest.raises(ValueError) as e:
+        ui.multiselect(options=["1", "2", "3"], value=["4"])
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
+
+    ms = ui.multiselect(options=["1", "2", "3"], value=["1"])
+    with pytest.raises(ValueError) as e:
+        ms._update(["1", "4"])
+
+    assert "The option name '4' is not a valid option" in str(e.value)
+    assert "['1', '2', '3']" in str(e.value)
 
 
 def test_multiselect_disabled() -> None:
@@ -761,3 +835,81 @@ def test_power_scale() -> None:
     assert range_slider.start == 1
     assert range_slider.stop == 9
     assert range_slider.step is None
+
+
+def test_update_value_no_on_change() -> None:
+    calls = []
+    text = ui.text(on_change=lambda v: calls.append(v))
+    text._update_value("hello")
+    assert text.value == "hello"
+    assert not calls
+
+    # verify that normal _update still calls it
+    text._update("world")
+    assert text.value == "world"
+    assert calls == ["world"]
+
+
+def test_form_submits_without_triggering_element_on_change() -> None:
+    element_calls = []
+    form_calls = []
+
+    text = ui.text(on_change=lambda v: element_calls.append(v))
+    form = text.form(on_change=lambda v: form_calls.append(v))
+
+    # Simulate submission of form
+    form._update("submitted")
+
+    # Form's on_change should fire
+    assert form.value == "submitted"
+    assert form_calls == ["submitted"]
+
+    # Wrapped element's on_change should NOT fire during form submission
+    assert form.element.value == "submitted"
+    assert not element_calls
+
+
+def test_form_with_array_submits_without_triggering_elements_on_change() -> (
+    None
+):
+    c1_calls = []
+    c2_calls = []
+    form_calls = []
+
+    t1 = ui.text(on_change=lambda v: c1_calls.append(v))
+    t2 = ui.text(on_change=lambda v: c2_calls.append(v))
+    arr = ui.array([t1, t2])
+    form = arr.form(on_change=lambda v: form_calls.append(v))
+
+    form._update({"0": "val1", "1": "val2"})
+
+    assert form.value == ["val1", "val2"]
+    assert form_calls == [["val1", "val2"]]
+    assert form.element[0].value == "val1"
+    assert form.element[1].value == "val2"
+    assert not c1_calls
+    assert not c2_calls
+
+
+def test_form_with_batch_submits_without_triggering_elements_on_change() -> (
+    None
+):
+    c1_calls = []
+    c2_calls = []
+    form_calls = []
+
+    t1 = ui.text(on_change=lambda v: c1_calls.append(v))
+    t2 = ui.text(on_change=lambda v: c2_calls.append(v))
+    from marimo._output.hypertext import Html
+
+    batch = ui.batch(html=Html("{t1} {t2}"), elements={"t1": t1, "t2": t2})
+    form = batch.form(on_change=lambda v: form_calls.append(v))
+
+    form._update({"t1": "val1", "t2": "val2"})
+
+    assert form.value == {"t1": "val1", "t2": "val2"}
+    assert form_calls == [{"t1": "val1", "t2": "val2"}]
+    assert form.element["t1"].value == "val1"
+    assert form.element["t2"].value == "val2"
+    assert not c1_calls
+    assert not c2_calls

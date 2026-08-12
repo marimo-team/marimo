@@ -41,7 +41,7 @@ async def test_connect_kiosk_with_session(client: TestClient) -> None:
                         "resumed": True,
                         "consumer_capabilities": {
                             "edit": False,
-                            "interact": False,
+                            "interact": True,
                         },
                     }
                 ),
@@ -100,7 +100,7 @@ def test_second_edit_connection_joins_as_viewer(client: TestClient) -> None:
                         "resumed": True,
                         "consumer_capabilities": {
                             "edit": False,
-                            "interact": False,
+                            "interact": True,
                         },
                     }
                 ),

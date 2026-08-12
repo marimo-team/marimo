@@ -79,6 +79,38 @@ def test_save_user_config_with_partial_config(client: TestClient) -> None:
     assert "success" in response.json()
 
 
+@with_session(SESSION_ID)
+def test_save_user_config_denied_capability_does_not_write(
+    client: TestClient,
+) -> None:
+    """A capability-denied request must not touch the config on disk.
+
+    Regression: enforcement used to run after save_config, so a read-only
+    connection could persist the config before receiving its 403.
+    """
+    from unittest.mock import patch
+
+    from marimo._utils.http import HTTPException
+
+    config_manager = get_user_config_manager(client)
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.config.enforce_consumer_capability",
+            side_effect=HTTPException(status_code=403, detail="read-only"),
+        ),
+        patch.object(config_manager, "save_config") as save_config,
+    ):
+        response = client.post(
+            "/api/kernel/save_user_config",
+            headers=HEADERS,
+            json={"config": {"display": {"theme": "dark"}}},
+        )
+
+    assert response.status_code == 403, response.text
+    save_config.assert_not_called()
+
+
 def test_save_user_config_starts_lsp_when_ty_enabled(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

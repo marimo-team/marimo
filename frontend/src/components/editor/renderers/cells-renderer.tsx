@@ -29,8 +29,14 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     const { selectedLayout, layoutData } = useLayoutState();
     const kioskMode = useAtomValue(kioskModeAtom);
 
-    // Just render children if we are in edit mode
-    if (mode === "edit" && !kioskMode) {
+    // Render children (the editable notebook) in edit mode, and in present
+    // mode with the vertical layout: keeping the same tree across the
+    // edit<->present toggle preserves cell output DOM (iframes, widgets).
+    // Grid/slides layouts and kiosk mode swap to their layout renderer.
+    if (
+      !kioskMode &&
+      (mode === "edit" || (mode === "present" && selectedLayout === "vertical"))
+    ) {
       return children;
     }
 

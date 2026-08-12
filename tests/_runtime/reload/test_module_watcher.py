@@ -106,7 +106,7 @@ async def test_disable_and_reenable_reload(
     exec_req: ExecReqProvider,
 ):
     # tests a bug in which after disabling the reloader, it couldn't be
-    # reenabled
+    # re-enabled
     k = execution_kernel
     sys.path.append(str(tmp_path))
     py_file = tmp_path / pathlib.Path(py_modname + ".py")
@@ -131,7 +131,7 @@ async def test_disable_and_reenable_reload(
     # TODO: Invesitigate flaky on minimal CI
     await asyncio.sleep(INTERVAL / 2)
 
-    # ... and reenable it
+    # ... and re-enable it
     config["runtime"]["auto_reload"] = "lazy"
     k.set_user_config(UpdateUserConfigCommand(config=config))
     await k.run(
@@ -841,6 +841,44 @@ class TestGetExcludedModules:
         assert "third_party" in result
         assert "local_mod" not in result
 
+    def test_get_excluded_modules_always_excludes_marimo_package(self):
+        """Editable marimo is not under site-packages; still exclude it (#10225)."""
+        from marimo._runtime.reload import module_watcher as mw
+
+        # Bust cache from previous tests
+        mw._excluded_modules_cache = None
+
+        local = types.ModuleType("local_mod")
+        local.__file__ = "/home/user/project/local_mod.py"
+
+        marimo_mod = types.ModuleType("marimo")
+        marimo_mod.__file__ = "/home/user/dev/marimo/marimo/__init__.py"
+
+        marimo_sub = types.ModuleType("marimo._runtime")
+        marimo_sub.__file__ = (
+            "/home/user/dev/marimo/marimo/_runtime/__init__.py"
+        )
+
+        modules = {
+            "local_mod": local,
+            "marimo": marimo_mod,
+            "marimo._runtime": marimo_sub,
+        }
+        result = _get_excluded_modules(modules)
+        assert "marimo" in result
+        assert "marimo._runtime" in result
+        assert "local_mod" not in result
+
+    def test_is_marimo_internal_module_name(self):
+        from marimo._runtime.reload.module_watcher import (
+            _is_marimo_internal_module_name,
+        )
+
+        assert _is_marimo_internal_module_name("marimo")
+        assert _is_marimo_internal_module_name("marimo._runtime")
+        assert not _is_marimo_internal_module_name("marimo_tools")
+        assert not _is_marimo_internal_module_name("local_mod")
+
     def test_get_excluded_modules_caching(self):
         """Test _get_excluded_modules uses cache"""
         mod1 = types.ModuleType("mod1")
@@ -876,14 +914,19 @@ class TestGetExcludedModules:
         assert "mod2" in result2
 
     def test_get_excluded_modules_empty(self):
-        """Test _get_excluded_modules with no third-party modules"""
+        """Local-only modules still exclude bare marimo for modulefinder."""
+        from marimo._runtime.reload import module_watcher as mw
+
+        mw._excluded_modules_cache = None
+
         mod1 = types.ModuleType("local_mod")
         mod1.__file__ = "/home/user/project/local_mod.py"
 
         modules = {"local_mod": mod1}
 
         result = _get_excluded_modules(modules)
-        assert result == set()
+        # Root package is always excluded even when not present in modules.
+        assert result == {"marimo"}
 
 
 class TestCheckModules:

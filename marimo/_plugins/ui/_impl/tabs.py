@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Final, Literal
 
 from marimo._output.formatting import as_html
+from marimo._output.hypertext import Html
 from marimo._output.md import md
 from marimo._output.rich_help import mddoc
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
@@ -78,17 +79,25 @@ class tabs(UIElement[str, str]):
         label: str = "",
         on_change: Callable[[str], None] | None = None,
     ) -> None:
-        def render_content(tab: object) -> str:
+        def render_content(tab: object) -> Html:
             if lazy:
-                return lazy_ui(tab).text
+                return lazy_ui(tab)
             if isinstance(tab, str):
-                return md(tab).text
-            return as_html(tab).text
+                return md(tab)
+            return as_html(tab)
+
+        # Retain strong references to the rendered tab contents. The slotted
+        # HTML only freezes their text, and the UI element registry holds
+        # elements weakly, so without this a UI element placed in a tab would
+        # be garbage collected and lose its interactivity.
+        self._children: list[Html] = [
+            render_content(tab) for tab in tabs.values()
+        ]
 
         tab_items = "".join(
             [
-                "<div data-kind='tab'>" + render_content(tab) + "</div>"
-                for tab in tabs.values()
+                "<div data-kind='tab'>" + child.text + "</div>"
+                for child in self._children
             ]
         )
 

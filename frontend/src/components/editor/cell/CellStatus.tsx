@@ -14,7 +14,7 @@ import { Tooltip } from "../../ui/tooltip";
 
 import "./cell-status.css";
 import { formatDistanceToNow } from "date-fns";
-import { Time } from "@/utils/time";
+import { formatElapsedTime, Time } from "@/utils/time";
 
 export interface CellStatusComponentProps extends Pick<
   CellRuntimeState,
@@ -347,25 +347,6 @@ const LastRanTime = (props: { lastRanTime: number }) => {
     </span>
   );
 };
-
-export function formatElapsedTime(elapsedTime: number | null) {
-  if (elapsedTime === null) {
-    return "";
-  }
-
-  const milliseconds = elapsedTime;
-  const seconds = milliseconds / 1000;
-
-  if (seconds >= 60) {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}m${remainingSeconds}s`;
-  }
-  if (seconds >= 1) {
-    return `${seconds.toFixed(2).toString()}s`;
-  }
-  return `${milliseconds.toFixed(0).toString()}ms`;
-}
 
 const CellTimer = (props: { startTime: Time }) => {
   const time = useElapsedTime(props.startTime.toMilliseconds());

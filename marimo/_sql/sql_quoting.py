@@ -13,23 +13,20 @@ def quote_sql_identifier(identifier: str, *, dialect: str = "duckdb") -> str:
         dialect: The SQL dialect.
             Double-quote style: "duckdb", "redshift", "postgresql"/"postgres".
             Backtick style: "clickhouse", "mysql", "bigquery", "starrocks".
-            Unknown dialects return the identifier unquoted.
+            Unknown dialects use ANSI double-quote style.
 
     Returns:
         The properly quoted identifier string.
     """
-    if dialect in ("duckdb", "redshift", "postgresql", "postgres"):
-        # Double-quote style: escape embedded " as ""
-        escaped = identifier.replace('"', '""')
-        return f'"{escaped}"'
-    elif dialect in ("clickhouse", "mysql", "bigquery", "starrocks"):
+    if dialect in ("clickhouse", "mysql", "bigquery", "starrocks"):
         # Backtick style: escape embedded ` as ``
         escaped = identifier.replace("`", "``")
         return f"`{escaped}`"
     else:
-        # Unknown dialect: return unquoted to avoid breaking databases
-        # that treat quoted identifiers differently
-        return identifier
+        # ANSI double-quote style: escape embedded " as "". Use this safe
+        # default for unknown dialects instead of returning raw identifiers.
+        escaped = identifier.replace('"', '""')
+        return f'"{escaped}"'
 
 
 def quote_qualified_name(*parts: str, dialect: str = "duckdb") -> str:

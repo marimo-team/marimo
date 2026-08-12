@@ -11,6 +11,7 @@ import {
   resourceDecorations,
   resourceInputFilter,
   resourcesField,
+  resourceSync,
   resourceTheme,
 } from "@marimo-team/codemirror-mcp";
 import {
@@ -38,25 +39,28 @@ const NONE_RESOURCE_FORMAT_COMPLETION = {
   },
 };
 
+function getRegistryResources(store: JotaiStore): Resource[] {
+  const registry = getAIContextRegistry(store);
+  const resources = registry.getAllItems();
+  if (resources.length === 0) {
+    return NONE_RESOURCE;
+  }
+  return resources;
+}
+
 export function resourceExtension(opts: {
   language: Language;
   store: JotaiStore;
   onAddFiles?: (files: File[]) => void;
 }): Extension[] {
   const { language, store, onAddFiles } = opts;
+  const getResources = () => getRegistryResources(store);
 
   return [
     language.data.of({
       // Resource completion for static resources (variables, tables, etc.)
       autocomplete: resourceCompletion(
-        async (): Promise<Resource[]> => {
-          const registry = getAIContextRegistry(store);
-          const resources = registry.getAllItems();
-          if (resources.length === 0) {
-            return NONE_RESOURCE;
-          }
-          return resources;
-        },
+        async (): Promise<Resource[]> => getResources(),
         (resource) => {
           if (resource.type === NONE_RESOURCE_TYPE) {
             return NONE_RESOURCE_FORMAT_COMPLETION;
@@ -92,9 +96,10 @@ export function resourceExtension(opts: {
       : []),
     resourceDecorations,
     resourceInputFilter,
+    // Resolve @-mention chips for programmatic prefills.
+    resourceSync(getResources, { logger: Logger }),
     resourcesField.init(() => {
-      const registry = getAIContextRegistry(store);
-      const resources = registry.getAllItems();
+      const resources = getRegistryResources(store);
       return new Map(resources.map((resource) => [resource.uri, resource]));
     }),
     resourceTheme,

@@ -8,7 +8,10 @@ from marimo._runtime.packages.package_manager import (
     CanonicalizingPackageManager,
     PackageDescription,
 )
-from marimo._runtime.packages.utils import split_packages
+from marimo._runtime.packages.utils import (
+    run_package_command,
+    split_packages,
+)
 
 
 class CondaPackageManager(CanonicalizingPackageManager):
@@ -48,7 +51,7 @@ class PixiPackageManager(CondaPackageManager):
             return []
 
         try:
-            proc = subprocess.run(
+            proc = run_package_command(
                 ["pixi", "list", "--json"],
                 capture_output=True,
                 text=True,

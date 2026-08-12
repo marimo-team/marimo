@@ -26,6 +26,11 @@ import {
 } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import {
+  describeChatAbortReason,
+  getAbortReasonFromChunk,
+  resolveChatAbortReason,
+} from "@/components/chat/chat-abort";
 import { renderUIMessage } from "@/components/chat/chat-display";
 import {
   convertToFileUIPart,
@@ -168,6 +173,12 @@ export const Chatbot: React.FC<Props> = (props) => {
   // different message_id are stale (from an aborted-but-not-yet-cancelled run
   // on the kernel) and must be dropped
   const activeRequestIdRef = useRef<string | null>(null);
+  const lastAbortReasonRef = useRef<string | null>(null);
+  const [abortNotice, setAbortNotice] = useState<string | null>(null);
+  const clearAbortState = () => {
+    lastAbortReasonRef.current = null;
+    setAbortNotice(null);
+  };
 
   const { data: backendMessages } = useAsyncData(async () => {
     const response = await props.get_chat_history({});
@@ -231,6 +242,7 @@ export const Chatbot: React.FC<Props> = (props) => {
           // Client-generated id used to (a) route chunks back to this stream
           // and (b) ask the kernel to cancel just this run on Stop.
           const requestId = generateUUID();
+          clearAbortState();
 
           const stream = new ReadableStream<UIMessageChunk>({
             start(controller) {
@@ -297,15 +309,30 @@ export const Chatbot: React.FC<Props> = (props) => {
       },
     }),
     messages: initialMessages,
-    onFinish: (message) => {
+    onFinish: ({ messages, isAbort, finishReason }) => {
       setFiles(undefined);
 
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
-      Logger.debug("Finished streaming message:", message);
+      Logger.debug("Finished streaming message:", { finishReason, isAbort });
 
-      props.setValue(message.messages);
+      if (isAbort) {
+        const reason = resolveChatAbortReason({
+          isAbort: true,
+          streamReason: lastAbortReasonRef.current,
+        });
+        clearAbortState();
+        if (reason != null) {
+          const description = describeChatAbortReason(reason);
+          Logger.debug("Chat stream aborted", { reason, finishReason });
+          setAbortNotice(description);
+        }
+      } else {
+        clearAbortState();
+      }
+
+      props.setValue(messages);
     },
     onError: (error) => {
       Logger.error("An error occurred:", error);
@@ -322,6 +349,17 @@ export const Chatbot: React.FC<Props> = (props) => {
       );
       if (!parsedMessage.success) {
         return;
+      }
+      // Only record abort reasons for the active request. Late chunks from a
+      // cancelled run must not overwrite the next turn's reason
+      if (
+        parsedMessage.data.content &&
+        parsedMessage.data.message_id === activeRequestIdRef.current
+      ) {
+        const abortReason = getAbortReasonFromChunk(parsedMessage.data.content);
+        if (abortReason !== undefined) {
+          lastAbortReasonRef.current = abortReason;
+        }
       }
       routeIncomingChatChunk(parsedMessage.data, {
         controllerRef: frontendStreamControllerRef,
@@ -340,6 +378,9 @@ export const Chatbot: React.FC<Props> = (props) => {
       setMessages(newMessages);
 
       props.setValue(newMessages);
+      if (newMessages.length === 0) {
+        clearAbortState();
+      }
     }
   };
 
@@ -389,6 +430,7 @@ export const Chatbot: React.FC<Props> = (props) => {
     props.setValue([]);
     props.delete_chat_history({});
     clearError();
+    clearAbortState();
   };
 
   return (
@@ -481,6 +523,12 @@ export const Chatbot: React.FC<Props> = (props) => {
             <Button variant="outline" size="sm" onClick={() => regenerate()}>
               Retry
             </Button>
+          </div>
+        )}
+
+        {abortNotice && !isLoading && !error && (
+          <div className="flex justify-center py-2">
+            <span className="text-xs text-muted-foreground">{abortNotice}</span>
           </div>
         )}
       </div>

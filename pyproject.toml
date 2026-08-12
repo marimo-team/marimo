@@ -1,10 +1,10 @@
 [build-system]
-requires = ["uv_build>=0.8.3,<0.12.0"]
+requires = ["uv_build>=0.8.3,<0.13.0"]
 build-backend = "uv_build"
 
 [project]
 name = "marimo"
-version = "0.23.13"
+version = "0.23.16"
 description = "A library for making reactive notebooks and apps"
 # We try to keep dependencies to a minimum, to avoid conflicts with
 # user environments; we need a very compelling reason for each dependency added.
@@ -17,8 +17,10 @@ dependencies = [
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
-    # Pinned to specific version for introduction of codeblock handling.
-    "pymdown-extensions>=10.21.2,<11",
+    # - 10.11.2 introduced the codeblock handling we rely on
+    # - 10.21.2 stopped passing `filename=None` to pygments (broken on
+    #   pygments>=2.20)
+    "pymdown-extensions>=10.21.2,<12",
     # syntax highlighting of code in markdown
     "pygments>=2.19,<3",
     # for reading, writing configs
@@ -40,7 +42,7 @@ dependencies = [
     # loro for collaborative editing (native extension; server-only)
     "loro>=1.10.0; sys_platform != 'emscripten' and sys_platform != 'android'",
     # python <=3.10 compatibility
-    "typing_extensions>=4.4.0; python_version < '3.11'",
+    "typing_extensions>=4.4.0; python_version < '3.12'",
     # for rst parsing; lowerbound determined by awscli requiring < 0.17,
     "docutils>=0.16.0",
     # to show RAM, CPU usage, other system utilities
@@ -94,7 +96,7 @@ sql = [
 # For per-notebook sandboxed kernels
 sandbox = [
     "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
-    "uv>=0.9.21",              # for sandbox management
+    "uv>=0.9.21",              # for sandbox management and local html-wasm exports
 ]
 
 # List of deps that are recommended for most users
@@ -102,6 +104,7 @@ sandbox = [
 recommended = [
     "marimo[sql]",
     "marimo[sandbox]",                           # For `marimo edit --sandbox DIRECTORY`
+    "cryptography>=42.0.0",                      # Ed25519 signing of persistent cache manifests
     "altair>=5.4.0",                             # Plotting in datasource viewer
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",  # AI features
     "ruff",                                      # Formatting
@@ -114,7 +117,7 @@ lsp = [
 ]
 
 mcp = [
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2", # MCP 2.0 is a major rework, unsupported for now.
     "pydantic>2",
 ]
 
@@ -186,6 +189,7 @@ test-optional = [
     "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
+    "huggingface-hub>=1.24.0",
     "fsspec>=2026.2.0",
     "pyiceberg>=0.9.0",
     "cloudpathlib>=0.23.0",
@@ -221,7 +225,7 @@ test-optional = [
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0",
+    "mcp>=1.0.0,<2",
     # zeromq
     "pyzmq>=27.1.0",
     # weave tracing integration
@@ -237,12 +241,14 @@ typecheck = [
     "leafmap~=0.39.2",
     "panel>=1.5.3",
     "polars>=1.9.0",
+    "pytest>=9.0.2",
     "duckdb>=1.0.0",
     "narwhals>=2.0.0",
     "matplotlib>=3.8.0",
     "sqlglot[c]>=26.8.0",
     "sqlalchemy>=2.0.40",
     "obstore>=0.8.2",
+    "huggingface_hub>=1.24.0",
     "fsspec>=2026.2.0",
     "pydantic-ai-slim[google,anthropic,bedrock,openai]>=1.107.0,<3.0.0",
     "loro>=1.5.0",
@@ -257,7 +263,8 @@ typecheck = [
     "types-redis>=4.6.0.20241004",
     "types-Markdown>=3.6.0.20240316",
     "types-PyYAML>=6.0.12.20240808",
-    "mcp>=1.0.0",
+    "types-docutils>=0.21.0.20241128",
+    "mcp>=1.0.0,<2",
     # zeromq
     "pyzmq>=27.1.0",
     "pyarrow-stubs",
@@ -267,8 +274,15 @@ docs = [
     "marimo_docs",
     "ruff>=0.15.18",
     "mkdocs>=1.6.1",
-    # Live reloading broken in >= 9.6.21: https://github.com/squidfunk/mkdocs-material/issues/8478
-    "mkdocs-material==9.6.20",
+    # `mkdocs serve` silently loses live reload on click 8.3.x: MkDocs declares
+    # --no-livereload/--livereload as a feature switch group, and click 8.3
+    # dropped the explicit `default=True` on the second option. Fixed in click
+    # 8.4.0, so require that here rather than pinning mkdocs-material back to
+    # 9.6.20 (the last release that capped click<8.2.2, which used to mask it).
+    # https://github.com/squidfunk/mkdocs-material/issues/8478
+    "click>=8.4",
+    # 9.7.5+ drops the `pymdown-extensions~=10.2` cap and caps `mkdocs<2`.
+    "mkdocs-material>=9.7.5",
     "mkdocstrings[python]>=0.27.0",
     "mkdocs-material-extensions>=1.3.1",
     "mkdocs-autorefs>=1.2.2",
@@ -305,7 +319,6 @@ wheel-exclude = ["marimo/_smoke_tests/**"]
 
 [tool.ruff]
 line-length = 79
-target-version = "py310"
 include = ["marimo/**/*.py", "tests/**/*.py", "dagger/**/*.py"]
 exclude = [
     "build",
@@ -314,7 +327,7 @@ exclude = [
     "frontend",
     "marimo/_smoke_tests",
     "marimo/_snippets/data",
-    "marimo/_static/files/wasm-intro.py",
+    "marimo/_static/export_demos/wasm-intro.py",
     "marimo/_test_utils/_tutorials",
     "marimo/_test_utils/codegen_data",
     "marimo/_tutorials",
@@ -498,6 +511,7 @@ banned-module-level-imports = [
     "redis",
     "sqlalchemy",
     "obstore",
+    "huggingface_hub",
     "fsspec",
     "sqlglot",
     "tomlkit",

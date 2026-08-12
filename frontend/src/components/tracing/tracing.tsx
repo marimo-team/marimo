@@ -28,9 +28,10 @@ import {
 } from "@/core/cells/runs";
 import { type ResolvedTheme, useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
+import { formatElapsedTime } from "@/utils/time";
 import { ClearButton } from "../buttons/clear-button";
 import type { SignalListener } from "../charts/types";
-import { ElapsedTime, formatElapsedTime } from "../editor/cell/CellStatus";
+import { ElapsedTime } from "../editor/cell/CellStatus";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
 import { usePanelSection } from "../editor/chrome/panels/panel-context";
 import { CellLink } from "../editor/links/cell-link";

@@ -105,15 +105,11 @@ export async function exportAsHTMLAndTakeScreenshot(page: Page) {
   // Wait for networkidle so that the notebook is fully loaded
   await page.waitForLoadState("networkidle");
 
-  // Start waiting for download before clicking.
+  await openCommandPalette({ page, command: "Download as HTML" });
+
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    page
-      .getByTestId("notebook-menu-dropdown")
-      .click()
-      .then(() => {
-        return openCommandPalette({ page, command: "Download as HTML" });
-      }),
+    page.getByRole("button", { name: "Export HTML" }).click(),
   ]);
 
   // Wait for the download process to complete and save the downloaded file somewhere.

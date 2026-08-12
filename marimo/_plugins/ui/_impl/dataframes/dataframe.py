@@ -22,6 +22,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.apply import (
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     DataFrameType,
     Transformations,
+    normalize_transforms_payload,
 )
 from marimo._plugins.ui._impl.table import (
     DownloadAsArgs,
@@ -309,7 +310,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             return self._undo(self._transform_container._original_df)
 
         try:
-            transformations = parse_raw(value, Transformations)
+            transformations = parse_raw(
+                normalize_transforms_payload(value), Transformations
+            )
             result, self._column_types_per_step = (
                 self._transform_container.apply(transformations)
             )

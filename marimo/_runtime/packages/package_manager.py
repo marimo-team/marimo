@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import abc
-import subprocess
+import re
 import sys
 from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
@@ -13,8 +13,11 @@ from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.notification import AlertNotification
 from marimo._messaging.notification_utils import broadcast_notification
-from marimo._runtime.packages.utils import append_version
-from marimo._utils.subprocess import safe_popen
+from marimo._runtime.packages.utils import (
+    append_version,
+    popen_package_command,
+    run_package_command,
+)
 
 if TYPE_CHECKING:
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -26,6 +29,16 @@ PY_EXE = sys.executable
 
 # Type alias for log callback function
 LogCallback = Callable[[str], None]
+
+
+def _normalize_package_name(name: str) -> str:
+    """Normalize a package name per PEP 503.
+
+    PyPI treats package names as case-insensitive and considers runs of
+    `-`, `_`, and `.` as equivalent, so `Pillow`, `pillow`, and `scikit_learn`
+    all normalize to a canonical form.
+    """
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 class PackageDescription(msgspec.Struct, rename="camel"):
@@ -176,17 +189,11 @@ class PackageManager(abc.ABC):
 
         if log_callback is None:
             # Original behavior - just run the command without capturing output
-            completed_process = subprocess.run(command)
+            completed_process = run_package_command(command)
             return completed_process.returncode == 0
 
         # Stream output to both the callback and the terminal
-        proc = safe_popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=False,  # Keep as bytes to preserve ANSI codes
-            bufsize=0,  # Unbuffered for real-time output
-        )
+        proc = popen_package_command(command)
 
         if proc is None:
             return False
@@ -285,6 +292,10 @@ class CanonicalizingPackageManager(PackageManager):
         # Initialized lazily
         self._module_name_to_repo_name: dict[str, str] | None = None
         self._repo_name_to_module_name: dict[str, str] | None = None
+        # Reverse map keyed on PEP 503-normalized package names, so we can
+        # resolve names that uv has normalized (e.g. `Pillow` -> `pillow`)
+        # back to their module.
+        self._normalized_repo_name_to_module_name: dict[str, str] | None = None
         # Python executable for targeting a specific venv (used by pip/uv)
         # Defaults to sys.executable if not provided
         self._python_exe = python_exe or PY_EXE
@@ -304,6 +315,12 @@ class CanonicalizingPackageManager(PackageManager):
                 v: k for k, v in self._module_name_to_repo_name.items()
             }
 
+        if self._normalized_repo_name_to_module_name is None:
+            self._normalized_repo_name_to_module_name = {
+                _normalize_package_name(k): v
+                for k, v in self._repo_name_to_module_name.items()
+            }
+
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name on PyPI."""
         if self._module_name_to_repo_name is None:
@@ -317,12 +334,24 @@ class CanonicalizingPackageManager(PackageManager):
 
     def package_to_module(self, package_name: str) -> str:
         """Canonicalizes a package name to a module name."""
-        if self._repo_name_to_module_name is None:
+        if (
+            self._repo_name_to_module_name is None
+            or self._normalized_repo_name_to_module_name is None
+        ):
             self._initialize_mappings()
         assert self._repo_name_to_module_name is not None
+        assert self._normalized_repo_name_to_module_name is not None
 
-        return (
-            self._repo_name_to_module_name[package_name]
-            if package_name in self._repo_name_to_module_name
-            else package_name.replace("-", "_")
-        )
+        # Exact match first, to preserve any casing in the known mapping.
+        if package_name in self._repo_name_to_module_name:
+            return self._repo_name_to_module_name[package_name]
+
+        # PyPI package names are case-insensitive and treat runs of `-`, `_`,
+        # `.` as equivalent (PEP 503). uv normalizes names when it writes them
+        # into a notebook's script metadata (e.g. `Pillow` -> `pillow`), so
+        # fall back to a normalized lookup before guessing.
+        normalized = _normalize_package_name(package_name)
+        if normalized in self._normalized_repo_name_to_module_name:
+            return self._normalized_repo_name_to_module_name[normalized]
+
+        return package_name.replace("-", "_")

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+import sys
 from types import ModuleType
 from typing import Any
 
@@ -14,9 +15,14 @@ class MissingModule(ModuleType):
     Enables loading a cache lazily until a module is actually needed.
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, version: str = "") -> None:
         super().__init__(name)
         self.__missing__ = True
+        # Replay the pinned version captured at cache time so a version-pinned
+        # content hash reproduces here even though the real module is absent.
+        # Set as a concrete attribute so it resolves without hitting the
+        # `__getattr__` fallback below (which rejects dunder probes).
+        self.__version__ = version
 
     def __getattr__(self, attr: str) -> Any:
         if attr.startswith("__") and attr.endswith("__"):
@@ -34,9 +40,27 @@ class MissingModule(ModuleType):
 class ModuleStub:
     """Stub for module objects, storing only the module name."""
 
-    def __init__(self, module: Any, hash: str = "") -> None:  # noqa: A002
+    def __init__(
+        self,
+        module: Any,
+        hash: str = "",  # noqa: A002
+        version: str = "",
+    ) -> None:
         self.name = module.__name__
         self.hash = hash
+        # `str(...)`: some packages expose a non-str `__version__` (e.g.
+        # torch's `TorchVersion`) that the manifest codec can't encode.
+        version = str(version or getattr(module, "__version__", "") or "")
+        if not version:
+            # Submodule aliases (`import torch.nn as nn`) usually carry no own
+            # `__version__`; the pinned hash falls back to the root package's
+            # version, so capture that here too or the replayed placeholder
+            # version won't reproduce the hash on restore.
+            root = self.name.split(".", 1)[0]
+            version = str(
+                getattr(sys.modules.get(root), "__version__", "") or ""
+            )
+        self.version = version
 
     def load(self) -> Any:
         """Reload the module by name.
@@ -56,5 +80,5 @@ class ModuleStub:
                 or missing == self.name
                 or self.name.startswith(f"{missing}.")
             ):
-                return MissingModule(self.name)
+                return MissingModule(self.name, self.version)
             raise

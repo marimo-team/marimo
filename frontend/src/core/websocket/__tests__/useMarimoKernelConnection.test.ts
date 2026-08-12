@@ -36,6 +36,10 @@ describe("classifyCloseEvent", () => {
       "MARIMO_NO_SESSION_ID",
       "MARIMO_NO_SESSION",
       "MARIMO_SHUTDOWN",
+      // Delivered as in-band close events by the SSE transport; must be
+      // terminal or a rejected client would reconnect forever.
+      "MARIMO_UNAUTHORIZED",
+      "MARIMO_KIOSK_NOT_ALLOWED",
     ])("%s → terminal with KERNEL_DISCONNECTED, closes transport", (reason) => {
       const decision = classify(reason);
       expect(decision.kind).toBe("terminal");

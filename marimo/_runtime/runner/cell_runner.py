@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import asyncio
 import io
 import traceback
@@ -8,7 +9,11 @@ from pathlib import Path
 from types import TracebackType
 from typing import TYPE_CHECKING, Any
 
-from marimo._ast.variables import unmangle_local
+from marimo._ast.variables import (
+    if_local_then_mangle,
+    is_local,
+    unmangle_local,
+)
 from marimo._config.config import ExecutionType, MarimoConfig, OnCellChangeType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._dependencies.errors import ManyModulesNotFoundError
@@ -24,10 +29,12 @@ from marimo._runtime.context.types import safe_get_context
 from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.exceptions import (
     MarimoMissingRefError,
+    MarimoRescheduleError,
     MarimoRuntimeException,
     unwrap_user_exception,
 )
 from marimo._runtime.executor import (
+    DebuggerLifecycle,
     Evaluator,
     ExecutionLifecycle,
     StrictLifecycle,
@@ -57,6 +64,31 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
+
+
+def _find_aliased_import(code: str, name: str) -> str | None:
+    """If `code` imports `name`, return that import re-aliased publicly.
+
+    Builds the suggestion statement for the cell-local NameError hint,
+    e.g. `from ibis import _` -> "from ibis import _ as lib". Returns
+    None when `code` doesn't parse or doesn't import `name`.
+    """
+    try:
+        tree = ast.parse(code)
+    except SyntaxError:
+        return None
+    alias_name = name.lstrip("_") or "lib"
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if (alias.asname or alias.name) == name:
+                    module = "." * node.level + (node.module or "")
+                    return f"from {module} import {alias.name} as {alias_name}"
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if (alias.asname or alias.name.split(".")[0]) == name:
+                    return f"import {alias.name} as {alias_name}"
+    return None
 
 
 def _should_broadcast_data() -> bool:
@@ -157,6 +189,39 @@ class Runner:
         lifecycles: list[ExecutionLifecycle] = []
         if execution_type == "strict":
             lifecycles.append(StrictLifecycle(self.graph))
+        if user_config is not None and user_config.get("runtime", {}).get(
+            "cache_cells", False
+        ):
+            from marimo._runtime.executor.lifecycles.cached import (
+                CachedLifecycle,
+            )
+
+            lifecycles.append(
+                CachedLifecycle(
+                    self.graph,
+                    # Default pin_modules to True for a stronger backwards compatibility
+                    # guarantee.
+                    pin_modules=bool(
+                        user_config.get("runtime", {}).get("pin_modules", True)
+                    ),
+                )
+            )
+        # Live debugger and line-timing highlight share one frame-watching
+        # lifecycle (a single `sys.settrace` hook). Gated here so there is
+        # zero tracing overhead when disabled.
+        experimental = (
+            self.user_config.get("experimental", {})
+            if self.user_config is not None
+            else {}
+        )
+        debugger_on = self.debugger is not None and bool(
+            experimental.get("debugger", False)
+        )
+        line_timing_on = bool(experimental.get("line_timing", False))
+        if debugger_on or line_timing_on:
+            lifecycles.append(
+                DebuggerLifecycle(self.debugger if debugger_on else None)
+            )
         self._evaluator = Evaluator(
             executor=resolve_executor(), lifecycles=lifecycles
         )
@@ -358,6 +423,61 @@ class Runner:
                 # Default to regular error for self reference in relaxed
                 # mode.
                 exception = unwrapped_exception
+        elif (
+            isinstance(unwrapped_exception, NameError)
+            and (local_name := getattr(unwrapped_exception, "name", None))
+            is not None
+            and is_local(local_name)
+        ):
+            # A cell-local (underscore-prefixed) name that never resolved.
+            # Such names are not graph definitions, so the MissingRef path
+            # above cannot blame a cell; find one that defines it as a
+            # temporary — either raw (no-alias underscore imports, which
+            # are deliberately left unmangled) or mangled (every other
+            # private). The failing reference may itself be mangled
+            # (`_cell_<id>_x`); unmangle so the message and the search use
+            # the name the user wrote. Prefer an import definition for the
+            # blame: `_` in particular is commonly both an imported API
+            # (`from ibis import _`) and a throwaway assignment in
+            # unrelated cells.
+            local_name, _ = unmangle_local(local_name)
+            defining_cell: CellId_t | None = None
+            aliased_import: str | None = None
+            for cid, other in self.graph.cells.items():
+                if cid == cell_id:
+                    continue
+                if (
+                    local_name in other.temporaries
+                    or if_local_then_mangle(local_name, cid)
+                    in other.temporaries
+                ):
+                    stmt = _find_aliased_import(other.code, local_name)
+                    if defining_cell is None or stmt is not None:
+                        defining_cell = cid
+                        aliased_import = stmt
+                    if stmt is not None:
+                        break
+            if defining_cell is not None:
+                if aliased_import is not None:
+                    remedy = (
+                        "To use it across cells, alias the import to a "
+                        "name without a leading underscore: "
+                        f"`{aliased_import}`."
+                    )
+                else:
+                    remedy = (
+                        "To use it across cells, remove the leading "
+                        "underscore."
+                    )
+                output = MarimoExceptionRaisedError(
+                    f"Name `{local_name}` is not defined. Names prefixed "
+                    "with an underscore are local to the cell that "
+                    f"defines them. {remedy} `{local_name}` is defined "
+                    "as a cell-local name in ",
+                    "NameError",
+                    defining_cell,
+                )
+                exception = output
         # Handle other special runtime errors.
         elif isinstance(
             unwrapped_exception,
@@ -428,28 +548,38 @@ class Runner:
         # The Evaluator captures all body/lifecycle exceptions into the
         # returned RunResult; cell_id-specific classification + side
         # effects are applied below in `_finalize_run_result`.
+        unexpected_failure: BaseException | None = None
         try:
             raw_result = await self.evaluate_interruptible(cell)
+        except BaseException as exc:
+            unexpected_failure = exc
+            raw_result = RunResult(output=None, exception=None)
+
+        if isinstance(raw_result.exception, MarimoRescheduleError):
+            raise raw_result.exception
+
+        try:
             run_result = self._finalize_run_result(raw_result, cell_id)
-        except BaseException:
-            # Defensive: an unexpected escape from the Evaluator or a bug
-            # in `_finalize_run_result` would otherwise tear down the
-            # runner loop. Degrade gracefully with an empty RunResult.
+        except BaseException as exc:
+            unexpected_failure = exc
+            run_result = RunResult(output=None, exception=None)
+
+        if unexpected_failure is not None:
             LOGGER.error(
                 """marimo encountered an internal error.
+            marimo finished executing a cell, but did not produce
+            a run result.
 
-                marimo finished executing a cell, but did not produce
-                a run result.
+            Please copy this message and paste it in a GitHub issue:
 
-                Please copy this message and paste it in a GitHub issue:
+            https://github.com/marimo-team/marimo/issues
 
-                https://github.com/marimo-team/marimo/issues
-
-                Any additional context of what caused this error, such
-                as sample code to reproduce, will help us debug.
-                """
+            Any additional context of what caused this error, such
+            as sample code to reproduce, will help us debug.
+            %s
+            """,
+                str(unexpected_failure),
             )
-            run_result = RunResult(output=None, exception=None)
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
         # Set here since failed async can also trigger an Interrupt.
@@ -807,4 +937,17 @@ class Runner:
                     cell.set_run_result_status("cancelled")
                     cell.set_runtime_state("idle")
                     continue
-                await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)
+                try:
+                    await self._run_one(cell_id, pre_exec_ctx, post_exec_ctx)
+                except MarimoRescheduleError as e:
+                    LOGGER.debug(
+                        "Reschedule for %s; requeuing %s",
+                        cell_id,
+                        e.cells_to_rerun,
+                    )
+                    # Reschedule control signal from a lifecycle.
+                    # Move the cell back to queued state, and reschedule for
+                    # rerun after the relevant cells have been run.
+                    for rerun_id in e.cells_to_rerun:
+                        self.graph.cells[rerun_id].set_runtime_state("queued")
+                    self._scheduler.requeue_for_rerun(e.cells_to_rerun)

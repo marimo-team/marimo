@@ -118,9 +118,11 @@ export function transitionCell(
   // Coalesce console outputs, which are streamed during execution.
   let consoleOutputs = cell.consoleOutputs;
 
-  // If interrupted on the incoming message,
-  // remove the debugger and resolve all stdin for previous console outputs
-  if (didInterruptFromThisMessage) {
+  // When the cell is interrupted or finishes (idle), there is no live
+  // stdin/pdb session, so resolve any dangling stdin prompt. This removes the
+  // debugger box — e.g. after quitting pdb with `q`, which stops the cell
+  // (idle) rather than interrupting it.
+  if (didInterruptFromThisMessage || message.status === "idle") {
     nextCell.debuggerActive = false;
     consoleOutputs = consoleOutputs.map((output) => {
       if (output.channel === "stdin") {

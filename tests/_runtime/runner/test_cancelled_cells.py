@@ -79,3 +79,62 @@ class TestCancelledCells:
         assert CellId_t("x") not in cc
         cc.add(CellId_t("r"), {CellId_t("x")})
         assert CellId_t("x") in cc
+
+    def test_discard_descendant(self) -> None:
+        """Discarding a descendant removes only it; siblings stay cancelled."""
+        cc = CancelledCells()
+        cc.add(CellId_t("r"), {CellId_t("d1"), CellId_t("d2")})
+        cc.discard(CellId_t("d1"))
+        assert CellId_t("d1") not in cc
+        assert CellId_t("d2") in cc
+        assert cc[CellId_t("r")] == {CellId_t("d2")}
+
+    def test_discard_raising_cell_clears_its_descendants(self) -> None:
+        """Discarding a raising cell drops its entry and the flat view with it.
+
+        Regression: popping the raiser must not strand its descendants in the
+        flat set, since nothing references them anymore.
+        """
+        cc = CancelledCells()
+        cc.add(CellId_t("r"), {CellId_t("d1"), CellId_t("d2")})
+        cc.discard(CellId_t("r"))
+        assert CellId_t("r") not in cc
+        assert CellId_t("d1") not in cc
+        assert CellId_t("d2") not in cc
+        assert not cc
+        assert list(cc) == []
+
+    def test_discard_last_descendant_prunes_empty_raiser(self) -> None:
+        """A raiser with no cancelled descendants left is dropped entirely, so
+        `bool()` and iteration don't report a phantom cancellation."""
+        cc = CancelledCells()
+        cc.add(CellId_t("r"), {CellId_t("d")})
+        cc.discard(CellId_t("d"))
+        assert CellId_t("d") not in cc
+        assert not cc
+        assert list(cc) == []
+
+    def test_discard_shared_descendant_kept_by_other_raiser(self) -> None:
+        """A descendant cancelled by two raisers survives discarding one raiser."""
+        cc = CancelledCells()
+        cc.add(CellId_t("a"), {CellId_t("b")})
+        cc.add(CellId_t("x"), {CellId_t("b")})
+        cc.discard(CellId_t("a"))
+        # b is still cancelled by x.
+        assert CellId_t("b") in cc
+        assert set(cc) == {CellId_t("x")}
+
+    def test_discard_cell_that_is_both_raiser_and_descendant(self) -> None:
+        """A cell cancelled as a descendant that also raised its own cascade:
+        discarding it clears it and the cells it raised, but leaves siblings."""
+        cc = CancelledCells()
+        # A cancelled {B, C}; B in turn cancelled D.
+        cc.add(CellId_t("a"), {CellId_t("b"), CellId_t("c")})
+        cc.add(CellId_t("b"), {CellId_t("d")})
+        cc.discard(CellId_t("b"))
+        assert CellId_t("b") not in cc
+        assert CellId_t("d") not in cc
+        # C was A's other descendant and is untouched.
+        assert CellId_t("c") in cc
+        assert set(cc) == {CellId_t("a")}
+        assert cc[CellId_t("a")] == {CellId_t("c")}

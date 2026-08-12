@@ -120,6 +120,18 @@ so you can always write:
 mask = ax.value.get_mask(x, y)
 ```
 
+Pass `value` to start with a box selection:
+
+```python
+ax = mo.ui.matplotlib(
+    plt.gca(),
+    value={"x": (1, 3), "y": (2, 4)},
+)
+```
+
+The initial selection is clamped to the axes. If it does not overlap the
+axes, `ax.value` is an `EmptySelection`.
+
 ### Altair
 
 /// marimo-embed

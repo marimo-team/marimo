@@ -107,13 +107,30 @@ workspace.
 
 > See our [gallery examples](https://github.com/marimo-team/gallery-examples) repository for best practices on previewing notebooks from GitHub.
 
-By default, notebooks mirrored from GitHub show a static preview of the notebook. (The notebook dropdown in the app header allows you to toggle to interactive previews with a running notebook.)
+By default, notebooks mirrored from GitHub show a static preview of the
+notebook; from the static preview page, users can start the notebook on an ephemeral server
+or fork it into their workspace with a single click.
 
 In order for your static preview to include outputs, you must
 commit the notebook's corresponding session JSON file, in the `__marimo__/session/`
 directory that exists alongside the notebook. The session is automatically generated when
 you run the notebook from the marimo editor; you can also generate the session
 from the command-line with `marimo export session notebook.py`
+
+#### WebAssembly previews
+
+To share a link to a live executable notebook hosted on GitHub, append `/wasm`
+to the URL or navigate to `Preview > WebAssembly`:
+
+<div align="center">
+  <img src="/_static/molab-wasm-preview.png" width="700px" alt="Screenshot of the molab Preview dropdown with options for Preview, Code, WebAssembly, and Server"/>
+</div>
+
+<p align="center"><em>Switch between static, WebAssembly, and server-backed previews from the Preview dropdown.</em></p>
+
+WebAssembly previews run [via Pyodide](wasm.md), so not all notebooks will
+work; however, like static previews, they don't require the viewer to login.
+They can also be embedded in iframes.
 
 ### Share open-in-molab badges
 
@@ -145,18 +162,16 @@ for a chance to be featured.
 ## Embed in other webpages
 
 You can embed interactive molab notebooks in your own webpages using iframes.
-Obtain iframe snippets by clicking the share button on interactive [molab previews
-of GitHub notebooks](#mirror-notebooks-from-github), or construct
-embeddable URLs yourself using the recipes below.
+Obtain iframe snippets by clicking the share button on WebAssembly [molab previews
+of GitHub notebooks](#webassembly-previews):
 
-> Embedded notebooks run in the browser via WebAssembly, so your notebook must be
-[WebAssembly-compatible](wasm.md). We also recommend creating these notebooks
-[with `--sandbox`](package_management/inlining_dependencies.md) to make sure
-their dependencies get installed.
+<div align="center">
+  <img src="/_static/molab-copy-embed-iframe.png" width="618px" alt="Screenshot of the molab share dropdown on a WebAssembly preview, with a Copy Embed Iframe option"/>
+</div>
 
-### Embed notebooks from GitHub
+<p align="center"><em>Copy an embeddable iframe snippet from the share menu of a WebAssembly preview.</em></p>
 
-Add `?embed=true` to an [interactive preview URL](#interactive-previews) to get an embeddable notebook:
+This yields a snippet like the one below:
 
 /// tab | Code
 
@@ -188,6 +203,12 @@ Add `?embed=true` to an [interactive preview URL](#interactive-previews) to get 
 </div>
 
 ///
+
+Embedded notebooks run in the browser via WebAssembly, so your notebook must be
+[WebAssembly-compatible](wasm.md). We also recommend creating these notebooks
+[with `--sandbox`](package_management/inlining_dependencies.md) to make sure
+their dependencies get installed.
+
 
 ### Embed from source code
 

@@ -30,6 +30,16 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
     unknown: CurlyBracesIcon,
   };
 
+/**
+ * A newer backend can send a data type this frontend does not know. Resolve
+ * those to `unknown` before indexing icon or color maps.
+ */
+export function resolveDataType(
+  dataType: DataType | SelectableDataType,
+): DataType | SelectableDataType {
+  return Object.hasOwn(DATA_TYPE_ICON, dataType) ? dataType : "unknown";
+}
+
 export function getDataTypeColor(
   dataType: DataType | SelectableDataType,
 ): string {

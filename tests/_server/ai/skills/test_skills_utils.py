@@ -46,5 +46,4 @@ def test_reference_files_point_to_load_capability() -> None:
         content = load_reference(reference_name)
         assert "load_capability" in content
         assert f"`{reference_name}` capability" in content
-        assert "Do not read" in content
-        assert "from disk." in content
+        assert "Loaded on demand via" in content

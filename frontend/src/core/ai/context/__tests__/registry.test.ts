@@ -176,6 +176,33 @@ class FileContextProvider extends AIContextProvider<FileContextItem> {
   }
 }
 
+// Second mock provider with the same context type as MockContextProvider
+class SecondaryMockProvider extends AIContextProvider<MockContextItem> {
+  readonly title = "Secondary Mock Items";
+  readonly mentionPrefix = "@";
+  readonly contextType = "mock";
+
+  getItems(): MockContextItem[] {
+    return [
+      {
+        type: "mock",
+        uri: this.asURI("secondary-item"),
+        name: "Secondary Item",
+        description: "From the second mock provider",
+        data: { value: "secondary" },
+      },
+    ];
+  }
+
+  formatContext(item: MockContextItem): string {
+    return `Secondary: ${item.name}`;
+  }
+
+  formatCompletion(item: MockContextItem): Completion {
+    return this.createBasicCompletion(item);
+  }
+}
+
 describe("AIContextProvider", () => {
   let provider: MockContextProvider;
 
@@ -411,6 +438,95 @@ describe("AIContextRegistry", () => {
     });
   });
 
+  describe("resolveItems", () => {
+    let mockGetItems: ReturnType<typeof vi.spyOn>;
+    let fileGetItems: ReturnType<typeof vi.spyOn>;
+
+    beforeEach(() => {
+      registry.register(mockProvider);
+      registry.register(fileProvider);
+      mockGetItems = vi.spyOn(mockProvider, "getItems");
+      fileGetItems = vi.spyOn(fileProvider, "getItems");
+    });
+
+    it("should resolve valid IDs from the matching providers only", () => {
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "file://config.py",
+      ] as ContextLocatorId[]);
+
+      expect(resolved).toHaveLength(2);
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "file://config.py",
+      ]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).toHaveBeenCalledTimes(1);
+    });
+
+    it("should not call unrelated providers", () => {
+      registry.resolveItems(["mock://item1"] as ContextLocatorId[]);
+
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+
+    it("should ignore unknown or invalid URIs", () => {
+      const resolved = registry.resolveItems([
+        "mock://nonexistent",
+        "unknown://item",
+        "malformed" as ContextLocatorId,
+      ] as ContextLocatorId[]);
+
+      expect(resolved).toEqual([]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+
+    it("should return empty array for empty input", () => {
+      expect(registry.resolveItems([])).toEqual([]);
+      expect(mockGetItems).not.toHaveBeenCalled();
+      expect(fileGetItems).not.toHaveBeenCalled();
+    });
+
+    it("should preserve requested order when providers are interleaved", () => {
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "file://config.py",
+        "mock://item2",
+        "file://utils/helpers.py",
+      ] as ContextLocatorId[]);
+
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "file://config.py",
+        "mock://item2",
+        "file://utils/helpers.py",
+      ]);
+      // Each provider is still queried only once, regardless of interleaving.
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(fileGetItems).toHaveBeenCalledTimes(1);
+    });
+
+    it("should resolve items from all providers that share a context type", () => {
+      const secondaryProvider = new SecondaryMockProvider();
+      const secondaryGetItems = vi.spyOn(secondaryProvider, "getItems");
+      registry.register(secondaryProvider);
+
+      const resolved = registry.resolveItems([
+        "mock://item1",
+        "mock://secondary-item",
+      ] as ContextLocatorId[]);
+
+      expect(resolved.map((item) => item.uri)).toEqual([
+        "mock://item1",
+        "mock://secondary-item",
+      ]);
+      expect(mockGetItems).toHaveBeenCalledTimes(1);
+      expect(secondaryGetItems).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe("getContextInfo", () => {
     beforeEach(() => {
       registry.register(mockProvider);
@@ -531,6 +647,19 @@ describe("AIContextRegistry", () => {
       expect(formatted).toContain("Mock: Item 1 (value1)");
       expect(formatted.split("\n\n")).toHaveLength(1);
     });
+
+    it("should format items from the provider that owns them", () => {
+      registry.register(new SecondaryMockProvider());
+
+      const formatted = registry.formatContextForAI([
+        "mock://item1",
+        "mock://secondary-item",
+      ] as ContextLocatorId[]);
+
+      expect(formatted).toBe(
+        "Mock: Item 1 (value1)\n\nSecondary: Secondary Item",
+      );
+    });
   });
 
   describe("edge cases and error handling", () => {
@@ -621,7 +750,7 @@ describe("AIContextRegistry", () => {
       expect(provider).toBe(errorProvider);
 
       const items = registry.getAllItems();
-      expect(items).toHaveLength(1);
+      expect(items).toHaveLength(3);
       expect(items[0].type).toBe("error");
       expect(items[0].name).toBe("Errors");
     });
@@ -654,10 +783,11 @@ describe("AIContextRegistry", () => {
       expect(provider).toBeDefined();
 
       const items = provider!.getItems();
-      expect(items).toHaveLength(1);
+      expect(items).toHaveLength(3);
 
       const completion = provider!.formatCompletion(items[0]);
       expect(completion.label).toBe("@Errors");
+      expect(completion.apply).toBe("@error://all");
       expect(completion.type).toBe("error");
     });
 
@@ -690,7 +820,7 @@ describe("AIContextRegistry", () => {
       const errorItems = items.filter((item) => item.type === "error");
       const mockItems = items.filter((item) => item.type === "mock");
 
-      expect(errorItems).toHaveLength(1);
+      expect(errorItems).toHaveLength(3);
       expect(mockItems).toHaveLength(3);
     });
 

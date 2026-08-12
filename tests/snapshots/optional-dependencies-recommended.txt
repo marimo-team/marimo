@@ -1,4 +1,5 @@
 altair>=5.4.0
+cryptography>=42.0.0
 marimo[sandbox]
 marimo[sql]
 nbformat>=5.7.0

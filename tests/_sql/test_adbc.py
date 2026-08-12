@@ -439,6 +439,19 @@ def test_adbc_is_compatible_does_not_create_cursor() -> None:
     assert conn._cursor.did_close is True  # type: ignore[attr-defined]
 
 
+def test_adbc_is_compatible_rejects_fabricated_attributes() -> None:
+    # Catch-all __getattr__ (e.g. ignite metrics) must not match.
+    # See https://github.com/marimo-team/marimo/issues/10213.
+    class FabricatingAttributes:
+        def __getattr__(self, name: str) -> object:
+            def _lazy(*_args: object, **_kwargs: object) -> object:
+                return FabricatingAttributes()
+
+            return _lazy
+
+    assert AdbcDBAPIEngine.is_compatible(FabricatingAttributes()) is False
+
+
 def test_adbc_engine_uses_default_inference_config() -> None:
     """ADBC shares the default discovery config (see #9775)."""
     conn = FakeAdbcDbApiConnection(

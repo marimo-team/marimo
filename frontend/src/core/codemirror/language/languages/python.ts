@@ -31,13 +31,18 @@ import { Logger } from "@/utils/Logger";
 import { once } from "@/utils/once";
 import { cellActionsState } from "../../cells/state";
 import { pythonCompletionSource } from "../../completion/completer";
+import { signatureHintField } from "../../completion/signature-hint";
 import type { PlaceholderType } from "../../config/types";
 import { FederatedLanguageServerClient } from "../../lsp/federated-lsp";
 import { createLspMarkdownRenderer } from "../../lsp/markdown-renderer";
 import { NotebookLanguageServerClient } from "../../lsp/notebook-lsp";
 import { createTransport } from "../../lsp/transports";
 import { CellDocumentUri, type ILanguageServerClient } from "../../lsp/types";
-import { getLspRootUri, getLspWorkspaceFolders } from "../../lsp/utils";
+import {
+  getLspRootUri,
+  getLspWorkspaceFolders,
+  isKnownCellDocumentUri,
+} from "../../lsp/utils";
 import {
   clickablePlaceholderExtension,
   smartPlaceholderExtension,
@@ -337,6 +342,21 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
           clients.length === 1
             ? (clients[0] as NotebookLanguageServerClient)
             : new FederatedLanguageServerClient(clients);
+        const openExternalLocation = (result: { uri: string }) => {
+          Logger.debug("openExternalLocation", result);
+          // Neither the merged document nor a cell is a file on disk. The
+          // plugin handles same-cell locations itself; revealing a location in
+          // another cell isn't supported yet.
+          if (
+            client.documentUri === result.uri ||
+            isKnownCellDocumentUri(result.uri)
+          ) {
+            return;
+          }
+          getRequestClient().openFile({
+            path: result.uri.replace("file://", ""),
+          });
+        };
 
         return [
           languageServerWithClient({
@@ -345,6 +365,7 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
             allowHTMLContent: true,
             markdownRenderer: createLspMarkdownRenderer(),
             useSnippetOnCompletion: true,
+            clientSideFiltering: true,
             hoverConfig: hoverOptions,
             completionConfig: autocompleteOptions,
             // Default to false
@@ -361,25 +382,22 @@ export class PythonLanguageAdapter implements LanguageAdapter<{}> {
               rename: hotkeys.getHotkey("cell.renameSymbol").key,
             },
             completionMatchBefore,
-            onGoToDefinition: (result) => {
-              Logger.debug("onGoToDefinition", result);
-              if (client.documentUri === result.uri) {
-                // Local definition
-                return;
-              }
-              getRequestClient().openFile({
-                path: result.uri.replace("file://", ""),
-              });
-            },
+            onGoToDefinition: openExternalLocation,
+            onShowLocation: openExternalLocation,
           }),
           documentUri.of(CellDocumentUri.of(cellId)),
         ];
       }
 
-      return autocompletion({
-        ...autocompleteOptions,
-        override: [pythonCompletionSource],
-      });
+      return [
+        autocompletion({
+          ...autocompleteOptions,
+          override: [pythonCompletionSource],
+        }),
+        // The Jedi path has no built-in signature help; show a floating hint
+        // fed by `pythonCompletionSource` (the LSP path handles this itself).
+        signatureHintField,
+      ];
     };
 
     return [

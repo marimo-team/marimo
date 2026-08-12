@@ -101,6 +101,17 @@ def _non_user_module_roots() -> tuple[str, ...]:
     return tuple(normalized)
 
 
+@functools.cache
+def _normalized_path(f: str) -> str:
+    """Return normcase(realpath(f)), cached to avoid repeated filesystem syscalls.
+
+    os.path.realpath resolves symlinks via filesystem syscalls for every path
+    component. Caching by the raw __file__ string is safe because a given path
+    always resolves to the same real path within a process lifetime.
+    """
+    return os.path.normcase(os.path.realpath(f))
+
+
 def modules_imported_by_cell(
     cell: CellImpl, sys_modules: dict[str, types.ModuleType]
 ) -> set[str]:
@@ -208,8 +219,7 @@ class ModuleReloader:
         f = safe_getattr(module, "__file__", None)
         if not f:
             return False
-        path = os.path.normcase(os.path.realpath(f))
-        return not path.startswith(_non_user_module_roots())
+        return not _normalized_path(f).startswith(_non_user_module_roots())
 
     def filename_and_mtime(
         self, module: types.ModuleType

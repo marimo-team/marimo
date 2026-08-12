@@ -525,6 +525,96 @@ def test_print_code_result_matches_actual_transform_pandas(
         )
 
 
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="pandas not installed"
+)
+def test_print_code_expand_dict_nested_dict_pandas() -> None:
+    import pandas as pd
+
+    transform = ExpandDictTransform(
+        type=TransformType.EXPAND_DICT,
+        column_id="dicts",
+    )
+    transformations = Transformations([transform])
+    my_df = pd.DataFrame(
+        {
+            "dicts": [{"a": 1, "nested": {"x": 2}}, None],
+            "other": [10, 20],
+        }
+    )
+
+    pandas_code = python_print_transforms(
+        "my_df",
+        list(my_df.columns),
+        transformations.transforms,
+        python_print_pandas,
+    )
+    assert pandas_code
+
+    loc = {"pd": pd, "my_df": my_df.copy()}
+    exec(pandas_code, {}, loc)
+    code_result = loc["my_df_next"]
+
+    nw_df = nw.from_native(my_df.copy(), eager_only=True).lazy()
+    result_nw = _apply_transforms(
+        nw_df,
+        NarwhalsTransformHandler(),
+        transformations,
+    )
+    real_result = result_nw.collect().to_native().reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(
+        code_result.reset_index(drop=True),
+        real_result,
+    )
+
+    assert list(code_result.columns) == ["a", "nested", "other"]
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="pandas not installed"
+)
+def test_print_code_expand_dict_nan_pandas() -> None:
+    import pandas as pd
+
+    transform = ExpandDictTransform(
+        type=TransformType.EXPAND_DICT,
+        column_id="dicts",
+    )
+    transformations = Transformations([transform])
+    my_df = pd.DataFrame(
+        {
+            "dicts": [{"a": 1}, float("nan"), {"a": 3}],
+            "other": [10, 20, 30],
+        }
+    )
+
+    pandas_code = python_print_transforms(
+        "my_df",
+        list(my_df.columns),
+        transformations.transforms,
+        python_print_pandas,
+    )
+    assert pandas_code
+
+    loc = {"pd": pd, "my_df": my_df.copy()}
+    exec(pandas_code, {}, loc)
+    code_result = loc["my_df_next"]
+
+    nw_df = nw.from_native(my_df.copy(), eager_only=True).lazy()
+    result_nw = _apply_transforms(
+        nw_df,
+        NarwhalsTransformHandler(),
+        transformations,
+    )
+    real_result = result_nw.collect().to_native().reset_index(drop=True)
+
+    pd.testing.assert_frame_equal(
+        code_result.reset_index(drop=True),
+        real_result,
+    )
+
+
 @given(
     transform=create_transform_strategy(
         defined_column_id,
@@ -770,6 +860,50 @@ def test_print_code_result_matches_actual_transform_polars(
                 real_result = real_result.sort(sortable_cols)
 
         pl_testing.assert_frame_equal(code_result, real_result)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+def test_print_code_expand_dict_nested_dict_polars() -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    transform = ExpandDictTransform(
+        type=TransformType.EXPAND_DICT,
+        column_id="dicts",
+    )
+    transformations = Transformations([transform])
+    my_df = pl.DataFrame(
+        {
+            "dicts": [{"a": 1, "nested": {"x": 2}}, None],
+            "other": [10, 20],
+        }
+    )
+
+    polars_code = python_print_transforms(
+        "my_df",
+        my_df.columns,
+        transformations.transforms,
+        python_print_polars,
+    )
+    assert polars_code
+
+    loc = {"pl": pl, "my_df": my_df.clone()}
+    exec(polars_code, globals(), loc)
+    code_result = loc["my_df_next"]
+
+    nw_df = nw.from_native(my_df.clone(), eager_only=True).lazy()
+    result_nw = _apply_transforms(
+        nw_df,
+        NarwhalsTransformHandler(),
+        transformations,
+    )
+    real_result = result_nw.collect().to_native()
+
+    pl_testing.assert_frame_equal(code_result, real_result)
+
+    assert code_result.columns == ["a", "nested", "other"]
 
 
 @given(

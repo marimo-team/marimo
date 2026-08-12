@@ -230,10 +230,12 @@ def _():
     ## Custom model sample
 
     `mo.ui.chat` accepts any async generator that yields Vercel AI SDK chunks.
-    The model below is a hand-rolled showcase of every part the SDK knows
+    The model below is a hand-rolled showcase of the parts the SDK knows
     about — reasoning, streamed tool input, file/source/data attachments,
-    a deliberately failed tool, and a final tool that pauses for human
-    approval.
+    tool input/output errors, stream abort with a reason, and a final tool
+    that pauses for human approval.
+
+    Try the abort prompt to see the frontend’s “Generation stopped” notice.
     """)
     return
 
@@ -245,9 +247,28 @@ def _():
 
     import pydantic_ai.ui.vercel_ai.response_types as vercel
 
+    # Matches mo.ui.chat / frontend USER_CANCELLED_ABORT_REASON.
+    USER_CANCELLED_ABORT_REASON = "user_cancelled"
+
 
     def _new_id(prefix: str) -> str:
         return f"{prefix}_{uuid.uuid4().hex[:8]}"
+
+
+    def _last_user_text(messages) -> str:
+        for message in reversed(messages):
+            if message.role != "user":
+                continue
+            parts = message.raw_or_dumped_parts()
+            texts = [
+                part.get("text", "")
+                for part in parts
+                if isinstance(part, dict) and part.get("type") == "text"
+            ]
+            if texts:
+                return "\n".join(texts)
+            return str(message.content or "")
+        return ""
 
 
     def _pending_approval(messages) -> dict | None:
@@ -272,9 +293,33 @@ def _():
         return None
 
 
+    async def _abort_demo_turn():
+        """Short stream that ends with AbortChunk(reason=...)."""
+        text_id = _new_id("text")
+        yield vercel.StartChunk(
+            message_id=_new_id("msg"),
+            message_metadata={"demo": "vercel-ai-sdk-abort"},
+        )
+        yield vercel.StartStepChunk()
+        yield vercel.TextStartChunk(id=text_id)
+        yield vercel.TextDeltaChunk(
+            id=text_id,
+            delta=(
+                "Starting a reply, then aborting the stream so you can see "
+                "how Stop / abort reasons surface in the UI…"
+            ),
+        )
+        yield vercel.TextEndChunk(id=text_id)
+        await asyncio.sleep(0.2)
+        # Ends the turn without FinishChunk — the abort reason is what the
+        # frontend reads for the “Generation stopped” notice.
+        yield vercel.AbortChunk(reason=USER_CANCELLED_ABORT_REASON)
+
+
     async def _showcase_turn():
         reasoning_id = _new_id("reasoning")
         search_id = _new_id("tc")
+        validate_id = _new_id("tc")
         translate_id = _new_id("tc")
         delete_id = _new_id("tc")
         approval_id = _new_id("ap")
@@ -284,7 +329,11 @@ def _():
         ask_id = _new_id("text")
         data_id = _new_id("data")
 
-        # Message-level metadata round-trips on `message.metadata` in the UI.
+        yield vercel.StartChunk(
+            message_id=_new_id("msg"),
+            message_metadata={"demo": "vercel-ai-sdk-showcase", "turn": 1},
+        )
+        # Message-level metadata also round-trips via dedicated chunks.
         yield vercel.MessageMetadataChunk(
             message_metadata={"demo": "vercel-ai-sdk-showcase", "turn": 1}
         )
@@ -297,7 +346,7 @@ def _():
             "The user wants the full tour. ",
             "I'll search for a famous painting, ",
             "compose an answer with citations and an image, ",
-            "demonstrate an erroring tool, ",
+            "demonstrate tool input and output errors, ",
             "and finally offer to clean up a temp file ",
             "behind a human-approval gate.",
         ]:
@@ -379,16 +428,26 @@ def _():
         yield vercel.TextDeltaChunk(
             id=followup_id,
             delta=(
-                "\n\nNext I'll try a translation tool that's expected to"
-                " fail — handy for seeing how errors render."
+                "\n\nNext I'll show a tool whose *input* fails validation, "
+                "then one whose *execution* fails — and an ErrorChunk."
             ),
         )
         yield vercel.TextEndChunk(id=followup_id)
 
         yield vercel.FinishStepChunk()
 
-        # ── Step 3: a tool whose execution fails ──────────────────────
+        # ── Step 3: tool input error + tool output error + ErrorChunk ─
         yield vercel.StartStepChunk()
+
+        yield vercel.ToolInputStartChunk(
+            tool_call_id=validate_id, tool_name="lookup_catalogue"
+        )
+        yield vercel.ToolInputErrorChunk(
+            tool_call_id=validate_id,
+            tool_name="lookup_catalogue",
+            input={"id": "not-a-uuid"},
+            error_text="InvalidInput: 'id' must be a UUID.",
+        )
 
         yield vercel.ToolInputStartChunk(
             tool_call_id=translate_id, tool_name="translate"
@@ -403,10 +462,14 @@ def _():
             error_text="UnsupportedLanguage: 'klingon' is not a supported target.",
         )
 
+        yield vercel.ErrorChunk(
+            error_text="Demo ErrorChunk: recoverable stream warning from the backend."
+        )
+
         yield vercel.TextStartChunk(id=error_text_id)
         yield vercel.TextDeltaChunk(
             id=error_text_id,
-            delta="That call failed, as expected — moving on.",
+            delta="Those error paths rendered — moving on to approval.",
         )
         yield vercel.TextEndChunk(id=error_text_id)
 
@@ -493,6 +556,12 @@ def _():
                 yield chunk
             return
 
+        user_text = _last_user_text(messages).lower()
+        if "abort" in user_text:
+            async for chunk in _abort_demo_turn():
+                yield chunk
+            return
+
         async for chunk in _showcase_turn():
             yield chunk
 
@@ -502,6 +571,7 @@ def _():
         prompts=[
             "Run the full Vercel AI SDK part showcase",
             "Show me reasoning, citations, and an approval-gated tool",
+            "Demo stream abort with a user_cancelled reason",
         ],
     )
     custom_chat

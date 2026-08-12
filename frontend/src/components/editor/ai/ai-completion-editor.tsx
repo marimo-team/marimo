@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import { stripWrappingBackticks } from "@/core/ai/strip-wrapping-backticks";
 import { type AiCompletionCell, includeOtherCellsAtom } from "@/core/ai/state";
 import type { CellId } from "@/core/cells/ids";
@@ -124,8 +125,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
     api: runtimeManager.getAiURL("completion").toString(),
     headers: runtimeManager.headers(),
     initialInput: initialPrompt,
-    // Throttle the messages and data updates to 100ms
-    experimental_throttle: 100,
+    throttle: AI_SDK_UI_THROTTLE_MS,
     body: {
       ...(Object.keys(completionBody).length > 0
         ? completionBody
@@ -194,9 +194,12 @@ export const AiCompletionEditor: React.FC<Props> = ({
     setCompletion("");
   };
 
+  // Reject discards the suggestion but keeps the prompt open for refinement.
   const handleDeclineCompletion = () => {
-    declineChange();
+    stop();
     setCompletion("");
+    setShowInputPrompt(true);
+    inputRef.current?.view?.focus();
   };
 
   const showCompletionBanner =

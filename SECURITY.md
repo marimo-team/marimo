@@ -72,5 +72,9 @@ We would like to acknowledge and thank the following individuals for their respo
  - @jeremysommerfeld8910-cpu
  - @jinyimeng01 @boom-dy @zz-yy
  - @elvinsuleymanov
+ - @thientd
+ - @Wang-Haimin
+ - @Grg0rry
+ - @tomasilluminati
 
 Your contributions help keep marimo safe for the entire community. We encourage security researchers to report issues and welcome your help in making marimo more secure.

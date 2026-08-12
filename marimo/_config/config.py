@@ -208,6 +208,8 @@ class DisplayConfig(TypedDict):
     - `default_table_page_size`: default number of rows to display in tables
     - `default_table_max_columns`: default maximum number of columns to display in tables
     - `reference_highlighting`: if `True`, highlight reactive variable references
+    - `code_lens`: if `True`, show inline icons in cell editors linking
+      datasources, storage buckets, and caches to their panels
     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
     """
 
@@ -220,6 +222,7 @@ class DisplayConfig(TypedDict):
     default_table_page_size: int
     default_table_max_columns: int
     reference_highlighting: NotRequired[bool]
+    code_lens: NotRequired[bool]
     locale: NotRequired[str | None]
 
 
@@ -248,11 +251,20 @@ class ServerConfig(TypedDict):
         inside its static assets directory.
     - `disable_file_downloads`: if true, the file download button will be
         hidden in the file explorer.
+    - `transport`: experimental. The transport used to stream kernel
+        messages to the frontend, typically set with the
+        `MARIMO_SERVER_TRANSPORT` environment variable. `"websocket"`
+        (default) uses the `/ws` WebSocket endpoint; `"sse"` uses
+        server-sent events over HTTP, for deployments behind proxies or
+        services that do not support WebSockets. Terminal, LSP, and
+        real-time collaboration still require WebSockets; RTC is disabled
+        when using `"sse"`.
     """
 
     browser: Literal["default"] | str
     follow_symlink: bool
     disable_file_downloads: NotRequired[bool]
+    transport: NotRequired[Literal["websocket", "sse"]]
 
 
 @dataclass
@@ -600,6 +612,8 @@ class ExperimentalConfig(TypedDict, total=False):
     wasm_layouts: bool  # Used in playground (community cloud)
     rtc_v2: bool
     isolate_apps: bool
+    debugger: bool  # Live frame-watching debugger (gutter breakpoints + pdb)
+    line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
     cache: CacheConfig
@@ -719,6 +733,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
         "reference_highlighting": True,
+        "code_lens": True,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},

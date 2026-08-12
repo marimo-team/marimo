@@ -4,8 +4,8 @@ import React from "react";
 import { toast } from "@/components/ui/use-toast";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import { getRequestClient } from "@/core/network/requests";
+import type { ExportedFile } from "@/core/network/types";
 import { Filenames } from "@/utils/filenames";
-import { Paths } from "@/utils/paths";
 import { prettyError } from "./errors";
 import { toPng } from "./html-to-image";
 import { captureExternalIframes } from "./iframe";
@@ -140,7 +140,7 @@ export async function downloadHTMLAsImage(opts: {
   element: HTMLElement;
   filename: string;
   prepare?: (element: HTMLElement) => () => void;
-}) {
+}): Promise<boolean> {
   const { element, filename, prepare } = opts;
 
   // Capture current scroll position
@@ -156,6 +156,7 @@ export async function downloadHTMLAsImage(opts: {
     // Get screenshot
     const dataUrl = await toPng(element);
     downloadByURL(dataUrl, Filenames.toPNG(filename));
+    return true;
   } catch (error) {
     Logger.error("Error downloading as PNG", error);
     toast({
@@ -163,6 +164,7 @@ export async function downloadHTMLAsImage(opts: {
       description: prettyError(error),
       variant: "danger",
     });
+    return false;
   } finally {
     cleanup?.();
     if (document.body.classList.contains("printing")) {
@@ -191,6 +193,14 @@ export function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+export function downloadExportedFile({
+  contents,
+  filename,
+  mediaType,
+}: ExportedFile) {
+  downloadBlob(new Blob([contents], { type: mediaType }), filename);
+}
+
 export type PDFExportPreset = "document" | "slides";
 
 /**
@@ -200,37 +210,28 @@ export type PDFExportPreset = "document" | "slides";
  * Standard PDF requires Pandoc & TeX (~few GBs) but is of higher quality.
  */
 export async function downloadAsPDF(opts: {
-  filename: string;
   webpdf: boolean;
   preset?: PDFExportPreset;
   includeInputs?: boolean;
-  rasterizeOutputs?: boolean;
-  rasterScale?: number;
-  rasterServer?: "static" | "live";
+  includeOutputs?: boolean;
 }) {
   const client = getRequestClient();
   const {
-    filename,
     webpdf,
     preset = "document",
     includeInputs = true,
-    rasterizeOutputs = true,
-    rasterScale = 4,
-    rasterServer = "static",
+    includeOutputs = true,
   } = opts;
 
   try {
-    const pdfBlob = await client.exportAsPDF({
+    const exportedFile = await client.exportAsPDF({
       webpdf,
       preset,
       includeInputs,
-      rasterizeOutputs,
-      rasterScale,
-      rasterServer,
+      includeOutputs,
     });
 
-    const filenameWithoutPath = Paths.basename(filename);
-    downloadBlob(pdfBlob, Filenames.toPDF(filenameWithoutPath));
+    downloadExportedFile(exportedFile);
   } catch (error) {
     toast({
       title: "Failed to download",

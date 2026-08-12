@@ -40,6 +40,9 @@ def _assert_cmd_called_once_with(
     mock.assert_called_once()
     call_args, call_kwargs = mock.call_args
     assert _normalize_cmd(call_args[0]) == _normalize_cmd(expected_cmd)
+    # Package-manager commands always run in their own session so that
+    # cell interrupts don't abort them
+    assert call_kwargs.pop("start_new_session", None) is True
     assert call_kwargs == expected_kwargs
 
 
@@ -55,6 +58,20 @@ def test_package_to_module() -> None:
     assert mgr.package_to_module("marimo") == "marimo"
     assert mgr.package_to_module("123-456-789") == "123_456_789"
     assert mgr.package_to_module("scikit-learn") == "sklearn"
+
+
+def test_package_to_module_is_normalized() -> None:
+    # PyPI package names are case-insensitive and treat runs of `-`, `_`, `.`
+    # as equivalent (PEP 503). uv normalizes names when it writes them into a
+    # notebook's script metadata (e.g. `Pillow` -> `pillow`), so the reverse
+    # mapping must still resolve them back to the correct module.
+    # Regression test for https://github.com/marimo-team/marimo/issues/9801
+    mgr = PipPackageManager()
+    assert mgr.package_to_module("Pillow") == "PIL"
+    assert mgr.package_to_module("pillow") == "PIL"
+    assert mgr.package_to_module("scikit-learn") == "sklearn"
+    assert mgr.package_to_module("Scikit-Learn") == "sklearn"
+    assert mgr.package_to_module("scikit_learn") == "sklearn"
 
 
 async def test_failed_install_returns_false() -> None:
@@ -128,6 +145,7 @@ async def test_install(mock_run: MagicMock):
 
     mock_run.assert_called_once_with(
         [PY_EXE, "-m", "pip", "install", "package1", "package2"],
+        start_new_session=True,
     )
     assert result is True
 
@@ -160,6 +178,7 @@ async def test_uninstall(mock_run: MagicMock):
             "package1",
             "package2",
         ],
+        start_new_session=True,
     )
     assert result is True
 
@@ -182,6 +201,7 @@ def test_list_packages(mock_run: MagicMock):
         capture_output=True,
         text=True,
         encoding="utf-8",
+        start_new_session=True,
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
@@ -223,7 +243,7 @@ def test_poetry_generate_cmd_version_two_prefers_without_dev(
         ["poetry", "show", "--without", "dev"],
         capture_output=True,
         text=True,
-        check=False,
+        start_new_session=True,
     )
 
 

@@ -35,7 +35,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { NumberField } from "@/components/ui/number-field";
 import { Switch } from "@/components/ui/switch";
-import { outputIsLoading } from "@/core/cells/cell";
+import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import type { AppMode } from "@/core/mode";
 import { useIsDragging } from "@/hooks/useIsDragging";
@@ -222,6 +222,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
               cellId={cell.id}
               output={cell.output}
               status={cell.status}
+              stale={outputIsStale(cell, false)}
               isScrollable={isScrollable}
               side={side}
               hidden={cell.errored || cell.interrupted || cell.stopped}
@@ -288,6 +289,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 cellId={cell.id}
                 output={cell.output}
                 status={cell.status}
+                stale={outputIsStale(cell, false)}
                 isScrollable={false}
                 hidden={false}
               />
@@ -358,6 +360,7 @@ export const GridLayoutRenderer: React.FC<Props> = ({
                 output={cell.output}
                 isScrollable={false}
                 status={cell.status}
+                stale={outputIsStale(cell, false)}
                 hidden={false}
               />
             </div>
@@ -376,6 +379,7 @@ interface GridCellProps extends Pick<CellRuntimeState, "output" | "status"> {
   hidden: boolean;
   isScrollable: boolean;
   side?: GridLayoutCellSide;
+  stale: boolean;
 }
 
 const GridCell = memo(
@@ -389,6 +393,7 @@ const GridCell = memo(
     isScrollable,
     side,
     className,
+    stale,
   }: GridCellProps) => {
     const loading = outputIsLoading(status);
 
@@ -415,7 +420,7 @@ const GridCell = memo(
           allowExpand={false}
           output={output}
           cellId={cellId}
-          stale={loading}
+          stale={stale}
           loading={loading}
         />
       </div>

@@ -12,6 +12,7 @@ import {
 import { ExternalLink } from "@/components/ui/links";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AddDatabaseForm } from "./database/add-database-form";
+import { AutoDiscoveredDataSources } from "./quick-add-data-sources";
 import { AddStorageForm } from "./storage/add-storage-form";
 
 type ConnectionTab = "databases" | "storage";
@@ -86,6 +87,7 @@ export const AddConnectionDialogContent: React.FC<{
           <span className="block">{codeSnippetHint}</span>
         </DialogDescription>
       </DialogHeader>
+      <AutoDiscoveredDataSources onSubmit={onClose} className="-mt-2" />
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as ConnectionTab)}

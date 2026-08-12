@@ -13,6 +13,7 @@ from marimo._config.utils import (
     get_or_create_user_config_path,
     get_user_config_path,
 )
+from marimo._utils.xdg import marimo_config_path
 
 
 @contextmanager
@@ -48,7 +49,7 @@ def _mock_file_exists(
 
 
 def test_get_config_path():
-    xdg_config_path = str(Path("~/.config/marimo/marimo.toml").expanduser())
+    xdg_config_path = str(marimo_config_path())
     home_config_path = str(Path("~/.marimo.toml").expanduser())
 
     get_user_config_path.cache_clear()
@@ -76,10 +77,12 @@ def test_get_config_path():
 
 
 def test_get_or_create_config_path():
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with (
+        tempfile.TemporaryDirectory() as temp_dir,
+        mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": temp_dir}),
+    ):
         # Use temp dir to avoid creating stray xdg config.
         # Still creates home one though, unfortunately.
-        os.environ["XDG_CONFIG_HOME"] = temp_dir
         xdg_config_path = str(Path(temp_dir) / "marimo/marimo.toml")
         home_config_path = str(Path("~/.marimo.toml").expanduser())
 
@@ -120,9 +123,11 @@ def test_get_or_create_config_path_handles_oserror():
 
     See issue #7502
     """
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with (
+        tempfile.TemporaryDirectory() as temp_dir,
+        mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": temp_dir}),
+    ):
         # Use temp dir to avoid creating stray xdg config
-        os.environ["XDG_CONFIG_HOME"] = temp_dir
         xdg_config_path = str(Path(temp_dir) / "marimo/marimo.toml")
 
         get_user_config_path.cache_clear()
@@ -259,6 +264,10 @@ class TestGetConfigPathParentTraversal:
         else:
             expected_path = str(tmpdir.join(expected).join(".marimo.toml"))
 
+        xdg_config_path = Path(
+            str(tmpdir.join("xdg").join("marimo").join("marimo.toml"))
+        )
+
         get_user_config_path.cache_clear()
 
         with (
@@ -269,6 +278,10 @@ class TestGetConfigPathParentTraversal:
             mock.patch(
                 "marimo._config.utils.os.path.expanduser",
                 return_value=home_path,
+            ),
+            mock.patch(
+                "marimo._config.utils.marimo_config_path",
+                return_value=xdg_config_path,
             ),
         ):
             found_config_path = get_user_config_path()

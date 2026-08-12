@@ -29,3 +29,4 @@ For sharing interactive notebooks on the public web, consider using [molab](../m
 |------|-------------|
 | [Quarto](quarto.md) | Publish marimo Markdown with the Quarto extension |
 | [Jupyter Book](jupyter_book.md) | Embed marimo cells in Jupyter Book |
+| [MDX](mdx.md) | Embed marimo cells in MDX pages |

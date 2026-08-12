@@ -8,7 +8,7 @@
 
 import marimo
 
-__generated_with = "0.19.7"
+__generated_with = "0.23.15"
 app = marimo.App()
 
 
@@ -324,13 +324,11 @@ def _(mo):
 def _(callout_kind, mo):
     mo.md(
         f"""
-        **This is a callout!**
-
         You can turn any HTML or markdown into an emphasized callout.
-        You can choose from a variety of different callout kind. This one is:
+        You can choose from a variety of callout kinds. This one is:
         {callout_kind}
         """
-    ).callout(kind=callout_kind.value)
+    ).callout(kind=callout_kind.value, title="This is a callout!")
     return
 
 

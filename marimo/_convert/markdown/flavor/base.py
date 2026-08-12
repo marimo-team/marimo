@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, ClassVar, Literal, Protocol
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-MarkdownFlavorName = Literal["pymdown", "qmd", "mystmd"]
+MarkdownFlavorName = Literal["pymdown", "qmd", "mystmd", "mdx"]
 
 
 def _escape_attribute(value: str) -> str:

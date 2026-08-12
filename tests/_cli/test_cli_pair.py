@@ -9,7 +9,12 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
-from marimo._cli.pair.commands import AgentConfig, _opencode_skill_dirs
+from marimo._cli.pair.commands import (
+    AgentConfig,
+    _opencode_skill_dirs,
+    _plugin_skill_dirs,
+    pair_agents,
+)
 
 _runner = CliRunner()
 
@@ -30,6 +35,8 @@ class TestPairGroup:
         assert "--claude" in result.output
         assert "--codex" in result.output
         assert "--opencode" in result.output
+        assert "--file" in result.output
+        assert "--session" not in result.output
 
 
 class TestPairPrompt:
@@ -45,6 +52,79 @@ class TestPairPrompt:
         assert TEST_URL in result.output
         assert "execute-code.sh" in result.output
         assert "marimo-pair" in result.output
+
+    def test_prompt_with_file(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                TEST_URL,
+                "--file",
+                "notebooks/example.py",
+            ],
+        )
+        assert result.exit_code == 0
+        assert TEST_URL in result.output
+        assert "notebooks/example.py" in result.output
+        assert "--file notebooks/example.py" in result.output
+
+    def test_prompt_without_file_omits_flag(self) -> None:
+        result = _runner.invoke(
+            cli_main, ["pair", "prompt", "--url", TEST_URL]
+        )
+        assert result.exit_code == 0
+        assert "--file" not in result.output
+        assert "--session" not in result.output
+
+    def test_prompt_rejects_removed_session_option(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+        )
+        assert result.exit_code != 0
+        assert "--session" in result.output
+
+    def test_prompt_shell_quotes_file_paths(self) -> None:
+        cases = [
+            ("relative/path.py", "--file relative/path.py"),
+            ("/tmp/my notebook.py", "--file '/tmp/my notebook.py'"),
+            (
+                r"C:\Users\Jane Doe\notebook.py",
+                r"--file 'C:\Users\Jane Doe\notebook.py'",
+            ),
+            (
+                r"\\server\share\my notebook.py",
+                r"--file '\\server\share\my notebook.py'",
+            ),
+            (
+                "notebooks/it's.py",
+                """--file 'notebooks/it'"'"'s.py'""",
+            ),
+        ]
+        for file_path, expected in cases:
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    TEST_URL,
+                    "--file",
+                    file_path,
+                ],
+            )
+            assert result.exit_code == 0
+            assert expected in result.output
+
+    def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
+        # The execute-code.sh command is meant to be copy-pasted into a shell,
+        # so a url with metacharacters (`&`) must be quoted so it isn't split.
+        url = "http://localhost:8000?file=a&b"
+        result = _runner.invoke(cli_main, ["pair", "prompt", "--url", url])
+        assert result.exit_code == 0
+        assert f"execute-code.sh --url '{url}'" in result.output
 
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
@@ -91,6 +171,28 @@ class TestPairPromptWithToken:
         assert token_file.read_text() == "my-secret-token"
         if sys.platform != "win32":
             assert oct(token_file.stat().st_mode & 0o777) == "0o600"
+
+    def test_with_token_and_file(self, tmp_path: Path) -> None:
+        with patch(
+            "marimo._cli.pair.commands._token_dir", return_value=tmp_path
+        ):
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    TEST_URL,
+                    "--file",
+                    "notebooks/my notebook.py",
+                    "--with-token",
+                ],
+                input="my-secret-token\n",
+            )
+        assert result.exit_code == 0
+        assert "--file 'notebooks/my notebook.py'" in result.output
+        # The token hint should target the same file.
+        assert "--file 'notebooks/my notebook.py' --token" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
@@ -198,4 +300,73 @@ class TestAgentConfig:
         (dir2 / "marimo-pair" / "SKILL.md").write_text("test")
 
         agent = AgentConfig(name="test", skill_dirs=[dir1, dir2])
+        assert agent.has_skill() is True
+
+
+class TestPluginSkillDirs:
+    def test_pair_agents_discovers_plugin_skills(self, tmp_path: Path) -> None:
+        claude_skill_dir = (
+            tmp_path
+            / ".claude"
+            / "plugins"
+            / "marketplaces"
+            / "marimo-pair"
+            / "skills"
+            / "marimo-pair"
+        )
+        codex_skill_dir = (
+            tmp_path
+            / ".codex"
+            / "plugins"
+            / "cache"
+            / "marimo-pair"
+            / "marimo-pair"
+            / "0.0.18"
+            / "skills"
+            / "marimo-pair"
+        )
+        claude_skill_dir.mkdir(parents=True)
+        codex_skill_dir.mkdir(parents=True)
+        (claude_skill_dir / "SKILL.md").write_text("test")
+        (codex_skill_dir / "SKILL.md").write_text("test")
+
+        with (
+            patch.object(Path, "home", return_value=tmp_path),
+            patch.object(Path, "cwd", return_value=tmp_path),
+        ):
+            agents = pair_agents()
+
+        assert agents["claude"].has_skill() is True
+        assert agents["codex"].has_skill() is True
+
+    def test_claude_marketplace_layout(self, tmp_path: Path) -> None:
+        skill_dir = (
+            tmp_path / "plugins" / "marketplaces" / "marimo-pair" / "skills"
+        )
+        (skill_dir / "marimo-pair").mkdir(parents=True)
+        (skill_dir / "marimo-pair" / "SKILL.md").write_text("test")
+
+        agent = AgentConfig(
+            name="Claude Code",
+            skill_dirs=_plugin_skill_dirs(tmp_path),
+        )
+        assert agent.has_skill() is True
+
+    def test_plugin_cache_layout(self, tmp_path: Path) -> None:
+        skill_dir = (
+            tmp_path
+            / "plugins"
+            / "cache"
+            / "marimo-pair"
+            / "marimo-pair"
+            / "0.0.18"
+            / "skills"
+        )
+        (skill_dir / "marimo-pair").mkdir(parents=True)
+        (skill_dir / "marimo-pair" / "SKILL.md").write_text("test")
+
+        agent = AgentConfig(
+            name="Codex",
+            skill_dirs=_plugin_skill_dirs(tmp_path),
+        )
         assert agent.has_skill() is True

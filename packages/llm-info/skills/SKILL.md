@@ -29,7 +29,7 @@ Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` w
    - `${vendor}/${model}` where `vendor` comes from the Vendor Map below.
    - `${vendor}/${model.replaceAll('-', '.')}` (some OR ids use `.` separators, e.g. `claude-3.5-sonnet`).
    - For Bedrock entries with region/alias prefixes (`us.`, `eu.`, `jp.`, `global.`, `anthropic.`, `minimax.`, `mistral.`, `zai.`, `nvidia.`), strip the prefix and retry with the appropriate vendor.
-   - For Google entries with `@default` suffix (e.g. `claude-opus-4-7@default`), strip the suffix and try `anthropic/${rest}`.
+   - For Google entries with `@default` suffix (e.g. `claude-opus-4-7@default`), strip the suffix and try `anthropic/${rest}`. These are Vertex-hosted Anthropic models — descriptions should note they are Vertex AI only (not Gemini API).
 
    **b. Provider docs** — if no OpenRouter hit, search the canonical provider's docs page (anthropic.com/news, platform.openai.com/docs/models, ai.google.dev/gemini-api/docs/models, mistral.ai/news, x.ai/blog, etc.) for the model's one-line summary. Use the `WebSearch` or `WebFetch` tool.
 

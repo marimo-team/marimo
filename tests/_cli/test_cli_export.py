@@ -20,10 +20,14 @@ from click.testing import CliRunner, Result
 from marimo._cli.cli import main
 from marimo._cli.export.commands import pdf
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._export.local_modules import _ruff_import_graph
+from marimo._export.local_wheels import _local_wheel_path
+from marimo._output.utils import uri_decode_component
 from marimo._session.state.serialize import get_session_cache_file
 from marimo._utils import async_path
 from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
+from marimo._utils.scripts import read_pyproject_from_script
 from tests._server.templates.utils import normalize_index_html
 from tests.mocks import (
     _sanitize_version,
@@ -100,6 +104,8 @@ def _run_export(
     stdin: str | None = None,
 ) -> Result:
     """Helper to run marimo export commands via CliRunner."""
+    if export_format == "html-wasm" and not HAS_UV:
+        pytest.skip("uv is required for html-wasm export tests")
     return _runner.invoke(
         main,
         ["export", export_format, file, *extra_args],
@@ -127,6 +133,74 @@ def _normalize_html_path(html: str, temp_file: str) -> str:
     """Normalize HTML by removing the temporary file's directory path."""
     dirname = path.dirname(temp_file)
     return html.replace(dirname, "path")
+
+
+async def _wait_for_file(file: str, timeout: float = 10.0) -> None:
+    """Poll until `file` exists, up to `timeout` seconds.
+
+    Logging "Re-exporting" and finishing the write to disk are separate
+    steps, so a fixed sleep between them is a race on slow CI runners.
+    Poll instead of assuming the write has landed.
+    """
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if await async_path.exists(file):
+            return
+        await asyncio.sleep(0.05)
+    assert await async_path.exists(file), (
+        f"{file} was not created within {timeout}s"
+    )
+
+
+def _write_minimal_wasm_notebook(
+    file: Path, cell: str, metadata: str = ""
+) -> None:
+    file.write_text(
+        f"{metadata}import marimo\n\n"
+        "app = marimo.App()\n\n"
+        "@app.cell\n"
+        "def __():\n"
+        f"{cell}\n\n"
+        'if __name__ == "__main__":\n'
+        "    app.run()\n"
+    )
+
+
+def test_local_wheel_path_preserves_file_url_netloc(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    assert (
+        _local_wheel_path("file://server/share/pkg.whl", notebook)
+        == Path("//server/share/pkg.whl").resolve()
+    )
+    # "localhost" denotes the local machine, so it is stripped and treated
+    # the same as an empty authority.
+    assert _local_wheel_path(
+        "file://localhost/tmp/pkg.whl", notebook
+    ) == _local_wheel_path("file:///tmp/pkg.whl", notebook)
+
+
+def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    module = tmp_path / "module.py"
+    result = subprocess.CompletedProcess(
+        args=(),
+        returncode=0,
+        stdout=json.dumps({str(notebook): [str(module)]}),
+        stderr="warning",
+    )
+    with (
+        mock.patch(
+            "marimo._export.local_modules._ruff_graph_command",
+            return_value=("ruff",),
+        ),
+        mock.patch(
+            "marimo._export.local_modules.subprocess.run",
+            return_value=result,
+        ),
+    ):
+        graph = _ruff_import_graph((notebook,), (tmp_path,), notebook)
+
+    assert graph == {notebook.resolve(): (module.resolve(),)}
 
 
 class TestExportHTML:
@@ -165,6 +239,127 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
         assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_packages_local_modules(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook,
+            "    import foo\n"
+            "    from baz import hmm, other\n"
+            "    return foo, hmm, other\n",
+            """
+# /// script
+# dependencies = ["foo>=1"]
+# ///
+""".lstrip(),
+        )
+        (tmp_path / "foo.py").write_text("from helpers import value\n")
+        (tmp_path / "helpers.py").write_text("value = 'helper'\n")
+        baz = tmp_path / "baz"
+        baz.mkdir()
+        (baz / "hmm.py").write_text("value = 'hmm'\n")
+        (baz / "other.py").write_text("value = 'other'\n")
+
+        out_dir = tmp_path / "out"
+        stale_wheel_dir = out_dir / "public" / "wheels"
+        stale_wheel_dir.mkdir(parents=True)
+        (
+            stale_wheel_dir / "stale-0.0.0+marimo.old-py3-none-any.whl"
+        ).write_bytes(b"stale")
+        (stale_wheel_dir / "old_explicit-0.1.0-py3-none-any.whl").write_bytes(
+            b"stale"
+        )
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+        )
+        _assert_success(p)
+
+        html = (out_dir / "index.html").read_text()
+        code = html.split('<marimo-code hidden="">', 1)[1].split(
+            "</marimo-code>", 1
+        )[0]
+        decoded_code = uri_decode_component(code)
+        dependencies = (read_pyproject_from_script(decoded_code) or {}).get(
+            "dependencies", []
+        )
+        assert any(
+            dependency.startswith("foo @ ../public/wheels/foo-")
+            for dependency in dependencies
+        )
+        assert not any(dependency == "foo>=1" for dependency in dependencies)
+        assert any(
+            dependency.startswith("helpers @ ../public/wheels/helpers-")
+            for dependency in dependencies
+        )
+        assert any(
+            dependency.startswith("baz @ ../public/wheels/baz-")
+            for dependency in dependencies
+        )
+        wheel_dir = out_dir / "public" / "wheels"
+        assert not (
+            wheel_dir / "stale-0.0.0+marimo.old-py3-none-any.whl"
+        ).exists()
+        assert not (wheel_dir / "old_explicit-0.1.0-py3-none-any.whl").exists()
+
+    @staticmethod
+    def test_cli_export_html_wasm_copies_pep723_local_wheels(
+        tmp_path: Path,
+    ) -> None:
+        dist = tmp_path / "dist"
+        dist.mkdir()
+        uv_wheel = dist / "demo_local-0.1.0-py3-none-any.whl"
+        direct_wheel = dist / "direct_wheel-0.2.0-py3-none-any.whl"
+        uv_wheel.write_bytes(b"wheel")
+        direct_wheel.write_bytes(b"wheel")
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook,
+            '    value = "plain"\n    return value,\n',
+            f"""
+# /// script
+# dependencies = [
+#     "demo-local[extra]",
+#     "direct-wheel @ {direct_wheel.as_uri()} ; python_version >= '3.11'   ",
+# ]
+# [tool.uv.sources]
+# demo-local = {{ path = "dist/demo_local-0.1.0-py3-none-any.whl" }}
+# ///
+""".lstrip(),
+        )
+
+        out_dir = tmp_path / "out"
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+        )
+        _assert_success(p)
+
+        wheel_dir = out_dir / "public" / "wheels"
+        assert (wheel_dir / uv_wheel.name).read_bytes() == b"wheel"
+        assert (wheel_dir / direct_wheel.name).read_bytes() == b"wheel"
+        html = (out_dir / "index.html").read_text()
+        code = html.split('<marimo-code hidden="">', 1)[1].split(
+            "</marimo-code>", 1
+        )[0]
+        dependencies = (
+            read_pyproject_from_script(uri_decode_component(code)) or {}
+        ).get("dependencies", [])
+        assert (
+            f"demo-local[extra] @ ../public/wheels/{uv_wheel.name}"
+            in dependencies
+        )
+        assert (
+            f"direct-wheel @ ../public/wheels/{direct_wheel.name}"
+            " ; python_version >= '3.11'"
+        ) in dependencies
 
     @staticmethod
     def test_cli_export_html_wasm_no_override(temp_marimo_file: str) -> None:
@@ -291,8 +486,8 @@ class TestExportHTML:
 
     @pytest.mark.skipif(
         # if hangs on watchdog, add a dependency check
-        condition=_is_win32(),
-        reason="flaky on Windows",
+        condition=_is_win32() or not HAS_UV,
+        reason="requires uv and is flaky on Windows",
     )
     @staticmethod
     def test_cli_export_html_wasm_watch(temp_marimo_file: str) -> None:
@@ -650,8 +845,7 @@ class TestExportScript:
                 assert "Re-exporting" in line
                 break
 
-        await asyncio.sleep(0.1)
-        assert await async_path.exists(temp_out_file)
+        await _wait_for_file(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -709,6 +903,14 @@ class TestExportMarkdown:
         assert "```{marimo .python" in p.output
 
     @staticmethod
+    def test_export_markdown_with_mdx_flavor(
+        temp_marimo_file: str,
+    ) -> None:
+        p = _run_export("md", temp_marimo_file, "--flavor", "mdx")
+        _assert_success(p)
+        assert "```python marimo" in p.output
+
+    @staticmethod
     def test_export_markdown_infers_qmd_from_output(
         temp_marimo_file: str, tmp_path: Path
     ) -> None:
@@ -732,6 +934,17 @@ class TestExportMarkdown:
 
         _assert_success(p)
         assert "```{marimo} python" in output.read_text()
+
+    @staticmethod
+    def test_export_markdown_infers_mdx_from_output(
+        temp_marimo_file: str, tmp_path: Path
+    ) -> None:
+        output = tmp_path / "notebook.mdx"
+
+        p = _run_export("md", temp_marimo_file, "--output", str(output))
+
+        _assert_success(p)
+        assert "```python marimo" in output.read_text()
 
     @staticmethod
     def test_export_markdown_stdout_uses_default_flavor(
@@ -826,8 +1039,7 @@ class TestExportMarkdown:
                 assert "Re-exporting" in line
                 break
 
-        await asyncio.sleep(0.1)
-        assert await async_path.exists(temp_out_file)
+        await _wait_for_file(temp_out_file)
 
     @pytest.mark.skipif(
         condition=DependencyManager.watchdog.has(),
@@ -1002,7 +1214,7 @@ class TestExportIpynb:
     def test_export_ipynb_cli_args_passed_to_export(
         self, temp_marimo_file_with_md: str
     ) -> None:
-        from marimo._server.export import ExportResult
+        from marimo._export.requests import ExportResult
 
         fake_result = ExportResult(
             contents="{}", download_filename="test.ipynb", did_error=False
@@ -1013,7 +1225,7 @@ class TestExportIpynb:
             return fake_result
 
         with mock.patch(
-            "marimo._cli.export.commands.run_app_then_export_as_ipynb",
+            "marimo._cli.export.commands.export_ipynb",
             side_effect=fake_export,
         ) as mock_export:
             p = _run_export(
@@ -1029,12 +1241,13 @@ class TestExportIpynb:
             _assert_success(p)
 
             mock_export.assert_called_once()
-            call_kwargs = mock_export.call_args
-            assert call_kwargs.kwargs["cli_args"] == {
+            request = mock_export.call_args.args[0]
+            assert request.execution is not None
+            assert request.execution.cli_args == {
                 "arg1": "foo",
                 "arg2": "bar",
             }
-            assert call_kwargs.kwargs["argv"] == [
+            assert request.execution.argv == [
                 "--arg1",
                 "foo",
                 "--arg2",
@@ -1199,17 +1412,24 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "out.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="out.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
                 "marimo._cli.export.commands.DependencyManager.require_many"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1229,8 +1449,8 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert output_file.read_bytes() == b"mock_pdf"
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["export_as"] == "slides"
+        request = mock_run_app.await_args.args[0]
+        assert request.options.preset == "slides"
 
     @staticmethod
     def test_export_pdf_slides_shows_live_raster_recommendation(
@@ -1240,10 +1460,17 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "slides-tip.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="slides-tip.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
@@ -1253,7 +1480,7 @@ class TestExportPDF:
                 "marimo._cli.export.commands.DependencyManager.playwright.require"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1272,8 +1499,95 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert "For --as=slides, prefer --raster-server=live" in result.output
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["rasterization_options"].server_mode == "static"
+        request = mock_run_app.await_args.args[0]
+        assert request.rasterization is not None
+        assert request.rasterization.server_mode == "static"
+
+    @staticmethod
+    def test_export_pdf_defers_live_server_startup(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
+
+        output_file = tmp_path / "live.pdf"
+        mock_export = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="live.pdf",
+                did_error=False,
+            )
+        )
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.DependencyManager.playwright.require"
+            ),
+            patch(
+                "marimo._cli.export.commands.export_pdf",
+                mock_export,
+            ),
+            patch(
+                "marimo._cli.export.live_notebook_server.LiveNotebookServer"
+            ) as live_server,
+        ):
+            result = CliRunner().invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(output_file),
+                    "--raster-server",
+                    "live",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code == 0
+        request = mock_export.await_args.args[0]
+        assert request.live_page_url is not None
+        live_server.assert_not_called()
+
+    @staticmethod
+    def test_export_pdf_reports_empty_result_once(
+        temp_marimo_file: str,
+        tmp_path: Path,
+    ) -> None:
+        from unittest.mock import AsyncMock, patch
+
+        from marimo._cli.export.commands import pdf as pdf_command
+
+        with (
+            patch(
+                "marimo._cli.export.commands.DependencyManager.require_many"
+            ),
+            patch(
+                "marimo._cli.export.commands.export_pdf",
+                AsyncMock(return_value=None),
+            ),
+        ):
+            result = CliRunner().invoke(
+                pdf_command,
+                [
+                    "--output",
+                    str(tmp_path / "empty.pdf"),
+                    "--no-include-outputs",
+                    "--no-sandbox",
+                    temp_marimo_file,
+                ],
+            )
+
+        assert result.exit_code != 0
+        assert "Failed to export PDF." in result.output
+        assert (
+            "Failed to export PDF: Failed to export PDF." not in result.output
+        )
 
     @staticmethod
     def test_export_pdf_shows_slides_hint_when_preset_missing(
@@ -1283,10 +1597,17 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "hint.pdf"
         runner = CliRunner()
-        mock_run_app = AsyncMock(return_value=(b"mock_pdf", False))
+        mock_run_app = AsyncMock(
+            return_value=ExportResult(
+                contents=b"mock_pdf",
+                download_filename="hint.pdf",
+                did_error=False,
+            )
+        )
 
         with (
             patch(
@@ -1297,7 +1618,7 @@ class TestExportPDF:
                 return_value=True,
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):
@@ -1315,8 +1636,8 @@ class TestExportPDF:
         assert result.exit_code == 0
         assert "Use --as=slides for slide-style PDF export." in result.output
         assert mock_run_app.await_count == 1
-        call_kwargs = mock_run_app.await_args.kwargs
-        assert call_kwargs["export_as"] is None
+        request = mock_run_app.await_args.args[0]
+        assert request.options.preset == "document"
 
     @staticmethod
     def test_export_pdf_reports_stage_status_updates(
@@ -1326,16 +1647,16 @@ class TestExportPDF:
         from unittest.mock import AsyncMock, patch
 
         from marimo._cli.export.commands import pdf as pdf_command
-        from marimo._server.export._status import PDFExportStatusEvent
+        from marimo._export._status import PDFExportStatusEvent
+        from marimo._export.requests import ExportResult
 
         output_file = tmp_path / "status.pdf"
         runner = CliRunner()
 
-        async def fake_run_app(
-            *args: Any, **kwargs: Any
-        ) -> tuple[bytes, bool]:
-            del args
-            status_callback = kwargs["status_callback"]
+        async def fake_run_app(*args: Any, **kwargs: Any) -> ExportResult:
+            del kwargs
+            request = args[0]
+            status_callback = request.status_callback
             status_callback(
                 PDFExportStatusEvent(
                     phase="execute",
@@ -1368,7 +1689,11 @@ class TestExportPDF:
                     message="done.",
                 )
             )
-            return b"mock_pdf", False
+            return ExportResult(
+                contents=b"mock_pdf",
+                download_filename="status.pdf",
+                did_error=False,
+            )
 
         mock_run_app = AsyncMock(side_effect=fake_run_app)
 
@@ -1380,7 +1705,7 @@ class TestExportPDF:
                 "marimo._cli.export.commands.DependencyManager.playwright.require"
             ),
             patch(
-                "marimo._cli.export.commands.run_app_then_export_as_pdf",
+                "marimo._cli.export.commands.export_pdf",
                 mock_run_app,
             ),
         ):

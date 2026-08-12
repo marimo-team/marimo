@@ -3,6 +3,7 @@
 # dependencies = [
 #     "marimo",
 #     "pandas",
+#     "pint",
 #     "pint-pandas==0.8.0",
 #     "awkward-pandas",
 #     "awkward",
@@ -36,13 +37,14 @@ def _(mo):
 def _():
     import marimo as mo
     import pandas as pd
+    import pint
     from decimal import Decimal
 
     import awkward as ak
     import awkward_pandas as akpd
     import pint_pandas  # noqa: F401 — registers pint dtypes with pandas
 
-    return Decimal, ak, akpd, mo, pd
+    return Decimal, ak, akpd, mo, pd, pint
 
 
 @app.cell(hide_code=True)
@@ -150,6 +152,50 @@ def _(ak, akpd, mo, pd):
             mo.hstack([mo.plain(awkward_struct), awkward_struct], widths="equal"),
             mo.md("**DataFrame**"),
             mo.hstack([mo.plain(awkward_df), awkward_df], widths="equal"),
+        ]
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## Object column of bare `pint.Quantity`
+
+    Expect readable values like `1 second`, not nested `_magnitude`/`_units` dicts.
+    """)
+    return
+
+
+@app.cell
+def _(mo, pd, pint):
+    quantity_object_series = pd.Series(
+        [
+            pint.Quantity("1 sec"),
+            pint.Quantity("3 min"),
+            pint.Quantity("0.3 hours"),
+            pint.Quantity("0.02 days"),
+        ]
+    )
+    quantity_object_df = pd.DataFrame(
+        {
+            "regular": [1, 2, 3, 7 / 9],
+            "meters": pd.Series([1, 2, 3, 7 / 9], dtype="pint[meter]"),
+            "mixed": quantity_object_series,
+        }
+    )
+    mo.vstack(
+        [
+            mo.md("**Series (object dtype)**"),
+            mo.hstack(
+                [mo.plain(quantity_object_series), quantity_object_series],
+                widths="equal",
+            ),
+            mo.md("**DataFrame (pint dtype + object Quantity column)**"),
+            mo.hstack(
+                [mo.plain(quantity_object_df), quantity_object_df],
+                widths="equal",
+            ),
         ]
     )
     return

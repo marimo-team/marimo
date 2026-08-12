@@ -1,3 +1,5 @@
+from inline_snapshot import snapshot as inline_snapshot
+
 from marimo._utils.docs import (
     _process_code_block_content,
     google_docstring_to_markdown,
@@ -128,6 +130,78 @@ def test_google_docstring_to_markdown_oneliner():
         "One-liner docstring",
     ]:
         assert substr in md_result
+
+
+def test_google_docstring_infers_types_from_signature() -> None:
+    docstring = """Do something
+
+    Args:
+        arg: An integer argument
+    """
+    md_result = google_docstring_to_markdown(
+        docstring, param_types={"arg": "int"}
+    )
+    assert "| `arg` | `int` | An integer argument |" in md_result
+
+
+def test_google_docstring_preserves_explicit_types() -> None:
+    docstring = """Args:
+        arg (str): A string argument
+    """
+    md_result = google_docstring_to_markdown(
+        docstring, param_types={"arg": "int"}
+    )
+    assert "| `arg` | `str` | A string argument |" in md_result
+
+
+def test_google_docstring_infers_varargs_types_from_signature() -> None:
+    docstring = """Args:
+        *args: extra positionals
+        **kwargs: extra keywords
+    """
+    # Signatures report varargs without the star prefixes.
+    md_result = google_docstring_to_markdown(
+        docstring,
+        param_types={"args": "Tuple[str]", "kwargs": "Dict[str, float]"},
+    )
+    assert md_result == inline_snapshot(
+        """\
+
+# Arguments
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `*args` | `Tuple[str]` | extra positionals |
+| `**kwargs` | `Dict[str, float]` | extra keywords |"""
+    )
+
+
+def test_google_docstring_custom_named_varargs() -> None:
+    docstring = """Print a greeting for each name.
+
+    Args:
+        greeting: The greeting to print.
+        *names: Names to greet.
+        **options: Extra options.
+    """
+    md_result = google_docstring_to_markdown(
+        docstring,
+        param_types={
+            "greeting": "str",
+            "names": "Tuple[list[str]]",
+        },
+    )
+    assert md_result == inline_snapshot(
+        """\
+# Summary
+Print a greeting for each name.
+
+# Arguments
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `greeting` | `str` | The greeting to print. |
+| `*names` | `Tuple[list[str]]` | Names to greet. |
+| `**options` | `` | Extra options. |"""
+    )
 
 
 def test_process_code_block_content():

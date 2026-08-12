@@ -2,10 +2,15 @@
 
 import dedent from "string-dedent";
 import { assertNever } from "@/utils/assertNever";
+import { escapePythonString, resolveJsonCredential } from "../json-credentials";
 import { isSecret, unprefixSecret } from "../secrets";
-import { type StorageConnection, StorageConnectionSchema } from "./schemas";
+import {
+  type S3Auth,
+  type StorageConnection,
+  StorageConnectionSchema,
+} from "./schemas";
 
-export type StorageLibrary = "obstore" | "fsspec";
+export type StorageLibrary = "obstore" | "fsspec" | "huggingface_hub";
 
 export interface StorageCodeOptions {
   library: StorageLibrary;
@@ -15,6 +20,7 @@ export interface StorageCodeOptions {
 export const StorageLibraryDisplayNames: Record<StorageLibrary, string> = {
   obstore: "obstore",
   fsspec: "fsspec",
+  huggingface_hub: "huggingface_hub",
 };
 
 class SecretContainer {
@@ -50,6 +56,36 @@ class SecretContainer {
   }
 }
 
+/**
+ * Credential kwargs shared by every S3-compatible store.
+ */
+function s3AuthParams(
+  auth: S3Auth | undefined,
+  secrets: SecretContainer,
+): string[] {
+  // obstore polls the credential endpoint with the token read from the file,
+  // refreshing credentials for the lifetime of the store.
+  if (auth?.type === "Container credentials") {
+    return [
+      `    container_credentials_full_uri=${secrets.print("container_credentials_full_uri", auth.container_credentials_full_uri)},`,
+      `    container_authorization_token_file=${secrets.print("container_authorization_token_file", auth.container_authorization_token_file)},`,
+    ];
+  }
+
+  const params: string[] = [];
+  if (auth?.access_key_id) {
+    params.push(
+      `    access_key_id=${secrets.print("access_key_id", auth.access_key_id)},`,
+    );
+  }
+  if (auth?.secret_access_key) {
+    params.push(
+      `    secret_access_key=${secrets.print("secret_access_key", auth.secret_access_key)},`,
+    );
+  }
+  return params;
+}
+
 function generateS3Code(
   connection: Extract<StorageConnection, { type: "s3" }>,
   secrets: SecretContainer,
@@ -61,20 +97,14 @@ function generateS3Code(
   if (connection.region) {
     params.push(`    region=${secrets.print("region", connection.region)},`);
   }
-  if (connection.access_key_id) {
-    params.push(
-      `    access_key_id=${secrets.print("access_key_id", connection.access_key_id)},`,
-    );
-  }
-  if (connection.secret_access_key) {
-    params.push(
-      `    secret_access_key=${secrets.print("secret_access_key", connection.secret_access_key)},`,
-    );
-  }
+  params.push(...s3AuthParams(connection.auth, secrets));
   if (connection.endpoint_url) {
     params.push(
       `    endpoint_url=${secrets.print("endpoint_url", connection.endpoint_url)},`,
     );
+  }
+  if (connection.allow_http) {
+    params.push("    allow_http=True,");
   }
 
   const paramsStr = params.length > 0 ? `\n${params.join("\n")}\n` : "";
@@ -92,20 +122,36 @@ function generateGCSCode(
   const bucket = secrets.print("bucket", connection.bucket);
   const imports = new Set(["from obstore.store import GCSStore"]);
 
-  let code: string;
-  if (connection.service_account_key) {
-    imports.add("import json");
-    code = dedent(`
-      _credentials = json.loads("""${connection.service_account_key}""")
+  if (!connection.service_account_key) {
+    return {
+      imports,
+      code: dedent(`
+        store = GCSStore(${bucket})
+      `),
+    };
+  }
+
+  const credential = resolveJsonCredential(
+    connection.service_account_key,
+    (v) => secrets.print("service_account_key", v),
+  );
+
+  if (credential.kind === "path") {
+    const code = dedent(`
       store = GCSStore(${bucket},
-          service_account_key=_credentials,
+          service_account_path="${escapePythonString(credential.path)}",
       )
     `);
-  } else {
-    code = dedent(`
-      store = GCSStore(${bucket})
-    `);
+    return { imports, code };
   }
+
+  imports.add("import json");
+  const code = dedent(`
+    _credentials = ${credential.expr}
+    store = GCSStore(${bucket},
+        service_account_key=_credentials,
+    )
+  `);
   return { imports, code };
 }
 
@@ -140,16 +186,7 @@ function generateCoreWeaveCode(
     `    region=${secrets.print("region", connection.region)},`,
   ];
 
-  if (connection.access_key_id) {
-    params.push(
-      `    access_key_id=${secrets.print("access_key_id", connection.access_key_id)},`,
-    );
-  }
-  if (connection.secret_access_key) {
-    params.push(
-      `    secret_access_key=${secrets.print("secret_access_key", connection.secret_access_key)},`,
-    );
-  }
+  params.push(...s3AuthParams(connection.auth, secrets));
 
   params.push(
     `    endpoint="https://${connection.bucket}.cwobject.com",`,
@@ -176,13 +213,20 @@ function generateGDriveCode(
   const imports = new Set(["from gdrive_fsspec import GoogleDriveFileSystem"]);
 
   if (connection.credentials_json) {
-    imports.add("import json");
-    const creds = secrets.print(
-      "credentials_json",
-      connection.credentials_json,
+    const credential = resolveJsonCredential(connection.credentials_json, (v) =>
+      secrets.print("credentials_json", v),
     );
+    // gdrive-fsspec accepts a filesystem path as `creds` when the string
+    // doesn't start with "{"; otherwise it expects a JSON object/string.
+    if (credential.kind === "path") {
+      const code = dedent(`
+        fs = GoogleDriveFileSystem(creds="${escapePythonString(credential.path)}", token="service_account", use_listings_cache=False, skip_instance_cache=True)
+      `);
+      return { imports, code };
+    }
+    imports.add("import json");
     const code = dedent(`
-      _creds = json.loads("""${connection.credentials_json?.startsWith("ENV:") ? `{${creds}}` : connection.credentials_json}""")
+      _creds = ${credential.expr}
       fs = GoogleDriveFileSystem(creds=_creds, token="service_account", use_listings_cache=False, skip_instance_cache=True)
     `);
     return { imports, code };
@@ -200,6 +244,20 @@ function generateGDriveCode(
         fs = GoogleDriveFileSystem(use_listings_cache=False, skip_instance_cache=True)
       `);
   return { imports, code };
+}
+
+function generateHuggingfaceCode(
+  connection: Extract<StorageConnection, { type: "huggingface" }>,
+  secrets: SecretContainer,
+): { imports: Set<string>; code: string } {
+  const imports = new Set(["from huggingface_hub import HfApi"]);
+
+  if (!connection.token) {
+    return { imports, code: "hf = HfApi()" };
+  }
+
+  const token = secrets.print("token", connection.token);
+  return { imports, code: `hf = HfApi(token=${token})` };
 }
 
 export function generateStorageCode(
@@ -229,6 +287,9 @@ export function generateStorageCode(
         secrets,
         isEmbedded: options.isEmbedded,
       });
+      break;
+    case "huggingface":
+      result = generateHuggingfaceCode(connection, secrets);
       break;
     default:
       assertNever(connection);

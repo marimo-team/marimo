@@ -1,31 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { downloadBlob } from "@/utils/download";
-import { Filenames } from "@/utils/filenames";
-import { Paths } from "@/utils/paths";
+import { downloadExportedFile } from "@/utils/download";
 import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "./virtual-file-tracker";
 
 /**
  * Downloads the current notebook as an HTML file.
  */
-export async function downloadAsHTML(opts: {
-  filename: string;
-  includeCode: boolean;
-}) {
+export async function downloadAsHTML(opts: { includeCode: boolean }) {
   const client = getRequestClient();
-  const { filename, includeCode } = opts;
-  const html = await client.exportAsHTML({
+  const { includeCode } = opts;
+  const exportedFile = await client.exportAsHTML({
     download: true,
     includeCode: includeCode,
     files: VirtualFileTracker.INSTANCE.filenames(),
   });
-  const filenameWithoutPath = Paths.basename(filename) ?? "notebook.py";
 
-  downloadBlob(
-    new Blob([html], { type: "text/html" }),
-    Filenames.toHTML(filenameWithoutPath),
-  );
+  downloadExportedFile(exportedFile);
 }
 
 function updateAssetUrl(existingUrl: string, assetBaseUrl: string) {

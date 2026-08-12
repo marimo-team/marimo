@@ -3,7 +3,14 @@
 import { once } from "@/utils/once";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
-import { waitForConnectionOpen } from "./connection";
+import {
+  getDefaultExportFilename,
+  getDefaultMarkdownExportFilename,
+} from "./export-filename";
+import {
+  waitForConnectionOpen,
+  waitForConnectionOpenIfNotebook,
+} from "./connection";
 import type { EditRequests, RunRequests } from "./types";
 
 /**
@@ -19,7 +26,7 @@ function multipartInit(formData: FormData) {
   };
 }
 
-const { handleResponse, handleResponseReturnNull } = API;
+const { handleExportResponse, handleResponse, handleResponseReturnNull } = API;
 
 export function createNetworkRequests(): EditRequests & RunRequests {
   const getClient = once(() => {
@@ -264,6 +271,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    discoverDataSources: (request) => {
+      return getClient()
+        .POST("/api/datasources/discover", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
     validateSQL: (request) => {
       return getClient()
         .POST("/api/sql/validate", {
@@ -285,9 +300,20 @@ export function createNetworkRequests(): EditRequests & RunRequests {
       await waitForConnectionOpen();
       return getClient().GET("/api/usage").then(handleResponse);
     },
+    getEnvironmentInfo: () => {
+      return getClient().GET("/api/environment").then(handleResponse);
+    },
     sendPdb: (request) => {
       return getClient()
         .POST("/api/kernel/pdb/pm", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponseReturnNull);
+    },
+    sendSetBreakpoints: (request) => {
+      return getClient()
+        .POST("/api/kernel/pdb/breakpoints", {
           body: request,
           params: getParams(),
         })
@@ -388,6 +414,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponse);
     },
+    getExportAvailability: () => {
+      return getClient().GET("/api/export/availability").then(handleResponse);
+    },
     exportAsHTML: async (request) => {
       if (
         process.env.NODE_ENV === "development" ||
@@ -401,7 +430,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("html"),
+          }),
+        );
     },
     exportAsMarkdown: async (request) => {
       return getClient()
@@ -410,7 +443,24 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultMarkdownExportFilename(request.flavor),
+          }),
+        );
+    },
+    exportAsScript: async (request) => {
+      return getClient()
+        .POST("/api/export/script", {
+          body: request,
+          parseAs: "text",
+          params: getParams(),
+        })
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("script.py"),
+          }),
+        );
     },
     exportAsIPYNB: async (request) => {
       return getClient()
@@ -419,7 +469,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("ipynb"),
+          }),
+        );
     },
     exportAsPDF: async (request) => {
       return getClient()
@@ -428,7 +482,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "blob",
           params: getParams(),
         })
-        .then(handleResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("pdf"),
+          }),
+        );
     },
     autoExportAsHTML: async (request) => {
       return getClient()
@@ -478,12 +536,12 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     getPackageList: async () => {
       // If the sidebar is already open, it may try to load before the session has been initialized
-      await waitForConnectionOpen();
+      await waitForConnectionOpenIfNotebook();
       return getClient().GET("/api/packages/list").then(handleResponse);
     },
     getDependencyTree: async () => {
       // If the sidebar is already open, it may try to load before the session has been initialized
-      await waitForConnectionOpen();
+      await waitForConnectionOpenIfNotebook();
       return getClient().GET("/api/packages/tree").then(handleResponse);
     },
     listSecretKeys: async (request) => {

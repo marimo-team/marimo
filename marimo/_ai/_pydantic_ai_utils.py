@@ -98,7 +98,7 @@ def convert_to_pydantic_messages(
     part_processor: Callable[[UIMessagePart], UIMessagePart] | None = None,
 ) -> list[UIMessage]:
     """
-    The frontend SDK tends to generate messages with a messageId eventhough it's not valid.
+    The frontend SDK tends to generate messages with a messageId even though it's not valid.
     Remove them to prevent validation errors.
     If a part processor is provided, it will be applied to the parts of the message.
     """

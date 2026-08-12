@@ -9,6 +9,7 @@ import { documentationAtom } from "@/core/documentation/state";
 import { store } from "@/core/state/jotai";
 import { Logger } from "../../../utils/Logger";
 import { AUTOCOMPLETER, Autocompleter } from "./Autocompleter";
+import { asSignatureHint, setSignatureHintEffect } from "./signature-hint";
 
 /**
  * Completion source for Python, using Jedi.
@@ -36,10 +37,12 @@ export const pythonCompletionSource: CompletionSource = async (
     cellId: cellId,
   });
   if (!result) {
+    context.view?.dispatch({ effects: setSignatureHintEffect.of(null) });
     return null;
   }
 
-  // If it is a tooltip, show it as a Tooltip instead of a completion
+  // If it is a tooltip (e.g. a signature after `(` or `,`), show it as a
+  // Tooltip instead of a completion.
   const tooltip = Autocompleter.asHoverTooltip({
     position: context.pos,
     message: result,
@@ -50,6 +53,14 @@ export const pythonCompletionSource: CompletionSource = async (
       documentation: tooltip.html ?? null,
     });
   }
+  // Surface the signature as a floating hint near the cursor (the LSP path has
+  // its own signature help), and clear any stale hint when we instead have a
+  // real completion list.
+  context.view?.dispatch({
+    effects: setSignatureHintEffect.of(
+      tooltip ? asSignatureHint(tooltip) : null,
+    ),
+  });
   if (tooltip) {
     return null;
   }

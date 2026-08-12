@@ -6,6 +6,7 @@ import type { AiCompletionCell } from "../ai/state";
 import type { CellId } from "../cells/ids";
 import type { MarimoError } from "../kernel/messages";
 import { wrapInFunction } from "./utils";
+import { store } from "../state/jotai";
 
 interface AIFix {
   setAiCompletionCell: (opts: AiCompletionCell) => void;
@@ -84,7 +85,7 @@ export function getAutoFixes(
         description: "Fix the SQL statement",
         fixType: "ai",
         onFix: async (ctx) => {
-          const datasourceContext = getDatasourceContext(ctx.cellId);
+          const datasourceContext = getDatasourceContext(ctx.cellId, store);
           let initialPrompt = `Fix the SQL statement: ${error.msg}.`;
           if (datasourceContext) {
             initialPrompt += `\nDatabase schema: ${datasourceContext}`;

@@ -1,14 +1,18 @@
 @reference "../globals.css";
 
 .light .cm-selectionBackground {
-  /* This is the background for selected text when focused,
-  but we want to use it when not in focus either because we
-  will often lose focus during find/replace or in another editor */
-  background-color: #d7d4f0 !important;
+  /* Keep drawn selections visible when focus moves to find/replace or another editor. */
+  background-color: var(
+    --cm-selection-background,
+    var(--cm-selection-background-light)
+  ) !important;
 }
 
 .dark .cm-selectionBackground {
-  background-color: #1177cc80 !important;
+  background-color: var(
+    --cm-selection-background,
+    var(--cm-selection-background-dark)
+  ) !important;
 }
 
 .cm-focused.cm-focused {
@@ -90,8 +94,22 @@
     @apply bg-muted border border-border rounded-md px-1;
   }
 
-  .cm-diagnosticText > div {
-    display: inline-flex;
+  /* The message, the docs link, and related info are siblings; stack them. */
+  .cm-lsp-diagnostic-message {
+    @apply flex flex-col items-start gap-1;
+
+    /* Rendered markdown, so the `pre-wrap` on `.cm-diagnostic` would only turn
+       the whitespace between block tags into blank lines. */
+    white-space: normal;
+  }
+
+  .cm-diagnostic-code-link {
+    @apply text-xs;
+  }
+
+  /* The docs link already reads `source(code)`; don't repeat it below. */
+  .cm-diagnostic:has(.cm-diagnostic-code-link) .cm-diagnosticSource {
+    @apply hidden;
   }
 }
 
@@ -111,7 +129,7 @@
 /* -- Codeium -- */
 
 .cm-codeium-cycle {
-  font-size: 9px;
+  font-size: 0.5625rem;
   background-color: var(--sky-3);
   padding: 2px;
   border-radius: 2px;
@@ -119,7 +137,7 @@
 }
 
 .cm-codeium-cycle-key {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-family: monospace;
   display: inline-block;
   padding: 2px;
@@ -137,4 +155,18 @@
   font-family: monospace;
   display: inline-block;
   padding: 2px;
+}
+
+/* Rename symbol popup (F2). The upstream popup hardcodes white inline styles;
+  override with theme tokens. */
+.cm-rename-popup {
+  background: var(--popover) !important;
+  border-color: var(--border) !important;
+  color: var(--popover-foreground) !important;
+}
+
+.cm-rename-popup input {
+  background: var(--background) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
 }

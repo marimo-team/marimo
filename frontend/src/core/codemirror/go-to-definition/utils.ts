@@ -2,14 +2,34 @@
 
 import { closeCompletion } from "@codemirror/autocomplete";
 import type { EditorState } from "@codemirror/state";
-import { closeHoverTooltips, type EditorView } from "@codemirror/view";
+import {
+  closeHoverTooltips,
+  type EditorView,
+  type KeyBinding,
+  keymap,
+} from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
+import { hotkeysAtom, platformAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
 import { getPositionAtWordBounds } from "../completion/hints";
 import { goToLine, goToVariableDefinition } from "./commands";
+
+function keymapBindingMatchesHotkey(
+  binding: KeyBinding,
+  hotkey: string,
+): boolean {
+  const platform = store.get(platformAtom);
+  const bindingKey =
+    platform === "mac"
+      ? (binding.mac ?? binding.key)
+      : platform === "windows"
+        ? (binding.win ?? binding.key)
+        : (binding.linux ?? binding.key);
+  return bindingKey === hotkey;
+}
 
 /**
  * Get the word under the cursor.
@@ -66,6 +86,34 @@ export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
   view.dispatch({ effects: closeHoverTooltips });
 
   return goToDefinition(view, word, position);
+}
+
+/**
+ * Invoke the editor's go-to-definition keymap handlers for the configured
+ * hotkey. Matches CodeMirror key strings directly (including customized
+ * shortcuts like `Ctrl-F12`) instead of synthesizing keyboard events.
+ */
+export function requestLspGoToDefinition(
+  view: EditorView,
+  hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
+): boolean {
+  for (const binding of view.state.facet(keymap).flat()) {
+    if (keymapBindingMatchesHotkey(binding, hotkey) && binding.run?.(view)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Go to the definition under the cursor, falling back to the language server
+ * when marimo cannot resolve the symbol (e.g. external library code).
+ */
+export function goToDefinitionWithLspFallback(view: EditorView): boolean {
+  if (goToDefinitionAtCursorPosition(view)) {
+    return true;
+  }
+  return requestLspGoToDefinition(view);
 }
 
 /**

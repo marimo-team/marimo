@@ -11,6 +11,7 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownFlavorName,
     MarkdownImportDialect,
 )
+from marimo._convert.markdown.flavor.mdx import MdxMarkdownFlavor
 from marimo._convert.markdown.flavor.mystmd import (
     MystmdMarkdownFlavor,
     _MystmdMarkdownImportDialect,
@@ -24,6 +25,7 @@ if TYPE_CHECKING:
 _PYMDOWN_MARKDOWN = PymdownMarkdownFlavor()
 _QMD_MARKDOWN = QmdMarkdownFlavor()
 _MYSTMD_MARKDOWN = MystmdMarkdownFlavor()
+_MDX_MARKDOWN = MdxMarkdownFlavor()
 _MYSTMD_MARKDOWN_IMPORT = _MystmdMarkdownImportDialect()
 _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
     MappingProxyType(
@@ -31,6 +33,7 @@ _MARKDOWN_FLAVORS: Mapping[MarkdownFlavorName, MarkdownFlavor] = (
             _PYMDOWN_MARKDOWN.name: _PYMDOWN_MARKDOWN,
             _QMD_MARKDOWN.name: _QMD_MARKDOWN,
             _MYSTMD_MARKDOWN.name: _MYSTMD_MARKDOWN,
+            _MDX_MARKDOWN.name: _MDX_MARKDOWN,
         }
     )
 )
@@ -39,7 +42,13 @@ _MARKDOWN_IMPORT_DIALECTS: Mapping[
 ] = MappingProxyType({_MYSTMD_MARKDOWN_IMPORT.name: _MYSTMD_MARKDOWN_IMPORT})
 # Filename inference handles target-specific markdown extensions.
 _MARKDOWN_FLAVORS_BY_EXTENSION: Mapping[str, MarkdownFlavor] = (
-    MappingProxyType({".myst.md": _MYSTMD_MARKDOWN, ".qmd": _QMD_MARKDOWN})
+    MappingProxyType(
+        {
+            ".myst.md": _MYSTMD_MARKDOWN,
+            ".qmd": _QMD_MARKDOWN,
+            ".mdx": _MDX_MARKDOWN,
+        }
+    )
 )
 # Download and auto-export filenames use the selected flavor's suffix.
 _MARKDOWN_OUTPUT_EXTENSIONS: Mapping[MarkdownFlavorName, str] = (
@@ -48,6 +57,7 @@ _MARKDOWN_OUTPUT_EXTENSIONS: Mapping[MarkdownFlavorName, str] = (
             "pymdown": "md",
             "qmd": "qmd",
             "mystmd": "myst.md",
+            "mdx": "mdx",
         }
     )
 )
@@ -56,6 +66,7 @@ _MARKDOWN_FILENAME_SUFFIXES = (
     ".myst.md",
     ".markdown",
     ".qmd",
+    ".mdx",
     ".md",
 )
 
@@ -103,7 +114,12 @@ def _markdown_output_extension(
     flavor: MarkdownFlavor | MarkdownFlavorName,
 ) -> str:
     flavor_name = flavor.name if isinstance(flavor, MarkdownFlavor) else flavor
-    return _MARKDOWN_OUTPUT_EXTENSIONS[flavor_name]
+    try:
+        return _MARKDOWN_OUTPUT_EXTENSIONS[flavor_name]
+    except KeyError as error:
+        raise ValueError(
+            f"Unsupported markdown flavor: {flavor_name!r}"
+        ) from error
 
 
 def markdown_output_filename(

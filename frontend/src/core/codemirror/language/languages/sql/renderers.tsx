@@ -13,7 +13,7 @@ import {
   TableIcon,
   ViewIcon,
 } from "@/components/databases/namespace-icons";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
+import { DATA_TYPE_ICON, resolveDataType } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
 import {
   type ConnectionName,
@@ -52,7 +52,7 @@ const SOURCE_TYPE_COLORS = {
   catalog: "bg-(--purple-4) text-(--purple-11)",
 } as const;
 
-const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
+export const CONTAINER_STYLES = "p-3 min-w-[250px] flex flex-col divide-y";
 
 const columnsText = new PluralWord("column", "columns");
 const rowsText = new PluralWord("row", "rows");
@@ -61,7 +61,7 @@ const tablesText = new PluralWord("table", "tables");
 const databasesText = new PluralWord("database", "databases");
 
 // Helper components and functions
-const SectionHeader: React.FC<{
+export const SectionHeader: React.FC<{
   icon: React.ReactNode;
   title: string;
   badge?: React.ReactNode;
@@ -73,7 +73,7 @@ const SectionHeader: React.FC<{
   </div>
 );
 
-const MetadataRow: React.FC<{
+export const MetadataRow: React.FC<{
   label: string;
   value: React.ReactNode;
 }> = ({ label, value }) => (
@@ -149,7 +149,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
   );
 
   const columnItems = table.columns.map((column) => {
-    const TypeIcon = DATA_TYPE_ICON[column.type];
+    const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
     return (
       <div
         key={column.name}
@@ -288,7 +288,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
 };
 
 export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
-  const TypeIcon = DATA_TYPE_ICON[column.type];
+  const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
 
   const typeBadge = (
     <Badge

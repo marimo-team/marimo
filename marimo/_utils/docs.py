@@ -3,16 +3,42 @@ from __future__ import annotations
 
 import re
 from textwrap import dedent
+from typing import TYPE_CHECKING
 
 from marimo._runtime.patches import patch_jedi_parameter_completion
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
 
-def google_docstring_to_markdown(docstring: str) -> str:
+
+def _fill_missing_param_types(
+    table: list[tuple[str, str, str]],
+    param_types: Mapping[str, str] | None,
+) -> None:
+    """Fill empty type cells from signature annotations."""
+    if not param_types:
+        return
+    for index, (name, arg_type, description) in enumerate(table):
+        if arg_type:
+            continue
+        # Varargs rows are stored as `*args`/`**kwargs`, but signatures report
+        # them as `args`/`kwargs`, so strip leading stars before matching.
+        lookup = name.lstrip("*")
+        if lookup in param_types:
+            table[index] = (name, param_types[lookup], description)
+
+
+def google_docstring_to_markdown(
+    docstring: str,
+    param_types: Mapping[str, str] | None = None,
+) -> str:
     """
     Converts a Google-style docstring to a rough Markdown format.
 
     Args:
         docstring (str): The raw Google-style docstring.
+        param_types (Mapping[str, str] | None): Optional parameter types from
+            the function signature, used when the docstring omits inline types.
 
     Returns:
         str: A Markdown string that can be consumed by our doc-to-HTML converter.
@@ -43,20 +69,13 @@ def google_docstring_to_markdown(docstring: str) -> str:
     def _handle_arg_or_attribute(
         table: list[tuple[str, str, str]], stripped: str
     ) -> None:
-        # Parse standard parameters: "arg_name (arg_type): description" or "arg_name: description"
-        # This handles both typed and untyped parameters, with or without description
-        match = re.match(r"^(\w+)(?:\s*\(([^)]+)\))?:\s*(.*)", stripped)
+        # Parse parameters, including varargs: "var_name", "*var_name", or "**var_name",
+        # each optionally "(type)" and optionally ": description". This handles
+        # typed and untyped params, with or without a description.
+        match = re.match(r"^(\*{0,2}\w+)(?:\s*\(([^)]+)\))?:\s*(.*)", stripped)
         if match:
             arg_name, arg_type, description = match.groups()
             table.append((arg_name, arg_type or "", description.strip()))
-            return
-
-        # Parse special parameters: "*args: description" or "**kwargs: description"
-        if stripped.startswith("*args:"):
-            table.append(("*args", "", stripped[6:].strip()))
-            return
-        if stripped.startswith("**kwargs:"):
-            table.append(("**kwargs", "", stripped[9:].strip()))
             return
 
         # Handle continuation lines
@@ -189,6 +208,8 @@ def google_docstring_to_markdown(docstring: str) -> str:
 
         # Otherwise, treat it as summary or normal text
         parsed_lines.append(stripped)
+
+    _fill_missing_param_types(arg_table, param_types)
 
     # Build final output
     output: list[str] = []

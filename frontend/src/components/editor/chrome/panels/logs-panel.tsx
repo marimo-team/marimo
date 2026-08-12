@@ -4,7 +4,11 @@ import { FileTextIcon } from "lucide-react";
 import React from "react";
 import { ClearButton } from "@/components/buttons/clear-button";
 import { useCellActions, useCellLogs } from "@/core/cells/cells";
-import { type CellLog, formatLogTimestamp } from "@/core/cells/logs";
+import {
+  type CellLog,
+  formatLogTimestamp,
+  logSourceLabel,
+} from "@/core/cells/logs";
 import { cn } from "@/utils/cn";
 import { CellLink } from "../../links/cell-link";
 import { PanelEmptyState } from "./empty-state";
@@ -84,7 +88,13 @@ function formatLog(log: CellLog) {
       </span>
       <span className={cn("shrink-0", color)}>{level}</span>
       <span className="shrink-0 text-(--gray-10)">
-        (<CellLink cellId={log.cellId} />)
+        (
+        {log.source.type === "cell" ? (
+          <CellLink cellId={log.source.cellId} />
+        ) : (
+          logSourceLabel(log.source)
+        )}
+        )
       </span>
       {log.message}
     </>

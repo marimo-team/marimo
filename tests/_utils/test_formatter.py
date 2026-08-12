@@ -5,7 +5,9 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from inline_snapshot import snapshot
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.formatter import (
     BlackFormatter,
     CellCodes,
@@ -15,6 +17,8 @@ from marimo._utils.formatter import (
     RuffFormatter,
     ruff,
 )
+
+HAS_RUFF = DependencyManager.ruff.has() or DependencyManager.which("ruff")
 
 
 class TestFormatter:
@@ -236,6 +240,27 @@ class TestRuffFormatter:
         result = await formatter.format({"cell1": cell_code})
 
         assert result == {"cell1": cell_code}
+
+    @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+    async def test_ruff_formatter_preserves_comments(self) -> None:
+        """Regression test for #10054/#10057: comments must survive the real
+        wrap -> ruff -> unwrap round-trip. Comments are not AST nodes, so a
+        leading comment sits before the first body statement's lineno and a
+        trailing comment sits after the last statement's end_lineno; both were
+        previously dropped."""
+        cell_code = "# leading comment\nx=1\ny = 2  # inline comment\n# interior comment\nz = 3  # last-line comment\n# trailing comment"
+
+        result = await RuffFormatter(line_length=88).format({"c": cell_code})
+
+        assert result["c"] == snapshot(
+            """\
+# leading comment
+x = 1
+y = 2  # inline comment
+# interior comment
+z = 3  # last-line comment
+# trailing comment"""
+        )
 
     @patch("marimo._utils.formatter.ruff")
     async def test_ruff_formatter_comment_only_cell(

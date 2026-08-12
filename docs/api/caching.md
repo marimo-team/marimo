@@ -30,7 +30,7 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 import marimo as mo
 
 @mo.persistent_cache
-def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray
+def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.ndarray:
     ...
 ```
 
@@ -105,6 +105,46 @@ code will be skipped and your variables will be loaded into memory. The cache
 key for the context manager is computed in the same way as it is computed for
 decorated functions.
 
+## Automatic cell caching
+
+`mo.cache` and `mo.persistent_cache` are opt-in per function or code block. marimo
+also has a notebook-wide mechanism that automatically attempts to cache
+**every** executed cell, not just the ones you have explicitly decorated.
+
+Enable it with:
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+cache_cells = true
+```
+
+!!! tip "Configuring for your project"
+    Set the above snippet in your notebook's `pyproject.toml` as shown above,
+    or directly in your notebooks' PEP 723 metadata.
+
+With `cache_cells` enabled, marimo attempts to save and restore every cell's
+state on notebook restart. On a cache hit, marimo skips re-running the cell and
+hydrates its variables from a stored stub instead. If a stub cannot be hydrated
+(for example, its value is not hashable or serializable), marimo invalidates
+the cache for that cell and its producing ancestors, then re-runs them live.
+You do not need to clear anything manually.
+
+!!! warning "Experimental"
+    UI elements defined by a cached cell are not currently restored from
+    cache on a cache hit, which forces a live re-run of that cell. Smarter
+    caching (skipping cells where caching itself is slow) and
+    surfacing more information about cache hits and misses in the UI are
+    planned but not yet implemented.
+
+Cached cell execution is also what powers [cached WASM
+exports](../guides/exporting/webassembly_html.md#exporting-with-cached-execution),
+which let you publish notebooks whose expensive or browser-incompatible cells
+were computed elsewhere beforehand.
+
+!!! tip "Further reading"
+    For more on the design of marimo's caching, see our SciPy paper
+    (currently under peer review):
+    [github.com/scipy-conference/scipy_proceedings/pull/1262](https://github.com/scipy-conference/scipy_proceedings/pull/1262)
 
 ## Cache key
 

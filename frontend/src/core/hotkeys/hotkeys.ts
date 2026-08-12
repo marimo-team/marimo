@@ -256,13 +256,11 @@ const DEFAULT_HOT_KEY = {
     name: "Copy line(s) up",
     group: "Editing",
     key: "Alt-Shift-ArrowUp",
-    editable: false,
   },
   "cell.copyLineDown": {
     name: "Copy line(s) down",
     group: "Editing",
     key: "Alt-Shift-ArrowDown",
-    editable: false,
   },
 
   // Markdown
@@ -395,11 +393,13 @@ const DEFAULT_HOT_KEY = {
     name: "Collapse all sections",
     group: "Editing",
     key: "Mod-Shift-\\",
+    additionalKeywords: ["fold", "headers"],
   },
   "global.expandAllSections": {
     name: "Expand all sections",
     group: "Editing",
     key: "Mod-Shift-/",
+    additionalKeywords: ["unfold", "headers"],
   },
   "global.toggleMinimap": {
     name: "Toggle Minimap",

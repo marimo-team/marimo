@@ -175,7 +175,17 @@ export function generateColumns<T>({
 
   const columnKeys: string[] = [
     ...rowHeadersSet,
-    ...fieldTypes.map(([columnName]) => columnName),
+    ...fieldTypes
+      .filter(([columnName]) => {
+        if (rowHeadersSet.has(columnName)) {
+          Logger.warn(
+            `Skipping field type for row header column ${columnName}`,
+          );
+          return false;
+        }
+        return true;
+      })
+      .map(([columnName]) => columnName),
   ];
 
   // Remove the index column if it exists

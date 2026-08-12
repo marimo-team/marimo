@@ -59,6 +59,7 @@ class Scheduler(Protocol):
         self, cell_ids: Iterable[CellId_t] | None = ...
     ) -> Iterator[Iterable[CellId_t]]: ...
     def requeue(self, cell_ids: Iterable[CellId_t]) -> None: ...
+    def requeue_for_rerun(self, cells: set[CellId_t]) -> None: ...
 
     def start_task(
         self,
@@ -116,6 +117,23 @@ class SequentialScheduler:
         """Replace the pending queue with `cell_ids`."""
         self._cells_to_run.clear()
         self._cells_to_run.extend(cell_ids)
+
+    def requeue_for_rerun(self, cells: set[CellId_t]) -> None:
+        """Reschedules by putting `cells` back at the head of the queue.
+
+        Un-cancels each cell and prepends them in **topological order**
+        so the next `batch()` yields producers first.
+        """
+        ordered = dataflow.topological_sort(self._graph, cells)
+        # appendleft reverses, so iterate back-to-front to land the
+        # topologically-first cell at the head of the queue.
+        for cid in reversed(ordered):
+            self._cancelled.discard(cid)
+            # remove() is a no-op-safe O(n) scan. This also prevents the cell
+            # appearing twice in the queue.
+            if cid in self._cells_to_run:
+                self._cells_to_run.remove(cid)
+            self._cells_to_run.appendleft(cid)
 
     def cancel(self, cell_id: CellId_t) -> None:
         """Mark a cell and its descendants as cancelled."""

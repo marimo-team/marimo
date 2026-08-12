@@ -41,10 +41,15 @@ export const MockRequestClient = {
       previewSQLTableList: vi.fn().mockResolvedValue({ tables: [] }),
       previewSQLSchemaList: vi.fn().mockResolvedValue({ schemas: [] }),
       previewDataSourceConnection: vi.fn().mockResolvedValue({}),
+      discoverDataSources: vi.fn().mockResolvedValue({}),
       validateSQL: vi.fn().mockResolvedValue({}),
       openFile: vi.fn().mockResolvedValue({}),
       getUsageStats: vi.fn().mockResolvedValue({}),
+      getEnvironmentInfo: vi
+        .fn()
+        .mockRejectedValue(new Error("Environment information unavailable")),
       sendPdb: vi.fn().mockResolvedValue({}),
+      sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
       sendSearchFiles: vi
         .fn()
@@ -60,10 +65,66 @@ export const MockRequestClient = {
       getWorkspaceFiles: vi.fn().mockResolvedValue({ files: [] }),
       getRunningNotebooks: vi.fn().mockResolvedValue({ files: [] }),
       shutdownSession: vi.fn().mockResolvedValue({}),
-      exportAsHTML: vi.fn().mockResolvedValue({ html: "" }),
-      exportAsIPYNB: vi.fn().mockResolvedValue(""),
-      exportAsMarkdown: vi.fn().mockResolvedValue({ markdown: "" }),
-      exportAsPDF: vi.fn().mockResolvedValue(new Blob()),
+      getExportAvailability: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [
+          {
+            format: "html",
+            dependenciesAvailable: true,
+            missingPackages: [],
+            missingSetup: [],
+          },
+          {
+            format: "markdown",
+            dependenciesAvailable: true,
+            missingPackages: [],
+            missingSetup: [],
+          },
+          {
+            format: "ipynb",
+            dependenciesAvailable: true,
+            missingPackages: [],
+            missingSetup: [],
+          },
+          {
+            format: "pdf",
+            dependenciesAvailable: true,
+            missingPackages: [],
+            missingSetup: [],
+          },
+          {
+            format: "script",
+            dependenciesAvailable: true,
+            missingPackages: [],
+            missingSetup: [],
+          },
+        ],
+      }),
+      exportAsHTML: vi.fn().mockResolvedValue({
+        contents: "",
+        filename: "notebook.html",
+        mediaType: "text/html; charset=utf-8",
+      }),
+      exportAsIPYNB: vi.fn().mockResolvedValue({
+        contents: "",
+        filename: "notebook.ipynb",
+        mediaType: "text/plain; charset=utf-8",
+      }),
+      exportAsMarkdown: vi.fn().mockResolvedValue({
+        contents: "",
+        filename: "notebook.md",
+        mediaType: "text/plain; charset=utf-8",
+      }),
+      exportAsScript: vi.fn().mockResolvedValue({
+        contents: "",
+        filename: "notebook.script.py",
+        mediaType: "text/plain; charset=utf-8",
+      }),
+      exportAsPDF: vi.fn().mockResolvedValue({
+        contents: new Blob(),
+        filename: "notebook.pdf",
+        mediaType: "application/pdf",
+      }),
       autoExportAsHTML: vi.fn().mockResolvedValue({}),
       autoExportAsMarkdown: vi.fn().mockResolvedValue({}),
       autoExportAsIPYNB: vi.fn().mockResolvedValue({}),

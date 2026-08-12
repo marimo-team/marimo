@@ -54,6 +54,20 @@ describe("ViewerBanner", () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  it("pins the banner without reserving layout space", () => {
+    const store = createStore();
+    store.set(kioskModeAtom, true);
+    render(
+      <Provider store={store}>
+        <TooltipProvider>
+          <ViewerBanner />
+        </TooltipProvider>
+      </Provider>,
+    );
+    const wrapper = screen.getByTestId("takeover-button").closest("div.sticky");
+    expect(wrapper).toHaveClass("sticky", "top-2", "h-0");
+  });
+
   it("renders nothing in present mode", () => {
     const store = createStore();
     store.set(kioskModeAtom, true);
