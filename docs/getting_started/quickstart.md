@@ -180,3 +180,5 @@ plugin](https://plugins.jetbrains.com/plugin/32416-marimo), available on the
 JetBrains Marketplace, brings the full marimo editor inside PyCharm, letting you open, edit, and
 run notebooks without leaving your IDE.
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/J4yD_W8xAL0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
