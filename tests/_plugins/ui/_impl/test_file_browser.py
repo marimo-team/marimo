@@ -12,9 +12,32 @@ from marimo._plugins.ui._impl.file_browser import (
     ListDirectoryArgs,
     ListDirectoryResponse,
     _normalize_selection_mode,
+    _normalize_values,
     file_browser,
 )
 from marimo._utils.paths import normalize_path
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, ()),
+        ("file.txt", ("file.txt",)),
+        (Path("file.txt"), (Path("file.txt"),)),
+        (["first.txt", "second.txt"], ["first.txt", "second.txt"]),
+        (("first.txt", "second.txt"), ("first.txt", "second.txt")),
+    ],
+)
+def test_normalize_values(
+    value: str | Path | list[str] | tuple[str, ...] | None,
+    expected: list[str | Path] | tuple[str | Path, ...],
+) -> None:
+    assert _normalize_values(value, multiple=True) == expected
+
+
+def test_normalize_values_rejects_multiple_values() -> None:
+    with pytest.raises(ValueError, match="multiple=False"):
+        _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
 def test_file_browser_init(tmp_path: Path) -> None:
@@ -52,6 +75,148 @@ def test_file_browser_default_value(tmp_path: Path) -> None:
     assert [file.name for file in fb.value] == ["first.txt", "second.txt"]
 
 
+def test_file_browser_infers_initial_path_from_default_value(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+
+    fb = file_browser(value=selected)
+
+    assert fb._initial_path == selected.parent
+
+
+def test_file_browser_infers_initial_path_from_string_value(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+
+    fb = file_browser(value=str(selected))
+
+    assert fb._initial_path == selected.parent
+
+
+def test_file_browser_infers_common_initial_path_from_default_values(
+    tmp_path: Path,
+) -> None:
+    first = tmp_path / "nested" / "first" / "selected.txt"
+    second = tmp_path / "nested" / "second" / "selected.txt"
+    first.parent.mkdir(parents=True)
+    second.parent.mkdir(parents=True)
+    first.touch()
+    second.touch()
+
+    fb = file_browser(value=[first, second])
+
+    assert fb._initial_path == tmp_path / "nested"
+
+
+@pytest.mark.skipif(
+    sys.version_info <= (3, 12), reason="Only works with Python 3.12+"
+)
+def test_file_browser_infers_custom_path_class_and_client(
+    tmp_path: Path,
+) -> None:
+    class CustomPathWithClient(Path):
+        def __init__(self, path: Path, client: Any | None = None) -> None:
+            super().__init__(path)
+            self.client = client
+
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+
+    fb = file_browser(
+        value=CustomPathWithClient(selected, client="custom_client")
+    )
+
+    assert isinstance(fb._initial_path, CustomPathWithClient)
+    assert isinstance(fb.path(), CustomPathWithClient)
+    assert fb.path().client == "custom_client"
+
+
+def test_file_browser_explicit_initial_path_takes_precedence(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+
+    fb = file_browser(initial_path=tmp_path, value=selected)
+
+    assert fb._initial_path == tmp_path
+
+
+def test_restricted_file_browser_does_not_infer_initial_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+
+    fb = file_browser(value=selected, restrict_navigation=True)
+
+    assert fb._initial_path == tmp_path
+
+
+def test_restricted_file_browser_accepts_symlinked_cwd_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_directory = tmp_path / "real"
+    real_directory.mkdir()
+    symlinked_directory = tmp_path / "symlink"
+    try:
+        symlinked_directory.symlink_to(real_directory)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    selected = symlinked_directory / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(symlinked_directory)
+
+    fb = file_browser(value=selected, restrict_navigation=True)
+
+    assert fb.path() == selected
+
+
+def test_restricted_file_browser_rejects_unreachable_default_value(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    selected = tmp_path / "outside.txt"
+    selected.touch()
+    monkeypatch.chdir(root)
+
+    with pytest.raises(
+        ValueError, match="outside the restricted initial path"
+    ):
+        file_browser(value=selected, restrict_navigation=True)
+
+
+def test_restricted_file_browser_accepts_explicit_reachable_default_value(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "nested" / "selected.txt"
+    selected.parent.mkdir()
+    selected.touch()
+
+    fb = file_browser(
+        initial_path=tmp_path,
+        value=selected,
+        restrict_navigation=True,
+    )
+
+    assert fb._initial_path == tmp_path
+
+
 def test_file_browser_single_default_value(tmp_path: Path) -> None:
     selected = tmp_path / "selected.txt"
     selected.touch()
@@ -59,6 +224,13 @@ def test_file_browser_single_default_value(tmp_path: Path) -> None:
     fb = file_browser(initial_path=tmp_path, value=selected, multiple=False)
 
     assert fb.path() == selected
+
+
+def test_file_browser_rejects_missing_default_value(tmp_path: Path) -> None:
+    missing = tmp_path / "missing.txt"
+
+    with pytest.raises(ValueError, match="does not exist"):
+        file_browser(initial_path=tmp_path, value=missing)
 
 
 def test_file_browser_rejects_multiple_default_values(
