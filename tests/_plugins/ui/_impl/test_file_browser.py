@@ -331,6 +331,26 @@ def test_restricted_file_browser_rejects_unreachable_default_value(
         file_browser(value=selected, restrict_navigation=True)
 
 
+def test_run_mode_rejects_default_value_outside_explicit_initial_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    selected = tmp_path / "outside.txt"
+    selected.touch()
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+
+    with pytest.raises(
+        ValueError, match="outside the restricted initial path"
+    ):
+        file_browser(
+            initial_path=root,
+            value=selected,
+            restrict_navigation=False,
+        )
+
+
 def test_restricted_file_browser_accepts_explicit_reachable_default_value(
     tmp_path: Path,
 ) -> None:

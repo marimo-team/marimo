@@ -288,6 +288,10 @@ class file_browser(
 
         values = _normalize_values(value, multiple=multiple)
         initial_path_provided = bool(initial_path)
+        in_run_mode = get_mode() == "run"
+        # In an app (run mode), confine navigation to initial_path even when
+        # restrict_navigation is False. Run mode always restricts.
+        self._restrict_navigation = restrict_navigation or in_run_mode
 
         # Save the Path class and client used to construct paths
         path_source = values[0] if values else initial_path
@@ -348,7 +352,7 @@ class file_browser(
                 f"Initial path {initial_path} is not a directory."
             )
 
-        if restrict_navigation:
+        if self._restrict_navigation:
             for selected_path in selected_paths:
                 if not _is_path_within(selected_path, self._initial_path):
                     raise ValueError(
@@ -368,10 +372,6 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        in_run_mode = get_mode() == "run"
-        # In an app (run mode), confine navigation to initial_path even when
-        # restrict_navigation is False. run mode always restricts.
-        self._restrict_navigation = restrict_navigation or in_run_mode
         if in_run_mode and not initial_path_provided and not selected_paths:
             _warn_default_root_once(self._initial_path)
         self._ignore_empty_dirs = ignore_empty_dirs
