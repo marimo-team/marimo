@@ -119,6 +119,57 @@ def test_edit_mode_restrict_navigation_true_still_restricts(
         fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
 
 
+def test_run_mode_warns_once_for_default_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser()
+    file_browser()
+
+    assert len(calls) == 1
+    assert "initial_path" in calls[0][0]
+
+
+def test_run_mode_no_warn_with_explicit_initial_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(initial_path=tmp_path)
+
+    assert calls == []
+
+
+def test_run_mode_no_warn_with_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    selected = tmp_path / "f.txt"
+    selected.write_text("x")
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(value=str(selected))
+
+    assert calls == []
+
+
 def test_file_browser_init(tmp_path: Path) -> None:
     # Use tmp_path fixture for testing
     fb = file_browser(initial_path=tmp_path)

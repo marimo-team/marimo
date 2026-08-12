@@ -113,6 +113,23 @@ def _is_path_within(path: Path, parent: Path) -> bool:
     return True
 
 
+_WARNED_DEFAULT_ROOT = False
+
+
+def _warn_default_root_once(root: Path) -> None:
+    """Warn one time when a run-mode file browser roots at the default cwd."""
+    global _WARNED_DEFAULT_ROOT
+    if _WARNED_DEFAULT_ROOT:
+        return
+    _WARNED_DEFAULT_ROOT = True
+    LOGGER.warning(
+        "file_browser has no explicit initial_path in an app; navigation is "
+        "limited to the working directory (%s). Pass initial_path to declare "
+        "which directory app viewers can browse.",
+        root,
+    )
+
+
 @dataclass
 class ListDirectoryArgs:
     path: str
@@ -268,6 +285,7 @@ class file_browser(
         self._selection_mode = _normalize_selection_mode(selection_mode)
 
         values = _normalize_values(value, multiple=multiple)
+        initial_path_provided = bool(initial_path)
 
         # Save the Path class and client used to construct paths
         path_source = values[0] if values else initial_path
@@ -352,6 +370,8 @@ class file_browser(
         # In an app (run mode), confine navigation to initial_path even when
         # restrict_navigation is False. run mode always restricts.
         self._restrict_navigation = restrict_navigation or in_run_mode
+        if in_run_mode and not initial_path_provided and not selected_paths:
+            _warn_default_root_once(self._initial_path)
         self._ignore_empty_dirs = ignore_empty_dirs
 
         if filter is None:
