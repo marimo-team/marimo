@@ -11,6 +11,7 @@ from marimo._plugins.ui._impl.file_browser import (
     FileBrowserFileInfo,
     ListDirectoryArgs,
     ListDirectoryResponse,
+    _is_path_within,
     _normalize_selection_mode,
     _normalize_values,
     file_browser,
@@ -38,6 +39,40 @@ def test_normalize_values(
 def test_normalize_values_rejects_multiple_values() -> None:
     with pytest.raises(ValueError, match="multiple=False"):
         _normalize_values(["first.txt", "second.txt"], multiple=False)
+
+
+def test_is_path_within_cases(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    jail = root / "jail"
+    jail.mkdir()
+    inside = jail / "in.txt"
+    inside.write_text("x")
+    sub = jail / "sub"
+    sub.mkdir()
+    outside = root / "out.txt"
+    outside.write_text("y")
+
+    assert _is_path_within(inside, jail) is True
+    assert _is_path_within(sub, jail) is True
+    assert _is_path_within(jail, jail) is True
+    assert _is_path_within(outside, jail) is False
+    assert _is_path_within(root, jail) is False
+    assert _is_path_within(jail / "nope.txt", jail) is False
+
+
+def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    jail = root / "jail"
+    jail.mkdir()
+    outside = root / "secret.txt"
+    outside.write_text("s")
+    escape = jail / "escape.txt"
+    try:
+        escape.symlink_to(outside)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    assert _is_path_within(escape, jail) is False
 
 
 def test_file_browser_init(tmp_path: Path) -> None:
