@@ -179,6 +179,7 @@
     "lint:oxlint": "oxlint --fix",
     "lint:stylelint": "stylelint src/**/*.css --fix",
     "preview": "vite preview",
+    "plugins:generate-schema": "cross-env UPDATE_PLUGIN_SCHEMA=1 vitest run src/plugins/__tests__/plugin-schema.test.ts",
     "dev:quarto": "VITE_MARIMO_ISLANDS=true vite",
     "dev:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts",
     "build:islands": "cross-env VITE_MARIMO_ISLANDS=true vite --config islands/vite.config.mts build",
@@ -233,6 +234,7 @@
     "vite": "npm:rolldown-vite@7.3.1",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.6.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "yaml": "^2.8.3"
   }
 }
