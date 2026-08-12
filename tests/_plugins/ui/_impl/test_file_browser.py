@@ -90,6 +90,49 @@ def test_run_mode_confines_list_directory(
         fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
 
 
+def test_run_mode_confines_cloud_path_navigation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    client = cloudpathlib.S3Client(
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        local_cache_dir=tmp_path,
+    )
+    root = cloudpathlib.S3Path("s3://bucket/root", client=client)
+    nested = root / "nested"
+    selected = root / "selected.txt"
+
+    monkeypatch.setattr(fb_module, "get_mode", lambda: "run")
+    monkeypatch.setattr(
+        client,
+        "_is_file_or_dir",
+        lambda path: "file" if path == selected else "dir",
+    )
+
+    def list_dir(path: Any, recursive: bool = False) -> Any:
+        assert recursive is False
+        return iter(
+            [(nested, True), (selected, False)] if path == root else []
+        )
+
+    monkeypatch.setattr(
+        client,
+        "_list_dir",
+        list_dir,
+    )
+
+    fb = file_browser(initial_path=root)
+
+    response = fb._list_directory(ListDirectoryArgs(path=str(root)))
+    assert [file["name"] for file in response.files] == [
+        "nested",
+        "selected.txt",
+    ]
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(root.parent)))
+
+
 def test_edit_mode_lists_outside_initial_path(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
