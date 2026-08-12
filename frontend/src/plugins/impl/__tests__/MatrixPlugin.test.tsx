@@ -201,9 +201,9 @@ describe("MatrixPlugin", () => {
     };
     // debounce is optional and defaults off
     expect(plugin.validator.parse(payload).debounce).toBe(false);
-    expect(
-      plugin.validator.safeParse({ ...payload, step: null }).success,
-    ).toBe(false);
+    expect(plugin.validator.safeParse({ ...payload, step: null }).success).toBe(
+      false,
+    );
   });
 
   it("displays values in scientific notation", () => {
