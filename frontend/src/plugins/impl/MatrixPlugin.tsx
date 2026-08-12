@@ -259,11 +259,7 @@ const MatrixComponent = ({
   );
 
   const handlePointerDown = useCallback(
-    (
-      e: React.PointerEvent<HTMLTableCellElement>,
-      row: number,
-      col: number,
-    ) => {
+    (e: React.PointerEvent<HTMLTableCellElement>, row: number, col: number) => {
       if (
         disabled[row][col] ||
         editing != null ||
