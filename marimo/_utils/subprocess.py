@@ -14,7 +14,7 @@ from typing import (
 )
 
 from marimo import _loggers
-from marimo._session.queue import ProcessLike
+from marimo._session.queue import ProcessLike, QueueType
 from marimo._utils.platform import is_windows
 
 LOGGER = _loggers.marimo_logger()
@@ -336,6 +336,39 @@ async def _reap_process_unix(process: ProcessLike, pgid: int | None) -> None:
             "Waited for 10s, but process %s has still not quit ...", pid
         )
         return
+
+
+def interrupt_kernel_process(
+    pid: int, win32_interrupt_queue: QueueType[bool] | None
+) -> None:
+    """Interrupt the kernel process with this pid.
+
+    On Windows, interrupts are delivered to the kernel through a queue.
+    Elsewhere, send SIGINT to the process group led by the kernel: the
+    kernel becomes a group leader at startup, so this interrupts both the
+    kernel and any subprocesses spawned by user code, without touching
+    the server. Falls back to signaling the kernel alone if it leads no
+    group.
+    """
+    if is_windows():
+        if win32_interrupt_queue is not None:
+            LOGGER.debug("Queueing interrupt request for kernel.")
+            win32_interrupt_queue.put_nowait(True)
+        return
+    LOGGER.debug("Sending SIGINT to kernel process group")
+    try:
+        os.killpg(pid, signal.SIGINT)
+        return
+    except ProcessLookupError:
+        pass
+    except PermissionError:
+        # The pid no longer names our kernel (e.g. recycled after death);
+        # don't widen the signal to whatever owns it now.
+        return
+    try:
+        os.kill(pid, signal.SIGINT)
+    except (ProcessLookupError, PermissionError):
+        pass
 
 
 def try_kill_process_and_group(process: ProcessLike) -> None:

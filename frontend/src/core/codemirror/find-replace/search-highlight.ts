@@ -140,11 +140,16 @@ export const searchHighlighter = ViewPlugin.fromClass(
 );
 
 export const highlightTheme = EditorView.baseTheme({
-  "&light .cm-searchMatch": { backgroundColor: "#99ff7780" },
-  "&dark .cm-searchMatch": { backgroundColor: "#22bb0070" },
+  "&light .cm-searchMatch": {
+    backgroundColor: "var(--cm-search-match-background-light)",
+  },
+  "&dark .cm-searchMatch": {
+    backgroundColor: "var(--cm-search-match-background-dark)",
+  },
 
   "&light .cm-searchMatch-selected": { backgroundColor: "transparent" },
   "&dark .cm-searchMatch.cm-searchMatch-selected": {
-    backgroundColor: "#6199ff88 !important",
+    backgroundColor:
+      "var(--cm-search-match-selected-background-dark) !important",
   },
 });

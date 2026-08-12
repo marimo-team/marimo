@@ -281,10 +281,10 @@ const codeLensTheme = EditorView.baseTheme({
 /**
  * Inline icons linking datasource/bucket variables and `mo.cache` /
  * `mo.persistent_cache` calls to their panels.
- * Gated behind the `editor_code_lens` feature flag.
+ * Configurable via the `display.code_lens` user config (on by default).
  */
-export function codeLensBundle(cellId: CellId): Extension {
-  if (!getFeatureFlag("editor_code_lens")) {
+export function codeLensBundle(cellId: CellId, enabled = true): Extension {
+  if (!enabled) {
     return [];
   }
   return [

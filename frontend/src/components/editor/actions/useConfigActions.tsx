@@ -142,6 +142,30 @@ export function useConfigActions() {
       },
     },
     {
+      label: "Config > Disable code lens",
+      hidden: !(config.display.code_lens ?? true),
+      handle: () => {
+        handleUserConfig({
+          display: {
+            ...config.display,
+            code_lens: false,
+          },
+        });
+      },
+    },
+    {
+      label: "Config > Enable code lens",
+      hidden: config.display.code_lens ?? true,
+      handle: () => {
+        handleUserConfig({
+          display: {
+            ...config.display,
+            code_lens: true,
+          },
+        });
+      },
+    },
+    {
       label: "Config > Set cell output area: above",
       hidden: config.display.cell_output === "above",
       handle: () => {

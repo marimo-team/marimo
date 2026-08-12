@@ -103,7 +103,7 @@ describe("codeLensBundle", () => {
 
   beforeEach(() => {
     vi.useFakeTimers();
-    mockFlags({ editor_code_lens: true, cache_panel: true });
+    mockFlags({ cache_panel: true });
     seedStore({});
   });
 
@@ -141,9 +141,8 @@ describe("codeLensBundle", () => {
     return [...v.dom.querySelectorAll<HTMLElement>(".mo-code-lens")];
   }
 
-  it("returns an empty extension when the flag is off", () => {
-    mockFlags({ editor_code_lens: false });
-    expect(codeLensBundle(cellId("cell1"))).toEqual([]);
+  it("returns an empty extension when disabled via `display.code_lens`", () => {
+    expect(codeLensBundle(cellId("cell1"), false)).toEqual([]);
   });
 
   it("renders a lens at a dataframe declaration", async () => {
@@ -293,7 +292,7 @@ describe("codeLensBundle", () => {
   );
 
   it("does not render cache lenses when the cache panel is disabled", async () => {
-    mockFlags({ editor_code_lens: true, cache_panel: false });
+    mockFlags({ cache_panel: false });
     const v = await mount("@mo.cache\ndef f():\n    return 1");
 
     expect(lenses(v)).toHaveLength(0);

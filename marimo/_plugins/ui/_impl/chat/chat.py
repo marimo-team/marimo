@@ -40,9 +40,10 @@ DEFAULT_CONFIG = ChatModelConfigDict(
     presence_penalty=0,
 )
 
-# The version of the Vercel AI SDK we use
-AI_SDK_VERSION: Final[Literal[5, 6]] = 6
+# The version of the Vercel AI SDK we use.
+AI_SDK_VERSION: Final[Literal[5, 6, 7]] = 7
 DONE_CHUNK: Final[str] = "[DONE]"
+USER_CANCELLED_ABORT_REASON: Final[str] = "user_cancelled"
 
 
 @dataclass
@@ -414,7 +415,7 @@ class chat(UIElement[dict[str, Any], list[ChatMessage]]):
                 )
 
                 abort_payload = json.loads(  # pyright: ignore[reportAny]
-                    AbortChunk(reason="user_cancelled").encode(
+                    AbortChunk(reason=USER_CANCELLED_ABORT_REASON).encode(
                         sdk_version=AI_SDK_VERSION
                     )
                 )

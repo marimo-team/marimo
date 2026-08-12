@@ -19,9 +19,12 @@ from marimo._runtime.packages.package_manager import (
     LogCallback,
     PackageDescription,
 )
-from marimo._runtime.packages.utils import split_packages
+from marimo._runtime.packages.utils import (
+    popen_package_command,
+    run_package_command,
+    split_packages,
+)
 from marimo._utils.platform import is_pyodide
-from marimo._utils.subprocess import safe_popen
 from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 from marimo._utils.versions import (
@@ -102,8 +105,11 @@ class PypiPackageManager(CanonicalizingPackageManager):
     ) -> list[PackageDescription]:
         if not self.is_manager_installed():
             return []
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+        proc = run_package_command(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
         )
         if proc.returncode != 0:
             return []
@@ -133,7 +139,7 @@ class PipPackageManager(PypiPackageManager):
         # (python -m pip) rather than relying on PATH pip, which could be
         # a different Python's pip than self._python_exe
         try:
-            proc = subprocess.run(
+            proc = run_package_command(
                 [self._python_exe, "-m", "pip", "--version"],
                 capture_output=True,
                 text=True,
@@ -346,13 +352,7 @@ class UvPackageManager(PypiPackageManager):
         LOGGER.info(f"Running command: {cmd}")
 
         # Run the command and capture output
-        proc = safe_popen(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            universal_newlines=False,
-            bufsize=0,
-        )
+        proc = popen_package_command(cmd)
 
         if proc is None:
             return False
@@ -684,7 +684,7 @@ class UvPackageManager(PypiPackageManager):
             tree_cmd += ["--script", filename]
 
         try:
-            result = subprocess.run(
+            result = run_package_command(
                 tree_cmd,
                 capture_output=True,
                 text=True,
@@ -739,8 +739,10 @@ class PoetryPackageManager(PypiPackageManager):
     docs_url = "https://python-poetry.org/docs/"
 
     def _get_poetry_version(self) -> int:
-        proc = subprocess.run(
-            ["poetry", "--version"], capture_output=True, text=True
+        proc = run_package_command(
+            ["poetry", "--version"],
+            capture_output=True,
+            text=True,
         )
         if proc.returncode != 0:
             return -1  # and raise on the impl side
@@ -774,8 +776,11 @@ class PoetryPackageManager(PypiPackageManager):
         if not self.is_manager_installed():
             return []
 
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, encoding="utf-8"
+        proc = run_package_command(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
         )
         if proc.returncode != 0:
             return []
@@ -814,8 +819,10 @@ class PoetryPackageManager(PypiPackageManager):
 
         try:
             cmd = ["poetry", "show", "--without", "dev"]
-            result = subprocess.run(
-                cmd, capture_output=True, text=True, check=False
+            result = run_package_command(
+                cmd,
+                capture_output=True,
+                text=True,
             )
 
             # If Poetry 2.x throws "Group(s) not found"

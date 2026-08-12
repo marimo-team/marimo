@@ -19,9 +19,9 @@ def _(mo):
     mo.md(r"""
     # Editor code lens (stress test)
 
-    Stress-tests `editor_code_lens` with many datasources, SQL engines, storage
-    buckets, and cache sites. Requires `editor_code_lens` (on in dev builds)
-    and `cache_panel` for cache icons.
+    Stress-tests editor code lens with many datasources, SQL engines, storage
+    buckets, and cache sites. Code lens is on by default (`display.code_lens`);
+    cache icons also require the `cache_panel` flag (on in dev builds).
 
     Current notebook scale: 200 tables, 50 engines, 50 buckets, 100 cache sites.
     """)
