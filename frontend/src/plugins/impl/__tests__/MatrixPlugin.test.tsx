@@ -341,6 +341,45 @@ describe("MatrixPlugin", () => {
     ]);
   });
 
+  it("ArrowRight and ArrowLeft step like ArrowUp and ArrowDown", () => {
+    const plugin = new MatrixPlugin();
+    const setValueMock = vi.fn();
+    const props = makeProps({
+      value: [
+        [5, 0],
+        [0, 0],
+      ],
+      setValue: setValueMock,
+    });
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+
+    fireEvent.keyDown(cell, { key: "ArrowRight" });
+    expect(setValueMock).toHaveBeenLastCalledWith([
+      [6, 0],
+      [0, 0],
+    ]);
+
+    // Modifier scaling applies to the horizontal pair too: 5 - 10x step
+    fireEvent.keyDown(cell, { key: "ArrowLeft", shiftKey: true });
+    expect(setValueMock).toHaveBeenLastCalledWith([
+      [-5, 0],
+      [0, 0],
+    ]);
+  });
+
+  it("clicking a cell focuses it for keyboard stepping", () => {
+    const plugin = new MatrixPlugin();
+    const props = makeProps();
+    const { getByTestId } = render(plugin.render(props));
+    const cell = getByTestId("matrix-cell-0-0");
+
+    fireEvent.pointerDown(cell, { clientX: 100, pointerId: 1 });
+    fireEvent.pointerUp(getByTestId("marimo-plugin-matrix"));
+
+    expect(document.activeElement).toBe(cell);
+  });
+
   it("disabled cells ignore pointer and keyboard input", () => {
     const plugin = new MatrixPlugin();
     const setValueMock = vi.fn();

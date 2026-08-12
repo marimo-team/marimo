@@ -259,7 +259,11 @@ const MatrixComponent = ({
   );
 
   const handlePointerDown = useCallback(
-    (e: React.PointerEvent, row: number, col: number) => {
+    (
+      e: React.PointerEvent<HTMLTableCellElement>,
+      row: number,
+      col: number,
+    ) => {
       if (
         disabled[row][col] ||
         editing != null ||
@@ -268,6 +272,9 @@ const MatrixComponent = ({
         return;
       }
       e.preventDefault();
+      // preventDefault also suppresses the browser's click-to-focus, so
+      // focus the cell explicitly to keep keyboard stepping reachable.
+      e.currentTarget.focus();
       e.target.setPointerCapture(e.pointerId);
       dragState.current = {
         row,
@@ -348,10 +355,14 @@ const MatrixComponent = ({
       const cellStep = step[row][col];
       let delta: number;
       switch (e.key) {
+        // Right/left mirror up/down, matching the horizontal drag direction
+        // (and the native slider convention).
         case "ArrowUp":
+        case "ArrowRight":
           delta = cellStep * stepMultiplier(e);
           break;
         case "ArrowDown":
+        case "ArrowLeft":
           delta = -cellStep * stepMultiplier(e);
           break;
         case "PageUp":
