@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Role } from "@marimo-team/llm-info";
-import { useAtom } from "jotai";
+import { useSetAtom } from "jotai";
+import { merge } from "lodash-es";
 import type { QualifiedModelId } from "@/core/ai/ids/ids";
 import { userConfigAtom } from "@/core/config/config";
 import type {
@@ -14,6 +15,14 @@ import { useRequestClient } from "@/core/network/requests";
 
 // Extract only the supported roles from the Role type
 export type SupportedRole = Extract<Role, "chat" | "autocomplete" | "edit">;
+
+interface AiConfigPatch {
+  capabilities?: Partial<
+    NonNullable<NonNullable<UserConfig["ai"]>["capabilities"]>
+  >;
+  mode?: CopilotMode;
+  models?: Partial<NonNullable<NonNullable<UserConfig["ai"]>["models"]>>;
+}
 
 const getModelKeyForRole = (forRole: SupportedRole): AIModelKey | null => {
   switch (forRole) {
@@ -30,12 +39,13 @@ const getModelKeyForRole = (forRole: SupportedRole): AIModelKey | null => {
  * Hook for saving AI config changes
  */
 export const useAIConfigActions = () => {
-  const [userConfig, setUserConfig] = useAtom(userConfigAtom);
+  const setUserConfig = useSetAtom(userConfigAtom);
   const { saveUserConfig } = useRequestClient();
 
-  const saveConfig = async (newConfig: Partial<UserConfig>) => {
+  const saveConfig = async (aiConfig: AiConfigPatch) => {
+    const newConfig = { ai: aiConfig };
     await saveUserConfig({ config: newConfig }).then(() => {
-      setUserConfig((prev) => ({ ...prev, ...newConfig }));
+      setUserConfig((prev) => merge({}, prev, newConfig));
     });
   };
 
@@ -49,28 +59,15 @@ export const useAIConfigActions = () => {
       return;
     }
 
-    const newConfig: Partial<UserConfig> = {
-      ai: {
-        ...userConfig.ai,
-        models: {
-          custom_models: userConfig.ai?.models?.custom_models ?? [],
-          displayed_models: userConfig.ai?.models?.displayed_models ?? [],
-          ...userConfig.ai?.models,
-          [modelKey]: model,
-        },
-      },
+    const newConfig: AiConfigPatch = {
+      models: { [modelKey]: model },
     };
 
     await saveConfig(newConfig);
   };
 
   const saveModeChange = async (newMode: CopilotMode) => {
-    const newConfig: Partial<UserConfig> = {
-      ai: {
-        ...userConfig.ai,
-        mode: newMode,
-      },
-    };
+    const newConfig: AiConfigPatch = { mode: newMode };
 
     await saveConfig(newConfig);
   };
@@ -79,14 +76,8 @@ export const useAIConfigActions = () => {
     capability: AiCapability,
     enabled: boolean,
   ) => {
-    const newConfig: Partial<UserConfig> = {
-      ai: {
-        ...userConfig.ai,
-        capabilities: {
-          ...userConfig.ai?.capabilities,
-          [capability]: enabled ? "on" : "off",
-        },
-      },
+    const newConfig: AiConfigPatch = {
+      capabilities: { [capability]: enabled },
     };
 
     await saveConfig(newConfig);

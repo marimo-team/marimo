@@ -1033,19 +1033,19 @@ class TestGetCapabilities:
     def test_wired_into_for_openai(self):
         config: AiConfig = {
             "open_ai": {"api_key": "test-key"},
-            "capabilities": {"web_search": "on"},
+            "capabilities": {"web_search": True},
         }
         assert AnyProviderConfig.for_openai(config).capabilities == {
-            "web_search": "on"
+            "web_search": True
         }
 
     def test_wired_into_for_anthropic(self):
         config: AiConfig = {
             "anthropic": {"api_key": "test-key"},
-            "capabilities": {"web_search": "on"},
+            "capabilities": {"web_search": True},
         }
         assert AnyProviderConfig.for_anthropic(config).capabilities == {
-            "web_search": "on"
+            "web_search": True
         }
 
     def test_wired_into_for_openrouter_defaults_none(self):

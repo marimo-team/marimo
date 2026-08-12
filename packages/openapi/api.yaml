@@ -61,14 +61,12 @@ components:
     AiCapabilitiesConfig:
       description: "Configuration for optional AI capabilities.\n\n    These are capabilities\
         \ that can be attached to a chat agent\n\n    **Keys.**\n\n    - `web_search`:\
-        \ if `\"on\"`, let the AI assistant search the web when the\n        configured\
+        \ if `True`, let the AI assistant search the web when the\n        configured\
         \ model supports it (natively, or via a local fallback).\n        Defaults\
-        \ to `\"off\"`."
+        \ to `False`."
       properties:
         web_search:
-          enum:
-          - 'off'
-          - 'on'
+          type: boolean
       required: []
       title: AiCapabilitiesConfig
       type: object

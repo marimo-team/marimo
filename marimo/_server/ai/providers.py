@@ -349,7 +349,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         if (
             self.config.capabilities
-            and self.config.capabilities.get("web_search") == "on"
+            and self.config.capabilities.get("web_search") is True
         ):
             if DependencyManager.duckduckgo_search.has():
                 capabilities.append(WebSearch(local="duckduckgo"))

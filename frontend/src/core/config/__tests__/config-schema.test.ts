@@ -47,7 +47,7 @@ test("default UserConfig - empty", () => {
     {
       "ai": {
         "capabilities": {
-          "web_search": "off",
+          "web_search": false,
         },
         "custom_providers": {},
         "enabled": true,
@@ -124,7 +124,7 @@ test("default UserConfig - one level", () => {
     {
       "ai": {
         "capabilities": {
-          "web_search": "off",
+          "web_search": false,
         },
         "custom_providers": {},
         "enabled": true,

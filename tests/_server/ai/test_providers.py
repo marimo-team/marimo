@@ -991,7 +991,7 @@ def test_build_agent_capabilities_from_native_tool_support() -> None:
     config = AnyProviderConfig(
         api_key="test-key",
         base_url="http://test-url",
-        capabilities={"web_search": "on"},
+        capabilities={"web_search": True},
     )
     provider = OpenAIProvider("gpt-4", config)
 
@@ -1023,7 +1023,7 @@ def test_build_agent_capabilities_uses_local_fallbacks() -> None:
     config = AnyProviderConfig(
         api_key="test-key",
         base_url="http://test-url",
-        capabilities={"web_search": "on"},
+        capabilities={"web_search": True},
     )
     provider = OpenAIProvider("gpt-4", config)
 
@@ -1052,8 +1052,8 @@ def test_build_agent_capabilities_uses_local_fallbacks() -> None:
 
 
 @pytest.mark.requires("pydantic_ai")
-def test_build_agent_capabilities_disabled_when_off() -> None:
-    """Provider-adaptive capabilities are disabled when configured off."""
+def test_build_agent_capabilities_disabled_when_false() -> None:
+    """Provider-adaptive capabilities are disabled when configured false."""
     from pydantic_ai.native_tools import (
         WebFetchTool,
         WebSearchTool,
@@ -1063,7 +1063,7 @@ def test_build_agent_capabilities_disabled_when_off() -> None:
     config = AnyProviderConfig(
         api_key="test-key",
         base_url="http://test-url",
-        capabilities={"web_search": "off"},
+        capabilities={"web_search": False},
     )
     provider = OpenAIProvider("gpt-4", config)
 

@@ -17,7 +17,7 @@ import { cn } from "@/utils/cn";
 
 export const CapabilitiesPopover: React.FC = () => {
   const ai = useAtomValue(aiAtom);
-  const webSearchOn = ai?.capabilities?.web_search === "on";
+  const webSearchOn = ai?.capabilities?.web_search ?? false;
   const { saveCapabilityChange } = useAIConfigActions();
 
   return (

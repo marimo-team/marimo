@@ -3654,13 +3654,12 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `web_search`: if `"on"`, let the AI assistant search the web when the
+     *         - `web_search`: if `True`, let the AI assistant search the web when the
      *             configured model supports it (natively, or via a local fallback).
-     *             Defaults to `"off"`.
+     *             Defaults to `False`.
      */
     AiCapabilitiesConfig: {
-      /** @enum {unknown} */
-      web_search?: "off" | "on";
+      web_search?: boolean;
     };
     /** AiCompletionContext */
     AiCompletionContext: {
