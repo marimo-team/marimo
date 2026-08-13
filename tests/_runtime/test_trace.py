@@ -70,9 +70,7 @@ class TestScriptTrace:
         #        ^
         # exact line numbers differ by python version
         if (3, 11) <= sys.version_info < (3, 12):
-            assert (
-                result.split("y / x")[1].split("\n")[1].startswith("        ^")
-            )
+            assert result.split("y / x")[1].split("\n")[1].startswith("    ^")
 
     @staticmethod
     def test_script_trace_with_output() -> None:
