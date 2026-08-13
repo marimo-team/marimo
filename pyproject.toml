@@ -390,7 +390,6 @@ ignore = [
     "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
-    "PYI063", # PEP 484-style positional-only parameter
     "DTZ002", # `datetime.today()` called without tz
     "PLC0205", # Single string `__slots__`
     "PLE0704", # Misplaced bare `raise`
