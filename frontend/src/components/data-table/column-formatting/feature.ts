@@ -214,6 +214,7 @@ export const applyFormat = (
           return value;
       }
     case undefined:
+    case "geometry":
     case "unknown":
       return value;
     default:

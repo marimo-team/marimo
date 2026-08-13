@@ -7,6 +7,7 @@ import {
   CurlyBracesIcon,
   HashIcon,
   type LucideIcon,
+  MapPinIcon,
   ToggleLeftIcon,
   TypeIcon,
 } from "lucide-react";
@@ -27,6 +28,7 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
     number: HashIcon,
     string: TypeIcon,
     integer: HashIcon,
+    geometry: MapPinIcon,
     unknown: CurlyBracesIcon,
   };
 
@@ -56,6 +58,8 @@ export function getDataTypeColor(
       return "bg-(--purple-4)";
     case "string":
       return "bg-(--blue-4)";
+    case "geometry":
+      return "bg-(--cyan-4) dark:bg-(--cyan-5)";
     case "unknown":
       return "bg-(--slate-4) dark:bg-(--slate-6)";
     default:

@@ -384,13 +384,31 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_arrow_ipc(self) -> bytes:
                 import pyarrow as pa
 
+                df = self._original_data
+                geometry_columns = self._geometry_columns
+                if geometry_columns:
+                    df = pd.DataFrame(df.copy())
+                    for col, geometry_info in geometry_columns.items():
+                        if col not in df.columns:
+                            continue
+                        df[col] = pd.Series(
+                            [
+                                format_geometry_cell(
+                                    value, geometry_info.encoding
+                                )
+                                for value in df[col]
+                            ],
+                            index=df.index,
+                            dtype=object,
+                        )
+
                 try:
-                    return _dataframe_to_arrow_ipc(self._original_data)
+                    return _dataframe_to_arrow_ipc(df)
                 except Exception:
                     # Fall back: convert extension-type columns that
                     # PyArrow cannot handle (e.g. pint-pandas) to plain
                     # values so the IPC write can succeed.
-                    df = self._original_data.copy()
+                    df = df.copy()
                     for col in df.columns:
                         try:
                             pa.Array.from_pandas(df[col])

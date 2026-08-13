@@ -390,6 +390,7 @@ export const GlideDataEditor = <T,>({
             // TODO: Handle specific types
             return [column.title, new Date()];
           case "string":
+          case "geometry":
           case "unknown":
             return [column.title, ""];
           default:

@@ -159,6 +159,15 @@ class TestGeoPandasManager:
         assert isinstance(native, gpd.GeoDataFrame)
         assert str(native.crs) == "EPSG:4326"
 
+    def test_edge_frames_load_without_error(self) -> None:
+        for make_frame in (
+            geo.gdf_no_active_geometry,
+            geo.gdf_stale_pointer,
+            geo.gdf_dropped_active,
+        ):
+            manager = get_table_manager(make_frame())
+            assert isinstance(manager.to_json_str(), str)
+
     def test_cells_render_capped_wkt(self) -> None:
         import geopandas as gpd
         from shapely.geometry import LineString
@@ -179,10 +188,39 @@ class TestGeoPandasManager:
         rows = json.loads(manager.to_json_str())
         assert rows[1]["geometry"] is None
 
+    @pytest.mark.requires("pyarrow")
+    def test_arrow_cells_render_wkt_and_preserve_null(self) -> None:
+        from pyarrow import ipc
+
+        manager = get_table_manager(geo.gdf_with_null())
+
+        rows = ipc.open_file(manager.to_arrow_ipc()).read_all().to_pylist()
+        assert rows[0]["geometry"] == "POINT (0 0)"
+        assert rows[1]["geometry"] is None
+
     def test_unique_values_returns_empty(self) -> None:
         manager = get_table_manager(geo.gdf_point_known_crs())
 
         assert manager.get_unique_column_values("geometry") == []
+
+    def test_search_skips_geometry(self) -> None:
+        manager = get_table_manager(geo.gdf_point_known_crs())
+
+        assert manager.search("POINT").get_num_rows() == 0
+
+    def test_top_k_returns_empty(self) -> None:
+        manager = get_table_manager(geo.gdf_point_known_crs())
+
+        assert manager.calculate_top_k_rows("geometry", 10) == []
+
+    def test_stats_counts_only(self) -> None:
+        manager = get_table_manager(geo.gdf_with_null())
+
+        stats = manager.get_stats("geometry")
+        assert stats.total == 2
+        assert stats.nulls == 1
+        assert stats.unique is None
+        assert stats.min is None
 
 
 @pytest.mark.requires("geopandas")

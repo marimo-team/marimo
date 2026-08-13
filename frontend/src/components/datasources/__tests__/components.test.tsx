@@ -12,7 +12,7 @@ describe("ColumnName", () => {
 
     try {
       const unrecognized = render(
-        <ColumnName columnName="geom" dataType={"geometry" as DataType} />,
+        <ColumnName columnName="geom" dataType={"bogus_type" as DataType} />,
       );
       const unknown = render(
         <ColumnName columnName="geom" dataType="unknown" />,
@@ -25,5 +25,18 @@ describe("ColumnName", () => {
     } finally {
       warn.mockRestore();
     }
+  });
+
+  it("renders geometry with a distinct icon", () => {
+    const geometry = render(
+      <ColumnName columnName="geom" dataType="geometry" />,
+    );
+    const unknown = render(<ColumnName columnName="geom" dataType="unknown" />);
+
+    expect(geometry.container.querySelector(".lucide-map-pin")).not.toBeNull();
+    expect(unknown.container.querySelector(".lucide-braces")).not.toBeNull();
+    expect(geometry.container.innerHTML).not.toEqual(
+      unknown.container.innerHTML,
+    );
   });
 });
