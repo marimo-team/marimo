@@ -110,6 +110,7 @@ import {
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import { focusInputAndMoveToEnd } from "@/core/codemirror/utils";
 import ScrollToBottomButton from "./acp/scroll-to-bottom-button";
+import { useChatControllerId } from "./use-chat-controller-id";
 
 // Default mode for the AI
 const DEFAULT_MODE = "manual";
@@ -554,6 +555,8 @@ const ChatPanelBody = () => {
   const { openModal, closeModal } = useImperativeModal();
 
   const activeChatId = activeChat?.id;
+  const { chatControllerId, renewDraftChatId } =
+    useChatControllerId(activeChatId);
   const store = useStore();
 
   const { addStagedCell } = useStagedAICellsActions();
@@ -577,7 +580,7 @@ const ChatPanelBody = () => {
     addToolApprovalResponse,
     id: chatId,
   } = useChat({
-    id: activeChatId,
+    id: chatControllerId,
     throttle: AI_SDK_UI_THROTTLE_MS,
     sendAutomaticallyWhen: ({ messages }) => hasPendingToolCalls(messages),
     messages: activeChat?.messages || [], // initial messages
@@ -816,6 +819,7 @@ const ChatPanelBody = () => {
   );
 
   const handleNewChat = useEvent(() => {
+    renewDraftChatId();
     setActiveChat(null);
     setInput("");
     setNewThreadInput("");
