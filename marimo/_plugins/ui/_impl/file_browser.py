@@ -117,7 +117,12 @@ def _is_path_within(path: Path, parent: Path) -> bool:
             return resolved
 
     try:
-        resolve_existing(path).relative_to(resolve_existing(parent))
+        resolved_path = resolve_existing(path)
+        resolved_parent = resolve_existing(parent)
+        if not is_cloudpath(resolved_path):
+            resolved_path = Path(resolved_path)
+            resolved_parent = Path(resolved_parent)
+        resolved_path.relative_to(resolved_parent)
     except (ValueError, RuntimeError, OSError):
         return False
     return True
