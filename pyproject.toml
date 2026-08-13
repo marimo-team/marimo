@@ -391,9 +391,7 @@ ignore = [
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
-    "PLW0129", # Assert on string literal
     "PLW0642", # Self or cls assignment
-    "PYI006", # Bad `sys.version_info` comparison
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
     "D421", # Property docstring should not start with a verb (preview rule)
