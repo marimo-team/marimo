@@ -13,7 +13,7 @@ import msgspec
 import pytest
 
 from marimo._ast.app_config import _AppConfig
-from marimo._config.config import DEFAULT_CONFIG
+from marimo._config.config import DEFAULT_CONFIG, merge_config
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.types import KernelMessage
 from marimo._pyodide.pyodide_session import (
@@ -47,6 +47,7 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateCellConfigCommand,
     UpdateUIElementCommand,
+    UpdateUserConfigCommand,
     ValidateSQLCommand,
 )
 from marimo._runtime.context.types import teardown_context
@@ -827,19 +828,40 @@ def test_pyodide_bridge_save_app_config(
 def test_pyodide_bridge_save_user_config(
     pyodide_bridge: PyodideBridge,
 ) -> None:
-    """Test saving user config through the bridge."""
+    pyodide_bridge.session._initial_user_config = merge_config(
+        DEFAULT_CONFIG,
+        {
+            "ai": {
+                "open_ai": {"api_key": "configured-key"},
+                "mode": "manual",
+            }
+        },
+    )
     request_json = json.dumps(
         {
             "config": {
-                "completion": {"activate_on_typing": True},
+                "ai": {"models": {"chat_model": "openai/gpt-4o"}},
             }
         }
     )
 
     pyodide_bridge.save_user_config(request_json)
 
-    # Should have put a UpdateUserConfigRequest in the queue
-    assert not pyodide_bridge.session._queue_manager.control_queue.empty()
+    command = pyodide_bridge.session._queue_manager.control_queue.get_nowait()
+    assert isinstance(command, UpdateUserConfigCommand)
+    assert command.config["ai"]["open_ai"]["api_key"] == "configured-key"
+    assert command.config["ai"]["mode"] == "manual"
+    assert command.config["ai"]["models"]["chat_model"] == "openai/gpt-4o"
+
+    pyodide_bridge.save_user_config(
+        json.dumps({"config": {"ai": {"mode": "agent"}}})
+    )
+
+    command = pyodide_bridge.session._queue_manager.control_queue.get_nowait()
+    assert isinstance(command, UpdateUserConfigCommand)
+    assert command.config["ai"]["open_ai"]["api_key"] == "configured-key"
+    assert command.config["ai"]["mode"] == "agent"
+    assert command.config["ai"]["models"]["chat_model"] == "openai/gpt-4o"
 
 
 def test_pyodide_bridge_rename_file(
