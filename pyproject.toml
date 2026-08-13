@@ -356,7 +356,6 @@ ignore = [
     "PT011", # `pytest.raises(ValueError)` is too broad, set the `match` parameter or use a more specific exception
     "E501",  # Line too long, we still trim
     "D415", # First line should end with a period, question mark, or exclamation point
-    "FA102", # Use `from __future__ import annotations`
     "PLR1711", # Useless returns. We use this currently to delimit the end of a cell.
     "ASYNC119", # Yield in context manager in async generator; required for streaming generators (LLM/SSE), no clean refactor
 
@@ -391,7 +390,6 @@ ignore = [
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
-    "PLW0642", # Self or cls assignment
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
     "D421", # Property docstring should not start with a verb (preview rule)
