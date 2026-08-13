@@ -1,12 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import ast
 import inspect
 import sys
 from pdb import Pdb, Restart as pdbRestart
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
+from marimo._ast.compiler import cell_id_from_filename
+from marimo._ast.variables import (
+    if_local_then_mangle,
+    is_local,
+    is_mangled_local,
+)
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
@@ -47,6 +54,36 @@ def try_restart() -> bool:
         return False
 
     return True
+
+
+class _CellLocalMangler(ast.NodeTransformer):
+    """Rewrite a cell's local names to the mangled names they are stored under.
+
+    Only rewrites a name when it doesn't already resolve in the frame and its
+    mangled counterpart does, so genuine globals (e.g. an unaliased `from x
+    import _`, which marimo leaves unmangled) keep shadowing the cell-local.
+    """
+
+    def __init__(self, cell_id: CellId_t, frame: FrameType) -> None:
+        self.cell_id = cell_id
+        self.frame = frame
+        self.mangled = False
+
+    def _defined(self, name: str) -> bool:
+        return name in self.frame.f_locals or name in self.frame.f_globals
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        if (
+            not is_local(node.id)
+            or is_mangled_local(node.id)
+            or self._defined(node.id)
+        ):
+            return node
+        mangled = if_local_then_mangle(node.id, self.cell_id)
+        if self._defined(mangled):
+            node.id = mangled
+            self.mangled = True
+        return node
 
 
 class MarimoPdb(Pdb):
@@ -96,6 +133,52 @@ class MarimoPdb(Pdb):
         if header is not None:
             sys.stdout.write(header)
         return super().set_trace(frame)
+
+    def _mangle_cell_locals(
+        self, source: str, frame: FrameType | None = None
+    ) -> str:
+        """Rewrite cell-local names in debugger input to their real names.
+
+        marimo mangles a cell's underscore-prefixed variables so they stay
+        private to the cell (`_b` is stored as `_cell_<cell_id>_b`), which
+        would otherwise leave the names the user wrote undefined at the
+        debugger prompt. Rewriting them before pdb evaluates the input makes
+        `p _b` work just like `p b`.
+
+        Input that isn't valid Python, or that isn't being evaluated in a
+        cell's frame, is handed to pdb untouched.
+        """
+        if frame is None:
+            frame = getattr(self, "curframe", None)
+        if frame is None:
+            return source
+        cell_id = cell_id_from_filename(frame.f_code.co_filename)
+        if cell_id is None:
+            return source
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return source
+        mangler = _CellLocalMangler(cell_id, frame)
+        mangler.visit(tree)
+        return ast.unparse(tree) if mangler.mangled else source
+
+    def default(self, line: str) -> Any:
+        """Evaluate a statement typed at the prompt, demangling cell locals."""
+        # pdb strips a leading `!` before compiling; strip it here too so that
+        # what's left parses as Python.
+        bang, source = ("!", line[1:]) if line[:1] == "!" else ("", line)
+        return super().default(bang + self._mangle_cell_locals(source))
+
+    def _getval(self, arg: str) -> Any:
+        """Evaluate an expression (`p`, `pp`, ...), demangling cell locals."""
+        return super()._getval(self._mangle_cell_locals(arg))
+
+    def _getval_except(self, arg: str, frame: FrameType | None = None) -> Any:
+        """Evaluate an expression for `display`, demangling cell locals."""
+        return super()._getval_except(
+            self._mangle_cell_locals(arg, frame), frame
+        )
 
     def cmdloop(self, intro: str | None = None) -> None:
         """Override to gracefully handle restarts."""
