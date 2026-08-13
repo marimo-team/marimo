@@ -15,6 +15,10 @@ def add_selection_column(data: T) -> tuple[T, bool]:
     if nw.dependencies.is_into_dataframe(data):
         df = nw.from_native(cast(IntoDataFrame, data), pass_through=False)
         if INDEX_COLUMN_NAME not in df.columns:
+            if df.implementation.is_pandas():
+                native = df.to_native().copy()
+                native.insert(0, INDEX_COLUMN_NAME, range(len(native)))
+                return cast(T, native), True
             return df.with_row_index(name=INDEX_COLUMN_NAME).to_native(), True  # type: ignore[return-value]
         return data, True  # already has a row index
     return data, False

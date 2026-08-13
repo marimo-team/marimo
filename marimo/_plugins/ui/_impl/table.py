@@ -313,6 +313,12 @@ def _filter_valid_columns(
         if isinstance(child, FilterCondition):
             if child.column_id not in column_dtypes:
                 continue
+            if column_dtypes[child.column_id] == "geometry":
+                LOGGER.warning(
+                    "Ignoring filter on geometry column '%s'",
+                    child.column_id,
+                )
+                continue
             category = _DATATYPE_TO_CATEGORY.get(
                 column_dtypes[child.column_id], ""
             )

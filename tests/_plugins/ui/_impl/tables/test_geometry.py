@@ -9,6 +9,10 @@ import pytest
 
 from marimo import _loggers
 from marimo._plugins import ui
+from marimo._plugins.ui._impl.dataframes.transforms.types import (
+    FilterCondition,
+    FilterGroup,
+)
 from marimo._plugins.ui._impl.table import (
     ColumnSummariesArgs,
     SearchTableArgs,
@@ -135,19 +139,43 @@ class TestGeoPandasManager:
 
     def test_transforms_preserve_subclass_and_crs(self) -> None:
         import geopandas as gpd
-        import narwhals.stable.v2 as nw
 
         manager = get_table_manager(geo.gdf_point_known_crs())
-        data = manager.data
         for transformed in (
-            data.filter(nw.col("name") == "a"),
-            data.sort("name"),
-            data.head(1),
-            data.select(["name", "geometry"]),
+            manager.sort_values([SortArgs(by="name", descending=True)]),
+            manager.take(1, 0),
+            manager.select_columns(["name", "geometry"]),
         ):
-            native = transformed.to_native()
+            native = transformed.data.to_native()
             assert isinstance(native, gpd.GeoDataFrame)
             assert str(native.crs) == "EPSG:4326"
+
+    def test_host_filter_preserves_subclass_and_crs(self) -> None:
+        import geopandas as gpd
+
+        table = ui.table(geo.gdf_point_known_crs())
+        filters = FilterGroup(
+            children=(
+                FilterCondition(
+                    column_id="name",
+                    operator="equals",
+                    value="a",
+                ),
+            )
+        )
+
+        response = table._search(
+            SearchTableArgs(
+                page_size=10,
+                page_number=0,
+                filters=filters,
+            )
+        )
+        native = table._searched_manager.data.to_native()
+
+        assert response.total_rows == 1
+        assert isinstance(native, gpd.GeoDataFrame)
+        assert str(native.crs) == "EPSG:4326"
 
     def test_formatting_preserves_subclass_and_crs(self) -> None:
         import geopandas as gpd
@@ -267,6 +295,34 @@ class TestHostGuards:
         assert any(
             record.getMessage()
             == "Ignoring sort on geometry column 'geometry'"
+            for record in records
+        )
+
+    def test_filter_is_ignored(self) -> None:
+        table = ui.table(geo.gdf_point_known_crs(), selection=None)
+        filters = FilterGroup(
+            children=(
+                FilterCondition(
+                    column_id="geometry",
+                    operator="contains",
+                    value="POINT",
+                ),
+            )
+        )
+
+        with _loggers.capture_output() as (_, _, records):
+            response = table._search(
+                SearchTableArgs(
+                    page_size=10,
+                    page_number=0,
+                    filters=filters,
+                )
+            )
+
+        assert response.total_rows == 2
+        assert any(
+            record.getMessage()
+            == "Ignoring filter on geometry column 'geometry'"
             for record in records
         )
 
