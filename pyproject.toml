@@ -392,13 +392,10 @@ ignore = [
     "PLW1509", # `subprocess` `preexec_fn` argument
     "PYI063", # PEP 484-style positional-only parameter
     "DTZ002", # `datetime.today()` called without tz
-    "PLC0205", # Single string `__slots__`
     "PLE0704", # Misplaced bare `raise`
-    "PLR1704", # Redefined argument from local
     "PLW0129", # Assert on string literal
     "PLW0642", # Self or cls assignment
     "PYI006", # Bad `sys.version_info` comparison
-    "SIM113", # `enumerate` for loop
     "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
     "D421", # Property docstring should not start with a verb (preview rule)
