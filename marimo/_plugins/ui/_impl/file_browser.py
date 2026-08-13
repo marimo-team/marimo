@@ -15,7 +15,6 @@ from typing import (
 from marimo import _loggers
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context.utils import get_mode
 from marimo._runtime.functions import Function
 from marimo._utils.files import natural_sort
 from marimo._utils.paths import is_cloudpath, normalize_path
@@ -106,8 +105,19 @@ def _common_parent(paths: Sequence[Path]) -> Path:
 
 def _is_path_within(path: Path, parent: Path) -> bool:
     """Return whether `path` resolves within `parent`."""
+
+    def resolve_existing(candidate: Path) -> Path:
+        try:
+            return candidate.resolve(strict=True)
+        except TypeError:
+            # Some Path subclasses do not accept pathlib's `strict` argument.
+            resolved = candidate.resolve()
+            if not resolved.exists():
+                raise FileNotFoundError(resolved) from None
+            return resolved
+
     try:
-        path.resolve(strict=True).relative_to(parent.resolve())
+        resolve_existing(path).relative_to(resolve_existing(parent))
     except (ValueError, RuntimeError, OSError):
         return False
     return True
@@ -117,15 +127,15 @@ _WARNED_DEFAULT_ROOT = False
 
 
 def _warn_default_root_once(root: Path) -> None:
-    """Warn one time when a run-mode file browser roots at the default cwd."""
+    """Warn once when a restricted file browser uses the default cwd."""
     global _WARNED_DEFAULT_ROOT
     if _WARNED_DEFAULT_ROOT:
         return
     _WARNED_DEFAULT_ROOT = True
     LOGGER.warning(
-        "file_browser has no explicit initial_path in an app; navigation is "
-        "limited to the working directory (%s). Pass initial_path to declare "
-        "which directory app viewers can browse.",
+        "file_browser has no explicit initial_path; navigation is limited to "
+        "the working directory (%s). Pass initial_path to declare which "
+        "directory can be browsed.",
         root,
     )
 
@@ -246,9 +256,9 @@ class file_browser(
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False. In an
-            app served with `marimo run`, navigation is always restricted to the
-            initial path, regardless of this value.
+            navigating any level above the given path. Defaults to True. Setting
+            this to False in an app served with `marimo run` allows app viewers
+            to browse any path readable by the server process.
         value (str | Path | Sequence[str | Path], optional): File or directory
             path, or sequence of paths, selected by default. Defaults to None.
         ignore_empty_dirs (bool, optional): If True, hide directories that contain
@@ -274,7 +284,7 @@ class file_browser(
         selection_mode: Literal["file", "directory", "all"]
         | Sequence[Literal["file", "directory"]] = "file",
         multiple: bool = True,
-        restrict_navigation: bool = False,
+        restrict_navigation: bool = True,
         value: str | Path | Sequence[str | Path] | None = None,
         *,
         filter: str | re.Pattern[str] | Callable[[Path], bool] | None = None,  # noqa: A002
@@ -288,10 +298,7 @@ class file_browser(
 
         values = _normalize_values(value, multiple=multiple)
         initial_path_provided = bool(initial_path)
-        in_run_mode = get_mode() == "run"
-        # In an app (run mode), confine navigation to initial_path even when
-        # restrict_navigation is False. Run mode always restricts.
-        self._restrict_navigation = restrict_navigation or in_run_mode
+        self._restrict_navigation = restrict_navigation
 
         # Save the Path class and client used to construct paths
         path_source = values[0] if values else initial_path
@@ -376,7 +383,7 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        if in_run_mode and uses_default_root:
+        if self._restrict_navigation and uses_default_root:
             _warn_default_root_once(self._initial_path)
         self._ignore_empty_dirs = ignore_empty_dirs
 
