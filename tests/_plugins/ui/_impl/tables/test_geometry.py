@@ -140,7 +140,9 @@ class TestGeoPandasManager:
     def test_transforms_preserve_subclass_and_crs(self) -> None:
         import geopandas as gpd
 
-        manager = get_table_manager(geo.gdf_point_known_crs())
+        frame = geo.gdf_point_known_crs()
+        frame["name"] = frame["name"].astype(object)
+        manager = get_table_manager(frame)
         for transformed in (
             manager.sort_values([SortArgs(by="name", descending=True)]),
             manager.take(1, 0),
@@ -210,19 +212,66 @@ class TestGeoPandasManager:
             str(geometry)[:GEOMETRY_CELL_CAP] + "..."
         )
 
+    def test_mixed_column_names_render_capped_wkt(self) -> None:
+        import geopandas as gpd
+        from shapely.geometry import LineString
+
+        geometry = LineString((index, index) for index in range(100))
+        frame = gpd.GeoDataFrame(
+            {"name": ["a"], 1: gpd.GeoSeries([geometry])},
+            geometry=1,
+        )
+
+        manager = get_table_manager(frame)
+        rows = json.loads(manager.to_json_str())
+
+        assert list(frame.columns) == ["name", 1]
+        assert manager.get_column_names() == ["name", "1"]
+        assert rows[0]["1"] == (str(geometry)[:GEOMETRY_CELL_CAP] + "...")
+
+    def test_json_geometry_formatting_failure_falls_back(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._plugins.ui._impl.tables import pandas_table
+
+        manager = get_table_manager(geo.gdf_point_known_crs())
+
+        def fail_formatting(*_args: Any, **_kwargs: Any) -> None:
+            raise RuntimeError("intentional formatting failure")
+
+        monkeypatch.setattr(
+            pandas_table, "_format_geometry_columns", fail_formatting
+        )
+
+        rows = json.loads(manager.to_json_str())
+
+        assert rows[0] == {"name": "a", "geometry": "POINT (0 0)"}
+
     def test_null_cell_stays_null(self) -> None:
         manager = get_table_manager(geo.gdf_with_null())
 
         rows = json.loads(manager.to_json_str())
         assert rows[1]["geometry"] is None
 
-    @pytest.mark.requires("pyarrow")
+    @pytest.mark.requires("pyarrow", "geopandas")
     def test_arrow_cells_render_wkt_and_preserve_null(self) -> None:
         from pyarrow import ipc
 
         manager = get_table_manager(geo.gdf_with_null())
 
         rows = ipc.open_file(manager.to_arrow_ipc()).read_all().to_pylist()
+        assert rows[0]["geometry"] == "POINT (0 0)"
+        assert rows[1]["geometry"] is None
+
+    @pytest.mark.requires("pyarrow", "geopandas")
+    def test_arrow_detection_miss_degrades_to_strings(self) -> None:
+        from pyarrow import ipc
+
+        manager = get_table_manager(geo.gdf_with_null())
+        manager.__dict__["_geometry_columns"] = {}
+
+        rows = ipc.open_file(manager.to_arrow_ipc()).read_all().to_pylist()
+
         assert rows[0]["geometry"] == "POINT (0 0)"
         assert rows[1]["geometry"] is None
 

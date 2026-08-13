@@ -18,7 +18,7 @@ from marimo._plugins.ui._impl.tables.format import (
     format_value,
 )
 from marimo._plugins.ui._impl.tables.geometry import (
-    GeometryEncoding,
+    GeometryColumnInfo,
     format_geometry_cell,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
@@ -49,6 +49,25 @@ def _dataframe_to_arrow_ipc(df: pd.DataFrame) -> bytes:
     with pa.ipc.new_file(out, table.schema) as writer:
         writer.write_table(table)
     return out.getvalue()
+
+
+def _format_geometry_columns(
+    df: pd.DataFrame,
+    geometry_columns: dict[str, GeometryColumnInfo],
+) -> None:
+    import pandas as pd
+
+    for col, geometry_info in geometry_columns.items():
+        if col not in df.columns:
+            continue
+        df[col] = pd.Series(
+            [
+                format_geometry_cell(value, geometry_info.encoding)
+                for value in df[col]
+            ],
+            index=df.index,
+            dtype=object,
+        )
 
 
 def _trivial_range_index(index: pd.Index) -> bool:
@@ -214,32 +233,27 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if not mixed_cols:
                     return super().sort_values(by)
 
-                df = self.data
+                df = self._original_data.copy()
                 temp_cols: list[str] = []
                 sort_cols: list[str] = []
                 for col in columns:
                     if col in mixed_cols:
                         temp = f"__sort_{col}"
-                        # Preserve nulls so nulls_last=True works.
-                        # On pandas <3.0, cast(String) turns None
-                        # into the string "None" instead of null.
-                        df = df.with_columns(
-                            nw.when(nw.col(col).is_null())
-                            .then(None)
-                            .otherwise(nw.col(col).cast(nw.String))
-                            .alias(temp)
+                        series = df[col]
+                        df[temp] = series.where(
+                            series.isna(), series.astype(str)
                         )
                         temp_cols.append(temp)
                         sort_cols.append(temp)
                     else:
                         sort_cols.append(col)
 
-                df = df.sort(
+                df = df.sort_values(
                     sort_cols,
-                    descending=descending,
-                    nulls_last=True,
-                ).drop(temp_cols)
-                return self.with_new_data(df)
+                    ascending=[not value for value in descending],
+                    na_position="last",
+                ).drop(columns=temp_cols)
+                return PandasTableManager(df)
 
             # We override narwhals's to_csv_str to handle pandas
             # headers
@@ -297,29 +311,17 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 formatted = self.apply_formatting(format_mapping)
                 # Copy to avoid SettingWithCopyWarning.
-                result = formatted._original_data.copy()
                 geometry_columns = formatted._geometry_columns
-                if geometry_columns:
-                    result = pd.DataFrame(result)
+                result = pd.DataFrame(formatted._original_data.copy())
                 try:
+                    _format_geometry_columns(
+                        result,
+                        geometry_columns,
+                    )
                     for col in result.columns:
                         series = result[col]
                         dtype = series.dtype
-                        geometry_info = geometry_columns.get(str(col))
-                        if geometry_info is not None:
-                            geometry_encoding = geometry_info.encoding
-
-                            def _format_cell(
-                                value: Any,
-                                encoding: GeometryEncoding = geometry_encoding,
-                            ) -> Any:
-                                return format_geometry_cell(value, encoding)
-
-                            result[col] = pd.Series(
-                                [_format_cell(value) for value in series],
-                                index=result.index,
-                                dtype=object,
-                            )
+                        if str(col) in geometry_columns:
                             continue
                         # Complex dtypes become {'imag': num, 'real': num} by default.
                         # Preserve their display values instead.
@@ -385,22 +387,9 @@ class PandasTableManagerFactory(TableManagerFactory):
                 import pyarrow as pa
 
                 df = self._original_data
-                geometry_columns = self._geometry_columns
-                if geometry_columns:
+                if self._geometry_columns:
                     df = pd.DataFrame(df.copy())
-                    for col, geometry_info in geometry_columns.items():
-                        if col not in df.columns:
-                            continue
-                        df[col] = pd.Series(
-                            [
-                                format_geometry_cell(
-                                    value, geometry_info.encoding
-                                )
-                                for value in df[col]
-                            ],
-                            index=df.index,
-                            dtype=object,
-                        )
+                    _format_geometry_columns(df, self._geometry_columns)
 
                 try:
                     return _dataframe_to_arrow_ipc(df)
@@ -408,12 +397,29 @@ class PandasTableManagerFactory(TableManagerFactory):
                     # Fall back: convert extension-type columns that
                     # PyArrow cannot handle (e.g. pint-pandas) to plain
                     # values so the IPC write can succeed.
-                    df = df.copy()
+                    df = pd.DataFrame(
+                        df.copy()
+                    )  # convert to base dataframe from extension dataframe
                     for col in df.columns:
                         try:
                             pa.Array.from_pandas(df[col])
                         except Exception:
-                            df[col] = df[col].astype(object).infer_objects()
+                            converted = df[col].astype(object).infer_objects()
+                            try:
+                                pa.Array.from_pandas(converted)
+                            except Exception:
+                                notna = df[col].notna().to_numpy()
+                                converted = pd.Series(
+                                    [
+                                        str(value) if present else None
+                                        for value, present in zip(
+                                            df[col], notna, strict=True
+                                        )
+                                    ],
+                                    index=df.index,
+                                    dtype=object,
+                                )
+                            df[col] = converted
                     return _dataframe_to_arrow_ipc(df)
 
             def apply_formatting(
@@ -474,9 +480,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if not isinstance(data.columns, pd.Index):
                     return data
 
-                if len(data.columns) > 0 and not isinstance(
-                    data.columns[0], str
-                ):
+                if any(not isinstance(name, str) for name in data.columns):
                     data_copy = data.copy()
                     data_copy.columns = pd.Index(
                         [str(name) for name in data_copy.columns]
