@@ -120,8 +120,9 @@ const GalleryPage: React.FC = () => {
           <div className="flex flex-col gap-2">
             {workspace.hasMore && (
               <Banner kind="warn" className="rounded p-4">
-                Showing first {workspace.fileCount} files. Your workspace has
-                more files.
+                Showing {workspace.fileCount} files. Some files and folders were
+                skipped because your workspace is large or deeply nested. Start
+                marimo from a subfolder to see them.
               </Banner>
             )}
             {formattedFiles.length > SEARCH_THRESHOLD && (

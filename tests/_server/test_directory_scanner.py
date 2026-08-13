@@ -206,6 +206,51 @@ class TestDirectoryScanner:
         files = DirectoryScanner(str(test_dir)).scan()
         assert "long_docstring_app.py" in _file_names(files)
 
+    def test_truncated_when_folders_are_deeper_than_max_depth(
+        self, tmp_path: Path
+    ):
+        """Notebooks past `max_depth` are dropped, but not silently (#10064).
+
+        The folder holding them looks exactly like an empty folder, so the
+        scanner has to report that it stopped looking.
+        """
+        deep = tmp_path / "projects" / "analysis"
+        deep.mkdir(parents=True)
+        _write(deep / "app.py", MARIMO_APP)
+
+        scanner = DirectoryScanner(str(tmp_path), max_depth=1)
+        files = scanner.scan()
+
+        assert _count_files(files) == 0
+        assert scanner.truncated
+
+    def test_not_truncated_when_tree_is_fully_scanned(self, test_dir: Path):
+        scanner = DirectoryScanner(str(test_dir))
+        scanner.scan()
+        assert not scanner.truncated
+
+    def test_truncated_when_max_files_reached(self, test_dir: Path):
+        for i in range(10):
+            _write(test_dir / f"app{i + 3}.py", MARIMO_APP)
+        scanner = DirectoryScanner(str(test_dir), max_files=5)
+        scanner.scan()
+        assert scanner.truncated
+
+    def test_truncated_is_reset_between_scans(self, tmp_path: Path):
+        deep = tmp_path / "projects" / "analysis"
+        deep.mkdir(parents=True)
+        _write(deep / "app.py", MARIMO_APP)
+
+        scanner = DirectoryScanner(str(tmp_path), max_depth=1)
+        scanner.scan()
+        assert scanner.truncated
+
+        # Deep enough to reach the notebook: no truncation this time.
+        scanner.max_depth = 2
+        files = scanner.scan()
+        assert _count_files(files) == 1
+        assert not scanner.truncated
+
     def test_partial_results_populated_during_scan(self, test_dir: Path):
         scanner = DirectoryScanner(str(test_dir))
         assert scanner.partial_results == []

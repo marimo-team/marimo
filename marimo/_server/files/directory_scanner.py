@@ -76,6 +76,7 @@ class DirectoryScanner:
     - Skip common directories (venv, node_modules, etc.)
     - File count limits and timeouts
     - Marimo app detection
+    - Reports (via `truncated`) when a limit cut the walk short
     """
 
     MAX_DEPTH = 5
@@ -138,6 +139,10 @@ class DirectoryScanner:
         )
         # Stores partial results in case of timeout
         self.partial_results: list[FileInfo] = []
+        # Set when a limit (depth, file count, time) stopped the walk before
+        # the tree was fully explored. Lets callers tell "this directory has
+        # no notebooks" apart from "we stopped looking".
+        self.truncated = False
 
     @property
     def allowed_extensions(self) -> tuple[str, ...]:
@@ -159,9 +164,11 @@ class DirectoryScanner:
         start_time = time.time()
         file_count = [0]  # Use list for closure mutability
         self.partial_results = []  # Reset partial results
+        self.truncated = False  # Reset truncation flag
 
         def recurse(directory: str, depth: int = 0) -> list[FileInfo] | None:
             if depth > self.max_depth:
+                self.truncated = True
                 return None
 
             # Check file limit
@@ -169,10 +176,12 @@ class DirectoryScanner:
                 LOGGER.warning(
                     f"Reached maximum file limit ({self.max_files})"
                 )
+                self.truncated = True
                 return None
 
             if time.time() - start_time > self.max_execution_time:
                 # Store accumulated results before raising timeout
+                self.truncated = True
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_TIMEOUT,
                     detail=f"Request timed out: Loading workspace files took too long. Showing first {file_count[0]} files.",
@@ -182,6 +191,7 @@ class DirectoryScanner:
                 entries = os.scandir(directory)
             except OSError as e:
                 LOGGER.debug("OSError scanning directory: %s", str(e))
+                self.truncated = True
                 return None
 
             files: list[FileInfo] = []
@@ -191,6 +201,7 @@ class DirectoryScanner:
                 # Check the limit here, not just after adding a file: a
                 # sibling directory's recursion may have reached it.
                 if file_count[0] >= self.max_files:
+                    self.truncated = True
                     break
 
                 # Skip hidden files and directories
@@ -206,9 +217,10 @@ class DirectoryScanner:
                         if (
                             entry.name in self.SKIP_DIRS
                             or entry.name.lower() in self.SKIP_DIRS
-                            or depth == self.max_depth
                         ):
                             continue
+                        # Past `max_depth` this returns `None` without any
+                        # I/O, and records that the walk was cut short.
                         children = recurse(entry.path, depth + 1)
                         if children:
                             entry_path = Path(entry.path)
