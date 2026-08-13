@@ -130,21 +130,39 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
-    """Whether an extension-array column should be cast to str for JSON."""
+def _stringify_preserving_nulls(
+    series: pd.Series[Any],
+    notna_mask: pd.Series[bool] | None = None,
+) -> pd.Series[Any]:
+    """Convert values to strings and preserve missing values."""
+    if notna_mask is None:
+        notna_mask = series.notna()
+
+    stringified = series.apply(str)
+    if not notna_mask.all():
+        stringified = stringified.astype(object).where(notna_mask, None)
+    return stringified
+
+
+def _extension_column_needs_stringify(
+    series: pd.Series[Any],
+    notna_mask: pd.Series[bool] | None = None,
+) -> bool:
+    """Whether an extension-array column needs a string cast for JSON."""
     from pandas.api.types import is_extension_array_dtype
 
     try:
         if not is_extension_array_dtype(series.dtype):
             return False
 
-        notna = series.notna()
-        if not notna.any():
+        if notna_mask is None:
+            notna_mask = series.notna()
+        if not notna_mask.any():
             return False
 
         # Position-based sample: avoids dropna() copies and .at on
         # duplicate labels (which can return a Series instead of a scalar).
-        sample = series.iat[int(notna.to_numpy().argmax())]
+        sample = series.iat[int(notna_mask.to_numpy().argmax())]
         serialized = json.loads(json.dumps(sample, default=enc_hook))
         return not isinstance(serialized, (str, int, float, bool, type(None)))
     except Exception:
@@ -281,6 +299,7 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 from pandas.api.types import (
                     is_complex_dtype,
+                    is_extension_array_dtype,
                     is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
@@ -290,29 +309,43 @@ class PandasTableManagerFactory(TableManagerFactory):
                 result = _data.copy()  # to avoid SettingWithCopyWarning
                 try:
                     for col in result.columns:
-                        dtype = result[col].dtype
-                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
-                        # We want to preserve the original display
+                        series = result[col]
+                        dtype = series.dtype
+                        # Complex dtypes become {'imag': num, 'real': num} by default.
+                        # Preserve their display values instead.
                         if is_complex_dtype(dtype):
-                            result[col] = result[col].apply(str)
-                        if _extension_column_needs_stringify(result[col]):
-                            # Extension arrays with rich Python values (e.g.
-                            # pint-pandas) serialize to nested dicts via
-                            # to_dict; stringify to preserve display.
-                            result[col] = result[col].astype(str)
+                            result[col] = _stringify_preserving_nulls(series)
+
+                        notna_mask = (
+                            series.notna()
+                            if is_extension_array_dtype(dtype)
+                            else None
+                        )
+                        if _extension_column_needs_stringify(
+                            series, notna_mask
+                        ):
+                            # Extension arrays with rich Python values serialize to nested
+                            # dictionaries through to_dict. Preserve their display values.
+                            result[col] = _stringify_preserving_nulls(
+                                series, notna_mask
+                            )
+
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
-                            result[col] = result[col].apply(str)
+                            result[col] = _stringify_preserving_nulls(series)
                         if is_object_dtype(dtype):
-                            # Check if column contains date objects (not datetime), and convert them to string
-                            # Typically, this will change to YYYY-MM-DD format
+                            # Convert date objects to the YYYY-MM-DD display form.
                             inferred_dtype = self._infer_dtype(col)
                             if inferred_dtype == "date":
-                                result[col] = result[col].apply(str)
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
                             elif inferred_dtype == "bytes":
-                                # Cast bytes to string to avoid overflow error
-                                result[col] = result[col].apply(str)
+                                # Convert bytes to strings to avoid an overflow error.
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
 
                 except Exception as e:
                     LOGGER.error(
