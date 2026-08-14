@@ -152,6 +152,26 @@ class TestArrowDetection:
         )
 
 
+@pytest.mark.requires("pyarrow")
+class TestArrowManager:
+    def test_wkb_cells_render_placeholder(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        rows = json.loads(manager.to_json_str())
+
+        assert rows[0]["geom"] == f"<geometry, {len(geo.WKB_POINT_1_2)} B>"
+        assert rows[1]["geom"] is None
+
+    def test_wkt_cells_pass_through_and_cap(self) -> None:
+        manager = get_table_manager(geo.arrow_wkt())
+
+        rows = json.loads(manager.to_json_str())
+
+        assert rows[0]["geom"] == "POINT (1 2)"
+        assert rows[1]["geom"] == "POINT Z (1 2 3)"
+        assert rows[2]["geom"] is None
+
+
 @pytest.mark.requires("pandas")
 class TestNarwhalsGeometryContract:
     @staticmethod

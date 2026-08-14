@@ -24,6 +24,7 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.geometry import (
     GeometryColumnInfo,
     find_geometry_columns,
+    format_geometry_cell,
 )
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -109,9 +110,23 @@ class NarwhalsTableManager(
     ) -> str:
         del strict_json
         frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(
-            frame.rows(named=True), ensure_ascii=ensure_ascii
-        )
+        rows = frame.rows(named=True)
+        geometry_columns = self._geometry_columns
+        if geometry_columns:
+            rows = [
+                {
+                    col: (
+                        format_geometry_cell(
+                            value, geometry_columns[col].encoding
+                        )
+                        if col in geometry_columns
+                        else value
+                    )
+                    for col, value in row.items()
+                }
+                for row in rows
+            ]
+        return sanitize_json_bigint(rows, ensure_ascii=ensure_ascii)
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()

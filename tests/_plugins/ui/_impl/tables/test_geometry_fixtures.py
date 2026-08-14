@@ -110,18 +110,18 @@ class TestGeoPandasCharacterization:
 
 @pytest.mark.requires("pyarrow")
 class TestGeoArrowCharacterization:
-    def test_wkb_types_unknown_binary(self) -> None:
+    def test_wkb_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("unknown", "Binary"),
+            "geom": ("geometry", "geoarrow.wkb"),
         }
 
-    def test_wkt_types_string(self) -> None:
+    def test_wkt_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkt())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("string", "String"),
+            "geom": ("geometry", "geoarrow.wkt"),
         }
 
     @pytest.mark.parametrize(
@@ -131,24 +131,21 @@ class TestGeoArrowCharacterization:
                 geo.arrow_wkb_missing_crs,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "geoarrow.wkb")),
                 ],
             ),
             (
                 geo.arrow_ogc_wkb,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "ogc.wkb")),
                 ],
             ),
             (
                 geo.arrow_other_geoarrow,
                 [
                     ("a", ("integer", "Int64")),
-                    (
-                        "geom",
-                        ("unknown", "Array(Float64, shape=(2,))"),
-                    ),
+                    ("geom", ("geometry", "geoarrow.point")),
                 ],
             ),
         ],
