@@ -105,11 +105,44 @@ def _common_parent(paths: Sequence[Path]) -> Path:
 
 def _is_path_within(path: Path, parent: Path) -> bool:
     """Return whether `path` resolves within `parent`."""
+
+    def resolve_existing(candidate: Path) -> Path:
+        try:
+            return candidate.resolve(strict=True)
+        except TypeError:
+            # Some Path subclasses do not accept pathlib's `strict` argument.
+            resolved = candidate.resolve()
+            if not resolved.exists():
+                raise FileNotFoundError(resolved) from None
+            return resolved
+
     try:
-        path.resolve(strict=True).relative_to(parent.resolve())
+        resolved_path = resolve_existing(path)
+        resolved_parent = resolve_existing(parent)
+        if not is_cloudpath(resolved_path):
+            resolved_path = Path(resolved_path)
+            resolved_parent = Path(resolved_parent)
+        resolved_path.relative_to(resolved_parent)
     except (ValueError, RuntimeError, OSError):
         return False
     return True
+
+
+_WARNED_DEFAULT_ROOT = False
+
+
+def _warn_default_root_once(root: Path) -> None:
+    """Warn once when a restricted file browser uses the default cwd."""
+    global _WARNED_DEFAULT_ROOT
+    if _WARNED_DEFAULT_ROOT:
+        return
+    _WARNED_DEFAULT_ROOT = True
+    LOGGER.warning(
+        "file_browser has no explicit initial_path; navigation is limited to "
+        "the working directory (%s). Pass initial_path to declare which "
+        "directory can be browsed.",
+        root,
+    )
 
 
 @dataclass
@@ -228,7 +261,9 @@ class file_browser(
         multiple (bool, optional): If True, allow the user to select multiple
             files. Defaults to True.
         restrict_navigation (bool, optional): If True, prevent the user from
-            navigating any level above the given path. Defaults to False.
+            navigating any level above the given path. Defaults to True. Setting
+            this to False in an app served with `marimo run` allows app viewers
+            to browse any path readable by the server process.
         value (str | Path | Sequence[str | Path], optional): File or directory
             path, or sequence of paths, selected by default. Defaults to None.
         ignore_empty_dirs (bool, optional): If True, hide directories that contain
@@ -254,7 +289,7 @@ class file_browser(
         selection_mode: Literal["file", "directory", "all"]
         | Sequence[Literal["file", "directory"]] = "file",
         multiple: bool = True,
-        restrict_navigation: bool = False,
+        restrict_navigation: bool = True,
         value: str | Path | Sequence[str | Path] | None = None,
         *,
         filter: str | re.Pattern[str] | Callable[[Path], bool] | None = None,  # noqa: A002
@@ -267,6 +302,8 @@ class file_browser(
         self._selection_mode = _normalize_selection_mode(selection_mode)
 
         values = _normalize_values(value, multiple=multiple)
+        initial_path_provided = bool(initial_path)
+        self._restrict_navigation = restrict_navigation
 
         # Save the Path class and client used to construct paths
         path_source = values[0] if values else initial_path
@@ -306,6 +343,10 @@ class file_browser(
                 )
             )
 
+        uses_default_root = not initial_path_provided and (
+            not selected_paths or restrict_navigation
+        )
+
         # Make a Path object
         if not initial_path:
             initial_path = (
@@ -327,7 +368,7 @@ class file_browser(
                 f"Initial path {initial_path} is not a directory."
             )
 
-        if restrict_navigation:
+        if self._restrict_navigation:
             for selected_path in selected_paths:
                 if not _is_path_within(selected_path, self._initial_path):
                     raise ValueError(
@@ -347,7 +388,8 @@ class file_browser(
             self._filetypes = normalized_filetypes
         else:
             self._filetypes = set()
-        self._restrict_navigation = restrict_navigation
+        if self._restrict_navigation and uses_default_root:
+            _warn_default_root_once(self._initial_path)
         self._ignore_empty_dirs = ignore_empty_dirs
 
         if filter is None:
@@ -387,7 +429,7 @@ class file_browser(
                 "selection-mode": wire_selection_mode,
                 "filetypes": filetypes if filetypes is not None else [],
                 "multiple": multiple,
-                "restrict-navigation": restrict_navigation,
+                "restrict-navigation": self._restrict_navigation,
             },
             functions=(
                 Function(
@@ -492,7 +534,7 @@ class file_browser(
             if not _is_path_within(path, self._initial_path):
                 raise RuntimeError(
                     "Navigation is restricted; navigating outside the initial path is not allowed."
-                ) from None
+                )
         folders: list[TypedFileBrowserFileInfo] = []
         files: list[TypedFileBrowserFileInfo] = []
 

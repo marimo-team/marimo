@@ -7,10 +7,12 @@ from typing import Any
 
 import pytest
 
+from marimo._plugins.ui._impl import file_browser as fb_module
 from marimo._plugins.ui._impl.file_browser import (
     FileBrowserFileInfo,
     ListDirectoryArgs,
     ListDirectoryResponse,
+    _is_path_within,
     _normalize_selection_mode,
     _normalize_values,
     file_browser,
@@ -40,6 +42,194 @@ def test_normalize_values_rejects_multiple_values() -> None:
         _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
+def test_is_path_within_cases(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    jail = root / "jail"
+    jail.mkdir()
+    inside = jail / "in.txt"
+    inside.write_text("x")
+    sub = jail / "sub"
+    sub.mkdir()
+    outside = root / "out.txt"
+    outside.write_text("y")
+
+    assert _is_path_within(inside, jail) is True
+    assert _is_path_within(sub, jail) is True
+    assert _is_path_within(jail, jail) is True
+    assert _is_path_within(outside, jail) is False
+    assert _is_path_within(root, jail) is False
+    assert _is_path_within(jail / "nope.txt", jail) is False
+
+
+def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
+    root = tmp_path.resolve()
+    jail = root / "jail"
+    jail.mkdir()
+    outside = root / "secret.txt"
+    outside.write_text("s")
+    escape = jail / "escape.txt"
+    try:
+        escape.symlink_to(outside)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    assert _is_path_within(escape, jail) is False
+
+
+def test_default_navigation_restriction_confines_list_directory(
+    tmp_path: Path,
+) -> None:
+    fb = file_browser(initial_path=tmp_path)
+    (tmp_path / "inside").mkdir()
+
+    resp = fb._list_directory(ListDirectoryArgs(path=str(tmp_path)))
+    assert any(f["name"] == "inside" for f in resp.files)
+
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
+
+
+def test_default_navigation_restriction_confines_cloud_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cloudpathlib = pytest.importorskip("cloudpathlib")
+    client = cloudpathlib.S3Client(
+        aws_access_key_id="test",
+        aws_secret_access_key="test",
+        local_cache_dir=tmp_path,
+    )
+    root = cloudpathlib.S3Path("s3://bucket/root", client=client)
+    nested = root / "nested"
+    selected = root / "selected.txt"
+
+    monkeypatch.setattr(
+        client,
+        "_is_file_or_dir",
+        lambda path: "file" if path == selected else "dir",
+    )
+
+    def list_dir(path: Any, recursive: bool = False) -> Any:
+        assert recursive is False
+        return iter(
+            [(nested, True), (selected, False)] if path == root else []
+        )
+
+    monkeypatch.setattr(
+        client,
+        "_list_dir",
+        list_dir,
+    )
+
+    fb = file_browser(initial_path=root)
+
+    response = fb._list_directory(ListDirectoryArgs(path=str(root)))
+    assert [file["name"] for file in response.files] == [
+        "nested",
+        "selected.txt",
+    ]
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(root.parent)))
+
+
+def test_restrict_navigation_defaults_true(tmp_path: Path) -> None:
+    fb = file_browser(initial_path=tmp_path)
+
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
+    assert fb._component_args["restrict-navigation"] is True
+
+
+def test_restrict_navigation_false_allows_parent_navigation(
+    tmp_path: Path,
+) -> None:
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=False)
+
+    response = fb._list_directory(ListDirectoryArgs(path=str(tmp_path.parent)))
+    assert isinstance(response, ListDirectoryResponse)
+    assert fb._component_args["restrict-navigation"] is False
+
+
+def test_warns_once_for_default_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser()
+    file_browser()
+
+    assert len(calls) == 1
+    assert "initial_path" in calls[0][0]
+
+
+def test_warns_for_default_root_with_restricted_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(value=selected, restrict_navigation=True)
+
+    assert len(calls) == 1
+    assert "initial_path" in calls[0][0]
+
+
+def test_no_warn_with_explicit_initial_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(initial_path=tmp_path)
+
+    assert calls == []
+
+
+def test_no_warn_when_navigation_is_unrestricted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(restrict_navigation=False)
+
+    assert calls == []
+
+
+def test_no_warn_with_unrestricted_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    selected = tmp_path / "f.txt"
+    selected.write_text("x")
+    monkeypatch.setattr(fb_module, "_WARNED_DEFAULT_ROOT", False)
+    calls: list[tuple[Any, ...]] = []
+    monkeypatch.setattr(
+        fb_module.LOGGER, "warning", lambda *args: calls.append(args)
+    )
+
+    file_browser(value=str(selected), restrict_navigation=False)
+
+    assert calls == []
+
+
 def test_file_browser_init(tmp_path: Path) -> None:
     # Use tmp_path fixture for testing
     fb = file_browser(initial_path=tmp_path)
@@ -47,7 +237,7 @@ def test_file_browser_init(tmp_path: Path) -> None:
     assert str(fb._initial_path) == str(normalize_path(tmp_path))
     assert fb._selection_mode == frozenset({"file"})
     assert fb._filetypes == set()
-    assert fb._restrict_navigation is False
+    assert fb._restrict_navigation is True
 
     # Test with custom filetypes
     custom_filetypes = [".txt", ".csv"]
@@ -82,7 +272,7 @@ def test_file_browser_infers_initial_path_from_default_value(
     selected.parent.mkdir()
     selected.touch()
 
-    fb = file_browser(value=selected)
+    fb = file_browser(value=selected, restrict_navigation=False)
 
     assert fb._initial_path == selected.parent
 
@@ -94,7 +284,7 @@ def test_file_browser_infers_initial_path_from_string_value(
     selected.parent.mkdir()
     selected.touch()
 
-    fb = file_browser(value=str(selected))
+    fb = file_browser(value=str(selected), restrict_navigation=False)
 
     assert fb._initial_path == selected.parent
 
@@ -109,7 +299,7 @@ def test_file_browser_infers_common_initial_path_from_default_values(
     first.touch()
     second.touch()
 
-    fb = file_browser(value=[first, second])
+    fb = file_browser(value=[first, second], restrict_navigation=False)
 
     assert fb._initial_path == tmp_path / "nested"
 
@@ -130,7 +320,8 @@ def test_file_browser_infers_custom_path_class_and_client(
     selected.touch()
 
     fb = file_browser(
-        value=CustomPathWithClient(selected, client="custom_client")
+        value=CustomPathWithClient(selected, client="custom_client"),
+        restrict_navigation=False,
     )
 
     assert isinstance(fb._initial_path, CustomPathWithClient)
@@ -199,6 +390,22 @@ def test_restricted_file_browser_rejects_unreachable_default_value(
         ValueError, match="outside the restricted initial path"
     ):
         file_browser(value=selected, restrict_navigation=True)
+
+
+def test_unrestricted_file_browser_allows_default_value_outside_initial_path(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "root"
+    root.mkdir()
+    selected = tmp_path / "outside.txt"
+    selected.touch()
+    fb = file_browser(
+        initial_path=root,
+        value=selected,
+        restrict_navigation=False,
+    )
+
+    assert fb.path() == selected
 
 
 def test_restricted_file_browser_accepts_explicit_reachable_default_value(
@@ -1296,7 +1503,7 @@ def test_file_browser_relative_path_sent_to_frontend_as_absolute(
         os.chdir(tmp_path)
 
         for rel_path in ["subdir", "./subdir", Path("subdir")]:
-            fb = file_browser(initial_path=rel_path)
+            fb = file_browser(initial_path=rel_path, restrict_navigation=False)
             initial_path_arg = str(fb._component_args["initial-path"])  # pyright: ignore[reportPrivateUsage]
             assert Path(initial_path_arg).is_absolute(), (
                 f"initial-path sent to frontend must be absolute, "
