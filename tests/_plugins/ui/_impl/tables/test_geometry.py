@@ -171,6 +171,22 @@ class TestArrowManager:
         assert rows[1]["geom"] == "POINT Z (1 2 3)"
         assert rows[2]["geom"] is None
 
+    def test_formatting_preserves_schema_metadata(self) -> None:
+        import pyarrow as pa
+
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        formatted = manager.apply_formatting({"a": lambda x: x + 1})
+        native = formatted.data.to_native()
+
+        assert isinstance(native, pa.Table)
+        field = native.schema.field("geom")
+        assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+        assert formatted.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+
 
 @pytest.mark.requires("pandas")
 class TestNarwhalsGeometryContract:

@@ -140,15 +140,18 @@ class NarwhalsTableManager(
             return self
 
         frame = self.as_frame()
-        _data = frame.to_dict(as_series=False).copy()
-        for col in _data:
-            if col in format_mapping:
-                _data[col] = [
-                    format_value(col, x, format_mapping) for x in _data[col]
-                ]
-        return NarwhalsTableManager(
-            nw.from_dict(_data, backend=nw.get_native_namespace(frame))
-        )
+        for col in frame.columns:
+            if col not in format_mapping:
+                continue
+            formatted = [
+                format_value(col, x, format_mapping)
+                for x in frame.get_column(col).to_list()
+            ]
+            series = nw.new_series(
+                col, formatted, backend=frame.implementation
+            )
+            frame = frame.with_columns(series.alias(col))
+        return NarwhalsTableManager(frame)
 
     def supports_filters(self) -> bool:
         return True
