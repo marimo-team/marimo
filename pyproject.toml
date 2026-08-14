@@ -387,7 +387,6 @@ ignore = [
     "S112", # `try`-`except`-`continue`
     "TRY203", # Useless `try`-`except`
     "PLC0105", # Type name incorrect variance
-    "PLE1205", # Logging too many args
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
     "PYI063", # PEP 484-style positional-only parameter

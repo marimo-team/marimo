@@ -787,7 +787,7 @@ def complete(
         )
     except Exception as e:
         # jedi failed to provide completion
-        LOGGER.debug("Completion with jedi failed: ", str(e))
+        LOGGER.debug("Completion with jedi failed: %s", e)
         _write_no_completions(stream, request.id)
     finally:
         try:
