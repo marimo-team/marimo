@@ -78,6 +78,80 @@ class TestPandasDetection:
         assert find_geometry_columns(frame) == {}
 
 
+@pytest.mark.requires("pyarrow")
+class TestArrowDetection:
+    def test_detects_wkb_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_wkb_known_crs())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="wkb", external_type="geoarrow.wkb"
+            )
+        }
+
+    def test_detects_ogc_wkb_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_ogc_wkb())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(encoding="wkb", external_type="ogc.wkb")
+        }
+
+    def test_detects_wkt_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_wkt())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="wkt", external_type="geoarrow.wkt"
+            )
+        }
+
+    def test_detects_other_geoarrow_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_other_geoarrow())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="other", external_type="geoarrow.point"
+            )
+        }
+
+    def test_ignores_fields_without_extension_metadata(self) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        table = pa.table(geo.false_positive_data())
+
+        assert find_geometry_columns(nw.from_native(table)) == {}
+
+    def test_ignores_non_geo_extensions(self) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        field = pa.field(
+            "u",
+            pa.binary(),
+            metadata={b"ARROW:extension:name": b"arrow.uuid"},
+        )
+        table = pa.table({"u": [b"x"]}, schema=pa.schema([field]))
+
+        assert find_geometry_columns(nw.from_native(table)) == {}
+
+    def test_manager_field_type_uses_geometry_semantics(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+
+
 @pytest.mark.requires("pandas")
 class TestNarwhalsGeometryContract:
     @staticmethod
