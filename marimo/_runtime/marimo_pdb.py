@@ -17,6 +17,7 @@ from marimo._ast.variables import (
 from marimo._messaging.types import Stdin, Stdout
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
     from types import FrameType, TracebackType
 
     from marimo._types.ids import CellId_t
@@ -56,26 +57,93 @@ def try_restart() -> bool:
     return True
 
 
+def _defaults(args: ast.arguments) -> list[ast.expr]:
+    """Default values, which are evaluated in the enclosing scope."""
+    return [d for d in (*args.defaults, *args.kw_defaults) if d is not None]
+
+
+def _names_bound_by(nodes: Iterable[ast.AST]) -> set[str]:
+    """Every name the given scope binds, collected before it is visited.
+
+    Python fixes a scope's locals for the whole body up front, so a reference
+    can precede the binding. Bindings from scopes nested deeper still are
+    folded in too: over-approximating here only leaves a name untouched, which
+    is the safe direction.
+    """
+    names: set[str] = set()
+    for node in nodes:
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and isinstance(
+                child.ctx, ast.Store
+            ):
+                names.add(child.id)
+            elif isinstance(child, ast.arg):
+                names.add(child.arg)
+            elif isinstance(
+                child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+            ):
+                names.add(child.name)
+            elif isinstance(child, (ast.Import, ast.ImportFrom)):
+                names.update(
+                    (alias.asname or alias.name).split(".")[0]
+                    for alias in child.names
+                )
+            elif isinstance(child, ast.ExceptHandler) and child.name:
+                names.add(child.name)
+    return names
+
+
 class _CellLocalMangler(ast.NodeTransformer):
     """Rewrite a cell's local names to the mangled names they are stored under.
 
     Only rewrites a name when it doesn't already resolve in the frame and its
     mangled counterpart does, so genuine globals (e.g. an unaliased `from x
     import _`, which marimo leaves unmangled) keep shadowing the cell-local.
+
+    Names bound by a scope the typed source introduces itself (a `lambda`,
+    `def` or comprehension) belong to that scope, not to the cell, and are
+    left alone. That matches how cell code is compiled: marimo only mangles
+    locals that resolve against the cell's top-level scope.
     """
 
     def __init__(self, cell_id: CellId_t, frame: FrameType) -> None:
         self.cell_id = cell_id
         self.frame = frame
         self.mangled = False
+        self._nested_scopes: list[set[str]] = []
 
     def _defined(self, name: str) -> bool:
         return name in self.frame.f_locals or name in self.frame.f_globals
+
+    def _bound_by_nested_scope(self, name: str) -> bool:
+        return any(name in scope for scope in self._nested_scopes)
+
+    def _visit_scope(
+        self,
+        bound: set[str],
+        outer: Iterable[ast.AST],
+        inner: Iterable[ast.AST],
+    ) -> None:
+        """Visit a scope the typed source introduces.
+
+        `outer` nodes are evaluated in the enclosing scope; `inner` nodes see
+        the names the new scope binds. Names are rewritten in place, so the
+        visit results don't need reassigning.
+        """
+        for node in outer:
+            self.visit(node)
+        self._nested_scopes.append(bound)
+        try:
+            for node in inner:
+                self.visit(node)
+        finally:
+            self._nested_scopes.pop()
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
         if (
             not is_local(node.id)
             or is_mangled_local(node.id)
+            or self._bound_by_nested_scope(node.id)
             or self._defined(node.id)
         ):
             return node
@@ -83,6 +151,63 @@ class _CellLocalMangler(ast.NodeTransformer):
         if self._defined(mangled):
             node.id = mangled
             self.mangled = True
+        return node
+
+    def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:
+        self._visit_scope(
+            bound=_names_bound_by([node.args, node.body]),
+            outer=_defaults(node.args),
+            inner=[node.body],
+        )
+        return node
+
+    def _visit_function(
+        self, node: ast.FunctionDef | ast.AsyncFunctionDef
+    ) -> None:
+        self._visit_scope(
+            bound=_names_bound_by([node.args, *node.body]),
+            outer=[*node.decorator_list, *_defaults(node.args)],
+            inner=node.body,
+        )
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        self._visit_function(node)
+        return node
+
+    def visit_AsyncFunctionDef(
+        self, node: ast.AsyncFunctionDef
+    ) -> ast.AsyncFunctionDef:
+        self._visit_function(node)
+        return node
+
+    def _visit_comprehension(
+        self,
+        node: ast.ListComp | ast.SetComp | ast.GeneratorExp | ast.DictComp,
+        elements: list[ast.expr],
+    ) -> None:
+        first, *rest = node.generators
+        self._visit_scope(
+            bound=_names_bound_by([*node.generators, *elements]),
+            # Only the outermost iterable is evaluated eagerly, in the
+            # enclosing scope.
+            outer=[first.iter],
+            inner=[*elements, first.target, *first.ifs, *rest],
+        )
+
+    def visit_ListComp(self, node: ast.ListComp) -> ast.ListComp:
+        self._visit_comprehension(node, [node.elt])
+        return node
+
+    def visit_SetComp(self, node: ast.SetComp) -> ast.SetComp:
+        self._visit_comprehension(node, [node.elt])
+        return node
+
+    def visit_GeneratorExp(self, node: ast.GeneratorExp) -> ast.GeneratorExp:
+        self._visit_comprehension(node, [node.elt])
+        return node
+
+    def visit_DictComp(self, node: ast.DictComp) -> ast.DictComp:
+        self._visit_comprehension(node, [node.key, node.value])
         return node
 
 

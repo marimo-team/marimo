@@ -105,3 +105,35 @@ def test_statement_defines_new_local_unmangled() -> None:
     debugger.default("_c = 1")
 
     assert glbls["_c"] == 1
+
+
+def test_getval_keeps_names_bound_by_the_expression() -> None:
+    # A lambda parameter or comprehension target belongs to the expression the
+    # user just typed, not to the cell, so it must not be rewritten.
+    glbls: dict[str, Any] = {"_cell_0_b": 10, "_cell_0_xs": [1, 2, 3]}
+    debugger = _debugger_stopped_in(glbls, get_filename(CELL_ID))
+
+    assert debugger._getval("(lambda _b: _b + 1)(5)") == 6
+    assert debugger._getval("[_b * 2 for _b in [1, 2]]") == [2, 4]
+    assert debugger._getval("{_b: _b for _b in [1]}") == {1: 1}
+    assert debugger._getval("list(_b for _b in [4])") == [4]
+
+    # Names the expression doesn't bind still resolve to the cell's.
+    assert debugger._getval("(lambda _x: _x + _b)(1)") == 11
+    assert debugger._getval("[_v + _b for _v in _xs]") == [11, 12, 13]
+    assert debugger._getval("(lambda _b=_b: _b)()") == 10
+
+
+def test_mangle_keeps_names_bound_by_a_nested_def() -> None:
+    # Same rule for a `def`: its parameters and its own locals are the
+    # function's, even when the cell happens to define the same names.
+    glbls: dict[str, Any] = {"_cell_0_b": 10, "_cell_0_c": 20}
+    debugger = _debugger_stopped_in(glbls, get_filename(CELL_ID))
+
+    source = "def _f(_b):\n    _c = _b + 1\n    return _c"
+    assert debugger._mangle_cell_locals(source) == source
+
+    # A name the function doesn't bind is still the cell's.
+    assert "_cell_0_c" in debugger._mangle_cell_locals(
+        "def _f(_b):\n    return _b + _c"
+    )
