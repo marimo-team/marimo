@@ -89,6 +89,8 @@ def test_default_plugins_emit_valid_secret_free_suggestions() -> None:
         "TRINO_PASSWORD": "secret-trino-password",
         "TRINO_CATALOG": "secret-trino-catalog",
         "TRINO_SCHEMA": "secret-trino-schema",
+        "DATABRICKS_SQL_WAREHOUSE_ID": "secret-databricks-warehouse",
+        "DATABRICKS_CONFIG_PROFILE": "secret-databricks-profile",
         "SPARK_REMOTE": "sc://secret-spark-host:61234",
         "PYICEBERG_CATALOG__PROD__URI": "https://secret-iceberg.invalid",
     }
@@ -111,6 +113,7 @@ def test_default_plugins_emit_valid_secret_free_suggestions() -> None:
             "mysql",
             "aws",
             "trino",
+            "databricks",
             "pyspark",
             "pyiceberg",
             "pyiceberg",
