@@ -47,6 +47,11 @@ class CellConfig(msgspec.Struct):
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
 
+    # Strategy for executing downstream cells when an ancestor is a generator:
+    # "on_yield": execute downstream cells on every yield
+    # "on_complete": wait until the generator finishes
+    on_yield: Literal["on_yield", "on_complete"] = "on_yield"
+
     @classmethod
     def from_dict(
         cls, kwargs: dict[str, Any], warn: bool = True
@@ -138,7 +143,19 @@ class ImportWorkspace:
 def _is_coroutine(code: CodeType | None) -> bool:
     if code is None:
         return False
-    return inspect.CO_COROUTINE & code.co_flags == inspect.CO_COROUTINE
+    flags = code.co_flags
+    is_coro = (
+        (inspect.CO_COROUTINE & flags == inspect.CO_COROUTINE)
+        or (inspect.CO_ASYNC_GENERATOR & flags == inspect.CO_ASYNC_GENERATOR)
+    )
+    if is_coro:
+        return True
+    from types import CodeType
+
+    for const in code.co_consts:
+        if isinstance(const, CodeType) and _is_coroutine(const):
+            return True
+    return False
 
 
 @dataclasses.dataclass

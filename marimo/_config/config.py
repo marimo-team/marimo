@@ -175,6 +175,10 @@ class RuntimeConfig(TypedDict):
     - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
         When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
         The default is `False`.
+    - `generator_max_stream_rate`: the maximum rate at which generator cells yield values (messages per second).
+        The default is `0.05` seconds (20 yields per second).
+    - `stream_buffer_size`: the maximum buffer size of streaming messages to hold.
+        The default is `100`.
     """
 
     auto_instantiate: bool
@@ -191,6 +195,8 @@ class RuntimeConfig(TypedDict):
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
     show_tracebacks: NotRequired[bool]
+    generator_max_stream_rate: NotRequired[float]
+    stream_buffer_size: NotRequired[int]
 
 
 @mddoc
@@ -754,6 +760,12 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
         "show_tracebacks": False,
+        "generator_max_stream_rate": float(
+            os.getenv("MARIMO_GENERATOR_MAX_STREAM_RATE", 0.05)
+        ),
+        "stream_buffer_size": int(
+            os.getenv("MARIMO_STREAM_BUFFER_SIZE", 100)
+        ),
     },
     "save": {
         "autosave": "after_delay",

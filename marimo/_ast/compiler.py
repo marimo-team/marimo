@@ -254,6 +254,36 @@ def extract_markdown(code: str) -> str | None:
         return None
 
 
+def _has_toplevel_yield(node: ast.AST) -> bool:
+    if (
+        isinstance(node, ast.Module)
+        and node.body
+        and isinstance(node.body[0], ast.AsyncFunctionDef)
+        and node.body[0].name == "__marimo_streaming_cell"
+    ):
+        node = node.body[0]
+
+    class YieldVisitor(ast.NodeVisitor):
+        def __init__(self) -> None:
+            self.has_yield = False
+        def visit_Yield(self, n: ast.Yield) -> None:
+            self.has_yield = True
+        def visit_YieldFrom(self, n: ast.YieldFrom) -> None:
+            self.has_yield = True
+        def visit_FunctionDef(self, n: ast.FunctionDef) -> None:
+            pass
+        def visit_AsyncFunctionDef(self, n: ast.AsyncFunctionDef) -> None:
+            if n.name == "__marimo_streaming_cell":
+                self.generic_visit(n)
+            else:
+                pass
+        def visit_ClassDef(self, n: ast.ClassDef) -> None:
+            pass
+    visitor = YieldVisitor()
+    visitor.visit(node)
+    return visitor.has_yield
+
+
 def compile_cell(
     code: str,
     cell_id: CellId_t,
@@ -276,7 +306,12 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
+    
     module = module_compile(code)
+    is_generator = _has_toplevel_yield(module)
+    if is_generator:
+        wrapped_code = f"async def __marimo_streaming_cell():\n" + textwrap.indent(code, "    ")
+        module = module_compile(wrapped_code)
 
     if not module.body:
         # either empty code or just comments
@@ -301,31 +336,50 @@ def compile_cell(
         isinstance(stmt, (ast.Import, ast.ImportFrom)) for stmt in module.body
     )
 
-    v = ScopedVisitor("cell_" + cell_id)
-    v.visit(module)
+    if is_generator:
+        dummy_module = ast.Module(body=module.body[0].body, type_ignores=[])
+        v = ScopedVisitor("cell_" + cell_id)
+        v.visit(dummy_module)
+        if v.defs:
+            global_node = ast.Global(names=sorted(list(v.defs)))
+            global_node.lineno = 1
+            global_node.col_offset = 0
+            module.body[0].body.insert(0, global_node)
+    else:
+        v = ScopedVisitor("cell_" + cell_id)
+        v.visit(module)
 
     expr: ast.Expression
-    final_expr = module.body[-1]
-    # Compile again as an effective copy since copying directly seems slow and
-    # error prone.
-    original_module = module_compile(code)
-    # Use final expression if it exists doesn't end in a
-    # semicolon. Evaluates expression to "None" otherwise.
-    if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
-        module.body.pop()
-        expr = ast.Expression(final_expr.value)
-        expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
-    else:
+    if is_generator:
         const = ast.Constant(value=None)
-        const.col_offset = final_expr.end_col_offset or 0
-        const.end_col_offset = final_expr.end_col_offset
-        expr = ast.Expression(const)
-        # use code over body since lineno corresponds to source
         const.lineno = len(code.splitlines()) + 1
-        expr.lineno = const.lineno  # type: ignore[attr-defined]
+        const.col_offset = 0
+        expr = ast.Expression(const)
+        import copy
+        original_module = copy.deepcopy(module)
+    else:
+        final_expr = module.body[-1]
+        # Compile again as an effective copy since copying directly seems slow and
+        # error prone.
+        original_module = module_compile(code)
+        # Use final expression if it exists doesn't end in a
+        # semicolon. Evaluates expression to "None" otherwise.
+        if isinstance(final_expr, ast.Expr) and not ends_with_semicolon(code):
+            module.body.pop()
+            expr = ast.Expression(final_expr.value)
+            expr.lineno = final_expr.lineno  # type: ignore[attr-defined]
+        else:
+            const = ast.Constant(value=None)
+            const.col_offset = final_expr.end_col_offset or 0
+            const.end_col_offset = final_expr.end_col_offset
+            expr = ast.Expression(const)
+            # use code over body since lineno corresponds to source
+            const.lineno = len(code.splitlines()) + 1
+            expr.lineno = const.lineno  # type: ignore[attr-defined]
     # Creating an expression clears source info, so it needs to be set back
-    expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
-    expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
+    if not is_generator:
+        expr.col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
+        expr.end_col_offset = final_expr.end_col_offset  # type: ignore[attr-defined]
 
     if source_position:
         # Modify the "source" position for meaningful stacktraces

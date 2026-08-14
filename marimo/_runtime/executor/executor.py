@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 from typing import TYPE_CHECKING, Any, Protocol
 
 from marimo._ast.cell import _is_coroutine
@@ -88,7 +89,9 @@ class DefaultExecutor:
         assert cell.last_expr is not None
         try:
             if _is_coroutine(cell.body):
-                await eval(cell.body, glbls)
+                res = eval(cell.body, glbls)
+                if inspect.iscoroutine(res):
+                    await res
             else:
                 exec(cell.body, glbls)
             if _is_coroutine(cell.last_expr):

@@ -363,19 +363,26 @@ def to_functiondef(
     elif body := indent_text(cell.code):
         definition_body.append(body)
 
-    returns = format_tuple_elements(
-        "return (...)",
-        defs,
-        indent=True,
-        allowed_naked=True,
-        # maybe consider "return Edges(...)"
-        # Such that the return type can simply be 'Edges'
-    )
+    from marimo._ast.compiler import _has_toplevel_yield
+    is_generator = _has_toplevel_yield(cell.mod) if cell.mod is not None else False
+
+    if is_generator:
+        returns = ""
+    else:
+        returns = format_tuple_elements(
+            "return (...)",
+            defs,
+            indent=True,
+            allowed_naked=True,
+            # maybe consider "return Edges(...)"
+            # Such that the return type can simply be 'Edges'
+        )
     # Add blank line before return for ruff compatibility when last statement
     # is an import, function def, or class def
-    if _needs_trailing_blank_line(cell.mod, cell.code):
+    if not is_generator and _needs_trailing_blank_line(cell.mod, cell.code):
         definition_body.append("")
-    definition_body.append(returns)
+    if returns:
+        definition_body.append(returns)
     return "\n".join(definition_body)
 
 

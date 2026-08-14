@@ -437,6 +437,18 @@ class _OptionalValueOption(click.Option):
     type=int,
     help="Seconds to wait before closing a session on websocket disconnect. If None is provided, sessions are not automatically closed.",
 )
+@click.option(
+    "--stream-buffer-size",
+    default=None,
+    type=int,
+    help="Size of the generator streaming buffer.",
+)
+@click.option(
+    "--generator-max-stream-rate",
+    default=None,
+    type=float,
+    help="Maximum stream rate for generator cells (in yields per second).",
+)
 @click.argument(
     "name",
     required=False,
@@ -467,10 +479,17 @@ def edit(
     asset_url: str | None,
     timeout: float | None,
     session_ttl: int | None,
+    stream_buffer_size: int | None,
+    generator_max_stream_rate: float | None,
     name: str | None,
     args: tuple[str, ...],
 ) -> None:
     from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
+
+    if stream_buffer_size is not None:
+        os.environ["MARIMO_STREAM_BUFFER_SIZE"] = str(stream_buffer_size)
+    if generator_max_stream_rate is not None:
+        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(generator_max_stream_rate)
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -1114,6 +1133,18 @@ Example:
     type=bool,
     help="Show detailed error tracebacks in a modal when exceptions occur.",
 )
+@click.option(
+    "--stream-buffer-size",
+    default=None,
+    type=int,
+    help="Size of the generator streaming buffer.",
+)
+@click.option(
+    "--generator-max-stream-rate",
+    default=None,
+    type=float,
+    help="Maximum stream rate for generator cells (in yields per second).",
+)
 @click.pass_context
 @click.argument(
     "name",
@@ -1144,6 +1175,8 @@ def run(
     asset_url: str | None,
     execute_opengraph_generators: bool,
     show_tracebacks: bool | None,
+    stream_buffer_size: int | None,
+    generator_max_stream_rate: float | None,
     name: str,
     args: tuple[str, ...],
 ) -> None:
@@ -1152,6 +1185,11 @@ def run(
         resolve_sandbox_mode,
         run_in_sandbox,
     )
+
+    if stream_buffer_size is not None:
+        os.environ["MARIMO_STREAM_BUFFER_SIZE"] = str(stream_buffer_size)
+    if generator_max_stream_rate is not None:
+        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(generator_max_stream_rate)
 
     # click consumes `--` as an option terminator and does not pass it
     # through to `args`. `RunCommand` records the raw tail so splitting
