@@ -229,10 +229,11 @@ def _uv_export_script_requirements_txt(
 
 
 def _redact_url_query_strings(text: str) -> str:
-    """Redact query strings from URLs in `text`.
+    """Redact the query strings from the URLs in `text`.
 
-    uv redacts userinfo credentials in the URLs it prints, but not query
-    strings, which some registries use for auth tokens.
+    uv redacts userinfo credentials in the URLs that it prints, but it
+    does not redact query strings. Some registries put auth tokens in
+    query strings.
     """
     return re.sub(r"(https?://[^\s?]+)\?\S*", r"\1?<redacted>", text)
 
@@ -242,17 +243,18 @@ def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
         try:
             return _uv_export_script_requirements_txt(pyproject.name)
         except subprocess.CalledProcessError as e:
-            # A file with no PEP 723 block fails to export (exit code 2),
-            # and the fallback below is its normal path. For a script that
-            # does have inline metadata, falling back silently degrades
-            # resolution to the unpinned dependency list — e.g. a 401 from
-            # an authenticated index would otherwise surface later as a
-            # confusing "package not found" error.
-            if pyproject.project:
-                stderr = _redact_url_query_strings(str(e.stderr or ""))
+            # A file with no PEP 723 block cannot export (exit code 2);
+            # for such files, the silent fallback below is the normal
+            # path. A script that has a block gets a warning: a silent
+            # fallback degrades resolution to the unpinned dependency
+            # list, and the cause (for example, a 401 from an
+            # authenticated index) appears later as a confusing
+            # "package not found" error.
+            if pyproject.has_script_metadata:
+                stderr = _redact_url_query_strings(e.stderr or "")
                 LOGGER.warning(
-                    f"Failed to resolve inline script metadata with "
-                    f"`uv export --script`; falling back to the raw "
+                    f"`uv export --script` could not resolve the inline "
+                    f"script metadata; marimo falls back to the raw "
                     f"dependency list. uv reported: {stderr}"
                 )
     return pyproject.requirements_txt_lines
@@ -329,37 +331,44 @@ def construct_uv_flags(
 
     index_configs = pyproject.index_configs
     if index_configs:
-        # Map each [[tool.uv.index]] entry to the flag that carries its uv
-        # semantics (see GH issue #10547): `default = true` -> --default-index
-        # (lowest priority; a plain --index would shadow every other index),
-        # `name` -> `--index <name>=<url>` (the credential selector for
-        # UV_INDEX_<NAME>_USERNAME/PASSWORD). `explicit = true` has no CLI
-        # equivalent, so those entries go after the regular indexes; they
-        # still outrank the default index for packages they carry.
+        # Map each [[tool.uv.index]] entry to the uv flag that keeps its
+        # meaning (see GH issue #10547):
+        # - `default = true` -> --default-index. uv examines it last; a
+        #   plain --index would make it first, before every other index.
+        # - `name` -> --index <name>=<url>. The name selects the
+        #   UV_INDEX_<NAME>_USERNAME/PASSWORD credentials.
+        # - `explicit = true` has no flag. These entries go after the
+        #   regular indexes, but uv examines them before the default
+        #   index.
         explicit_flags: list[str] = []
         default_seen = False
         for config in index_configs:
             if not isinstance(config, dict):
-                # e.g. `index = ["https://..."]`; uv itself rejects this
-                # with a schema error, so leave it for uv to report.
+                # For example, `index = ["https://..."]`. uv rejects this
+                # with a schema error; let uv report it.
                 continue
             config_url = config.get("url")
             if not config_url:
+                # Also invalid: uv rejects an entry that has no url with
+                # a schema error; let uv report it.
                 continue
             name = config.get("name")
             index_value = f"{name}={config_url}" if name else config_url
             if config.get("default"):
                 if default_seen:
-                    # uv honors only the first `default = true` entry and
-                    # ignores the rest; skipping keeps that behavior (the
-                    # CLI also rejects a repeated --default-index).
+                    # uv uses only the first `default = true` entry and
+                    # is silent about the others (seen on uv 0.12; the
+                    # uv docs do not specify this case). We skip later
+                    # entries to keep that behavior. The CLI also
+                    # rejects a repeated --default-index.
                     LOGGER.warning(
-                        "Multiple [[tool.uv.index]] entries have "
-                        "`default = true`; only the first is used."
+                        "More than one [[tool.uv.index]] entry has "
+                        "`default = true`; marimo uses only the first "
+                        "entry."
                     )
                     continue
-                # --default-index accepts the <name>=<url> form, so a named
-                # default keeps its credential selector.
+                # --default-index accepts the <name>=<url> form. Thus a
+                # named default keeps its credential selector.
                 default_seen = True
                 uv_flags.extend(["--default-index", index_value])
             elif config.get("explicit"):

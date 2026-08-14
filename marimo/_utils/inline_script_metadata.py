@@ -23,9 +23,13 @@ LOGGER = _loggers.marimo_logger()
 class IndexConfig(TypedDict, total=False):
     """One `[[tool.uv.index]]` entry from PEP 723 inline script metadata.
 
-    Mirrors the keys of uv's index schema that marimo interprets
-    (https://docs.astral.sh/uv/reference/settings/#index). uv may define
-    additional keys; they are tolerated at runtime and ignored here.
+    Contains the keys of uv's index schema that marimo reads
+    (https://docs.astral.sh/uv/reference/settings/#index). uv permits
+    more keys; marimo ignores them.
+
+    This type is a goal, not a guarantee: the entries come from
+    unvalidated user TOML. An entry can be a non-table value, and `url`
+    can be missing. Consumers must accept both.
     """
 
     url: str
@@ -61,6 +65,16 @@ class PyProjectReader:
             config_path=None,
             name=None,
         )
+
+    @property
+    def has_script_metadata(self) -> bool:
+        """True if the source declares inline metadata.
+
+        `project` holds the parsed PEP 723 block (or the pyproject
+        header of a markdown notebook). It is empty when the file has
+        no metadata.
+        """
+        return bool(self.project)
 
     @property
     def extra_index_urls(self) -> list[str]:

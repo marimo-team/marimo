@@ -181,22 +181,27 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
-When running in sandbox mode, marimo passes each index to uv preserving its
-semantics: an index with `default = true` is passed as uv's default index
-(consulted last; only the first default entry is honored, as in uv), named
-indexes keep their name so credentials provided via
-`UV_INDEX_<NAME>_USERNAME` and `UV_INDEX_<NAME>_PASSWORD` environment
-variables continue to work, and regular indexes are passed in their declared
-order.
+In sandbox mode, marimo gives each index to uv and keeps the meaning of the
+index:
+
+- An index that has `default = true` becomes uv's default index. uv examines
+  the default index last. If more than one entry has `default = true`,
+  marimo uses the first entry and shows a warning. uv also uses only the
+  first entry.
+- A named index keeps its name. Thus uv can use the credentials in the
+  `UV_INDEX_<NAME>_USERNAME` and `UV_INDEX_<NAME>_PASSWORD` environment
+  variables.
+- Regular indexes keep the sequence in which they occur in the metadata.
 
 !!! note "Limitations in sandbox mode"
 
-    `explicit = true` and `[tool.uv.sources]` index assignments have no
-    command-line equivalents in uv, so they cannot be fully enforced when
-    marimo constructs the sandbox environment. An `explicit` index is passed
-    after the regular indexes, but it can still serve any package it
-    carries — including packages not assigned to it via `[tool.uv.sources]`
-    — and it takes priority over the default index for those packages.
+    uv has no command-line flags for `explicit = true` or for the
+    `[tool.uv.sources]` index assignments. Thus marimo cannot fully obey
+    them in the sandbox. marimo gives an `explicit` index to uv after the
+    regular indexes. But that index can supply all packages that it
+    contains, not only the packages that `[tool.uv.sources]` assigns to it.
+    For these packages, uv examines the `explicit` index before the default
+    index.
 
 ### Platform-specific dependencies (PEP 508) { #platform-specific-dependencies-pep-508 }
 
