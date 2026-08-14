@@ -67,7 +67,7 @@ class TestScriptTrace:
         # Test col_offset
         # Expected output:
         #    y = y / x
-        #        ^
+        #    ^
         # exact line numbers differ by python version
         if (3, 11) <= sys.version_info < (3, 12):
             assert result.split("y / x")[1].split("\n")[1].startswith("    ^")
