@@ -763,9 +763,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "generator_max_stream_rate": float(
             os.getenv("MARIMO_GENERATOR_MAX_STREAM_RATE", 0.05)
         ),
-        "stream_buffer_size": int(
-            os.getenv("MARIMO_STREAM_BUFFER_SIZE", 100)
-        ),
+        "stream_buffer_size": int(os.getenv("MARIMO_STREAM_BUFFER_SIZE", 100)),
     },
     "save": {
         "autosave": "after_delay",

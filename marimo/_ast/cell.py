@@ -144,9 +144,8 @@ def _is_coroutine(code: CodeType | None) -> bool:
     if code is None:
         return False
     flags = code.co_flags
-    is_coro = (
-        (inspect.CO_COROUTINE & flags == inspect.CO_COROUTINE)
-        or (inspect.CO_ASYNC_GENERATOR & flags == inspect.CO_ASYNC_GENERATOR)
+    is_coro = (inspect.CO_COROUTINE & flags == inspect.CO_COROUTINE) or (
+        inspect.CO_ASYNC_GENERATOR & flags == inspect.CO_ASYNC_GENERATOR
     )
     if is_coro:
         return True

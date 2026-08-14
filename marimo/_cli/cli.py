@@ -489,7 +489,9 @@ def edit(
     if stream_buffer_size is not None:
         os.environ["MARIMO_STREAM_BUFFER_SIZE"] = str(stream_buffer_size)
     if generator_max_stream_rate is not None:
-        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(generator_max_stream_rate)
+        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(
+            generator_max_stream_rate
+        )
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -1189,7 +1191,9 @@ def run(
     if stream_buffer_size is not None:
         os.environ["MARIMO_STREAM_BUFFER_SIZE"] = str(stream_buffer_size)
     if generator_max_stream_rate is not None:
-        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(generator_max_stream_rate)
+        os.environ["MARIMO_GENERATOR_MAX_STREAM_RATE"] = str(
+            generator_max_stream_rate
+        )
 
     # click consumes `--` as an option terminator and does not pass it
     # through to `args`. `RunCommand` records the raw tail so splitting

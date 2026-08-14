@@ -551,58 +551,86 @@ class Runner:
         unexpected_failure: BaseException | None = None
         try:
             raw_result = await self.evaluate_interruptible(cell)
-            if unexpected_failure is None and raw_result.exception is None and "__marimo_streaming_cell" in self.glbls:
+            if (
+                unexpected_failure is None
+                and raw_result.exception is None
+                and "__marimo_streaming_cell" in self.glbls
+            ):
                 gen_func = self.glbls.get("__marimo_streaming_cell")
                 if gen_func is not None:
                     del self.glbls["__marimo_streaming_cell"]
                     try:
-                        import time
                         import inspect
-                        from marimo._output import formatting
-                        from marimo._messaging.notification_utils import CellNotificationUtils
+                        import time
+
                         from marimo._messaging.cell_output import CellChannel
+                        from marimo._messaging.notification_utils import (
+                            CellNotificationUtils,
+                        )
+                        from marimo._output import formatting
                         from marimo._runtime import dataflow
-                        
+
                         gen = gen_func()
                         if inspect.isasyncgen(gen):
-                            runtime_config = self.user_config.get("runtime", {}) if self.user_config else {}
-                            max_rate = float(runtime_config.get("generator_max_stream_rate", 0.05))
+                            runtime_config = (
+                                self.user_config.get("runtime", {})
+                                if self.user_config
+                                else {}
+                            )
+                            max_rate = float(
+                                runtime_config.get(
+                                    "generator_max_stream_rate", 0.05
+                                )
+                            )
                             interval = 1.0 / max_rate if max_rate > 0 else 0.0
-                            
+
                             last_broadcast_time = 0.0
                             last_value = None
-                            
+
                             try:
                                 while True:
                                     value = await gen.__anext__()
                                     last_value = value
-                                    
+
                                     now = time.time()
                                     if (now - last_broadcast_time) >= interval:
-                                        formatted = formatting.try_format(value)
+                                        formatted = formatting.try_format(
+                                            value
+                                        )
                                         CellNotificationUtils.broadcast_output(
                                             channel=CellChannel.OUTPUT,
                                             mimetype=formatted.mimetype,
                                             data=formatted.data,
                                             cell_id=cell_id,
-                                            status="running"
+                                            status="running",
                                         )
                                         last_broadcast_time = now
-                                    
-                                    children = self.graph.children.get(cell_id, set())
+
+                                    children = self.graph.children.get(
+                                        cell_id, set()
+                                    )
                                     on_yield_children = {
-                                        cid for cid in children
-                                        if self.graph.cells[cid].config.on_yield == "on_yield"
+                                        cid
+                                        for cid in children
+                                        if self.graph.cells[
+                                            cid
+                                        ].config.on_yield
+                                        == "on_yield"
                                     }
                                     if on_yield_children:
-                                        downstream_cells = dataflow.transitive_closure(
-                                            self.graph,
-                                            on_yield_children,
-                                            children=True,
-                                            inclusive=True,
+                                        downstream_cells = (
+                                            dataflow.transitive_closure(
+                                                self.graph,
+                                                on_yield_children,
+                                                children=True,
+                                                inclusive=True,
+                                            )
                                         )
-                                        
-                                        from marimo._runtime.runner.cell_runner import Runner
+
+                                        from marimo._runtime.runner.cell_runner import (
+                                            Runner,
+                                        )
+
                                         nested_runner = Runner(
                                             roots=downstream_cells,
                                             graph=self.graph,
@@ -616,10 +644,15 @@ class Runner:
                                             user_config=self.user_config,
                                         )
                                         await nested_runner.run_all()
-                                        
+
                                         for cid in downstream_cells:
-                                            if cid in self._scheduler.cells_to_run:
-                                                self._scheduler.cells_to_run.remove(cid)
+                                            if (
+                                                cid
+                                                in self._scheduler.cells_to_run
+                                            ):
+                                                self._scheduler.cells_to_run.remove(
+                                                    cid
+                                                )
                             except StopAsyncIteration:
                                 raw_result.output = last_value
                             except BaseException as exc:

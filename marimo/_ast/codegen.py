@@ -364,7 +364,10 @@ def to_functiondef(
         definition_body.append(body)
 
     from marimo._ast.compiler import _has_toplevel_yield
-    is_generator = _has_toplevel_yield(cell.mod) if cell.mod is not None else False
+
+    is_generator = (
+        _has_toplevel_yield(cell.mod) if cell.mod is not None else False
+    )
 
     if is_generator:
         returns = ""

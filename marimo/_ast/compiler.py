@@ -266,19 +266,25 @@ def _has_toplevel_yield(node: ast.AST) -> bool:
     class YieldVisitor(ast.NodeVisitor):
         def __init__(self) -> None:
             self.has_yield = False
+
         def visit_Yield(self, n: ast.Yield) -> None:
             self.has_yield = True
+
         def visit_YieldFrom(self, n: ast.YieldFrom) -> None:
             self.has_yield = True
+
         def visit_FunctionDef(self, n: ast.FunctionDef) -> None:
             pass
+
         def visit_AsyncFunctionDef(self, n: ast.AsyncFunctionDef) -> None:
             if n.name == "__marimo_streaming_cell":
                 self.generic_visit(n)
             else:
                 pass
+
         def visit_ClassDef(self, n: ast.ClassDef) -> None:
             pass
+
     visitor = YieldVisitor()
     visitor.visit(node)
     return visitor.has_yield
@@ -306,11 +312,14 @@ def compile_cell(
     # See https://github.com/pyodide/pyodide/issues/3337,
     #     https://github.com/marimo-team/marimo/issues/1546
     code = code.replace("\u00a0", " ")
-    
+
     module = module_compile(code)
     is_generator = _has_toplevel_yield(module)
     if is_generator:
-        wrapped_code = f"async def __marimo_streaming_cell():\n" + textwrap.indent(code, "    ")
+        wrapped_code = (
+            "async def __marimo_streaming_cell():\n"
+            + textwrap.indent(code, "    ")
+        )
         module = module_compile(wrapped_code)
 
     if not module.body:
@@ -356,6 +365,7 @@ def compile_cell(
         const.col_offset = 0
         expr = ast.Expression(const)
         import copy
+
         original_module = copy.deepcopy(module)
     else:
         final_expr = module.body[-1]
