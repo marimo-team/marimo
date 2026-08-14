@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
+from marimo import _loggers
 from marimo._cli.sandbox import (
     SandboxMode,
     _ensure_marimo_in_script_metadata,
     _ensure_python_version_in_script_metadata,
     _normalize_sandbox_dependencies,
+    _redact_url_query_strings,
+    _resolve_requirements_txt_lines,
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
@@ -241,7 +245,414 @@ def test_construct_uv_cmd_with_index_configs() -> None:
             additional_deps=[],
         )
         assert "--index" in uv_cmd
-        assert "https://download.pytorch.org/whl/cu124" in uv_cmd
+        # The name is preserved: it is uv's credential selector for
+        # UV_INDEX_<NAME>_USERNAME/PASSWORD.
+        assert "torch-gpu=https://download.pytorch.org/whl/cu124" in uv_cmd
+
+
+def test_construct_uv_cmd_index_config_default_maps_to_default_index() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "url": "https://pypi.org/simple/",
+                        "default": True,
+                    },
+                    {
+                        "name": "internal",
+                        "url": "https://internal.example.com/simple/",
+                    },
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        # A default index keeps its lowest-priority semantics; passing it
+        # as a plain --index would shadow every other index.
+        default_idx = uv_cmd.index("--default-index")
+        assert uv_cmd[default_idx + 1] == "https://pypi.org/simple/"
+        assert "internal=https://internal.example.com/simple/" in uv_cmd
+        assert "https://pypi.org/simple/" not in [
+            uv_cmd[i + 1] for i, flag in enumerate(uv_cmd) if flag == "--index"
+        ]
+
+
+def test_construct_uv_cmd_index_config_explicit_goes_last() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "name": "restricted",
+                        "url": "https://restricted.example.com/simple/",
+                        "explicit": True,
+                    },
+                    {
+                        "name": "general",
+                        "url": "https://general.example.com/simple/",
+                    },
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        # `explicit = true` has no CLI equivalent; the entry is appended
+        # after regular indexes so it cannot outrank them.
+        general = uv_cmd.index("general=https://general.example.com/simple/")
+        restricted = uv_cmd.index(
+            "restricted=https://restricted.example.com/simple/"
+        )
+        assert general < restricted
+        # Both are passed as --index (not e.g. --extra-index-url).
+        assert uv_cmd[general - 1] == "--index"
+        assert uv_cmd[restricted - 1] == "--index"
+
+
+def test_construct_uv_cmd_index_config_named_default_keeps_name() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "name": "internal",
+                        "url": "https://internal.example.com/simple/",
+                        "default": True,
+                    },
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        # --default-index accepts the <name>=<url> form, which keeps the
+        # UV_INDEX_<NAME>_* credential selector working.
+        default_idx = uv_cmd.index("--default-index")
+        assert (
+            uv_cmd[default_idx + 1]
+            == "internal=https://internal.example.com/simple/"
+        )
+
+
+def test_construct_uv_cmd_index_config_only_first_default_maps() -> None:
+    # uv honors only the first `default = true` entry and ignores the rest,
+    # so later defaults are dropped entirely (passing one as a regular
+    # --index would give it top priority, inverting uv's semantics).
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "url": "https://one.example.com/simple/",
+                        "default": True,
+                    },
+                    {
+                        "url": "https://two.example.com/simple/",
+                        "default": True,
+                    },
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert uv_cmd.count("--default-index") == 1
+        default_idx = uv_cmd.index("--default-index")
+        assert uv_cmd[default_idx + 1] == "https://one.example.com/simple/"
+        assert "https://two.example.com/simple/" not in uv_cmd
+
+
+def test_construct_uv_cmd_index_config_default_and_explicit() -> None:
+    # An entry with both flags takes the default branch: it becomes the
+    # (lowest-priority) default index rather than a trailing --index.
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {
+                        "url": "https://both.example.com/simple/",
+                        "default": True,
+                        "explicit": True,
+                    },
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        default_idx = uv_cmd.index("--default-index")
+        assert uv_cmd[default_idx + 1] == "https://both.example.com/simple/"
+        assert "--index" not in uv_cmd
+
+
+def test_construct_uv_cmd_index_config_non_dict_entry_skipped() -> None:
+    # `index = ["https://..."]` is valid TOML that uv rejects with a schema
+    # error; marimo must not crash on it.
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    "https://not-a-table.example.com/simple/",
+                    {"url": "https://ok.example.com/simple/"},
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert "https://ok.example.com/simple/" in uv_cmd
+        assert "https://not-a-table.example.com/simple/" not in uv_cmd
+
+
+def test_construct_uv_cmd_index_url_and_default_index_coexist() -> None:
+    # A header can declare both the pip-style `index-url` key and a
+    # `default = true` [[tool.uv.index]] entry; uv accepts both flags
+    # together and gives --default-index precedence, matching its TOML
+    # semantics.
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index-url": "https://pip-style.example.com/simple",
+                "index": [
+                    {
+                        "url": "https://table-style.example.com/simple/",
+                        "default": True,
+                    },
+                ],
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert "--index-url" in uv_cmd
+        assert "https://pip-style.example.com/simple" in uv_cmd
+        default_idx = uv_cmd.index("--default-index")
+        assert (
+            uv_cmd[default_idx + 1]
+            == "https://table-style.example.com/simple/"
+        )
+
+
+def test_construct_uv_cmd_index_config_entry_without_url_skipped() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {"name": "no-url-here"},
+                    {"url": "https://ok.example.com/simple/"},
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert "https://ok.example.com/simple/" in uv_cmd
+        assert not any("no-url-here" in flag for flag in uv_cmd)
+
+
+def test_construct_uv_cmd_index_config_declared_order_preserved() -> None:
+    # Regular (non-default, non-explicit) indexes keep their declared
+    # order: uv's first-index-match strategy makes the order part of the
+    # resolution semantics.
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {"url": "https://first.example.com/simple/"},
+                    {"url": "https://second.example.com/simple/"},
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert uv_cmd.index(
+            "https://first.example.com/simple/"
+        ) < uv_cmd.index("https://second.example.com/simple/")
+
+
+def test_construct_uv_cmd_index_config_unnamed_stays_bare() -> None:
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index": [
+                    {"url": "https://mirror.example.com/simple/"},
+                ]
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert "--index" in uv_cmd
+        assert "https://mirror.example.com/simple/" in uv_cmd
+
+
+def test_export_failure_warns_when_script_has_metadata(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pyproject = PyProjectReader(
+        {"dependencies": ["package-a==1.0.0"]},
+        config_path="test.py",
+        name="test.py",
+    )
+    error = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=["uv", "export"],
+        stderr="401 Unauthorized",
+    )
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    try:
+        logger.propagate = True
+        with patch(
+            "marimo._cli.sandbox._uv_export_script_requirements_txt",
+            side_effect=error,
+        ):
+            with caplog.at_level("WARNING"):
+                lines = _resolve_requirements_txt_lines(pyproject)
+    finally:
+        logger.propagate = previous_propagate
+    # Falls back to the raw dependency list, but tells the user why.
+    assert lines == ["package-a==1.0.0"]
+    assert any("401 Unauthorized" in r.message for r in caplog.records)
+
+
+def test_export_failure_stays_silent_for_plain_files(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # A file with no PEP 723 block: export legitimately fails and the
+    # silent fallback is its normal path.
+    pyproject = PyProjectReader({}, config_path="test.py", name="test.py")
+    error = subprocess.CalledProcessError(
+        returncode=2,
+        cmd=["uv", "export"],
+        stderr="does not contain a PEP 723 metadata tag",
+    )
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    try:
+        logger.propagate = True
+        with patch(
+            "marimo._cli.sandbox._uv_export_script_requirements_txt",
+            side_effect=error,
+        ):
+            with caplog.at_level("WARNING"):
+                lines = _resolve_requirements_txt_lines(pyproject)
+    finally:
+        logger.propagate = previous_propagate
+    assert lines == []
+    assert not caplog.records
+
+
+def test_export_failure_warning_redacts_query_strings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # uv redacts userinfo credentials in the URLs it prints, but not query
+    # strings, which some registries use for auth tokens; the warning must
+    # not persist them to the log.
+    pyproject = PyProjectReader(
+        {"dependencies": ["package-a==1.0.0"]},
+        config_path="test.py",
+        name="test.py",
+    )
+    error = subprocess.CalledProcessError(
+        returncode=1,
+        cmd=["uv", "export"],
+        stderr=(
+            "Failed to fetch: "
+            "https://registry.example.com/simple/?token=SECRETVALUE"
+        ),
+    )
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    try:
+        logger.propagate = True
+        with patch(
+            "marimo._cli.sandbox._uv_export_script_requirements_txt",
+            side_effect=error,
+        ):
+            with caplog.at_level("WARNING"):
+                _resolve_requirements_txt_lines(pyproject)
+    finally:
+        logger.propagate = previous_propagate
+    messages = [r.message for r in caplog.records]
+    assert messages
+    assert all("SECRETVALUE" not in m for m in messages)
+    assert any("?<redacted>" in m for m in messages)
+
+
+def test_redact_url_query_strings() -> None:
+    assert (
+        _redact_url_query_strings(
+            "error at https://host.example.com/simple/?sig=abc123 while fetching"
+        )
+        == "error at https://host.example.com/simple/?<redacted> while fetching"
+    )
+    # URLs without query strings and non-URL text are unchanged.
+    unchanged = "https://host.example.com/simple/ and plain ?text"
+    assert _redact_url_query_strings(unchanged) == unchanged
 
 
 def test_construct_uv_cmd_with_sandbox_flag() -> None:

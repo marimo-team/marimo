@@ -181,6 +181,23 @@ In this example:
 
 This approach ensures that specific packages are always fetched from your designated custom index, while other packages continue to be fetched from the default PyPI repository.
 
+When running in sandbox mode, marimo passes each index to uv preserving its
+semantics: an index with `default = true` is passed as uv's default index
+(consulted last; only the first default entry is honored, as in uv), named
+indexes keep their name so credentials provided via
+`UV_INDEX_<NAME>_USERNAME` and `UV_INDEX_<NAME>_PASSWORD` environment
+variables continue to work, and regular indexes are passed in their declared
+order.
+
+!!! note "Limitations in sandbox mode"
+
+    `explicit = true` and `[tool.uv.sources]` index assignments have no
+    command-line equivalents in uv, so they cannot be fully enforced when
+    marimo constructs the sandbox environment. An `explicit` index is passed
+    after the regular indexes, but it can still serve any package it
+    carries — including packages not assigned to it via `[tool.uv.sources]`
+    — and it takes priority over the default index for those packages.
+
 ### Platform-specific dependencies (PEP 508) { #platform-specific-dependencies-pep-508 }
 
 When a notebook runs both locally and as a [WebAssembly notebook](../wasm.md),

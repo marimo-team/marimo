@@ -5,7 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from marimo import _loggers
 from marimo._cli.files.file_path import FileContentReader
@@ -18,6 +18,20 @@ if TYPE_CHECKING:
     from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
+
+
+class IndexConfig(TypedDict, total=False):
+    """One `[[tool.uv.index]]` entry from PEP 723 inline script metadata.
+
+    Mirrors the keys of uv's index schema that marimo interprets
+    (https://docs.astral.sh/uv/reference/settings/#index). uv may define
+    additional keys; they are tolerated at runtime and ignored here.
+    """
+
+    url: str
+    name: str
+    default: bool
+    explicit: bool
 
 
 class PyProjectReader:
@@ -58,7 +72,7 @@ class PyProjectReader:
         )
 
     @property
-    def index_configs(self) -> list[dict[str, str]]:
+    def index_configs(self) -> list[IndexConfig]:
         # See https://docs.astral.sh/uv/reference/settings/#index
         return self.project.get("tool", {}).get("uv", {}).get("index", [])  # type: ignore[no-any-return]
 

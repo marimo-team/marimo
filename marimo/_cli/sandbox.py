@@ -4,6 +4,7 @@ from __future__ import annotations
 import atexit
 import os
 import platform
+import re
 import shutil
 import signal
 import subprocess
@@ -227,12 +228,33 @@ def _uv_export_script_requirements_txt(
     ]
 
 
+def _redact_url_query_strings(text: str) -> str:
+    """Redact query strings from URLs in `text`.
+
+    uv redacts userinfo credentials in the URLs it prints, but not query
+    strings, which some registries use for auth tokens.
+    """
+    return re.sub(r"(https?://[^\s?]+)\?\S*", r"\1?<redacted>", text)
+
+
 def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
     if pyproject.name and pyproject.name.endswith(".py"):
         try:
             return _uv_export_script_requirements_txt(pyproject.name)
-        except subprocess.CalledProcessError:
-            pass  # Fall back if uv fails
+        except subprocess.CalledProcessError as e:
+            # A file with no PEP 723 block fails to export (exit code 2),
+            # and the fallback below is its normal path. For a script that
+            # does have inline metadata, falling back silently degrades
+            # resolution to the unpinned dependency list — e.g. a 401 from
+            # an authenticated index would otherwise surface later as a
+            # confusing "package not found" error.
+            if pyproject.project:
+                stderr = _redact_url_query_strings(str(e.stderr or ""))
+                LOGGER.warning(
+                    f"Failed to resolve inline script metadata with "
+                    f"`uv export --script`; falling back to the raw "
+                    f"dependency list. uv reported: {stderr}"
+                )
     return pyproject.requirements_txt_lines
 
 
@@ -307,10 +329,44 @@ def construct_uv_flags(
 
     index_configs = pyproject.index_configs
     if index_configs:
+        # Map each [[tool.uv.index]] entry to the flag that carries its uv
+        # semantics (see GH issue #10547): `default = true` -> --default-index
+        # (lowest priority; a plain --index would shadow every other index),
+        # `name` -> `--index <name>=<url>` (the credential selector for
+        # UV_INDEX_<NAME>_USERNAME/PASSWORD). `explicit = true` has no CLI
+        # equivalent, so those entries go after the regular indexes; they
+        # still outrank the default index for packages they carry.
+        explicit_flags: list[str] = []
+        default_seen = False
         for config in index_configs:
-            if "url" in config:
-                # Looks like: https://docs.astral.sh/uv/guides/scripts/#using-alternative-package-indexes
-                uv_flags.extend(["--index", config["url"]])
+            if not isinstance(config, dict):
+                # e.g. `index = ["https://..."]`; uv itself rejects this
+                # with a schema error, so leave it for uv to report.
+                continue
+            config_url = config.get("url")
+            if not config_url:
+                continue
+            name = config.get("name")
+            index_value = f"{name}={config_url}" if name else config_url
+            if config.get("default"):
+                if default_seen:
+                    # uv honors only the first `default = true` entry and
+                    # ignores the rest; skipping keeps that behavior (the
+                    # CLI also rejects a repeated --default-index).
+                    LOGGER.warning(
+                        "Multiple [[tool.uv.index]] entries have "
+                        "`default = true`; only the first is used."
+                    )
+                    continue
+                # --default-index accepts the <name>=<url> form, so a named
+                # default keeps its credential selector.
+                default_seen = True
+                uv_flags.extend(["--default-index", index_value])
+            elif config.get("explicit"):
+                explicit_flags.extend(["--index", index_value])
+            else:
+                uv_flags.extend(["--index", index_value])
+        uv_flags.extend(explicit_flags)
     return uv_flags
 
 
