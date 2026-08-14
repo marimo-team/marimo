@@ -139,9 +139,10 @@ class DirectoryScanner:
         )
         # Stores partial results in case of timeout
         self.partial_results: list[FileInfo] = []
-        # Set when a limit (depth, file count, time) stopped the walk before
-        # the tree was fully explored. Lets callers tell "this directory has
-        # no notebooks" apart from "we stopped looking".
+        # Set when a limit (depth, file count, time) or an unreadable entry
+        # stopped the walk before the tree was fully explored. Lets callers
+        # tell "this directory has no notebooks" apart from "we stopped
+        # looking".
         self.truncated = False
 
     @property
@@ -259,6 +260,9 @@ class DirectoryScanner:
                     LOGGER.debug(
                         "Error processing entry %s: %s", entry.path, e
                     )
+                    # We don't know what this entry was, so it may have been a
+                    # notebook or a folder holding notebooks.
+                    self.truncated = True
                     continue
 
             # Sort folders then files, based on natural sort (alpha, then num)

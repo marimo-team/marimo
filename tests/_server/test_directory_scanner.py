@@ -251,6 +251,36 @@ class TestDirectoryScanner:
         assert _count_files(files) == 1
         assert not scanner.truncated
 
+    def test_truncated_when_an_entry_cannot_be_read(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """An entry we fail to stat may have been a notebook, or a folder
+        holding notebooks, so it counts as a truncated scan too."""
+        import marimo._server.files.directory_scanner as scanner_mod
+
+        (tmp_path / "projects").mkdir()
+        _write(tmp_path / "projects" / "app.py", MARIMO_APP)
+
+        class UnreadableEntry:
+            name = "projects"
+            path = str(tmp_path / "projects")
+
+            def is_symlink(self) -> bool:
+                return False
+
+            def is_dir(self) -> bool:
+                raise PermissionError("denied")
+
+        monkeypatch.setattr(
+            scanner_mod.os, "scandir", lambda _path: iter([UnreadableEntry()])
+        )
+
+        scanner = DirectoryScanner(str(tmp_path))
+        files = scanner.scan()
+
+        assert files == []
+        assert scanner.truncated
+
     def test_partial_results_populated_during_scan(self, test_dir: Path):
         scanner = DirectoryScanner(str(test_dir))
         assert scanner.partial_results == []
