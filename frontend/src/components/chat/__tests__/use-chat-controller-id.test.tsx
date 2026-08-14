@@ -9,7 +9,7 @@ describe("useChatControllerId", () => {
   it("creates a new ID when starting another unsaved chat", () => {
     const activeChatId = "existing-chat" as ChatId;
     const initialProps: { activeId: ChatId | undefined } = {
-      activeId: activeChatId,
+      activeId: undefined,
     };
     const { result, rerender } = renderHook(
       ({ activeId }: { activeId: ChatId | undefined }) =>
@@ -17,12 +17,15 @@ describe("useChatControllerId", () => {
       { initialProps },
     );
 
+    const initialDraftId = result.current.chatControllerId;
+    rerender({ activeId: activeChatId });
+
     expect(result.current.chatControllerId).toBe(activeChatId);
 
     act(() => result.current.renewDraftChatId());
     rerender({ activeId: undefined });
 
-    expect(result.current.chatControllerId).not.toBe(activeChatId);
+    expect(result.current.chatControllerId).not.toBe(initialDraftId);
   });
 
   it("renews the ID when the current chat is already unsaved", () => {
