@@ -187,6 +187,36 @@ class TestArrowManager:
             "geoarrow.wkb",
         )
 
+    def test_formatting_skips_geometry_columns_in_mapping(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        formatted = manager.apply_formatting(
+            {"a": lambda x: x + 1, "geom": lambda _x: "formatted"}
+        )
+        native = formatted.data.to_native()
+
+        assert native.column("a").to_pylist() == [1, 2]
+        assert formatted.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+        assert (
+            native.schema.field("geom").metadata[b"ARROW:extension:name"]
+            == b"geoarrow.wkb"
+        )
+
+    def test_json_format_mapping_ignores_geometry_column(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        rows = json.loads(
+            manager.to_json_str(
+                format_mapping={"geom": lambda _x: "formatted"}
+            )
+        )
+
+        assert rows[0]["geom"] == f"<geometry, {len(geo.WKB_POINT_1_2)} B>"
+        assert rows[1]["geom"] is None
+
     def test_search_skips_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkt())
 

@@ -109,9 +109,10 @@ class NarwhalsTableManager(
         ensure_ascii: bool = True,
     ) -> str:
         del strict_json
-        frame = self.apply_formatting(format_mapping).as_frame()
+        formatted_manager = self.apply_formatting(format_mapping)
+        frame = formatted_manager.as_frame()
         rows = frame.rows(named=True)
-        geometry_columns = self._geometry_columns
+        geometry_columns = formatted_manager._geometry_columns
         if geometry_columns:
             rows = [
                 {
@@ -141,7 +142,7 @@ class NarwhalsTableManager(
 
         frame = self.as_frame()
         for col in frame.columns:
-            if col not in format_mapping:
+            if col not in format_mapping or col in self._geometry_columns:
                 continue
             formatted = [
                 format_value(col, x, format_mapping)
