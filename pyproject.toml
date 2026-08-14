@@ -389,7 +389,6 @@ ignore = [
     "PLC0105", # Type name incorrect variance
     "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
-    "PYI063", # PEP 484-style positional-only parameter
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
     "PLW0129", # Assert on string literal

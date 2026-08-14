@@ -78,9 +78,9 @@ class Stdout(io.TextIOBase, abc.ABC):
     ) -> int:
         pass
 
-    def write(self, __s: str) -> int:
+    def write(self, s: str, /) -> int:
         return self._write_with_mimetype(
-            _ensure_plain_str(__s), mimetype="text/plain"
+            _ensure_plain_str(s), mimetype="text/plain"
         )
 
     def _stop(self) -> None:
@@ -96,9 +96,9 @@ class Stderr(io.TextIOBase, abc.ABC):
     ) -> int:
         pass
 
-    def write(self, __s: str) -> int:
+    def write(self, s: str, /) -> int:
         return self._write_with_mimetype(
-            _ensure_plain_str(__s), mimetype="text/plain"
+            _ensure_plain_str(s), mimetype="text/plain"
         )
 
     def _stop(self) -> None:
