@@ -158,6 +158,11 @@ py-test-narwhals:
 		tests/_plugins/ui/_impl/ \
 		tests/_utils/test_narwhals_utils.py
 
+.PHONY: py-benchmark
+# 📈 Run Python benchmarks (tracked in CI with CodSpeed)
+py-benchmark:
+	uv run --no-default-groups --group benchmark pytest benchmarks/ --codspeed
+
 .PHONY: py-snapshots
 # 📸 Update snapshots
 py-snapshots:

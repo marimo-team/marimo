@@ -135,6 +135,7 @@ NODE_ENV=development make fe -B
 | `py-check`     | Lint      | 🔍 Typecheck, lint, format python                              |
 | `typos`        | Lint      | 🔍 Check for typos                                             |
 | `py-test`      | Test      | 🧪 Test python                                                 |
+| `py-benchmark` | Test      | 📈 Run Python benchmarks (tracked in CI with CodSpeed)         |
 | `py-snapshots` | Test      | 📸 Update snapshots                                            |
 | `wheel`        | Build     | 📦 Build wheel                                                 |
 | `docs`         | Docs      | 📚 Build docs                                                  |
@@ -226,6 +227,31 @@ Run tests with optional dependencies
 ```bash
 uv run --python 3.13 --group test-optional pytest tests/_ast/
 ```
+
+### Benchmarks
+
+Performance benchmarks live in `benchmarks/` and cover marimo's hot paths:
+cell compilation, static analysis, the reactive dataflow graph, notebook
+parsing and serialization, markdown rendering, SQL analysis, linting, and
+message encoding.
+
+They are regular pytest tests that use the `benchmark` fixture from
+[`pytest-codspeed`](https://docs.codspeed.io/benchmarks/python), and they run
+on every pull request via [CodSpeed](https://app.codspeed.io/marimo-team/marimo),
+which reports the performance impact of the change.
+
+```bash
+make py-benchmark
+```
+
+Or directly:
+
+```bash
+uv run --no-default-groups --group benchmark pytest benchmarks/ --codspeed
+```
+
+Benchmarks are not part of `make py-test`, so they do not slow down the normal
+test suite.
 
 ### End-to-end
 

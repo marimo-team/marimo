@@ -33,6 +33,7 @@
   <img alt="Pepy Total Downloads" src="https://img.shields.io/pepy/dt/marimo?label=pypi%20%7C%20downloads"/>
   <img alt="Conda Downloads" src="https://img.shields.io/conda/d/conda-forge/marimo"/>
   <a href="https://github.com/marimo-team/marimo/blob/main/LICENSE"><img src="https://img.shields.io/pypi/l/marimo"/></a>
+  <a href="https://app.codspeed.io/marimo-team/marimo?utm_source=badge"><img src="https://img.shields.io/endpoint?url=https://codspeed.io/badge.json" alt="CodSpeed"/></a>
 </p>
 
 **marimo** is a reactive Python notebook: run a cell or interact with a UI
