@@ -20,6 +20,7 @@ from marimo._config.config import (
     SharingConfig,
     SqlOutputType,
     Theme,
+    VenvConfig,
     WidthType,
     merge_config,
     merge_default_config,
@@ -124,6 +125,10 @@ class MarimoConfigReader:
         if "experimental" in self._config:
             return self._config["experimental"]
         return {}
+
+    @property
+    def venv(self) -> VenvConfig:
+        return self._config.get("venv", {})
 
 
 class MarimoConfigManager(MarimoConfigReader):
