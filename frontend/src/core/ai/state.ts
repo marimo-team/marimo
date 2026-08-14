@@ -8,6 +8,7 @@ import { uniqueBy } from "@/utils/arrays";
 import { adaptForLocalStorage, jotaiJsonStorage } from "@/utils/storage/jotai";
 import type { TypedString } from "@/utils/typed";
 import type { CellId } from "../cells/ids";
+import type { ChatOptions } from "../network/types";
 
 const KEY = "marimo:ai:chatState:v5";
 
@@ -31,6 +32,15 @@ export interface PendingAiPrompt {
 }
 
 export const pendingAiPromptAtom = atom<PendingAiPrompt | null>(null);
+
+const CHAT_OPTIONS_KEY = "marimo:ai:chatOptions";
+export const chatOptionsAtom = atomWithStorage<Required<ChatOptions>>(
+  CHAT_OPTIONS_KEY,
+  {
+    webSearch: false,
+  },
+  jotaiJsonStorage,
+);
 
 const INCLUDE_OTHER_CELLS_KEY = "marimo:ai:includeOtherCells";
 export const includeOtherCellsAtom = atomWithStorage<boolean>(

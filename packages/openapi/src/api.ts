@@ -4034,6 +4034,14 @@ export interface components {
       role: "assistant" | "system" | "user";
     };
     /**
+     * ChatOptions
+     * @description Used to configure capabilities of the AI agent.
+     */
+    ChatOptions: {
+      /** @default false */
+      webSearch?: boolean;
+    };
+    /**
      * ChatRequest
      * @description UIMessages are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
@@ -4042,6 +4050,7 @@ export interface components {
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
+      options?: components["schemas"]["ChatOptions"];
       /** @default null */
       tools?: components["schemas"]["ToolDefinition"][] | null;
       uiMessages: Record<string, any>[];

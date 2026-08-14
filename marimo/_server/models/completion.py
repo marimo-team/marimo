@@ -60,6 +60,14 @@ class AiInlineCompletionRequest(msgspec.Struct, rename="camel"):
     language: Language = "python"
 
 
+class ChatOptions(msgspec.Struct, rename="camel"):
+    """
+    Used to configure capabilities of the AI agent.
+    """
+
+    web_search: bool = False
+
+
 class ChatRequest(msgspec.Struct, rename="camel"):
     """
     UIMessages are expected to be AI SDK messages.
@@ -71,3 +79,4 @@ class ChatRequest(msgspec.Struct, rename="camel"):
     tools: list[ToolDefinition] | None = None
     model: str | None = None
     variables: list[VariableContext | str] | None = None
+    options: ChatOptions = msgspec.field(default_factory=ChatOptions)

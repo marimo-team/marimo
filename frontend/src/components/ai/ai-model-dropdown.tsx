@@ -9,7 +9,7 @@ import {
   CircleHelpIcon,
 } from "lucide-react";
 import React from "react";
-import { type SupportedRole, useModelChange } from "@/core/ai/config";
+import { type SupportedRole, useAIConfigActions } from "@/core/ai/config";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -64,7 +64,7 @@ export const AIModelDropdown = ({
 
   const ai = useAtomValue(aiAtom);
   const completion = useAtomValue(completionAtom);
-  const { saveModelChange } = useModelChange();
+  const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
 
   // Only include autocompleteModel if copilot is set to "custom"

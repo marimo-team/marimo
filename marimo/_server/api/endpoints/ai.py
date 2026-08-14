@@ -163,6 +163,7 @@ async def ai_completion(
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
         additional_tools=[],
+        enable_capabilities=False,
         stream_options=StreamOptions(
             span_info=SpanInfo(
                 endpoint="completion",
@@ -234,6 +235,7 @@ async def ai_chat(
             session_id=session_id,
         ),
     )
+    enable_capabilities = body.options.web_search
 
     if mode == "code_mode":
         return await provider.stream_completion_harness(
@@ -242,6 +244,7 @@ async def ai_chat(
             session=session,
             request=request,
             max_tokens=max_tokens,
+            enable_capabilities=enable_capabilities,
             stream_options=stream_options,
         )
 
@@ -250,6 +253,7 @@ async def ai_chat(
         system_prompt=system_prompt,
         max_tokens=max_tokens,
         additional_tools=additional_tools,
+        enable_capabilities=enable_capabilities,
         stream_options=stream_options,
     )
 
@@ -312,6 +316,7 @@ async def ai_inline_completion(
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
             additional_tools=[],
+            enable_capabilities=False,
             span_info=SpanInfo(
                 endpoint="inline_completion",
                 model=model,

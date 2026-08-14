@@ -12,7 +12,7 @@ from marimo import _loggers
 from marimo._config.config import (
     MarimoConfig,
     PartialMarimoConfig,
-    merge_default_config,
+    merge_config,
 )
 from marimo._export.exporter import Exporter, export_markdown, export_script
 from marimo._export.requests import (
@@ -279,7 +279,11 @@ class PyodideBridge:
 
     def save_user_config(self, request: str) -> None:
         parsed = self._parse(request, SaveUserConfigurationRequest)
-        config = merge_default_config(cast(PartialMarimoConfig, parsed.config))
+        config = merge_config(
+            self.session._initial_user_config,
+            cast(PartialMarimoConfig, parsed.config),
+        )
+        self.session._initial_user_config = config
         self.session.put_control_request(
             UpdateUserConfigCommand(config=config)
         )

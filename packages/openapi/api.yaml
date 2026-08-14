@@ -627,6 +627,15 @@ components:
       - content
       title: ChatMessage
       type: object
+    ChatOptions:
+      description: Used to configure capabilities of the AI agent.
+      properties:
+        webSearch:
+          default: false
+          type: boolean
+      required: []
+      title: ChatOptions
+      type: object
     ChatRequest:
       description: 'UIMessages are expected to be AI SDK messages.
 
@@ -639,6 +648,8 @@ components:
           - type: string
           - type: 'null'
           default: null
+        options:
+          $ref: '#/components/schemas/ChatOptions'
         tools:
           anyOf:
           - items:

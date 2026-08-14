@@ -858,6 +858,7 @@ async def test_stream_completion_harness_wires_execute_code_toolset() -> None:
             request=request,
             max_tokens=1234,
             stream_options=stream_options,
+            enable_capabilities=False,
         )
 
     assert result is streaming_response
@@ -980,7 +981,8 @@ def test_custom_provider_non_openrouter_omits_cache_settings() -> None:
 @pytest.mark.requires("pydantic_ai")
 def test_build_agent_capabilities_from_native_tool_support() -> None:
     """Provider-adaptive tools are enabled based on the model profile's
-    supported native tools when no local search/fetch deps are installed."""
+    supported native tools when no local search/fetch deps are installed
+    and web search is explicitly turned on."""
     from pydantic_ai.native_tools import (
         WebFetchTool,
         WebSearchTool,
@@ -1010,6 +1012,36 @@ def test_build_agent_capabilities_from_native_tool_support() -> None:
         "WebSearch",
         "XSearch",
     ]
+
+
+@pytest.mark.requires("pydantic_ai")
+def test_build_agent_capabilities_uses_local_fallbacks() -> None:
+    """Enabled web capabilities use local fallbacks without native support."""
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    model = MagicMock(name="model")
+    model.profile.supported_native_tools = set()
+    web_search = MagicMock(name="web_search")
+    web_fetch = MagicMock(name="web_fetch")
+
+    with (
+        patch.object(
+            DependencyManager.duckduckgo_search, "has", return_value=True
+        ),
+        patch.object(DependencyManager.markdownify, "has", return_value=True),
+        patch(
+            "pydantic_ai.capabilities.WebSearch", return_value=web_search
+        ) as mock_web_search,
+        patch(
+            "pydantic_ai.capabilities.WebFetch", return_value=web_fetch
+        ) as mock_web_fetch,
+    ):
+        capabilities = provider._build_agent_capabilities(model)
+
+    assert capabilities == [web_search, web_fetch]
+    mock_web_search.assert_called_once_with(local="duckduckgo")
+    mock_web_fetch.assert_called_once_with(local=True)
 
 
 @pytest.mark.requires("pydantic_ai")

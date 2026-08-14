@@ -336,7 +336,6 @@ class AiConfig(TypedDict, total=False):
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
     models: AiModelConfig
-
     # providers
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
