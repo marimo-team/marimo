@@ -23,11 +23,12 @@ def similarity_score(s1: str, s2: str) -> float:
     if prefix_len < min(len(s1), len(s2)):
         s1_rev = s1[::-1]
         s2_rev = s2[::-1]
-        suffix_len = 0
-        for c1, c2 in zip(s1_rev, s2_rev, strict=False):
+        for suffix_len, (c1, c2) in enumerate(
+            zip(s1_rev, s2_rev, strict=False), start=1
+        ):
             if c1 != c2:
+                suffix_len -= 1
                 break
-            suffix_len += 1
     else:
         suffix_len = 0
 

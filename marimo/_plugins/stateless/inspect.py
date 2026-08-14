@@ -191,9 +191,11 @@ class inspect(Html):
 
         if attributes:
             table_rows = []
-            for name, value, attr_type, error in attributes:
+            for name, attr_value, attr_type, error in attributes:
                 table_rows.append(
-                    _render_attribute_row(name, value, attr_type, error, docs)
+                    _render_attribute_row(
+                        name, attr_value, attr_type, error, docs
+                    )
                 )
 
             main_content.append(

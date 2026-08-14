@@ -606,7 +606,7 @@ class CacheContext(abc.ABC):
     """Tracks cache loader state and statistics.
     Base class for cache interfaces."""
 
-    __slots__ = "_loader"
+    __slots__ = ("_loader",)
     _loader: State[Loader] | None
 
     # Match functools api
