@@ -187,6 +187,29 @@ class TestArrowManager:
             "geoarrow.wkb",
         )
 
+    def test_search_skips_geometry(self) -> None:
+        manager = get_table_manager(geo.arrow_wkt())
+
+        assert manager.search("POINT").get_num_rows() == 0
+
+    def test_top_k_returns_empty(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.calculate_top_k_rows("geom", 10) == []
+
+    def test_unique_values_returns_empty(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.get_unique_column_values("geom") == []
+
+    def test_stats_counts_only(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        stats = manager.get_stats("geom")
+        assert stats.total == 2
+        assert stats.nulls == 1
+        assert stats.unique is None
+
 
 @pytest.mark.requires("pandas")
 class TestNarwhalsGeometryContract:
