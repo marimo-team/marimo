@@ -2743,11 +2743,9 @@ async def test_export_as_slides_pdf_with_png_fallbacks(
 
         # Verify the notebook passed to SlidesExporter has the injected
         # PNG fallback in its cell outputs.
-        notebook = (
-            mock_slides_exporter_instance.from_notebook_node.call_args[0][
-                0
-            ]
-        )
+        notebook = mock_slides_exporter_instance.from_notebook_node.call_args[
+            0
+        ][0]
         found_png = False
         for cell in notebook.cells:
             for output in cell.get("outputs", []):
@@ -2755,9 +2753,7 @@ async def test_export_as_slides_pdf_with_png_fallbacks(
                 if "image/png" in data:
                     found_png = True
                     break
-        assert found_png, (
-            "Expected PNG fallback data in notebook cell outputs"
-        )
+        assert found_png, "Expected PNG fallback data in notebook cell outputs"
 
     finally:
         if orig_nbconvert is not None:
@@ -2768,6 +2764,7 @@ async def test_export_as_slides_pdf_with_png_fallbacks(
             sys.modules["playwright.async_api"] = orig_playwright
         else:
             sys.modules.pop("playwright.async_api", None)
+
 
 @pytest.mark.skipif(
     not DependencyManager.nbformat.has(),
