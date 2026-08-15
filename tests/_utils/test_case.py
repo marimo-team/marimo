@@ -25,8 +25,8 @@ def test_camel_case() -> None:
 
 def test_deep_to_camel_case() -> None:
     # Simple dictionary
-    input_dict = {"first_key": "value1", "second_key": 2}
-    expected_output = {"firstKey": "value1", "secondKey": 2}
+    input_dict = {"list_key": ["some_value", "other_value"]}
+    expected_output = {"listKey": ["some_value", "other_value"]}
     assert deep_to_camel_case(input_dict) == expected_output
 
     # Nested dictionary
