@@ -686,6 +686,14 @@ class Exporter:
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+
+        # Inline virtual file references in cell outputs so that plot images
+        # and other media served via marimo's virtual file system are resolved
+        # to data URIs before nbconvert renders the reveal.js HTML. Without this
+        # step, image src attributes like `./@file/12345-plot.png` become broken
+        # links when Playwright loads the HTML from a temporary file:// URI.
+        self._inline_virtual_files_in_notebook(notebook)
+
         if request.png_fallbacks:
             from marimo._export._nbformat_png_fallbacks import (
                 inject_png_fallbacks_into_notebook,
@@ -703,6 +711,54 @@ class Exporter:
         return await self._export_slides_as_pdf(
             notebook, request.options.include_inputs
         )
+
+    @staticmethod
+    def _inline_virtual_files_in_notebook(notebook: Any) -> None:
+        """Replace virtual file URLs with data URIs in all cell outputs.
+
+        Iterates over every code cell in an nbformat notebook and replaces
+        `./@file/...` references found in `text/html` output data with
+        inline base64 data URIs. This is necessary before passing the notebook
+        to nbconvert exporters that produce standalone HTML (e.g. `SlidesExporter`),
+        because the generated HTML is served from a temporary directory or file://
+        URI where virtual file paths cannot be resolved.
+
+        Operates in-place on the notebook object.
+        """
+        from marimo._convert.common.dom_traversal import (
+            replace_virtual_files_with_data_uris,
+        )
+
+        cells = notebook.get("cells", [])
+        if not isinstance(cells, list):
+            return
+
+        for cell in cells:
+            if not isinstance(cell, dict) or cell.get("cell_type") != "code":
+                continue
+            outputs = cell.get("outputs", [])
+            if not isinstance(outputs, list):
+                continue
+            for output in outputs:
+                if not isinstance(output, dict):
+                    continue
+                data = output.get("data")
+                if not isinstance(data, dict):
+                    continue
+                for mime_type, content in list(data.items()):
+                    if mime_type != "text/html" or not isinstance(
+                        content, str
+                    ):
+                        continue
+                    if "./@file/" not in content:
+                        continue
+                    processed, _ = replace_virtual_files_with_data_uris(
+                        content,
+                        allowed_tags=VIRTUAL_FILE_ALLOWED_TAGS,
+                        allowed_attributes=VIRTUAL_FILE_ALLOWED_ATTRIBUTES,
+                        max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
+                    )
+                    data[mime_type] = processed
 
     @staticmethod
     def _to_file_uri(path: str) -> str:
@@ -733,6 +789,14 @@ class Exporter:
         import tempfile
 
         from nbconvert import SlidesExporter
+
+        # Explicitly check for Playwright up-front so users get a clear message
+        # instead of a bare ModuleNotFoundError from the lazy import below.
+        from marimo._dependencies.dependencies import DependencyManager
+
+        DependencyManager.playwright.require(
+            "for slides PDF export (Playwright renders the reveal.js HTML to PDF)"
+        )
 
         # Add slideshow metadata so each cell becomes a slide.
         for cell in notebook.cells:

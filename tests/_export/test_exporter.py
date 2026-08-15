@@ -2665,6 +2665,181 @@ class TestPDFExport:
 
 
 @pytest.mark.skipif(
+    not DependencyManager.nbformat.has(),
+    reason="nbformat not installed",
+)
+async def test_export_as_slides_pdf_with_png_fallbacks(
+    session_view: SessionView,
+) -> None:
+    """Test slides PDF injection of PNG fallbacks alongside virtual file inlining."""
+    app = App()
+
+    @app.cell()
+    def slide_1():
+        return "slide 1"
+
+    file_manager = AppFileManager.from_app(InternalApp(app))
+    exporter = Exporter()
+
+    mock_slides_exporter_instance = MagicMock()
+    mock_slides_exporter_instance.from_notebook_node.return_value = (
+        "<html>mock slides html</html>",
+        {},
+    )
+    mock_slides_exporter_cls = MagicMock(
+        return_value=mock_slides_exporter_instance
+    )
+
+    mock_page = AsyncMock()
+    mock_page.pdf.return_value = b"mock_slides_pdf_data"
+    mock_browser = AsyncMock()
+    mock_browser.new_page.return_value = mock_page
+    mock_playwright_instance = AsyncMock()
+    mock_playwright_instance.chromium.launch.return_value = mock_browser
+    mock_playwright_cm = AsyncMock()
+    mock_playwright_cm.__aenter__.return_value = mock_playwright_instance
+    mock_playwright_cm.__aexit__.return_value = False
+    mock_async_playwright = MagicMock(return_value=mock_playwright_cm)
+
+    mock_nbconvert = MagicMock()
+    mock_nbconvert.SlidesExporter = mock_slides_exporter_cls
+    mock_playwright_async = MagicMock()
+    mock_playwright_async.async_playwright = mock_async_playwright
+
+    orig_nbconvert = sys.modules.get("nbconvert")
+    orig_playwright = sys.modules.get("playwright.async_api")
+
+    try:
+        sys.modules["nbconvert"] = mock_nbconvert
+        sys.modules["playwright.async_api"] = mock_playwright_async
+
+        png_fallbacks = {
+            "HbolJK": "data:image/png;base64,iVBORw0KGgo=",
+        }
+
+        with (
+            patch.object(
+                DependencyManager.nbconvert, "has", return_value=True
+            ),
+            patch.object(
+                DependencyManager.playwright, "has", return_value=True
+            ),
+        ):
+            events: list[PDFExportStatusEvent] = []
+            result = await exporter.export_as_slides_pdf(
+                _pdf_export_request(
+                    app=file_manager.app,
+                    session_view=session_view,
+                    png_fallbacks=png_fallbacks,
+                    status_callback=events.append,
+                    preset="slides",
+                )
+            )
+
+        assert result == b"mock_slides_pdf_data"
+        assert [(event.phase, event.message) for event in events] == [
+            ("render", "rendering slides PDF..."),
+        ]
+
+        # Verify the notebook passed to SlidesExporter has the injected
+        # PNG fallback in its cell outputs.
+        notebook = (
+            mock_slides_exporter_instance.from_notebook_node.call_args[0][
+                0
+            ]
+        )
+        found_png = False
+        for cell in notebook.cells:
+            for output in cell.get("outputs", []):
+                data = output.get("data", {})
+                if "image/png" in data:
+                    found_png = True
+                    break
+        assert found_png, (
+            "Expected PNG fallback data in notebook cell outputs"
+        )
+
+    finally:
+        if orig_nbconvert is not None:
+            sys.modules["nbconvert"] = orig_nbconvert
+        else:
+            sys.modules.pop("nbconvert", None)
+        if orig_playwright is not None:
+            sys.modules["playwright.async_api"] = orig_playwright
+        else:
+            sys.modules.pop("playwright.async_api", None)
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(),
+    reason="nbformat not installed",
+)
+def test_inline_virtual_files_in_notebook() -> None:
+    """Test that _inline_virtual_files_in_notebook resolves virtual file
+    references in cell output HTML to data URIs."""
+    import nbformat
+
+    notebook = nbformat.v4.new_notebook()
+    cell = nbformat.v4.new_code_cell(
+        "print('hi')",
+        id="cell-1",
+    )
+    cell.outputs = [
+        nbformat.v4.new_output(
+            "display_data",
+            data={
+                "text/html": '<img src="./@file/12345-test.png" alt="plot" />',
+                "text/plain": "test",
+            },
+        ),
+    ]
+    notebook.cells = [cell]
+
+    # The virtual file doesn't exist on disk, so the replacement will
+    # log a warning and leave the original value. We verify no crash.
+    Exporter._inline_virtual_files_in_notebook(notebook)
+
+    output_data = notebook.cells[0].outputs[0]["data"]
+    assert "text/html" in output_data
+    assert "text/plain" in output_data
+
+
+@pytest.mark.skipif(
+    not DependencyManager.nbformat.has(),
+    reason="nbformat not installed",
+)
+def test_inline_virtual_files_in_notebook_skips_non_html() -> None:
+    """Test that non-HTML outputs (image/png, text/plain) are never
+    sent through the HTML parser, preserving their raw content."""
+    import nbformat
+
+    notebook = nbformat.v4.new_notebook()
+    cell = nbformat.v4.new_code_cell(
+        "print('hi')",
+        id="cell-1",
+    )
+    cell.outputs = [
+        nbformat.v4.new_output(
+            "display_data",
+            data={
+                "image/png": "iVBORw0KGgo=",
+                "text/plain": "plain text with ./@file/ in content",
+            },
+        ),
+    ]
+    notebook.cells = [cell]
+    original_png = cell.outputs[0]["data"]["image/png"]
+    original_text = cell.outputs[0]["data"]["text/plain"]
+
+    Exporter._inline_virtual_files_in_notebook(notebook)
+
+    output_data = notebook.cells[0].outputs[0]["data"]
+    # image/png must remain untouched
+    assert output_data["image/png"] == original_png
+    # text/plain with "./@file/" must remain untouched (not text/html)
+    assert output_data["text/plain"] == original_text
+
+
+@pytest.mark.skipif(
     sys.platform == "win32",
     reason="Unix permission bits not supported on Windows",
 )
