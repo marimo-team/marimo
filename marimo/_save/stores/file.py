@@ -39,7 +39,7 @@ def _writable_dir(path: Path) -> bool:
     except OSError:
         return False
     # NB. mkdir is a no-op on an existing directory, whatever its mode.
-    return os.access(path, os.W_OK)
+    return os.access(path, os.W_OK | os.X_OK)
 
 
 class FileStore(Store):
