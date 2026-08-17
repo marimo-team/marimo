@@ -23,7 +23,11 @@ import type { StorageNamespace } from "@/core/storage/types";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";
 import { openLensTarget } from "../actions";
-import { CODE_LENS_HOVER_DELAY_MS, codeLensBundle } from "../extension";
+import {
+  CODE_LENS_HOVER_DELAY_MS,
+  CODE_LENS_HOVER_GRACE_MS,
+  codeLensBundle,
+} from "../extension";
 import { mountLensPopover } from "../popover";
 
 vi.mock("@/core/config/feature-flag", () => ({
@@ -236,7 +240,83 @@ describe("codeLensBundle", () => {
     );
 
     lens.dispatchEvent(new MouseEvent("mouseleave"));
+    // Not hidden immediately: the pointer may be on its way into the popover
+    expect(v.dom.querySelector(".mo-cm-tooltip")).not.toBeNull();
+    vi.advanceTimersByTime(CODE_LENS_HOVER_GRACE_MS);
     expect(v.dom.querySelector(".mo-cm-tooltip")).toBeNull();
+  });
+
+  it("stays open while the pointer is over the popover", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    const lens = lenses(v)[0];
+
+    lens.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_DELAY_MS);
+    const popover = v.dom.querySelector<HTMLElement>(".mo-cm-tooltip");
+    expect(popover).not.toBeNull();
+
+    // Icon -> popover within the grace period
+    lens.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_GRACE_MS / 2);
+    popover?.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_GRACE_MS * 5);
+    expect(v.dom.querySelector(".mo-cm-tooltip")).toBe(popover);
+
+    // Popover -> icon: no re-show; the popover is kept as-is
+    popover?.dispatchEvent(new MouseEvent("mouseleave"));
+    lens.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_DELAY_MS * 2);
+    expect(v.dom.querySelector(".mo-cm-tooltip")).toBe(popover);
+    expect(mountLensPopover).toHaveBeenCalledTimes(1);
+
+    // Leaving the popover for good hides it after the grace period
+    lens.dispatchEvent(new MouseEvent("mouseleave"));
+    popover?.dispatchEvent(new MouseEvent("mouseenter"));
+    popover?.dispatchEvent(new MouseEvent("mouseleave"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_GRACE_MS);
+    expect(v.dom.querySelector(".mo-cm-tooltip")).toBeNull();
+  });
+
+  it("keeps the popover open across a lens rebuild for the same lens", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    const lens = lenses(v)[0];
+
+    lens.dispatchEvent(new MouseEvent("mouseenter"));
+    vi.advanceTimersByTime(CODE_LENS_HOVER_DELAY_MS);
+    const popover = v.dom.querySelector(".mo-cm-tooltip");
+    expect(popover).not.toBeNull();
+
+    // A store update triggers a (debounced) recompute of the same lenses
+    seedStore({ tables: [DF_TABLE] });
+    vi.advanceTimersByTime(300);
+    await Promise.resolve();
+    v.dispatch({});
+    expect(v.dom.querySelector(".mo-cm-tooltip")).toBe(popover);
+
+    // ...but a rebuild that drops the hovered lens closes it
+    seedStore({ tables: [] });
+    vi.advanceTimersByTime(300);
+    await Promise.resolve();
+    v.dispatch({});
+    expect(lenses(v)).toHaveLength(0);
+    expect(v.dom.querySelector(".mo-cm-tooltip")).toBeNull();
+  });
+
+  it("dismisses the editor's own hover tooltips when the icon is entered", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    const lens = lenses(v)[0];
+    // CodeMirror's `hoverTooltip` listens for `mouseleave` on `view.dom` to
+    // cancel a pending hover and close an open one
+    const onLeave = vi.fn();
+    v.dom.addEventListener("mouseleave", onLeave);
+
+    lens.dispatchEvent(new MouseEvent("mouseenter"));
+
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(onLeave.mock.calls[0][0].relatedTarget).toBe(lens);
   });
 
   it("does not show a popover before the hover delay", async () => {
