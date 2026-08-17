@@ -304,6 +304,21 @@ describe("codeLensBundle", () => {
     expect(v.dom.querySelector(".mo-cm-tooltip")).toBeNull();
   });
 
+  it("dismisses the editor's own hover tooltips when the icon is entered", async () => {
+    seedStore({ tables: [DF_TABLE] });
+    const v = await mount("df = load()");
+    const lens = lenses(v)[0];
+    // CodeMirror's `hoverTooltip` listens for `mouseleave` on `view.dom` to
+    // cancel a pending hover and close an open one
+    const onLeave = vi.fn();
+    v.dom.addEventListener("mouseleave", onLeave);
+
+    lens.dispatchEvent(new MouseEvent("mouseenter"));
+
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    expect(onLeave.mock.calls[0][0].relatedTarget).toBe(lens);
+  });
+
   it("does not show a popover before the hover delay", async () => {
     seedStore({ tables: [DF_TABLE] });
     const v = await mount("df = load()");

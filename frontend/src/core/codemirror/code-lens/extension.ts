@@ -61,8 +61,9 @@ class LensHoverController {
   }
 
   /** Pointer entered a lens icon */
-  enterLens(spec: CodeLensSpec): void {
+  enterLens(spec: CodeLensSpec, icon: HTMLElement): void {
     this.clearTimers();
+    dismissEditorHoverTooltips(this.view, icon);
     const hovered = this.view.state.field(codeLensHoverField, false);
     if (hovered && specEquals(hovered.spec, spec)) {
       // Already showing this lens (e.g. pointer came back from the popover)
@@ -112,6 +113,25 @@ const lensHoverPlugin = ViewPlugin.define(
   (view) => new LensHoverController(view),
 );
 
+/**
+ * Keeps the editor's own hover tooltips (LSP / documentation hints) from
+ * showing for the token the icon sits after.
+ *
+ * CodeMirror's `hoverTooltip` tracks the last `mousemove` seen on `view.dom`
+ * and, once the pointer has rested for its hover delay, opens a tooltip for
+ * that position. The icon swallows `mousemove` (see the widget), so a pointer
+ * resting on the icon looks to CodeMirror like a pointer resting on the last
+ * character it crossed on the way in, and any hover already open for that
+ * token never gets closed. A `mouseleave` on `view.dom` is the signal it uses
+ * to cancel a pending hover and close an open one, so synthesize that.
+ */
+function dismissEditorHoverTooltips(
+  view: EditorView,
+  relatedTarget: HTMLElement,
+): void {
+  view.dom.dispatchEvent(new MouseEvent("mouseleave", { relatedTarget }));
+}
+
 class CodeLensWidget extends WidgetType {
   private readonly spec: CodeLensSpec;
 
@@ -139,11 +159,11 @@ class CodeLensWidget extends WidgetType {
     element.innerHTML = LENS_ICONS[spec.kind];
     const hover = () => view.plugin(lensHoverPlugin);
     const hidePopover = () => hover()?.hide();
-    element.onmouseenter = () => hover()?.enterLens(spec);
+    element.onmouseenter = () => hover()?.enterLens(spec, element);
     element.onmouseleave = () => hover()?.leave();
     element.onmousemove = (event) => {
-      // Keep the editor's built-in hover documentation tooltip from also
-      // triggering over the icon
+      // Keep the editor's built-in hover tooltip from re-arming while the
+      // pointer is over the icon (see `dismissEditorHoverTooltips`)
       event.stopPropagation();
     };
     element.onmousedown = (event) => {
