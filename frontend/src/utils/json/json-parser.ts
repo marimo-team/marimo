@@ -126,8 +126,10 @@ function formatValueForMarkdown(value: unknown): string {
     return placeholder;
   });
 
-  // Convert plain URLs to markdown links
-  const urlRegex = /(https?:\/\/\S+)/g;
+  // Convert plain URLs to markdown links. Exclude whitespace and the
+  // characters that cannot appear unencoded in a URL so a URL embedded in JSON
+  // text doesn't swallow the trailing `"}]` delimiters into the link (#10567).
+  const urlRegex = /(https?:\/\/[^\s"'<>`{}|\\^]+)/g;
   stringValue = stringValue.replaceAll(urlRegex, "[$1]($1)");
 
   // Restore markdown links from placeholders
