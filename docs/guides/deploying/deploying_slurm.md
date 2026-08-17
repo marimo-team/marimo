@@ -134,7 +134,7 @@ this lets you create fully self-contained notebooks.
 /// tab | Interactive development
 
 ```python
-#!/usr/bin/env -S python -m marimo edit --sandbox
+#!/usr/bin/env -S uvx marimo edit --sandbox
 #SBATCH --job-name=marimo-job
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -166,7 +166,7 @@ if __name__ == "__main__":
 /// tab | Batch job
 
 ```
-#!/usr/bin/env -S python
+#!/usr/bin/env -S uv run --script
 #SBATCH --job-name=marimo-job
 #SBATCH --output=marimo-%j.out
 #SBATCH --cpus-per-task=4
@@ -206,6 +206,13 @@ sbatch notebook.py
 ```
 
 Sandboxing requires [uv](https://docs.astral.sh/uv/getting-started/installation/) to be installed.
+
+/// admonition | Why `--script`?
+
+Slurm runs a spooled copy of your submitted file with no extension. The
+`--script` flag tells `uv` to treat it as a script.
+
+///
 
 ## Learn more
 
