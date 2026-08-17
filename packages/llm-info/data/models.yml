@@ -101,16 +101,6 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
-  - name: GPT-Realtime-2.1
-    model: gpt-realtime-2.1
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-07-06
-    cost: {input: 4, output: 24}
-
   - name: GPT-5.6
     model: gpt-5.6
     description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
@@ -223,7 +213,7 @@ openai:
 google:
   - name: Gemini 3.7 Flash
     model: gemini-3.7-flash
-    description: ""
+    description: "High-efficiency Gemini model for agentic workflows, coding, and multimodal reasoning"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -360,46 +350,6 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
-  - name: Claude Opus 5
-    model: anthropic.claude-opus-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
-  - name: Claude Opus 5 (AU)
-    model: au.anthropic.claude-opus-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
-  - name: Claude Opus 5 (EU)
-    model: eu.anthropic.claude-opus-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5.5, output: 27.5}
-
-  - name: Claude Opus 5 (JP)
-    model: jp.anthropic.claude-opus-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
   - name: Claude Opus 5 (Global)
     model: global.anthropic.claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
@@ -982,7 +932,7 @@ ollama:
 wandb:
   - name: Nemotron 3.5 Lightning
     model: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B
-    description: ""
+    description: "MoE model built for fast, reliable agentic tasks across financial services, cybersecurity, telecom, and retail"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -1173,7 +1123,7 @@ wandb:
 opencode-go:
   - name: GLM-5.3
     model: glm-5.3
-    description: ""
+    description: "Flagship GLM model for long-horizon coding, agents, and complex project delivery"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
