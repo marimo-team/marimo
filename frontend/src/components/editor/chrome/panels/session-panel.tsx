@@ -10,7 +10,7 @@ import { useCellIds } from "@/core/cells/cells";
 import { connectionsAtom } from "@/core/datasets/data-source-connections";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
-import { useUnconfiguredDataSources } from "@/hooks/useDataSourceDiscovery";
+import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import {
   DiscoveredSourcesBadge,
   PanelAccordionContent,
@@ -28,7 +28,7 @@ const SessionPanel: React.FC = () => {
   const cellIds = useCellIds();
   const tables = useAtomValue(datasetTablesAtom);
   const dataConnections = useAtomValue(connectionsAtom);
-  const pendingDataSources = useUnconfiguredDataSources("database");
+  const pendingDataSources = useDetectedDataSources("database");
   const [state, setState] = useAtom(sessionPanelAtom);
 
   const datasourcesCount = tables.length + dataConnections.length;
@@ -51,8 +51,7 @@ const SessionPanel: React.FC = () => {
 
   const isDatasourcesOpen = openSections.includes("datasources");
   const showDatasourcesBadge = !isDatasourcesOpen && datasourcesCount > 0;
-  const showDiscoveredDataSourcesBadge =
-    datasourcesCount === 0 && pendingDataSources.length > 0;
+  const showDiscoveredDataSourcesBadge = pendingDataSources.length > 0;
 
   return (
     <Accordion

@@ -742,9 +742,6 @@ components:
           items:
             $ref: '#/components/schemas/DetectedDataSourceConfiguration'
           type: array
-        configured:
-          default: false
-          type: boolean
         displayName:
           type: string
         id:

@@ -44,12 +44,7 @@ class ListSecretKeysRequest(ListSecretKeysCommand, tag=False):
 
 class DiscoverDataSourcesRequest(DiscoverDataSourcesCommand, tag=False):
     def as_command(self) -> DiscoverDataSourcesCommand:
-        return DiscoverDataSourcesCommand(
-            request_id=self.request_id,
-            dialects=self.dialects,
-            storage_protocols=self.storage_protocols,
-            storage_backend_types=self.storage_backend_types,
-        )
+        return DiscoverDataSourcesCommand(request_id=self.request_id)
 
 
 class ClearCacheRequest(ClearCacheCommand, tag=False):

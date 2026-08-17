@@ -136,3 +136,6 @@ site
 
 .agents/
 *skills*
+
+# Local nested checkouts
+gdrive-fsspec/

@@ -1527,9 +1527,6 @@ components:
           items:
             $ref: '#/components/schemas/DetectedDataSourceConfiguration'
           type: array
-        configured:
-          default: false
-          type: boolean
         displayName:
           type: string
         id:
@@ -1597,27 +1594,10 @@ components:
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
         \ and configuration.\n\n    Attributes:\n        request_id: Unique identifier\
-        \ for this request.\n        dialects: SQL dialects for live datasource connections.\n\
-        \        storage_protocols: Protocols for live storage namespaces.\n     \
-        \   storage_backend_types: Backend types for live storage namespaces."
+        \ for this request."
       properties:
-        dialects:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
-        storageBackendTypes:
-          default: []
-          items:
-            type: string
-          type: array
-        storageProtocols:
-          default: []
-          items:
-            type: string
-          type: array
         type:
           enum:
           - discover-data-sources
@@ -1628,23 +1608,8 @@ components:
       type: object
     DiscoverDataSourcesRequest:
       properties:
-        dialects:
-          default: []
-          items:
-            type: string
-          type: array
         requestId:
           $ref: '#/components/schemas/RequestId'
-        storageBackendTypes:
-          default: []
-          items:
-            type: string
-          type: array
-        storageProtocols:
-          default: []
-          items:
-            type: string
-          type: array
       required:
       - requestId
       title: DiscoverDataSourcesRequest

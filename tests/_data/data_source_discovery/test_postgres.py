@@ -85,7 +85,6 @@ DATABASE_URL = sqlalchemy.URL.create(
     database=os.environ["PGDATABASE"],
 )
 engine = sqlalchemy.create_engine(DATABASE_URL)""",
-                "configured": False,
             }
         ]
     )

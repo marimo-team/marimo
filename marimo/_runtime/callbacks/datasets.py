@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._data.data_source_discovery import (
-    DiscoveryNamespaceContext,
     discover_data_sources,
 )
 from marimo._data.preview_column import (
@@ -68,16 +67,7 @@ class DatasetCallbacks:
         broadcast_notification(
             DataSourceDiscoveryResultNotification(
                 request_id=request.request_id,
-                sources=discover_data_sources(
-                    os.environ,
-                    namespace=DiscoveryNamespaceContext(
-                        dialects=tuple(request.dialects),
-                        storage_protocols=tuple(request.storage_protocols),
-                        storage_backend_types=tuple(
-                            request.storage_backend_types
-                        ),
-                    ),
-                ),
+                sources=discover_data_sources(os.environ),
             )
         )
 

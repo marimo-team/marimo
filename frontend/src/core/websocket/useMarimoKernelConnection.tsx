@@ -40,10 +40,7 @@ import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
-import {
-  invalidateDataSourceDiscovery,
-  invalidateDataSourceDiscoveryIfNamespaceChanged,
-} from "../datasets/data-source-discovery";
+import { invalidateDataSourceDiscovery } from "../datasets/data-source-discovery";
 import type { ConnectionName } from "../datasets/engines";
 import {
   DiscoverDataSources,
@@ -332,7 +329,6 @@ export function useMarimoKernelConnection(opts: {
         filterDatasetsFromVariables(variableNames);
         filterDataSourcesFromVariables(variableNames);
         filterStorageFromVariables(variableNames);
-        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
       }
       case "variable-values":
@@ -427,11 +423,9 @@ export function useMarimoKernelConnection(opts: {
             name: conn.name as ConnectionName,
           })),
         });
-        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
       case "storage-namespaces":
         setStorageNamespaces(msg.data);
-        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
       case "storage-entries":
         ListStorageEntries.resolve(msg.data.request_id as RequestId, msg.data);

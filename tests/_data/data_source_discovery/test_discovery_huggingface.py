@@ -46,7 +46,6 @@ def test_discovers_hf_token() -> None:
 from huggingface_hub import HfApi
 
 hf = HfApi()""",
-                "configured": False,
             }
         ]
     )

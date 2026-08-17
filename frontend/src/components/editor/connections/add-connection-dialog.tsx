@@ -87,7 +87,11 @@ export const AddConnectionDialogContent: React.FC<{
           <span className="block">{codeSnippetHint}</span>
         </DialogDescription>
       </DialogHeader>
-      <AutoDiscoveredDataSources onSubmit={onClose} className="-mt-2" />
+      <AutoDiscoveredDataSources
+        onSubmit={onClose}
+        className="-mt-2"
+        group={activeTab === "storage" ? "storage" : "database"}
+      />
       <Tabs
         value={activeTab}
         onValueChange={(v) => setActiveTab(v as ConnectionTab)}

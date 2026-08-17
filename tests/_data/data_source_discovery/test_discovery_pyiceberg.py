@@ -95,7 +95,6 @@ def test_merges_environment_with_resolved_configuration() -> None:
 from pyiceberg.catalog import load_catalog
 
 catalog = load_catalog("prod")""",
-                "configured": False,
             },
             {
                 "id": "pyiceberg-hive",
@@ -129,7 +128,6 @@ catalog = load_catalog("prod")""",
 from pyiceberg.catalog import load_catalog
 
 catalog = load_catalog("hive")""",
-                "configured": False,
             },
         ]
     )

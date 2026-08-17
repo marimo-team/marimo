@@ -22,7 +22,6 @@ from marimo._data.data_source_discovery.models import (
     DetectedDataSourceOrigin,
 )
 from marimo._data.data_source_discovery.types import (
-    DialectMatch,
     DiscoveryContext,
     DiscoveryPlugin,
 )
@@ -351,8 +350,4 @@ def _format_catalog_type(value: str) -> str | None:
     return CATALOG_TYPE_LABELS.get(value.strip().lower())
 
 
-PYICEBERG_PLUGIN = DiscoveryPlugin(
-    id="pyiceberg",
-    discover=discover,
-    configured_when=DialectMatch(substrings=("iceberg",)),
-)
+PYICEBERG_PLUGIN = DiscoveryPlugin(id="pyiceberg", discover=discover)

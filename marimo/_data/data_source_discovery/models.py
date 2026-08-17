@@ -62,4 +62,3 @@ class DetectedDataSource(msgspec.Struct, frozen=True, rename="camel"):
     origins: tuple[DetectedDataSourceOrigin, ...]
     configuration: tuple[DetectedDataSourceConfiguration, ...]
     code: str
-    configured: bool = False
