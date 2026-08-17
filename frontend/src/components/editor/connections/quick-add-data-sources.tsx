@@ -3,7 +3,7 @@
 import { PlusIcon, SparklesIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
-import { useDataSourceDiscovery } from "@/hooks/useDataSourceDiscovery";
+import { useUnconfiguredDataSources } from "@/hooks/useDataSourceDiscovery";
 import { useInsertCode } from "./components";
 import { cn } from "@/utils/cn";
 
@@ -98,12 +98,12 @@ export const AutoDiscoveredDataSources: React.FC<{
   className?: string;
 }> = ({ onSubmit, className }) => {
   const insertCode = useInsertCode();
-  const { data } = useDataSourceDiscovery();
+  const sources = useUnconfiguredDataSources();
 
   return (
     <QuickAddDataSources
       className={className}
-      sources={data ?? []}
+      sources={sources}
       onAdd={(source) => {
         insertCode(source.code);
         onSubmit();

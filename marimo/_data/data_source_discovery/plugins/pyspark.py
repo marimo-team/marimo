@@ -8,6 +8,7 @@ from marimo._data.data_source_discovery.helpers import (
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
+    DialectMatch,
     DiscoveryContext,
     DiscoveryPlugin,
 )
@@ -39,4 +40,8 @@ con = ibis.pyspark.connect(session)""",
     ]
 
 
-PYSPARK_PLUGIN = DiscoveryPlugin(id="pyspark", discover=discover)
+PYSPARK_PLUGIN = DiscoveryPlugin(
+    id="pyspark",
+    discover=discover,
+    configured_when=DialectMatch(substrings=("pyspark", "spark")),
+)

@@ -10,6 +10,7 @@ from marimo._data.data_source_discovery.helpers import (
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
+    DialectMatch,
     DiscoveryContext,
     DiscoveryPlugin,
 )
@@ -70,4 +71,8 @@ engine = sqlalchemy.create_engine(DATABASE_URL)"""
     ]
 
 
-MYSQL_PLUGIN = DiscoveryPlugin(id="mysql", discover=discover)
+MYSQL_PLUGIN = DiscoveryPlugin(
+    id="mysql",
+    discover=discover,
+    configured_when=DialectMatch(substrings=("mysql",)),
+)

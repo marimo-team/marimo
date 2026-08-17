@@ -73,6 +73,7 @@ import s3fs
 
 # Uses the standard AWS credential and endpoint environment variables.
 fs = s3fs.S3FileSystem()""",
+                "configured": False,
             }
         ]
     )

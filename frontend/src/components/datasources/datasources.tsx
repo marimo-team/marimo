@@ -21,15 +21,11 @@ import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
-  dataConnectionsMapAtom,
+  connectionsAtom,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
-import {
-  DEFAULT_DUCKDB_DATABASE,
-  DUCKDB_ENGINE,
-  INTERNAL_SQL_ENGINES,
-} from "@/core/datasets/engines";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import {
   PreviewSQLSchemaList,
   PreviewSQLTable,
@@ -223,40 +219,6 @@ export function filterEmptyDatabases(databases: Database[]): Database[] {
   }
   return changed ? result : databases;
 }
-
-/**
- * This atom is used to get the data connections that are available to the user.
- * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
- */
-export const connectionsAtom = atom((get) => {
-  const dataConnections = new Map(get(dataConnectionsMapAtom));
-
-  // Filter out the internal engines if it has no databases
-  // Or if it has only the in-memory database and no schemas
-  for (const engine of INTERNAL_SQL_ENGINES) {
-    const connection = dataConnections.get(engine);
-    if (!connection) {
-      continue;
-    }
-
-    if (connection.databases.length === 0) {
-      dataConnections.delete(engine);
-    }
-
-    if (
-      connection.databases.length === 1 &&
-      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
-      connection.databases[0].schemas.length === 0
-    ) {
-      dataConnections.delete(engine);
-    }
-  }
-
-  // Put internal engines last to prioritize user-defined connections
-  return sortBy([...dataConnections.values()], (connection) =>
-    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
-  );
-});
 
 export const DataSources: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");

@@ -108,6 +108,7 @@ TRINO_URL = sqlalchemy.URL.create(
     database=database,
 )
 engine = sqlalchemy.create_engine(TRINO_URL, connect_args=connect_args)""",
+                "configured": False,
             }
         ]
     )
@@ -180,6 +181,7 @@ TRINO_URL = sqlalchemy.URL.create(
     database=database,
 )
 engine = sqlalchemy.create_engine(TRINO_URL)""",
+                "configured": False,
             }
         ]
     )

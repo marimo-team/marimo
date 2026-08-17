@@ -5,6 +5,10 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
+from marimo._data.data_source_discovery.configured import (
+    DiscoveryNamespaceContext,
+    annotate_configured_sources,
+)
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.plugins import (
     DEFAULT_DISCOVERY_PLUGINS,
@@ -23,6 +27,7 @@ LOGGER = _loggers.marimo_logger()
 def discover_data_sources(
     environment: Mapping[str, str],
     plugins: Sequence[DiscoveryPlugin] = DEFAULT_DISCOVERY_PLUGINS,
+    namespace: DiscoveryNamespaceContext | None = None,
 ) -> list[DetectedDataSource]:
     """Run isolated detectors without exposing secret values to the frontend."""
     # Give every plugin the same immutable snapshot. A detector cannot mutate
@@ -46,4 +51,8 @@ def discover_data_sources(
         if source.id not in seen:
             seen.add(source.id)
             unique_sources.append(source)
-    return unique_sources
+    if namespace is None:
+        return unique_sources
+    return annotate_configured_sources(
+        unique_sources, namespace, plugins=plugins
+    )

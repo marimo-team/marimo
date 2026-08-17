@@ -14,6 +14,7 @@ from marimo._data.data_source_discovery.models import (
 from marimo._data.data_source_discovery.types import (
     DiscoveryContext,
     DiscoveryPlugin,
+    StorageMatch,
 )
 
 ACCESS_KEYS = ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY")
@@ -71,4 +72,10 @@ fs = s3fs.S3FileSystem()""",
     ]
 
 
-AWS_PLUGIN = DiscoveryPlugin(id="aws", discover=discover)
+AWS_PLUGIN = DiscoveryPlugin(
+    id="aws",
+    discover=discover,
+    configured_when=StorageMatch(
+        protocols=("s3", "cloudflare", "coreweave"),
+    ),
+)

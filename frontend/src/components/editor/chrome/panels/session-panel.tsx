@@ -3,16 +3,16 @@
 import { useAtom, useAtomValue } from "jotai";
 import { DatabaseIcon, VariableIcon } from "lucide-react";
 import React, { useCallback } from "react";
-import {
-  connectionsAtom,
-  DataSources,
-} from "@/components/datasources/datasources";
+import { DataSources } from "@/components/datasources/datasources";
 import { Accordion } from "@/components/ui/accordion";
 import { VariableTable } from "@/components/variables/variables-table";
 import { useCellIds } from "@/core/cells/cells";
+import { connectionsAtom } from "@/core/datasets/data-source-connections";
 import { datasetTablesAtom } from "@/core/datasets/state";
 import { useVariables } from "@/core/variables/state";
+import { useUnconfiguredDataSources } from "@/hooks/useDataSourceDiscovery";
 import {
+  DiscoveredSourcesBadge,
   PanelAccordionContent,
   PanelAccordionItem,
   PanelAccordionTrigger,
@@ -28,6 +28,7 @@ const SessionPanel: React.FC = () => {
   const cellIds = useCellIds();
   const tables = useAtomValue(datasetTablesAtom);
   const dataConnections = useAtomValue(connectionsAtom);
+  const pendingDataSources = useUnconfiguredDataSources("database");
   const [state, setState] = useAtom(sessionPanelAtom);
 
   const datasourcesCount = tables.length + dataConnections.length;
@@ -50,6 +51,8 @@ const SessionPanel: React.FC = () => {
 
   const isDatasourcesOpen = openSections.includes("datasources");
   const showDatasourcesBadge = !isDatasourcesOpen && datasourcesCount > 0;
+  const showDiscoveredDataSourcesBadge =
+    datasourcesCount === 0 && pendingDataSources.length > 0;
 
   return (
     <Accordion
@@ -63,6 +66,12 @@ const SessionPanel: React.FC = () => {
           <DatabaseIcon className="w-4 h-4" />
           Data sources
           {showDatasourcesBadge && <PanelBadge>{datasourcesCount}</PanelBadge>}
+          {showDiscoveredDataSourcesBadge && (
+            <DiscoveredSourcesBadge
+              count={pendingDataSources.length}
+              type="database"
+            />
+          )}
         </PanelAccordionTrigger>
         <PanelAccordionContent>
           <DataSources />

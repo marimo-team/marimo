@@ -10,15 +10,21 @@ import msgspec
 from inline_snapshot import snapshot
 
 from marimo._data.data_source_discovery import discover_data_sources
+from marimo._data.data_source_discovery.configured import (
+    DiscoveryNamespaceContext,
+)
 from marimo._data.data_source_discovery.discover import LOGGER
 from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
+    DialectMatch,
     DiscoveryContext,
     DiscoveryPlugin,
 )
+
+NEVER_CONFIGURED = DialectMatch()
 
 
 def test_isolates_failures_and_deduplicates() -> None:
@@ -53,12 +59,20 @@ def test_isolates_failures_and_deduplicates() -> None:
             {},
             plugins=(
                 DiscoveryPlugin(
-                    id="first", discover=lambda _context: [source]
+                    id="first",
+                    discover=lambda _context: [source],
+                    configured_when=NEVER_CONFIGURED,
                 ),
                 DiscoveryPlugin(
-                    id="duplicate", discover=lambda _context: [duplicate]
+                    id="duplicate",
+                    discover=lambda _context: [duplicate],
+                    configured_when=NEVER_CONFIGURED,
                 ),
-                DiscoveryPlugin(id="broken", discover=fail),
+                DiscoveryPlugin(
+                    id="broken",
+                    discover=fail,
+                    configured_when=NEVER_CONFIGURED,
+                ),
             ),
         )
 
@@ -144,8 +158,16 @@ def test_plugins_receive_an_immutable_environment_snapshot() -> None:
         discover_data_sources(
             {"ORIGINAL": "value"},
             plugins=(
-                DiscoveryPlugin(id="mutating", discover=mutate),
-                DiscoveryPlugin(id="observing", discover=observe),
+                DiscoveryPlugin(
+                    id="mutating",
+                    discover=mutate,
+                    configured_when=NEVER_CONFIGURED,
+                ),
+                DiscoveryPlugin(
+                    id="observing",
+                    discover=observe,
+                    configured_when=NEVER_CONFIGURED,
+                ),
             ),
         )
 
@@ -155,6 +177,32 @@ def test_plugins_receive_an_immutable_environment_snapshot() -> None:
         "mutating",
         "TypeError",
     )
+
+
+def test_annotates_configured_when_namespace_provided() -> None:
+    environment = {
+        "PGHOST": "host",
+        "PGUSER": "user",
+        "PGDATABASE": "database",
+        "MYSQL_HOST": "mysql-host",
+        "MYSQL_TCP_PORT": "3306",
+        "MYSQL_USER": "mysql-user",
+        "MYSQL_PWD": "mysql-password",
+        "MYSQL_DATABASE": "mysql-database",
+    }
+    namespace = DiscoveryNamespaceContext(("postgresql",), (), ())
+
+    detected = discover_data_sources(environment, namespace=namespace)
+
+    postgres = next(
+        source for source in detected if source.integration == "postgres"
+    )
+    mysql = next(
+        source for source in detected if source.integration == "mysql"
+    )
+
+    assert postgres.configured is True
+    assert mysql.configured is False
 
 
 def test_plugin_error_logs_never_include_exception_message() -> None:
@@ -172,7 +220,13 @@ def test_plugin_error_logs_never_include_exception_message() -> None:
     try:
         detected = discover_data_sources(
             {},
-            plugins=(DiscoveryPlugin(id="pyiceberg", discover=fail),),
+            plugins=(
+                DiscoveryPlugin(
+                    id="pyiceberg",
+                    discover=fail,
+                    configured_when=NEVER_CONFIGURED,
+                ),
+            ),
         )
     finally:
         LOGGER.removeHandler(handler)

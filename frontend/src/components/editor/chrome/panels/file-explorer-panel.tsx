@@ -7,11 +7,13 @@ import useResizeObserver from "use-resize-observer";
 import { StorageInspector } from "@/components/storage/storage-inspector";
 import { Accordion } from "@/components/ui/accordion";
 import { storageNamespacesAtom } from "@/core/storage/state";
+import { useUnconfiguredDataSources } from "@/hooks/useDataSourceDiscovery";
 import { cn } from "@/utils/cn";
 import { TreeDndProvider } from "../../file-tree/dnd-wrapper";
 import { FileExplorer } from "../../file-tree/file-explorer";
 import { useFileExplorerUpload } from "../../file-tree/upload";
 import {
+  DiscoveredSourcesBadge,
   PanelAccordionContent,
   PanelAccordionItem,
   PanelAccordionTrigger,
@@ -58,6 +60,7 @@ const FileExplorerPanel: React.FC = () => {
 
   const storageNamespaces = useAtomValue(storageNamespacesAtom);
   const remoteStorageConnections = storageNamespaces.length;
+  const pendingDataSources = useUnconfiguredDataSources("storage");
 
   const openSections = useMemo<FileExplorerPanelSection[]>(() => {
     if (!state.hasUserInteracted && remoteStorageConnections > 0) {
@@ -81,6 +84,8 @@ const FileExplorerPanel: React.FC = () => {
 
   const availableContent = panelHeight - TRIGGER_HEIGHT * 2;
   const storageIsOpen = openSections.includes("remote-storage");
+  const showUnconfiguredStorageBadge =
+    remoteStorageConnections === 0 && pendingDataSources.length > 0;
   const bothOpen = storageIsOpen && openSections.includes("files");
 
   const storageMaxHeight = bothOpen
@@ -103,6 +108,12 @@ const FileExplorerPanel: React.FC = () => {
             <HardDrive className="w-4 h-4" /> Remote storage
             {remoteStorageConnections > 0 && (
               <PanelBadge>{remoteStorageConnections}</PanelBadge>
+            )}
+            {showUnconfiguredStorageBadge && (
+              <DiscoveredSourcesBadge
+                count={pendingDataSources.length}
+                type="storage"
+              />
             )}
           </PanelAccordionTrigger>
           <PanelAccordionContent

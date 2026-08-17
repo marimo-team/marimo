@@ -4609,6 +4609,8 @@ export interface components {
       /** @enum {unknown} */
       confidence: "high" | "medium";
       configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
+      /** @default false */
+      configured?: boolean;
       displayName: string;
       id: string;
       integration: string;
@@ -4646,15 +4648,30 @@ export interface components {
      *
      *         Attributes:
      *             request_id: Unique identifier for this request.
+     *             dialects: SQL dialects for live datasource connections.
+     *             storage_protocols: Protocols for live storage namespaces.
+     *             storage_backend_types: Backend types for live storage namespaces.
      */
     DiscoverDataSourcesCommand: {
+      /** @default [] */
+      dialects?: string[];
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      storageBackendTypes?: string[];
+      /** @default [] */
+      storageProtocols?: string[];
       /** @enum {unknown} */
       type: "discover-data-sources";
     };
     /** DiscoverDataSourcesRequest */
     DiscoverDataSourcesRequest: {
+      /** @default [] */
+      dialects?: string[];
       requestId: components["schemas"]["RequestId"];
+      /** @default [] */
+      storageBackendTypes?: string[];
+      /** @default [] */
+      storageProtocols?: string[];
     };
     /**
      * DisplayConfig

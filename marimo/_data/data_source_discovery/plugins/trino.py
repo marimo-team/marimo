@@ -10,6 +10,7 @@ from marimo._data.data_source_discovery.helpers import (
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
+    DialectMatch,
     DiscoveryContext,
     DiscoveryPlugin,
 )
@@ -101,4 +102,8 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
     ]
 
 
-TRINO_PLUGIN = DiscoveryPlugin(id="trino", discover=discover)
+TRINO_PLUGIN = DiscoveryPlugin(
+    id="trino",
+    discover=discover,
+    configured_when=DialectMatch(substrings=("trino",)),
+)

@@ -10,6 +10,7 @@ from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
     DiscoveryContext,
     DiscoveryPlugin,
+    StorageMatch,
 )
 
 # `huggingface_hub` reads `HF_TOKEN` first, falling back to the legacy
@@ -45,4 +46,11 @@ hf = HfApi()""",
     ]
 
 
-HUGGINGFACE_PLUGIN = DiscoveryPlugin(id="huggingface", discover=discover)
+HUGGINGFACE_PLUGIN = DiscoveryPlugin(
+    id="huggingface",
+    discover=discover,
+    configured_when=StorageMatch(
+        protocols=("hf",),
+        backend_types=("huggingface",),
+    ),
+)

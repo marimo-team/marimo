@@ -822,9 +822,15 @@ class DiscoverDataSourcesCommand(Command):
 
     Attributes:
         request_id: Unique identifier for this request.
+        dialects: SQL dialects for live datasource connections.
+        storage_protocols: Protocols for live storage namespaces.
+        storage_backend_types: Backend types for live storage namespaces.
     """
 
     request_id: RequestId
+    dialects: list[str] = msgspec.field(default_factory=list)
+    storage_protocols: list[str] = msgspec.field(default_factory=list)
+    storage_backend_types: list[str] = msgspec.field(default_factory=list)
 
 
 class ListSecretKeysCommand(Command):

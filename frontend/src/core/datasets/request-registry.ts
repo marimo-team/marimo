@@ -10,6 +10,7 @@ import { CachingRequestRegistry } from "../network/CachingRequestRegistry";
 import { DeferredRequestRegistry } from "../network/DeferredRequestRegistry";
 import { getRequestClient } from "../network/requests";
 import type {
+  DiscoverDataSourcesRequest,
   ListSQLSchemasRequest,
   ListSQLTablesRequest,
   PreviewSQLTableRequest,
@@ -21,12 +22,13 @@ import type {
 // Thus, we use the request ID pattern to match the response to the request
 
 export const DiscoverDataSources = new DeferredRequestRegistry<
-  {},
+  Omit<DiscoverDataSourcesRequest, "requestId">,
   DataSourceDiscoveryResult
->("data-source-discovery-result", async (requestId) => {
+>("data-source-discovery-result", async (requestId, req) => {
   const client = getRequestClient();
   await client.discoverDataSources({
     requestId,
+    ...req,
   });
 });
 

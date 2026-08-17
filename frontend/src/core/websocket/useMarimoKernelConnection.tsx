@@ -40,6 +40,10 @@ import type { CellData } from "../cells/types";
 import { capabilitiesAtom } from "../config/capabilities";
 import { connectionTransportTypeAtom, useSetAppConfig } from "../config/config";
 import { useDataSourceActions } from "../datasets/data-source-connections";
+import {
+  invalidateDataSourceDiscovery,
+  invalidateDataSourceDiscoveryIfNamespaceChanged,
+} from "../datasets/data-source-discovery";
 import type { ConnectionName } from "../datasets/engines";
 import {
   DiscoverDataSources,
@@ -251,6 +255,12 @@ export function useMarimoKernelConnection(opts: {
           onError: showBoundary,
           existingCells,
         });
+        if (!msg.data.resumed) {
+          // A freshly started kernel may expose a different environment
+          // (e.g. new env vars); re-run discovery instead of reusing stale
+          // suggestions from the previous kernel instance.
+          invalidateDataSourceDiscovery();
+        }
         setKioskMode(msg.data.kiosk);
         // A freshly started kernel has no breakpoints of its own; re-push
         // the client's set so they still apply, and clear the stale
@@ -310,7 +320,8 @@ export function useMarimoKernelConnection(opts: {
         return;
       }
 
-      case "variables":
+      case "variables": {
+        const variableNames = msg.data.variables.map((v) => v.name);
         setVariables(
           msg.data.variables.map((v) => ({
             name: v.name,
@@ -318,10 +329,12 @@ export function useMarimoKernelConnection(opts: {
             usedBy: v.used_by,
           })),
         );
-        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
-        filterDataSourcesFromVariables(msg.data.variables.map((v) => v.name));
-        filterStorageFromVariables(msg.data.variables.map((v) => v.name));
+        filterDatasetsFromVariables(variableNames);
+        filterDataSourcesFromVariables(variableNames);
+        filterStorageFromVariables(variableNames);
+        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
+      }
       case "variable-values":
         setMetadata(
           msg.data.variables.map((v) => ({
@@ -414,9 +427,11 @@ export function useMarimoKernelConnection(opts: {
             name: conn.name as ConnectionName,
           })),
         });
+        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
       case "storage-namespaces":
         setStorageNamespaces(msg.data);
+        invalidateDataSourceDiscoveryIfNamespaceChanged();
         return;
       case "storage-entries":
         ListStorageEntries.resolve(msg.data.request_id as RequestId, msg.data);

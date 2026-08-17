@@ -28,6 +28,7 @@ const sources: DetectedDataSource[] = [
       },
     ],
     code: "engine = create_engine()",
+    configured: false,
   },
   {
     id: "pyiceberg-prod",
@@ -52,6 +53,7 @@ const sources: DetectedDataSource[] = [
       },
     ],
     code: 'catalog = load_catalog("prod")',
+    configured: false,
   },
 ];
 
