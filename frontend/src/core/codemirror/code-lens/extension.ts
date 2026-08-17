@@ -29,12 +29,88 @@ import { mountLensPopover } from "./popover";
 // Delay (in ms) before showing the hover popover, matching the app's
 // tooltip delay
 export const CODE_LENS_HOVER_DELAY_MS = 400;
+// Grace period (in ms) after the pointer leaves the icon (or the popover)
+// before hiding, so the pointer can travel from the icon into the popover
+// without it closing underneath
+export const CODE_LENS_HOVER_GRACE_MS = 200;
 
 const setCodeLenses = StateEffect.define<CodeLensSpec[]>();
 const setHoveredLens = StateEffect.define<CodeLensSpec | null>();
 
-// Pending hover timers, keyed by widget element so `destroy` can cancel them
-const HOVER_TIMERS = new WeakMap<HTMLElement, number>();
+function specEquals(a: CodeLensSpec, b: CodeLensSpec): boolean {
+  return (
+    a.pos === b.pos &&
+    a.kind === b.kind &&
+    a.name === b.name &&
+    a.cache?.boundName === b.cache?.boundName &&
+    a.cache?.cacheName === b.cache?.cacheName
+  );
+}
+
+/**
+ * Per-view hover state shared by the lens icons and their popover, so the
+ * popover stays open while the pointer is over either of them.
+ */
+class LensHoverController {
+  private readonly view: EditorView;
+  private showTimer: number | undefined;
+  private hideTimer: number | undefined;
+
+  constructor(view: EditorView) {
+    this.view = view;
+  }
+
+  /** Pointer entered a lens icon */
+  enterLens(spec: CodeLensSpec): void {
+    this.clearTimers();
+    const hovered = this.view.state.field(codeLensHoverField, false);
+    if (hovered && specEquals(hovered.spec, spec)) {
+      // Already showing this lens (e.g. pointer came back from the popover)
+      return;
+    }
+    this.showTimer = window.setTimeout(() => {
+      this.showTimer = undefined;
+      this.view.dispatch({ effects: setHoveredLens.of(spec) });
+    }, CODE_LENS_HOVER_DELAY_MS);
+  }
+
+  /** Pointer left a lens icon or the popover */
+  leave(): void {
+    this.clearTimers();
+    this.hideTimer = window.setTimeout(() => {
+      this.hideTimer = undefined;
+      this.hide();
+    }, CODE_LENS_HOVER_GRACE_MS);
+  }
+
+  /** Pointer entered the popover */
+  enterPopover(): void {
+    window.clearTimeout(this.hideTimer);
+    this.hideTimer = undefined;
+  }
+
+  hide(): void {
+    this.clearTimers();
+    if (this.view.state.field(codeLensHoverField, false)) {
+      this.view.dispatch({ effects: setHoveredLens.of(null) });
+    }
+  }
+
+  destroy(): void {
+    this.clearTimers();
+  }
+
+  private clearTimers(): void {
+    window.clearTimeout(this.showTimer);
+    window.clearTimeout(this.hideTimer);
+    this.showTimer = undefined;
+    this.hideTimer = undefined;
+  }
+}
+
+const lensHoverPlugin = ViewPlugin.define(
+  (view) => new LensHoverController(view),
+);
 
 class CodeLensWidget extends WidgetType {
   private readonly spec: CodeLensSpec;
@@ -45,15 +121,9 @@ class CodeLensWidget extends WidgetType {
   }
 
   override eq(other: CodeLensWidget): boolean {
-    return (
-      // `pos` is captured by the DOM hover/click handlers, so a reused widget
-      // whose anchor moved must not be treated as equal
-      this.spec.pos === other.spec.pos &&
-      this.spec.kind === other.spec.kind &&
-      this.spec.name === other.spec.name &&
-      this.spec.cache?.boundName === other.spec.cache?.boundName &&
-      this.spec.cache?.cacheName === other.spec.cache?.cacheName
-    );
+    // `pos` is captured by the DOM hover/click handlers, so a reused widget
+    // whose anchor moved must not be treated as equal
+    return specEquals(this.spec, other.spec);
   }
 
   override toDOM(view: EditorView): HTMLElement {
@@ -67,20 +137,10 @@ class CodeLensWidget extends WidgetType {
     element.setAttribute("aria-label", LENS_TOOLTIPS[spec.kind]);
     // Static, trusted markup (see icons.ts)
     element.innerHTML = LENS_ICONS[spec.kind];
-    const hidePopover = () => {
-      window.clearTimeout(HOVER_TIMERS.get(element));
-      HOVER_TIMERS.delete(element);
-      if (view.state.field(codeLensHoverField, false)) {
-        view.dispatch({ effects: setHoveredLens.of(null) });
-      }
-    };
-    element.onmouseenter = () => {
-      const timer = window.setTimeout(() => {
-        view.dispatch({ effects: setHoveredLens.of(spec) });
-      }, CODE_LENS_HOVER_DELAY_MS);
-      HOVER_TIMERS.set(element, timer);
-    };
-    element.onmouseleave = hidePopover;
+    const hover = () => view.plugin(lensHoverPlugin);
+    const hidePopover = () => hover()?.hide();
+    element.onmouseenter = () => hover()?.enterLens(spec);
+    element.onmouseleave = () => hover()?.leave();
     element.onmousemove = (event) => {
       // Keep the editor's built-in hover documentation tooltip from also
       // triggering over the icon
@@ -108,48 +168,58 @@ class CodeLensWidget extends WidgetType {
     return element;
   }
 
-  override destroy(dom: HTMLElement): void {
-    window.clearTimeout(HOVER_TIMERS.get(dom));
-    HOVER_TIMERS.delete(dom);
-  }
-
   override ignoreEvent(): boolean {
     // The widget handles its own events
     return true;
   }
 }
 
-function createLensTooltip(spec: CodeLensSpec): Tooltip {
-  return {
+interface HoveredLens {
+  spec: CodeLensSpec;
+  tooltip: Tooltip;
+}
+
+function createHoveredLens(spec: CodeLensSpec): HoveredLens {
+  const tooltip: Tooltip = {
     pos: spec.pos,
     above: true,
-    create: () => {
+    create: (view) => {
       const dom = document.createElement("div");
       // Same chrome as the SQL completion/hover popovers
       dom.classList.add("mo-cm-tooltip", "docs-documentation");
+      // The popover is scrollable, so keep it open while the pointer is
+      // inside it
+      dom.onmouseenter = () => view.plugin(lensHoverPlugin)?.enterPopover();
+      dom.onmouseleave = () => view.plugin(lensHoverPlugin)?.leave();
       const unmount = mountLensPopover(dom, spec);
       return { dom, resize: false, destroy: unmount };
     },
   };
+  return { spec, tooltip };
 }
 
-const codeLensHoverField = StateField.define<Tooltip | null>({
+const codeLensHoverField = StateField.define<HoveredLens | null>({
   create() {
     return null;
   },
-  update(tooltip, tr) {
+  update(hovered, tr) {
     for (const effect of tr.effects) {
       if (effect.is(setHoveredLens)) {
-        return effect.value ? createLensTooltip(effect.value) : null;
+        return effect.value ? createHoveredLens(effect.value) : null;
       }
-      if (effect.is(setCodeLenses)) {
-        // Lenses were rebuilt; the hovered widget may be gone
-        return null;
+      if (effect.is(setCodeLenses) && hovered) {
+        // Lenses were rebuilt (e.g. after a store update); keep the popover
+        // only if the hovered lens is still there, unchanged
+        const stillPresent = effect.value.some((spec) =>
+          specEquals(spec, hovered.spec),
+        );
+        return stillPresent ? hovered : null;
       }
     }
-    return tr.docChanged ? null : tooltip;
+    return tr.docChanged ? null : hovered;
   },
-  provide: (field) => showTooltip.from(field),
+  provide: (field) =>
+    showTooltip.from(field, (hovered) => hovered?.tooltip ?? null),
 });
 
 const codeLensField = StateField.define<DecorationSet>({
@@ -263,13 +333,19 @@ class CodeLensPlugin {
   }
 }
 
+// Padding around the 12px icon so the hover/click target isn't tiny
+const LENS_HIT_PADDING = "3px";
+
 const codeLensTheme = EditorView.baseTheme({
   ".mo-code-lens": {
     display: "inline-flex",
     verticalAlign: "baseline",
     // Optically center the icon against the text
     transform: "translateY(1.5px)",
-    marginLeft: "0.3em",
+    // Enlarge the hit area without affecting layout: the padding is pulled
+    // back in with negative vertical margins so the line height is unchanged
+    padding: LENS_HIT_PADDING,
+    margin: `-${LENS_HIT_PADDING} 0 -${LENS_HIT_PADDING} calc(0.3em - ${LENS_HIT_PADDING})`,
     cursor: "pointer",
     opacity: "0.5",
   },
@@ -290,6 +366,7 @@ export function codeLensBundle(cellId: CellId, enabled = true): Extension {
   return [
     codeLensField,
     codeLensHoverField,
+    lensHoverPlugin,
     ViewPlugin.define(
       (view) => new CodeLensPlugin(view, cellId, getFeatureFlag("cache_panel")),
     ),
