@@ -24,8 +24,8 @@ import { useCellData, useCellRuntime } from "@/core/cells/cells";
 import { CellOutputId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import {
-  goToDefinitionAtPosition,
-  hasDefinitionAtPosition,
+  canRequestDefinitionAtPosition,
+  goToDefinitionAtPositionWithLspFallback,
 } from "@/core/codemirror/go-to-definition/utils";
 import { sendToPanelManager } from "@/core/vscode/vscode-bindings";
 import { copyImageToClipboard, copyToClipboard } from "@/utils/copy";
@@ -70,7 +70,7 @@ export const CellActionsContextMenu = ({
   });
   const [imageRightClicked, setImageRightClicked] =
     React.useState<HTMLImageElement>();
-  // The document position of the variable under the right-click, or null when
+  // The document position of the identifier under the right-click, or null when
   // the click was not over one (e.g. output, a string, a keyword).
   const [goToDefinitionPos, setGoToDefinitionPos] = React.useState<
     number | null
@@ -185,10 +185,11 @@ export const CellActionsContextMenu = ({
         if (editorView && goToDefinitionPos != null) {
           // Only suppress focus restoration when we actually navigated;
           // otherwise let Radix return focus to the trigger cell.
-          suppressCloseAutoFocus.current = goToDefinitionAtPosition(
-            editorView,
-            goToDefinitionPos,
-          );
+          suppressCloseAutoFocus.current =
+            goToDefinitionAtPositionWithLspFallback(
+              editorView,
+              goToDefinitionPos,
+            );
         }
       },
     },
@@ -215,7 +216,7 @@ export const CellActionsContextMenu = ({
 
           // Resolve the identifier at the click position so "Go to Definition"
           // targets what the user actually clicked on, and only offer it when
-          // that word resolves to a definition.
+          // marimo can resolve it or an LSP definition provider is available.
           //
           // Require the click to land inside the editor's content DOM.
           const editorView = getEditorView();
@@ -230,7 +231,7 @@ export const CellActionsContextMenu = ({
           setGoToDefinitionPos(
             editorView &&
               pos != null &&
-              hasDefinitionAtPosition(editorView, pos)
+              canRequestDefinitionAtPosition(editorView, pos)
               ? pos
               : null,
           );

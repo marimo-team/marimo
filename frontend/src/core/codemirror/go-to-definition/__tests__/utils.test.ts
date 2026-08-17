@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { python } from "@codemirror/lang-python";
-import { EditorState } from "@codemirror/state";
+import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
@@ -9,10 +9,13 @@ import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import {
+  canRequestDefinitionAtPosition,
   goToDefinitionAtCursorPosition,
   goToDefinitionAtPosition,
+  goToDefinitionAtPositionWithLspFallback,
   goToDefinitionWithLspFallback,
-  hasDefinitionAtPosition,
+  lspGoToDefinitionSupport,
+  marimoGoToDefinitionKeymap,
   requestLspGoToDefinition,
 } from "../utils";
 
@@ -20,11 +23,15 @@ async function tick(): Promise<void> {
   await new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
-function createEditor(content: string, selection: number) {
+function createEditor(
+  content: string,
+  selection: number,
+  extensions: Extension[] = [],
+) {
   const state = EditorState.create({
     doc: content,
     selection: { anchor: selection },
-    extensions: [python()],
+    extensions: [python(), ...extensions],
   });
 
   return new EditorView({
@@ -253,6 +260,21 @@ describe("goToDefinitionWithLspFallback", () => {
     expect(result).toBe(true);
     expect(lspGoToDefinition).toHaveBeenCalledOnce();
   });
+
+  test("skips marimo's local keymap when requesting LSP", () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const code = "a = 1\nprint(a)";
+    const view = createEditor(code, code.lastIndexOf("a"), [
+      keymap.of([
+        { key: "F12", run: marimoGoToDefinitionKeymap },
+        { key: "F12", run: lspGoToDefinition },
+      ]),
+    ]);
+    views.push(view);
+
+    expect(requestLspGoToDefinition(view)).toBe(true);
+    expect(lspGoToDefinition).toHaveBeenCalledOnce();
+  });
 });
 
 describe("goToDefinitionAtPosition", () => {
@@ -303,9 +325,34 @@ describe("goToDefinitionAtPosition", () => {
 
     expect(result).toBe(false);
   });
+
+  test("is a no-op on an operator adjacent to variables", () => {
+    const code = "a+b";
+    const view = createEditor(code, 0);
+    views.push(view);
+
+    expect(goToDefinitionAtPosition(view, code.indexOf("+"))).toBe(false);
+  });
+
+  test("moves the caret to the clicked variable before using LSP", () => {
+    const lspGoToDefinition = vi.fn(() => true);
+    const code = "parser.add_argument('--foo')";
+    const position = code.indexOf("add_argument");
+    const view = createEditor(code, 0, [
+      lspGoToDefinitionSupport.of(true),
+      keymap.of([{ key: "F12", run: lspGoToDefinition }]),
+    ]);
+    views.push(view);
+
+    const result = goToDefinitionAtPositionWithLspFallback(view, position);
+
+    expect(result).toBe(true);
+    expect(view.state.selection.main.head).toBe(position);
+    expect(lspGoToDefinition).toHaveBeenCalledOnce();
+  });
 });
 
-describe("hasDefinitionAtPosition", () => {
+describe("canRequestDefinitionAtPosition", () => {
   function registerVariable(name: string) {
     const definingCell = cellId("defining-cell");
     const definingView = createEditor(`${name} = 10`, 0);
@@ -333,7 +380,7 @@ describe("hasDefinitionAtPosition", () => {
     const view = createEditor(code, 0);
     views.push(view);
 
-    expect(hasDefinitionAtPosition(view, code.indexOf("df"))).toBe(true);
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("df"))).toBe(true);
   });
 
   test("is false inside a string literal", () => {
@@ -343,7 +390,42 @@ describe("hasDefinitionAtPosition", () => {
     const view = createEditor(code, 0);
     views.push(view);
 
-    expect(hasDefinitionAtPosition(view, code.indexOf("hello"))).toBe(false);
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("hello"))).toBe(
+      false,
+    );
+  });
+
+  test("is false when string contents match a notebook variable", () => {
+    registerVariable("df");
+    const code = 'print("df")';
+    const view = createEditor(code, 0);
+    views.push(view);
+
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("df"))).toBe(
+      false,
+    );
+  });
+
+  test("is false when comment text matches a notebook variable", () => {
+    registerVariable("df");
+    const code = "# inspect df";
+    const view = createEditor(code, 0);
+    views.push(view);
+
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("df"))).toBe(
+      false,
+    );
+  });
+
+  test("does not resolve a property as a notebook variable", () => {
+    registerVariable("value");
+    const code = "object.value";
+    const view = createEditor(code, 0);
+    views.push(view);
+
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("value"))).toBe(
+      false,
+    );
   });
 
   test("is true for a cell-local variable not in the notebook graph", () => {
@@ -356,9 +438,9 @@ def f():
     const view = createEditor(code, 0);
     views.push(view);
 
-    expect(hasDefinitionAtPosition(view, code.lastIndexOf("local_var"))).toBe(
-      true,
-    );
+    expect(
+      canRequestDefinitionAtPosition(view, code.lastIndexOf("local_var")),
+    ).toBe(true);
   });
 
   test("is false for a word that is not a variable", () => {
@@ -368,7 +450,21 @@ def f():
 
     // No variables registered and nothing declared locally, so neither
     // `print` nor `value` resolves.
-    expect(hasDefinitionAtPosition(view, code.indexOf("print"))).toBe(false);
-    expect(hasDefinitionAtPosition(view, code.indexOf("value"))).toBe(false);
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("print"))).toBe(
+      false,
+    );
+    expect(canRequestDefinitionAtPosition(view, code.indexOf("value"))).toBe(
+      false,
+    );
+  });
+
+  test("is true for an unresolved variable when LSP is available", () => {
+    const code = "parser.add_argument('--foo')";
+    const view = createEditor(code, 0, [lspGoToDefinitionSupport.of(true)]);
+    views.push(view);
+
+    expect(
+      canRequestDefinitionAtPosition(view, code.indexOf("add_argument")),
+    ).toBe(true);
   });
 });
