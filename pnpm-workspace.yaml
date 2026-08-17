@@ -29,6 +29,8 @@ minimumReleaseAgeExclude:
   - ws@8.21.0
   # Renovate security update: form-data@4.0.6
   - form-data@4.0.6
+  # Renovate security update: mermaid@11.16.1
+  - mermaid@11.16.1
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:
