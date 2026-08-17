@@ -129,18 +129,16 @@ components:
       title: CellConfig
       type: object
     CellNotification:
-      description: "Updates a cell's state in the frontend.\n\n    This is a partial\
-        \ update: each field carries its own \"unchanged\" semantics,\n    documented\
-        \ per field below. Most fields treat None as \"unchanged\"; fields\n    that\
-        \ need to distinguish \"unchanged\" from \"clear\" use msgspec.UNSET for the\n\
-        \    former and None for the latter.\n\n    Attributes:\n        cell_id:\
-        \ Unique identifier of the cell being updated.\n        output: Cell's output.\
-        \ Use CellOutput.empty() to clear.\n        console: Console messages. Single/list\
-        \ appends, [] clears, None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
+      description: "Updates a cell's state in the frontend.\n\n    Only fields that\
+        \ are set (not None) will update the cell state.\n    Omitting a field leaves\
+        \ that aspect unchanged.\n\n    Attributes:\n        cell_id: Unique identifier\
+        \ of the cell being updated.\n        output: Cell's output. Use CellOutput.empty()\
+        \ to clear.\n        console: Console messages. Single/list appends, [] clears,\
+        \ None unchanged.\n        status: Execution status (idle/running/stale/queued/disabled-transitively).\n\
         \        stale_inputs: Whether cell has stale inputs from changed dependencies.\n\
         \        run_id: Execution run ID for tracing. Auto-set from context.\n  \
-        \      serialization: Top-level reusability hint. UNSET unchanged, None clears,\
-        \ str sets.\n        timestamp: Creation timestamp, auto-set."
+        \      serialization: Serialization status (TopLevelHints).\n        timestamp:\
+        \ Creation timestamp, auto-set."
       properties:
         cell_id:
           type: string
@@ -169,6 +167,7 @@ components:
           anyOf:
           - type: string
           - type: 'null'
+          default: null
         stale_inputs:
           anyOf:
           - type: boolean
@@ -343,10 +342,10 @@ components:
     CompletedRunNotification:
       description: "Run of submitted cells and descendants completed.\n\n    Attributes:\n\
         \        run_id: Correlation ID echoed from the command that triggered\n \
-        \           this completion. `None` for handlers that don't take a\n     \
-        \       `run_id` (everything except `handle_execute_scratchpad`\n        \
-        \    today). Consumers that want to wait for a specific command's\n      \
-        \      completion filter on this field."
+        \           this completion. ``None`` for handlers that don't take a\n   \
+        \         ``run_id`` (everything except ``handle_execute_scratchpad``\n  \
+        \          today). Consumers that want to wait for a specific command's\n\
+        \            completion filter on this field."
       properties:
         op:
           enum:
@@ -398,27 +397,6 @@ components:
       - prefix_length
       - options
       title: CompletionResultNotification
-      type: object
-    ConsumerCapabilities:
-      description: "Per-consumer access capabilities for a session connection.\n\n\
-        \    - editor: `{edit: True, interact: True}`\n    - interactor: `{edit: False,\
-        \ interact: True}` (default for a secondary\n      connection: drives UI state\
-        \ but cannot edit the notebook)\n    - read-only viewer: `{edit: False, interact:\
-        \ False}` (opt-in, set by a\n      deployment's capability provider)\n\n \
-        \   The server enforces these: control requests are gated against the issuing\n\
-        \    consumer's stored capabilities at the control-request chokepoint (the\n\
-        \    authority) and mirrored as an advisory HTTP 403 at the request handlers.\n\
-        \    Commands classified as `read` in `marimo._session.capabilities` (such\
-        \ as\n    completions and previews) are always permitted."
-      properties:
-        edit:
-          type: boolean
-        interact:
-          type: boolean
-      required:
-      - edit
-      - interact
-      title: ConsumerCapabilities
       type: object
     CycleError:
       properties:
@@ -547,8 +525,8 @@ components:
       type: object
     DataSourceDiscoveryResultNotification:
       description: "High-confidence datasource connections discovered by the kernel.\n\
-        \n    Attributes:\n        request_id: Request ID this responds to.\n    \
-        \    sources: Detected datasource connection configurations."
+        \nAttributes:\n    request_id: Request ID this responds to.\n    sources:\
+        \ Detected datasource connection configurations."
       properties:
         op:
           enum:
@@ -671,9 +649,7 @@ components:
     Database:
       description: "Represents a collection of schemas.\n\nAttributes:\n    name (str):\
         \ The name of the database\n    dialect (str): The dialect of the database\n\
-        \    schemas (List[Schema]): List of schemas in the database.\n    schemas_resolved\
-        \ (bool): True when `schemas` has been enumerated.\n        False when schema\
-        \ discovery was deferred. Defaults to True\n    engine (Optional[VariableName]):\
+        \    schemas (List[Schema]): List of schemas in the database\n    engine (Optional[VariableName]):\
         \ Database engine or connection handler, if any."
       properties:
         dialect:
@@ -689,9 +665,6 @@ components:
           items:
             $ref: '#/components/schemas/Schema'
           type: array
-        schemas_resolved:
-          default: true
-          type: boolean
       required:
       - name
       - dialect
@@ -1002,8 +975,6 @@ components:
           items:
             $ref: '#/components/schemas/CellConfig'
           type: array
-        consumer_capabilities:
-          $ref: '#/components/schemas/ConsumerCapabilities'
         kiosk:
           type: boolean
         last_executed_code:
@@ -1049,7 +1020,6 @@ components:
       - app_config
       - kiosk
       - capabilities
-      - consumer_capabilities
       title: KernelReadyNotification
       type: object
     LayoutConfig:
@@ -1379,19 +1349,12 @@ components:
       type: object
     SQLDatabaseMetadata:
       description: "SQL database metadata.\n\n    Attributes:\n        connection:\
-        \ Connection identifier.\n        database: Database name.\n        schema_path:\
-        \ Parent schema path the schemas belong under. Empty for\n            the\
-        \ database's top level."
+        \ Connection identifier.\n        database: Database name."
       properties:
         connection:
           type: string
         database:
           type: string
-        schema_path:
-          default: []
-          items:
-            type: string
-          type: array
       required:
       - connection
       - database
@@ -1400,8 +1363,7 @@ components:
     SQLMetadata:
       description: "SQL database and schema metadata.\n\n    Attributes:\n       \
         \ connection: Connection identifier.\n        database: Database name.\n \
-        \       schema: Schema name.\n        schema_path: Path of nested schemas\
-        \ (relative to `database`). Empty\n            for the top level."
+        \       schema: Schema name."
       properties:
         connection:
           type: string
@@ -1409,11 +1371,6 @@ components:
           type: string
         schema:
           type: string
-        schema_path:
-          default: []
-          items:
-            type: string
-          type: array
         type:
           enum:
           - sql-metadata
@@ -1524,33 +1481,13 @@ components:
       title: SafeLiteralDiscoveryValue
       type: object
     Schema:
-      description: "Represents a database schema and its tables.\n\nA schema may itself\
-        \ contain nested child schemas, e.g. for catalogs with\nhierarchical namespaces\
-        \ such as Iceberg (`top.nested.deep`).\n\nAttributes:\n    name (str): The\
-        \ name of the schema.\n    tables (List[DataTable]): Tables in this schema.\n\
-        \    tables_resolved (bool): True when `tables` has been enumerated\n    \
-        \    False when table discovery was deferred. Defaults to True\n    child_schemas\
-        \ (List[Schema]): Nested child schemas (sub-namespaces).\n    child_schemas_resolved\
-        \ (bool): True when `child_schemas` has been\n        enumerated. False when\
-        \ discovery was deferred. Defaults to True"
       properties:
-        child_schemas:
-          default: []
-          items:
-            $ref: '#/components/schemas/Schema'
-          type: array
-        child_schemas_resolved:
-          default: true
-          type: boolean
         name:
           type: string
         tables:
           items:
             $ref: '#/components/schemas/DataTable'
           type: array
-        tables_resolved:
-          default: true
-          type: boolean
       required:
       - name
       - tables

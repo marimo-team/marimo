@@ -5,9 +5,7 @@ import os
 from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
-from marimo._data.data_source_discovery import (
-    discover_data_sources,
-)
+from marimo._data.data_source_discovery import discover_data_sources
 from marimo._data.preview_column import (
     get_column_preview_for_dataframe,
     get_column_preview_for_duckdb,

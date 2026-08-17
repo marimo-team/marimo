@@ -53,17 +53,12 @@ def test_isolates_failures_and_deduplicates() -> None:
             {},
             plugins=(
                 DiscoveryPlugin(
-                    id="first",
-                    discover=lambda _context: [source],
+                    id="first", discover=lambda _context: [source]
                 ),
                 DiscoveryPlugin(
-                    id="duplicate",
-                    discover=lambda _context: [duplicate],
+                    id="duplicate", discover=lambda _context: [duplicate]
                 ),
-                DiscoveryPlugin(
-                    id="broken",
-                    discover=fail,
-                ),
+                DiscoveryPlugin(id="broken", discover=fail),
             ),
         )
 
@@ -149,14 +144,8 @@ def test_plugins_receive_an_immutable_environment_snapshot() -> None:
         discover_data_sources(
             {"ORIGINAL": "value"},
             plugins=(
-                DiscoveryPlugin(
-                    id="mutating",
-                    discover=mutate,
-                ),
-                DiscoveryPlugin(
-                    id="observing",
-                    discover=observe,
-                ),
+                DiscoveryPlugin(id="mutating", discover=mutate),
+                DiscoveryPlugin(id="observing", discover=observe),
             ),
         )
 
@@ -183,12 +172,7 @@ def test_plugin_error_logs_never_include_exception_message() -> None:
     try:
         detected = discover_data_sources(
             {},
-            plugins=(
-                DiscoveryPlugin(
-                    id="pyiceberg",
-                    discover=fail,
-                ),
-            ),
+            plugins=(DiscoveryPlugin(id="pyiceberg", discover=fail),),
         )
     finally:
         LOGGER.removeHandler(handler)

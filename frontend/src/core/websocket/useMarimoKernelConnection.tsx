@@ -317,8 +317,7 @@ export function useMarimoKernelConnection(opts: {
         return;
       }
 
-      case "variables": {
-        const variableNames = msg.data.variables.map((v) => v.name);
+      case "variables":
         setVariables(
           msg.data.variables.map((v) => ({
             name: v.name,
@@ -326,11 +325,10 @@ export function useMarimoKernelConnection(opts: {
             usedBy: v.used_by,
           })),
         );
-        filterDatasetsFromVariables(variableNames);
-        filterDataSourcesFromVariables(variableNames);
-        filterStorageFromVariables(variableNames);
+        filterDatasetsFromVariables(msg.data.variables.map((v) => v.name));
+        filterDataSourcesFromVariables(msg.data.variables.map((v) => v.name));
+        filterStorageFromVariables(msg.data.variables.map((v) => v.name));
         return;
-      }
       case "variable-values":
         setMetadata(
           msg.data.variables.map((v) => ({
