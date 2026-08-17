@@ -58,7 +58,7 @@ def form_toolsets(
 
     Returns a tuple of the toolset and whether deferred tool requests are needed.
     """
-    from pydantic_ai import CallDeferred, FunctionToolset
+    from pydantic_ai import CallDeferred, FunctionToolset, Tool
 
     toolset = FunctionToolset()
     deferred_tool_requests = False
@@ -87,8 +87,17 @@ def form_toolsets(
                 return asdict(result)
 
         tool_fn.__name__ = tool.name
-        toolset.add_function(
-            tool_fn, name=tool.name, description=tool.description
+        # Use the tool's real JSON schema instead of letting pydantic-ai
+        # infer one from tool_fn's signature (which is always the generic
+        # `(_tool_name, **kwargs)` closure above, regardless of the actual
+        # tool's parameters).
+        toolset.add_tool(
+            Tool.from_schema(
+                function=tool_fn,
+                name=tool.name,
+                description=tool.description,
+                json_schema=tool.parameters,
+            )
         )
     return toolset, deferred_tool_requests
 
