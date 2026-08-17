@@ -263,6 +263,35 @@ def test_merge_config_custom_providers_can_be_emptied() -> None:
     assert new_config.get("ai", {}).get("custom_providers", {}) == {}
 
 
+def test_merge_config_trusted_signers_replaces_for_revocation() -> None:
+    """signing.trusted_signers is replaced, not merged, so a higher-priority
+    layer can narrow or revoke trust (a deep merge would union the keys and make
+    revocation impossible)."""
+    fp_a = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0"
+    fp_b = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB0"
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            signing={"trusted_signers": {fp_a: "a", fp_b: "b"}}
+        )
+    )
+
+    # A higher-priority layer keeps only fp_a.
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(signing={"trusted_signers": {fp_a: "a"}}),
+    )
+    trusted = new_config.get("signing", {}).get("trusted_signers", {})
+    assert fp_a in trusted
+    assert fp_b not in trusted
+
+    # And an empty map revokes all trust.
+    emptied = merge_config(
+        prev_config,
+        PartialMarimoConfig(signing={"trusted_signers": {}}),
+    )
+    assert emptied.get("signing", {}).get("trusted_signers", {}) == {}
+
+
 def test_merge_config_custom_providers_preserves_other_ai_settings() -> None:
     """Test that updating custom_providers doesn't affect other AI settings."""
     prev_config = merge_default_config(

@@ -272,3 +272,22 @@ def test_remove_secret_placeholders_custom_providers() -> None:
         config["ai"]["custom_providers"]["groq"]["api_key"]
         == SECRET_PLACEHOLDER
     )
+
+
+def test_mask_secrets_signing_private_key_path() -> None:
+    """private_key_path is masked so it is never serialized to the frontend."""
+    config = PartialMarimoConfig(
+        signing={
+            "private_key_path": "/home/user/.marimo/key.pem",
+            "trusted_signers": {"SHA256:abc": "alice"},
+        },
+    )
+    masked = mask_secrets(config)
+    assert masked["signing"]["private_key_path"] == SECRET_PLACEHOLDER
+    # trusted_signers are public fingerprints — not masked.
+    assert masked["signing"]["trusted_signers"] == {"SHA256:abc": "alice"}
+    # A frontend round-trip (placeholder back to us) must not overwrite the
+    # real path on save.
+    assert "private_key_path" not in remove_secret_placeholders(masked).get(
+        "signing", {}
+    )

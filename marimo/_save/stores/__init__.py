@@ -5,7 +5,7 @@ import copy
 from typing import cast
 
 from marimo import _loggers
-from marimo._config.config import CacheConfig, StoreKey
+from marimo._config.config import CacheStoreConfig, StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
@@ -33,18 +33,15 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: CacheConfig | None = (
-        get_default_config_manager(current_path=current_path)
-        .get_config()
-        .get("experimental", {})
-        .get("cache", None)
+    config = get_default_config_manager(current_path=current_path).get_config()
+    store_config: CacheStoreConfig | None = config.get("cache", {}).get(
+        "store"
     )
-
-    return _get_store_from_config(cache_config)
+    return _get_store_from_config(store_config)
 
 
 def _get_store_from_config(
-    config: CacheConfig | None,
+    config: CacheStoreConfig | None,
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
@@ -65,7 +62,7 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = cast(StoreKey, config.get("store", DEFAULT_STORE_KEY))
+        store_type = cast(StoreKey, config.get("type", DEFAULT_STORE_KEY))
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY
