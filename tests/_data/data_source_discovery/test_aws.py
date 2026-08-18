@@ -73,6 +73,11 @@ import s3fs
 
 # Uses the standard AWS credential and endpoint environment variables.
 fs = s3fs.S3FileSystem()""",
+                "hidesWhen": {
+                    "kind": "storage",
+                    "protocols": ["s3", "cloudflare", "coreweave"],
+                    "backendTypes": [],
+                },
             }
         ]
     )

@@ -94,9 +94,13 @@ const DiscoveredSourcesBadge = ({
     return null;
   }
 
-  const text = type === "database" ? "database" : "remote storage";
-  const plural = count > 1 ? "s" : "";
-  const content = `${count} ${text}${plural} detected in your environment, ready to quick-add`;
+  const noun =
+    type === "database"
+      ? count === 1
+        ? "database"
+        : "databases"
+      : "remote storage";
+  const content = `${count} ${noun} detected in your environment, ready to quick-add`;
 
   return (
     <Tooltip content={content}>

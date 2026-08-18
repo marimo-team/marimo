@@ -4610,6 +4610,9 @@ export interface components {
       confidence: "high" | "medium";
       configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
       displayName: string;
+      hidesWhen:
+        | components["schemas"]["DialectHidesWhen"]
+        | components["schemas"]["StorageHidesWhen"];
       id: string;
       integration: string;
       origins: components["schemas"]["DetectedDataSourceOrigin"][];
@@ -4626,6 +4629,15 @@ export interface components {
       label: string;
       /** @enum {unknown} */
       type: "configuration" | "environment";
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiagnosticsConfig
@@ -7051,6 +7063,16 @@ export interface components {
       mimeType?: string | null;
       path: string;
       size: number;
+    };
+    /**
+     * StorageHidesWhen
+     * @description Hide this suggestion when a live storage namespace matches.
+     */
+    StorageHidesWhen: {
+      backendTypes: string[];
+      /** @enum {unknown} */
+      kind: "storage";
+      protocols: string[];
     };
     /**
      * StorageListEntriesCommand

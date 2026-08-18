@@ -31,58 +31,31 @@ export interface LiveConnectionSnapshot {
   storageBackendTypes: readonly string[];
 }
 
-interface IntegrationConnectionMatch {
-  dialectSubstrings?: readonly string[];
-  protocols?: readonly string[];
-  backendTypes?: readonly string[];
-}
-
-/** Keep in sync with discovery plugin ids. */
-const CONNECTION_MATCH_BY_INTEGRATION: Record<
-  string,
-  IntegrationConnectionMatch
-> = {
-  postgres: { dialectSubstrings: ["postgres"] },
-  mysql: { dialectSubstrings: ["mysql"] },
-  trino: { dialectSubstrings: ["trino"] },
-  pyspark: { dialectSubstrings: ["pyspark", "spark"] },
-  pyiceberg: { dialectSubstrings: ["iceberg"] },
-  aws: { protocols: ["s3", "cloudflare", "coreweave"] },
-  huggingface: { protocols: ["hf"], backendTypes: ["huggingface"] },
-};
-
 /**
  * Whether a detected source already has a live connection of the same type.
+ * Match rules come from the kernel on each suggestion.
  */
 export function isDetectedSourceConnected(
   source: DetectedDataSource,
   snapshot: LiveConnectionSnapshot,
 ): boolean {
-  const match = CONNECTION_MATCH_BY_INTEGRATION[source.integration];
-  if (!match) {
-    return false;
-  }
-
-  if (
-    match.dialectSubstrings?.some((alias) =>
+  const match = source.hidesWhen;
+  if (match.kind === "dialect") {
+    return match.substrings.some((alias) =>
       snapshot.dialects.some((dialect) => dialect.includes(alias)),
-    )
-  ) {
-    return true;
+    );
   }
 
   if (
-    match.protocols?.some((protocol) =>
+    match.protocols.some((protocol) =>
       snapshot.storageProtocols.includes(protocol),
     )
   ) {
     return true;
   }
 
-  return (
-    match.backendTypes?.some((backendType) =>
-      snapshot.storageBackendTypes.includes(backendType),
-    ) ?? false
+  return match.backendTypes.some((backendType) =>
+    snapshot.storageBackendTypes.includes(backendType),
   );
 }
 

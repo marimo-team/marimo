@@ -12,6 +12,20 @@ import {
 } from "../data-source-discovery";
 import { DiscoverDataSources } from "../request-registry";
 
+function source(
+  overrides: Partial<DetectedDataSource> &
+    Pick<DetectedDataSource, "id" | "integration" | "category" | "displayName">,
+): DetectedDataSource {
+  return {
+    confidence: "high",
+    origins: [],
+    configuration: [],
+    code: "",
+    hidesWhen: { kind: "dialect", substrings: [overrides.integration] },
+    ...overrides,
+  };
+}
+
 describe("fetchDataSourceDiscovery", () => {
   beforeEach(() => {
     // Discovery waits for the session's websocket connection to be open
@@ -88,26 +102,18 @@ describe("fetchDataSourceDiscovery", () => {
 
   it("returns sources from the kernel", async () => {
     const sources: DetectedDataSource[] = [
-      {
+      source({
         id: "postgres",
         integration: "postgres",
         category: "database",
         displayName: "PostgreSQL",
-        confidence: "high",
-        origins: [],
-        configuration: [],
-        code: "",
-      },
-      {
+      }),
+      source({
         id: "mysql",
         integration: "mysql",
         category: "database",
         displayName: "MySQL",
-        confidence: "high",
-        origins: [],
-        configuration: [],
-        code: "",
-      },
+      }),
     ];
     vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
       request_id: "request-id",
@@ -119,30 +125,29 @@ describe("fetchDataSourceDiscovery", () => {
 });
 
 describe("matchesDiscoveryGroup", () => {
-  const postgres: DetectedDataSource = {
+  const postgres = source({
     id: "postgres",
     integration: "postgres",
     category: "database",
     displayName: "PostgreSQL",
-    confidence: "high",
-    origins: [],
-    configuration: [],
-    code: "",
-  };
-  const iceberg: DetectedDataSource = {
-    ...postgres,
+  });
+  const iceberg = source({
     id: "iceberg",
     integration: "pyiceberg",
     category: "catalog",
     displayName: "PyIceberg",
-  };
-  const s3: DetectedDataSource = {
-    ...postgres,
+  });
+  const s3 = source({
     id: "s3",
     integration: "aws",
     category: "object-storage",
     displayName: "S3",
-  };
+    hidesWhen: {
+      kind: "storage",
+      protocols: ["s3"],
+      backendTypes: [],
+    },
+  });
 
   it("keeps every source when no group is given", () => {
     expect(matchesDiscoveryGroup(postgres)).toBe(true);
@@ -164,16 +169,13 @@ describe("matchesDiscoveryGroup", () => {
 });
 
 describe("isDetectedSourceConnected", () => {
-  const postgres: DetectedDataSource = {
+  const postgres = source({
     id: "postgres",
     integration: "postgres",
     category: "database",
     displayName: "PostgreSQL",
-    confidence: "high",
-    origins: [],
-    configuration: [],
-    code: "",
-  };
+    hidesWhen: { kind: "dialect", substrings: ["postgres"] },
+  });
   const emptySnapshot = {
     dialects: [] as string[],
     storageProtocols: [] as string[],
@@ -203,13 +205,13 @@ describe("isDetectedSourceConnected", () => {
   });
 
   it("hides spark suggestions for either pyspark or spark dialects", () => {
-    const spark: DetectedDataSource = {
-      ...postgres,
+    const spark = source({
       id: "spark",
       integration: "pyspark",
       category: "catalog",
       displayName: "Spark",
-    };
+      hidesWhen: { kind: "dialect", substrings: ["pyspark", "spark"] },
+    });
     expect(
       isDetectedSourceConnected(spark, {
         ...emptySnapshot,
@@ -219,13 +221,17 @@ describe("isDetectedSourceConnected", () => {
   });
 
   it("hides object storage when a matching protocol is live", () => {
-    const s3: DetectedDataSource = {
-      ...postgres,
+    const s3 = source({
       id: "s3",
       integration: "aws",
       category: "object-storage",
       displayName: "S3",
-    };
+      hidesWhen: {
+        kind: "storage",
+        protocols: ["s3", "cloudflare", "coreweave"],
+        backendTypes: [],
+      },
+    });
     expect(
       isDetectedSourceConnected(s3, {
         ...emptySnapshot,
@@ -235,13 +241,17 @@ describe("isDetectedSourceConnected", () => {
   });
 
   it("hides huggingface when the backend type matches", () => {
-    const hf: DetectedDataSource = {
-      ...postgres,
+    const hf = source({
       id: "hf",
       integration: "huggingface",
       category: "object-storage",
       displayName: "Hugging Face",
-    };
+      hidesWhen: {
+        kind: "storage",
+        protocols: ["hf"],
+        backendTypes: ["huggingface"],
+      },
+    });
     expect(
       isDetectedSourceConnected(hf, {
         ...emptySnapshot,
@@ -250,11 +260,17 @@ describe("isDetectedSourceConnected", () => {
     ).toBe(true);
   });
 
-  it("does not hide unknown integrations", () => {
+  it("does not hide when hidesWhen does not match live connections", () => {
     expect(
       isDetectedSourceConnected(
-        { ...postgres, integration: "custom" },
-        { ...emptySnapshot, dialects: ["custom"] },
+        source({
+          id: "custom",
+          integration: "custom",
+          category: "database",
+          displayName: "Custom",
+          hidesWhen: { kind: "dialect", substrings: ["custom"] },
+        }),
+        { ...emptySnapshot, dialects: ["postgres"] },
       ),
     ).toBe(false);
   });
