@@ -34,7 +34,7 @@ interface InstalledPackage {
 }
 
 const PEP_440_PRERELEASE =
-  /^(?:\d+!)?\d+(?:\.\d+)*(?:[-_.]?(?:a|b|c|rc|alpha|beta|pre|preview|dev)\d*)/i;
+  /^((?:\d+!)?\d+(?:\.\d+)*)(?:[-_.]?(?:a|b|c|rc|alpha|beta|pre|preview|dev)\d*)/i;
 
 export function isPackageRequirementInstalled(
   requirement: Package,
@@ -50,8 +50,9 @@ export function isPackageRequirementInstalled(
   if (!requirement.minVersion) {
     return true;
   }
-  if (PEP_440_PRERELEASE.test(installedPackage.version)) {
-    return false;
+  const prerelease = installedPackage.version.match(PEP_440_PRERELEASE);
+  if (prerelease) {
+    return semverSort(prerelease[1], requirement.minVersion) > 0;
   }
   return semverSort(installedPackage.version, requirement.minVersion) >= 0;
 }
