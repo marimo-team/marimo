@@ -168,7 +168,8 @@ class RuntimeConfig(TypedDict):
         directory when there is no `pyproject.toml`. Entries set in a
         `pyproject.toml` must stay inside that directory. Entries that
         resolve outside it are ignored. Set `dotenv` in your user
-        configuration to read a file elsewhere.
+        configuration to read a file elsewhere. An empty list is ignored,
+        since reading the configuration hides `dotenv` by emptying it.
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
