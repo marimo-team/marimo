@@ -5,9 +5,7 @@ import { jsonToMarkdown } from "../json-parser";
 describe("jsonToMarkdown URL linkification", () => {
   it("links a plain URL", () => {
     const md = jsonToMarkdown([{ link: "https://marimo.io/path" }]);
-    expect(md).toContain(
-      "[https://marimo.io/path](https://marimo.io/path)",
-    );
+    expect(md).toContain("[https://marimo.io/path](https://marimo.io/path)");
   });
 
   it("stops the link at the JSON delimiter, not the trailing quote (#10567)", () => {
@@ -27,9 +25,7 @@ describe("jsonToMarkdown URL linkification", () => {
   });
 
   it("leaves existing markdown links untouched", () => {
-    const md = jsonToMarkdown([
-      { v: "[docs](https://marimo.io/docs)" },
-    ]);
+    const md = jsonToMarkdown([{ v: "[docs](https://marimo.io/docs)" }]);
     expect(md).toContain("[docs](https://marimo.io/docs)");
     // Must not double-wrap into [[docs](url)](url).
     expect(md).not.toContain("[[docs]");
