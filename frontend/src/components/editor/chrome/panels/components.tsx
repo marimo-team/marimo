@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils/cn";
 import { SparklesIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
-import type { DataSourceDiscoveryGroup } from "@/hooks/useDataSourceDiscovery";
+import type { DataSourceDiscoveryGroup } from "@/core/datasets/data-source-discovery";
 
 /**
  * Styled AccordionItem for sidebar panels.
@@ -94,12 +94,12 @@ const DiscoveredSourcesBadge = ({
     return null;
   }
 
-  const noun =
-    type === "database"
-      ? count === 1
-        ? "database"
-        : "databases"
-      : "remote storage";
+  let noun: string;
+  if (type === "database") {
+    noun = count === 1 ? "database" : "databases";
+  } else {
+    noun = count === 1 ? "remote storage" : "remote storages";
+  }
   const content = `${count} ${noun} detected in your environment, ready to quick-add`;
 
   return (
