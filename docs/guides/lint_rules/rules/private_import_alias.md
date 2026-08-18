@@ -7,7 +7,7 @@ MR004: Import aliased to a private (underscore-prefixed) name.
 ## What it does
 
 Scans import statements for an explicit `as` alias whose bound name starts
-with an underscore. This pattern is a undesirable but common workaround for
+with an underscore. This pattern is an undesirable but common workaround for
 marimo's global redefinition restriction with little tangible payoff.
 
 ## Why is this bad?
