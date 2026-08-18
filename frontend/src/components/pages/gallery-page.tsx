@@ -4,6 +4,7 @@ import { SearchIcon } from "lucide-react";
 import type React from "react";
 import { Suspense, useMemo, useState } from "react";
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
+import { TruncatedWorkspaceBanner } from "@/components/home/components";
 import { Spinner } from "@/components/icons/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -119,10 +120,7 @@ const GalleryPage: React.FC = () => {
         <ErrorBoundary>
           <div className="flex flex-col gap-2">
             {workspace.hasMore && (
-              <Banner kind="warn" className="rounded p-4">
-                Showing first {workspace.fileCount} files. Your workspace has
-                more files.
-              </Banner>
+              <TruncatedWorkspaceBanner fileCount={workspace.fileCount} />
             )}
             {formattedFiles.length > SEARCH_THRESHOLD && (
               <Input

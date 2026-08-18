@@ -31,6 +31,7 @@ import {
 import { Constants } from "@/core/constants";
 import { useRequestClient } from "@/core/network/requests";
 import type { TutorialId } from "@/core/network/types";
+import { Banner } from "@/plugins/impl/common/error-banner";
 import { openNotebook } from "@/utils/links";
 import { Objects } from "@/utils/objects";
 import { MarimoPlusIcon } from "../icons/marimo-icons";
@@ -182,6 +183,22 @@ export const ResourceLinks: React.FC = () => {
         ))}
       </div>
     </div>
+  );
+};
+
+/**
+ * Shown when the workspace scan stopped early, so the file list the user is
+ * looking at is missing files and folders.
+ */
+export const TruncatedWorkspaceBanner: React.FC<{
+  fileCount: number | undefined;
+}> = ({ fileCount }) => {
+  return (
+    <Banner kind="warn" className="rounded p-4">
+      Showing {fileCount} files. Some files and folders were skipped because
+      your workspace is large or deeply nested. Start marimo from a subfolder to
+      see them.
+    </Banner>
   );
 };
 
