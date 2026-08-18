@@ -44,6 +44,47 @@ def test_mcp_server_starts_up():
     assert any("/mcp" in str(route.path) for route in app.routes)
 
 
+async def test_mcp_server_supports_modern_protocol():
+    """The v2 server should negotiate the modern protocol directly."""
+    from mcp import Client
+
+    app = create_test_app()
+    async with Client(app.state.mcp) as client:
+        tools = await client.list_tools()
+        prompts = await client.list_prompts()
+
+        assert client.protocol_version == "2026-07-28"
+        assert tools.tools
+        assert {prompt.name for prompt in prompts.prompts} == {
+            "active_notebooks",
+            "errors_summary",
+        }
+
+
+async def test_mcp_server_supports_streamable_http():
+    import httpx2
+    from mcp import Client
+    from mcp.client.streamable_http import streamable_http_client
+
+    app = create_test_app()
+    http_transport = httpx2.ASGITransport(app=app)
+    async with mcp_server_lifespan(app):
+        async with httpx2.AsyncClient(
+            transport=http_transport,
+            base_url="http://localhost:8000",
+            follow_redirects=True,
+        ) as http_client:
+            transport = streamable_http_client(
+                "http://localhost:8000/mcp/server",
+                http_client=http_client,
+            )
+            async with Client(transport, mode="2026-07-28") as client:
+                tools = await client.list_tools()
+
+                assert client.protocol_version == "2026-07-28"
+                assert tools.tools
+
+
 async def test_mcp_server_requires_edit_scope():
     """Test that MCP server validates 'edit' scope is present."""
     app = create_test_app()

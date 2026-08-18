@@ -52,6 +52,21 @@ def test_code_mcp_server_starts_up():
     assert any("/mcp" in str(route.path) for route in app.routes)
 
 
+async def test_code_mcp_server_supports_modern_protocol():
+    """The v2 code server should expose its tools over the modern protocol."""
+    from mcp import Client
+
+    app = create_test_app()
+    async with Client(app.state.code_mcp) as client:
+        tools = await client.list_tools()
+
+        assert client.protocol_version == "2026-07-28"
+        assert {tool.name for tool in tools.tools} == {
+            "execute_code",
+            "list_sessions",
+        }
+
+
 async def test_code_mcp_server_requires_edit_scope():
     """Test that Code MCP server validates 'edit' scope is present."""
 

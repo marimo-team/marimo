@@ -117,8 +117,8 @@ lsp = [
 ]
 
 mcp = [
-    "mcp>=1.0.0,<2", # MCP 2.0 is a major rework, unsupported for now.
-    "pydantic>2",
+    "httpx2>=2.5.0,<3",
+    "mcp>=2.0.0,<3",
 ]
 
 otel = [
@@ -225,7 +225,7 @@ test-optional = [
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
-    "mcp>=1.0.0,<2",
+    "mcp>=2.0.0,<3",
     # zeromq
     "pyzmq>=27.1.0",
     # weave tracing integration
@@ -264,7 +264,7 @@ typecheck = [
     "types-Markdown>=3.6.0.20240316",
     "types-PyYAML>=6.0.12.20240808",
     "types-docutils>=0.21.0.20241128",
-    "mcp>=1.0.0,<2",
+    "mcp>=2.0.0,<3",
     # zeromq
     "pyzmq>=27.1.0",
     "pyarrow-stubs",

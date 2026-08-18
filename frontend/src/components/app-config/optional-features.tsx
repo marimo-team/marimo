@@ -77,8 +77,8 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
   },
   {
     id: "mcp",
-    packagesRequired: [{ name: "mcp", minVersion: "1" }],
-    additionalPackageInstalls: [{ name: "pydantic", minVersion: "2" }],
+    packagesRequired: [{ name: "mcp", minVersion: "2" }],
+    additionalPackageInstalls: [],
     description: "Connect to MCP servers",
   },
   {
