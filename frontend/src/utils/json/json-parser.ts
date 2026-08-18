@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { URL_REGEX } from "../url-parser";
 import type { JsonString } from "./base64";
 
 declare global {
@@ -126,10 +127,10 @@ function formatValueForMarkdown(value: unknown): string {
     return placeholder;
   });
 
-  // Convert plain URLs to markdown links. Exclude whitespace and the
-  // characters that cannot appear unencoded in a URL so a URL embedded in JSON
-  // text doesn't swallow the trailing `"}]` delimiters into the link (#10567).
-  const urlRegex = /(https?:\/\/[^\s"'<>`{}|\\^]+)/g;
+  // Convert plain URLs to markdown links, using the shared URL matcher so this
+  // stays in sync with the table-cell linkifier and doesn't swallow trailing
+  // delimiters like `"}]` around a URL embedded in JSON text (#10567).
+  const urlRegex = new RegExp(URL_REGEX.source, "g");
   stringValue = stringValue.replaceAll(urlRegex, "[$1]($1)");
 
   // Restore markdown links from placeholders
