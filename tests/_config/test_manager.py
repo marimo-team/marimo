@@ -354,6 +354,39 @@ def test_project_config_default_dotenv(tmp_path: Path) -> None:
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
+def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
+    # Standalone notebooks (e.g. PEP 723 sandboxes) have no pyproject.toml to
+    # anchor on, so the dotenv default resolves next to the notebook.
+    notebook_path = tmp_path / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_project_config_dotenv_without_pyproject_directory(
+    tmp_path: Path,
+) -> None:
+    manager = get_default_config_manager(current_path=str(tmp_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
+    # When a pyproject.toml exists, it stays the anchor even if the notebook
+    # lives in a subdirectory.
+    (tmp_path / "pyproject.toml").write_text("")
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    notebook_path = notebooks / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"

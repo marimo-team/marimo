@@ -132,7 +132,7 @@ pythonpath = ["project/src"]
 
 marimo supports loading environment variables from `.env` files. This is useful for managing configuration that should not be committed to version control, such as API keys or database credentials.
 
-The `.env` next to your `pyproject.toml` is loaded by default. To configure multiple or a different location, you can specify them in your configuration:
+The `.env` next to your `pyproject.toml` is loaded by default. For standalone notebooks with no `pyproject.toml` — such as [sandboxed notebooks](../package_management/inlining_dependencies.md) — the `.env` next to the notebook is loaded instead. To configure multiple or a different location, you can specify them in your configuration:
 
 ```toml title="pyproject.toml"
 [tool.marimo.runtime]

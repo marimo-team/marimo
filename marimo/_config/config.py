@@ -163,7 +163,9 @@ class RuntimeConfig(TypedDict):
         where Python will look for imported modules.
     - `dotenv`: a list of paths to `.env` files to load.
         If the file does not exist, it will be silently ignored.
-        The default is `[".env"]` if a pyproject.toml is found, otherwise `[]`.
+        The default is `[".env"]`. Relative paths are resolved against the
+        directory holding the nearest `pyproject.toml`, or the notebook's own
+        directory when there is no `pyproject.toml`.
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
@@ -767,8 +769,8 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
-    # dotenv's default value is set at runtime, depending on whether a
-    # pyproject.toml is found.
+    # dotenv's default value is set at runtime, since it resolves relative to
+    # the pyproject.toml or the notebook's directory.
     "runtime": {
         "auto_instantiate": False,
         "auto_reload": "off",

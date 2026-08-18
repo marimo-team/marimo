@@ -208,7 +208,21 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     """Read the project configuration"""
 
     def __init__(self, start_path: str) -> None:
+        self.start_path = start_path
         self.pyproject_path = find_nearest_pyproject_toml(start_path)
+
+    @property
+    def _dotenv_root(self) -> Path:
+        """Directory that relative `dotenv` paths resolve against.
+
+        Standalone notebooks (such as sandboxed ones) have no
+        pyproject.toml to anchor on, so they fall back to the directory
+        holding the notebook.
+        """
+        if self.pyproject_path is not None:
+            return self.pyproject_path.parent
+        start_path = Path(self.start_path)
+        return start_path if start_path.is_dir() else start_path.parent
 
     # It is safe to cache this config, as we only read from the pyproject.toml
     # and never update it. If the user updates the pyproject.toml,
@@ -216,9 +230,11 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     @lru_cache(maxsize=2)  # noqa: B019
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         try:
-            if self.pyproject_path is None:
-                return {}
-            project_config = read_pyproject_marimo_config(self.pyproject_path)
+            project_config = (
+                read_pyproject_marimo_config(self.pyproject_path)
+                if self.pyproject_path is not None
+                else None
+            )
             if project_config is None:
                 # Some project configuration defaults (dotenv in particular)
                 # are resolved at runtime, even in the absence of marimo
@@ -268,9 +284,6 @@ class ProjectConfigManager(PartialMarimoConfigReader):
     def _resolve_dotenv(
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
-        if self.pyproject_path is None:
-            return config
-
         runtime = config.get("runtime", cast(RuntimeConfig, {}))
         dotenv = runtime.get("dotenv", [".env"])
 
@@ -278,8 +291,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             return config
 
         resolved_dotenv = [
-            str((self.pyproject_path.parent / path).absolute())
-            for path in dotenv
+            str((self._dotenv_root / path).absolute()) for path in dotenv
         ]
         return {**config, "runtime": {**runtime, "dotenv": resolved_dotenv}}
 
