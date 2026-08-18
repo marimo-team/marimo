@@ -1,8 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import threading
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, cast
+from unittest.mock import AsyncMock, patch
 
 import msgspec
 import pytest
@@ -14,6 +17,7 @@ from starlette.testclient import TestClient
 
 from marimo._server.api.utils import (
     get_code_mode_credentials,
+    install_packages_on_server,
     parse_multipart_request,
 )
 
@@ -77,6 +81,78 @@ def test_parse_multipart_request_raises_on_missing_field() -> None:
     client = _build_app(captured)
     with pytest.raises(msgspec.ValidationError):
         client.post("/test", data={"name": "marimo"})
+
+
+async def test_install_packages_on_server_uses_uv_when_available() -> None:
+    with (
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_manager_installed",
+            return_value=True,
+        ),
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.UvPackageManager.install",
+            new=AsyncMock(return_value=True),
+        ) as install,
+    ):
+        await install_packages_on_server({"nbformat": ""})
+
+    install.assert_awaited_once_with("nbformat", version=None)
+
+
+async def test_install_packages_on_server_reports_install_failure() -> None:
+    with (
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_manager_installed",
+            return_value=False,
+        ),
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.PipPackageManager.is_manager_installed",
+            return_value=True,
+        ),
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.PipPackageManager.install",
+            new=AsyncMock(return_value=False),
+        ),
+        pytest.raises(
+            RuntimeError,
+            match="Failed to install nbformat into the server Python",
+        ),
+    ):
+        await install_packages_on_server({"nbformat": ""})
+
+
+async def test_install_packages_on_server_checks_pip_off_event_loop() -> None:
+    check_started = asyncio.Event()
+    release_check = threading.Event()
+    loop = asyncio.get_running_loop()
+
+    def check_pip() -> bool:
+        loop.call_soon_threadsafe(check_started.set)
+        release_check.wait(timeout=1)
+        return True
+
+    with (
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.UvPackageManager.is_manager_installed",
+            return_value=False,
+        ),
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.PipPackageManager.is_manager_installed",
+            side_effect=check_pip,
+        ),
+        patch(
+            "marimo._runtime.packages.pypi_package_manager.PipPackageManager.install",
+            new=AsyncMock(return_value=True),
+        ),
+    ):
+        install = asyncio.create_task(
+            install_packages_on_server({"nbformat": ""})
+        )
+        await check_started.wait()
+        assert not install.done()
+
+        release_check.set()
+        await install
 
 
 def _fake_app_state(

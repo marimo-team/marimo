@@ -1,9 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
 import { useRef } from "react";
+import { createPortal } from "react-dom";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useToast } from "@/components/ui/use-toast";
+import { StyleNamespace } from "@/theme/namespace";
 import { cn } from "@/utils/cn";
+import { withFullScreenAsRoot } from "./fullscreen";
 import {
   Toast,
   ToastClose,
@@ -28,10 +31,20 @@ export const Toaster = () => {
           {...props}
         />
       ))}
-      <ToastViewport />
+      <ToastViewportPortal />
     </ToastProvider>
   );
 };
+
+const ToastViewportPortal = withFullScreenAsRoot(
+  ({ container }: { container?: Element | DocumentFragment | null }) =>
+    createPortal(
+      <StyleNamespace>
+        <ToastViewport />
+      </StyleNamespace>,
+      container ?? document.body,
+    ),
+);
 
 type ToastItemProps = Omit<
   ComponentPropsWithoutRef<typeof Toast>,

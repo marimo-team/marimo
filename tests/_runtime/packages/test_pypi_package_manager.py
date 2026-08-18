@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
 import sys
+import threading
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -355,6 +357,20 @@ def test_uv_is_in_uv_project_true(mock_exists: MagicMock):
     assert mgr.is_in_uv_project is True
 
 
+@patch.object(UvPackageManager, "_uv_bin", "uv")
+def test_uv_can_target_python_without_mutating_project() -> None:
+    mgr = UvPackageManager.for_pip_install("/server/python")
+
+    assert mgr.install_command("nbformat", upgrade=False) == [
+        "uv",
+        "pip",
+        "install",
+        "nbformat",
+        "-p",
+        "/server/python",
+    ]
+
+
 @patch.dict(
     "os.environ",
     {"VIRTUAL_ENV": "/path/to/venv", "UV": "/path/to/venv"},
@@ -400,6 +416,32 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
     assert call_kwargs["universal_newlines"] is False
     assert call_kwargs["bufsize"] == 0
     assert result is True
+
+
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_does_not_block_event_loop() -> None:
+    process_started = asyncio.Event()
+    release_process = threading.Event()
+    loop = asyncio.get_running_loop()
+
+    def install(*args: Any, **kwargs: Any) -> bool:
+        del args, kwargs
+        loop.call_soon_threadsafe(process_started.set)
+        release_process.wait(timeout=1)
+        return True
+
+    mgr = UvPackageManager()
+    with patch.object(
+        mgr, "_install_with_cache_fallback", side_effect=install
+    ):
+        task = asyncio.create_task(
+            mgr._install("package1", upgrade=False, group=None)
+        )
+        await process_started.wait()
+        assert not task.done()
+
+        release_process.set()
+        assert await task is True
 
 
 @patch("marimo._utils.subprocess.subprocess.Popen")

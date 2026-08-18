@@ -100,6 +100,10 @@ export const MockRequestClient = {
           },
         ],
       }),
+      installExportRequirements: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [],
+      }),
       exportAsHTML: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.html",
