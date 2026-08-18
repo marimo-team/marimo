@@ -390,7 +390,6 @@ ignore = [
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
-    "T100", # Debugger
     "UP045", # Use `X | None` for optional type annotations
     "D421", # Property docstring should not start with a verb (preview rule)
 ]
@@ -468,6 +467,7 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "**/{tests}/*" = ["ANN201", "ANN202", "T201", "D", "F841", "PLW1514"]
 "dagger/*" = ["TID252"]
+"marimo/_runtime/patches.py" = ["T100"]
 # Prefer multi-line "\n".join([...]) expected strings in codegen tests.
 "tests/_ast/test_codegen.py" = ["FLY002"]
 
