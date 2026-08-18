@@ -350,6 +350,9 @@ class MCPClient:
                 await cancel_and_wait(connection_task)
                 raise
             except asyncio.TimeoutError:
+                # A lifecycle can time out before it reaches disconnect_event.
+                # Letting it continue would make refresh and shutdown wait on a
+                # task that they cannot signal, so a timeout is terminal.
                 error_msg = (
                     f"Connection to {server_name} timed out after "
                     f"{server_def.timeout}s"
@@ -658,14 +661,17 @@ class MCPClient:
         """Continuously monitor server health."""
         consecutive_failures = 0
         try:
-            while True:
+            while (
+                self.get_server_status(server_name)
+                == MCPServerStatus.CONNECTED
+            ):
                 try:
                     await asyncio.sleep(self.health_check_interval)
-
-                    # Use the public API to check server status
-                    current_status = self.get_server_status(server_name)
-                    if current_status != MCPServerStatus.CONNECTED:
-                        continue
+                    if (
+                        self.get_server_status(server_name)
+                        != MCPServerStatus.CONNECTED
+                    ):
+                        break
 
                     # Perform health check
                     health_check_passed = await self._perform_health_check(

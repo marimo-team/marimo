@@ -12,9 +12,8 @@ from typing import TYPE_CHECKING
 
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
-from marimo._cli.errors import MarimoCLIMissingDependencyError
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
+from marimo._mcp.dependencies import require_mcp_dependencies
 
 LOGGER = marimo_logger()
 
@@ -31,11 +30,7 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
         app: Starlette application instance for accessing marimo state
         allow_remote: If True, disable DNS rebinding protection to allow remote access behind proxies.
     """
-    if not DependencyManager.mcp.has_required_version(quiet=True):
-        raise MarimoCLIMissingDependencyError(
-            "MCP dependencies not available.",
-            "marimo[mcp]",
-        )
+    require_mcp_dependencies()
 
     from mcp.server import MCPServer
     from starlette.middleware.base import BaseHTTPMiddleware

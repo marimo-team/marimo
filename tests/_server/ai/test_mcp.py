@@ -2048,6 +2048,18 @@ class TestMCPClientHealthMonitoring:
         assert connection.disconnect_event.is_set()
         assert "test" not in client.health_check_tasks
 
+    async def test_health_monitor_exits_when_server_is_not_connected(self):
+        client = MCPClient()
+        connection = create_test_server_connection(
+            name="test", status=MCPServerStatus.DISCONNECTED
+        )
+        client.connections["test"] = connection
+        client._perform_health_check = AsyncMock()
+
+        await client._monitor_server_health("test")
+
+        client._perform_health_check.assert_not_awaited()
+
     async def test_cancel_health_monitoring_removes_task_once(self):
         client = MCPClient()
         client.health_check_interval = 60

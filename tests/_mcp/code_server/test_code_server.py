@@ -54,19 +54,28 @@ def test_code_mcp_server_starts_up():
 
 
 def test_code_mcp_server_requires_supported_mcp_version(monkeypatch):
-    from click import ClickException
+    from marimo._cli.errors import MarimoCLIMissingDependencyError
 
     has_required_version = MagicMock(return_value=False)
+    has_mcp = MagicMock(return_value=True)
+    get_version = MagicMock(return_value="1.9.0")
     monkeypatch.setattr(
         DependencyManager.mcp,
         "has_required_version",
         has_required_version,
     )
+    monkeypatch.setattr(DependencyManager.mcp, "has", has_mcp)
+    monkeypatch.setattr(DependencyManager.mcp, "get_version", get_version)
 
-    with pytest.raises(ClickException, match="MCP dependencies not available"):
+    with pytest.raises(
+        MarimoCLIMissingDependencyError,
+        match="MCP SDK 1.9.0 is not supported",
+    ):
         setup_code_mcp_server(Starlette())
 
     has_required_version.assert_called_once_with(quiet=True)
+    has_mcp.assert_called_once_with(quiet=True)
+    get_version.assert_called_once_with()
 
 
 async def test_code_mcp_server_supports_modern_protocol():
