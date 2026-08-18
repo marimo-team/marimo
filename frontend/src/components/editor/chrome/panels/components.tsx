@@ -104,10 +104,12 @@ const DiscoveredSourcesBadge = ({
 
   return (
     <Tooltip content={content}>
-      <PanelBadge className="gap-0.5 border-(--blue-6) bg-(--blue-3) text-(--blue-11)">
-        <SparklesIcon className="h-2.5 w-2.5" />
-        {count}
-      </PanelBadge>
+      <span>
+        <PanelBadge className="gap-0.5 border-(--blue-6) bg-(--blue-3) text-(--blue-11)">
+          <SparklesIcon className="h-2.5 w-2.5" />
+          {count}
+        </PanelBadge>
+      </span>
     </Tooltip>
   );
 };
