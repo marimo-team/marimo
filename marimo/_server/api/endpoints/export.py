@@ -37,6 +37,7 @@ from marimo._export.requests import (
     IPYNBExportRequest,
     MarkdownExportRequest,
     PDFExportRequest,
+    PDFRasterizationRequest,
     ScriptExportRequest,
 )
 from marimo._export.serialization import serialize_notebook_snapshot
@@ -59,6 +60,7 @@ from marimo._schemas.export_options import (
     SERVER_EXPORT_FORMATS,
     IPYNBExportOptions,
     MarkdownExportOptions,
+    PDFRasterizationOptions,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -637,10 +639,45 @@ async def export_as_pdf(*, request: Request) -> Response:
             detail="File must have a name before exporting",
         )
 
+    # Collect PNG fallbacks for interactive/plot outputs when Playwright
+    # is available, so that marimo components and Vega specs that cannot
+    # render in nbconvert are replaced with captured screenshots.
+    png_fallbacks = None
+    if body.include_outputs and session.session_view is not None:
+        try:
+            from marimo._export._pdf_raster import (
+                collect_pdf_png_fallbacks,
+            )
+
+            png_fallbacks = await collect_pdf_png_fallbacks(
+                PDFRasterizationRequest(
+                    app=session.app_file_manager.app,
+                    session_view=session.session_view,
+                    filename=session.app_file_manager.filename,
+                    filepath=session.app_file_manager.filename,
+                    options=PDFRasterizationOptions(
+                        enabled=True,
+                        scale=4.0,
+                        server_mode="static",
+                    ),
+                )
+            )
+        except Exception:
+            # If Playwright / Chromium is not installed or rasterization
+            # fails for any other reason, proceed without fallbacks.
+            # nbconvert will still render whatever it can (e.g. raw
+            # image/png outputs).
+            LOGGER.info(
+                "Rasterization unavailable for PDF export; "
+                "proceeding without PNG fallbacks.",
+                exc_info=True,
+            )
+
     export_request = PDFExportRequest(
         app=session.app_file_manager.app,
         session_view=session.session_view if body.include_outputs else None,
         options=to_pdf_export_options(body),
+        png_fallbacks=png_fallbacks,
     )
     pdf_data = await render_pdf(export_request)
     if pdf_data is None:
