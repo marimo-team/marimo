@@ -387,6 +387,80 @@ def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
+def _write_dotenv_project(tmp_path: Path, dotenv_entries: str) -> Path:
+    """Write a project with runtime.dotenv set, return its notebook path."""
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    (project / "pyproject.toml").write_text(
+        textwrap.dedent(
+            f"""
+            [tool.marimo.runtime]
+            dotenv = [{dotenv_entries}]
+            """
+        )
+    )
+    notebook_path = project / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+    return notebook_path
+
+
+def test_project_config_dotenv_rejects_absolute_path_outside_project(
+    tmp_path: Path,
+) -> None:
+    # A pyproject.toml travels with a cloned repository, so an entry reaching
+    # out of the project is dropped. In-project entries survive alongside it.
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(
+        tmp_path, f'".env", "{outside.as_posix()}"'
+    )
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_config_dotenv_rejects_escaping_relative_path(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(tmp_path, '"../credentials"')
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == []
+
+
+def test_project_config_dotenv_rejects_symlink_out_of_project(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
+    config_dir = notebook_path.parent / "config"
+    config_dir.mkdir()
+    try:
+        (config_dir / ".env").symlink_to(outside)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == []
+
+
+def test_project_config_dotenv_allows_subdirectory(tmp_path: Path) -> None:
+    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
+    config_dir = notebook_path.parent / "config"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("KEY=value")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(config_dir / ".env")]
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"

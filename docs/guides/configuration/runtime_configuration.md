@@ -139,4 +139,6 @@ The `.env` next to your `pyproject.toml` is loaded by default. For standalone no
 dotenv = [".env", ".env.testing"]
 ```
 
+A `dotenv` set in a `pyproject.toml` must point inside the directory holding that `pyproject.toml`. A `pyproject.toml` travels with a cloned repository, so a path escaping it would let the repository choose which of your files marimo reads into the environment and lists in the secrets panel. Paths that resolve outside the directory, including symlinks, are ignored. To read a `.env` from elsewhere, set `dotenv` in your [user configuration](index.md).
+
 Environment variables from your `dotenv` will be surfaced in the UI when creating databases.
