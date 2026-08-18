@@ -990,7 +990,7 @@ wandb:
     release_date: 2026-04-24
     cost: {input: 0.14, output: 0.28}
 
-  - name: DeepSeek V4-Pro
+  - name: DeepSeek V4 Pro
     model: deepseek-ai/DeepSeek-V4-Pro
     description: "DeepSeek V4-Pro is a 1.6T-parameter MoE model with 49B active parameters excelling at advanced reasoning, coding, and complex agentic workloads"
     roles: [chat, edit]
@@ -998,17 +998,17 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-04-24
-    cost: {input: 1.74, output: 3.46}
+    cost: {input: 1.15, output: 2.55}
 
-  - name: Z.AI GLM 5.2
+  - name: GLM 5.2
     model: zai-org/GLM-5.2
     description: "GLM-5.2 is a Mixture-of-Experts language model featuring 40 billion activated parameters and a total of 744 billion parameters"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
     output_types: [text]
-    release_date: 2026-06-13
-    cost: {input: 1.39, output: 4.4}
+    release_date: 2026-06-16
+    cost: {input: 0.76, output: 2.42}
 
   - name: Z.AI GLM-5.1
     model: zai-org/GLM-5.1
@@ -1050,7 +1050,7 @@ wandb:
     release_date: 2026-02-12
     cost: {input: 0.3, output: 1.2}
 
-  - name: Moonshot AI Kimi K2.7 Code
+  - name: Kimi K2.7 Code
     model: moonshotai/Kimi-K2.7-Code
     description: "Kimi K2.7 Code is a 1T-parameter MoE model with 32B active parameters purpose-built for long-horizon agentic coding and software engineering"
     roles: [chat, edit]
@@ -1058,7 +1058,7 @@ wandb:
     input_types: [text]
     output_types: [text]
     release_date: 2026-06-12
-    cost: {input: 0.94, output: 4}
+    cost: {input: 0.71, output: 3.5}
 
   - name: Moonshot AI Kimi K2.6
     model: moonshotai/Kimi-K2.6
@@ -1110,7 +1110,7 @@ wandb:
     release_date: 2026-04-22
     cost: {input: 0.6, output: 3.6}
 
-  - name: JetBrains Mellum2 12B A2.5B
+  - name: Mellum2 12B A2.5B
     model: JetBrains/Mellum2-12B-A2.5B-Instruct
     description: "Mellum2-12B-A2.5B-Instruct is a fast MoE model with 131K context built for coding, tool use, and low-latency AI workflows"
     roles: [chat, edit]
