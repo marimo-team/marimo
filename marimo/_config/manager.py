@@ -557,7 +557,7 @@ class UserConfigManager(MarimoConfigReader):
                 LOGGER.error("Failed to read user config at %s", path)
                 LOGGER.error(str(e))
                 return DEFAULT_CONFIG
-            return merge_default_config(user_config)
+            return merge_default_config(_drop_hollow_dotenv(user_config))
         else:
             LOGGER.debug("No config found; loading default settings.")
         return DEFAULT_CONFIG
@@ -573,6 +573,19 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(self.override_config)
         return self.override_config
+
+
+def _drop_hollow_dotenv(config: PartialMarimoConfig) -> PartialMarimoConfig:
+    """Drop an empty `runtime.dotenv`, which is a masked value and not a choice."""
+    # NB. Reading the configuration blanks runtime.dotenv by emptying the list,
+    # and marimo 0.18 and earlier saved that masked copy straight back to disk,
+    # so an empty list there means "hidden", not "load nothing". Keeping it
+    # would let a stale file suppress the .env next to the notebook.
+    runtime = config.get("runtime")
+    if runtime is None or runtime.get("dotenv") != []:
+        return config
+    without_dotenv = {k: v for k, v in runtime.items() if k != "dotenv"}
+    return {**config, "runtime": cast(RuntimeConfig, without_dotenv)}
 
 
 def _drop_none_values(d: dict[str, Any]) -> None:

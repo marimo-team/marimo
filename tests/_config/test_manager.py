@@ -213,6 +213,28 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     assert "be terse" in contents
 
 
+def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
+    """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("[runtime]\ndotenv = []\n")
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert "dotenv" not in config["runtime"]
+
+
+def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    dotenv = tmp_path / ".env.user"
+    config_path.write_text(f'[runtime]\ndotenv = ["{dotenv.as_posix()}"]\n')
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(dotenv)]
+
+
 def test_drop_none_values_strips_nested_none() -> None:
     from marimo._config.manager import _drop_none_values
 
