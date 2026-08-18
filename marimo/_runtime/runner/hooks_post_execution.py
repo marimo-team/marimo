@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import traceback as tb
+from typing import Any
 
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
@@ -264,6 +265,18 @@ def broadcast_storage_backends(
         LOGGER.debug("Error getting storage backends", exc_info=True)
 
 
+def _get_live_children(value: Any) -> Any | None:
+    """Descend into marimo Html containers when hunting for UIElements.
+
+    Containers such as mo.hstack/mo.vstack store their children as live
+    references under `_live_children` rather than as a raw list/tuple/
+    dict, so contains_instance() can't see into them on its own. This
+    keeps that marimo-specific knowledge out of the generic flatten
+    utility, passing it in as an extension instead.
+    """
+    return getattr(value, "_live_children", None)
+
+
 @kernel_tracer.start_as_current_span("store_reference_to_output")
 def _store_reference_to_output(
     cell: CellImpl,
@@ -281,9 +294,11 @@ def _store_reference_to_output(
     if isinstance(run_result.output, UIElement):
         cell.set_output(run_result.output)
     elif run_result.output is not None:
-        if contains_instance(run_result.output, UIElement) or callable(
-            getattr(run_result.output, "_repr_mimebundle_", None)
-        ):
+        if contains_instance(
+            run_result.output,
+            UIElement,
+            extra_children=_get_live_children,
+        ) or callable(getattr(run_result.output, "_repr_mimebundle_", None)):
             cell.set_output(run_result.output)
 
 
