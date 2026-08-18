@@ -386,6 +386,8 @@ class MCPClient:
         cursor: str | None = None
         seen_cursors: set[str] = set()
 
+        # Tool discovery is bounded by the connection timeout, which cancels
+        # the lifecycle task if pagination does not complete.
         while True:
             tools_response: ListToolsResult = (
                 await connection.client.list_tools(cursor=cursor)
