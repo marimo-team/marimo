@@ -226,6 +226,7 @@ Click a suggestion to insert a ready-to-run cell.
 | PostgreSQL | `PGHOST`, `PGUSER`, `PGDATABASE` (plus `PGPORT`, `PGPASSWORD`) |
 | MySQL | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and `MYSQL_PASSWORD`/`MYSQL_PWD` (plus `MYSQL_TCP_PORT`) |
 | Trino | `TRINO_HOST`, `TRINO_USER`, `TRINO_CATALOG` (plus `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`) |
+| Databricks SQL warehouse | `DATABRICKS_SQL_WAREHOUSE_ID` (plus `DATABRICKS_CONFIG_PROFILE`) |
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 
