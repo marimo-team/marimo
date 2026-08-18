@@ -20,11 +20,34 @@ import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
+import { semverSort } from "@/utils/versions";
 import { SettingSubtitle } from "./common";
 
 interface Package {
   name: string;
   minVersion?: string;
+}
+
+interface InstalledPackage {
+  name: string;
+  version: string;
+}
+
+export function isPackageRequirementInstalled(
+  requirement: Package,
+  installedPackages: InstalledPackage[],
+): boolean {
+  const packageName = requirement.name.split("[")[0];
+  const installedPackage = installedPackages.find(
+    (pkg) => pkg.name === packageName,
+  );
+  if (!installedPackage) {
+    return false;
+  }
+  if (!requirement.minVersion) {
+    return true;
+  }
+  return semverSort(installedPackage.version, requirement.minVersion) >= 0;
 }
 
 interface OptionalFeature {
@@ -77,7 +100,7 @@ const OPTIONAL_DEPENDENCIES: OptionalFeature[] = [
   },
   {
     id: "mcp",
-    packagesRequired: [{ name: "mcp", minVersion: "2" }],
+    packagesRequired: [{ name: "mcp", minVersion: "2.0.0" }],
     additionalPackageInstalls: [],
     description: "Connect to MCP servers",
   },
@@ -123,9 +146,6 @@ export const OptionalFeatures: React.FC = () => {
   }
 
   const installedPackages = data?.packages || [];
-  const installedPackageNames = new Set(
-    installedPackages.map((pkg) => pkg.name),
-  );
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden gap-2">
@@ -149,7 +169,7 @@ export const OptionalFeatures: React.FC = () => {
         <TableBody>
           {OPTIONAL_DEPENDENCIES.map((dep) => {
             const isInstalled = dep.packagesRequired.every((pkg) =>
-              installedPackageNames.has(pkg.name.split("[")[0]),
+              isPackageRequirementInstalled(pkg, installedPackages),
             );
             const packageSpec = dep.packagesRequired
               .map((pkg) => pkg.name)
