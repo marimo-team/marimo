@@ -168,10 +168,30 @@ class MarimoConfigManager(MarimoConfigReader):
             )
         return cast(PartialMarimoConfig, result)
 
+    def get_config_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the defaults the partials compute, merged beneath the user configuration"""
+        result: MarimoConfig = cast(MarimoConfig, {})
+        for partial in (*self.partials, *self.security_partials):
+            result = merge_config(
+                result, partial.get_defaults(hide_secrets=hide_secrets)
+            )
+        return cast(PartialMarimoConfig, result)
+
     def get_config(self, *, hide_secrets: bool = True) -> MarimoConfig:
         """Get the configuration, by merging the user configuration and the configuration overrides"""
+        # NB. Defaults go under the user configuration, overrides over it. A
+        # default a partial computes from the notebook location is not
+        # something anyone wrote, so it must lose to a value the user set.
         return merge_config(
-            self.get_user_config(hide_secrets=hide_secrets),
+            merge_config(
+                cast(
+                    MarimoConfig,
+                    self.get_config_defaults(hide_secrets=hide_secrets),
+                ),
+                self.get_user_config(hide_secrets=hide_secrets),
+            ),
             self.get_config_overrides(hide_secrets=hide_secrets),
         )
 
@@ -203,6 +223,13 @@ class PartialMarimoConfigReader:
     def get_config(self, *, hide_secrets: bool = True) -> PartialMarimoConfig:
         """Get the configuration, as a partial configuration"""
 
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the values that apply when no configuration layer set them"""
+        del hide_secrets  # no defaults, so nothing to mask
+        return {}
+
 
 class ProjectConfigManager(PartialMarimoConfigReader):
     """Read the project configuration"""
@@ -224,6 +251,26 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         start_path = Path(self.start_path)
         return start_path if start_path.is_dir() else start_path.parent
 
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the `.env` next to the project, loaded when no layer set `dotenv`"""
+        # NB. Emitted as a default, not from get_config(): get_config() is an
+        # override layer over the user configuration, so a path nobody wrote
+        # would outrank the user's own runtime.dotenv and would show up as a
+        # project override in the settings editor.
+        defaults = cast(
+            PartialMarimoConfig,
+            {
+                "runtime": {
+                    "dotenv": [str((self._dotenv_root / ".env").absolute())]
+                }
+            },
+        )
+        if hide_secrets:
+            return mask_secrets_partial(defaults)
+        return defaults
+
     # It is safe to cache this config, as we only read from the pyproject.toml
     # and never update it. If the user updates the pyproject.toml,
     # it is ok to expect updates to be reflected after a server restart.
@@ -236,10 +283,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
                 else None
             )
             if project_config is None:
-                # Some project configuration defaults (dotenv in particular)
-                # are resolved at runtime, even in the absence of marimo
-                # section in the pyproject.toml.
-                project_config = cast(PartialMarimoConfig, {})
+                return {}
             project_config = self._resolve_pythonpath(project_config)
             project_config = self._resolve_dotenv(project_config)
             project_config = self._resolve_custom_css(project_config)
@@ -285,7 +329,11 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         self, config: PartialMarimoConfig
     ) -> PartialMarimoConfig:
         runtime = config.get("runtime", cast(RuntimeConfig, {}))
-        dotenv = runtime.get("dotenv", [".env"])
+        if "dotenv" not in runtime:
+            # NB. The default is emitted by get_defaults() instead, which
+            # ranks below the user configuration.
+            return config
+        dotenv = runtime["dotenv"]
 
         if not isinstance(dotenv, list):
             return config
