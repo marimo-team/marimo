@@ -269,7 +269,7 @@ class DependencyManager:
 
     redshift_connector = Dependency("redshift_connector")
     starrocks = Dependency("starrocks")
-    mcp = Dependency("mcp")
+    mcp = Dependency("mcp", min_version="2.0.0", max_version="3.0.0")
     pydantic_ai = Dependency(
         "pydantic_ai", pkg_name_to_install="pydantic-ai-slim"
     )

@@ -30,6 +30,17 @@ describe("isPackageRequirementInstalled", () => {
     ).toBe(false);
   });
 
+  it.each(["2.0.0rc1", "2.0.0.dev1", "2.0.0-beta1"])(
+    "rejects the prerelease version %s",
+    (version) => {
+      expect(
+        isPackageRequirementInstalled({ name: "mcp", minVersion: "2.0.0" }, [
+          { name: "mcp", version },
+        ]),
+      ).toBe(false);
+    },
+  );
+
   it("accepts an installed package at or above the minimum version", () => {
     expect(
       isPackageRequirementInstalled(

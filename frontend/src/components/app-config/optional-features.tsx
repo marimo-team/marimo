@@ -33,6 +33,9 @@ interface InstalledPackage {
   version: string;
 }
 
+const PEP_440_PRERELEASE =
+  /^(?:\d+!)?\d+(?:\.\d+)*(?:[-_.]?(?:a|b|c|rc|alpha|beta|pre|preview|dev)\d*)/i;
+
 export function isPackageRequirementInstalled(
   requirement: Package,
   installedPackages: InstalledPackage[],
@@ -46,6 +49,9 @@ export function isPackageRequirementInstalled(
   }
   if (!requirement.minVersion) {
     return true;
+  }
+  if (PEP_440_PRERELEASE.test(installedPackage.version)) {
+    return false;
   }
   return semverSort(installedPackage.version, requirement.minVersion) >= 0;
 }

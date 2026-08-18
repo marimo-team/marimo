@@ -46,7 +46,7 @@ def setup_code_mcp_server(
         app: Starlette application instance for accessing marimo state
         allow_remote: If True, disable DNS rebinding protection to allow remote access behind proxies.
     """
-    if not DependencyManager.mcp.has():
+    if not DependencyManager.mcp.has_required_version(quiet=True):
         from click import ClickException
 
         msg = "MCP dependencies not available. Install with `pip install marimo[mcp]` or `uv add marimo[mcp]`"

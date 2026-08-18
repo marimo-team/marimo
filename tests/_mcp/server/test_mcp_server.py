@@ -1,6 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
+from unittest.mock import MagicMock
+
 import pytest
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._mcp.server.lifespan import mcp_server_lifespan
 
 pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
@@ -42,6 +46,20 @@ def test_mcp_server_starts_up():
 
     # Verify /mcp route exists
     assert any("/mcp" in str(route.path) for route in app.routes)
+
+
+def test_mcp_server_requires_supported_mcp_version(monkeypatch):
+    has_required_version = MagicMock(return_value=False)
+    monkeypatch.setattr(
+        DependencyManager.mcp,
+        "has_required_version",
+        has_required_version,
+    )
+
+    with pytest.raises(MarimoCLIMissingDependencyError):
+        setup_mcp_server(Starlette())
+
+    has_required_version.assert_called_once_with(quiet=True)
 
 
 async def test_mcp_server_supports_modern_protocol():
