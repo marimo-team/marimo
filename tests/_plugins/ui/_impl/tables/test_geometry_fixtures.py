@@ -160,14 +160,14 @@ class TestGeoArrowCharacterization:
 
 @pytest.mark.requires("duckdb", "polars")
 class TestDuckDBCharacterization:
-    def test_geometry_types_unknown(self) -> None:
+    def test_geometry_types_detected(self) -> None:
         conn = geo.duckdb_spatial_connection()
         try:
             relation = geo.duckdb_geometry_relation(conn)
             manager = get_table_manager(relation)
             field_types = dict(manager.get_field_types())
             assert field_types["a"][0] == "integer"
-            assert field_types["geom"] == ("unknown", "Unknown")
+            assert field_types["geom"] == ("geometry", "GEOMETRY")
         finally:
             conn.close()
 

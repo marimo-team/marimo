@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator
 from typing import Any, Literal
 
 import pytest
@@ -308,6 +309,68 @@ class TestArrowManager:
         assert stats.total == 2
         assert stats.nulls == 1
         assert stats.unique is None
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+class TestDuckDBManager:
+    @pytest.fixture
+    def manager(self) -> Iterator[TableManager[Any]]:
+        conn = geo.duckdb_spatial_connection()
+        try:
+            yield get_table_manager(geo.duckdb_geometry_relation(conn))
+        finally:
+            conn.close()
+
+    def test_wkb_cells_render_placeholder(
+        self, manager: TableManager[Any]
+    ) -> None:
+        rows = json.loads(manager.to_json_str())
+
+        cells = {row["a"]: row["geom"] for row in rows}
+        assert cells[1] == "<geometry, 21 B>"
+        assert cells[2] is None
+
+    def test_json_format_mapping_keeps_placeholder(
+        self, manager: TableManager[Any]
+    ) -> None:
+        rows = json.loads(
+            manager.to_json_str(format_mapping={"a": lambda x: x * 10})
+        )
+
+        cells = {row["a"]: row["geom"] for row in rows}
+        assert cells[10] == "<geometry, 21 B>"
+        assert cells[20] is None
+
+    def test_search_skips_geometry(
+        self, manager: TableManager[Any]
+    ) -> None:
+        assert manager.search("POINT").get_num_rows() == 0
+
+    def test_top_k_returns_empty(self, manager: TableManager[Any]) -> None:
+        assert manager.calculate_top_k_rows("geom", 10) == []
+
+    def test_unique_values_returns_empty(
+        self, manager: TableManager[Any]
+    ) -> None:
+        assert manager.get_unique_column_values("geom") == []
+
+    def test_stats_counts_only(self, manager: TableManager[Any]) -> None:
+        stats = manager.get_stats("geom")
+        assert stats.total == 2
+        assert stats.nulls == 1
+        assert stats.unique is None
+
+    def test_point_2d_cells_render_structs(self) -> None:
+        conn = geo.duckdb_spatial_connection()
+        try:
+            manager = get_table_manager(
+                conn.sql("SELECT ST_Point2D(1.0, 2.0) AS p2d")
+            )
+            assert manager.get_field_type("p2d") == ("geometry", "POINT_2D")
+            rows = json.loads(manager.to_json_str())
+            assert rows[0]["p2d"] == {"x": 1.0, "y": 2.0}
+        finally:
+            conn.close()
 
 
 @pytest.mark.requires("pandas")
