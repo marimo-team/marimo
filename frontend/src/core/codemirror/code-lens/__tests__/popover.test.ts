@@ -56,6 +56,15 @@ describe("CachePopover getCacheInfo throttling", () => {
     return () => act(() => dispose());
   }
 
+  it("renders content synchronously for CodeMirror's initial measurement", () => {
+    const dom = document.createElement("div");
+
+    const dispose = mountLensPopover(dom, CACHE_SPEC);
+
+    expect(dom.textContent).toContain("my_cache");
+    dispose();
+  });
+
   it("does not refetch on every hover, only after the throttle interval elapses", () => {
     const disposeFirst = mount();
     expect(getCacheInfoMock).toHaveBeenCalledTimes(1);
