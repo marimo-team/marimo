@@ -152,6 +152,75 @@ class TestArrowDetection:
         )
 
 
+@pytest.mark.requires("duckdb")
+class TestDuckDBDetection:
+    def test_detects_geometry_relation_columns(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            relation = geo.duckdb_geometry_relation(conn)
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {
+                "geom": GeometryColumnInfo(
+                    encoding="wkb", external_type="GEOMETRY"
+                )
+            }
+        finally:
+            conn.close()
+
+    def test_detects_fixed_layout_spatial_columns(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            relation = conn.sql(
+                "SELECT ST_Point2D(1.0, 2.0) AS p2d, "
+                "CAST(ST_GeomFromText('LINESTRING(0 0, 1 1)')"
+                " AS LINESTRING_2D) AS l2d, "
+                "CAST(ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 0))')"
+                " AS POLYGON_2D) AS pg2d, "
+                "ST_Extent(ST_GeomFromText('LINESTRING(0 0, 1 1)')) AS box"
+            )
+            frame = nw.from_native(relation, pass_through=False)
+            infos = find_geometry_columns(frame)
+            assert {
+                name: (info.encoding, info.external_type)
+                for name, info in infos.items()
+            } == {
+                "p2d": ("other", "POINT_2D"),
+                "l2d": ("other", "LINESTRING_2D"),
+                "pg2d": ("other", "POLYGON_2D"),
+                "box": ("other", "BOX_2D"),
+            }
+        finally:
+            conn.close()
+
+    def test_wkb_blob_stays_ordinary(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            # ST_AsWKB declares plain BLOB; bytes are never inferred.
+            relation = conn.sql("SELECT ST_AsWKB(ST_Point(1.0, 2.0)) AS wkb")
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {}
+        finally:
+            conn.close()
+
+    def test_plain_relation_not_detected(self) -> None:
+        import duckdb
+        import narwhals.stable.v2 as nw
+
+        conn = duckdb.connect()
+        try:
+            relation = conn.sql("SELECT 1 AS a, 'x' AS b")
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {}
+        finally:
+            conn.close()
+
+
 @pytest.mark.requires("pyarrow")
 class TestArrowManager:
     def test_wkb_cells_render_placeholder(self) -> None:

@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from marimo import _loggers
 
 if TYPE_CHECKING:
+    import duckdb
     import narwhals.stable.v2 as nw
     import pandas as pd
     import pyarrow as pa
@@ -46,6 +47,8 @@ def find_geometry_columns(
             return _pandas_geometry_columns(frame.to_native())
         if frame.implementation.is_pyarrow():
             return _pyarrow_geometry_columns(frame.to_native())
+        if frame.implementation.is_duckdb():
+            return _duckdb_geometry_columns(frame.to_native())
     except Exception as e:
         LOGGER.debug("Geometry detection failed: %s", e)
     return {}
@@ -67,6 +70,11 @@ def _pandas_geometry_columns(
 _WKB_EXTENSION_NAMES = ("geoarrow.wkb", "ogc.wkb")
 _WKT_EXTENSION_NAME = "geoarrow.wkt"
 _GEOARROW_PREFIX = "geoarrow."
+# DuckDB spatial type names used for schema-only geometry detection.
+_DUCKDB_WKB_TYPE = "GEOMETRY"
+_DUCKDB_2D_TYPES = frozenset(
+    {"POINT_2D", "LINESTRING_2D", "POLYGON_2D", "BOX_2D"}
+)
 
 
 def _pyarrow_geometry_columns(
@@ -96,6 +104,24 @@ def _pyarrow_geometry_columns(
         infos[field.name] = GeometryColumnInfo(
             encoding=encoding, external_type=extension_name
         )
+    return infos
+
+
+def _duckdb_geometry_columns(
+    native: duckdb.DuckDBPyRelation,
+) -> dict[str, GeometryColumnInfo]:
+    """Detect geometry columns from declared relation types."""
+    infos: dict[str, GeometryColumnInfo] = {}
+    for name, dtype in zip(native.columns, native.types, strict=False):
+        type_name = str(dtype)
+        if type_name == _DUCKDB_WKB_TYPE:
+            infos[name] = GeometryColumnInfo(
+                encoding="wkb", external_type=type_name
+            )
+        elif type_name in _DUCKDB_2D_TYPES:
+            infos[name] = GeometryColumnInfo(
+                encoding="other", external_type=type_name
+            )
     return infos
 
 
