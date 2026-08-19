@@ -147,10 +147,7 @@ const keyboardShortcutExtensionsSchema = z.record(
   extensionHotkeyActionSchema,
   z.object({
     name: z.string().min(1),
-    key: z
-      .string()
-      .min(1)
-      .refine((key) => key.trim().length > 0),
+    key: z.string().trim().min(1),
     group: z.enum(HOTKEY_GROUPS),
     additionalKeywords: z.array(z.string()).optional(),
   }),

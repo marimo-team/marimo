@@ -190,6 +190,32 @@ describe("main", () => {
     expect(store.get(keyboardShortcutExtensionsAtom)).toEqual({});
   });
 
+  it("should trim keyboard shortcut keys", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      {
+        mode: "edit",
+        keyboardShortcuts: {
+          "extension.companion.show-message": {
+            name: "Show companion message",
+            key: "  Mod-Shift-Y  ",
+            group: "Other",
+          },
+        },
+      },
+      el,
+    );
+
+    expect(error).toBeUndefined();
+    expect(store.get(keyboardShortcutExtensionsAtom)).toEqual({
+      "extension.companion.show-message": {
+        name: "Show companion message",
+        key: "Mod-Shift-Y",
+        group: "Other",
+      },
+    });
+  });
+
   it("should throw on invalid options", () => {
     const el = document.createElement("div");
     const error = mount({ invalid: true } as unknown, el);
