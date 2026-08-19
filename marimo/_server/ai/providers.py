@@ -503,8 +503,6 @@ class OpenAIClientMixin:
             # if ssl context was created by the above statements
             if ctx:
                 client = DefaultAsyncHttpxClient(verify=ctx)
-            else:
-                pass
         else:
             client = DefaultAsyncHttpxClient(verify=False)
 
