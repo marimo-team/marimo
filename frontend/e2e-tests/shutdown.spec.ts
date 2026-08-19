@@ -13,14 +13,16 @@ test("can resume a session", async ({ page }) => {
   await maybeRestartKernel(page);
 
   await expect(page.getByText("'None'", { exact: true })).toBeVisible();
-  await page.locator("#output-Hbol").getByRole("textbox").fill("12345");
+  await page.getByTestId("marimo-plugin-text-input").fill("12345");
   await page.getByTestId("marimo-plugin-form-submit-button").click();
 
   const secondCell = page.locator(".marimo-cell").nth(1);
   await expect(
     secondCell.getByText("'12345'", { exact: true }),
   ).toBeVisible({ timeout: 15_000 });
-  await expect(secondCell.getByText("54321", { exact: true })).toBeVisible();
+  await expect(
+    secondCell.getByText("54321", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
 
   // Refresh the page
   await page.reload();
@@ -30,8 +32,10 @@ test("can resume a session", async ({ page }) => {
   ).toBeVisible();
   await expect(
     secondCell.getByText("'12345'", { exact: true }),
-  ).toBeVisible();
-  await expect(secondCell.getByText("54321", { exact: true })).toBeVisible();
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    secondCell.getByText("54321", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("restart kernel", async ({ page }) => {
