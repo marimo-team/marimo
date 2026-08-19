@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useStore } from "jotai";
+import { SparklesIcon } from "lucide-react";
 import {
   type Edit,
   stagedAICellsAtom,
@@ -47,6 +48,8 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     return null;
   }
 
+  const isDeletion = stagedAiCell.type === "delete_cell";
+
   const handleCompletion = (type: "accept" | "reject") => {
     const completionFunc =
       type === "accept" ? acceptStagedCell : rejectStagedCell;
@@ -54,14 +57,24 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   };
 
   return (
-    <div className="flex items-center justify-end gap-1.5 w-full pb-1 pt-2">
-      <CompletionActionsCellFooter
-        isLoading={false}
-        onAccept={() => handleCompletion("accept")}
-        onDecline={() => handleCompletion("reject")}
-        size="xs"
-        runCell={runCell}
-      />
+    <div className="mo-ai-cell-footer">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <SparklesIcon className="size-3.5 text-(--blue-11)" />
+        <span>
+          {isDeletion ? "AI suggests deleting this cell" : "AI suggestion"}
+        </span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <CompletionActionsCellFooter
+          isLoading={false}
+          onAccept={() => handleCompletion("accept")}
+          onDecline={() => handleCompletion("reject")}
+          size="xs"
+          runCell={isDeletion ? undefined : runCell}
+          acceptLabel={isDeletion ? "Delete" : undefined}
+          declineLabel={isDeletion ? "Keep" : undefined}
+        />
+      </div>
     </div>
   );
 };
