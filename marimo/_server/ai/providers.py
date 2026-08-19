@@ -456,8 +456,7 @@ class OpenAIClientMixin:
         import ssl
         from pathlib import Path
 
-        import httpx
-        from openai import AsyncOpenAI
+        from openai import AsyncOpenAI, DefaultAsyncHttpxClient
 
         base_url = config.base_url or None
         key = config.api_key
@@ -503,11 +502,9 @@ class OpenAIClientMixin:
 
             # if ssl context was created by the above statements
             if ctx:
-                client = httpx.AsyncClient(verify=ctx)
-            else:
-                pass
+                client = DefaultAsyncHttpxClient(verify=ctx)
         else:
-            client = httpx.AsyncClient(verify=False)
+            client = DefaultAsyncHttpxClient(verify=False)
 
         # if client is created, either with a custom context or with verify=False, use it as the http_client object in `AsyncOpenAI`
         extra_headers = extra_headers or {}

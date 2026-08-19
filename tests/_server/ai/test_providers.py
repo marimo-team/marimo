@@ -1,6 +1,7 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
 import os
+from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,6 +17,7 @@ from marimo._server.ai.providers import (
     BedrockProvider,
     CustomProvider,
     GoogleProvider,
+    OpenAIClientMixin,
     OpenAIProvider,
     StreamOptions,
     _infer_provider_name_from_base_url,
@@ -1063,3 +1065,93 @@ def test_build_agent_capabilities_empty_without_support_or_deps() -> None:
         capabilities = provider._build_agent_capabilities(model)
 
     assert capabilities == []
+
+
+def _openai_ssl_config(**kwargs: Any) -> AnyProviderConfig:
+    return AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        **kwargs,
+    )
+
+
+@pytest.mark.requires("openai")
+def test_get_openai_client_default_skips_custom_http_client() -> None:
+    """Default SSL uses the SDK client; no custom http_client is injected."""
+    with (
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch("openai.DefaultAsyncHttpxClient") as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(_openai_ssl_config())
+
+    mock_http.assert_not_called()
+    mock_openai.assert_called_once()
+    assert "http_client" not in mock_openai.call_args.kwargs
+
+
+@pytest.mark.requires("openai")
+def test_get_openai_client_ssl_verify_false() -> None:
+    """ssl_verify=False builds DefaultAsyncHttpxClient(verify=False)."""
+    fake_client = MagicMock(name="http_client")
+    with (
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch(
+            "openai.DefaultAsyncHttpxClient", return_value=fake_client
+        ) as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(
+            _openai_ssl_config(ssl_verify=False)
+        )
+
+    mock_http.assert_called_once_with(verify=False)
+    assert mock_openai.call_args.kwargs["http_client"] is fake_client
+
+
+@pytest.mark.requires("openai")
+@pytest.mark.parametrize(
+    ("use_ca", "use_pem"),
+    [
+        pytest.param(True, False, id="ca_bundle"),
+        pytest.param(False, True, id="client_pem"),
+        pytest.param(True, True, id="ca_and_pem"),
+    ],
+)
+def test_get_openai_client_custom_certs(
+    tmp_path: Path, use_ca: bool, use_pem: bool
+) -> None:
+    """CA bundle and/or client PEM produce an SSLContext passed as verify."""
+    ca_path = tmp_path / "ca.pem"
+    pem_path = tmp_path / "client.pem"
+    ca_path.write_text("dummy-ca")
+    pem_path.write_text("dummy-pem")
+
+    fake_ctx = MagicMock(name="ssl_context")
+    fake_client = MagicMock(name="http_client")
+    with (
+        patch("ssl.create_default_context", return_value=fake_ctx) as mock_ssl,
+        patch("openai.AsyncOpenAI") as mock_openai,
+        patch(
+            "openai.DefaultAsyncHttpxClient", return_value=fake_client
+        ) as mock_http,
+    ):
+        OpenAIClientMixin().get_openai_client(
+            _openai_ssl_config(
+                ca_bundle_path=str(ca_path) if use_ca else None,
+                client_pem=str(pem_path) if use_pem else None,
+            )
+        )
+
+    if use_ca:
+        mock_ssl.assert_called_once_with(cafile=str(ca_path))
+    else:
+        mock_ssl.assert_called_once_with()
+
+    if use_pem:
+        fake_ctx.load_cert_chain.assert_called_once_with(
+            certfile=str(pem_path)
+        )
+    else:
+        fake_ctx.load_cert_chain.assert_not_called()
+
+    mock_http.assert_called_once_with(verify=fake_ctx)
+    assert mock_openai.call_args.kwargs["http_client"] is fake_client
