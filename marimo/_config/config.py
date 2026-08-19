@@ -162,14 +162,9 @@ class RuntimeConfig(TypedDict):
         `PYTHONPATH` environment variable, the directories will be included in
         where Python will look for imported modules.
     - `dotenv`: a list of paths to `.env` files to load.
-        If the file does not exist, it will be silently ignored.
-        The default is `[".env"]`. Relative paths are resolved against the
-        directory holding the nearest `pyproject.toml`, or the notebook's own
-        directory when there is no `pyproject.toml`. Entries set in a
-        `pyproject.toml` must stay inside that directory. Entries that
-        resolve outside it are ignored. Set `dotenv` in your user
-        configuration to read a file elsewhere. An empty list is ignored,
-        since reading the configuration hides `dotenv` by emptying it.
+        If the file does not exist, or is not safely relative to the notebook or
+        project, it will be ignored. Set `dotenv` in your user configuration to
+        read a file elsewhere. The default is `[".env"]`.
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
