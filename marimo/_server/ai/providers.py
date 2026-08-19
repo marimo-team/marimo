@@ -8,7 +8,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     Literal,
     TypeVar,
@@ -488,9 +487,9 @@ class OpenAIClientMixin:
                 )
 
         # the default httpx client uses ssl_verify=True by default under the hoood. We are checking if it's here, to see if the user overrides and uses false. If the ssl_verify argument isn't there, it is true by default
+        client: DefaultAsyncHttpxClient | None = None
         if ssl_verify:
             ctx = None  # Initialize ctx to avoid UnboundLocalError
-            client = None  # Initialize client to avoid UnboundLocalError
             if ca_bundle_path:
                 ctx = ssl.create_default_context(cafile=ca_bundle_path)
             if client_pem:
@@ -516,7 +515,7 @@ class OpenAIClientMixin:
                 api_key=key,
                 base_url=base_url,
                 project=project,
-                http_client=cast(Any, client),
+                http_client=client,
             )
 
         # if not, return bog standard AsyncOpenAI object
