@@ -9,6 +9,7 @@ import {
   useCellActions,
 } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { useRequestClient } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
 
@@ -23,6 +24,12 @@ export function useDeleteCellCallback() {
     }
 
     const { cellId } = opts;
+    const stagedAICells = store.get(stagedAICellsAtom);
+    if (stagedAICells.has(cellId)) {
+      const nextStagedAICells = new Map(stagedAICells);
+      nextStagedAICells.delete(cellId);
+      store.set(stagedAICellsAtom, nextStagedAICells);
+    }
     const notebook = store.get(notebookAtom);
     const isEmptyCell = (notebook.cellData[cellId]?.code ?? "").trim() === "";
 
@@ -63,6 +70,14 @@ export function useDeleteManyCellsCallback() {
     }
 
     const { cellIds } = opts;
+    const stagedAICells = store.get(stagedAICellsAtom);
+    if (stagedAICells.size > 0) {
+      const nextStagedAICells = new Map(stagedAICells);
+      for (const cellId of cellIds) {
+        nextStagedAICells.delete(cellId);
+      }
+      store.set(stagedAICellsAtom, nextStagedAICells);
+    }
     for (const cellId of cellIds) {
       await sendDeleteCell({ cellId }).then(() => {
         deleteCell({ cellId });

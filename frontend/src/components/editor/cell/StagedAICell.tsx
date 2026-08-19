@@ -49,6 +49,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   }
 
   const isDeletion = stagedAiCell.type === "delete_cell";
+  const isAddition = stagedAiCell.type === "add_cell";
 
   const handleCompletion = (type: "accept" | "reject") => {
     const completionFunc =
@@ -61,20 +62,26 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <SparklesIcon className="size-3.5 text-(--blue-11)" />
         <span>
-          {isDeletion ? "AI suggests deleting this cell" : "AI suggestion"}
+          {isDeletion
+            ? "AI suggests deleting this cell"
+            : isAddition
+              ? "AI-added cell"
+              : "AI changed this cell"}
         </span>
       </div>
-      <div className="flex items-center gap-1.5">
-        <CompletionActionsCellFooter
-          isLoading={false}
-          onAccept={() => handleCompletion("accept")}
-          onDecline={() => handleCompletion("reject")}
-          size="xs"
-          runCell={isDeletion ? undefined : runCell}
-          acceptLabel={isDeletion ? "Delete" : undefined}
-          declineLabel={isDeletion ? "Keep" : undefined}
-        />
-      </div>
+      {!isAddition && (
+        <div className="flex items-center gap-1.5">
+          <CompletionActionsCellFooter
+            isLoading={false}
+            onAccept={() => handleCompletion("accept")}
+            onDecline={() => handleCompletion("reject")}
+            size="xs"
+            runCell={isDeletion ? undefined : runCell}
+            acceptLabel={isDeletion ? "Delete cell" : "Keep change"}
+            declineLabel={isDeletion ? "Keep cell" : "Revert change"}
+          />
+        </div>
+      )}
     </div>
   );
 };
