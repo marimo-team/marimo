@@ -526,6 +526,7 @@ def module_name_to_pypi_name() -> dict[str, str]:
         "logbook": "Logbook",
         "logentries": "buildbot-status-logentries",
         "logilab": "logilab-mtconverter",
+        "mace": "mace-torch",
         "magic": "python-magic",
         "mako": "Mako",
         "manifestparser": "ManifestDestiny",

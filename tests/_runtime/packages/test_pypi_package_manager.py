@@ -53,6 +53,7 @@ def test_module_to_package() -> None:
     assert mgr.module_to_package("marimo") == "marimo"
     assert mgr.module_to_package("123_456_789") == "123-456-789"
     assert mgr.module_to_package("sklearn") == "scikit-learn"
+    assert mgr.module_to_package("mace") == "mace-torch"
 
 
 def test_package_to_module() -> None:
@@ -60,6 +61,7 @@ def test_package_to_module() -> None:
     assert mgr.package_to_module("marimo") == "marimo"
     assert mgr.package_to_module("123-456-789") == "123_456_789"
     assert mgr.package_to_module("scikit-learn") == "sklearn"
+    assert mgr.package_to_module("mace-torch") == "mace"
 
 
 def test_package_to_module_is_normalized() -> None:
