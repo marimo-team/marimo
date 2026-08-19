@@ -531,7 +531,7 @@ export class HotkeyProvider implements IHotkeyProvider {
   }
 
   hasHotkey(action: string): action is AnyHotkeyAction {
-    return action in this.hotkeys;
+    return Object.hasOwn(this.hotkeys, action);
   }
 
   getDefaultHotkey(action: AnyHotkeyAction): ResolvedHotkey {

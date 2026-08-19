@@ -79,6 +79,23 @@ describe("HotkeyProvider platform separation", () => {
   });
 });
 
+describe("HotkeyProvider", () => {
+  it("does not treat inherited properties as hotkeys", () => {
+    const provider = new HotkeyProvider(
+      createHotkeys({
+        "cell.run": {
+          name: "Run cell",
+          group: "Running Cells",
+          key: "Mod-Enter",
+        },
+      }),
+    );
+
+    expect(provider.hasHotkey("constructor")).toBe(false);
+    expect(provider.hasHotkey("toString")).toBe(false);
+  });
+});
+
 describe("normalizeKeyString", () => {
   it("should capitalize multi-character base key names", () => {
     expect(normalizeKeyString("Shift-enter")).toBe("Shift-Enter");
