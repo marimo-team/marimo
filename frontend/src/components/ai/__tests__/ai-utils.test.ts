@@ -46,6 +46,13 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
         description: "Ollama Llama 2 model",
       }),
     ],
+    marimo: [
+      make({
+        name: "Best for chat",
+        model: "best-for-chat",
+        description: "marimo hosted chat model",
+      }),
+    ],
   };
 
   return { models };
@@ -76,13 +83,22 @@ describe("ai-utils", () => {
             empty: {},
           },
         }),
-      ).toEqual(["openai", "wandb", "groq"]);
+      ).toEqual(["openai", "wandb", "marimo", "groq"]);
     });
 
-    it("omits providers that have no credentials, including openai-compatible", () => {
+    it("treats marimo as configured when open_ai_compatible has a base URL", () => {
       expect(
         listConfiguredProviders({
           open_ai_compatible: { api_key: "unused", base_url: "https://x" },
+        }),
+      ).toEqual(["marimo"]);
+    });
+
+    it("omits openai-compatible as its own provider id", () => {
+      expect(
+        listConfiguredProviders({
+          open_ai: {},
+          open_ai_compatible: { api_key: "unused" },
         }),
       ).toEqual([]);
     });
@@ -93,6 +109,7 @@ describe("ai-utils", () => {
       ["openai", 1],
       ["anthropic", 2],
       ["wandb", 3],
+      ["marimo", 4],
     ];
 
     it("returns all groups when provider config is allowed", () => {
@@ -111,6 +128,15 @@ describe("ai-utils", () => {
           wandb: { api_key: "unused" },
         }),
       ).toEqual([["wandb", 3]]);
+    });
+
+    it("keeps marimo models when locked with an openai-compatible gateway", () => {
+      expect(
+        listModelsForAiSettings(entries, {
+          allow_provider_config: false,
+          open_ai_compatible: { base_url: "https://ai.marimo.app/molab/v1" },
+        }),
+      ).toEqual([["marimo", 4]]);
     });
   });
 

@@ -24,9 +24,10 @@ const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
   "opencode-go": (ai) => Boolean(ai?.opencode_go?.api_key),
   bedrock: (ai) => Boolean(ai?.bedrock?.region_name),
   ollama: (ai) => Boolean(ai?.ollama?.base_url),
-  // These providers don't have user-configurable credentials in the UI
+  // No user-configurable credentials in the UI.
   deepseek: () => false,
-  marimo: () => false,
+  // Hosted marimo models (marimo.app / molab) route through open_ai_compatible.
+  marimo: (ai) => Boolean(ai?.open_ai_compatible?.base_url),
 };
 
 /**

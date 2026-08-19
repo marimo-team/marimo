@@ -1556,13 +1556,7 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
   onSubmit,
 }) => {
-  const allowProviderConfig = useAllowProviderConfig();
   const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;
-  const configuredProviders = useMemo(
-    () =>
-      allowProviderConfig ? undefined : listConfiguredProviders(resolvedAi),
-    [allowProviderConfig, resolvedAi],
-  );
 
   const customModels = useWatch({
     control: form.control,
@@ -1575,13 +1569,13 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   }) as Record<string, CustomProviderConfig> | undefined;
 
   const customProviderNames = useMemo(() => {
-    const names = Object.keys(customProviders || {});
-    if (!configuredProviders) {
-      return names;
-    }
-    const allowed = new Set(configuredProviders);
-    return names.filter((name) => allowed.has(name));
-  }, [customProviders, configuredProviders]);
+    return [
+      ...new Set([
+        ...Object.keys(customProviders || {}),
+        ...Object.keys(resolvedAi?.custom_providers || {}),
+      ]),
+    ];
+  }, [customProviders, resolvedAi]);
 
   const aiModelRegistry = useMemo(
     () =>
@@ -1683,7 +1677,6 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
         form={form}
         customModels={customModels}
         customProviderNames={customProviderNames}
-        allowedProviders={configuredProviders}
         onSubmit={onSubmit}
       />
     </SettingGroup>
@@ -1694,15 +1687,8 @@ export const AddModelForm: React.FC<{
   form: UseFormReturn<UserConfig>;
   customModels: QualifiedModelId[];
   customProviderNames: string[];
-  allowedProviders?: readonly ProviderId[];
   onSubmit: (values: UserConfig) => void;
-}> = ({
-  form,
-  customModels,
-  customProviderNames,
-  allowedProviders,
-  onSubmit,
-}) => {
+}> = ({ form, customModels, customProviderNames, onSubmit }) => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [modelAdded, setModelAdded] = useState(false);
   const [provider, setProvider] = useState<ProviderId | "custom" | null>(null);
@@ -1747,14 +1733,9 @@ export const AddModelForm: React.FC<{
   };
 
   const providerClassName = "w-40 truncate";
-  const allowedSet = allowedProviders ? new Set(allowedProviders) : null;
-  const knownProviders = KNOWN_PROVIDERS.filter((p) => {
-    if (p === "marimo" || customProviderNames.includes(p)) {
-      return false;
-    }
-    return allowedSet ? allowedSet.has(p) : true;
-  });
-  const allowEnterProviderName = allowedSet === null;
+  const knownProviders = KNOWN_PROVIDERS.filter(
+    (p) => p !== "marimo" && !customProviderNames.includes(p),
+  );
 
   const providerSelect = (
     <div className="flex flex-col gap-2">
@@ -1812,22 +1793,20 @@ export const AddModelForm: React.FC<{
                   </div>
                 </SelectItem>
               ))}
-              {allowEnterProviderName && (
-                <>
-                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
-                    Other
-                  </p>
-                  <SelectItem value="custom">
-                    <div className="flex items-center gap-2">
-                      <AiProviderIcon
-                        provider="openai-compatible"
-                        className="h-4 w-4"
-                      />
-                      <span>Enter provider name</span>
-                    </div>
-                  </SelectItem>
-                </>
-              )}
+              <>
+                <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                  Other
+                </p>
+                <SelectItem value="custom">
+                  <div className="flex items-center gap-2">
+                    <AiProviderIcon
+                      provider="openai-compatible"
+                      className="h-4 w-4"
+                    />
+                    <span>Enter provider name</span>
+                  </div>
+                </SelectItem>
+              </>
             </SelectGroup>
           </SelectContent>
         </Select>
