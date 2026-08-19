@@ -111,6 +111,16 @@ def load_keyboard_shortcuts(
 ) -> KeyboardShortcuts:
     """Load keyboard shortcut metadata from installed packages."""
     if registry is None:
-        return dict(_load_installed_keyboard_shortcuts(_REGISTRY))
+        return {
+            action: {
+                "name": shortcut["name"],
+                "key": shortcut["key"],
+                "group": shortcut["group"],
+                "additionalKeywords": shortcut["additionalKeywords"].copy(),
+            }
+            for action, shortcut in _load_installed_keyboard_shortcuts(
+                _REGISTRY
+            ).items()
+        }
 
     return _load_keyboard_shortcuts(registry)
