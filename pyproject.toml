@@ -386,7 +386,6 @@ ignore = [
     "S112", # `try`-`except`-`continue`
     "TRY203", # Useless `try`-`except`
     "PLC0105", # Type name incorrect variance
-    "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
