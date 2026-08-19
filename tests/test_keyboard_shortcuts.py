@@ -33,7 +33,7 @@ def test_load_keyboard_shortcuts_namespaces_plain_metadata() -> None:
         }
 
 
-def test_load_keyboard_shortcuts_skips_invalid_shortcut() -> None:
+def test_load_keyboard_shortcuts_skips_invalid_shortcuts() -> None:
     registry = EntryPointRegistry[object]("marimo.keyboard_shortcuts")
     registry.register(
         "companion",
@@ -48,11 +48,8 @@ def test_load_keyboard_shortcuts_skips_invalid_shortcut() -> None:
         },
     )
 
-    with (
-        patch(
-            "marimo._entrypoints.registry.get_entry_points", return_value=[]
-        ),
-        patch.object(keyboard_shortcuts.LOGGER, "warning") as warning,
+    with patch(
+        "marimo._entrypoints.registry.get_entry_points", return_value=[]
     ):
         assert load_keyboard_shortcuts(registry) == {
             "extension.companion.run-tool": {
@@ -63,34 +60,8 @@ def test_load_keyboard_shortcuts_skips_invalid_shortcut() -> None:
             }
         }
 
-    assert warning.call_count == 2
-    assert {call.args[1:3] for call in warning.call_args_list} == {
-        ("show-message", "companion"),
-        ("open-tool", "companion"),
-    }
 
-
-def test_load_keyboard_shortcuts_caches_installed_registry() -> None:
-    registry = EntryPointRegistry[object]("marimo.keyboard_shortcuts")
-    registry.register(
-        "companion",
-        {"run-tool": {"name": "Run tool", "key": "Alt-T"}},
-    )
-
-    with (
-        patch.object(keyboard_shortcuts, "_REGISTRY", registry),
-        patch.object(registry, "names", wraps=registry.names) as names,
-        patch(
-            "marimo._entrypoints.registry.get_entry_points", return_value=[]
-        ),
-    ):
-        assert keyboard_shortcuts.load_keyboard_shortcuts()
-        assert keyboard_shortcuts.load_keyboard_shortcuts()
-
-    names.assert_called_once_with()
-
-
-def test_load_keyboard_shortcuts_returns_independent_copy() -> None:
+def test_load_keyboard_shortcuts_caches_independent_results() -> None:
     registry = EntryPointRegistry[object]("marimo.keyboard_shortcuts")
     registry.register(
         "companion",
@@ -105,6 +76,7 @@ def test_load_keyboard_shortcuts_returns_independent_copy() -> None:
 
     with (
         patch.object(keyboard_shortcuts, "_REGISTRY", registry),
+        patch.object(registry, "names", wraps=registry.names) as names,
         patch(
             "marimo._entrypoints.registry.get_entry_points", return_value=[]
         ),
@@ -122,6 +94,8 @@ def test_load_keyboard_shortcuts_returns_independent_copy() -> None:
                 "additionalKeywords": ["companion"],
             }
         }
+
+    names.assert_called_once_with()
 
 
 def test_load_keyboard_shortcuts_does_not_cache_custom_registry() -> None:

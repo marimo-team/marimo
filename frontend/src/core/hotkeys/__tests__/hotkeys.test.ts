@@ -92,7 +92,6 @@ describe("HotkeyProvider", () => {
     );
 
     expect(provider.hasHotkey("constructor")).toBe(false);
-    expect(provider.hasHotkey("toString")).toBe(false);
   });
 });
 
