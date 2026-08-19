@@ -3728,6 +3728,7 @@ export interface components {
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+     *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI. Users cannot add API keys, base URLs, or custom providers. Already configured providers stay visible and read-only. The model catalog, chat model selection, and AI feature toggles are unchanged. Default `True`.
      *         - `models`: the models to use for AI completions
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
@@ -3753,6 +3754,7 @@ export interface components {
       github?: components["schemas"]["GitHubConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;
+      allow_provider_config?: boolean;
       max_tokens?: number;
       /** @enum {unknown} */
       mode?: "agent" | "ask" | "code_mode" | "manual";

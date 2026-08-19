@@ -54,8 +54,9 @@ vi.mock("@marimo-team/llm-info/models.json", () => {
 // Must import after mock
 import {
   autoPopulateModels,
-  getConfiguredProvider,
   getRecommendedModel,
+  listConfiguredProviders,
+  listModelsForAiSettings,
 } from "../ai-utils";
 
 describe("ai-utils", () => {
@@ -63,82 +64,53 @@ describe("ai-utils", () => {
     vi.clearAllMocks();
   });
 
-  describe("getConfiguredProvider", () => {
-    it("should return undefined when no AI config", () => {
-      const config: UserConfig = {} as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBeUndefined();
-    });
-
-    it("should return undefined when AI config has no credentials", () => {
-      const config: UserConfig = {
-        ai: {},
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBeUndefined();
-    });
-
-    it("should return openai when OpenAI API key is set", () => {
-      const config: UserConfig = {
-        ai: {
+  describe("listConfiguredProviders", () => {
+    it("returns known providers with credentials, then custom providers with a base URL", () => {
+      expect(
+        listConfiguredProviders({
+          wandb: { api_key: "unused" },
           open_ai: { api_key: "sk-test" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("openai");
-    });
-
-    it("should return anthropic when Anthropic API key is set", () => {
-      const config: UserConfig = {
-        ai: {
-          anthropic: { api_key: "sk-ant-test" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("anthropic");
-    });
-
-    it("should return google when Google API key is set", () => {
-      const config: UserConfig = {
-        ai: {
-          google: { api_key: "google-key" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("google");
-    });
-
-    it("should return ollama when Ollama base URL is set", () => {
-      const config: UserConfig = {
-        ai: {
-          ollama: { base_url: "http://localhost:11434" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("ollama");
-    });
-
-    it("should return azure only when both API key and base URL are set", () => {
-      const config: UserConfig = {
-        ai: {
-          azure: { api_key: "azure-key", base_url: "https://azure.com" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("azure");
-    });
-
-    it("should return undefined for azure with only API key", () => {
-      const config: UserConfig = {
-        ai: {
-          azure: { api_key: "azure-key" },
-        },
-      } as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBeUndefined();
-    });
-
-    it("should return custom provider when configured", () => {
-      const config = {
-        ai: {
+          open_ai_compatible: { api_key: "unused", base_url: "https://x" },
           custom_providers: {
-            my_provider: { base_url: "https://my-api.com" },
+            groq: { base_url: "https://api.groq.com" },
+            empty: {},
           },
-        },
-      } as unknown as UserConfig;
-      expect(getConfiguredProvider(config.ai)).toBe("my_provider");
+        }),
+      ).toEqual(["openai", "wandb", "groq"]);
+    });
+
+    it("omits providers that have no credentials, including openai-compatible", () => {
+      expect(
+        listConfiguredProviders({
+          open_ai_compatible: { api_key: "unused", base_url: "https://x" },
+        }),
+      ).toEqual([]);
+    });
+  });
+
+  describe("listModelsForAiSettings", () => {
+    const entries: [string, number][] = [
+      ["openai", 1],
+      ["anthropic", 2],
+      ["wandb", 3],
+    ];
+
+    it("returns all groups when provider config is allowed", () => {
+      expect(
+        listModelsForAiSettings(entries, {
+          allow_provider_config: true,
+          wandb: { api_key: "unused" },
+        }),
+      ).toEqual(entries);
+    });
+
+    it("filters to configured providers when provider config is locked", () => {
+      expect(
+        listModelsForAiSettings(entries, {
+          allow_provider_config: false,
+          wandb: { api_key: "unused" },
+        }),
+      ).toEqual([["wandb", 3]]);
     });
   });
 
