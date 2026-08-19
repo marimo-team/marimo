@@ -14,7 +14,7 @@
     }
   },
   {
-    "raw_binary": "None",
+    "raw_binary": null,
     "wkt_looking": null,
     "h3_int": {
       "$bigint": "622236750694711295"

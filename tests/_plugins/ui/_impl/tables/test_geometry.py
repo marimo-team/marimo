@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 
@@ -31,6 +30,9 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from tests._plugins.ui._impl.tables import geometry_fixtures as geo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class TestFormatGeometryCell:
@@ -341,9 +343,7 @@ class TestDuckDBManager:
         assert cells[10] == "<geometry, 21 B>"
         assert cells[20] is None
 
-    def test_search_skips_geometry(
-        self, manager: TableManager[Any]
-    ) -> None:
+    def test_search_skips_geometry(self, manager: TableManager[Any]) -> None:
         assert manager.search("POINT").get_num_rows() == 0
 
     def test_top_k_returns_empty(self, manager: TableManager[Any]) -> None:
