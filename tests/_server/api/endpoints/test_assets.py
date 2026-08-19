@@ -60,6 +60,27 @@ def test_index(client: TestClient) -> None:
     assert "public-files-sw.js" in content
 
 
+def test_index_includes_keyboard_shortcut_extensions(
+    client: TestClient,
+) -> None:
+    with patch(
+        "marimo._server.api.endpoints.assets.load_keyboard_shortcuts",
+        return_value={
+            "extension.companion.show-message": {
+                "name": "Show companion message",
+                "key": "Mod-Shift-Y",
+                "group": "Other",
+                "additionalKeywords": [],
+            }
+        },
+    ):
+        response = client.get("/", headers=token_header())
+
+    assert response.status_code == 200
+    assert '"extension.companion.show-message"' in response.text
+    assert '"name": "Show companion message"' in response.text
+
+
 @with_workspace(FixedFilesWorkspace([]))
 def test_index_when_empty(client: TestClient) -> None:
     # Login page

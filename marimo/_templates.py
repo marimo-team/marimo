@@ -25,6 +25,7 @@ from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from marimo._entrypoints.keyboard_shortcuts import KeyboardShortcuts
     from marimo._server.api.endpoints.assets import LspWorkspace
 
 
@@ -99,6 +100,7 @@ def _get_mount_config(
     user_config: MarimoConfig,
     config_overrides: PartialMarimoConfig,
     app_config: _AppConfig | None,
+    keyboard_shortcuts: KeyboardShortcuts | None = None,
     version: str | None = None,
     show_app_code: bool = True,
     session_snapshot: NotebookSessionV1 | None = None,
@@ -121,6 +123,7 @@ def _get_mount_config(
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
         else {},
+        "keyboard_shortcuts": keyboard_shortcuts or {},
         "view": {
             "showAppCode": show_app_code,
         },
@@ -139,6 +142,7 @@ def _get_mount_config(
             "config": {user_config},
             "configOverrides": {config_overrides},
             "appConfig": {app_config},
+            "keyboardShortcuts": {keyboard_shortcuts},
             "view": {view},
             "notebook": {notebook},
             "session": {session},
@@ -154,6 +158,7 @@ def home_page_template(
     config_overrides: PartialMarimoConfig,
     server_token: SkewProtectionToken,
     mode: SessionMode,
+    keyboard_shortcuts: KeyboardShortcuts | None = None,
     asset_url: str | None = None,
 ) -> str:
     html = html.replace("{{ base_url }}", base_url)
@@ -181,6 +186,7 @@ def home_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=None,
+            keyboard_shortcuts=keyboard_shortcuts,
         ),
     )
 
@@ -277,6 +283,7 @@ def notebook_page_template(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
+    keyboard_shortcuts: KeyboardShortcuts | None = None,
     asset_url: str | None = None,
     html_head: str | None = None,
     execute_opengraph_generators: bool = False,
@@ -319,6 +326,7 @@ def notebook_page_template(
             user_config=user_config,
             config_overrides=config_overrides,
             app_config=app_config,
+            keyboard_shortcuts=keyboard_shortcuts,
             runtime_config=runtime_config,
             notebook_snapshot=notebook_snapshot,
             session_snapshot=session_snapshot,

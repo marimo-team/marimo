@@ -23,6 +23,7 @@ from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import get_default_config_manager
 from marimo._config.reader import find_nearest_pyproject_toml
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._entrypoints.keyboard_shortcuts import load_keyboard_shortcuts
 from marimo._output.utils import uri_decode_component, uri_encode_component
 from marimo._runtime.virtual_file import (
     EMPTY_VIRTUAL_FILE,
@@ -317,6 +318,7 @@ async def index(request: Request) -> Response:
         return _strip_access_token_redirect(request)
 
     app_state = AppState(request)
+    keyboard_shortcuts = load_keyboard_shortcuts()
     index_html = root / "index.html"
 
     file_key_from_query = app_state.query_params(FILE_QUERY_PARAM_KEY)
@@ -350,6 +352,7 @@ async def index(request: Request) -> Response:
             config_overrides=app_state.config_manager.get_config_overrides(),
             server_token=app_state.skew_protection_token,
             mode=app_state.mode,
+            keyboard_shortcuts=keyboard_shortcuts,
             asset_url=app_state.asset_url,
         )
     else:
@@ -404,6 +407,7 @@ async def index(request: Request) -> Response:
             filepath=absolute_filepath,
             lsp_workspace=lsp_workspace,
             mode=app_state.mode,
+            keyboard_shortcuts=keyboard_shortcuts,
             notebook_snapshot=notebook_snapshot,
             runtime_config=[{"url": app_state.remote_url}]
             if app_state.remote_url
