@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Any,
     Generic,
     Literal,
     TypeVar,
@@ -515,7 +516,7 @@ class OpenAIClientMixin:
                 api_key=key,
                 base_url=base_url,
                 project=project,
-                http_client=client,
+                http_client=cast(Any, client),
             )
 
         # if not, return bog standard AsyncOpenAI object
