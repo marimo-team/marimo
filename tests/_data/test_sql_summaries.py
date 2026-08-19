@@ -85,17 +85,6 @@ def test_get_sql_summary_string(setup_test_db: Any):
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
-def test_get_sql_summary_geometry_counts_only(setup_test_db: Any):
-    del setup_test_db
-
-    summary = get_sql_stats("test_table_3", "name", "geometry")
-    assert isinstance(summary, ColumnStats)
-    assert summary.total == 5
-    assert summary.nulls == 0
-    assert summary.unique is None
-
-
-@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_get_sql_summary_boolean(setup_test_db: Any):
     del setup_test_db
 

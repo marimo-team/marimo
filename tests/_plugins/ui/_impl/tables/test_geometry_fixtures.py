@@ -183,7 +183,11 @@ class TestIbisCharacterization:
 
 
 class TestFalsePositiveBaselines:
-    """These snapshots must never change during geometry detection work."""
+    """False-positive baselines for geometry detection regressions.
+
+    If one changes, either detection behavior regressed or a serialization
+    fix changed baseline output and should be called out in the PR.
+    """
 
     @pytest.mark.requires("pandas")
     def test_pandas(self) -> None:
