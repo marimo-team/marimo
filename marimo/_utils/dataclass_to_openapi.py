@@ -40,7 +40,8 @@ class PythonTypeToOpenAPI:
         self.name_overrides = name_overrides
         self.camel_case = camel_case
         self.optional_name_overrides = {
-            Optional[arg]: name for arg, name in name_overrides.items()
+            Optional[arg]: name  # noqa: UP045 - runtime type construction
+            for arg, name in name_overrides.items()
         }
 
     def convert(
