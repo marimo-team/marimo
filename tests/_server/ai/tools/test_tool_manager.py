@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 from starlette.applications import Starlette
 
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
+from marimo._dependencies.dependencies import DependencyManager
+from marimo._server.ai.mcp.client import MCPClient
 from marimo._server.ai.tools.tool_manager import ToolManager
-from marimo._server.ai.tools.types import ToolCallResult
+from marimo._server.ai.tools.types import (
+    ToolCallResult,
+    ToolDefinition,
+)
 from tests._server.mocks import get_starlette_server_state_init
 
 
@@ -64,6 +71,45 @@ async def test_invoke_tool_invalid_arguments(manager: ToolManager):
     assert result.tool_name == "get_cell_runtime_data"
     assert result.result is None
     assert "Invalid arguments" in result.error or result.error is None
+
+
+@pytest.mark.skipif(
+    not DependencyManager.mcp.has(), reason="MCP SDK not available"
+)
+async def test_invoke_mcp_tool_preserves_structured_error(
+    manager: ToolManager,
+):
+    from mcp.types import CallToolResult
+
+    tool = ToolDefinition(
+        name="mcp_server_tool",
+        description="Tool",
+        parameters={"type": "object"},
+        source="mcp",
+        mode=["ask"],
+    )
+    call_result = CallToolResult(
+        is_error=True,
+        content=[],
+        structured_content={"reason": "denied", "code": 403},
+    )
+
+    with (
+        patch.object(manager, "_get_tool", return_value=tool),
+        patch.object(
+            manager,
+            "_invoke_mcp_tool",
+            new=AsyncMock(return_value=call_result),
+        ),
+        patch(
+            "marimo._server.ai.tools.tool_manager.get_mcp_client",
+            return_value=MCPClient(),
+        ),
+    ):
+        result = await manager.invoke_tool(tool.name, {})
+
+    assert result.result is None
+    assert result.error == '{"code": 403, "reason": "denied"}'
 
 
 def test_validate_backend_tool_arguments(manager: ToolManager):
