@@ -78,6 +78,9 @@ export function getAppUrl(app: ApplicationNames): string {
     throw new Error(`No server options for app: ${app}`);
   }
   if (options.command === "edit") {
+    if (options.port !== undefined) {
+      return getUrl({ port: options.port });
+    }
     const pathToApp = path.join(pydir, app);
     return getUrl({ port: EDIT_PORT, queryParams: `?file=${pathToApp}` });
   }
