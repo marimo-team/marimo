@@ -134,4 +134,30 @@ describe("OverridingHotkeyProvider", () => {
     );
     expect(provider.getHotkey("cell.run").key).toBe("Shift-Enter");
   });
+
+  it("merges extension shortcuts with user overrides", () => {
+    const action = "extension.companion.show-message" as const;
+    const provider = new OverridingHotkeyProvider(
+      { [action]: "Alt-y" },
+      {
+        platform: "mac",
+        extensions: {
+          [action]: {
+            name: "Show companion message",
+            group: "Other",
+            key: "Mod-Shift-Y",
+          },
+        },
+      },
+    );
+
+    expect(provider.hasHotkey(action)).toBe(true);
+    expect(provider.getDefaultHotkey(action)).toEqual({
+      name: "Show companion message",
+      key: "Cmd-Shift-Y",
+      additionalKeywords: undefined,
+    });
+    expect(provider.getHotkey(action).key).toBe("Alt-y");
+    expect(provider.getHotkeyGroups().Other).toContain(action);
+  });
 });

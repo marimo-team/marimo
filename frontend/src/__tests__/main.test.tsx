@@ -10,6 +10,7 @@ import {
 import {
   appConfigAtom,
   configOverridesAtom,
+  keyboardShortcutExtensionsAtom,
   userConfigAtom,
 } from "../core/config/config";
 import { marimoVersionAtom, showCodeInRunModeAtom } from "../core/meta/state";
@@ -43,6 +44,7 @@ describe("main", () => {
     store.set(appConfigAtom, parseAppConfig({}));
     store.set(userConfigAtom, defaultUserConfig());
     store.set(configOverridesAtom, {});
+    store.set(keyboardShortcutExtensionsAtom, {});
   });
 
   it.each(["edit", "read", "home", "run"])(
@@ -132,6 +134,13 @@ describe("main", () => {
       },
       configOverrides: { display: { code_editor_font_size: 100 } },
       appConfig: { app_title: "My App" } as AppConfig,
+      keyboardShortcuts: {
+        "extension.companion.show-message": {
+          name: "Show companion message",
+          key: "Mod-Shift-Y",
+          group: "Other" as const,
+        },
+      },
       view: { showAppCode: true },
     };
 
@@ -154,6 +163,9 @@ describe("main", () => {
     );
     expect(store.get(appConfigAtom)).toEqual(
       expect.objectContaining({ app_title: "My App" }),
+    );
+    expect(store.get(keyboardShortcutExtensionsAtom)).toEqual(
+      options.keyboardShortcuts,
     );
   });
 

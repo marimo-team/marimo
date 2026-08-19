@@ -2,23 +2,23 @@
 
 import { useMemo } from "react";
 import type {
-  HotkeyAction,
+  AnyHotkeyAction,
   HotkeyGroup,
   HotkeyProvider,
 } from "@/core/hotkeys/hotkeys";
 
 export interface DuplicateGroup {
   key: string;
-  actions: { action: HotkeyAction; name: string }[];
+  actions: { action: AnyHotkeyAction; name: string }[];
 }
 
 export interface DuplicateShortcutsResult {
   /** All groups of duplicate shortcuts */
   duplicates: DuplicateGroup[];
   /** Check if a specific action has duplicate shortcuts */
-  hasDuplicate: (action: HotkeyAction) => boolean;
+  hasDuplicate: (action: AnyHotkeyAction) => boolean;
   /** Get all actions that share the same shortcut as the given action */
-  getDuplicatesFor: (action: HotkeyAction) => HotkeyAction[];
+  getDuplicatesFor: (action: AnyHotkeyAction) => AnyHotkeyAction[];
 }
 
 /**
@@ -52,7 +52,7 @@ export function findDuplicateShortcuts(
     : new Set();
 
   // Group actions by their key binding
-  const keyMap = new Map<string, { action: HotkeyAction; name: string }[]>();
+  const keyMap = new Map<string, { action: AnyHotkeyAction; name: string }[]>();
 
   for (const action of hotkeys.iterate()) {
     // Skip actions in ignored groups
@@ -84,7 +84,7 @@ export function findDuplicateShortcuts(
 
   // Filter to only groups with duplicates (more than one action per key)
   const duplicates: DuplicateGroup[] = [];
-  const duplicateActionSet = new Set<HotkeyAction>();
+  const duplicateActionSet = new Set<AnyHotkeyAction>();
 
   for (const [key, actions] of keyMap.entries()) {
     if (actions.length > 1) {
@@ -96,12 +96,12 @@ export function findDuplicateShortcuts(
   }
 
   // Helper to check if an action has duplicates
-  const hasDuplicate = (action: HotkeyAction): boolean => {
+  const hasDuplicate = (action: AnyHotkeyAction): boolean => {
     return duplicateActionSet.has(action);
   };
 
   // Helper to get all duplicates for a specific action
-  const getDuplicatesFor = (action: HotkeyAction): HotkeyAction[] => {
+  const getDuplicatesFor = (action: AnyHotkeyAction): AnyHotkeyAction[] => {
     const hotkey = hotkeys.getHotkey(action);
     if (!hotkey.key || hotkey.key.trim() === "") {
       return [];

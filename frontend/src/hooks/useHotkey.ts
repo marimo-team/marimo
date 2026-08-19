@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai";
 import { type RefObject, useEffect } from "react";
 import { hotkeysAtom } from "@/core/config/config";
-import type { HotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { AnyHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { Functions } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -37,7 +37,7 @@ interface HotkeyOptions {
  * If the callback returns false, preventDefault will not be called on the event.
  */
 export function useHotkey(
-  shortcut: HotkeyAction,
+  shortcut: AnyHotkeyAction,
   callback: HotkeyHandler,
   options: HotkeyOptions = {},
 ) {
