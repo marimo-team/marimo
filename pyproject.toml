@@ -373,7 +373,6 @@ ignore = [
     "PYI036", # Bad `sys.exit` annotation
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
-    "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
     "SIM115", # Open file without context handler
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ007", # `datetime.strptime()` called without zone
