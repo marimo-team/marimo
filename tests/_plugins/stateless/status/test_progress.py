@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +13,9 @@ from marimo._plugins.stateless.status._progress import (
     spinner,
 )
 from marimo._runtime.context.types import runtime_context_installed
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 # Test initialization
@@ -183,20 +186,22 @@ def test_progress_with_stepped_range_and_total() -> None:
     assert (progress.progress.current, progress.progress.total) == (10, 10)
 
 
-async def sleep(seconds):
+async def async_items(items: list[int]) -> AsyncIterator[int]:
     import asyncio
 
-    tasks = [asyncio.create_task(asyncio.sleep(s, s)) for s in seconds]
-    for future in asyncio.as_completed(tasks):
-        yield await future
+    for item in items:
+        await asyncio.sleep(0)
+        yield item
 
 
 async def test_progress_async():
     assert runtime_context_installed() is False
 
-    ait = sleep([0.01, 0.003, 0.001])
-    result = [s async for s in progress_bar(ait, total=3)]
-    assert result == [0.001, 0.003, 0.01]
+    progress = progress_bar(async_items([1, 2, 3]), total=3)
+    result = [item async for item in progress]
+
+    assert result == [1, 2, 3]
+    assert progress.progress.current == 3
 
 
 def test_progress_no_total_error():
