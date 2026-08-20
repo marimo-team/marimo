@@ -39,7 +39,7 @@ repos:
         types: [python]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.2
+    rev: v0.16.3
     hooks:
       # Run the linter
       - id: ruff-check
@@ -56,7 +56,7 @@ repos:
   #       files: ^(frontend/src/|packages/)
 
   - repo: https://github.com/oxc-project/mirrors-oxfmt
-    rev: v0.45.0
+    rev: v0.63.0
     hooks:
       - id: oxfmt
         args: [--write, --config, .oxfmtrc.json]
