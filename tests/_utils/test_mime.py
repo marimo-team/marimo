@@ -36,3 +36,8 @@ def test_guess_mime_type_from_url_path() -> None:
 
 def test_windows_drive_is_not_treated_as_url_scheme() -> None:
     assert guess_mime_type(r"C:\project\pyproject.toml") == "application/toml"
+
+
+def test_guess_mime_type_from_data_url() -> None:
+    assert guess_mime_type("data:image/png;base64,AAAA") == "image/png"
+    assert guess_mime_type("data:text/plain;base64,SGVsbG8=") == "text/plain"

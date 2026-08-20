@@ -108,4 +108,22 @@ describe("FileContentRenderer", () => {
       "toml",
     );
   });
+
+  it.each(["file.constructor", "file.__proto__"])(
+    "ignores inherited extension-map property in %s",
+    (filename) => {
+      render(
+        <FileContentRenderer
+          mimeType="text/plain"
+          filename={filename}
+          contents="text"
+        />,
+      );
+
+      expect(screen.getByTestId("code-editor")).toHaveAttribute(
+        "data-language",
+        "markdown",
+      );
+    },
+  );
 });

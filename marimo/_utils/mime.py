@@ -16,6 +16,8 @@ def guess_mime_type(path: str | os.PathLike[str]) -> str | None:
     """Guess a file's MIME type consistently across platforms and processes."""
     path_string = os.fspath(path)
     parsed = urlparse(path_string)
+    if parsed.scheme == "data":
+        return mimetypes.guess_type(path_string)[0]
     # A single-letter scheme is a Windows drive, not a URL.
     is_url = len(parsed.scheme) > 1 or (
         not parsed.scheme and bool(parsed.netloc)

@@ -58,8 +58,10 @@ const GENERIC_MIME_TYPES = new Set(["application/octet-stream", "text/plain"]);
 function resolveLanguage(mimeType: string, filename?: string): string {
   const normalizedMimeType = mimeType.split(";", 1)[0].trim().toLowerCase();
   if (GENERIC_MIME_TYPES.has(normalizedMimeType) && filename) {
-    const language =
-      EXTENSION_TO_LANGUAGE[Paths.extension(filename).toLowerCase()];
+    const extension = Paths.extension(filename).toLowerCase();
+    const language = Object.hasOwn(EXTENSION_TO_LANGUAGE, extension)
+      ? EXTENSION_TO_LANGUAGE[extension]
+      : undefined;
     if (language) {
       return language;
     }
