@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import dataclass
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, get_args
 
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.ai.tools.types import ToolDefinition, ToolSource
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 if TYPE_CHECKING:
@@ -28,7 +29,7 @@ def profile_get(profile: ModelProfile, key: str, default: Any) -> Any:
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Awaitable, Callable
 
     from pydantic_ai import FunctionToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
@@ -47,59 +48,50 @@ def format_inline_context(plain_text: str) -> str:
     return f"<context>\n{plain_text.strip()}\n</context>"
 
 
+@dataclass(frozen=True)
+class _ToolFunction:
+    name: str
+    source: ToolSource
+    tool_invoker: Callable[[str, dict[str, Any]], Awaitable[Any]]
+
+    async def __call__(self, **kwargs: Any) -> Any:
+        if self.source == "frontend":
+            from pydantic_ai import CallDeferred
+
+            raise CallDeferred(
+                metadata={
+                    "source": "frontend",
+                    "tool_name": self.name,
+                    "kwargs": kwargs,
+                }
+            )
+
+        result = await self.tool_invoker(self.name, kwargs)
+        return asdict(result)
+
+
 def form_toolsets(
     tools: list[ToolDefinition],
-    tool_invoker: Callable[[str, dict[str, Any]], Any],
+    tool_invoker: Callable[[str, dict[str, Any]], Awaitable[Any]],
 ) -> tuple[FunctionToolset, bool]:
-    """
-    Because we have a list of tool definitions and call them in a separate event loop,
-    we create a closure to invoke the tool (backend) or raise a CallDeferred (frontend).
-    Ref: https://ai.pydantic.dev/toolsets/#function-toolset
-
-    Returns a tuple of the toolset and whether deferred tool requests are needed.
-    """
-    from pydantic_ai import CallDeferred, FunctionToolset, Tool
+    from pydantic_ai import FunctionToolset, Tool
 
     toolset = FunctionToolset()
-    deferred_tool_requests = False
-
     for tool in tools:
-        if tool.source == "frontend":
-            deferred_tool_requests = True
-
-            async def tool_fn(
-                _tool_name: str = tool.name, **kwargs: Any
-            ) -> Any:
-                raise CallDeferred(
-                    metadata={
-                        "source": "frontend",
-                        "tool_name": _tool_name,
-                        "kwargs": kwargs,
-                    }
-                )
-        else:
-
-            async def tool_fn(
-                _tool_name: str = tool.name, **kwargs: Any
-            ) -> Any:
-                result = await tool_invoker(_tool_name, kwargs)
-                # Convert to JSON-serializable object
-                return asdict(result)
-
-        tool_fn.__name__ = tool.name
-        # Use the tool's real JSON schema instead of letting pydantic-ai
-        # infer one from tool_fn's signature (which is always the generic
-        # `(_tool_name, **kwargs)` closure above, regardless of the actual
-        # tool's parameters).
         toolset.add_tool(
             Tool.from_schema(
-                function=tool_fn,
+                function=_ToolFunction(
+                    name=tool.name,
+                    source=tool.source,
+                    tool_invoker=tool_invoker,
+                ),
                 name=tool.name,
                 description=tool.description,
                 json_schema=tool.parameters,
             )
         )
-    return toolset, deferred_tool_requests
+
+    return toolset, any(tool.source == "frontend" for tool in tools)
 
 
 def convert_to_pydantic_messages(

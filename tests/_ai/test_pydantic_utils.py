@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import pytest
 
@@ -114,8 +114,14 @@ class TestFormToolsets:
         assert toolset is not None
         assert deferred is True  # has frontend tool
 
-    def test_form_toolsets_with_only_backend_and_mcp_tools(self):
-        tool_invoker = AsyncMock()
+    async def test_tools_dispatch_by_registered_name(self):
+        @dataclass
+        class MockResult:
+            value: str
+
+        tool_invoker = AsyncMock(
+            side_effect=[MockResult("backend"), MockResult("mcp")]
+        )
         tools = [
             ToolDefinition(
                 name="backend_tool",
@@ -133,8 +139,22 @@ class TestFormToolsets:
             ),
         ]
         toolset, deferred = form_toolsets(tools, tool_invoker)
-        assert toolset is not None
-        assert deferred is False  # no frontend tools
+        pydantic_tools = toolset.tools
+        tools[0].name = "mutated_tool"
+        tools[0].source = "frontend"
+
+        backend_result = await pydantic_tools["backend_tool"].function(
+            _tool_name="mcp_tool"
+        )
+        mcp_result = await pydantic_tools["mcp_tool"].function()
+
+        assert deferred is False
+        assert backend_result == {"value": "backend"}
+        assert mcp_result == {"value": "mcp"}
+        assert tool_invoker.await_args_list == [
+            call("backend_tool", {"_tool_name": "mcp_tool"}),
+            call("mcp_tool", {}),
+        ]
 
     async def test_backend_tool_invokes_tool_invoker(self):
         @dataclass
@@ -159,8 +179,7 @@ class TestFormToolsets:
         assert backend_tool.name == "backend_tool"
         assert backend_tool.description == "A backend tool"
 
-        # Actually call the tool function
-        result = await backend_tool.function(arg1="test", arg2=123)  # type: ignore[call-arg]
+        result = await backend_tool.function(arg1="test", arg2=123)
 
         # Verify tool_invoker was called with correct arguments
         tool_invoker.assert_called_once_with(
@@ -190,9 +209,8 @@ class TestFormToolsets:
         assert frontend_tool.name == "frontend_tool"
         assert frontend_tool.description == "A frontend tool"
 
-        # Call the tool function and verify it raises CallDeferred
         with pytest.raises(CallDeferred) as exc_info:
-            await frontend_tool.function(arg="value")  # type: ignore[call-arg]
+            await frontend_tool.function(arg="value")
 
         # Verify CallDeferred has correct metadata
         assert exc_info.value.metadata == {
@@ -203,11 +221,7 @@ class TestFormToolsets:
         # Verify tool_invoker was NOT called for frontend tools
         tool_invoker.assert_not_called()
 
-    def test_form_toolsets_preserves_tool_schema(self):
-        # Regression test: the JSON schema pydantic-ai exposes to the model
-        # must be the tool's real `parameters`, not a generic schema
-        # inferred from the internal `tool_fn(_tool_name, **kwargs)`
-        # closure signature.
+    def test_form_toolsets_uses_tool_schema(self):
         tool_invoker = AsyncMock()
         schema = {
             "type": "object",
@@ -216,6 +230,7 @@ class TestFormToolsets:
                 "max_results": {"type": "integer"},
             },
             "required": ["query"],
+            "additionalProperties": False,
         }
         tool = ToolDefinition(
             name="search_docs",
@@ -227,11 +242,7 @@ class TestFormToolsets:
         toolset, _ = form_toolsets([tool], tool_invoker)
 
         pydantic_tool = toolset.tools["search_docs"]
-        exposed_schema = pydantic_tool.function_schema.json_schema
-
-        assert exposed_schema["properties"] == schema["properties"]
-        assert exposed_schema.get("required") == ["query"]
-        assert "_tool_name" not in exposed_schema.get("properties", {})
+        assert pydantic_tool.tool_def.parameters_json_schema == schema
 
 
 class TestConvertToPydanticMessages:
