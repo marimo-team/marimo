@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any, get_args
 
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._server.ai.tools.types import ToolDefinition
+from marimo._server.ai.tools.types import ToolDefinition, ToolSource
 from marimo._server.models.completion import UIMessage as ServerUIMessage
 
 if TYPE_CHECKING:
@@ -50,22 +50,23 @@ def format_inline_context(plain_text: str) -> str:
 
 @dataclass(frozen=True)
 class _ToolFunction:
-    tool: ToolDefinition
+    name: str
+    source: ToolSource
     tool_invoker: Callable[[str, dict[str, Any]], Awaitable[Any]]
 
     async def __call__(self, **kwargs: Any) -> Any:
-        if self.tool.source == "frontend":
+        if self.source == "frontend":
             from pydantic_ai import CallDeferred
 
             raise CallDeferred(
                 metadata={
                     "source": "frontend",
-                    "tool_name": self.tool.name,
+                    "tool_name": self.name,
                     "kwargs": kwargs,
                 }
             )
 
-        result = await self.tool_invoker(self.tool.name, kwargs)
+        result = await self.tool_invoker(self.name, kwargs)
         return asdict(result)
 
 
@@ -79,7 +80,11 @@ def form_toolsets(
     for tool in tools:
         toolset.add_tool(
             Tool.from_schema(
-                function=_ToolFunction(tool, tool_invoker),
+                function=_ToolFunction(
+                    name=tool.name,
+                    source=tool.source,
+                    tool_invoker=tool_invoker,
+                ),
                 name=tool.name,
                 description=tool.description,
                 json_schema=tool.parameters,

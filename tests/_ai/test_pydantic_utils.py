@@ -140,6 +140,8 @@ class TestFormToolsets:
         ]
         toolset, deferred = form_toolsets(tools, tool_invoker)
         pydantic_tools = toolset.tools
+        tools[0].name = "mutated_tool"
+        tools[0].source = "frontend"
 
         backend_result = await pydantic_tools["backend_tool"].function(
             _tool_name="mcp_tool"
