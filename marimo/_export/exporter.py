@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import mimetypes
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -63,6 +62,7 @@ from marimo._utils import async_path
 from marimo._utils.code import hash_code
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.mime import guess_mime_type
 from marimo._utils.paths import marimo_package_path, notebook_output_dir
 from marimo._version import __version__
 
@@ -494,7 +494,7 @@ class Exporter:
             )
             return None
 
-        mime_type = mimetypes.guess_type(basename)[0] or "text/plain"
+        mime_type = guess_mime_type(basename) or "text/plain"
         return build_data_url(
             cast(KnownMimeType, mime_type),
             base64.b64encode(buffer_contents),

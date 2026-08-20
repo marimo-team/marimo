@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import mimetypes
 import os
 import platform
 import re
@@ -18,6 +17,7 @@ from marimo._server.files.file_system import FileSystem
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._session.notebook.file_manager import AppFileManager
 from marimo._utils.files import natural_sort
+from marimo._utils.mime import guess_mime_type
 
 LOGGER = _loggers.marimo_logger()
 
@@ -130,7 +130,7 @@ class OSFileSystem(FileSystem):
             raise ValueError("max_bytes must be non-negative")
 
         file_info = self.get_info(path)
-        mime_type = mimetypes.guess_type(path)[0]
+        mime_type = guess_mime_type(path)
         is_base64 = False
         is_too_large = False
         actual_contents: str | None

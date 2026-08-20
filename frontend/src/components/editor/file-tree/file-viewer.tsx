@@ -240,6 +240,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       {warningBanner}
       <FileContentRenderer
         mimeType={mimeType}
+        filename={data.file.name}
         contents={
           isText
             ? internalValue

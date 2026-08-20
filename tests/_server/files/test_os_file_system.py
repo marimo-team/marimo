@@ -370,6 +370,16 @@ def test_get_details(test_dir: Path, fs: OSFileSystem) -> None:
     assert file_info2.contents == "direct content"
 
 
+def test_get_toml_details(test_dir: Path, fs: OSFileSystem) -> None:
+    file_path = test_dir / "pyproject.toml"
+    file_path.write_text('[project]\nname = "demo"')
+
+    result = fs.get_details(str(file_path))
+
+    assert result.mime_type == "application/toml"
+    assert result.contents == '[project]\nname = "demo"'
+
+
 def test_get_details_at_limit(test_dir: Path, fs: OSFileSystem) -> None:
     file_path = test_dir / "exact.txt"
     file_path.write_bytes(b"1234")
