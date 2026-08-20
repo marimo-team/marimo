@@ -682,7 +682,11 @@ def test_db_type_to_data_type_various() -> None:
     assert _db_type_to_data_type("timetz") == "time"
 
     # Special types
-    assert _db_type_to_data_type("geometry") == "unknown"
+    assert _db_type_to_data_type("geometry") == "geometry"
+    assert _db_type_to_data_type("point_2d") == "geometry"
+    assert _db_type_to_data_type("linestring_2d") == "geometry"
+    assert _db_type_to_data_type("polygon_2d") == "geometry"
+    assert _db_type_to_data_type("box_2d") == "geometry"
     assert _db_type_to_data_type("null") == "unknown"
     assert _db_type_to_data_type("json") == "unknown"
     assert _db_type_to_data_type("row") == "unknown"
