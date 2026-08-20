@@ -282,7 +282,10 @@ def start(
             "trusted directories and authentication controls."
         )
 
-    if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+    venv_config = config_reader.venv
+    if sandbox_mode is SandboxMode.MULTI and not venv_config.get("path"):
+        os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+        GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
         config_reader = config_reader.with_overrides(
             {
                 # Currently, only uv is supported for managing script metadata
