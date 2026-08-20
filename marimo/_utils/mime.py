@@ -13,7 +13,11 @@ _CUSTOM_MIME_TYPES: Final[dict[str, str]] = {
 
 
 def guess_mime_type(path: str | os.PathLike[str]) -> str | None:
-    """Guess a file's MIME type consistently across platforms and processes."""
+    """Guess a file's MIME type consistently across platforms and processes.
+
+    `mimetypes` uses platform-specific databases, so custom mappings provide
+    deterministic results.
+    """
     path_string = os.fspath(path)
     parsed = urlparse(path_string)
     if parsed.scheme == "data":

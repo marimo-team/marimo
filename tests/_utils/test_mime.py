@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from pathlib import Path
 
+import pytest
+
 from marimo._utils.mime import guess_mime_type
 
 
@@ -17,6 +19,17 @@ def test_guess_custom_mime_type() -> None:
         == "application/toml"
     )
     assert guess_mime_type(Path("pyproject.toml")) == "application/toml"
+
+
+def test_custom_mime_type_does_not_depend_on_system(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        "marimo._utils.mime.mimetypes.guess_type",
+        lambda _path: (None, None),
+    )
+
+    assert guess_mime_type("pyproject.toml") == "application/toml"
 
 
 def test_guess_mime_type_from_url_path() -> None:
