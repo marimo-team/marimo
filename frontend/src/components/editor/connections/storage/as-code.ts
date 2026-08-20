@@ -43,7 +43,7 @@ class SecretContainer {
       this.secrets[privateVar] = `os.environ.get("${envVar}")`;
       return privateVar;
     }
-    return `"${value}"`;
+    return `"${escapePythonString(value)}"`;
   }
 
   formatSecrets(): string {

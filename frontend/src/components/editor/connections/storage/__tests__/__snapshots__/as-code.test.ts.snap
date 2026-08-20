@@ -117,6 +117,16 @@ exports[`generateStorageCode > GCS > without service account key (default creden
 store = GCSStore("my-bucket")"
 `;
 
+exports[`generateStorageCode > GitHub > escapes quotes and backslashes in sha 1`] = `
+"from fsspec.implementations.github import GithubFileSystem
+
+fs = GithubFileSystem(
+    org="marimo-team",
+    repo="marimo",
+    sha="foo\\\\\\"bar",
+)"
+`;
+
 exports[`generateStorageCode > GitHub > public repo 1`] = `
 "from fsspec.implementations.github import GithubFileSystem
 

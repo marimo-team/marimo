@@ -353,6 +353,20 @@ describe("generateStorageCode", () => {
       ).toMatchSnapshot();
     });
 
+    it("escapes quotes and backslashes in sha", () => {
+      expect(
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            sha: 'foo\\"bar',
+          },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+
     it("with username and token", () => {
       expect(
         generateStorageCode(
