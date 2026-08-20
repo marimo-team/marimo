@@ -70,6 +70,46 @@ export function getProtocolAndParentDirectories({
   return { protocol, parentDirectories };
 }
 
+/**
+ * Format `path` relative to a root directory for display.
+ *
+ * Used by the file browser when navigation is restricted so the UI does not
+ * leak absolute host paths. The root itself is shown as `.`.
+ */
+export function formatPathRelativeToRoot({
+  path,
+  root,
+  delimiter,
+}: {
+  path: string;
+  root: string;
+  delimiter: string;
+}): string {
+  const stripTrailing = (value: string) => {
+    if (value.length <= 1) {
+      return value;
+    }
+    return value.endsWith(delimiter) ? value.slice(0, -1) : value;
+  };
+
+  const normalizedPath = stripTrailing(path);
+  const normalizedRoot = stripTrailing(root);
+
+  if (normalizedPath === normalizedRoot) {
+    return ".";
+  }
+
+  const prefix = normalizedRoot.endsWith(delimiter)
+    ? normalizedRoot
+    : normalizedRoot + delimiter;
+
+  if (normalizedPath.startsWith(prefix)) {
+    return normalizedPath.slice(prefix.length);
+  }
+
+  return path;
+}
+
 export function fileSplit(path: string): [name: string, extension: string] {
   const lastDotIndex = path.lastIndexOf(".");
   const name = lastDotIndex > 0 ? path.slice(0, lastDotIndex) : path;
