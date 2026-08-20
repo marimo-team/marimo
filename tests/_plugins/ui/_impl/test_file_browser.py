@@ -42,6 +42,21 @@ def test_normalize_values_rejects_multiple_values() -> None:
         _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
+def test_normalize_values_rejects_empty_string() -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        _normalize_values("", multiple=True)
+
+
+def test_normalize_values_rejects_empty_string_in_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        _normalize_values(["first.txt", ""], multiple=True)
+
+
+def test_normalize_values_reports_index_for_single_element_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[0\]=""'):
+        _normalize_values([""], multiple=True)
+
+
 def test_is_path_within_cases(tmp_path: Path) -> None:
     root = tmp_path.resolve()
     jail = root / "jail"
@@ -456,6 +471,42 @@ def test_file_browser_rejects_multiple_default_values(
             value=[first, second],
             multiple=False,
         )
+
+
+def test_file_browser_rejects_empty_string_value(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""') as error:
+        file_browser(initial_path=tmp_path, value="")
+
+    assert str(tmp_path) not in str(error.value)
+
+
+def test_file_browser_rejects_empty_string_value_for_any_selection_mode(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        file_browser(initial_path=tmp_path, value="", selection_mode="all")
+
+
+def test_file_browser_rejects_empty_string_among_valid_values(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        file_browser(initial_path=tmp_path, value=[selected, ""])
+
+
+def test_file_browser_accepts_relative_string_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+
+    fb = file_browser(value="selected.txt")
+
+    assert fb.path() == normalize_path(Path("selected.txt"))
 
 
 def test_file_browser_rejects_default_value_of_wrong_kind(

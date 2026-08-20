@@ -66,6 +66,19 @@ def _normalize_selection_mode(
     )
 
 
+def _reject_empty_value(value: str | Path, key: str) -> None:
+    """Reject an empty string before it reaches path normalization.
+
+    `Path("")` is `Path(".")`, which normalization resolves to the current
+    working directory. That hides the real input from every later error.
+    """
+    if isinstance(value, str) and not value:
+        raise ValueError(
+            f'Invalid {key}="". Pass a file or directory path, '
+            f"or None for no default value."
+        )
+
+
 def _normalize_values(
     value: str | Path | Sequence[str | Path] | None,
     *,
@@ -75,8 +88,11 @@ def _normalize_values(
     if value is None:
         values: Sequence[str | Path] = ()
     elif isinstance(value, Sequence) and not isinstance(value, str):
+        for index, entry in enumerate(value):
+            _reject_empty_value(value=entry, key=f"value[{index}]")
         values = value
     else:
+        _reject_empty_value(value, "value")
         values = (value,)
 
     if not multiple and len(values) > 1:
@@ -268,6 +284,8 @@ class file_browser(
             to browse any path readable by the server process.
         value (str | Path | Sequence[str | Path], optional): File or directory
             path, or sequence of paths, selected by default. Defaults to None.
+            An empty string is not a valid path. Pass None for no default
+            value.
         ignore_empty_dirs (bool, optional): If True, hide directories that contain
             no files (recursively). Directories are scanned up to 100 levels deep
             to prevent stack overflow from deeply nested structures. Directory
