@@ -2,15 +2,24 @@
 
 import { useAtom, useAtomValue } from "jotai";
 import { FileIcon, HardDrive } from "lucide-react";
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
+import type { DropEvent } from "react-dropzone";
 import useResizeObserver from "use-resize-observer";
 import { StorageInspector } from "@/components/storage/storage-inspector";
 import { Accordion } from "@/components/ui/accordion";
 import { storageNamespacesAtom } from "@/core/storage/state";
 import { cn } from "@/utils/cn";
+import type { FilePath } from "@/utils/paths";
 import { TreeDndProvider } from "../../file-tree/dnd-wrapper";
-import { FileExplorer } from "../../file-tree/file-explorer";
-import { useFileExplorerUpload } from "../../file-tree/upload";
+import {
+  FileExplorer,
+  getUploadDestinationLabel,
+} from "../../file-tree/file-explorer";
+import { treeAtom } from "../../file-tree/state";
+import {
+  getUploadDestinationFromTarget,
+  useFileExplorerUpload,
+} from "../../file-tree/upload";
 import {
   PanelAccordionContent,
   PanelAccordionItem,
@@ -23,10 +32,37 @@ import {
 } from "./panel-accordion-state";
 
 const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
+  const tree = useAtomValue(treeAtom);
+  const [dropDestinationPath, setDropDestinationPath] =
+    useState<FilePath | null>(null);
+
+  const getDropDestinationPath = useCallback(
+    (event: DropEvent) =>
+      getUploadDestinationForEvent(event, tree.getRootPath()),
+    [tree],
+  );
+  const refreshUploadDestination = useCallback(
+    (destinationPath: FilePath) => tree.refreshPath(destinationPath),
+    [tree],
+  );
   const { getRootProps, getInputProps, isDragActive } = useFileExplorerUpload({
     noClick: true,
     noKeyboard: true,
+    destinationPath: getDropDestinationPath,
+    getDestinationLabel: (path) => getUploadDestinationLabel(tree, path),
+    refreshDestination: refreshUploadDestination,
+    onDragEnter: (event) =>
+      setDropDestinationPath(getDropDestinationPath(event)),
+    onDragOver: (event) =>
+      setDropDestinationPath(getDropDestinationPath(event)),
+    onDragLeave: () => setDropDestinationPath(null),
+    onUploadStart: () => setDropDestinationPath(null),
   });
+  const displayedDestinationPath = dropDestinationPath ?? tree.getRootPath();
+  const displayedDestinationLabel = getUploadDestinationLabel(
+    tree,
+    displayedDestinationPath,
+  );
 
   return (
     <TreeDndProvider>
@@ -37,16 +73,33 @@ const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
       >
         <input {...getInputProps()} />
         {isDragActive && (
-          <div className="absolute inset-0 flex items-center uppercase justify-center text-xl font-bold text-primary/90 bg-accent/85 z-10 border-2 border-dashed border-primary/90 rounded-lg pointer-events-none">
-            Drop files here
+          <div className="absolute inset-0 flex items-start justify-center pt-3 bg-accent/20 z-10 border-2 border-dashed border-primary/90 rounded-lg pointer-events-none">
+            <span className="px-3 py-1.5 rounded-md bg-background/95 border shadow-sm text-sm font-semibold text-primary">
+              Drop files into {displayedDestinationLabel}
+            </span>
           </div>
         )}
 
-        <FileExplorer height={height} />
+        <FileExplorer
+          height={height}
+          externalDropDestinationPath={
+            isDragActive ? displayedDestinationPath : null
+          }
+        />
       </div>
     </TreeDndProvider>
   );
 };
+
+export function getUploadDestinationForEvent(
+  event: DropEvent,
+  rootPath: FilePath,
+): FilePath {
+  if (Array.isArray(event)) {
+    return rootPath;
+  }
+  return getUploadDestinationFromTarget(event.target, rootPath);
+}
 
 // Height of each accordion trigger (px-3 py-2 text-xs = ~33px)
 const TRIGGER_HEIGHT = 33;

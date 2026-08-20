@@ -2,7 +2,6 @@
 
 import { atom } from "jotai";
 import { requestClientAtom } from "@/core/network/requests";
-import { store } from "@/core/state/jotai";
 import { invariant } from "@/utils/invariant";
 import { RequestingTree } from "./requesting-tree";
 
@@ -21,7 +20,3 @@ export const treeAtom = atom<RequestingTree>((get) => {
 });
 
 export const openStateAtom = atom<Record<string, boolean>>({});
-
-export async function refreshRoot() {
-  await store.get(treeAtom).refreshAll([]);
-}
