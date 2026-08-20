@@ -360,7 +360,7 @@ describe("generateStorageCode", () => {
             type: "github",
             org: "marimo-team",
             repo: "marimo",
-            sha: 'feature/"new"',
+            sha: 'feature/\\"new"',
           },
           { library: "fsspec" },
         ),
@@ -370,7 +370,7 @@ describe("generateStorageCode", () => {
         fs = GithubFileSystem(
             org="marimo-team",
             repo="marimo",
-            sha="feature/\\"new\\"",
+            sha="feature/\\\\\\"new\\"",
         )"
       `);
     });
