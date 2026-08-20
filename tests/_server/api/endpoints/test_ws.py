@@ -313,14 +313,19 @@ async def test_connects_to_existing_session_with_same_file(
 
             # Connect second client - should connect to same session
             with client.websocket_connect(ws_2) as websocket2:
+                # Read the ready message before inspecting the room. Opening the
+                # websocket only waits for the server to accept the connection,
+                # which happens before the consumer joins the room. The ready
+                # message is sent after the join, so it is the earliest point at
+                # which the room membership is observable.
+                data2 = websocket2.receive_json()
+                assert_parse_ready_response(data2)
+                assert data2["data"]["resumed"] is True
+
                 # Check in the same room
                 session_manager = get_session_manager(client)
                 assert len(session_manager.sessions) == 1
                 assert session_manager.sessions["123"].room.size == 2
-
-                data2 = websocket2.receive_json()
-                assert_parse_ready_response(data2)
-                assert data2["data"]["resumed"] is True
 
                 messages2 = flush_messages(websocket2, at_least=3)
                 # This can/may change if implementation changes, but this is a snapshot to
