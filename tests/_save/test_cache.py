@@ -2456,7 +2456,8 @@ class TestCacheDecorator:
                 x = state()
 
                 def g():
-                    global state
+                    # Exercise global lookup instead of capturing h's argument.
+                    global state  # noqa: PLW0602
 
                     def f(state):
                         return x + state()

@@ -373,7 +373,6 @@ ignore = [
     "PYI036", # Bad `sys.exit` annotation
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "PLC0206", # Dict index without `.items()`
-    "PYI066", # Put branches for newer Python versions first when branching on `sys.version_info` comparisons
     "SIM115", # Open file without context handler
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ007", # `datetime.strptime()` called without zone
@@ -382,15 +381,12 @@ ignore = [
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
-    "PLW0602", # Global variable not assigned
     "S112", # `try`-`except`-`continue`
     "TRY203", # Useless `try`-`except`
     "PLC0105", # Type name incorrect variance
-    "PLW1508", # Invalid envvar default
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
-    "UP045", # Use `X | None` for optional type annotations
     "D421", # Property docstring should not start with a verb (preview rule)
 ]
 
