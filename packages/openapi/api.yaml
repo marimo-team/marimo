@@ -1295,6 +1295,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -3001,6 +3002,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string

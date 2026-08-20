@@ -2043,7 +2043,7 @@ def test_dataframe_with_int_column_names():
         assert "DataFrame has integer column names" in str(w[0].message)
 
     # Check that the table handles integer column names correctly
-    assert table._manager.get_column_names() == [0, 1, 2]
+    assert table._manager.get_column_names() == ["0", "1", "2"]
     assert table._component_args["total-columns"] == 3
     assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
 

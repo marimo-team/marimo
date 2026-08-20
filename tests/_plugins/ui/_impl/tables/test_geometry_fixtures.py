@@ -21,18 +21,18 @@ snapshot = snapshotter(__file__)
 
 @pytest.mark.requires("geopandas")
 class TestGeoPandasCharacterization:
-    def test_flattens_geodataframe_on_ingest(self) -> None:
+    def test_preserves_geodataframe_on_ingest(self) -> None:
         import geopandas as gpd
 
         manager = get_table_manager(geo.gdf_point_known_crs())
         native = manager.data.to_native()
-        assert not isinstance(native, gpd.GeoDataFrame)
+        assert isinstance(native, gpd.GeoDataFrame)
 
-    def test_geometry_column_types_unknown(self) -> None:
+    def test_geometry_column_types_geometry(self) -> None:
         manager = get_table_manager(geo.gdf_point_known_crs())
         assert dict(manager.get_field_types()) == {
             "name": ("string", "str"),
-            "geometry": ("unknown", "geometry"),
+            "geometry": ("geometry", "geometry"),
         }
 
     @pytest.mark.parametrize(
@@ -42,60 +42,60 @@ class TestGeoPandasCharacterization:
                 geo.gdf_point_missing_crs,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_multi_geometry,
                 [
-                    ("geom_a", ("unknown", "geometry")),
-                    ("geom_b", ("unknown", "geometry")),
+                    ("geom_a", ("geometry", "geometry")),
+                    ("geom_b", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_no_active_geometry,
                 [
                     ("a", ("integer", "int64")),
-                    ("g", ("unknown", "geometry")),
+                    ("g", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_stale_pointer,
                 [
                     ("name", ("string", "str")),
-                    ("geom", ("unknown", "geometry")),
+                    ("geom", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_dropped_active,
-                [("geom_b", ("unknown", "geometry"))],
+                [("geom_b", ("geometry", "geometry"))],
             ),
             (
                 geo.gdf_with_null,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_all_null,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_mixed_types,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
             (
                 geo.gdf_3d,
                 [
                     ("name", ("string", "str")),
-                    ("geometry", ("unknown", "geometry")),
+                    ("geometry", ("geometry", "geometry")),
                 ],
             ),
         ],
@@ -110,18 +110,18 @@ class TestGeoPandasCharacterization:
 
 @pytest.mark.requires("pyarrow")
 class TestGeoArrowCharacterization:
-    def test_wkb_types_unknown_binary(self) -> None:
+    def test_wkb_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("unknown", "Binary"),
+            "geom": ("geometry", "geoarrow.wkb"),
         }
 
-    def test_wkt_types_string(self) -> None:
+    def test_wkt_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkt())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("string", "String"),
+            "geom": ("geometry", "geoarrow.wkt"),
         }
 
     @pytest.mark.parametrize(
@@ -131,24 +131,21 @@ class TestGeoArrowCharacterization:
                 geo.arrow_wkb_missing_crs,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "geoarrow.wkb")),
                 ],
             ),
             (
                 geo.arrow_ogc_wkb,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "ogc.wkb")),
                 ],
             ),
             (
                 geo.arrow_other_geoarrow,
                 [
                     ("a", ("integer", "Int64")),
-                    (
-                        "geom",
-                        ("unknown", "Array(Float64, shape=(2,))"),
-                    ),
+                    ("geom", ("geometry", "geoarrow.point")),
                 ],
             ),
         ],
@@ -163,14 +160,14 @@ class TestGeoArrowCharacterization:
 
 @pytest.mark.requires("duckdb", "polars")
 class TestDuckDBCharacterization:
-    def test_geometry_types_unknown(self) -> None:
+    def test_geometry_types_detected(self) -> None:
         conn = geo.duckdb_spatial_connection()
         try:
             relation = geo.duckdb_geometry_relation(conn)
             manager = get_table_manager(relation)
             field_types = dict(manager.get_field_types())
             assert field_types["a"][0] == "integer"
-            assert field_types["geom"] == ("unknown", "Unknown")
+            assert field_types["geom"] == ("geometry", "GEOMETRY")
         finally:
             conn.close()
 
@@ -186,7 +183,11 @@ class TestIbisCharacterization:
 
 
 class TestFalsePositiveBaselines:
-    """These snapshots must never change during geometry detection work."""
+    """False-positive baselines for geometry detection regressions.
+
+    If one changes, either detection behavior regressed or a serialization
+    fix changed baseline output and should be called out in the PR.
+    """
 
     @pytest.mark.requires("pandas")
     def test_pandas(self) -> None:

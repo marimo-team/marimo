@@ -320,9 +320,8 @@ export function generateColumns<T>({
       },
       // Remove any default filtering
       filterFn: undefined,
-      // Can only sort if key is defined
-      // For example, unnamed index columns, won't be sortable
-      enableSorting: !!key,
+      // Unnamed index columns and geometry columns are not sortable
+      enableSorting: !!key && getMeta(key).dataType !== "geometry",
       meta: {
         ...getMeta(key),
         width: columnWidths?.[key],
@@ -485,6 +484,8 @@ function getFilterTypeForFieldType(
       return "time";
     case "boolean":
       return "boolean";
+    case "geometry":
+      return undefined;
     default:
       return undefined;
   }

@@ -9,10 +9,22 @@ describe("DataEditorPlugin", () => {
       initialValue: { edits: [] },
       label: null,
       data: [],
-      fieldTypes: [["geom", ["geometry", "geometry"]]],
+      fieldTypes: [["geom", ["bogus_type", "geometry"]]],
       editableColumns: "all",
     });
 
     expect(result.fieldTypes).toEqual([["geom", ["unknown", "geometry"]]]);
+  });
+
+  it("keeps the geometry field type", () => {
+    const result = DataEditorPlugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [],
+      fieldTypes: [["geom", ["geometry", "geometry"]]],
+      editableColumns: "all",
+    });
+
+    expect(result.fieldTypes).toEqual([["geom", ["geometry", "geometry"]]]);
   });
 });

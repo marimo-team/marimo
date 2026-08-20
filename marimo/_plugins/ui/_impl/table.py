@@ -313,6 +313,12 @@ def _filter_valid_columns(
         if isinstance(child, FilterCondition):
             if child.column_id not in column_dtypes:
                 continue
+            if column_dtypes[child.column_id] == "geometry":
+                LOGGER.warning(
+                    "Ignoring filter on geometry column '%s'",
+                    child.column_id,
+                )
+                continue
             category = _DATATYPE_TO_CATEGORY.get(
                 column_dtypes[child.column_id], ""
             )
@@ -1191,8 +1197,9 @@ class table(
                 (column_type, external_type) = self._manager.get_field_type(
                     column
                 )
-                # For boolean columns, we can drop the column since we use stats
-                if column_type == "boolean" or column_type == "unknown":
+                # Boolean columns render from stats; unknown and geometry
+                # columns get no chart.
+                if column_type in ("boolean", "unknown", "geometry"):
                     cols_to_drop.append(column)
 
                 # Handle columns with all nulls first
@@ -1427,7 +1434,18 @@ class table(
 
         if sort:
             existing_columns = set(result.get_column_names())
-            valid_sort = [s for s in sort if s.by in existing_columns]
+            field_types = dict(result.get_field_types())
+            valid_sort: list[SortArgs] = []
+            for sort_arg in sort:
+                if sort_arg.by not in existing_columns:
+                    continue
+                field_type = field_types.get(sort_arg.by)
+                if field_type is not None and field_type[0] == "geometry":
+                    LOGGER.warning(
+                        "Ignoring sort on geometry column '%s'", sort_arg.by
+                    )
+                    continue
+                valid_sort.append(sort_arg)
             if valid_sort:
                 result = result.sort_values(valid_sort)
 

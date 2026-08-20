@@ -56,6 +56,13 @@ def get_sql_stats(
             SUM(CASE WHEN "{column_name}" = FALSE THEN 1 ELSE 0 END) as false_count
         FROM {table_name}
         """
+    elif column_type == "geometry":
+        stats_query = f"""
+        SELECT
+            COUNT(*) as count,
+            SUM(CASE WHEN "{column_name}" IS NULL THEN 1 ELSE 0 END) as null_count
+        FROM {table_name}
+        """
     else:
         stats_query = f"""
         SELECT
@@ -124,6 +131,9 @@ def get_sql_stats(
             true=true_count,
             false=false_count,
         )
+    elif column_type == "geometry":
+        count, null_count = stats_result
+        return ColumnStats(total=count, nulls=null_count)
     else:
         count, unique, null_count = stats_result
         return ColumnStats(total=count, unique=unique, nulls=null_count)

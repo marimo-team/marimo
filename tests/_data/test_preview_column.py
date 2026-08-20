@@ -20,6 +20,7 @@ from marimo._plugins.ui._impl.charts.altair_transformer import (
 from marimo._runtime.commands import PreviewDatasetColumnCommand
 from marimo._utils.platform import is_windows
 from tests._data.mocks import create_dataframes
+from tests._plugins.ui._impl.tables import geometry_fixtures as geo
 from tests.mocks import snapshotter
 from tests.utils import assert_serialize_roundtrip
 
@@ -598,6 +599,24 @@ def test_preview_column_struct_skips_chart() -> None:
     assert result.chart_code is None
     assert result.stats is not None
     mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.requires("altair")
+@pytest.mark.requires("geopandas")
+def test_preview_column_geometry_skips_chart() -> None:
+    manager = get_table_manager(geo.gdf_point_known_crs())
+    assert manager is not None
+
+    result = get_column_preview_dataset(
+        table=manager,
+        table_name="table",
+        column_name="geometry",
+    )
+
+    assert result.error is None
+    assert result.chart_spec is None
+    assert result.chart_code is None
+    assert result.stats is not None
 
 
 @pytest.mark.parametrize(
