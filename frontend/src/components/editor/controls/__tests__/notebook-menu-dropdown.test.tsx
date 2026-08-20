@@ -157,6 +157,24 @@ describe("NotebookMenuDropdown", () => {
     expect(screen.getByRole("radio", { name: "Slides" })).toBeChecked();
   });
 
+  it("hides the slides PDF shortcut in WebAssembly", async () => {
+    vi.mocked(isWasm).mockReturnValue(true);
+    store.set(layoutStateAtom, {
+      selectedLayout: "slides",
+      layoutData: {},
+    });
+    renderNotebookControls();
+
+    act(() => store.set(commandPaletteAtom, true));
+
+    expect(
+      await screen.findByText("Download > Download as PDF > Document Layout"),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Download > Download as PDF > Slides Layout"),
+    ).not.toBeInTheDocument();
+  });
+
   it("preselects each Python format from its download shortcut", async () => {
     renderNotebookControls();
 
