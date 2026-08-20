@@ -24,6 +24,7 @@ from marimo._plugins.ui._impl.tables.format import (
 from marimo._plugins.ui._impl.tables.geometry import (
     GeometryColumnInfo,
     find_geometry_columns,
+    format_geometry_cell,
 )
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
@@ -108,10 +109,25 @@ class NarwhalsTableManager(
         ensure_ascii: bool = True,
     ) -> str:
         del strict_json
-        frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(
-            frame.rows(named=True), ensure_ascii=ensure_ascii
-        )
+        formatted_manager = self.apply_formatting(format_mapping)
+        frame = formatted_manager.as_frame()
+        rows = frame.rows(named=True)
+        geometry_columns = formatted_manager._geometry_columns
+        if geometry_columns:
+            rows = [
+                {
+                    col: (
+                        format_geometry_cell(
+                            value, geometry_columns[col].encoding
+                        )
+                        if col in geometry_columns
+                        else value
+                    )
+                    for col, value in row.items()
+                }
+                for row in rows
+            ]
+        return sanitize_json_bigint(rows, ensure_ascii=ensure_ascii)
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()
@@ -125,15 +141,18 @@ class NarwhalsTableManager(
             return self
 
         frame = self.as_frame()
-        _data = frame.to_dict(as_series=False).copy()
-        for col in _data:
-            if col in format_mapping:
-                _data[col] = [
-                    format_value(col, x, format_mapping) for x in _data[col]
-                ]
-        return NarwhalsTableManager(
-            nw.from_dict(_data, backend=nw.get_native_namespace(frame))
-        )
+        for col in frame.columns:
+            if col not in format_mapping or col in self._geometry_columns:
+                continue
+            formatted = [
+                format_value(col, x, format_mapping)
+                for x in frame.get_column(col).to_list()
+            ]
+            series = nw.new_series(
+                col, formatted, backend=frame.implementation
+            )
+            frame = frame.with_columns(series.alias(col))
+        return NarwhalsTableManager(frame)
 
     def supports_filters(self) -> bool:
         return True

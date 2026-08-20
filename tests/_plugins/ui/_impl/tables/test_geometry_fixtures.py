@@ -110,18 +110,18 @@ class TestGeoPandasCharacterization:
 
 @pytest.mark.requires("pyarrow")
 class TestGeoArrowCharacterization:
-    def test_wkb_types_unknown_binary(self) -> None:
+    def test_wkb_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("unknown", "Binary"),
+            "geom": ("geometry", "geoarrow.wkb"),
         }
 
-    def test_wkt_types_string(self) -> None:
+    def test_wkt_types_geometry(self) -> None:
         manager = get_table_manager(geo.arrow_wkt())
         assert dict(manager.get_field_types()) == {
             "a": ("integer", "Int64"),
-            "geom": ("string", "String"),
+            "geom": ("geometry", "geoarrow.wkt"),
         }
 
     @pytest.mark.parametrize(
@@ -131,24 +131,21 @@ class TestGeoArrowCharacterization:
                 geo.arrow_wkb_missing_crs,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "geoarrow.wkb")),
                 ],
             ),
             (
                 geo.arrow_ogc_wkb,
                 [
                     ("a", ("integer", "Int64")),
-                    ("geom", ("unknown", "Binary")),
+                    ("geom", ("geometry", "ogc.wkb")),
                 ],
             ),
             (
                 geo.arrow_other_geoarrow,
                 [
                     ("a", ("integer", "Int64")),
-                    (
-                        "geom",
-                        ("unknown", "Array(Float64, shape=(2,))"),
-                    ),
+                    ("geom", ("geometry", "geoarrow.point")),
                 ],
             ),
         ],
@@ -163,14 +160,14 @@ class TestGeoArrowCharacterization:
 
 @pytest.mark.requires("duckdb", "polars")
 class TestDuckDBCharacterization:
-    def test_geometry_types_unknown(self) -> None:
+    def test_geometry_types_detected(self) -> None:
         conn = geo.duckdb_spatial_connection()
         try:
             relation = geo.duckdb_geometry_relation(conn)
             manager = get_table_manager(relation)
             field_types = dict(manager.get_field_types())
             assert field_types["a"][0] == "integer"
-            assert field_types["geom"] == ("unknown", "Unknown")
+            assert field_types["geom"] == ("geometry", "GEOMETRY")
         finally:
             conn.close()
 
@@ -186,7 +183,11 @@ class TestIbisCharacterization:
 
 
 class TestFalsePositiveBaselines:
-    """These snapshots must never change during geometry detection work."""
+    """False-positive baselines for geometry detection regressions.
+
+    If one changes, either detection behavior regressed or a serialization
+    fix changed baseline output and should be called out in the PR.
+    """
 
     @pytest.mark.requires("pandas")
     def test_pandas(self) -> None:

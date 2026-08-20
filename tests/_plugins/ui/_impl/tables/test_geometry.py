@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 
@@ -30,6 +30,9 @@ from marimo._plugins.ui._impl.tables.narwhals_table import (
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from tests._plugins.ui._impl.tables import geometry_fixtures as geo
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 class TestFormatGeometryCell:
@@ -76,6 +79,298 @@ class TestPandasDetection:
         )
 
         assert find_geometry_columns(frame) == {}
+
+
+@pytest.mark.requires("pyarrow")
+class TestArrowDetection:
+    def test_detects_wkb_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_wkb_known_crs())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="wkb", external_type="geoarrow.wkb"
+            )
+        }
+
+    def test_detects_ogc_wkb_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_ogc_wkb())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(encoding="wkb", external_type="ogc.wkb")
+        }
+
+    def test_detects_wkt_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_wkt())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="wkt", external_type="geoarrow.wkt"
+            )
+        }
+
+    def test_detects_other_geoarrow_extension(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        frame = nw.from_native(geo.arrow_other_geoarrow())
+
+        assert find_geometry_columns(frame) == {
+            "geom": GeometryColumnInfo(
+                encoding="other", external_type="geoarrow.point"
+            )
+        }
+
+    def test_ignores_fields_without_extension_metadata(self) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        table = pa.table(geo.false_positive_data())
+
+        assert find_geometry_columns(nw.from_native(table)) == {}
+
+    def test_ignores_non_geo_extensions(self) -> None:
+        import narwhals.stable.v2 as nw
+        import pyarrow as pa
+
+        field = pa.field(
+            "u",
+            pa.binary(),
+            metadata={b"ARROW:extension:name": b"arrow.uuid"},
+        )
+        table = pa.table({"u": [b"x"]}, schema=pa.schema([field]))
+
+        assert find_geometry_columns(nw.from_native(table)) == {}
+
+    def test_manager_field_type_uses_geometry_semantics(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+
+
+@pytest.mark.requires("duckdb")
+class TestDuckDBDetection:
+    def test_detects_geometry_relation_columns(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            relation = geo.duckdb_geometry_relation(conn)
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {
+                "geom": GeometryColumnInfo(
+                    encoding="wkb", external_type="GEOMETRY"
+                )
+            }
+        finally:
+            conn.close()
+
+    def test_detects_fixed_layout_spatial_columns(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            relation = conn.sql(
+                "SELECT ST_Point2D(1.0, 2.0) AS p2d, "
+                "CAST(ST_GeomFromText('LINESTRING(0 0, 1 1)')"
+                " AS LINESTRING_2D) AS l2d, "
+                "CAST(ST_GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 0))')"
+                " AS POLYGON_2D) AS pg2d, "
+                "ST_Extent(ST_GeomFromText('LINESTRING(0 0, 1 1)')) AS box"
+            )
+            frame = nw.from_native(relation, pass_through=False)
+            infos = find_geometry_columns(frame)
+            assert {
+                name: (info.encoding, info.external_type)
+                for name, info in infos.items()
+            } == {
+                "p2d": ("other", "POINT_2D"),
+                "l2d": ("other", "LINESTRING_2D"),
+                "pg2d": ("other", "POLYGON_2D"),
+                "box": ("other", "BOX_2D"),
+            }
+        finally:
+            conn.close()
+
+    def test_wkb_blob_stays_ordinary(self) -> None:
+        import narwhals.stable.v2 as nw
+
+        conn = geo.duckdb_spatial_connection()
+        try:
+            # ST_AsWKB declares plain BLOB; bytes are never inferred.
+            relation = conn.sql("SELECT ST_AsWKB(ST_Point(1.0, 2.0)) AS wkb")
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {}
+        finally:
+            conn.close()
+
+    def test_plain_relation_not_detected(self) -> None:
+        import duckdb
+        import narwhals.stable.v2 as nw
+
+        conn = duckdb.connect()
+        try:
+            relation = conn.sql("SELECT 1 AS a, 'x' AS b")
+            frame = nw.from_native(relation, pass_through=False)
+            assert find_geometry_columns(frame) == {}
+        finally:
+            conn.close()
+
+
+@pytest.mark.requires("pyarrow")
+class TestArrowManager:
+    def test_wkb_cells_render_placeholder(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        rows = json.loads(manager.to_json_str())
+
+        assert rows[0]["geom"] == f"<geometry, {len(geo.WKB_POINT_1_2)} B>"
+        assert rows[1]["geom"] is None
+
+    def test_wkt_cells_pass_through_and_cap(self) -> None:
+        manager = get_table_manager(geo.arrow_wkt())
+
+        rows = json.loads(manager.to_json_str())
+
+        assert rows[0]["geom"] == "POINT (1 2)"
+        assert rows[1]["geom"] == "POINT Z (1 2 3)"
+        assert rows[2]["geom"] is None
+
+    def test_formatting_preserves_schema_metadata(self) -> None:
+        import pyarrow as pa
+
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        formatted = manager.apply_formatting({"a": lambda x: x + 1})
+        native = formatted.data.to_native()
+
+        assert isinstance(native, pa.Table)
+        field = native.schema.field("geom")
+        assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+        assert formatted.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+
+    def test_formatting_skips_geometry_columns_in_mapping(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        formatted = manager.apply_formatting(
+            {"a": lambda x: x + 1, "geom": lambda _x: "formatted"}
+        )
+        native = formatted.data.to_native()
+
+        assert native.column("a").to_pylist() == [1, 2]
+        assert formatted.get_field_type("geom") == (
+            "geometry",
+            "geoarrow.wkb",
+        )
+        assert (
+            native.schema.field("geom").metadata[b"ARROW:extension:name"]
+            == b"geoarrow.wkb"
+        )
+
+    def test_json_format_mapping_ignores_geometry_column(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        rows = json.loads(
+            manager.to_json_str(
+                format_mapping={"geom": lambda _x: "formatted"}
+            )
+        )
+
+        assert rows[0]["geom"] == f"<geometry, {len(geo.WKB_POINT_1_2)} B>"
+        assert rows[1]["geom"] is None
+
+    def test_search_skips_geometry(self) -> None:
+        manager = get_table_manager(geo.arrow_wkt())
+
+        assert manager.search("POINT").get_num_rows() == 0
+
+    def test_top_k_returns_empty(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.calculate_top_k_rows("geom", 10) == []
+
+    def test_unique_values_returns_empty(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        assert manager.get_unique_column_values("geom") == []
+
+    def test_stats_counts_only(self) -> None:
+        manager = get_table_manager(geo.arrow_wkb_known_crs())
+
+        stats = manager.get_stats("geom")
+        assert stats.total == 2
+        assert stats.nulls == 1
+        assert stats.unique is None
+
+
+@pytest.mark.requires("duckdb", "pyarrow")
+class TestDuckDBManager:
+    @pytest.fixture
+    def manager(self) -> Iterator[TableManager[Any]]:
+        conn = geo.duckdb_spatial_connection()
+        try:
+            yield get_table_manager(geo.duckdb_geometry_relation(conn))
+        finally:
+            conn.close()
+
+    def test_wkb_cells_render_placeholder(
+        self, manager: TableManager[Any]
+    ) -> None:
+        rows = json.loads(manager.to_json_str())
+
+        cells = {row["a"]: row["geom"] for row in rows}
+        assert cells[1] == "<geometry, 21 B>"
+        assert cells[2] is None
+
+    def test_json_format_mapping_keeps_placeholder(
+        self, manager: TableManager[Any]
+    ) -> None:
+        rows = json.loads(
+            manager.to_json_str(format_mapping={"a": lambda x: x * 10})
+        )
+
+        cells = {row["a"]: row["geom"] for row in rows}
+        assert cells[10] == "<geometry, 21 B>"
+        assert cells[20] is None
+
+    def test_search_skips_geometry(self, manager: TableManager[Any]) -> None:
+        assert manager.search("POINT").get_num_rows() == 0
+
+    def test_top_k_returns_empty(self, manager: TableManager[Any]) -> None:
+        assert manager.calculate_top_k_rows("geom", 10) == []
+
+    def test_unique_values_returns_empty(
+        self, manager: TableManager[Any]
+    ) -> None:
+        assert manager.get_unique_column_values("geom") == []
+
+    def test_stats_counts_only(self, manager: TableManager[Any]) -> None:
+        stats = manager.get_stats("geom")
+        assert stats.total == 2
+        assert stats.nulls == 1
+        assert stats.unique is None
+
+    def test_point_2d_cells_render_structs(self) -> None:
+        conn = geo.duckdb_spatial_connection()
+        try:
+            manager = get_table_manager(
+                conn.sql("SELECT ST_Point2D(1.0, 2.0) AS p2d")
+            )
+            assert manager.get_field_type("p2d") == ("geometry", "POINT_2D")
+            rows = json.loads(manager.to_json_str())
+            assert rows[0]["p2d"] == {"x": 1.0, "y": 2.0}
+        finally:
+            conn.close()
 
 
 @pytest.mark.requires("pandas")
