@@ -104,21 +104,23 @@ def _common_parent(paths: Sequence[Path]) -> Path:
 
 
 def _is_path_within(path: Path, parent: Path) -> bool:
-    """Return whether `path` resolves within `parent`."""
+    """Return whether `path` resolves within `parent`.
 
-    def resolve_existing(candidate: Path) -> Path:
+    A path that does not exist can still be within `parent`.
+    """
+
+    def resolve_for_containment(candidate: Path) -> Path:
         try:
             return candidate.resolve(strict=True)
+        except FileNotFoundError:
+            return candidate.resolve()
         except TypeError:
             # Some Path subclasses do not accept pathlib's `strict` argument.
-            resolved = candidate.resolve()
-            if not resolved.exists():
-                raise FileNotFoundError(resolved) from None
-            return resolved
+            return candidate.resolve()
 
     try:
-        resolved_path = resolve_existing(path)
-        resolved_parent = resolve_existing(parent)
+        resolved_path = resolve_for_containment(path)
+        resolved_parent = resolve_for_containment(parent)
         if not is_cloudpath(resolved_path):
             resolved_path = Path(resolved_path)
             resolved_parent = Path(resolved_parent)
@@ -539,9 +541,14 @@ class file_browser(
         files: list[TypedFileBrowserFileInfo] = []
 
         # Sort based on natural sort (alpha, then num)
-        all_file_paths = sorted(
-            path.iterdir(), key=lambda f: natural_sort(f.name)
-        )
+        try:
+            all_file_paths = sorted(
+                path.iterdir(), key=lambda f: natural_sort(f.name)
+            )
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"Directory {path} does not exist."
+            ) from None
         is_truncated = False
 
         for files_examined, file in enumerate(all_file_paths, 1):
