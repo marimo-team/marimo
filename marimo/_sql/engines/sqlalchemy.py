@@ -256,6 +256,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             "mssql": "SELECT DB_NAME()",
             "timeplus": "SELECT current_database()",
             "starrocks": "SELECT CATALOG()",
+            "snowflake": "SELECT current_database()",
         }
 
         # Try to get the database name by querying the database directly

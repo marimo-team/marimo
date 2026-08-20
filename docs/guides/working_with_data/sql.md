@@ -393,13 +393,22 @@ marimo will automatically discover the database connection and display the datab
 
 ???+ note
 
-    By default, marimo auto-discovers databases and schemas, but not tables and columns (to avoid performance issues with large databases). You can configure this behavior in your `pyproject.toml` file. Options are `true`, `false`, or `"auto"`. `"auto"` will determine whether to auto-discover based on the type of database (e.g. when the value is `"auto"`, Snowflake and BigQuery will not auto-discover tables and columns while SQLite, Postgres, and MySQL will):
+    You can configure auto-discovery in your `pyproject.toml` file. Options are `true`, `false`, or `"auto"`. `"auto"` decides based on the type of database: databases that are cheap to introspect (e.g. SQLite, Postgres, MySQL) are discovered, while data warehouses (e.g. Snowflake, BigQuery) are not, to avoid slow or expensive introspection queries:
 
     ```toml title="pyproject.toml"
     [tool.marimo.datasources]
-    auto_discover_schemas = true   # Default: true
+    auto_discover_schemas = "auto"  # Default: "auto"
     auto_discover_tables = "auto"   # Default: "auto"
-    auto_discover_columns = "auto"  # Default: false
+    auto_discover_columns = false   # Default: false
+    ```
+
+    Since the Data Sources panel and SQL cell autocompletion rely on discovery, they stay empty for Snowflake and BigQuery under the defaults. To opt in, enable discovery explicitly (column discovery can still be slow on warehouses with many wide tables):
+
+    ```toml title="pyproject.toml"
+    [tool.marimo.datasources]
+    auto_discover_schemas = true
+    auto_discover_tables = true
+    auto_discover_columns = false
     ```
 
 ## Catalogs
