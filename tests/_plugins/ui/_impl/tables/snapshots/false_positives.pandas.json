@@ -1,0 +1,23 @@
+[
+  {
+    "raw_binary": "b'\\x00\\x01\\x02'",
+    "wkt_looking": "POINT (1 2)",
+    "h3_int": {
+      "$bigint": "622236750694711295"
+    }
+  },
+  {
+    "raw_binary": "b'\\xff\\xfe'",
+    "wkt_looking": "LINESTRING (0 0, 1 1)",
+    "h3_int": {
+      "$bigint": "622236750694678527"
+    }
+  },
+  {
+    "raw_binary": "None",
+    "wkt_looking": null,
+    "h3_int": {
+      "$bigint": "622236750694711295"
+    }
+  }
+]
