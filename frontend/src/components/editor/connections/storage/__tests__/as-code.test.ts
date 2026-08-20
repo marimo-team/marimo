@@ -329,6 +329,61 @@ describe("generateStorageCode", () => {
     });
   });
 
+  describe("GitHub", () => {
+    it("public repo", () => {
+      expect(
+        generateStorageCode(
+          { type: "github", org: "marimo-team", repo: "marimo" },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+
+    it("with sha", () => {
+      expect(
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            sha: "main",
+          },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+
+    it("with username and token", () => {
+      expect(
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            username: "octocat",
+            token: "ghp_example",
+          },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+
+    it("with username and token from secrets", () => {
+      expect(
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            username: "octocat",
+            token: prefixSecret("GITHUB_TOKEN"),
+          },
+          { library: "fsspec" },
+        ),
+      ).toMatchSnapshot();
+    });
+  });
+
   describe("invalid cases", () => {
     it("throws for empty S3 bucket", () => {
       expect(() =>
@@ -394,6 +449,56 @@ describe("generateStorageCode", () => {
             region: "",
           } as StorageConnection,
           { library: "obstore" },
+        ),
+      ).toThrow();
+    });
+
+    it("throws for empty GitHub org", () => {
+      expect(() =>
+        generateStorageCode(
+          { type: "github", org: "", repo: "marimo" } as StorageConnection,
+          { library: "fsspec" },
+        ),
+      ).toThrow();
+    });
+
+    it("throws for empty GitHub repo", () => {
+      expect(() =>
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "",
+          } as StorageConnection,
+          { library: "fsspec" },
+        ),
+      ).toThrow();
+    });
+
+    it("throws when GitHub username is set without token", () => {
+      expect(() =>
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            username: "octocat",
+          },
+          { library: "fsspec" },
+        ),
+      ).toThrow();
+    });
+
+    it("throws when GitHub token is set without username", () => {
+      expect(() =>
+        generateStorageCode(
+          {
+            type: "github",
+            org: "marimo-team",
+            repo: "marimo",
+            token: "ghp_example",
+          },
+          { library: "fsspec" },
         ),
       ).toThrow();
     });
