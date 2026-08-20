@@ -58,7 +58,9 @@ def test_is_path_within_cases(tmp_path: Path) -> None:
     assert _is_path_within(jail, jail) is True
     assert _is_path_within(outside, jail) is False
     assert _is_path_within(root, jail) is False
-    assert _is_path_within(jail / "nope.txt", jail) is False
+    # Containment does not require existence.
+    assert _is_path_within(jail / "nope.txt", jail) is True
+    assert _is_path_within(root / "nope.txt", jail) is False
 
 
 def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
@@ -598,6 +600,37 @@ def test_navigation_restriction_dotdot_escape(tmp_path: Path) -> None:
     traversal = str(restricted / ".." / "sibling")
     with pytest.raises(RuntimeError, match="Navigation is restricted"):
         fb._list_directory(ListDirectoryArgs(path=traversal))
+
+
+def test_missing_path_inside_root_reports_not_found(tmp_path: Path) -> None:
+    """A missing path inside the root reports not-found, not a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = restricted / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_outside_root_reports_restriction(tmp_path: Path) -> None:
+    """A missing path outside the root still reports a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = tmp_path / "outside" / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_without_restriction_reports_not_found(
+    tmp_path: Path,
+) -> None:
+    """Unrestricted navigation to a missing path reports not-found."""
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=False)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path / "missing")))
 
 
 def test_name_method() -> None:
