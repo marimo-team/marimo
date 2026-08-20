@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import hashlib
 import mimetypes
 import re
 from pathlib import Path
@@ -139,6 +140,33 @@ _HTML_SECURITY_HEADERS: dict[str, str] = {
     "Referrer-Policy": "same-origin",
     "X-Content-Type-Options": "nosniff",
 }
+
+
+def _html_response(request: Request, html: str) -> Response:
+    """Return rendered HTML with conditional caching headers."""
+    etag = f'"{hashlib.sha256(html.encode("utf-8")).hexdigest()}"'
+    # The document inlines per-server config and a notebook key. Browsers may
+    # store it, but must check that it is still current before reusing it.
+    cache_control = "private, no-cache"
+    headers = {
+        "Cache-Control": cache_control,
+        "ETag": etag,
+        **_HTML_SECURITY_HEADERS,
+    }
+
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match is not None:
+        # If-None-Match may contain multiple validators or weak ETags (`W/`).
+        # See https://www.rfc-editor.org/rfc/rfc9110#section-13.1.2
+        candidates = {
+            candidate.strip().removeprefix("W/")
+            for candidate in if_none_match.split(",")
+        }
+        # Allow caching if things exactly match.
+        if "*" in candidates or etag in candidates:
+            return Response(status_code=304, headers=headers)
+
+    return HTMLResponse(html, headers=headers)
 
 
 def _strip_access_token_redirect(request: Request) -> RedirectResponse:
@@ -418,7 +446,7 @@ async def index(request: Request) -> Response:
         # Inject service worker registration with the notebook ID
         html = _inject_service_worker(html, file_key)
 
-    return HTMLResponse(html, headers=_HTML_SECURITY_HEADERS)
+    return _html_response(request, html)
 
 
 DEFAULT_NOTEBOOK_NAME = "__marimo_notebook__.py"
