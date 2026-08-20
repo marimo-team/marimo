@@ -360,11 +360,19 @@ describe("generateStorageCode", () => {
             type: "github",
             org: "marimo-team",
             repo: "marimo",
-            sha: 'foo\\"bar',
+            sha: 'feature/"new"',
           },
           { library: "fsspec" },
         ),
-      ).toMatchSnapshot();
+      ).toMatchInlineSnapshot(`
+        "from fsspec.implementations.github import GithubFileSystem
+
+        fs = GithubFileSystem(
+            org="marimo-team",
+            repo="marimo",
+            sha="feature/\\"new\\"",
+        )"
+      `);
     });
 
     it("with username and token", () => {
