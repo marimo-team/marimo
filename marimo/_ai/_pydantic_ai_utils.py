@@ -87,10 +87,6 @@ def form_toolsets(
                 return asdict(result)
 
         tool_fn.__name__ = tool.name
-        # Use the tool's real JSON schema instead of letting pydantic-ai
-        # infer one from tool_fn's signature (which is always the generic
-        # `(_tool_name, **kwargs)` closure above, regardless of the actual
-        # tool's parameters).
         toolset.add_tool(
             Tool.from_schema(
                 function=tool_fn,

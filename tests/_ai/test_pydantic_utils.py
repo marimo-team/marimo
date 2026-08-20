@@ -203,11 +203,7 @@ class TestFormToolsets:
         # Verify tool_invoker was NOT called for frontend tools
         tool_invoker.assert_not_called()
 
-    def test_form_toolsets_preserves_tool_schema(self):
-        # Regression test: the JSON schema pydantic-ai exposes to the model
-        # must be the tool's real `parameters`, not a generic schema
-        # inferred from the internal `tool_fn(_tool_name, **kwargs)`
-        # closure signature.
+    def test_form_toolsets_uses_tool_schema(self):
         tool_invoker = AsyncMock()
         schema = {
             "type": "object",
@@ -216,6 +212,7 @@ class TestFormToolsets:
                 "max_results": {"type": "integer"},
             },
             "required": ["query"],
+            "additionalProperties": False,
         }
         tool = ToolDefinition(
             name="search_docs",
@@ -227,11 +224,7 @@ class TestFormToolsets:
         toolset, _ = form_toolsets([tool], tool_invoker)
 
         pydantic_tool = toolset.tools["search_docs"]
-        exposed_schema = pydantic_tool.function_schema.json_schema
-
-        assert exposed_schema["properties"] == schema["properties"]
-        assert exposed_schema.get("required") == ["query"]
-        assert "_tool_name" not in exposed_schema.get("properties", {})
+        assert pydantic_tool.tool_def.parameters_json_schema == schema
 
 
 class TestConvertToPydanticMessages:
