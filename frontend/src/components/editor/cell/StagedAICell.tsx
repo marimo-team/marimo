@@ -2,6 +2,7 @@
 
 import { useAtomValue, useStore } from "jotai";
 import { SparklesIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
   stagedAICellsAtom,
@@ -60,14 +61,16 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   return (
     <div className="mo-ai-cell-footer">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <SparklesIcon className="size-3.5 text-(--blue-11)" />
-        <span>
-          {isDeletion
-            ? "AI suggests deleting this cell"
-            : isAddition
-              ? "AI-added cell"
+        <Tooltip content={isAddition ? "AI-generated cell" : null}>
+          <SparklesIcon className="size-3.5 text-(--blue-11)" />
+        </Tooltip>
+        {!isAddition && (
+          <span>
+            {isDeletion
+              ? "AI suggests deleting this cell"
               : "AI changed this cell"}
-        </span>
+          </span>
+        )}
       </div>
       {!isAddition && (
         <div className="flex items-center gap-1.5">
