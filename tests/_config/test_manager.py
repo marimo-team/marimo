@@ -687,6 +687,55 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
     }
 
 
+def test_script_config_manager_dotenv_stays_in_project(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "pyproject.toml").touch()
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = project / "notebook.py"
+    notebook_content = f'''
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "{outside.as_posix()}"]
+    # ///
+    import marimo as mo
+    '''
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [str(project / ".env")]
+
+
+def test_script_config_manager_dotenv_stays_next_to_standalone_notebook(
+    tmp_path: Path,
+) -> None:
+    notebook_dir = tmp_path / "notebook"
+    notebook_dir.mkdir()
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = notebook_dir / "notebook.py"
+    notebook_content = f'''
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "{outside.as_posix()}"]
+    # ///
+    import marimo as mo
+    '''
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [str(notebook_dir / ".env")]
+
+
 def test_script_config_manager_invalid_toml(tmp_path: Path) -> None:
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """
