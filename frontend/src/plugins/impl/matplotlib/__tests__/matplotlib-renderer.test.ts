@@ -223,6 +223,19 @@ function stubBrowser(ctx: Partial<CanvasRenderingContext2D> | null = null) {
   return { requestAnimationFrame };
 }
 
+// jsdom does not fetch images; resolve them synchronously instead.
+function stubSyncImage() {
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    },
+  );
+}
+
 function createRecordingContext() {
   return {
     setTransform: vi.fn(),
@@ -321,16 +334,7 @@ describe("MatplotlibRenderer", () => {
   it("draws with the backing-store scale, not the current devicePixelRatio", () => {
     const ctx = createRecordingContext();
     stubBrowser(ctx);
-    // Load images synchronously; jsdom does not fetch them.
-    vi.stubGlobal(
-      "Image",
-      class {
-        onload: (() => void) | null = null;
-        set src(_value: string) {
-          this.onload?.();
-        }
-      },
-    );
+    stubSyncImage();
     vi.stubGlobal("devicePixelRatio", 2);
 
     const state = createState();
@@ -348,7 +352,7 @@ describe("MatplotlibRenderer", () => {
     ctx.setTransform.mockClear();
     renderer.update({ ...state, strokeWidth: 4 });
 
-    expect(ctx.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
+    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
     expect(ctx.drawImage).toHaveBeenLastCalledWith(
       expect.anything(),
       0,
@@ -378,24 +382,15 @@ describe("MatplotlibRenderer", () => {
     renderer.update({ ...state, chartBase64: "second" });
 
     // A stale scale here would leave the outer 3/4 of the buffer unwiped.
-    expect(ctx.setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
-    expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 100, 100);
+    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
+    expect(ctx.clearRect.mock.calls).toEqual([[0, 0, 100, 100]]);
     controller.abort();
   });
 
   it("scales each axis by its own backing-store ratio", () => {
     const ctx = createRecordingContext();
     stubBrowser(ctx);
-    // Load images synchronously; jsdom does not fetch them.
-    vi.stubGlobal(
-      "Image",
-      class {
-        onload: (() => void) | null = null;
-        set src(_value: string) {
-          this.onload?.();
-        }
-      },
-    );
+    stubSyncImage();
     // canvas.width/height are integers, so this truncates the two dimensions
     // by different fractions: 150 * 1.25 -> 187 (0.5 lost), 500 * 1.25 -> 625
     // (exact). One shared, width-derived scale would under-cover the buffer
@@ -410,8 +405,11 @@ describe("MatplotlibRenderer", () => {
     const canvas = container.querySelector("canvas");
     expect(canvas?.width).toBe(187);
     expect(canvas?.height).toBe(625);
-    expect(ctx.setTransform).toHaveBeenCalledWith(187 / 150, 0, 0, 1.25, 0, 0);
-    expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 150, 500);
+    // The pre-load clear and the draw each set up their own transform.
+    const transform = [187 / 150, 0, 0, 625 / 500, 0, 0];
+    const rect = [0, 0, 150, 500];
+    expect(ctx.setTransform.mock.calls).toEqual([transform, transform]);
+    expect(ctx.clearRect.mock.calls).toEqual([rect, rect]);
     controller.abort();
   });
 });
