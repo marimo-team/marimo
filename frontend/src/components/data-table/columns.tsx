@@ -634,7 +634,7 @@ export function renderCellValue<TData, TValue>({
 
   // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
   // Empty strings are left as-is
-  const sentinel = detectSentinel(value, dataType);
+  const sentinel = detectSentinel(value, dataType, dtype);
   if (sentinel && sentinel.type !== "empty-string") {
     return (
       <div onClick={selectCell} className={cellStyles}>

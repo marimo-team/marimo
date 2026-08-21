@@ -278,12 +278,24 @@ class PandasTableManagerFactory(TableManagerFactory):
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
+                """Serialize pandas rows for frontend display or strict export.
+
+                The frontend path can emit `NaN`, `Infinity`, `-Infinity`,
+                and typed `NaT` sentinels. The frontend parser and table
+                renderer display these values.
+
+                The strict path converts values that standard JSON does not
+                support. Pandas encodes these values as JSON `null`.
+                """
+
                 def to_json(
                     result: pd.DataFrame,
                 ) -> list[dict[str, Any]] | str:
-                    """
-                    to_dict preserves nans, infs and is more accurate than to_json.
-                    By default, we use to_dict unless strict_json is True
+                    """Serialize the prepared dataframe.
+
+                    The frontend path intentionally preserves non-finite
+                    sentinels through `to_dict`. The strict export path uses
+                    pandas JSON, which converts them to JSON `null`.
                     """
                     if strict_json:
                         try:
@@ -345,7 +357,13 @@ class PandasTableManagerFactory(TableManagerFactory):
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
-                            result[col] = _stringify_preserving_nulls(series)
+                            # Preserve the NaT sentinel for frontend rendering;
+                            # strict exports require JSON nulls.
+                            result[col] = (
+                                _stringify_preserving_nulls(series)
+                                if strict_json
+                                else series.apply(str)
+                            )
                         if is_object_dtype(dtype):
                             # Convert date objects to the YYYY-MM-DD display form.
                             inferred_dtype = self._infer_dtype(col)

@@ -788,13 +788,13 @@ describe("LocaleNumber", () => {
 });
 
 describe("renderCellValue with string + edge whitespace", () => {
-  const createMockStringColumn = () =>
+  const createMockStringColumn = (dtype = "object") =>
     ({
       id: "desc",
       columnDef: {
         meta: {
           dataType: "string" as const,
-          dtype: "object",
+          dtype,
         },
       },
       getColumnFormatting: () => undefined,
@@ -849,6 +849,21 @@ describe("renderCellValue with string + edge whitespace", () => {
     } finally {
       host.remove();
     }
+  });
+
+  it("renders pandas timedelta NaT as a sentinel", () => {
+    const mockColumn = createMockStringColumn("timedelta64[us]");
+    const result = renderCellValue({
+      column: mockColumn,
+      renderValue: () => "NaT",
+      getValue: () => "NaT",
+      selectCell: undefined,
+      cellStyles: "",
+    });
+
+    const { container } = renderWithProviders(result);
+
+    expect(container.querySelector('[aria-label="Not a Time"]')).not.toBeNull();
   });
 
   it("renders edge whitespace markers and still detects the URL in the middle", () => {

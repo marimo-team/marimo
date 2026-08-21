@@ -154,14 +154,39 @@ const NUMERIC_STRING_SPECIALS: Record<string, StringValueSentinelType> = {
   "-inf": "negative-infinity",
 };
 
+// These source-library dtypes can contain pandas NaT, but their normalized
+// marimo data types are "string" or "unknown" instead of a temporal type.
+const NAT_DTYPE_PREFIXES = ["timedelta64[", "period["] as const;
+
+function isNaTType(
+  dataType: DataType | undefined,
+  dtype: string | undefined,
+): boolean {
+  if (isTemporalType(dataType)) {
+    return true;
+  }
+  if (!dtype) {
+    return false;
+  }
+
+  const normalizedDtype = dtype.toLowerCase();
+  return NAT_DTYPE_PREFIXES.some((prefix) =>
+    normalizedDtype.startsWith(prefix),
+  );
+}
+
 /**
  * Detect if a cell value is a sentinel (null, empty string, whitespace,
  * NaN, infinity, NaT). Column-type-dependent sentinels (string "NaN",
- * "NaT", etc.) are matched based on `dataType`.
+ * "NaT", etc.) are matched based on `dataType` and `dtype`.
+ *
+ * `dataType` is marimo's normalized, backend-independent type. `dtype` is
+ * the source library's more specific type string.
  */
 export function detectSentinel(
   value: unknown,
   dataType: DataType | undefined,
+  dtype?: string,
 ): CellValueSentinel | null {
   if (value == null) {
     return { type: "null", value };
@@ -181,8 +206,7 @@ export function detectSentinel(
         return { type, value };
       }
     }
-    // String "NaT" in a temporal column = pandas Not-a-Time sentinel
-    if (isTemporalType(dataType) && value === "NaT") {
+    if (value === "NaT" && isNaTType(dataType, dtype)) {
       return { type: "nat", value };
     }
     return null;
