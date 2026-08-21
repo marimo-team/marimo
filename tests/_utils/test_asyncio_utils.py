@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 
 import pytest
 
 from marimo._utils.asyncio_utils import (
     cancel_and_wait,
     fire_and_forget,
+    run_coroutine_blocking,
     supervised_task,
 )
 
@@ -129,3 +131,59 @@ async def test_cancel_and_wait_done_task_is_noop() -> None:
     task = asyncio.create_task(fast())
     await task
     await cancel_and_wait(task)
+
+
+def test_run_coroutine_blocking_without_running_loop() -> None:
+    async def work() -> int:
+        await asyncio.sleep(0)
+        return 42
+
+    assert run_coroutine_blocking(work()) == 42
+
+
+def test_run_coroutine_blocking_without_running_loop_stays_on_thread() -> None:
+    caller = threading.get_ident()
+
+    async def work() -> int:
+        return threading.get_ident()
+
+    # No loop is running, so there is no reason to pay for a worker thread.
+    assert run_coroutine_blocking(work()) == caller
+
+
+async def test_run_coroutine_blocking_with_running_loop() -> None:
+    async def work() -> int:
+        await asyncio.sleep(0)
+        return 42
+
+    # `asyncio.run` would raise here; the coroutine is offloaded instead.
+    assert run_coroutine_blocking(work()) == 42
+
+
+async def test_run_coroutine_blocking_with_running_loop_uses_worker() -> None:
+    caller = threading.get_ident()
+
+    async def work() -> int:
+        return threading.get_ident()
+
+    assert run_coroutine_blocking(work()) != caller
+
+
+async def test_run_coroutine_blocking_propagates_exception() -> None:
+    async def boom() -> None:
+        raise ValueError("boom")
+
+    with pytest.raises(ValueError, match="boom"):
+        run_coroutine_blocking(boom())
+
+
+async def test_run_coroutine_blocking_nests() -> None:
+    async def inner() -> int:
+        await asyncio.sleep(0)
+        return 2
+
+    async def outer() -> int:
+        # Each level has its own running loop, so each offloads again.
+        return 1 + run_coroutine_blocking(inner())
+
+    assert run_coroutine_blocking(outer()) == 3
