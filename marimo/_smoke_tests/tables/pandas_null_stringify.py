@@ -40,7 +40,7 @@ def _(date, pd):
 
 
 @app.cell
-def _(PandasTableManagerFactory, dataframe, json):
+def _(PandasTableManagerFactory, dataframe, json, pd):
     manager = PandasTableManagerFactory.create()(dataframe)
     json_data = json.loads(manager.to_json_str())
     assert json_data == [
@@ -53,12 +53,25 @@ def _(PandasTableManagerFactory, dataframe, json):
         },
         {
             "complex": None,
-            "timedelta": None,
+            "timedelta": "NaT",
             "date": None,
             "bytes": None,
             "extension": None,
         },
     ]
+    strict_json_data = json.loads(manager.to_json_str(strict_json=True))
+    assert strict_json_data[1]["timedelta"] is None
+
+    all_null_extension = pd.Series([None], dtype="category").to_frame(
+        name="extension"
+    )
+    all_null_manager = PandasTableManagerFactory.create()(all_null_extension)
+    assert all_null_manager.to_json_str(strict_json=False) == (
+        '[{"extension":NaN}]'
+    )
+    assert all_null_manager.to_json_str(strict_json=True) == (
+        '[{"extension":null}]'
+    )
     json_data
     return
 
