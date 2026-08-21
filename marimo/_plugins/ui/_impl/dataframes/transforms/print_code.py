@@ -49,7 +49,7 @@ def python_print_pandas(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)})"
+            result = f"{col}.str.contains({_as_literal(value)}, regex=False)"
         elif operator == "regex":
             result = f"{col}.str.contains({_as_literal(value)}, regex=True)"
         elif operator == "starts_with":
@@ -317,7 +317,7 @@ def python_print_polars(
         elif operator in [">", ">=", "<", "<="]:
             result = f"{col} {operator} {_as_literal(value)}"
         elif operator == "contains":
-            result = f"{col}.str.contains({_as_literal(value)})"
+            result = f"{col}.str.contains({_as_literal(value)}, literal=True)"
         elif operator == "regex":
             result = f"{col}.str.contains({_as_literal(value)}, literal=False)"
         elif operator == "starts_with":
