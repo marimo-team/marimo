@@ -7,12 +7,14 @@ const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate, isValid } from "date-fns";
+import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
+import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
@@ -382,9 +384,9 @@ const PopoutColumn = ({
   rawStringValue,
   edges,
   contentClassName,
-  buttonText,
   wrapped,
   children,
+  buttonText,
 }: {
   cellStyles?: string;
   selectCell?: () => void;
@@ -393,10 +395,11 @@ const PopoutColumn = ({
   // still use `rawStringValue`. Middle is sliced from `rawStringValue`.
   edges?: { leading: string; trailing: string };
   contentClassName?: string;
-  buttonText?: string;
   wrapped?: boolean;
+  buttonText?: string;
   children: React.ReactNode;
 }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const hasEdgeWhitespace =
     edges !== undefined &&
     (edges.leading.length > 0 || edges.trailing.length > 0);
@@ -412,6 +415,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
+          ref={triggerRef}
           className={cn(cellStyles, "max-w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
@@ -435,15 +439,23 @@ const PopoutColumn = ({
           className={contentClassName}
           align="start"
           alignOffset={10}
+          onInteractOutside={(event) => {
+            // Radix sees the shadow host as the target. Resolve the original
+            // target so pointer-down does not dismiss before click toggles.
+            const target = Events.composedTarget(event.detail.originalEvent);
+            if (triggerRef.current?.contains(target)) {
+              event.preventDefault();
+            }
+          }}
         >
-          <div className="absolute top-2 right-2">
+          <div className="float-right flex -mt-3 -mr-2">
             <CopyClipboardIcon
               value={rawStringValue}
-              className="w-2.5 h-2.5"
+              className="size-3 hover:text-link"
               tooltip={false}
             />
-            <PopoverClose>
-              <Button variant="link" size="xs">
+            <PopoverClose asChild={true}>
+              <Button variant="link" size="xs" aria-label="Close">
                 {buttonText ?? "Close"}
               </Button>
             </PopoverClose>
@@ -663,8 +675,8 @@ export function renderCellValue<TData, TValue>({
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
         contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
-        buttonText="X"
         wrapped={isWrapped}
+        buttonText="X"
       >
         <MarkdownUrlDetector
           content={stringValue}
