@@ -150,7 +150,7 @@ def initialize_script_context(
     )
     from marimo._save.cache import CacheState
     from marimo._save.signing_policy import get_signing_policy
-    from marimo._save.stores import get_store
+    from marimo._save.stores import cache_store_is_untrusted, get_store
 
     runtime_context = ScriptRuntimeContext(
         _app=app,
@@ -159,6 +159,7 @@ def initialize_script_context(
         function_registry=FunctionRegistry(),
         cache=CacheState(
             store=get_store(filename),
+            store_from_untrusted_origin=cache_store_is_untrusted(filename),
             signing_policy=get_signing_policy(filename),
         ),
         cell_lifecycle_registry=CellLifecycleRegistry(),

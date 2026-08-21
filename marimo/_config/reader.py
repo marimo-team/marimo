@@ -30,27 +30,32 @@ def read_pyproject_marimo_config(
     return marimo_tool_config
 
 
+def _pop_nested_key(root: dict[str, Any], key_path: tuple[str, ...]) -> bool:
+    """Delete `root[key_path...]` if present. Returns whether it was deleted."""
+    current = root
+    for key in key_path[:-1]:
+        nxt = current.get(key)
+        if not isinstance(nxt, dict):
+            return False
+        current = nxt
+    if key_path[-1] in current:
+        del current[key_path[-1]]
+        return True
+    return False
+
+
 def sanitize_pyproject_dict(
     pyproject_dict: dict[str, Any], keys: tuple[tuple[str, ...], ...]
 ) -> dict[str, Any]:
     """Sanitize the pyproject.toml dictionary by removing specified keys."""
     for key_path in keys:
-        current_level = pyproject_dict
-        missing_intermediate = False
-        for key in key_path[:-1]:
-            if key in current_level and isinstance(current_level[key], dict):
-                current_level = current_level[key]
-            else:
-                missing_intermediate = True
-                break
-        if missing_intermediate:
-            continue
-        if current_level and key_path[-1] in current_level:
+        # NB. each key_path is independent — a missing parent skips that path
+        # rather than aborting the rest.
+        if _pop_nested_key(pyproject_dict, key_path):
             LOGGER.warning(
                 "%s in script metadata is ignored for security reasons",
                 ".".join(key_path),
             )
-            del current_level[key_path[-1]]
     return pyproject_dict
 
 
@@ -114,6 +119,61 @@ def allowlist_script_config(
             )
             del marimo[key]
     return pyproject_dict
+
+
+# Settings that an untrusted-origin config layer must not set. Both take effect
+# before any cell runs, so a layer that sets one decides something the operator
+# never agreed to:
+#
+#   signing              trusting a key is a code-execution grant, because a
+#                        cache restore is `pickle.loads`
+#   cache.verification   whether signatures are checked at all
+#
+# Both are anchored only in trusted user/environment config.
+_UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
+    ("signing",),
+    ("cache", "verification"),
+)
+
+# `cache.store` is not a trust anchor on its own: the verifying loaders check
+# the bytes it returns before unpickling, and the unsigned `PickleLoader`
+# refuses a store it can identify as untrusted. That identification works by
+# looking for the store in the config *overrides*, which covers the project and
+# script layers. A workspace `.marimo.toml` loads as the user layer instead, so
+# it never appears there — the loader cannot tell it apart from a store the
+# operator chose. Strip it for that layer rather than leave an unidentifiable
+# store behind.
+_UNTRUSTED_USER_LAYER_KEYS: tuple[tuple[str, ...], ...] = (
+    *_UNTRUSTED_MARIMO_KEYS,
+    ("cache", "store"),
+)
+
+
+def strip_untrusted_config(
+    config: PartialMarimoConfig, *, is_user_layer: bool = False
+) -> PartialMarimoConfig:
+    """Drop security-sensitive settings from an untrusted config layer.
+
+    Mutates and returns `config`. A cloned repo's `pyproject.toml`, a shared
+    notebook's PEP 723 header, and a workspace-discovered `.marimo.toml` are all
+    untrusted origin: cloning a repo or opening a notebook is not consent to
+    that repo's author choosing whose signed cache you unpickle.
+
+    Set `is_user_layer` for the workspace `.marimo.toml`, which additionally
+    loses `cache.store`.
+    """
+    keys = (
+        _UNTRUSTED_USER_LAYER_KEYS if is_user_layer else _UNTRUSTED_MARIMO_KEYS
+    )
+    sanitized = cast(dict[str, Any], config)
+    for key_path in keys:
+        if _pop_nested_key(sanitized, key_path):
+            LOGGER.warning(
+                "Ignored %s from a configuration file that travels with the "
+                "code. Set it in your user configuration instead.",
+                ".".join(key_path),
+            )
+    return config
 
 
 def get_marimo_config_from_pyproject_dict(
