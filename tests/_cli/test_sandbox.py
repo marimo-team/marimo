@@ -1,17 +1,25 @@
 from __future__ import annotations
 
 import os
+import subprocess
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import pytest
 
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+from marimo import _loggers
 from marimo._cli.sandbox import (
     SandboxMode,
     _ensure_marimo_in_script_metadata,
     _ensure_python_version_in_script_metadata,
     _normalize_sandbox_dependencies,
+    _redact_url_query_strings,
+    _resolve_requirements_txt_lines,
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
@@ -241,7 +249,312 @@ def test_construct_uv_cmd_with_index_configs() -> None:
             additional_deps=[],
         )
         assert "--index" in uv_cmd
-        assert "https://download.pytorch.org/whl/cu124" in uv_cmd
+        # The name stays: it selects the UV_INDEX_<NAME>_USERNAME and
+        # UV_INDEX_<NAME>_PASSWORD credentials.
+        assert "torch-gpu=https://download.pytorch.org/whl/cu124" in uv_cmd
+
+
+def _uv_cmd_for_indexes(indexes: list[Any]) -> list[str]:
+    """The sandbox uv command for a script that has these
+    `[[tool.uv.index]]` entries."""
+    pyproject = {"tool": {"uv": {"index": indexes}}}
+    with patch(
+        "marimo._cli.sandbox.PyProjectReader.from_filename",
+        return_value=PyProjectReader(pyproject, config_path=None),
+    ):
+        return construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+
+
+@contextmanager
+def _captured_marimo_warnings(
+    caplog: pytest.LogCaptureFixture,
+) -> Iterator[None]:
+    """Capture marimo's warnings in caplog.
+
+    marimo's logger does not propagate to the root logger, which is
+    where caplog listens. This context manager turns propagation on
+    for its duration.
+    """
+    logger = _loggers.marimo_logger()
+    previous_propagate = logger.propagate
+    logger.propagate = True
+    try:
+        with caplog.at_level("WARNING"):
+            yield
+    finally:
+        logger.propagate = previous_propagate
+
+
+def test_construct_uv_cmd_index_config_default_maps_to_default_index() -> None:
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {"url": "https://pypi.org/simple/", "default": True},
+            {
+                "name": "internal",
+                "url": "https://internal.example.com/simple/",
+            },
+        ]
+    )
+    # uv must examine the default index last; a plain --index would
+    # make it first, before every other index.
+    default_idx = uv_cmd.index("--default-index")
+    assert uv_cmd[default_idx + 1] == "https://pypi.org/simple/"
+    assert "internal=https://internal.example.com/simple/" in uv_cmd
+    assert "https://pypi.org/simple/" not in [
+        uv_cmd[i + 1] for i, flag in enumerate(uv_cmd) if flag == "--index"
+    ]
+
+
+def test_construct_uv_cmd_index_config_explicit_goes_last() -> None:
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {
+                "name": "restricted",
+                "url": "https://restricted.example.com/simple/",
+                "explicit": True,
+            },
+            {"name": "general", "url": "https://general.example.com/simple/"},
+        ]
+    )
+    # uv has no flag for `explicit = true`; marimo puts the entry after
+    # the regular indexes, so uv examines the regular indexes first.
+    general = uv_cmd.index("general=https://general.example.com/simple/")
+    restricted = uv_cmd.index(
+        "restricted=https://restricted.example.com/simple/"
+    )
+    assert general < restricted
+    # Both are passed as --index (not e.g. --extra-index-url).
+    assert uv_cmd[general - 1] == "--index"
+    assert uv_cmd[restricted - 1] == "--index"
+
+
+def test_construct_uv_cmd_index_config_named_default_keeps_name() -> None:
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {
+                "name": "internal",
+                "url": "https://internal.example.com/simple/",
+                "default": True,
+            },
+        ]
+    )
+    # --default-index accepts the <name>=<url> form. Thus uv can still
+    # use the UV_INDEX_<NAME>_* credentials.
+    default_idx = uv_cmd.index("--default-index")
+    assert (
+        uv_cmd[default_idx + 1]
+        == "internal=https://internal.example.com/simple/"
+    )
+
+
+def test_construct_uv_cmd_index_config_only_first_default_maps(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # uv uses only the first `default = true` entry. marimo drops the
+    # later entries and shows a warning: a regular --index would make a
+    # later default the first index, the opposite of uv's meaning.
+    with _captured_marimo_warnings(caplog):
+        uv_cmd = _uv_cmd_for_indexes(
+            [
+                {"url": "https://one.example.com/simple/", "default": True},
+                {"url": "https://two.example.com/simple/", "default": True},
+            ]
+        )
+    assert uv_cmd.count("--default-index") == 1
+    default_idx = uv_cmd.index("--default-index")
+    assert uv_cmd[default_idx + 1] == "https://one.example.com/simple/"
+    assert "https://two.example.com/simple/" not in uv_cmd
+    assert any(
+        "More than one [[tool.uv.index]] entry" in r.message
+        for r in caplog.records
+    )
+
+
+def test_construct_uv_cmd_index_config_default_and_explicit() -> None:
+    # An entry with both keys takes the default branch: it becomes the
+    # default index, not a trailing --index.
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {
+                "url": "https://both.example.com/simple/",
+                "default": True,
+                "explicit": True,
+            },
+        ]
+    )
+    default_idx = uv_cmd.index("--default-index")
+    assert uv_cmd[default_idx + 1] == "https://both.example.com/simple/"
+    assert "--index" not in uv_cmd
+
+
+def test_construct_uv_cmd_index_config_non_dict_entry_skipped() -> None:
+    # `index = ["https://..."]` is valid TOML, but uv rejects it with a
+    # schema error. marimo must not crash on it.
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            "https://not-a-table.example.com/simple/",
+            {"url": "https://ok.example.com/simple/"},
+        ]
+    )
+    assert "https://ok.example.com/simple/" in uv_cmd
+    assert "https://not-a-table.example.com/simple/" not in uv_cmd
+
+
+def test_construct_uv_cmd_index_url_and_default_index_coexist() -> None:
+    # A header can have both the pip-style `index-url` key and a
+    # `default = true` [[tool.uv.index]] entry. uv accepts the two flags
+    # together, and --default-index wins, the same as in TOML.
+    pyproject = {
+        "tool": {
+            "uv": {
+                "index-url": "https://pip-style.example.com/simple",
+                "index": [
+                    {
+                        "url": "https://table-style.example.com/simple/",
+                        "default": True,
+                    },
+                ],
+            }
+        }
+    }
+    with patch("marimo._cli.sandbox.PyProjectReader.from_filename") as mock:
+        mock.return_value = PyProjectReader(pyproject, config_path=None)
+        uv_cmd = construct_uv_command(
+            ["edit", "test.py", "--sandbox"],
+            name="test.py",
+            additional_features=[],
+            additional_deps=[],
+        )
+        assert "--index-url" in uv_cmd
+        assert "https://pip-style.example.com/simple" in uv_cmd
+        default_idx = uv_cmd.index("--default-index")
+        assert (
+            uv_cmd[default_idx + 1]
+            == "https://table-style.example.com/simple/"
+        )
+
+
+def test_construct_uv_cmd_index_config_entry_without_url_skipped() -> None:
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {"name": "no-url-here"},
+            {"url": "https://ok.example.com/simple/"},
+        ]
+    )
+    assert "https://ok.example.com/simple/" in uv_cmd
+    assert not any("no-url-here" in flag for flag in uv_cmd)
+
+
+def test_construct_uv_cmd_index_config_declared_order_preserved() -> None:
+    # Regular (non-default, non-explicit) indexes keep their sequence:
+    # uv uses the first index that has a package, so the sequence
+    # changes resolution.
+    uv_cmd = _uv_cmd_for_indexes(
+        [
+            {"url": "https://first.example.com/simple/"},
+            {"url": "https://second.example.com/simple/"},
+        ]
+    )
+    assert uv_cmd.index("https://first.example.com/simple/") < uv_cmd.index(
+        "https://second.example.com/simple/"
+    )
+
+
+def test_construct_uv_cmd_index_config_unnamed_stays_bare() -> None:
+    uv_cmd = _uv_cmd_for_indexes(
+        [{"url": "https://mirror.example.com/simple/"}]
+    )
+    assert "--index" in uv_cmd
+    assert "https://mirror.example.com/simple/" in uv_cmd
+
+
+@contextmanager
+def _failing_uv_export(
+    stderr: str, caplog: pytest.LogCaptureFixture
+) -> Iterator[None]:
+    """Make `uv export --script` fail with `stderr` and capture warnings.
+
+    The exit code has no effect: the fallback examines only whether the
+    script has a PEP 723 block, never the exit code.
+    """
+    error = subprocess.CalledProcessError(
+        returncode=1, cmd=["uv", "export"], stderr=stderr
+    )
+    with (
+        _captured_marimo_warnings(caplog),
+        patch(
+            "marimo._cli.sandbox._uv_export_script_requirements_txt",
+            side_effect=error,
+        ),
+    ):
+        yield
+
+
+def test_export_failure_warns_when_script_has_metadata(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    pyproject = PyProjectReader(
+        {"dependencies": ["package-a==1.0.0"]},
+        config_path="test.py",
+        name="test.py",
+    )
+    with _failing_uv_export("401 Unauthorized", caplog):
+        lines = _resolve_requirements_txt_lines(pyproject)
+    # marimo falls back to the raw dependency list and tells the user why.
+    assert lines == ["package-a==1.0.0"]
+    assert any("401 Unauthorized" in r.message for r in caplog.records)
+
+
+def test_export_failure_stays_silent_for_plain_files(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # A file with no PEP 723 block: export fails by design, and the
+    # silent fallback is the normal path.
+    pyproject = PyProjectReader({}, config_path="test.py", name="test.py")
+    with _failing_uv_export("does not contain a PEP 723 metadata tag", caplog):
+        lines = _resolve_requirements_txt_lines(pyproject)
+    assert lines == []
+    assert not caplog.records
+
+
+def test_export_failure_warning_redacts_query_strings(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    # uv redacts userinfo credentials in URLs, but it does not redact
+    # query strings. Some registries put auth tokens there; the warning
+    # must not write them to the log.
+    pyproject = PyProjectReader(
+        {"dependencies": ["package-a==1.0.0"]},
+        config_path="test.py",
+        name="test.py",
+    )
+    stderr = (
+        "Failed to fetch: "
+        "https://registry.example.com/simple/?token=SECRETVALUE"
+    )
+    with _failing_uv_export(stderr, caplog):
+        _resolve_requirements_txt_lines(pyproject)
+    messages = [r.message for r in caplog.records]
+    assert messages
+    assert all("SECRETVALUE" not in m for m in messages)
+    assert any("?<redacted>" in m for m in messages)
+
+
+def test_redact_url_query_strings() -> None:
+    assert (
+        _redact_url_query_strings(
+            "error at https://host.example.com/simple/?sig=abc123 while fetching"
+        )
+        == "error at https://host.example.com/simple/?<redacted> while fetching"
+    )
+    # URLs with no query string and non-URL text stay unchanged.
+    unchanged = "https://host.example.com/simple/ and plain ?text"
+    assert _redact_url_query_strings(unchanged) == unchanged
 
 
 def test_construct_uv_cmd_with_sandbox_flag() -> None:
