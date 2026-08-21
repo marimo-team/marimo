@@ -232,7 +232,7 @@ def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
     manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
 
     config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == [str(dotenv)]
+    assert config["runtime"]["dotenv"] == [dotenv.as_posix()]
 
 
 def test_drop_none_values_strips_nested_none() -> None:
@@ -535,7 +535,7 @@ def test_user_config_dotenv_beats_the_default(
 
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == [str(outside)]
+    assert config["runtime"]["dotenv"] == [outside.as_posix()]
 
 
 @pytest.mark.parametrize("with_pyproject", [True, False])
