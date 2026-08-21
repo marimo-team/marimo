@@ -14,6 +14,14 @@ In this example, `x` was already defined, and the subsequent cell raised an
 error when we tried to run it. In your case, perhaps your variable is a loop
 variable (`i`), a dataframe (`df`), or a plot (`fig`, `ax`).
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/8ZPIkDInKRM"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## Why can't I use `*` imports?
 
 Star imports are incompatible with marimo's git-friendly file format and reproducible reactive execution:
