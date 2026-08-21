@@ -19,7 +19,7 @@ check out our [YouTube tutorial](https://www.youtube.com/watch?v=ZTs7vHzsqlQ).
   src="https://www.youtube.com/embed/ZTs7vHzsqlQ"
   title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
   clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 </div>
 
 ## Displaying dataframes

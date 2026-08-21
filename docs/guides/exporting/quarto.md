@@ -14,7 +14,7 @@ marimo's [Quarto extension](https://github.com/marimo-team/quarto-marimo) allows
   src="https://www.youtube.com/embed/scuGmtv81S0"
   title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
   clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 </div>
 
 !!! tip "Try the markdown file format tutorial"

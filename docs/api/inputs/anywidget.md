@@ -14,7 +14,7 @@ in your notebooks and apps.
   src="https://www.youtube.com/embed/mRbsvcxE9vc"
   title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
   clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 </div>
 
 ## Importing a widget

@@ -514,7 +514,7 @@ code completion.
   src="https://www.youtube.com/embed/pam9Hw8rbaA"
   title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
   clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 </div>
 
 Use SSH port-forwarding to run marimo on a remote server
