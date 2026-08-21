@@ -173,7 +173,7 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Coroutine, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -2521,6 +2521,77 @@ def _bootstrap_subprocess(
     return None
 
 
+def _maybe_gui_loop_factory(
+    user_config: MarimoConfig,
+    is_subprocess: bool,
+    fallback: Callable[[], asyncio.AbstractEventLoop] | None,
+) -> Callable[[], asyncio.AbstractEventLoop] | None:
+    """Resolve `runtime.gui_event_loop` to a loop factory, if configured.
+
+    A misconfigured or missing GUI toolkit must not prevent the kernel from
+    starting, so failures fall back to `fallback` with an error logged.
+    """
+    kind = user_config["runtime"].get("gui_event_loop")
+    if not kind:
+        return fallback
+    if not is_subprocess:
+        # The kernel runs on a thread in run mode, but GUI toolkits require
+        # the process's main thread.
+        LOGGER.warning(
+            "runtime.gui_event_loop is only supported when editing "
+            "a notebook; ignoring it."
+        )
+        return fallback
+    try:
+        from marimo._runtime.gui_loop import make_gui_loop_factory
+
+        return make_gui_loop_factory(kind)
+    except Exception as e:
+        LOGGER.error(
+            "Failed to set up the %r GUI event loop; "
+            "falling back to the default event loop: %s",
+            kind,
+            e,
+        )
+        return fallback
+
+
+def _asyncio_run(
+    coro: Coroutine[None, None, None],
+    loop_factory: Callable[[], asyncio.AbstractEventLoop] | None,
+) -> None:
+    if loop_factory is None:
+        asyncio.run(coro)
+    elif sys.version_info >= (3, 11):
+        # asyncio.run() only grew loop_factory in 3.12; Runner has had it
+        # since 3.11 and is what asyncio.run() wraps.
+        with asyncio.Runner(loop_factory=loop_factory) as runner:
+            runner.run(coro)
+    else:
+        loop = loop_factory()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(coro)
+        finally:
+            try:
+                _cancel_all_tasks(loop)
+                loop.run_until_complete(loop.shutdown_asyncgens())
+            finally:
+                asyncio.set_event_loop(None)
+                loop.close()
+
+
+def _cancel_all_tasks(loop: asyncio.AbstractEventLoop) -> None:
+    # Mirrors the cleanup asyncio.run() performs after the main coroutine
+    # finishes.
+    tasks = [t for t in asyncio.all_tasks(loop) if not t.done()]
+    if not tasks:
+        return
+    for task in tasks:
+        task.cancel()
+    loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+
+
 @contextlib.contextmanager
 def _maybe_profile(profile_path: str | None) -> Iterator[None]:
     if profile_path is None:
@@ -2675,6 +2746,9 @@ def launch_kernel(
     LOGGER.debug("Launching kernel")
     is_subprocess = is_edit_mode or is_ipc
     loop_factory = _bootstrap_subprocess(parent_pid, log_level, is_subprocess)
+    loop_factory = _maybe_gui_loop_factory(
+        user_config, is_subprocess, fallback=loop_factory
+    )
 
     with _maybe_profile(profile_path):
         should_redirect_stdio = is_edit_mode or redirect_console_to_browser
@@ -2730,9 +2804,6 @@ def launch_kernel(
                 set_ui_element_queue,
                 threaded_queue_reader,
             )
-            if loop_factory is not None:
-                asyncio.run(coro, loop_factory=loop_factory)
-            else:
-                asyncio.run(coro)
+            _asyncio_run(coro, loop_factory)
 
         streams.close(use_fd_redirect)

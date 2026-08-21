@@ -126,6 +126,44 @@ pythonpath = ["project/src"]
     See our guide on [notebooks in existing
     projects](../package_management/notebooks_in_projects.md) for more details.
 
+## GUI event loop { #gui-event-loop }
+
+Desktop GUI libraries (Qt, and libraries built on it such as napari or
+MNE-Python) only repaint and respond to input while their own event loop runs.
+Since the marimo kernel runs an asyncio event loop, windows opened from a cell
+would otherwise freeze. Setting `gui_event_loop` makes the kernel's asyncio
+loop also drive the toolkit's event loop, keeping such windows responsive
+whenever the kernel is idle:
+
+```toml title="pyproject.toml"
+[tool.marimo.runtime]
+gui_event_loop = "qt"
+```
+
+Currently only `"qt"` is supported. It requires
+[`qasync`](https://github.com/CabbageDevelopment/qasync) and a Qt binding
+(for example PySide6) in the kernel's environment:
+
+```sh
+pip install qasync PySide6
+```
+
+If either is missing, the kernel starts normally with the default event loop
+and logs an error.
+
+_This setting only applies when editing a notebook. When running as an app
+with `marimo run`, the kernel does not own the process's main thread, which
+GUI toolkits require, so the setting is ignored._
+
+!!! warning "Windows freeze while cells run"
+
+    The kernel can only service GUI events between cell runs. While a cell
+    (or a chain of reactive descendants) executes synchronous code, open GUI
+    windows will not repaint until execution finishes. If you interact with a
+    window to record results — marking data, annotating — gate the dependent
+    cells on a [`mo.ui.run_button`][marimo.ui.run_button] so they only run
+    when you are done.
+
 ## Environment variables
 
 ### .env files
