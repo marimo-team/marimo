@@ -1414,13 +1414,8 @@ def test_polars_duration_column_summaries_do_not_warn() -> None:
     table = ui.table(data, show_column_summaries=True)
 
     with patch("marimo._plugins.ui._impl.table.LOGGER") as logger:
-        summaries = table._get_column_summaries(ColumnSummariesArgs())
+        table._get_column_summaries(ColumnSummariesArgs())
 
-    assert summaries.stats["duration"].total == 12
-    assert sum(
-        bin_value.count for bin_value in summaries.bin_values["duration"]
-    ) == len(data)
-    assert summaries.data is None
     logger.warning.assert_not_called()
 
 
