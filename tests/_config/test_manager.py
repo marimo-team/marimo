@@ -213,6 +213,28 @@ def test_save_config_with_none_does_not_raise(tmp_path: Path) -> None:
     assert "be terse" in contents
 
 
+def test_user_config_drops_hollow_dotenv(tmp_path: Path) -> None:
+    """An empty runtime.dotenv on disk is a masked value, so it is ignored."""
+    config_path = tmp_path / "marimo.toml"
+    config_path.write_text("[runtime]\ndotenv = []\n")
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert "dotenv" not in config["runtime"]
+
+
+def test_user_config_keeps_populated_dotenv(tmp_path: Path) -> None:
+    config_path = tmp_path / "marimo.toml"
+    dotenv = tmp_path / ".env.user"
+    config_path.write_text(f'[runtime]\ndotenv = ["{dotenv.as_posix()}"]\n')
+    manager = UserConfigManager()
+    manager.get_config_path = lambda: str(config_path)  # type: ignore[method-assign]
+
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [dotenv.as_posix()]
+
+
 def test_drop_none_values_strips_nested_none() -> None:
     from marimo._config.manager import _drop_none_values
 
@@ -354,6 +376,238 @@ def test_project_config_default_dotenv(tmp_path: Path) -> None:
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
+def test_project_config_dotenv_without_pyproject(tmp_path: Path) -> None:
+    # Standalone notebooks (e.g. PEP 723 sandboxes) have no pyproject.toml to
+    # anchor on, so the dotenv default resolves next to the notebook.
+    notebook_path = tmp_path / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_project_config_dotenv_without_pyproject_directory(
+    tmp_path: Path,
+) -> None:
+    manager = get_default_config_manager(current_path=str(tmp_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
+    # When a pyproject.toml exists, it stays the anchor even if the notebook
+    # lives in a subdirectory.
+    (tmp_path / "pyproject.toml").write_text("")
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    notebook_path = notebooks / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
+
+
+def _write_dotenv_project(tmp_path: Path, dotenv_entries: str) -> Path:
+    """Write a project with runtime.dotenv set, return its notebook path."""
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    (project / "pyproject.toml").write_text(
+        textwrap.dedent(
+            f"""
+            [tool.marimo.runtime]
+            dotenv = [{dotenv_entries}]
+            """
+        )
+    )
+    notebook_path = project / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+    return notebook_path
+
+
+def test_project_config_dotenv_rejects_absolute_path_outside_project(
+    tmp_path: Path,
+) -> None:
+    # A pyproject.toml travels with a cloned repository, so an entry reaching
+    # out of the project is dropped. In-project entries survive alongside it.
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(
+        tmp_path, f'".env", "{outside.as_posix()}"'
+    )
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_config_dotenv_rejects_escaping_relative_path(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(tmp_path, '"../credentials"')
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == []
+
+
+def test_project_config_dotenv_rejects_symlink_out_of_project(
+    tmp_path: Path,
+) -> None:
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
+    config_dir = notebook_path.parent / "config"
+    config_dir.mkdir()
+    try:
+        (config_dir / ".env").symlink_to(outside)
+    except OSError:
+        pytest.skip("Cannot create symlinks on this system")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == []
+
+
+def test_project_config_dotenv_allows_subdirectory(tmp_path: Path) -> None:
+    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
+    config_dir = notebook_path.parent / "config"
+    config_dir.mkdir()
+    (config_dir / ".env").write_text("KEY=value")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(config_dir / ".env")]
+
+
+def _isolate_user_config(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, contents: str
+) -> None:
+    """Point the user configuration at a temporary marimo.toml."""
+    config_path = tmp_path / "user" / "marimo.toml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(textwrap.dedent(contents))
+    monkeypatch.setattr(
+        "marimo._config.manager.get_or_create_user_config_path",
+        lambda: str(config_path),
+    )
+
+
+def _write_notebook(tmp_path: Path, *, with_pyproject: bool) -> Path:
+    """Write a notebook, under a pyproject.toml that says nothing about dotenv."""
+    project = tmp_path / "project"
+    project.mkdir()
+    if with_pyproject:
+        (project / "pyproject.toml").write_text(
+            textwrap.dedent(
+                """
+                [tool.marimo.formatting]
+                line_length = 100
+                """
+            )
+        )
+    notebook_path = project / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+    return notebook_path
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_user_config_dotenv_beats_the_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    # The default is resolved from the notebook location, so it must not
+    # outrank a dotenv the user wrote in their own configuration.
+    outside = tmp_path / "outside" / ".env"
+    outside.parent.mkdir()
+    outside.write_text("KEY=value")
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        f"""
+        [runtime]
+        dotenv = ["{outside.as_posix()}"]
+        """,
+    )
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [outside.as_posix()]
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_default_dotenv_applies_with_an_empty_user_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_default_dotenv_applies_over_a_hollow_user_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # marimo 0.18 and earlier wrote the masked (emptied) dotenv back to disk.
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        """
+        [runtime]
+        dotenv = []
+        """,
+    )
+    notebook_path = _write_notebook(tmp_path, with_pyproject=False)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_dotenv_beats_user_config_and_stays_contained(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path / "outside" / ".env"
+    outside.parent.mkdir()
+    outside.write_text("KEY=value")
+    _isolate_user_config(
+        monkeypatch,
+        tmp_path,
+        f"""
+        [runtime]
+        dotenv = ["{outside.as_posix()}"]
+        """,
+    )
+    notebook_path = _write_dotenv_project(
+        tmp_path, f'".env", "{outside.as_posix()}"'
+    )
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    # The pyproject.toml wins over the user configuration, and its entry
+    # reaching outside the project is still dropped.
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+@pytest.mark.parametrize("with_pyproject", [True, False])
+def test_default_dotenv_is_not_a_config_override(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, with_pyproject: bool
+) -> None:
+    # The editor greys out settings reported here, so a default nobody wrote
+    # must not appear.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    notebook_path = _write_notebook(tmp_path, with_pyproject=with_pyproject)
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    overrides = manager.get_config_overrides(hide_secrets=False)
+    assert "runtime" not in overrides
+
+
 def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     # Create a notebook file with script metadata
     notebook_path = tmp_path / "notebook.py"
@@ -386,16 +640,16 @@ def test_project_config_manager_with_script_metadata(tmp_path: Path) -> None:
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config_overrides(hide_secrets=False)
 
-    # Verify that script metadata takes precedence over pyproject.toml
+    # Verify that script metadata takes precedence over pyproject.toml.
+    # runtime.dotenv is absent: neither file sets it, and the default the
+    # project computes is not an override, so the editor does not grey the
+    # setting out.
     assert config == {
         "formatting": {"line_length": 79},  # From script metadata
         "save": {
             "autosave_delay": 1000,  # From script metadata
             "format_on_save": True,  # From pyproject.toml
             "autosave": "after_delay",  # From pyproject.toml
-        },
-        "runtime": {
-            "dotenv": [str(tmp_path / ".env")],
         },
     }
 
@@ -431,6 +685,55 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
         "formatting": {"line_length": 79},
         "save": {"autosave_delay": 1000},
     }
+
+
+def test_script_config_manager_dotenv_stays_in_project(
+    tmp_path: Path,
+) -> None:
+    project = tmp_path / "project"
+    project.mkdir()
+    (project / "pyproject.toml").touch()
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = project / "notebook.py"
+    notebook_content = f'''
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "{outside.as_posix()}"]
+    # ///
+    import marimo as mo
+    '''
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [str(project / ".env")]
+
+
+def test_script_config_manager_dotenv_stays_next_to_standalone_notebook(
+    tmp_path: Path,
+) -> None:
+    notebook_dir = tmp_path / "notebook"
+    notebook_dir.mkdir()
+    outside = tmp_path / "credentials"
+    outside.write_text("aws_secret_access_key = hunter2")
+    notebook_path = notebook_dir / "notebook.py"
+    notebook_content = f'''
+    # /// script
+    # [tool.marimo.runtime]
+    # dotenv = [".env", "{outside.as_posix()}"]
+    # ///
+    import marimo as mo
+    '''
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+
+    assert config["runtime"]["dotenv"] == [str(notebook_dir / ".env")]
 
 
 def test_script_config_manager_invalid_toml(tmp_path: Path) -> None:
