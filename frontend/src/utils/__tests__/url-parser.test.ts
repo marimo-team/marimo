@@ -98,4 +98,23 @@ describe("parseContent", () => {
       { type: "url", url: "https://github.com" },
     ]);
   });
+
+  it("stops at JSON delimiters instead of swallowing them (#10567)", () => {
+    const parts = parseContent(
+      '[{"name":"inv.pdf","url":"https://example.com/p/AAA"}]',
+    );
+    expect(parts).toEqual([
+      { type: "text", value: '[{"name":"inv.pdf","url":"' },
+      { type: "url", url: "https://example.com/p/AAA" },
+      { type: "text", value: '"}]' },
+    ]);
+  });
+
+  it("does not include a trailing double-quote in the href", () => {
+    const parts = parseContent('"https://example.com/x"');
+    expect(parts).toContainEqual({
+      type: "url",
+      url: "https://example.com/x",
+    });
+  });
 });
