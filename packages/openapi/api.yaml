@@ -123,16 +123,20 @@ components:
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
         `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
-        \    - `models`: the models to use for AI completions\n    - `open_ai`: the\
-        \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
-        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
-        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `opencode_go`: the OpenCode Go config\n\
-        \    - `custom_providers`: a dict of custom OpenAI-compatible providers\n\
-        \    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use\
-        \ custom_providers)"
+        \    - `allow_provider_config`: if `False`, lock provider setup in the settings\
+        \ UI, making them read-only. Users cannot bring their own credentials or add\
+        \ custom providers. Default `True`.\n    - `models`: the models to use for\
+        \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
+        \ Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
+        \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
+        \ Ollama config\n    - `github`: the GitHub config\n    - `openrouter`: the\
+        \ OpenRouter config\n    - `wandb`: the Weights & Biases config\n    - `opencode_go`:\
+        \ the OpenCode Go config\n    - `custom_providers`: a dict of custom OpenAI-compatible\
+        \ providers\n    - `open_ai_compatible`: the OpenAI-compatible config (deprecated,\
+        \ use custom_providers)"
       properties:
+        allow_provider_config:
+          type: boolean
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
         azure:
