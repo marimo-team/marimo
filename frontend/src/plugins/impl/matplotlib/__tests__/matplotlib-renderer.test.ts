@@ -382,4 +382,36 @@ describe("MatplotlibRenderer", () => {
     expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 100, 100);
     controller.abort();
   });
+
+  it("scales each axis by its own backing-store ratio", () => {
+    const ctx = createRecordingContext();
+    stubBrowser(ctx);
+    // Load images synchronously; jsdom does not fetch them.
+    vi.stubGlobal(
+      "Image",
+      class {
+        onload: (() => void) | null = null;
+        set src(_value: string) {
+          this.onload?.();
+        }
+      },
+    );
+    // canvas.width/height are integers, so this truncates the two dimensions
+    // by different fractions: 150 * 1.25 -> 187 (0.5 lost), 500 * 1.25 -> 625
+    // (exact). One shared, width-derived scale would under-cover the buffer
+    // vertically and leave its bottom rows unwiped.
+    vi.stubGlobal("devicePixelRatio", 1.25);
+
+    const state = { ...createState(), width: 150, height: 500 };
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    new MatplotlibRenderer(container, { state, signal: controller.signal });
+
+    const canvas = container.querySelector("canvas");
+    expect(canvas?.width).toBe(187);
+    expect(canvas?.height).toBe(625);
+    expect(ctx.setTransform).toHaveBeenCalledWith(187 / 150, 0, 0, 1.25, 0, 0);
+    expect(ctx.clearRect).toHaveBeenCalledWith(0, 0, 150, 500);
+    controller.abort();
+  });
 });

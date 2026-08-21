@@ -353,11 +353,16 @@ export class MatplotlibRenderer {
   /**
    * Scale to draw at, read back from the buffer rather than from
    * `devicePixelRatio`, so sizing and drawing cannot disagree (#10625).
+   * Per-axis: `canvas.width`/`height` are integers, so a fractional DPR
+   * truncates each dimension by a different fraction of a device pixel.
    */
-  get #backingScale(): number {
-    const { width } = this.#state;
+  get #backingScale(): { x: number; y: number } {
+    const { width, height } = this.#state;
     const dpr = globalThis.devicePixelRatio ?? 1;
-    return width > 0 ? this.#canvas.width / width : dpr;
+    return {
+      x: width > 0 ? this.#canvas.width / width : dpr,
+      y: height > 0 ? this.#canvas.height / height : dpr,
+    };
   }
 
   /**
@@ -445,7 +450,7 @@ export class MatplotlibRenderer {
     const ctx = this.#canvas.getContext("2d");
     if (ctx) {
       const scale = this.#backingScale;
-      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.setTransform(scale.x, 0, 0, scale.y, 0, 0);
       ctx.clearRect(0, 0, this.#state.width, this.#state.height);
     }
 
@@ -476,7 +481,7 @@ export class MatplotlibRenderer {
 
     // Scale for HiDPI: all coordinates remain in logical pixels
     const scale = this.#backingScale;
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    ctx.setTransform(scale.x, 0, 0, scale.y, 0, 0);
 
     // Clear and draw the base image
     ctx.clearRect(0, 0, s.width, s.height);
