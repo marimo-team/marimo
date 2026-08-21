@@ -10,7 +10,11 @@ import pytest
 
 from marimo._data.models import Database, DataTable, DataTableColumn, Schema
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._sql.engines.sqlalchemy import SQLAlchemyEngine, safe_execute
+from marimo._sql.engines.sqlalchemy import (
+    SQLAlchemyEngine,
+    _index_by_table_name,
+    safe_execute,
+)
 from marimo._sql.engines.types import (
     EngineCatalog,
     QueryEngine,
@@ -106,6 +110,50 @@ def sqlite_engine_meta() -> sa.Engine:
         "INSERT INTO information_schema.tables VALUES ('tables')",
         engine=engine,
     )
+
+    return engine
+
+
+@pytest.fixture
+def sqlite_engine_with_view() -> sa.Engine:
+    """Create a SQLite database with tables and views in two schemas."""
+
+    import sqlalchemy as sa
+    from sqlalchemy import text
+
+    engine = sa.create_engine("sqlite:///:memory:")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                CREATE TABLE test (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text("CREATE VIEW test_view AS SELECT id, name FROM test")
+        )
+        conn.execute(text("ATTACH ':memory:' AS my_schema"))
+        conn.execute(
+            text(
+                """
+                CREATE TABLE my_schema.test2 (
+                    id INTEGER PRIMARY KEY,
+                    name TEXT
+                )
+                """
+            )
+        )
+        conn.execute(
+            text(
+                "CREATE VIEW my_schema.test2_view AS "
+                "SELECT id, name FROM my_schema.test2"
+            )
+        )
 
     return engine
 
@@ -304,6 +352,14 @@ def get_expected_schema(schema_name: str, table_name: str) -> Schema:
     )
 
 
+def get_expected_view(view_name: str) -> DataTable:
+    "Expected reflection of a view over a `get_expected_table` table."
+    view = get_expected_table(view_name)
+    view.type = "view"
+    view.primary_keys = []
+    return view
+
+
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_sqlalchemy_engine_get_table_details(sqlite_engine: sa.Engine) -> None:
     """Test SQLAlchemyEngine get_table method."""
@@ -386,6 +442,120 @@ def test_sqlalchemy_engine_get_tables_in_schema(
     assert len(tables) == 1
     expected_table = get_expected_table("test", False)
     assert tables[0] == expected_table
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_sqlalchemy_engine_get_tables_with_views(
+    sqlite_engine_with_view: sa.Engine,
+) -> None:
+    """Views keep type='view' and full details on the batched path."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_with_view, engine_name=VariableName("test_sqlite")
+    )
+    tables = engine.get_tables_in_schema(
+        schema="main", database=UNUSED_DB_NAME, include_table_details=True
+    )
+    assert tables == [
+        get_expected_table("test"),
+        get_expected_view("test_view"),
+    ]
+
+    tables = engine.get_tables_in_schema(
+        schema="my_schema",
+        database=UNUSED_DB_NAME,
+        include_table_details=True,
+    )
+    assert tables == [
+        get_expected_table("test2"),
+        get_expected_view("test2_view"),
+    ]
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_match_per_table_details(
+    sqlite_engine_with_view: sa.Engine,
+) -> None:
+    """Batched reflection returns the same tables as per-table reflection."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine_with_view, engine_name=VariableName("test_sqlite")
+    )
+    batched = engine.get_tables_in_schema(
+        schema="main", database=UNUSED_DB_NAME, include_table_details=True
+    )
+    with mock.patch.object(
+        engine, "_get_batched_table_details", return_value=None
+    ):
+        per_table = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert batched == per_table
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_avoid_per_table_reflection(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """No per-table reflection runs when the batch covers every table."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with mock.patch.object(
+        engine, "_get_columns", wraps=engine._get_columns
+    ) as spy:
+        tables = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == [get_expected_table("test")]
+    spy.assert_not_called()
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_fall_back_when_multi_reflection_raises(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """A failing batch logs one warning and falls back per table."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with (
+        mock.patch.object(
+            engine.inspector,
+            "get_multi_columns",
+            side_effect=RuntimeError("boom"),
+        ),
+        mock.patch("marimo._sql.engines.sqlalchemy.LOGGER") as mock_logger,
+    ):
+        tables = engine.get_tables_in_schema(
+            schema="main",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == [get_expected_table("test")]
+    mock_logger.warning.assert_called_once_with(
+        "Failed to get batched table details", exc_info=True
+    )
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_nonexistent_schema_skips_batched_reflection(
+    sqlite_engine: sa.Engine,
+) -> None:
+    """A schema with no tables returns [] without attempting a batch."""
+    engine = SQLAlchemyEngine(
+        sqlite_engine, engine_name=VariableName("test_sqlite")
+    )
+    with mock.patch.object(engine, "_get_batched_table_details") as batched:
+        tables = engine.get_tables_in_schema(
+            schema="non_existent",
+            database=UNUSED_DB_NAME,
+            include_table_details=True,
+        )
+    assert tables == []
+    batched.assert_not_called()
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -874,6 +1044,10 @@ def make_engine():
         rows=None,
         pk_constraint=None,
         indexes=None,
+        multi_columns=None,
+        multi_pk_constraint=None,
+        multi_indexes=None,
+        supports_multi=True,
         inspector=True,
     ):
         if columns is None:
@@ -907,6 +1081,23 @@ def make_engine():
                 "constrained_columns": []
             }
             mock_inspector.get_indexes.return_value = indexes or []
+            if supports_multi:
+                # Empty dicts by default so tests exercise the per-table
+                # fallback instead of passing on bare MagicMock returns.
+                mock_inspector.get_multi_columns.return_value = (
+                    multi_columns or {}
+                )
+                mock_inspector.get_multi_pk_constraint.return_value = (
+                    multi_pk_constraint or {}
+                )
+                mock_inspector.get_multi_indexes.return_value = (
+                    multi_indexes or {}
+                )
+            else:
+                # Simulate SQLAlchemy < 2.0, where hasattr(...) is False
+                del mock_inspector.get_multi_columns
+                del mock_inspector.get_multi_pk_constraint
+                del mock_inspector.get_multi_indexes
 
         # -- Mock SQLAlchemy engine --
         mock_sa_engine = mock.MagicMock()
@@ -930,9 +1121,11 @@ def make_engine():
         # Uses *_args, **_kwargs to match any signature the real
         # method may have (e.g. database parameter) without
         # global side effects.
+        inspector_contexts = []
+
         @contextmanager
         def fake_get_inspector(database=None):
-            _ = database  # ignore parameter
+            inspector_contexts.append(database)
             yield mock_inspector
 
         engine._get_inspector = fake_get_inspector
@@ -940,6 +1133,7 @@ def make_engine():
         # Expose mocks for test assertions
         engine._mock_inspector = mock_inspector
         engine._mock_conn = mock_conn
+        engine._mock_inspector_contexts = inspector_contexts
 
         return engine
 
@@ -1140,6 +1334,129 @@ def test_fetch_indexes_no_inspector(make_engine):
     engine = make_engine(inspector=False)
     result = engine._fetch_indexes("users", schema="public", database="MY_DB")
     assert result == []
+
+
+# ------------------------------------------------------------------ #
+#  _get_batched_table_details
+# ------------------------------------------------------------------ #
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_uses_multi_reflection(make_engine):
+    """Details come from get_multi_* calls on a single inspector."""
+    import sqlalchemy as sa
+    from sqlalchemy.engine.reflection import ObjectKind, ObjectScope
+
+    engine = make_engine(
+        table_names=["users"],
+        view_names=["active_users"],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}],
+            ("public", "active_users"): [{"name": "id", "type": sa.INTEGER()}],
+        },
+        multi_pk_constraint={
+            ("public", "users"): {"constrained_columns": ["id"]}
+        },
+        multi_indexes={
+            ("public", "users"): [{"column_names": ["id"], "name": "idx"}]
+        },
+    )
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [(t.name, t.type) for t in tables] == [
+        ("users", "table"),
+        ("active_users", "view"),
+    ]
+    assert tables[0].primary_keys == ["id"]
+    assert tables[0].indexes == ["id"]
+    # Missing PK/index entries fall back to [] like per-table reflection
+    assert tables[1].primary_keys == []
+    assert tables[1].indexes == []
+
+    for multi_method in (
+        engine._mock_inspector.get_multi_columns,
+        engine._mock_inspector.get_multi_pk_constraint,
+        engine._mock_inspector.get_multi_indexes,
+    ):
+        multi_method.assert_called_once_with(
+            schema="public",
+            filter_names=["users", "active_users"],
+            kind=ObjectKind.ANY,
+            scope=ObjectScope.ANY,
+        )
+    engine._mock_inspector.get_columns.assert_not_called()
+    engine._mock_inspector.get_pk_constraint.assert_not_called()
+    engine._mock_inspector.get_indexes.assert_not_called()
+    # One inspector context for names + one for the whole batch
+    assert len(engine._mock_inspector_contexts) == 2
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_without_multi_support(make_engine):
+    """Inspectors without get_multi_* fall back per table, silently."""
+    import sqlalchemy as sa
+
+    engine = make_engine(
+        table_names=["users"],
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        pk_constraint={"constrained_columns": ["id"]},
+        supports_multi=False,
+    )
+    with mock.patch("marimo._sql.engines.sqlalchemy.LOGGER") as mock_logger:
+        tables = engine.get_tables_in_schema(
+            schema="public", database="MY_DB", include_table_details=True
+        )
+
+    assert [(t.name, t.type) for t in tables] == [("users", "table")]
+    assert tables[0].primary_keys == ["id"]
+    engine._mock_inspector.get_columns.assert_called_once_with(
+        "users", schema="public"
+    )
+    mock_logger.warning.assert_not_called()
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_straggler_falls_back_per_table(make_engine):
+    """A table missing from the batch is fetched per table."""
+    import sqlalchemy as sa
+
+    engine = make_engine(
+        table_names=["users", "orders"],
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}]
+        },
+    )
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [t.name for t in tables] == ["users", "orders"]
+    engine._mock_inspector.get_columns.assert_called_once_with(
+        "orders", schema="public"
+    )
+
+
+# ------------------------------------------------------------------ #
+#  _index_by_table_name (module-level, no mocking needed)
+# ------------------------------------------------------------------ #
+
+
+def test_index_by_table_name():
+    reflected = {
+        ("main", "users"): [{"name": "id"}],
+        (None, "orders"): [{"name": "total"}],
+    }
+    assert _index_by_table_name(reflected) == {
+        "users": [{"name": "id"}],
+        "orders": [{"name": "total"}],
+    }
+
+
+def test_index_by_table_name_empty():
+    assert _index_by_table_name({}) == {}
 
 
 # ------------------------------------------------------------------ #
