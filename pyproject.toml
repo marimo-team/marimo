@@ -382,7 +382,6 @@ ignore = [
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
     "S112", # `try`-`except`-`continue`
-    "TRY203", # Useless `try`-`except`
     "PLC0105", # Type name incorrect variance
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
