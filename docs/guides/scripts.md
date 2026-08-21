@@ -1,5 +1,13 @@
 # Run as a script
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/jqYAWBmnEtU"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 You can run marimo notebooks as scripts at the command line, just like
 any other Python script. For example,
 

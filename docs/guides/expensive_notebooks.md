@@ -4,6 +4,14 @@ marimo provides tools to control when cells run. Use these tools to
 prevent expensive cells, which may call APIs or take a long time to run, from
 accidentally running.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/G0eX4JWzlJQ"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 ## Stop execution with `mo.stop`
 
 Use [`mo.stop`][marimo.stop] to stop a cell from executing if a condition

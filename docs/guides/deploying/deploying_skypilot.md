@@ -7,6 +7,14 @@
 
 marimo notebooks work exceptionally well with SkyPilot because they are stored as pure Python scripts and can be run both interactively and as batch jobs. With marimo's built-in `uv` integration, your notebooks are fully reproducible across different environments.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/JCVzYz8PrRQ"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 ## Interactive Development
 
 For interactive development with marimo on a SkyPilot cluster, you can launch a cluster and connect to it with SSH port forwarding.

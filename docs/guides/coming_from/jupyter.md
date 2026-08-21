@@ -3,6 +3,14 @@
 If you're coming from Jupyter, here are a few tips to help you adapt to marimo
 notebooks.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/Fqw__x3P_VY"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 !!! tip "AI-assisted conversion"
 
     If you use an AI coding agent, the

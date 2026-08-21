@@ -6,6 +6,14 @@ When you make edits to Python modules that your notebook has imported, the
 module autoreloader will automatically mark cells that use them as stale and,
 optionally, automatically run them.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/81ILGuQdQ8g"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 !!! question "Why autoreload?"
 
     Autoreloading enables a workflow that many developers find

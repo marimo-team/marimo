@@ -10,6 +10,14 @@ the query result back as a Python dataframe.
 
 > For a video overview on how to use SQL in marimo, watch our [YouTube tutorial](https://youtu.be/IHEf5HwU7R0).
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/IHEf5HwU7R0"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
+
 To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
