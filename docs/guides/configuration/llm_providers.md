@@ -104,6 +104,9 @@ api_key = "sk-proj-..."
 !!! note "OpenAI-compatible providers"
     If your model does not start with `openai/`, it will not be routed to the OpenAI config, and likely will be routed to the OpenAI-compatible config.
 
+> **Tip:** The same `base_url` pattern works with any OpenAI-compatible multi-model gateway — point `base_url` at the gateway's OpenAI-compatible endpoint and use the API key it issues.
+
+
 ??? tip "Reasoning models (o1, o3, etc.)"
     These models can incur higher costs due to separate reasoning tokens. Prefer smaller responses for refactors or autocompletion, and review your provider limits.
 
