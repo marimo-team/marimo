@@ -1256,8 +1256,16 @@ class table(
                     continue
                 except BaseException as e:
                     bin_aggregation_failed = True
-                    LOGGER.warning(
-                        "Failed to get bin values for column %s: %s", column, e
+                    # Duration/timedelta bins are unsupported by the charting
+                    # path, so this expected failure does not emit a warning.
+                    is_duration = external_type.startswith(
+                        ("duration", "timedelta", "interval")
+                    )
+                    log = LOGGER.debug if is_duration else LOGGER.warning
+                    log(
+                        "Failed to get bin values for column %s: %s",
+                        column,
+                        e,
                     )
 
         should_fallback = show_charts and bin_aggregation_failed
