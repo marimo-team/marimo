@@ -367,7 +367,7 @@ def test_checkbox_init() -> None:
 
 def test_checkbox_rejects_non_bool_value() -> None:
     # `checkbox` is typed `UIElement[bool, bool]`; a non-bool value must raise
-    # (consistently with `mo.ui.switch`) instead of being silently accepted.
+    # instead of being silently accepted.
     for bad in ("yes", 1, 0, [], None):
         with pytest.raises(ValueError, match="must be a bool"):
             ui.checkbox(value=bad)
