@@ -11,6 +11,7 @@ from urllib.parse import urlparse
 import narwhals.stable.v2 as nw
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.mime import guess_mime_type as guess_mime_type_from_path
 from marimo._utils.narwhals_utils import can_narwhalify
 
 if TYPE_CHECKING:
@@ -30,13 +31,13 @@ def guess_mime_type(
         return src.split(";")[0].split(":")[1]
 
     if isinstance(src, str):
-        return mimetypes.guess_type(src)[0]
+        return guess_mime_type_from_path(src)
 
     if isinstance(src, io.FileIO):
-        return mimetypes.guess_type(src.name)[0]
+        return guess_mime_type_from_path(src.name)
 
     if isinstance(src, io.BufferedReader):
-        return mimetypes.guess_type(src.name)[0]
+        return guess_mime_type_from_path(src.name)
 
     return None
 

@@ -252,6 +252,21 @@ class TestObstore:
             )
         )
 
+    def test_create_storage_entry_with_toml(self) -> None:
+        backend = self._make_backend(MagicMock())
+
+        entry = backend._create_storage_entry(
+            {
+                "path": "pyproject.toml",
+                "size": 100,
+                "last_modified": None,
+                "e_tag": None,
+                "version": None,
+            }
+        )
+
+        assert entry.mime_type == "application/toml"
+
     async def test_get_entry(self) -> None:
         now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
         mock_store = MagicMock()
@@ -1022,6 +1037,19 @@ class TestFsspecFilesystem:
                 mime_type="text/csv",
             )
         )
+
+    def test_create_storage_entry_with_toml(self) -> None:
+        backend = self._make_backend(MagicMock())
+
+        entry = backend._create_storage_entry(
+            {
+                "name": "pyproject.toml",
+                "size": 100,
+                "type": "file",
+            }
+        )
+
+        assert entry.mime_type == "application/toml"
 
     def test_create_storage_entry_includes_id(self) -> None:
         # Backends such as Google Drive allow duplicate paths, so the stable
