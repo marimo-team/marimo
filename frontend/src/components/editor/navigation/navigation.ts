@@ -666,8 +666,6 @@ export function useCellNavigationProps(
 
   return mergeProps(focusWithinProps, keyboardProps, {
     "data-selected": isSelected,
-    className:
-      "data-[selected=true]:ring-1 data-[selected=true]:ring-(--blue-8) data-[selected=true]:ring-offset-1",
   });
 }
 

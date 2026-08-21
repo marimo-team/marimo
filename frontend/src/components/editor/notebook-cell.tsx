@@ -26,9 +26,15 @@ import { StopButton } from "@/components/editor/cell/StopButton";
 import { Toolbar, ToolbarItem } from "@/components/editor/cell/toolbar";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
+import { outputIsLoading } from "@/core/cells/cell";
 import { isOutputEmpty } from "@/core/cells/outputs";
 import { useIsPendingCut } from "@/core/cells/pending-cut-service";
+import {
+  cellStateDataAttributes,
+  deriveCellSemanticState,
+  type CellSemanticState,
+  presentCellState,
+} from "@/core/cells/semantic-state";
 import { autocompletionKeymap } from "@/core/codemirror/cm";
 import { clearCellBreakpoints } from "@/core/codemirror/cells/debugger-state";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
@@ -41,7 +47,6 @@ import { useRequestClient } from "@/core/network/requests";
 import type { CellConfig, RuntimeState } from "@/core/network/types";
 import { useResizeObserver } from "@/hooks/useResizeObserver";
 import { cn } from "@/utils/cn";
-import type { Milliseconds, Seconds } from "@/utils/time";
 import {
   type CellActions,
   createUntouchedCellAtom,
@@ -52,9 +57,6 @@ import {
 } from "../../core/cells/cells";
 import { type CellId, SETUP_CELL_ID } from "../../core/cells/ids";
 import {
-  cellNeedsRun,
-  cellStatusClasses,
-  isUninstantiated,
   publishedCellClasses,
   shouldHidePublishedCell,
 } from "../../core/cells/utils";
@@ -65,7 +67,7 @@ import type { Theme } from "../../theme/useTheme";
 import { Functions } from "../../utils/functions";
 import { Logger } from "../../utils/Logger";
 import { renderShortcut } from "../shortcuts/renderShortcut";
-import { CellStatusComponent } from "./cell/CellStatus";
+import { CellStatusComponent, type CellStatusDisplay } from "./cell/CellStatus";
 import { CreateCellButton } from "./cell/CreateCellButton";
 import {
   CellActionsDropdown,
@@ -93,6 +95,8 @@ import {
 import { type OnRefactorWithAI, OutputArea } from "./Output";
 import { ConsoleOutput } from "./output/console/ConsoleOutput";
 import { CellDragHandle, SortableCell } from "./SortableCell";
+
+const MAX_INLINE_MARKDOWN_CONTROLS_HEIGHT = 68;
 
 /**
  * Hook for handling cell completion logic
@@ -267,6 +271,8 @@ export interface CellProps {
    * The number of cells in the column.
    */
   collapseCount: number;
+  /** Density of the status badge for the surrounding notebook layout. */
+  statusDisplay?: CellStatusDisplay;
 }
 
 const CellComponent = (props: CellProps) => {
@@ -360,8 +366,7 @@ const ReadonlyCellComponent = forwardRef(
           className={CSSClasses.outputArea}
           cellId={cellId}
           output={cellRuntime.output}
-          stale={outputIsStale(cellRuntime, cellData.edited)}
-          loading={outputIsLoading(cellRuntime.status)}
+          state={deriveCellSemanticState(cellData, cellRuntime).mainOutput}
         />
       </div>
     );
@@ -379,6 +384,7 @@ const EditableCellComponent = ({
   isCollapsed,
   collapseCount,
   canMoveX,
+  statusDisplay = "full",
   editorView,
   setEditorView,
 }: CellProps & {
@@ -403,21 +409,9 @@ const EditableCellComponent = ({
 
   const [languageAdapter, setLanguageAdapter] = useState<LanguageAdapterType>();
 
-  const uninstantiated = isUninstantiated({
-    executionTime: cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
-    status: cellRuntime.status,
-    errored: cellRuntime.errored,
-    interrupted: cellRuntime.interrupted,
-    stopped: cellRuntime.stopped,
-  });
-
-  const needsRun = cellNeedsRun({
-    edited: cellData.edited,
-    interrupted: cellRuntime.interrupted,
-    staleInputs: cellRuntime.staleInputs,
-    disabled: cellData.config.disabled,
-    status: cellRuntime.status,
-  });
+  const semanticState = deriveCellSemanticState(cellData, cellRuntime);
+  const presentation = presentCellState(semanticState);
+  const needsRun = semanticState.needsRun;
 
   const loading = outputIsLoading(cellRuntime.status);
 
@@ -445,11 +439,7 @@ const EditableCellComponent = ({
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
-  const consoleOutputStale =
-    (cellRuntime.status === "queued" ||
-      cellData.edited ||
-      cellRuntime.staleInputs) &&
-    !cellRuntime.interrupted;
+  const consoleOutputStale = semanticState.consoleOutput !== "current";
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
@@ -484,18 +474,12 @@ const EditableCellComponent = ({
   const hasOutput = !isOutputEmpty(cellRuntime.output);
   // While presenting, pending edits do not dim the output as stale,
   // matching the read view.
-  const isStaleCell = outputIsStale(
-    cellRuntime,
-    cellData.edited && !isPresenting,
-  );
+  const isStaleCell = !isPresenting && semanticState.mainOutput !== "current";
   const hasConsoleOutput = cellRuntime.consoleOutputs.length > 0;
   const cellOutput = userConfig.display.cell_output;
 
   const hasOutputAbove = hasOutput && cellOutput === "above";
 
-  // If the cell is too short, we need to position some icons inline to prevent overlaps.
-  // This can only happen to markdown cells when the code is hidden completely
-  const [isCellStatusInline, setIsCellStatusInline] = useState(false);
   const [isCellButtonsInline, setIsCellButtonsInline] = useState(false);
 
   // For markdown cells, get the inner content directly from the editor
@@ -507,12 +491,13 @@ const EditableCellComponent = ({
     ref: cellContainerRef,
     skip: !isMarkdown,
     onResize: (size) => {
-      const cellTooShort = size.height && size.height < 68;
-      const shouldBeInline =
+      const cellTooShort = Boolean(
+        size.height && size.height < MAX_INLINE_MARKDOWN_CONTROLS_HEIGHT,
+      );
+      const shouldMarkdownControlsBeInline =
         isMarkdownCodeHidden && (cellTooShort || cellOutput === "below");
-      setIsCellStatusInline(shouldBeInline);
 
-      if (canCollapse && shouldBeInline) {
+      if (canCollapse && shouldMarkdownControlsBeInline) {
         setIsCellButtonsInline(true);
       } else if (isCellButtonsInline) {
         setIsCellButtonsInline(false);
@@ -571,8 +556,7 @@ const EditableCellComponent = ({
         className={CSSClasses.outputArea}
         cellId={cellId}
         output={cellRuntime.output}
-        stale={isStaleCell}
-        loading={outputIsLoading(cellRuntime.status)}
+        state={isPresenting ? "current" : semanticState.mainOutput}
       />
     </div>
   );
@@ -589,13 +573,10 @@ const EditableCellComponent = ({
       : {
           "z-10": true,
           interactive: true,
-          ...cellStatusClasses({
-            needsRun,
-            errored: cellRuntime.errored,
-            stopped: cellRuntime.stopped,
-            disabled: cellData.config.disabled,
-            status: cellRuntime.status,
-          }),
+          "cell-active": presentation.emphasis === "active",
+          "cell-failed": presentation.emphasis === "failed",
+          "cell-paused": semanticState.availability.kind === "paused",
+          "cell-blocked": semanticState.availability.kind === "blocked",
           borderless:
             isMarkdownCodeHidden &&
             hasOutput &&
@@ -617,15 +598,10 @@ const EditableCellComponent = ({
   // TODO(akshayka): Move to our own Tooltip component once it's easier
   // to get the tooltip to show next to the cursor ...
   // https://github.com/radix-ui/primitives/discussions/1090
-  const renderCellTitle = () => {
-    if (cellData.config.disabled) {
-      return "This cell is disabled";
-    }
-    if (cellRuntime.status === "disabled-transitively") {
-      return "This cell has a disabled ancestor";
-    }
-    return undefined;
-  };
+  const cellTitle =
+    semanticState.availability.kind === "enabled"
+      ? undefined
+      : presentation.accessibleLabel;
 
   const isToplevel = cellRuntime.serialization?.toLowerCase() === "valid";
 
@@ -646,7 +622,7 @@ const EditableCellComponent = ({
           canMoveX={canMoveX}
           disabled={isPresenting}
           hidden={presentHidden}
-          title={renderCellTitle()}
+          title={cellTitle}
         >
           <div
             tabIndex={-1}
@@ -659,6 +635,7 @@ const EditableCellComponent = ({
             )}
             ref={cellContainerRef}
             {...cellDomProps(cellId, cellData.name)}
+            {...cellStateDataAttributes(semanticState)}
           >
             {!isPresenting && (
               <CellLeftSideActions cellId={cellId} actions={actions} />
@@ -678,10 +655,10 @@ const EditableCellComponent = ({
               <StagedAICellBackground cellId={cellId} />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
-                  edited={cellData.edited}
                   status={cellRuntime.status}
                   cellConfig={cellData.config}
-                  needsRun={needsRun}
+                  state={semanticState}
+                  showPrimaryAction={presentation.showPrimaryAction}
                   hasOutput={hasOutput}
                   hasConsoleOutput={hasConsoleOutput}
                   cellActionDropdownRef={cellActionDropdownRef}
@@ -711,23 +688,15 @@ const EditableCellComponent = ({
                 setLanguageAdapter={setLanguageAdapter}
                 outputArea={cellOutput}
               />
-              {/* Unmounted while presenting: the status timer re-renders every
-                  frame for running cells. */}
+              {/* Unmounted while presenting because running status updates on
+                  an interval. */}
               {!isPresenting && (
                 <CellRightSideActions
                   className={cn(
                     isMarkdownCodeHidden && cellOutput === "below" && "top-14",
                   )}
-                  edited={cellData.edited}
-                  status={cellRuntime.status}
-                  isCellStatusInline={isCellStatusInline}
-                  uninstantiated={uninstantiated}
-                  disabled={cellData.config.disabled}
-                  runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
-                  runStartTimestamp={cellRuntime.runStartTimestamp}
-                  lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
-                  staleInputs={cellRuntime.staleInputs}
-                  interrupted={cellRuntime.interrupted}
+                  state={semanticState}
+                  display={statusDisplay}
                 />
               )}
               <div className="shoulder-bottom hover-action">
@@ -857,53 +826,19 @@ const EditableCellComponent = ({
 const CellRightSideActions = memo(
   (props: {
     className?: string;
-    disabled: boolean | undefined;
-    edited: boolean;
-    interrupted: boolean;
-    isCellStatusInline: boolean;
-    lastRunStartTimestamp: Seconds | null;
-    runElapsedTimeMs: Milliseconds | null;
-    runStartTimestamp: Seconds | null;
-    staleInputs: boolean;
-    status: RuntimeState;
-    uninstantiated: boolean;
+    state: CellSemanticState;
+    display: CellStatusDisplay;
   }) => {
-    const {
-      className,
-      disabled = false,
-      edited,
-      interrupted,
-      isCellStatusInline,
-      lastRunStartTimestamp,
-      runElapsedTimeMs,
-      runStartTimestamp,
-      staleInputs,
-      status,
-      uninstantiated,
-    } = props;
+    const { className, state, display } = props;
 
     const cellStatusComponent = (
-      <CellStatusComponent
-        status={status}
-        staleInputs={staleInputs}
-        interrupted={interrupted}
-        editing={true}
-        edited={edited}
-        disabled={disabled}
-        elapsedTime={runElapsedTimeMs}
-        runStartTimestamp={runStartTimestamp}
-        uninstantiated={uninstantiated}
-        lastRunStartTimestamp={lastRunStartTimestamp}
-      />
+      <CellStatusComponent state={state} editing={true} display={display} />
     );
 
     return (
       <div className={cn("shoulder-right z-20", className)}>
-        {!isCellStatusInline && cellStatusComponent}
-        <div className="flex gap-2 items-end">
-          <CellDragHandle />
-          {isCellStatusInline && cellStatusComponent}
-        </div>
+        {cellStatusComponent}
+        <CellDragHandle />
       </div>
     );
   },
@@ -964,10 +899,10 @@ const CellLeftSideActions = memo(
 CellLeftSideActions.displayName = "CellLeftSideActions";
 
 interface CellToolbarProps {
-  edited: boolean;
   status: RuntimeState;
   cellConfig: CellConfig;
-  needsRun: boolean;
+  state: CellSemanticState;
+  showPrimaryAction: boolean;
   hasOutput: boolean;
   hasConsoleOutput: boolean;
   cellActionDropdownRef: React.RefObject<CellActionsDropdownHandle | null>;
@@ -980,10 +915,10 @@ interface CellToolbarProps {
 
 const CellToolbar = memo(
   ({
-    edited,
     status,
     cellConfig,
-    needsRun,
+    state,
+    showPrimaryAction,
     hasOutput,
     hasConsoleOutput,
     onRun,
@@ -998,19 +933,16 @@ const CellToolbar = memo(
     return (
       <Toolbar
         className={cn(
-          // Show the toolbar on hover, or when the cell needs to be run
-          !needsRun && "hover-action",
+          // Keep the primary action available when the state calls for it.
+          !showPrimaryAction && "hover-action",
         )}
       >
         <RunButton
-          edited={edited}
+          state={state}
           onClick={onRun}
           connectionState={connection.state}
-          status={status}
-          config={cellConfig}
-          needsRun={needsRun}
         />
-        <StopButton status={status} connectionState={connection.state} />
+        <StopButton phase={state.phase} connectionState={connection.state} />
         {includeCellActions && (
           <CellActionsDropdown
             ref={cellActionDropdownRef}
@@ -1050,6 +982,7 @@ const SetupCellComponent = ({
   canDelete,
   userConfig,
   canMoveX,
+  statusDisplay = "full",
   editorView,
   setEditorView,
 }: CellProps & {
@@ -1070,31 +1003,14 @@ const SetupCellComponent = ({
   const setAiCompletionCell = useSetAtom(aiCompletionCellAtom);
   const runCell = useRunCell(cellId);
 
-  const uninstantiated = isUninstantiated({
-    executionTime: cellRuntime.runElapsedTimeMs ?? cellData.lastExecutionTime,
-    status: cellRuntime.status,
-    errored: cellRuntime.errored,
-    interrupted: cellRuntime.interrupted,
-    stopped: cellRuntime.stopped,
-  });
-
-  const needsRun = cellNeedsRun({
-    edited: cellData.edited,
-    interrupted: cellRuntime.interrupted,
-    staleInputs: cellRuntime.staleInputs,
-    disabled: cellData.config.disabled,
-    status: cellRuntime.status,
-  });
+  const semanticState = deriveCellSemanticState(cellData, cellRuntime);
+  const presentation = presentCellState(semanticState);
   const loading =
     cellRuntime.status === "running" || cellRuntime.status === "queued";
 
   // console output is cleared immediately on run, so check for queued instead
   // of loading to determine staleness
-  const consoleOutputStale =
-    (cellRuntime.status === "queued" ||
-      cellData.edited ||
-      cellRuntime.staleInputs) &&
-    !cellRuntime.interrupted;
+  const consoleOutputStale = semanticState.consoleOutput !== "current";
 
   // Callback to get the editor view.
   const getEditorView = useCallback(() => editorView.current, [editorView]);
@@ -1125,13 +1041,10 @@ const SetupCellComponent = ({
 
   const className = clsx("marimo-cell", "hover-actions-parent z-10", {
     interactive: true,
-    ...cellStatusClasses({
-      needsRun,
-      errored: cellRuntime.errored,
-      stopped: cellRuntime.stopped,
-      disabled: cellData.config.disabled,
-      status: cellRuntime.status,
-    }),
+    "cell-active": presentation.emphasis === "active",
+    "cell-failed": presentation.emphasis === "failed",
+    "cell-paused": semanticState.availability.kind === "paused",
+    "cell-blocked": semanticState.availability.kind === "blocked",
   });
 
   const handleRefactorWithAI: OnRefactorWithAI = useEvent(
@@ -1147,15 +1060,10 @@ const SetupCellComponent = ({
   // TODO(akshayka): Move to our own Tooltip component once it's easier
   // to get the tooltip to show next to the cursor ...
   // https://github.com/radix-ui/primitives/discussions/1090
-  const renderCellTitle = () => {
-    if (cellData.config.disabled) {
-      return "This cell is disabled";
-    }
-    if (cellRuntime.status === "disabled-transitively") {
-      return "This cell has a disabled ancestor";
-    }
-    return undefined;
-  };
+  const cellTitle =
+    semanticState.availability.kind === "enabled"
+      ? undefined
+      : presentation.accessibleLabel;
 
   const isPresenting = mode === "present";
 
@@ -1189,7 +1097,8 @@ const SetupCellComponent = ({
               onKeyDown: resumeCompletionHandler,
             })}
             {...cellDomProps(cellId, cellData.name)}
-            title={renderCellTitle()}
+            {...cellStateDataAttributes(semanticState)}
+            title={cellTitle}
             tabIndex={-1}
             data-setup-cell={true}
           >
@@ -1204,10 +1113,10 @@ const SetupCellComponent = ({
               />
               <div className="absolute right-2 -top-4 z-10">
                 <CellToolbar
-                  edited={cellData.edited}
                   status={cellRuntime.status}
                   cellConfig={cellData.config}
-                  needsRun={needsRun}
+                  state={semanticState}
+                  showPrimaryAction={presentation.showPrimaryAction}
                   hasOutput={hasOutput}
                   hasConsoleOutput={hasConsoleOutput}
                   cellActionDropdownRef={cellActionDropdownRef}
@@ -1238,20 +1147,12 @@ const SetupCellComponent = ({
                 setLanguageAdapter={Functions.NOOP}
                 showLanguageToggles={false}
               />
-              {/* Unmounted while presenting: the status timer re-renders every
-                  frame for running cells. */}
+              {/* Unmounted while presenting because running status updates on
+                  an interval. */}
               {!isPresenting && (
                 <CellRightSideActions
-                  edited={cellData.edited}
-                  status={cellRuntime.status}
-                  isCellStatusInline={false}
-                  uninstantiated={uninstantiated}
-                  disabled={cellData.config.disabled}
-                  runElapsedTimeMs={cellRuntime.runElapsedTimeMs}
-                  runStartTimestamp={cellRuntime.runStartTimestamp}
-                  lastRunStartTimestamp={cellRuntime.lastRunStartTimestamp}
-                  staleInputs={cellRuntime.staleInputs}
-                  interrupted={cellRuntime.interrupted}
+                  state={semanticState}
+                  display={statusDisplay}
                 />
               )}
               <div className="shoulder-bottom hover-action">
@@ -1299,8 +1200,7 @@ const SetupCellComponent = ({
                 className={CSSClasses.outputArea}
                 cellId={cellId}
                 output={cellRuntime.output}
-                stale={false}
-                loading={loading}
+                state={loading ? "updating" : "current"}
               />
             )}
             <ConsoleOutput

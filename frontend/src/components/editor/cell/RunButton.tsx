@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { HardDriveDownloadIcon, PlayIcon } from "lucide-react";
 import type { JSX } from "react";
-import type { CellConfig, RuntimeState } from "@/core/network/types";
+import type { CellSemanticState } from "@/core/cells/semantic-state";
 import {
   getConnectionTooltip,
   isAppInteractionDisabled,
@@ -25,7 +25,7 @@ function computeColor({
     return "disabled";
   }
   if (needsRun && !loading) {
-    return "stale";
+    return "active";
   }
   if (loading || inactive) {
     return "disabled";
@@ -34,29 +34,28 @@ function computeColor({
 }
 
 export const RunButton = (props: {
-  edited: boolean;
-  status: RuntimeState;
-  needsRun: boolean;
+  state: CellSemanticState;
   connectionState: WebSocketState;
-  config: CellConfig;
   onClick?: () => void;
 }): JSX.Element => {
-  const { onClick, connectionState, needsRun, status, config, edited } = props;
+  const { onClick, connectionState, state } = props;
 
-  const blockedStatus = status === "disabled-transitively";
-  const loading = status === "running" || status === "queued";
+  const blocked = state.availability.kind === "blocked";
+  const paused = state.availability.kind === "paused";
+  const loading =
+    state.phase.kind === "running" || state.phase.kind === "queued";
   const inactive =
     isAppInteractionDisabled(connectionState) ||
     loading ||
-    (!config.disabled && blockedStatus && !edited);
+    (blocked && !state.codeEdited);
   const variant = computeColor({
     connectionState,
-    needsRun,
+    needsRun: state.needsRun,
     loading,
     inactive,
   });
 
-  if (config.disabled) {
+  if (paused) {
     return (
       <ToolbarItem
         tooltip="Add code to notebook"
@@ -69,7 +68,7 @@ export const RunButton = (props: {
       </ToolbarItem>
     );
   }
-  if (!config.disabled && blockedStatus && !edited) {
+  if (blocked) {
     return (
       <ToolbarItem
         disabled={inactive}
@@ -87,9 +86,9 @@ export const RunButton = (props: {
 
   if (isAppInteractionDisabled(connectionState)) {
     tooltipMsg = getConnectionTooltip(connectionState);
-  } else if (status === "queued") {
+  } else if (state.phase.kind === "queued") {
     tooltipMsg = "This cell is already queued to run";
-  } else if (status === "running") {
+  } else if (state.phase.kind === "running") {
     tooltipMsg = "This cell is already running.";
   } else {
     tooltipMsg = renderShortcut("cell.run");

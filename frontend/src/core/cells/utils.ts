@@ -7,6 +7,7 @@ import { isErrorMime } from "../mime";
 import type { RuntimeState } from "../network/types";
 import type { NotebookState } from "./cells";
 import type { CellId } from "./ids";
+import { deriveCellSemanticState } from "./semantic-state";
 
 export function notebookIsRunning(state: NotebookState) {
   return Object.values(state.cellRuntime).some(
@@ -84,49 +85,42 @@ export function getUndoLabel(state: NotebookState): string {
 export function getDescendantsStatus(state: NotebookState, cellId: CellId) {
   const column = state.cellIds.findWithId(cellId);
   const descendants = column.getDescendants(cellId);
-  const stale = descendants.some(
-    (id) => state.cellRuntime[id]?.staleInputs || state.cellData[id]?.edited,
+  const semanticStates = descendants.flatMap((id) => {
+    const data = state.cellData[id];
+    const runtime = state.cellRuntime[id];
+    return data && runtime ? [deriveCellSemanticState(data, runtime)] : [];
+  });
+  const outdated = semanticStates.some(
+    (cell) =>
+      cell.freshness.kind !== "current" || cell.lastRun.kind === "interrupted",
   );
-  const errored = descendants.some((id) => state.cellRuntime[id]?.errored);
-  const runningOrQueued = descendants.some(
-    (id) =>
-      state.cellRuntime[id]?.status === "running" ||
-      state.cellRuntime[id]?.status === "queued",
+  const failed = semanticStates.some((cell) => cell.lastRun.kind === "failed");
+  const running = semanticStates.some((cell) => cell.phase.kind === "running");
+  const queued = semanticStates.some((cell) => cell.phase.kind === "queued");
+  const blocked = semanticStates.some(
+    (cell) => cell.availability.kind === "blocked",
+  );
+  const stopped = semanticStates.some(
+    (cell) => cell.lastRun.kind === "stopped",
   );
 
   return {
-    stale,
-    errored,
-    runningOrQueued,
+    outdated,
+    failed,
+    running,
+    queued,
+    blocked,
+    stopped,
   };
 }
 
-/**
- * Cells that are stale and can be run.
- */
+/** Cells with pending work that can be run or synchronized. */
 export function staleCellIds(state: NotebookState) {
   const { cellIds, cellData, cellRuntime } = state;
   return cellIds.inOrderIds.filter(
     (cellId) =>
-      isUninstantiated({
-        // runElapstedTimeMs is what we've seen in this session
-        executionTime:
-          cellRuntime[cellId].runElapsedTimeMs ??
-          // lastExecutionTime is what was seen on session start/resume
-          cellData[cellId].lastExecutionTime,
-        status: cellRuntime[cellId].status,
-        errored: cellRuntime[cellId].errored,
-        interrupted: cellRuntime[cellId].interrupted,
-        stopped: cellRuntime[cellId].stopped,
-      }) ||
-      cellData[cellId].edited ||
-      cellRuntime[cellId].interrupted ||
-      (cellRuntime[cellId].staleInputs &&
-        // if a cell is disabled, it can't be run ...
-        !(
-          cellRuntime[cellId].status === "disabled-transitively" ||
-          cellData[cellId].config.disabled
-        )),
+      deriveCellSemanticState(cellData[cellId], cellRuntime[cellId])
+        .shouldSchedule,
   );
 }
 
@@ -152,51 +146,6 @@ export function isUninstantiated({
     // and isn't in an error state.
     !(errored || interrupted || stopped)
   );
-}
-
-/**
- * Whether a cell needs to be run given its edited / interrupted / stale
- * inputs, while accounting for ancestor-disabled cells (which should not be
- * flagged as needing a run until re-enabled).
- */
-export function cellNeedsRun({
-  edited,
-  interrupted,
-  staleInputs,
-  disabled,
-  status,
-}: {
-  edited: boolean;
-  interrupted: boolean;
-  staleInputs: boolean;
-  disabled: boolean | undefined;
-  status: RuntimeState;
-}): boolean {
-  const disabledOrAncestorDisabled =
-    disabled || status === "disabled-transitively";
-  return edited || interrupted || (staleInputs && !disabledOrAncestorDisabled);
-}
-
-export function cellStatusClasses({
-  needsRun,
-  errored,
-  stopped,
-  disabled,
-  status,
-}: {
-  needsRun: boolean;
-  errored: boolean;
-  stopped: boolean;
-  disabled: boolean | undefined;
-  status: RuntimeState;
-}) {
-  return {
-    "needs-run": needsRun,
-    "has-error": errored,
-    stopped,
-    disabled: disabled ?? false,
-    stale: status === "disabled-transitively",
-  };
 }
 
 /**

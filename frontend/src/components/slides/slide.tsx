@@ -4,6 +4,7 @@ import { outputIsLoading } from "@/core/cells/cell";
 import { OutputArea } from "../editor/Output";
 import { memo } from "react";
 import type { CellId } from "@/core/cells/ids";
+import { deriveOutputStateFromFlags } from "@/core/cells/semantic-state";
 import type { CellRuntimeState } from "@/core/cells/types";
 
 interface SlideContentProps extends Pick<
@@ -23,8 +24,7 @@ export const Slide = memo(
         allowExpand={false}
         output={output}
         cellId={cellId}
-        stale={stale}
-        loading={loading}
+        state={deriveOutputStateFromFlags(stale, loading)}
       />
     );
   },

@@ -8,6 +8,20 @@
     display: none !important;
   }
 
+  /* Keep layout-sensitive actions in flow while visually hiding them. */
+  .hover-action-stable {
+    visibility: hidden;
+  }
+
+  .hover-action-stable:hover,
+  .hover-action-stable:focus,
+  .hover-actions-parent:hover .hover-action-stable,
+  .hover-actions-parent:focus-within .hover-action-stable,
+  .hover-actions-parent:has([data-state="open"]) .hover-action-stable,
+  [data-is-dragging="true"] .hover-action-stable {
+    visibility: visible;
+  }
+
   [data-is-dragging="true"] {
     .hover-actions-parent.hover-actions-parent .hover-action:not(:hover) {
       display: none !important;
@@ -21,13 +35,19 @@
 }
 
 .hover-actions-parent:hover .hover-action,
-.hover-actions-parent:focus .hover-action {
+.hover-actions-parent:focus-within .hover-action {
   display: inline-flex !important;
 }
 
 /* If parent has any children that have an open pop, show hover actions */
 .hover-actions-parent:has([data-state="open"]) .hover-action {
   display: inline-flex !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation: none;
+  }
 }
 
 /* When any element is fullscreen, hide the element with this class */

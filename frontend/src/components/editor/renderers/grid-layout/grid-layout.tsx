@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { Responsive, WidthProvider } from "react-grid-layout";
 import { OutputArea } from "@/components/editor/Output";
+import { deriveOutputStateFromFlags } from "@/core/cells/semantic-state";
 import type { CellRuntimeState } from "@/core/cells/types";
 import type { ICellRendererProps } from "../types";
 import type { GridLayout, GridLayoutCellSide } from "./types";
@@ -420,8 +421,7 @@ const GridCell = memo(
           allowExpand={false}
           output={output}
           cellId={cellId}
-          stale={stale}
-          loading={loading}
+          state={deriveOutputStateFromFlags(stale, loading)}
         />
       </div>
     );

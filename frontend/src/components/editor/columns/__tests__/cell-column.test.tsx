@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { CellStateSummary } from "@/core/cells/semantic-state";
 import type { CellColumnId } from "@/utils/id-tree";
 import { Column } from "../cell-column";
 
@@ -11,9 +12,11 @@ const columnId = "col-1" as CellColumnId;
 function renderColumn({
   width,
   presenting,
+  statusSummary,
 }: {
   width: "compact" | "columns";
   presenting: boolean;
+  statusSummary?: CellStateSummary;
 }) {
   const store = createStore();
   return render(
@@ -27,6 +30,7 @@ function renderColumn({
           canMoveLeft={false}
           canMoveRight={false}
           presenting={presenting}
+          statusSummary={statusSummary}
         >
           <div data-testid="column-children" />
         </Column>
@@ -69,6 +73,24 @@ describe("Column (multi-column notebook)", () => {
     for (const handle of getAllByTestId("column-resize-handle")) {
       expect(handle.hidden).toBe(false);
     }
+  });
+
+  it("summarizes actionable cell states in the column header", () => {
+    const { getByRole } = renderColumn({
+      width: "columns",
+      presenting: false,
+      statusSummary: {
+        running: 1,
+        queued: 2,
+        pending: 3,
+        unavailableOutdated: 1,
+        failed: 1,
+      },
+    });
+
+    expect(getByRole("status")).toHaveAccessibleName(
+      "Column status: 1 running, 2 queued, 3 need execution, 1 failed, 1 outdated but unavailable",
+    );
   });
 
   it("hides column chrome while presenting, without unmounting it", () => {

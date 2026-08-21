@@ -151,8 +151,7 @@ describe("Output data attributes", () => {
         <OutputArea
           output={output}
           cellId={cid}
-          stale={false}
-          loading={false}
+          state="current"
           allowExpand={true}
           className="test-output"
         />

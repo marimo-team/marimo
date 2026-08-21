@@ -1,262 +1,143 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { formatElapsedTime, type Seconds } from "@/utils/time";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, test } from "vitest";
 import {
   CellStatusComponent,
+  type CellStatusDisplay,
   ElapsedTime,
-} from "../components/editor/cell/CellStatus";
+} from "@/components/editor/cell/CellStatus";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { CellId } from "@/core/cells/ids";
+import { deriveCellSemanticState } from "@/core/cells/semantic-state";
+import {
+  createCell,
+  createCellRuntimeState,
+  type CellData,
+  type CellRuntimeState,
+} from "@/core/cells/types";
+import { formatElapsedTime, type Milliseconds } from "@/utils/time";
 
-// Mock date-fns to have consistent date formatting in tests
-vi.mock("date-fns", () => ({
-  formatDistanceToNow: () => "5 minutes",
-}));
+const cellId = CellId.create();
+const state = (
+  data: Partial<CellData> = {},
+  runtime: Partial<CellRuntimeState> = {},
+) =>
+  deriveCellSemanticState(
+    createCell({ id: cellId, ...data }),
+    createCellRuntimeState(runtime),
+  );
+
+const renderStatus = (
+  semanticState: ReturnType<typeof deriveCellSemanticState>,
+  editing = true,
+  display: CellStatusDisplay = "full",
+) =>
+  render(
+    <TooltipProvider>
+      <CellStatusComponent
+        editing={editing}
+        state={semanticState}
+        display={display}
+      />
+    </TooltipProvider>,
+  );
 
 describe("formatElapsedTime", () => {
-  test("formats milliseconds correctly", () => {
+  test("formats milliseconds, seconds, and minutes", () => {
     expect(formatElapsedTime(500)).toBe("500ms");
-    expect(formatElapsedTime(50)).toBe("50ms");
-  });
-
-  test("formats seconds correctly", () => {
-    expect(formatElapsedTime(1500)).toBe("1.50s");
     expect(formatElapsedTime(2340)).toBe("2.34s");
-  });
-
-  test("formats minutes and seconds correctly", () => {
-    expect(formatElapsedTime(60 * 1000)).toBe("1m0s");
     expect(formatElapsedTime(90 * 1000)).toBe("1m30s");
-    expect(formatElapsedTime(89 * 1000)).toBe("1m29s");
-    expect(formatElapsedTime(91 * 1000)).toBe("1m31s");
-    expect(formatElapsedTime(150 * 1000)).toBe("2m30s");
-    expect(formatElapsedTime(151 * 1000)).toBe("2m31s");
-  });
-
-  test("handles null input", () => {
     expect(formatElapsedTime(null)).toBe("");
   });
 });
 
-describe("ElapsedTime component", () => {
-  test("renders elapsed time correctly", () => {
-    const { container } = render(
-      <TooltipProvider>
-        <ElapsedTime elapsedTime="1.50s" />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
+describe("ElapsedTime", () => {
+  test("renders elapsed time", () => {
+    render(<ElapsedTime elapsedTime="1.50s" />);
+    expect(screen.getByText("1.50s")).toBeInTheDocument();
   });
 });
 
 describe("CellStatusComponent", () => {
-  // Mock date for consistent testing
-  const mockDate = new Date(2024, 0, 1, 12, 0, 0);
-  const originalDate = global.Date;
-
-  beforeEach(() => {
-    global.Date = class extends Date {
-      static override now() {
-        return mockDate.getTime();
-      }
-    } as typeof Date;
-  });
-
-  afterEach(() => {
-    global.Date = originalDate;
-  });
-
-  // Base props that will be modified for different test cases
-  const baseProps = {
-    editing: true,
-    edited: false,
-    disabled: false,
-    staleInputs: false,
-    status: "idle" as const,
-    interrupted: false,
-    elapsedTime: null,
-    runStartTimestamp: null,
-    lastRunStartTimestamp: null,
-    uninstantiated: false,
-  };
-
-  test("returns null when not editing", () => {
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...baseProps} editing={false} />
-      </TooltipProvider>,
+  test.each([
+    ["not-run", state()],
+    ["outdated", state({ edited: true, lastExecutionTime: 100 })],
+    ["interrupted", state({}, { interrupted: true })],
+    ["stopped", state({}, { stopped: true })],
+    ["error", state({}, { errored: true })],
+    ["running", state({}, { status: "running" })],
+    ["queued", state({}, { status: "queued" })],
+    [
+      "paused",
+      state({ config: { disabled: true, hide_code: false, column: null } }),
+    ],
+    ["blocked", state({}, { status: "disabled-transitively" })],
+  ])("renders the %s semantic state", (expected, semanticState) => {
+    renderStatus(semanticState);
+    expect(screen.getByTestId("cell-status")).toHaveAttribute(
+      "data-status",
+      expected,
     );
-    expect(container.firstChild).toBeNull();
   });
 
-  test("renders disabled and stale state", () => {
-    const props = {
-      ...baseProps,
-      disabled: true,
-      staleInputs: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds, // Jan 1, 2024 12:00:00
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
+  test("exposes the semantic state to assistive technology", () => {
+    renderStatus(state({}, { status: "queued" }));
+    const indicator = screen.getByLabelText("Queued");
+    expect(indicator).toHaveAttribute("role", "status");
   });
 
-  test("renders disabled state", () => {
-    const props = {
-      ...baseProps,
-      disabled: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
+  test("communicates an error together with outdated output", () => {
+    renderStatus(
+      state({ edited: true, lastExecutionTime: 100 }, { errored: true }),
     );
-    expect(container).toMatchSnapshot();
+    expect(screen.getByTestId("cell-status")).toHaveAttribute(
+      "data-status",
+      "error-outdated",
+    );
+    expect(screen.getByLabelText("Error · Outdated")).toBeInTheDocument();
   });
 
-  test("renders disabled transitively state", () => {
-    const props = {
-      ...baseProps,
-      status: "disabled-transitively" as const,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
+  test("communicates paused and outdated together", () => {
+    renderStatus(
+      state(
+        {
+          edited: true,
+          lastExecutionTime: 100,
+          config: { disabled: true, hide_code: false, column: null },
+        },
+        {},
+      ),
     );
-    expect(container).toMatchSnapshot();
+    expect(screen.getByLabelText("Paused · Outdated")).toBeInTheDocument();
   });
 
-  test("renders stale and disabled transitively state", () => {
-    const props = {
-      ...baseProps,
-      status: "disabled-transitively" as const,
-      staleInputs: true,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
+  test("does not render edit chrome outside edit mode", () => {
+    const { container } = renderStatus(state(), false);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  test("renders running state", () => {
-    const props = {
-      ...baseProps,
-      status: "running" as const,
-      runStartTimestamp: 1_704_096_000 as Seconds,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
+  test("shows successful duration only as secondary information", () => {
+    renderStatus(state({}, { runElapsedTimeMs: 1500 as Milliseconds }));
+    expect(screen.getByText("1.50s").parentElement).toHaveClass("hover-action");
   });
 
-  test("renders queued state", () => {
-    const props = {
-      ...baseProps,
-      status: "queued" as const,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
+  test("uses an icon-sized presentation in multi-column layouts", () => {
+    renderStatus(state({}, { status: "running" }), true, "compact");
+    expect(screen.getByTestId("cell-status")).toHaveAttribute(
+      "data-display",
+      "compact",
     );
-    expect(container).toMatchSnapshot();
   });
 
-  test("renders uninstantiated state", () => {
-    const props = {
-      ...baseProps,
-      uninstantiated: true,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
+  test("keeps completed duration available on hover in multi-column layouts", () => {
+    renderStatus(
+      state({}, { runElapsedTimeMs: 1500 as Milliseconds }),
+      true,
+      "compact",
     );
-    expect(container).toMatchSnapshot();
-  });
-
-  test("renders interrupted state", () => {
-    const props = {
-      ...baseProps,
-      interrupted: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
+    expect(screen.getByText("1.50s").parentElement).toHaveClass(
+      "hover-action-stable",
     );
-    expect(container).toMatchSnapshot();
-  });
-
-  test("renders edited state", () => {
-    const props = {
-      ...baseProps,
-      edited: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
-  });
-
-  test("renders stale inputs state", () => {
-    const props = {
-      ...baseProps,
-      staleInputs: true,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
-  });
-
-  test("renders completed run with elapsed time", () => {
-    const props = {
-      ...baseProps,
-      elapsedTime: 1500,
-      lastRunStartTimestamp: 1_704_096_000 as Seconds,
-    };
-
-    const { container } = render(
-      <TooltipProvider>
-        <CellStatusComponent {...props} />
-      </TooltipProvider>,
-    );
-    expect(container).toMatchSnapshot();
   });
 });

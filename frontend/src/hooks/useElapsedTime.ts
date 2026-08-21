@@ -6,12 +6,14 @@ import { type Milliseconds, Time } from "@/utils/time";
 /**
  * Returns the elapsed time since mount, in milliseconds.
  */
-export function useElapsedTime(initialStartTimeMs: Milliseconds) {
+export function useElapsedTime(initialStartTimeMs: Milliseconds): Milliseconds {
   const startTime = useRef(initialStartTimeMs);
   const [endTime, setEndTime] = useState(initialStartTimeMs);
 
   useEffect(() => {
-    const step = 17; // 60 FPS
+    // The live timer displays tenths of a second. Updating it at animation-frame
+    // speed would needlessly re-render every running cell.
+    const step = 100;
     const interval = setInterval(() => {
       // Need to use Date.now() here because
       // setInterval could be paused if the tab is inactive.
@@ -21,5 +23,5 @@ export function useElapsedTime(initialStartTimeMs: Milliseconds) {
     return () => clearInterval(interval);
   }, []);
 
-  return endTime - startTime.current;
+  return (endTime - startTime.current) as Milliseconds;
 }

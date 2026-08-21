@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import React, { memo, Suspense, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
+import type { CellOutputState } from "@/core/cells/semantic-state";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
 import { logNever } from "../../utils/assertNever";
@@ -342,8 +343,7 @@ MimeBundleOutputRenderer.displayName = "MimeBundleOutputRenderer";
 interface OutputAreaProps {
   output: OutputMessage | null;
   cellId: CellId;
-  stale: boolean;
-  loading: boolean;
+  state: CellOutputState;
   /**
    * Whether to allow expanding the output
    * This shows the expand button and allows the user to expand the output
@@ -361,8 +361,7 @@ export const OutputArea = React.memo(
   ({
     output,
     cellId,
-    stale,
-    loading,
+    state,
     allowExpand,
     forceExpand,
     className,
@@ -374,11 +373,12 @@ export const OutputArea = React.memo(
       return null;
     }
 
-    // TODO(akshayka): More descriptive title
-    // 1. This output is stale (this cell has been edited but not run)
-    // 2. This output is stale (this cell is queued to run)
-    // 3. This output is stale (its inputs have changed)
-    const title = stale ? "This output is stale" : undefined;
+    const title =
+      state === "updating"
+        ? "Updating; this is the previous output"
+        : state === "previous"
+          ? "Previous output"
+          : undefined;
     const Container = allowExpand ? ExpandableOutput : Div;
 
     return (
@@ -388,9 +388,10 @@ export const OutputArea = React.memo(
           cellId={cellId}
           forceExpand={forceExpand}
           id={CellOutputId.create(cellId)}
+          data-output-state={state}
           className={cn(
-            stale && "marimo-output-stale",
-            loading && "marimo-output-loading",
+            state !== "current" && "marimo-output-stale",
+            state === "updating" && "marimo-output-loading",
             className,
           )}
         >

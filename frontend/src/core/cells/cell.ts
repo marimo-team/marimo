@@ -8,6 +8,7 @@ import type { CellMessage, OutputMessage } from "../kernel/messages";
 import type { RuntimeState } from "../network/types";
 import { collapseConsoleOutputs } from "./collapseConsoleOutputs";
 import type { CellRuntimeState } from "./types";
+import { deriveMainOutputState } from "./semantic-state";
 
 export function transitionCell(
   cell: CellRuntimeState,
@@ -186,7 +187,7 @@ export function outputIsLoading(status: RuntimeState): boolean {
 }
 
 /**
- * A cell's output is stale if it has been edited, is loading, or has errored.
+ * Whether a cell is showing output that is not its current settled result.
  */
 export function outputIsStale(
   cell: Pick<
@@ -195,34 +196,7 @@ export function outputIsStale(
   >,
   edited: boolean,
 ): boolean {
-  const { status, output, runStartTimestamp, interrupted, staleInputs } = cell;
-
-  // If interrupted, the output is not stale
-  if (interrupted) {
-    return false;
-  }
-
-  // If edited, the cell's output is stale
-  if (edited) {
-    return true;
-  }
-
-  // The cell is loading
-  const loading = outputIsLoading(status);
-
-  // Output is received while the cell is running (e.g. mo.output.append())
-  const outputReceivedWhileRunning =
-    status === "running" &&
-    output !== null &&
-    runStartTimestamp !== null &&
-    (output.timestamp ?? 0) > runStartTimestamp;
-
-  // If loading and output has not been received while running
-  if (loading && !outputReceivedWhileRunning) {
-    return true;
-  }
-
-  return staleInputs;
+  return deriveMainOutputState(edited, cell) !== "current";
 }
 
 /**
