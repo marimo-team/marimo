@@ -117,6 +117,49 @@ exports[`generateStorageCode > GCS > without service account key (default creden
 store = GCSStore("my-bucket")"
 `;
 
+exports[`generateStorageCode > GitHub > public repo 1`] = `
+"from fsspec.implementations.github import GithubFileSystem
+
+fs = GithubFileSystem(
+    org="marimo-team",
+    repo="marimo",
+)"
+`;
+
+exports[`generateStorageCode > GitHub > with sha 1`] = `
+"from fsspec.implementations.github import GithubFileSystem
+
+fs = GithubFileSystem(
+    org="marimo-team",
+    repo="marimo",
+    sha="main",
+)"
+`;
+
+exports[`generateStorageCode > GitHub > with username and token 1`] = `
+"from fsspec.implementations.github import GithubFileSystem
+
+fs = GithubFileSystem(
+    org="marimo-team",
+    repo="marimo",
+    username="octocat",
+    token="ghp_example",
+)"
+`;
+
+exports[`generateStorageCode > GitHub > with username and token from secrets 1`] = `
+"from fsspec.implementations.github import GithubFileSystem
+import os
+
+_token = os.environ.get("GITHUB_TOKEN")
+fs = GithubFileSystem(
+    org="marimo-team",
+    repo="marimo",
+    username="octocat",
+    token=_token,
+)"
+`;
+
 exports[`generateStorageCode > Google Drive > with default auth (no credentials) 1`] = `
 "from gdrive_fsspec import GoogleDriveFileSystem
 
