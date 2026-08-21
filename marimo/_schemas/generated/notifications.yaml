@@ -717,6 +717,15 @@ components:
           type: array
         displayName:
           type: string
+        hidesWhen:
+          anyOf:
+          - $ref: '#/components/schemas/DialectHidesWhen'
+          - $ref: '#/components/schemas/StorageHidesWhen'
+          discriminator:
+            mapping:
+              dialect: '#/components/schemas/DialectHidesWhen'
+              storage: '#/components/schemas/StorageHidesWhen'
+            propertyName: kind
         id:
           type: string
         integration:
@@ -734,6 +743,7 @@ components:
       - origins
       - configuration
       - code
+      - hidesWhen
       title: DetectedDataSource
       type: object
     DetectedDataSourceConfiguration:
@@ -766,6 +776,22 @@ components:
       - type
       - label
       title: DetectedDataSourceOrigin
+      type: object
+    DialectHidesWhen:
+      description: Hide this suggestion when a live SQL engine dialect contains a
+        substring.
+      properties:
+        kind:
+          enum:
+          - dialect
+        substrings:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - substrings
+      title: DialectHidesWhen
       type: object
     EnvironmentVariableDiscoveryValue:
       description: A reference to an environment variable, never its value.
@@ -1627,6 +1653,26 @@ components:
       - content
       - status
       title: StartupLogsNotification
+      type: object
+    StorageHidesWhen:
+      description: Hide this suggestion when a live storage namespace matches.
+      properties:
+        backendTypes:
+          items:
+            type: string
+          type: array
+        kind:
+          enum:
+          - storage
+        protocols:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - protocols
+      - backendTypes
+      title: StorageHidesWhen
       type: object
     UIElementMessageNotification:
       description: "Sends a message to a UI element/widget.\n\n    Attributes:\n \

@@ -5,6 +5,7 @@ from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
     environment_variable,
     has_value,
+    hides_when_dialect,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -63,6 +64,7 @@ connection = sql.connect(
             origins=(ENVIRONMENT_ORIGIN,),
             configuration=tuple(configuration),
             code=code,
+            hides_when=hides_when_dialect("databricks"),
         )
     ]
 
