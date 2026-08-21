@@ -277,7 +277,7 @@ export const GithubStorageSchema = z
       .describe(
         FieldOptions.of({
           label: "Username",
-          description: "Required together with the access token",
+          description: "Set this together with access token",
           optionRegex: "(github.?username|github.?user)",
         }),
       ),
@@ -288,7 +288,7 @@ export const GithubStorageSchema = z
         FieldOptions.of({
           label: "Access Token",
           description:
-            "Required together with username. Needed for private repos and to avoid GitHub's rate limits.",
+            "Set this together with username. Required for private repos and to avoid GitHub's rate limits.",
           inputType: "password",
           optionRegex: "(github.?token|gh.?token|github.?pat)",
         }),
