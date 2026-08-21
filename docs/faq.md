@@ -509,8 +509,6 @@ code completion.
 
 ### How do I use marimo on a remote server?
 
-> We recorded a video tutorial on how to use marimo on a remote server. Check it out [here](https://youtu.be/pam9Hw8rbaA).
-
 <div style="text-align: center">
   <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
   src="https://www.youtube.com/embed/pam9Hw8rbaA"
