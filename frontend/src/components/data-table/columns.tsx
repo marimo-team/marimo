@@ -461,15 +461,17 @@ const PopoutColumn = ({
  * so ordinary text keeps its plain rendering.
  */
 function parseJsonDocument(text: string): unknown {
-  const first = text[0];
-  const last = text[text.length - 1];
+  const trimmedText = text.trim();
+
+  const first = trimmedText[0];
+  const last = trimmedText[trimmedText.length - 1];
   const isBracketPair =
     (first === "{" && last === "}") || (first === "[" && last === "]");
   if (!isBracketPair) {
     return undefined;
   }
   try {
-    return JSON.parse(text) as unknown;
+    return JSON.parse(trimmedText) as unknown;
   } catch {
     return undefined;
   }
@@ -671,7 +673,12 @@ export function renderCellValue<TData, TValue>({
           edges={{ leading, trailing }}
           wrapped={isWrapped}
         >
-          <JsonOutput data={jsonDocument} format="tree" className="max-h-64" />
+          <JsonOutput
+            data={jsonDocument}
+            format="tree"
+            valueTypes="json"
+            className="max-h-64"
+          />
         </PopoutColumn>
       );
     }
