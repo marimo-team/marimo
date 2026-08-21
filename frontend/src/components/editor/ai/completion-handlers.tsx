@@ -48,7 +48,16 @@ export const CompletionActionsCellFooter: React.FC<{
   size?: "xs" | "sm";
   multipleCompletions?: boolean;
   runCell?: () => void;
-}> = ({ isLoading, onAccept, onDecline, runCell }) => {
+  acceptLabel?: string;
+  declineLabel?: string;
+}> = ({
+  isLoading,
+  onAccept,
+  onDecline,
+  runCell,
+  acceptLabel,
+  declineLabel,
+}) => {
   return (
     <>
       <AcceptCompletionButton
@@ -56,8 +65,13 @@ export const CompletionActionsCellFooter: React.FC<{
         onAccept={onAccept}
         size="xs"
         runCell={runCell}
+        label={acceptLabel}
       />
-      <RejectCompletionButton onDecline={onDecline} size="xs" />
+      <RejectCompletionButton
+        onDecline={onDecline}
+        size="xs"
+        label={declineLabel}
+      />
     </>
   );
 };
@@ -72,6 +86,7 @@ export const AcceptCompletionButton: React.FC<{
   borderless?: boolean;
   acceptShortcut?: string;
   runCell?: () => void;
+  label?: string;
 }> = ({
   isLoading,
   onAccept,
@@ -82,6 +97,7 @@ export const AcceptCompletionButton: React.FC<{
   runCell,
   playButtonStyles,
   borderless = false,
+  label,
 }) => {
   const handleAcceptAndRun = () => {
     onAccept();
@@ -90,7 +106,7 @@ export const AcceptCompletionButton: React.FC<{
     }
   };
 
-  const text = multipleCompletions ? "Accept all" : "Accept";
+  const text = label ?? (multipleCompletions ? "Accept all" : "Accept");
 
   const baseClasses = `h-6 text-(--grass-11) bg-(--grass-3)/60
     hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) font-semibold
@@ -156,6 +172,7 @@ export const RejectCompletionButton: React.FC<{
   className?: string;
   borderless?: boolean;
   declineShortcut?: string;
+  label?: string;
 }> = ({
   onDecline,
   multipleCompletions = false,
@@ -163,6 +180,7 @@ export const RejectCompletionButton: React.FC<{
   className,
   declineShortcut,
   borderless = false,
+  label,
 }) => {
   return (
     <Button
@@ -174,7 +192,7 @@ export const RejectCompletionButton: React.FC<{
     active:bg-(--red-5) dark:active:bg-(--red-4)
     border-(--red-6) border hover:shadow-xs ${borderless && "border-none rounded-md"} ${className}`}
     >
-      Reject{multipleCompletions && " all"}
+      {label ?? `Reject${multipleCompletions ? " all" : ""}`}
       {declineShortcut && (
         <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
       )}

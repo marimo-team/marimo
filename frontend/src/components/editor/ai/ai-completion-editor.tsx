@@ -266,19 +266,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onAccept={handleAcceptCompletion}
         size="xs"
         multipleCompletions={false}
+        label="Keep change"
         acceptShortcut="Mod-↵"
         runCell={runCell}
-        borderless={true}
-        buttonStyles="hover:shadow-none"
-        playButtonStyles="hover:shadow-none"
       />
       <RejectCompletionButton
         onDecline={handleDeclineCompletion}
         size="xs"
         multipleCompletions={false}
+        label="Revert change"
         declineShortcut="Shift-Mod-Delete"
-        borderless={true}
-        className="hover:shadow-none"
       />
     </>
   );
@@ -422,8 +419,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border",
-        "shadow-[0_0_6px_1px_rgba(34,197,94,0.15)]",
+        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border bg-(--gray-2) dark:bg-(--gray-3)",
         className,
       )}
     >
@@ -445,7 +441,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
         )}
 
         <p className="transition-opacity duration-200 text-muted-foreground">
-          {isLoading ? "Generating fix..." : "Showing fix"}
+          {isLoading ? "Generating change..." : "AI changed this cell"}
         </p>
       </div>
 
@@ -468,15 +464,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          borderless={true}
+          label="Keep change"
           runCell={runCell}
-          // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          borderless={true}
-          // declineShortcut="Shift-Mod-Delete"
+          label="Revert change"
         />
       </div>
     </div>

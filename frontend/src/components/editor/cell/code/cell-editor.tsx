@@ -3,12 +3,13 @@ import { historyField } from "@codemirror/commands";
 import { EditorState, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import React, { memo, useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import { Button } from "@/components/ui/button";
 import { DelayMount } from "@/components/utils/delay-mount";
 import { aiCompletionCellAtom } from "@/core/ai/state";
+import { stagedAICellsAtom } from "@/core/ai/staged-cells";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { getNotebook, useCellActions } from "@/core/cells/cells";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
@@ -119,6 +120,7 @@ const CellEditorInternal = ({
   tooltipParentSelector,
 }: CellEditorProps) => {
   const [aiCompletionCell, setAiCompletionCell] = useAtom(aiCompletionCellAtom);
+  const setStagedAICells = useSetAtom(stagedAICellsAtom);
   const deleteCell = useDeleteCellCallback();
   const { saveOrNameNotebook } = useSaveNotebook();
   const pendingDeleteService = usePendingDeleteService();
@@ -295,6 +297,26 @@ const CellEditorInternal = ({
       }),
       // Listen to selection changes, and show the code if it is hidden
       EditorView.updateListener.of((update) => {
+        if (
+          update.docChanged &&
+          update.transactions.some(
+            (transaction) =>
+              transaction.isUserEvent("input") ||
+              transaction.isUserEvent("delete") ||
+              transaction.isUserEvent("undo") ||
+              transaction.isUserEvent("redo"),
+          )
+        ) {
+          setStagedAICells((stagedAICells) => {
+            if (!stagedAICells.has(cellId)) {
+              return stagedAICells;
+            }
+            const nextStagedAICells = new Map(stagedAICells);
+            nextStagedAICells.delete(cellId);
+            return nextStagedAICells;
+          });
+        }
+
         if (update.selectionSet) {
           const selection = update.state.selection;
           const hasSelection = selection.ranges.some(
@@ -340,6 +362,7 @@ const CellEditorInternal = ({
     setLanguageAdapter,
     showHiddenCode,
     saveOrNameNotebook,
+    setStagedAICells,
   ]);
 
   const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);

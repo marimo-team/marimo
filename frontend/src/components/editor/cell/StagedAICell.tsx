@@ -1,6 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useStore } from "jotai";
+import { SparklesIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
   stagedAICellsAtom,
@@ -47,6 +49,9 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     return null;
   }
 
+  const isDeletion = stagedAiCell.type === "delete_cell";
+  const isAddition = stagedAiCell.type === "add_cell";
+
   const handleCompletion = (type: "accept" | "reject") => {
     const completionFunc =
       type === "accept" ? acceptStagedCell : rejectStagedCell;
@@ -54,14 +59,32 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   };
 
   return (
-    <div className="flex items-center justify-end gap-1.5 w-full pb-1 pt-2">
-      <CompletionActionsCellFooter
-        isLoading={false}
-        onAccept={() => handleCompletion("accept")}
-        onDecline={() => handleCompletion("reject")}
-        size="xs"
-        runCell={runCell}
-      />
+    <div className="mo-ai-cell-footer">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Tooltip content={isAddition ? "AI-generated cell" : null}>
+          <SparklesIcon className="size-3.5 text-(--blue-11)" />
+        </Tooltip>
+        {!isAddition && (
+          <span>
+            {isDeletion
+              ? "AI suggests deleting this cell"
+              : "AI changed this cell"}
+          </span>
+        )}
+      </div>
+      {!isAddition && (
+        <div className="flex items-center gap-1.5">
+          <CompletionActionsCellFooter
+            isLoading={false}
+            onAccept={() => handleCompletion("accept")}
+            onDecline={() => handleCompletion("reject")}
+            size="xs"
+            runCell={isDeletion ? undefined : runCell}
+            acceptLabel={isDeletion ? "Delete cell" : "Keep change"}
+            declineLabel={isDeletion ? "Keep cell" : "Revert change"}
+          />
+        </div>
+      )}
     </div>
   );
 };
