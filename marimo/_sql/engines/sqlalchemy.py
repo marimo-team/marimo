@@ -94,6 +94,20 @@ def safe_execute(
     return decorator
 
 
+def _index_by_table_name(
+    reflected: dict[tuple[str | None, str], T],
+) -> dict[str, T]:
+    """Re-key SQLAlchemy multi-reflection results by bare table name.
+
+    Dialects disagree on the schema half of the `(schema, table)` keys
+    returned by the `get_multi_*` inspector methods (the value passed,
+    `None`, or a normalized form), so the schema half is dropped rather
+    than reconstructed. Each call site is scoped to a single schema,
+    which keeps the bare name unambiguous.
+    """
+    return {name: value for (_schema, name), value in reflected.items()}
+
+
 # ------------------------------------------------------------------ #
 #  SQLAlchemyEngine                                                   #
 # ------------------------------------------------------------------ #
@@ -543,6 +557,9 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         for name in view_names:
             tables.append(("view", name))
 
+        if not tables:
+            return []
+
         if not include_table_details:
             return [
                 DataTable(
@@ -561,11 +578,32 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 for table_type, name in tables
             ]
 
+        batched = self._get_batched_table_details(
+            table_names=[name for _, name in tables],
+            schema=schema,
+            database=database,
+        )
+        if batched is None:
+            batched = {}
+        elif len(batched) < len(tables):
+            LOGGER.debug(
+                "Batched reflection returned %d of %d tables in schema %s",
+                len(batched),
+                len(tables),
+                schema,
+            )
+
         data_tables: list[DataTable] = []
         for t_type, t_name in tables:
-            table = self.get_table_details(
-                table_name=t_name, schema_name=schema, database_name=database
-            )
+            # Tables missing from the batch (stale listings, dialect
+            # quirks) fall back to per-table reflection.
+            table = batched.get(t_name)
+            if table is None:
+                table = self.get_table_details(
+                    table_name=t_name,
+                    schema_name=schema,
+                    database_name=database,
+                )
             if table is not None:
                 table.type = t_type
                 data_tables.append(table)
@@ -626,6 +664,83 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                         index_columns.append(col)
         return index_columns
 
+    @safe_execute(
+        fallback=None,
+        message="Failed to get batched table details",
+        log_level="warning",
+    )
+    def _get_batched_table_details(
+        self,
+        *,
+        table_names: list[str],
+        schema: str,
+        database: str,
+    ) -> dict[str, DataTable] | None:
+        """Reflect columns, PKs, and indexes for many tables at once.
+
+        Uses the `get_multi_*` inspector methods (SQLAlchemy 2.0+) on a
+        single inspector, so dialects with native multi-table reflection
+        (e.g. Snowflake) run a few schema-wide queries instead of several
+        queries — and, for some dialects, a fresh connection — per table.
+
+        Returns `None` when batching is unavailable or fails, so callers
+        can fall back to per-table reflection.
+        """
+        with self._get_inspector(database) as inspector:
+            if inspector is None or not hasattr(
+                inspector, "get_multi_columns"
+            ):
+                return None
+
+            # Only importable on SQLAlchemy 2.0+, hence the hasattr guard
+            from sqlalchemy.engine.reflection import ObjectKind, ObjectScope
+
+            # `filter_names` scopes the reflection queries to the tables
+            # listed; ANY kind/scope covers views and temporary objects,
+            # matching what per-table reflection would return.
+            multi_columns = inspector.get_multi_columns(
+                schema=schema,
+                filter_names=table_names,
+                kind=ObjectKind.ANY,
+                scope=ObjectScope.ANY,
+            )
+            multi_pk_constraints = inspector.get_multi_pk_constraint(
+                schema=schema,
+                filter_names=table_names,
+                kind=ObjectKind.ANY,
+                scope=ObjectScope.ANY,
+            )
+            multi_indexes = inspector.get_multi_indexes(
+                schema=schema,
+                filter_names=table_names,
+                kind=ObjectKind.ANY,
+                scope=ObjectScope.ANY,
+            )
+
+        # Assemble outside the `with` so the connection is released first
+        columns_by_table = _index_by_table_name(multi_columns)
+        pk_constraints_by_table = _index_by_table_name(multi_pk_constraints)
+        indexes_by_table = _index_by_table_name(multi_indexes)
+
+        tables: dict[str, DataTable] = {}
+        for name, columns in columns_by_table.items():
+            pk_constraint = pk_constraints_by_table.get(name)
+            primary_keys: list[str] = (
+                pk_constraint.get("constrained_columns", [])
+                if pk_constraint
+                else []
+            )
+            index_columns = self._extract_index_columns(
+                indexes_by_table.get(name, [])
+            )
+            tables[name] = self._build_data_table(
+                table_name=name,
+                columns=columns,
+                primary_keys=primary_keys,
+                index_list=index_columns,
+            )
+        return tables
+
     def get_table_details(
         self,
         *,
@@ -650,6 +765,22 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
             table_name, schema_name, database_name
         )
 
+        return self._build_data_table(
+            table_name=table_name,
+            columns=columns,
+            primary_keys=primary_keys,
+            index_list=index_list,
+        )
+
+    def _build_data_table(
+        self,
+        *,
+        table_name: str,
+        columns: list[ReflectedColumn],
+        primary_keys: list[str],
+        index_list: list[str],
+    ) -> DataTable:
+        """Convert reflected column metadata into a DataTable."""
         cols: list[DataTableColumn] = []
         for col in columns:
             engine_type = col["type"]
