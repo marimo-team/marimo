@@ -384,6 +384,7 @@ const PopoutColumn = ({
   rawStringValue,
   edges,
   contentClassName,
+  scrollable = false,
   wrapped,
   children,
   buttonText,
@@ -395,6 +396,7 @@ const PopoutColumn = ({
   // still use `rawStringValue`. Middle is sliced from `rawStringValue`.
   edges?: { leading: string; trailing: string };
   contentClassName?: string;
+  scrollable?: boolean;
   wrapped?: boolean;
   buttonText?: string;
   children: React.ReactNode;
@@ -436,7 +438,10 @@ const PopoutColumn = ({
           </span>
         </PopoverTrigger>
         <PopoverContent
-          className={contentClassName}
+          className={cn(
+            contentClassName,
+            scrollable && "flex flex-col overflow-hidden",
+          )}
           align="start"
           alignOffset={10}
           onInteractOutside={(event) => {
@@ -448,19 +453,34 @@ const PopoutColumn = ({
             }
           }}
         >
-          <div className="float-right flex -mt-3 -mr-2">
+          <div
+            className={cn(
+              "flex -mt-3 -mr-2",
+              scrollable ? "shrink-0 justify-end" : "float-right",
+            )}
+          >
             <CopyClipboardIcon
               value={rawStringValue}
               className="size-3 hover:text-link"
+              buttonClassName="flex size-5 items-center justify-center"
               tooltip={false}
             />
             <PopoverClose asChild={true}>
-              <Button variant="link" size="xs" aria-label="Close">
+              <Button
+                variant="link"
+                size="xs"
+                className="size-5 p-0"
+                aria-label="Close"
+              >
                 {buttonText ?? "Close"}
               </Button>
             </PopoverClose>
           </div>
-          {children}
+          {scrollable ? (
+            <div className="min-h-0 overflow-auto">{children}</div>
+          ) : (
+            children
+          )}
         </PopoverContent>
       </Popover>
     </EmotionCacheProvider>
@@ -674,7 +694,8 @@ export function renderCellValue<TData, TValue>({
         selectCell={selectCell}
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
+        contentClassName="max-h-64 whitespace-pre-wrap wrap-break-word text-sm w-96"
+        scrollable={true}
         wrapped={isWrapped}
         buttonText="X"
       >

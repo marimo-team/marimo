@@ -820,30 +820,35 @@ describe("renderCellValue with string + edge whitespace", () => {
     });
     const host = document.createElement("div");
     document.body.append(host);
-    const shadowRoot = host.attachShadow({ mode: "open" });
-    const { unmount } = render(
-      <I18nProvider locale="en-US">
-        <TooltipProvider>{result}</TooltipProvider>
-      </I18nProvider>,
-      { container: shadowRoot as unknown as HTMLElement },
-    );
-    const trigger =
-      shadowRoot.querySelector<HTMLButtonElement>("button[data-state]");
-    const getCopyButton = () =>
-      document.querySelector('[aria-label="Copy to clipboard"]') ??
-      shadowRoot.querySelector('[aria-label="Copy to clipboard"]');
+    try {
+      const shadowRoot = host.attachShadow({ mode: "open" });
+      const { unmount } = render(
+        <I18nProvider locale="en-US">
+          <TooltipProvider>{result}</TooltipProvider>
+        </I18nProvider>,
+        { container: shadowRoot as unknown as HTMLElement },
+      );
+      try {
+        const trigger =
+          shadowRoot.querySelector<HTMLButtonElement>("button[data-state]");
+        const getCopyButton = () =>
+          document.querySelector('[aria-label="Copy to clipboard"]') ??
+          shadowRoot.querySelector('[aria-label="Copy to clipboard"]');
 
-    expect(trigger).not.toBeNull();
-    fireEvent.pointerDown(trigger!);
-    fireEvent.click(trigger!);
-    await waitFor(() => expect(getCopyButton()).not.toBeNull());
+        expect(trigger).not.toBeNull();
+        fireEvent.pointerDown(trigger!);
+        fireEvent.click(trigger!);
+        await waitFor(() => expect(getCopyButton()).not.toBeNull());
 
-    fireEvent.pointerDown(trigger!);
-    fireEvent.click(trigger!);
-    expect(getCopyButton()).toBeNull();
-
-    unmount();
-    host.remove();
+        fireEvent.pointerDown(trigger!);
+        fireEvent.click(trigger!);
+        expect(getCopyButton()).toBeNull();
+      } finally {
+        unmount();
+      }
+    } finally {
+      host.remove();
+    }
   });
 
   it("renders edge whitespace markers and still detects the URL in the middle", () => {
