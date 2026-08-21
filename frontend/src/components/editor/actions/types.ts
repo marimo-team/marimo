@@ -45,8 +45,7 @@ export function flattenActions(
   prevLabel = "",
 ): ActionButton[] {
   return actions.flatMap((action) => {
-    // If label is empty, hide
-    if (!action.label) {
+    if (!action.label || action.hidden) {
       return [];
     }
     if (isParentAction(action)) {
