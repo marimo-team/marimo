@@ -79,6 +79,22 @@ describe("HotkeyProvider platform separation", () => {
   });
 });
 
+describe("HotkeyProvider", () => {
+  it("does not treat inherited properties as hotkeys", () => {
+    const provider = new HotkeyProvider(
+      createHotkeys({
+        "cell.run": {
+          name: "Run cell",
+          group: "Running Cells",
+          key: "Mod-Enter",
+        },
+      }),
+    );
+
+    expect(provider.hasHotkey("constructor")).toBe(false);
+  });
+});
+
 describe("normalizeKeyString", () => {
   it("should capitalize multi-character base key names", () => {
     expect(normalizeKeyString("Shift-enter")).toBe("Shift-Enter");
@@ -133,5 +149,31 @@ describe("OverridingHotkeyProvider", () => {
       { platform: "mac" },
     );
     expect(provider.getHotkey("cell.run").key).toBe("Shift-Enter");
+  });
+
+  it("merges extension shortcuts with user overrides", () => {
+    const action = "extension.companion.show-message" as const;
+    const provider = new OverridingHotkeyProvider(
+      { [action]: "Alt-y" },
+      {
+        platform: "mac",
+        extensions: {
+          [action]: {
+            name: "Show companion message",
+            group: "Other",
+            key: "Mod-Shift-Y",
+          },
+        },
+      },
+    );
+
+    expect(provider.hasHotkey(action)).toBe(true);
+    expect(provider.getDefaultHotkey(action)).toEqual({
+      name: "Show companion message",
+      key: "Cmd-Shift-Y",
+      additionalKeywords: undefined,
+    });
+    expect(provider.getHotkey(action).key).toBe("Alt-y");
+    expect(provider.getHotkeyGroups().Other).toContain(action);
   });
 });

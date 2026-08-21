@@ -8,11 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Kbd } from "@/components/ui/kbd";
 import { hotkeysAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import type { UserConfig } from "@/core/config/config-schema";
-import {
-  getDefaultHotkey,
-  type HotkeyAction,
-  type HotkeyGroup,
-} from "@/core/hotkeys/hotkeys";
+import type { AnyHotkeyAction, HotkeyGroup } from "@/core/hotkeys/hotkeys";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 import { useRequestClient } from "@/core/network/requests";
 import { useDuplicateShortcuts } from "../../../hooks/useDuplicateShortcuts";
@@ -32,9 +28,8 @@ export const keyboardShortcutsAtom = atom(false);
 
 export const KeyboardShortcuts: React.FC = () => {
   const [isOpen, setIsOpen] = useAtom(keyboardShortcutsAtom);
-  const [editingShortcut, setEditingShortcut] = useState<HotkeyAction | null>(
-    null,
-  );
+  const [editingShortcut, setEditingShortcut] =
+    useState<AnyHotkeyAction | null>(null);
   const [newShortcut, setNewShortcut] = useState<string[]>([]);
   const [config, setConfig] = useResolvedMarimoConfig();
   const hotkeys = useAtomValue(hotkeysAtom);
@@ -123,11 +118,11 @@ export const KeyboardShortcuts: React.FC = () => {
     return null;
   }
 
-  const renderItem = (action: HotkeyAction) => {
+  const renderItem = (action: AnyHotkeyAction) => {
     const hotkey = hotkeys.getHotkey(action);
 
     if (editingShortcut === action) {
-      const defaultHotkey = getDefaultHotkey(action);
+      const defaultHotkey = hotkeys.getDefaultHotkey(action);
       return (
         <div key={action}>
           <Input

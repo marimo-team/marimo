@@ -7,10 +7,12 @@ import { z } from "zod";
 import {
   appConfigAtom,
   configOverridesAtom,
+  keyboardShortcutExtensionsAtom,
   userConfigAtom,
 } from "@/core/config/config";
 import { KnownQueryParams } from "@/core/constants";
 import { getFilenameFromDOM } from "@/core/dom/htmlUtils";
+import { HOTKEY_GROUPS } from "@/core/hotkeys/hotkeys";
 import { getMarimoCode } from "@/core/meta/globals";
 import {
   marimoVersionAtom,
@@ -136,6 +138,21 @@ const passthroughObject = z
     return {};
   });
 
+const extensionHotkeyActionSchema = z.templateLiteral([
+  "extension.",
+  z.string().min(1),
+]);
+
+const keyboardShortcutExtensionsSchema = z.record(
+  extensionHotkeyActionSchema,
+  z.object({
+    name: z.string().min(1),
+    key: z.string().trim().min(1),
+    group: z.enum(HOTKEY_GROUPS),
+    additionalKeywords: z.array(z.string()).optional(),
+  }),
+);
+
 // This should be extremely backwards compatible and require no options
 const mountOptionsSchema = z.object({
   /**
@@ -202,6 +219,7 @@ const mountOptionsSchema = z.object({
    * marimo app config
    */
   appConfig: passthroughObject,
+  keyboardShortcuts: keyboardShortcutExtensionsSchema.default({}),
   /**
    * show code in run mode
    */
@@ -328,6 +346,10 @@ function initStore(options: unknown) {
   );
   store.set(userConfigAtom, parseUserConfig(parsedOptions.data.config));
   store.set(appConfigAtom, parseAppConfig(parsedOptions.data.appConfig));
+  store.set(
+    keyboardShortcutExtensionsAtom,
+    parsedOptions.data.keyboardShortcuts,
+  );
 
   // Runtime config
   if (parsedOptions.data.runtimeConfig.length > 0) {

@@ -38,14 +38,17 @@ interface ResolvedHotkey {
 
 type ModKey = "Cmd" | "Ctrl";
 
-export type HotkeyGroup =
-  | "Running Cells"
-  | "Creation and Ordering"
-  | "Navigation"
-  | "Editing"
-  | "Markdown"
-  | "Command"
-  | "Other";
+export const HOTKEY_GROUPS = [
+  "Running Cells",
+  "Creation and Ordering",
+  "Navigation",
+  "Editing",
+  "Markdown",
+  "Command",
+  "Other",
+] as const;
+
+export type HotkeyGroup = (typeof HOTKEY_GROUPS)[number];
 
 const DEFAULT_HOT_KEY = {
   // Cell Navigation
@@ -476,6 +479,11 @@ const DEFAULT_HOT_KEY = {
 } satisfies Record<string, Hotkey>;
 
 export type HotkeyAction = keyof typeof DEFAULT_HOT_KEY;
+export type ExtensionHotkeyAction = `extension.${string}`;
+export type AnyHotkeyAction = HotkeyAction | ExtensionHotkeyAction;
+
+type HotkeyMap = Record<HotkeyAction, Hotkey> &
+  Partial<Record<ExtensionHotkeyAction, Hotkey>>;
 
 export function isHotkeyAction(x: string): x is HotkeyAction {
   return x in DEFAULT_HOT_KEY;
@@ -485,7 +493,7 @@ export function getDefaultHotkey(action: HotkeyAction): ResolvedHotkey {
   return new HotkeyProvider(DEFAULT_HOT_KEY).getHotkey(action);
 }
 export interface IHotkeyProvider {
-  getHotkey(action: HotkeyAction): ResolvedHotkey;
+  getHotkey(action: AnyHotkeyAction): ResolvedHotkey;
 }
 
 interface HotkeyProviderOptions {
@@ -496,6 +504,7 @@ interface HotkeyProviderOptions {
    * An explicit value is generally only provided in tests.
    */
   platform?: Platform;
+  extensions?: Partial<Record<ExtensionHotkeyAction, Hotkey>>;
 }
 
 export class HotkeyProvider implements IHotkeyProvider {
@@ -509,23 +518,29 @@ export class HotkeyProvider implements IHotkeyProvider {
     return new HotkeyProvider(DEFAULT_HOT_KEY, { platform });
   }
 
-  private hotkeys: Record<HotkeyAction, Hotkey>;
+  private hotkeys: HotkeyMap;
 
-  constructor(
-    hotkeys: Record<HotkeyAction, Hotkey>,
-    options: HotkeyProviderOptions = {},
-  ) {
+  constructor(hotkeys: HotkeyMap, options: HotkeyProviderOptions = {}) {
     this.hotkeys = hotkeys;
     this.platform = options.platform ?? resolvePlatform();
     this.mod = this.platform === "mac" ? "Cmd" : "Ctrl";
   }
 
-  iterate(): HotkeyAction[] {
+  iterate(): AnyHotkeyAction[] {
     return Objects.keys(this.hotkeys);
   }
 
-  getHotkey(action: HotkeyAction): ResolvedHotkey {
-    const { name, key, additionalKeywords } = this.hotkeys[action];
+  hasHotkey(action: string): action is AnyHotkeyAction {
+    return Object.hasOwn(this.hotkeys, action);
+  }
+
+  getDefaultHotkey(action: AnyHotkeyAction): ResolvedHotkey {
+    const hotkey = this.hotkeys[action];
+    if (!hotkey) {
+      throw new Error(`Unknown hotkey action: ${action}`);
+    }
+
+    const { name, key, additionalKeywords } = hotkey;
     if (typeof key === "string") {
       return {
         name,
@@ -548,36 +563,43 @@ export class HotkeyProvider implements IHotkeyProvider {
     };
   }
 
-  getHotkeyDisplay(action: HotkeyAction): string {
-    return this.hotkeys[action].name;
+  getHotkey(action: AnyHotkeyAction): ResolvedHotkey {
+    return this.getDefaultHotkey(action);
   }
 
-  isEditable(action: HotkeyAction): boolean {
-    return this.hotkeys[action].editable !== false;
+  getHotkeyDisplay(action: AnyHotkeyAction): string {
+    return this.getDefaultHotkey(action).name;
   }
 
-  getHotkeyGroups(): Record<HotkeyGroup, HotkeyAction[]> {
+  isEditable(action: AnyHotkeyAction): boolean {
+    const hotkey = this.hotkeys[action];
+    return hotkey !== undefined && hotkey.editable !== false;
+  }
+
+  getHotkeyGroups(): Record<HotkeyGroup, AnyHotkeyAction[]> {
     return Objects.groupBy(
       Objects.entries(this.hotkeys),
-      ([, hotkey]) => hotkey.group,
+      ([, hotkey]) => hotkey?.group,
       ([action]) => action,
     );
   }
 }
 
 export class OverridingHotkeyProvider extends HotkeyProvider {
-  private readonly overrides: Partial<Record<HotkeyAction, string | undefined>>;
+  private readonly overrides: Partial<
+    Record<AnyHotkeyAction, string | undefined>
+  >;
 
   constructor(
-    overrides: Partial<Record<HotkeyAction, string | undefined>>,
+    overrides: Partial<Record<AnyHotkeyAction, string | undefined>>,
     options: HotkeyProviderOptions = {},
   ) {
-    super(DEFAULT_HOT_KEY, options);
+    super({ ...DEFAULT_HOT_KEY, ...options.extensions }, options);
     this.overrides = overrides;
   }
 
-  override getHotkey(action: HotkeyAction): ResolvedHotkey {
-    const base = super.getHotkey(action);
+  override getHotkey(action: AnyHotkeyAction): ResolvedHotkey {
+    const base = super.getDefaultHotkey(action);
     const override = this.overrides[action];
     return {
       name: base.name,

@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/command";
 import { lastFocusedCellAtom } from "@/core/cells/focus";
 import { hotkeysAtom } from "@/core/config/config";
-import { type HotkeyAction, isHotkeyAction } from "@/core/hotkeys/hotkeys";
+import type { AnyHotkeyAction } from "@/core/hotkeys/hotkeys";
 import { parseShortcut } from "@/core/hotkeys/shortcuts";
 import { useEventListener } from "@/hooks/useEventListener";
 import { Objects } from "@/utils/objects";
@@ -63,7 +63,7 @@ const CommandPalette = () => {
   });
 
   const renderShortcutCommandItem = (
-    shortcut: HotkeyAction,
+    shortcut: AnyHotkeyAction,
     props: {
       disabled?: boolean;
       tooltip?: React.ReactNode;
@@ -111,7 +111,7 @@ const CommandPalette = () => {
     label: string;
     handle: () => void;
     props?: { disabled?: boolean; tooltip?: React.ReactNode };
-    hotkey?: HotkeyAction;
+    hotkey?: AnyHotkeyAction;
     additionalKeywords?: string[];
   }) => {
     return (
@@ -152,7 +152,7 @@ const CommandPalette = () => {
               {recentCommands.map((shortcut) => {
                 const action = keyedNotebookActions[shortcut];
                 // Hotkey
-                if (isHotkeyAction(shortcut)) {
+                if (hotkeys.hasHotkey(shortcut)) {
                   return renderShortcutCommandItem(shortcut, {
                     disabled: action?.disabled,
                     tooltip: action?.tooltip,

@@ -8,6 +8,7 @@ import type React from "react";
 import { memo, type PropsWithChildren, Suspense } from "react";
 import { TailwindIndicator } from "@/components/debug/indicator";
 import { useAppConfig, useResolvedMarimoConfig } from "@/core/config/config";
+import { KeyboardShortcutExtensions } from "@/core/hotkeys/extensions";
 import { getInitialAppMode } from "@/core/mode";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { reactLazyWithPreload } from "@/utils/lazy";
@@ -81,6 +82,7 @@ export const MarimoApp: React.FC = memo(() => {
 
   return (
     <Providers>
+      <KeyboardShortcutExtensions />
       <CssVariables
         variables={{ "--marimo-code-editor-font-size": editorFontSize }}
       >
