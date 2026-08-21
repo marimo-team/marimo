@@ -455,6 +455,28 @@ const PopoutColumn = ({
   );
 };
 
+/**
+ * Parse a string that holds a JSON object or array document.
+ * Returns `undefined` for everything else, including JSON scalars,
+ * so ordinary text keeps its plain rendering.
+ */
+function parseJsonDocument(text: string): unknown {
+  const trimmedText = text.trim();
+
+  const first = trimmedText[0];
+  const last = trimmedText[trimmedText.length - 1];
+  const isBracketPair =
+    (first === "{" && last === "}") || (first === "[" && last === "]");
+  if (!isBracketPair) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(trimmedText) as unknown;
+  } catch {
+    return undefined;
+  }
+}
+
 function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
     return true;
@@ -638,6 +660,28 @@ export function renderCellValue<TData, TValue>({
     const { leading, middle, trailing } =
       splitLeadingTrailingWhitespace(stringValue);
     const hasEdgeWhitespace = leading.length > 0 || trailing.length > 0;
+
+    // A str cell that holds a JSON document opens the same JSON viewer as
+    // native list/struct cells.
+    const jsonDocument = parseJsonDocument(middle);
+    if (jsonDocument !== undefined) {
+      return (
+        <PopoutColumn
+          cellStyles={cellStyles}
+          selectCell={selectCell}
+          rawStringValue={stringValue}
+          edges={{ leading, trailing }}
+          wrapped={isWrapped}
+        >
+          <JsonOutput
+            data={jsonDocument}
+            format="tree"
+            valueTypes="json"
+            className="max-h-64"
+          />
+        </PopoutColumn>
+      );
+    }
 
     // Parse only the inner content for URL detection so URLDetector doesn't
     // split on the whitespace padding.
