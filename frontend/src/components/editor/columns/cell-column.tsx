@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import React, { memo, useRef } from "react";
+import type { CellStateSummary } from "@/core/cells/semantic-state";
 import type { AppConfig } from "@/core/config/config-schema";
 import { useResizeHandle } from "@/hooks/useResizeHandle";
 import { cn } from "@/utils/cn";
@@ -18,6 +19,7 @@ interface Props {
   canDelete: boolean;
   canMoveLeft: boolean;
   canMoveRight: boolean;
+  statusSummary?: CellStateSummary;
   /**
    * If true, column chrome (drag handles, resize handles, borders) is hidden
    * while keeping the same component tree mounted.
@@ -46,6 +48,7 @@ export const Column = memo((props: Props) => {
         className={cn("group/column", zeroGapWhenPresenting)}
         footer={props.footer}
         presenting={props.presenting}
+        statusSummary={props.statusSummary}
       >
         <ResizableComponent
           startingWidth={getColumnWidth(props.index)}
@@ -123,7 +126,7 @@ const ResizableComponent = ({
           // which overflows narrow screens.
           presenting
             ? "w-(--content-width)"
-            : "min-h-[100px] px-11 pt-3 pb-6 min-w-[500px]",
+            : "min-h-[100px] pl-11 pr-24 pt-3 pb-6 min-w-[500px]",
         )}
         style={presenting ? undefined : style}
       >

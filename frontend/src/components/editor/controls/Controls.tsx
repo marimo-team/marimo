@@ -163,8 +163,9 @@ const RunControlButton = ({
       <Tooltip content={renderShortcut("global.runStale")}>
         <Button
           data-testid="run-button"
+          aria-label="Run all cells that need execution"
           size="medium"
-          color="yellow"
+          color={canInteractWithApp ? "blue" : "disabled"}
           shape="circle"
           onClick={onRun}
           disabled={!canInteractWithApp}
@@ -179,11 +180,12 @@ const RunControlButton = ({
     <Tooltip content="Nothing to run">
       <Button
         data-testid="run-button"
+        aria-label="No cells to run"
         className={"inactive-button"}
         color="disabled"
         size="medium"
         shape="circle"
-        disabled={!canInteractWithApp}
+        disabled={true}
       >
         <PlayIcon strokeWidth={1.5} size={16} />
       </Button>
@@ -208,10 +210,12 @@ const StopControlButton = ({
           !showInterrupt && "inactive-button active:shadow-xs-solid",
         )}
         data-testid="interrupt-button"
+        aria-label={showInterrupt ? "Interrupt execution" : "No cells running"}
         size="medium"
-        color={showInterrupt ? "yellow" : "disabled"}
+        color={showInterrupt ? "red" : "disabled"}
         shape="circle"
         onClick={showInterrupt ? onInterrupt : Functions.NOOP}
+        disabled={!showInterrupt}
       >
         <SquareIcon strokeWidth={1.5} size={16} />
       </Button>

@@ -280,8 +280,7 @@ export const ScratchPad: React.FC = () => {
                 output={output}
                 className={CSSClasses.outputArea}
                 cellId={cellId}
-                stale={false}
-                loading={false}
+                state="current"
               />
             </div>
             <div className="overflow-auto shrink-0 max-h-[50%]">

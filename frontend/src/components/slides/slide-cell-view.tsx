@@ -15,12 +15,12 @@ import { Slide as CellOutputSlide } from "@/components/slides/slide";
 import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { outputIsStale } from "@/core/cells/cell";
 import { useCellActions } from "@/core/cells/cells";
-import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import {
-  cellNeedsRun,
-  cellStatusClasses,
-  isUninstantiated,
-} from "@/core/cells/utils";
+  cellStateDataAttributes,
+  deriveCellSemanticState,
+  presentCellState,
+} from "@/core/cells/semantic-state";
+import { autoInstantiateAtom, useUserConfig } from "@/core/config/config";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { connectionAtom } from "@/core/network/connection";
@@ -63,33 +63,19 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
   const cellOutputPosition = userConfig.display.cell_output;
   const hasOutput = cell.output != null;
 
-  const uninstantiated = isUninstantiated({
-    executionTime: cell.runElapsedTimeMs ?? cell.lastExecutionTime,
-    status: cell.status,
-    errored: cell.errored,
-    interrupted: cell.interrupted,
-    stopped: cell.stopped,
-  });
-
-  const needsRun = cellNeedsRun({
-    edited: cell.edited,
-    interrupted: cell.interrupted,
-    staleInputs: cell.staleInputs,
-    disabled: cell.config.disabled,
-    status: cell.status,
-  });
+  const semanticState = deriveCellSemanticState(cell, cell);
+  const presentation = presentCellState(semanticState);
 
   const editorWrapperClassName = cn(
     "marimo-cell",
     "hover-actions-parent",
     "interactive",
-    cellStatusClasses({
-      needsRun,
-      errored: cell.errored,
-      stopped: cell.stopped,
-      disabled: cell.config.disabled,
-      status: cell.status,
-    }),
+    {
+      "cell-active": presentation.emphasis === "active",
+      "cell-failed": presentation.emphasis === "failed",
+      "cell-paused": semanticState.availability.kind === "paused",
+      "cell-blocked": semanticState.availability.kind === "blocked",
+    },
   );
 
   const output = (
@@ -105,15 +91,8 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
     <div className="absolute top-1 right-2 z-10 flex items-center gap-1.5">
       <CellStatusComponent
         editing={true}
-        status={cell.status}
-        disabled={cell.config.disabled ?? false}
-        staleInputs={cell.staleInputs}
-        edited={cell.edited}
-        interrupted={cell.interrupted}
-        elapsedTime={cell.runElapsedTimeMs ?? cell.lastExecutionTime}
-        runStartTimestamp={cell.runStartTimestamp}
-        lastRunStartTimestamp={cell.lastRunStartTimestamp}
-        uninstantiated={uninstantiated}
+        state={semanticState}
+        display="compact"
       />
       <LanguageToggles
         code={cell.code}
@@ -124,14 +103,14 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       />
       <div className="flex items-center shadow-none gap-1">
         <RunButton
-          edited={cell.edited}
-          status={cell.status}
-          needsRun={needsRun}
+          state={semanticState}
           connectionState={connection.state}
-          config={cell.config}
           onClick={runCell}
         />
-        <StopButton status={cell.status} connectionState={connection.state} />
+        <StopButton
+          phase={semanticState.phase}
+          connectionState={connection.state}
+        />
       </div>
     </div>
   );
@@ -141,6 +120,7 @@ export const SlideCellView = ({ cell }: { cell: RuntimeCell }) => {
       tabIndex={-1}
       className={editorWrapperClassName}
       {...cellDomProps(cell.id, cell.name)}
+      {...cellStateDataAttributes(semanticState)}
     >
       <CellEditor
         theme={theme}

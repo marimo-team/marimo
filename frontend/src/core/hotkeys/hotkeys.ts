@@ -339,9 +339,10 @@ const DEFAULT_HOT_KEY = {
     key: "Mod-k",
   },
   "global.runStale": {
-    name: "Run all stale cells",
+    name: "Run all cells that need execution",
     group: "Running Cells",
     key: "Mod-Shift-r",
+    additionalKeywords: ["stale", "outdated", "pending"],
   },
   "global.interrupt": {
     name: "Stop (interrupt) execution",

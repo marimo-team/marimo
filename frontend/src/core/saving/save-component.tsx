@@ -78,8 +78,9 @@ export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
       <ControlButton
         data-testid="save-button"
         id="save-button"
+        aria-label={needsSave ? "Save unsaved changes" : "Save notebook"}
         shape="rectangle"
-        color={needsSave ? "yellow" : "hint-green"}
+        color={needsSave ? "blue" : "gray"}
         onClick={handleSaveClick}
       >
         <SaveIcon strokeWidth={1.5} size={18} />

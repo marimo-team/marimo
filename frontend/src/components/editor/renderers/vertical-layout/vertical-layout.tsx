@@ -28,6 +28,7 @@ import {
 import { outputIsLoading, outputIsStale } from "@/core/cells/cell";
 import type { CellId } from "@/core/cells/ids";
 import { isOutputEmpty } from "@/core/cells/outputs";
+import { deriveOutputStateFromFlags } from "@/core/cells/semantic-state";
 import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { getReadonlyCodeDisplay } from "@/core/cells/readonly-code-display";
 import { MarkdownLanguageAdapter } from "@/core/codemirror/language/languages/markdown";
@@ -382,8 +383,7 @@ const VerticalCell = memo(
           output={output}
           className={CSSClasses.outputArea}
           cellId={cellId}
-          stale={outputStale}
-          loading={loading}
+          state={deriveOutputStateFromFlags(outputStale, loading)}
         />
       );
 
@@ -448,8 +448,7 @@ const VerticalCell = memo(
           output={output}
           className={CSSClasses.outputArea}
           cellId={cellId}
-          stale={outputStale}
-          loading={loading}
+          state={deriveOutputStateFromFlags(outputStale, loading)}
         />
       </div>
     );

@@ -1,21 +1,78 @@
-.cell-status-icon {
-  margin-top: 4px;
-  margin-left: 3px;
-  margin-bottom: auto;
+.cell-status-indicator,
+.cell-status-duration {
+  margin: 3px 0 0 3px;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 1.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  white-space: nowrap;
 }
 
-.elapsed-time {
+.cell-status-indicator {
+  padding: 0.2rem 0.4rem;
+  border: 1px solid transparent;
+}
+
+.cell-status-active {
+  color: var(--blue-11);
+  background: var(--blue-3);
+  border-color: var(--blue-6);
+}
+
+.cell-status-muted {
+  color: var(--gray-11);
+  background: var(--gray-2);
+  border-color: var(--gray-5);
+}
+
+.cell-status-neutral {
+  color: var(--slate-11);
+  background: var(--slate-3);
+  border-color: var(--slate-6);
+}
+
+.cell-status-danger {
+  color: var(--red-11);
+  background: var(--red-3);
+  border-color: var(--red-6);
+}
+
+.cell-status-duration,
+.cell-status-timer {
+  color: currentColor;
   font-family: var(--monospace-font);
-  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.cell-status-label {
+  font-weight: 500;
+}
+
+.cell-status-indicator[data-display="compact"] {
+  padding-inline: 0.2rem;
+}
+
+.cell-status-indicator[data-display="compact"] .cell-status-label {
+  display: none;
+}
+
+.cell-status-indicator[data-display="compact"][data-status^="running"]
+  > .contents
+  > svg {
+  display: none;
+}
+
+.cell-status-indicator .multi-icon .second-icon {
+  background: inherit;
+}
+
+.cell-status-duration {
   color: var(--gray-11);
 }
 
-#App.disconnected .elapsed-time {
+#App.disconnected .cell-status-timer {
   visibility: hidden;
-}
-
-.cell-status-disabled,
-.cell-status-queued,
-.cell-status-stale {
-  color: var(--gray-10);
 }

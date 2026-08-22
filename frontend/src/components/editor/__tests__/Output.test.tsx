@@ -74,8 +74,7 @@ describe("OutputArea null/undefined handling", () => {
         <OutputArea
           output={null}
           cellId={cellId("test")}
-          stale={false}
-          loading={false}
+          state="current"
           allowExpand={true}
         />
       </TooltipProvider>,
@@ -90,8 +89,7 @@ describe("OutputArea null/undefined handling", () => {
           // @ts-expect-error -- testing runtime safety for undefined output
           output={undefined}
           cellId={cellId("test")}
-          stale={false}
-          loading={false}
+          state="current"
           allowExpand={true}
         />
       </TooltipProvider>,
