@@ -157,6 +157,19 @@ class TestArrowDetection:
 
 @pytest.mark.requires("duckdb")
 class TestDuckDBDetection:
+    def test_detects_crs_parameterized_geometry_column(self) -> None:
+        conn = geo.duckdb_crs_geometry_connection()
+        try:
+            manager = get_table_manager(conn.table("crs_geometry"))
+
+            assert manager.get_field_type("geom") == (
+                "geometry",
+                "GEOMETRY('OGC:CRS84')",
+            )
+            assert manager._geometry_columns["geom"].encoding == "wkb"
+        finally:
+            conn.close()
+
     def test_detects_geometry_relation_columns(self) -> None:
         import narwhals.stable.v2 as nw
 

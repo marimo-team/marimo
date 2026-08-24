@@ -246,6 +246,21 @@ def duckdb_geometry_relation(
     )
 
 
+def duckdb_crs_geometry_connection() -> duckdb_mod.DuckDBPyConnection:
+    """In-memory connection with a CRS-parameterized geometry table, or skip."""
+    import duckdb
+
+    conn = duckdb.connect()
+    try:
+        conn.execute(
+            "CREATE TABLE crs_geometry (geom GEOMETRY('OGC:CRS84'))"
+        )
+    except duckdb.Error as e:
+        conn.close()
+        pytest.skip(f"duckdb CRS-parameterized geometry unavailable: {e}")
+    return conn
+
+
 # --- ibis --------------------------------------------------------------
 
 
