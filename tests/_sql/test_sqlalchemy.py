@@ -536,7 +536,7 @@ def test_batched_details_fall_back_when_multi_reflection_raises(
         )
     assert tables == [get_expected_table("test")]
     mock_logger.warning.assert_called_once_with(
-        "Failed to get batched table details", exc_info=True
+        "Failed to get batched columns", exc_info=True
     )
 
 
@@ -1239,101 +1239,24 @@ def test_get_schema_names_no_inspector(make_engine):
     assert engine._get_schema_names("MY_DB") == []
 
 
-# ------------------------------------------------------------------ #
-#  _get_table_names
-# ------------------------------------------------------------------ #
-
-
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_table_names(make_engine):
+def test_get_table_details_reuses_inspector_context(make_engine):
+    import sqlalchemy as sa
+
     engine = make_engine(
-        table_names=["users", "orders"], view_names=["active_users"]
-    )
-    tables, views = engine._get_table_names(schema="public", database="MY_DB")
-    assert tables == ["users", "orders"]
-    assert views == ["active_users"]
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_table_names_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    assert engine._get_table_names(schema="public", database="MY_DB") == (
-        [],
-        [],
+        table_columns=[{"name": "id", "type": sa.INTEGER()}],
+        pk_constraint={"constrained_columns": ["id"]},
     )
 
-
-# ------------------------------------------------------------------ #
-#  _get_columns
-# ------------------------------------------------------------------ #
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_columns(make_engine):
-    cols = [
-        {"name": "id", "type": "INTEGER"},
-        {"name": "name", "type": "TEXT"},
-    ]
-    engine = make_engine(table_columns=cols)
-    result = engine._get_columns("users", schema="public", database="MY_DB")
-    assert result == cols
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_get_columns_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    assert (
-        engine._get_columns("users", schema="public", database="MY_DB") is None
+    table = engine.get_table_details(
+        table_name="users",
+        schema_name="public",
+        database_name="MY_DB",
     )
 
-
-# ------------------------------------------------------------------ #
-#  _fetch_primary_keys
-# ------------------------------------------------------------------ #
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_primary_keys(make_engine):
-    engine = make_engine(
-        pk_constraint={"constrained_columns": ["id", "tenant_id"]}
-    )
-    result = engine._fetch_primary_keys(
-        "users", schema="public", database="MY_DB"
-    )
-    assert result == ["id", "tenant_id"]
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_primary_keys_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    result = engine._fetch_primary_keys(
-        "users", schema="public", database="MY_DB"
-    )
-    assert result == []
-
-
-# ------------------------------------------------------------------ #
-#  _fetch_indexes
-# ------------------------------------------------------------------ #
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_indexes(make_engine):
-    engine = make_engine(
-        indexes=[
-            {"column_names": ["email"], "name": "idx_email", "unique": True},
-            {"column_names": ["name"], "name": "idx_name", "unique": False},
-        ]
-    )
-    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
-    assert result == ["email", "name"]
-
-
-@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
-def test_fetch_indexes_no_inspector(make_engine):
-    engine = make_engine(inspector=False)
-    result = engine._fetch_indexes("users", schema="public", database="MY_DB")
-    assert result == []
+    assert table is not None
+    assert table.primary_keys == ["id"]
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 # ------------------------------------------------------------------ #
@@ -1375,22 +1298,26 @@ def test_batched_details_uses_multi_reflection(make_engine):
     assert tables[1].primary_keys == []
     assert tables[1].indexes == []
 
+    engine._mock_inspector.get_multi_columns.assert_called_once_with(
+        schema="public",
+        filter_names=["users", "active_users"],
+        kind=ObjectKind.ANY,
+        scope=ObjectScope.ANY,
+    )
     for multi_method in (
-        engine._mock_inspector.get_multi_columns,
         engine._mock_inspector.get_multi_pk_constraint,
         engine._mock_inspector.get_multi_indexes,
     ):
         multi_method.assert_called_once_with(
             schema="public",
-            filter_names=["users", "active_users"],
+            filter_names=["users"],
             kind=ObjectKind.ANY,
             scope=ObjectScope.ANY,
         )
     engine._mock_inspector.get_columns.assert_not_called()
     engine._mock_inspector.get_pk_constraint.assert_not_called()
     engine._mock_inspector.get_indexes.assert_not_called()
-    # One inspector context for names + one for the whole batch
-    assert len(engine._mock_inspector_contexts) == 2
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
@@ -1418,6 +1345,46 @@ def test_batched_details_without_multi_support(make_engine):
 
 
 @pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_batched_details_isolates_metadata_failures(make_engine):
+    """Bulk metadata failures reuse batched columns and the same inspector."""
+    import sqlalchemy as sa
+
+    engine = make_engine(
+        table_names=["users"],
+        view_names=["active_users"],
+        multi_columns={
+            ("public", "users"): [{"name": "id", "type": sa.INTEGER()}],
+            ("public", "active_users"): [{"name": "id", "type": sa.INTEGER()}],
+        },
+        pk_constraint={"constrained_columns": ["id"]},
+        indexes=[{"column_names": ["id"], "name": "idx"}],
+    )
+    engine._mock_inspector.get_multi_pk_constraint.side_effect = RuntimeError
+    engine._mock_inspector.get_multi_indexes.side_effect = RuntimeError
+
+    tables = engine.get_tables_in_schema(
+        schema="public", database="MY_DB", include_table_details=True
+    )
+
+    assert [(table.name, table.type) for table in tables] == [
+        ("users", "table"),
+        ("active_users", "view"),
+    ]
+    assert tables[0].primary_keys == ["id"]
+    assert tables[0].indexes == ["id"]
+    assert tables[1].primary_keys == []
+    assert tables[1].indexes == []
+    engine._mock_inspector.get_columns.assert_not_called()
+    engine._mock_inspector.get_pk_constraint.assert_called_once_with(
+        "users", schema="public"
+    )
+    engine._mock_inspector.get_indexes.assert_called_once_with(
+        "users", schema="public"
+    )
+    assert len(engine._mock_inspector_contexts) == 1
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
 def test_batched_details_straggler_falls_back_per_table(make_engine):
     """A table missing from the batch is fetched per table."""
     import sqlalchemy as sa
@@ -1437,6 +1404,7 @@ def test_batched_details_straggler_falls_back_per_table(make_engine):
     engine._mock_inspector.get_columns.assert_called_once_with(
         "orders", schema="public"
     )
+    assert len(engine._mock_inspector_contexts) == 1
 
 
 # ------------------------------------------------------------------ #
