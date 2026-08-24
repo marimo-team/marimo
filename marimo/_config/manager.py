@@ -538,7 +538,7 @@ class UserConfigManager(MarimoConfigReader):
                 # A `.marimo.toml` discovered by walking up from the cwd is
                 # project-origin, not user-owned. Strip its cache-trust keys
                 # like any other untrusted layer.
-                strip_untrusted_config(user_config, is_user_layer=True)
+                user_config = strip_untrusted_config(user_config, is_user_layer=True)
             return merge_default_config(user_config)
         else:
             LOGGER.debug("No config found; loading default settings.")
