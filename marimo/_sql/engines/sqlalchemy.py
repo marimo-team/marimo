@@ -97,14 +97,7 @@ def safe_execute(
 def _index_by_table_name(
     reflected: dict[tuple[str | None, str], T],
 ) -> dict[str, T]:
-    """Re-key SQLAlchemy multi-reflection results by bare table name.
-
-    Dialects disagree on the schema half of the `(schema, table)` keys
-    returned by the `get_multi_*` inspector methods (the value passed,
-    `None`, or a normalized form), so the schema half is dropped rather
-    than reconstructed. Each call site is scoped to a single schema,
-    which keeps the bare name unambiguous.
-    """
+    """Index reflection results by table name within a single schema."""
     return {name: value for (_schema, name), value in reflected.items()}
 
 
@@ -681,16 +674,7 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         view_names: list[str],
         schema: str,
     ) -> dict[str, DataTable] | None:
-        """Reflect columns, PKs, and indexes for many tables at once.
-
-        Uses the `get_multi_*` inspector methods (SQLAlchemy 2.0+) on a
-        single inspector, so dialects with native multi-table reflection
-        (e.g. Snowflake) run a few schema-wide queries instead of several
-        queries — and, for some dialects, a fresh connection — per table.
-
-        Returns `None` when column batching is unavailable or fails, so
-        callers can fall back to per-table reflection.
-        """
+        """Reflect details for many tables at once."""
         if not hasattr(inspector, "get_multi_columns"):
             return None
 
