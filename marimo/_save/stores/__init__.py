@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import copy
-from typing import cast
+from typing import Any, cast
 
 from marimo import _loggers
 from marimo._config.config import CacheStoreConfig, StoreKey
@@ -30,14 +30,35 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
+def _store_config(config: Any) -> CacheStoreConfig | None:
+    """Read the store config out of a (possibly partial) marimo config.
+
+    Shared by `get_store` and `cache_store_is_untrusted` so store selection and
+    the provenance check can never disagree about which key they read.
+    """
+    return cast(
+        "CacheStoreConfig | None", config.get("cache", {}).get("store")
+    )
+
+
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
     config = get_default_config_manager(current_path=current_path).get_config()
-    store_config: CacheStoreConfig | None = config.get("cache", {}).get(
-        "store"
-    )
-    return _get_store_from_config(store_config)
+    return _get_store_from_config(_store_config(config))
+
+
+def cache_store_is_untrusted(current_path: str | None = None) -> bool:
+    """Whether `cache.store` came from a layer that travels with the code."""
+    # NB. only the overrides are inspected, because a store can reach the user
+    # layer solely through a workspace `.marimo.toml`, and that layer has its
+    # store stripped during config load for exactly this reason.
+    from marimo._config.manager import get_default_config_manager
+
+    overrides = get_default_config_manager(
+        current_path=current_path
+    ).get_config_overrides()
+    return _store_config(overrides) is not None
 
 
 def _get_store_from_config(

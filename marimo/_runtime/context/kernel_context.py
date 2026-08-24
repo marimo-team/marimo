@@ -165,7 +165,7 @@ def create_kernel_context(
     )
     from marimo._save.cache import CacheState
     from marimo._save.signing_policy import get_signing_policy
-    from marimo._save.stores import get_store
+    from marimo._save.stores import cache_store_is_untrusted, get_store
 
     # Storage is chosen explicitly by the caller. None means virtual files
     # are not supported; we still construct an (inert) InMemoryStorage so
@@ -185,6 +185,9 @@ def create_kernel_context(
         function_registry=FunctionRegistry(),
         cache=CacheState(
             store=get_store(kernel.app_metadata.filename),
+            store_from_untrusted_origin=cache_store_is_untrusted(
+                kernel.app_metadata.filename
+            ),
             # Resolved once for the session, from the kernel's effective config
             # so session/WASM-provided trust is honored. This runs before the
             # kernel loads any configured `.env`, which is what freezes the
