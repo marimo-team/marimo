@@ -17,7 +17,6 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^24.10.9",
     "@types/ws": "^8.18.1",
-    "@vitest/expect": "^1.6.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.5.1",
