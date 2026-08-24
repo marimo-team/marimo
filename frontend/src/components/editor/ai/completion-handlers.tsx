@@ -57,19 +57,20 @@ export const CompletionActionsCellFooter: React.FC<{
   runCell,
   acceptLabel,
   declineLabel,
+  size,
 }) => {
   return (
     <>
       <AcceptCompletionButton
         isLoading={isLoading}
         onAccept={onAccept}
-        size="xs"
+        size={size}
         runCell={runCell}
         label={acceptLabel}
       />
       <RejectCompletionButton
         onDecline={onDecline}
-        size="xs"
+        size={size}
         label={declineLabel}
       />
     </>
@@ -129,11 +130,7 @@ export const AcceptCompletionButton: React.FC<{
           )}
         </Button>
         <Tooltip
-          content={
-            multipleCompletions
-              ? "Accept and run all cells"
-              : "Accept and run cell"
-          }
+          content={`${text} and run ${multipleCompletions ? "all cells" : "cell"}`}
         >
           <Button
             variant="text"

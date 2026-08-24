@@ -441,7 +441,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
         )}
 
         <p className="transition-opacity duration-200 text-muted-foreground">
-          {isLoading ? "Generating change..." : "AI changed this cell"}
+          {isLoading ? "Generating fix..." : "Showing fix"}
         </p>
       </div>
 

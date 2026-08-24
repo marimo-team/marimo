@@ -58,19 +58,27 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     completionFunc(cellId, stagedAiCell, removeStagedCell, deleteStagedCell);
   };
 
+  const tooltipContent = isAddition
+    ? "AI-generated cell"
+    : isDeletion
+      ? "AI suggests deleting this cell"
+      : "AI changed this cell";
+
   return (
     <div className="mo-ai-cell-footer">
       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Tooltip content={isAddition ? "AI-generated cell" : null}>
-          <SparklesIcon className="size-3.5 text-(--blue-11)" />
-        </Tooltip>
-        {!isAddition && (
-          <span>
-            {isDeletion
-              ? "AI suggests deleting this cell"
-              : "AI changed this cell"}
+        <Tooltip content={tooltipContent}>
+          <span
+            className="inline-flex items-center gap-1.5"
+            aria-label={tooltipContent}
+          >
+            <SparklesIcon
+              aria-hidden="true"
+              className="size-3.5 text-(--blue-11)"
+            />
+            <span>AI</span>
           </span>
-        )}
+        </Tooltip>
       </div>
       {!isAddition && (
         <div className="flex items-center gap-1.5">

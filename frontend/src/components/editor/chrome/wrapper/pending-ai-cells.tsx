@@ -56,11 +56,10 @@ export const PendingAICells: React.FC = () => {
   };
 
   const runAllCells = () => {
-    runCell(
-      listStagedCells.filter(
-        (cellId) => stagedAiCells.get(cellId)?.type !== "delete_cell",
-      ),
+    const cellsToRun = listStagedCells.filter(
+      (cellId) => stagedAiCells.get(cellId)?.type !== "delete_cell",
     );
+    runCell(cellsToRun);
   };
 
   const cyanShadow = "shadow-[0_0_6px_0_#00A2C733]";
