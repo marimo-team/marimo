@@ -17,12 +17,11 @@
     "@types/minimist": "^1.2.5",
     "@types/node": "^24.10.9",
     "@types/ws": "^8.18.1",
-    "@vitest/expect": "^1.6.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "vitest": "^3.2.4",
+    "vitest": "^4.1.10",
     "vscode-ws-jsonrpc": "^3.5.0",
     "ws": "^8.19.0"
   },
