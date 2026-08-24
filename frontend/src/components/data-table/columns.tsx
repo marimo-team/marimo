@@ -469,7 +469,7 @@ const PopoutColumn = ({
               <Button
                 variant="link"
                 size="xs"
-                className="size-5 p-0"
+                className={cn("size-5 p-0", !buttonText && "ml-1.5 mr-1")}
                 aria-label="Close"
               >
                 {buttonText ?? "Close"}
