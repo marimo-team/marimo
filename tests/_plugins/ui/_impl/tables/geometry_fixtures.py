@@ -252,9 +252,7 @@ def duckdb_crs_geometry_connection() -> duckdb_mod.DuckDBPyConnection:
 
     conn = duckdb.connect()
     try:
-        conn.execute(
-            "CREATE TABLE crs_geometry (geom GEOMETRY('OGC:CRS84'))"
-        )
+        conn.execute("CREATE TABLE crs_geometry (geom GEOMETRY('OGC:CRS84'))")
     except duckdb.Error as e:
         conn.close()
         pytest.skip(f"duckdb CRS-parameterized geometry unavailable: {e}")
