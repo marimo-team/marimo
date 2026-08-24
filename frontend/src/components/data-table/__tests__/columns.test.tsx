@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { Column } from "@tanstack/react-table";
-import { fireEvent, render } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
 import { describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -808,6 +808,48 @@ describe("renderCellValue with string + edge whitespace", () => {
         <TooltipProvider>{node}</TooltipProvider>
       </I18nProvider>,
     );
+
+  it("closes a long-string popover when its shadow-DOM trigger is clicked again", async () => {
+    const value = "This string is long enough to render in a cell popover.";
+    const result = renderCellValue({
+      column: createMockStringColumn(),
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    const host = document.createElement("div");
+    document.body.append(host);
+    try {
+      const shadowRoot = host.attachShadow({ mode: "open" });
+      const { unmount } = render(
+        <I18nProvider locale="en-US">
+          <TooltipProvider>{result}</TooltipProvider>
+        </I18nProvider>,
+        { container: shadowRoot as unknown as HTMLElement },
+      );
+      try {
+        const trigger =
+          shadowRoot.querySelector<HTMLButtonElement>("button[data-state]");
+        const getCopyButton = () =>
+          document.querySelector('[aria-label="Copy to clipboard"]') ??
+          shadowRoot.querySelector('[aria-label="Copy to clipboard"]');
+
+        expect(trigger).not.toBeNull();
+        fireEvent.pointerDown(trigger!);
+        fireEvent.click(trigger!);
+        await waitFor(() => expect(getCopyButton()).not.toBeNull());
+
+        fireEvent.pointerDown(trigger!);
+        fireEvent.click(trigger!);
+        expect(getCopyButton()).toBeNull();
+      } finally {
+        unmount();
+      }
+    } finally {
+      host.remove();
+    }
+  });
 
   it("renders edge whitespace markers and still detects the URL in the middle", () => {
     const mockColumn = createMockStringColumn();
