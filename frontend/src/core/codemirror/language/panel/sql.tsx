@@ -10,10 +10,12 @@ import {
   CircleHelpIcon,
   DatabaseZap,
   SearchCheck,
+  SparklesIcon,
 } from "lucide-react";
 import { getCellForDomProps } from "@/components/data-table/cell-utils";
 import { transformDisplayName } from "@/components/databases/display";
 import { DatabaseLogo } from "@/components/databases/icon";
+import { useAddDetectedDataSource } from "@/components/editor/connections/components";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -36,6 +38,7 @@ import {
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import type { DataSourceConnection } from "@/core/kernel/messages";
+import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { useNonce } from "@/hooks/useNonce";
 import { clearAllSqlValidationErrors } from "../languages/sql/banner-validation-errors";
 import { type SQLMode, useSQLMode } from "../languages/sql/sql-mode";
@@ -52,13 +55,17 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   cellId,
 }) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
+  const detectedDataSources = useDetectedDataSources("database");
+  const addDetectedDataSource = useAddDetectedDataSource();
 
   const internalEngineConnections: DataSourceConnection[] = [];
   const userDefinedConnections: DataSourceConnection[] = [];
   for (const [connName, connection] of connectionsMap.entries()) {
-    INTERNAL_SQL_ENGINES.has(connName)
-      ? internalEngineConnections.push(connection)
-      : userDefinedConnections.push(connection);
+    if (INTERNAL_SQL_ENGINES.has(connName)) {
+      internalEngineConnections.push(connection);
+    } else {
+      userDefinedConnections.push(connection);
+    }
   }
 
   // Use nonce to force re-render as languageAdapter.engine may not trigger change
@@ -71,6 +78,17 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
   const handleSelectEngine = (value: string) => {
     if (value === HELP_KEY) {
       window.open(HELP_URL, "_blank");
+      return;
+    }
+
+    if (value.startsWith(DETECTED_SOURCE_PREFIX)) {
+      const sourceId = value.slice(DETECTED_SOURCE_PREFIX.length);
+      const source = detectedDataSources.find(
+        (source) => source.id === sourceId,
+      );
+      if (source) {
+        addDetectedDataSource(source);
+      }
       return;
     }
 
@@ -125,6 +143,25 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
             {renderConnections(userDefinedConnections)}
             {userDefinedConnections.length > 0 && <SelectSeparator />}
             {renderConnections(internalEngineConnections)}
+            {detectedDataSources.length > 0 && (
+              <>
+                <SelectSeparator />
+                <SelectLabel>Detected in your environment</SelectLabel>
+                {detectedDataSources.map((source) => (
+                  <SelectItem
+                    key={source.id}
+                    value={`${DETECTED_SOURCE_PREFIX}${source.id}`}
+                  >
+                    <div className="flex items-center gap-1">
+                      <SparklesIcon className="h-3 w-3 text-(--blue-9)" />
+                      <span className="truncate ml-0.5">
+                        Add {source.displayName} connection
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </>
+            )}
             <SelectSeparator />
             <SelectItem className="text-muted-foreground" value={HELP_KEY}>
               <a
@@ -145,6 +182,7 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
 };
 
 const HELP_KEY = "__help__";
+const DETECTED_SOURCE_PREFIX = "__detected_source__:";
 const HELP_URL =
   "http://docs.marimo.io/guides/working_with_data/sql/#connecting-to-a-custom-database";
 
