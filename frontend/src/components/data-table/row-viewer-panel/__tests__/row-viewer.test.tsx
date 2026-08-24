@@ -55,4 +55,22 @@ describe("RowExpandedPanel", () => {
     expect(await screen.findByText("John")).toBeInTheDocument();
     expect(await screen.findByText("30")).toBeInTheDocument();
   });
+
+  it("renders pandas timedelta NaT as a sentinel", async () => {
+    renderWithProviders(
+      <RowViewerPanel
+        rowIdx={0}
+        setRowIdx={mockSetRowIdx}
+        totalRows={1}
+        fieldTypes={[
+          ["duration", ["string", "timedelta64[us]"]],
+        ]}
+        getRow={async () => ({ rows: [{ duration: "NaT" }] })}
+        isSelectable={false}
+        isRowSelected={false}
+      />,
+    );
+
+    expect(await screen.findByLabelText("Not a Time")).toBeInTheDocument();
+  });
 });

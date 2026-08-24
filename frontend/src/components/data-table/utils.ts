@@ -154,9 +154,13 @@ const NUMERIC_STRING_SPECIALS: Record<string, StringValueSentinelType> = {
   "-inf": "negative-infinity",
 };
 
-// These source-library dtypes can contain pandas NaT, but their normalized
-// marimo data types are "string" or "unknown" instead of a temporal type.
-const NAT_DTYPE_PREFIXES = ["timedelta64[", "period["] as const;
+// These source-library dtypes are temporal, but their normalized marimo data
+// types are "string", "number", or "unknown" instead of a temporal type.
+const NAT_DTYPE_PREFIXES = [
+  "timedelta64[",
+  "period[",
+  "duration",
+] as const;
 
 function isNaTType(
   dataType: DataType | undefined,

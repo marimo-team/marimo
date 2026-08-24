@@ -326,6 +326,15 @@ describe("detectSentinel", () => {
       value: "NaT",
     });
   });
+
+  it("should match NaT in Narwhals duration columns", () => {
+    expect(
+      detectSentinel("NaT", "number", "Duration(time_unit='us')"),
+    ).toEqual({
+      type: "nat",
+      value: "NaT",
+    });
+  });
 });
 
 function createMockTableWithMeta<TData>(rawData?: TData[]): Table<TData> {
