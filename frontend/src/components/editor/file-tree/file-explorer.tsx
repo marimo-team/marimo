@@ -186,10 +186,13 @@ export const FileExplorer: React.FC<{
     [data, showHiddenFiles],
   );
   React.useEffect(() => {
-    if (selectedFolderPath && !treeContainsPath(data, selectedFolderPath)) {
+    if (
+      selectedFolderPath &&
+      !treeContainsPath(visibleData, selectedFolderPath)
+    ) {
       setSelectedFolderPath(null);
     }
-  }, [data, selectedFolderPath]);
+  }, [selectedFolderPath, visibleData]);
   const contextValue = React.useMemo<FileExplorerContextValue>(
     () => ({
       tree,
