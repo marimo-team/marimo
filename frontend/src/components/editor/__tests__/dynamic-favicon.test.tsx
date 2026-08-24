@@ -124,13 +124,15 @@ describe("DynamicFavicon", () => {
 
     it("should send success notification when run completes without errors", () => {
       // @ts-expect-error ok in tests
-      global.Notification = vi.fn().mockImplementation((title, options) => {
-        expect(title).toBe("Execution completed");
-        expect(options).toEqual({
-          body: "Your notebook run completed successfully.",
-          icon: "/src/assets/circle-check.ico",
+      global.Notification = vi
+        .fn()
+        .mockImplementation(function (title, options) {
+          expect(title).toBe("Execution completed");
+          expect(options).toEqual({
+            body: "Your notebook run completed successfully.",
+            icon: "/src/assets/circle-check.ico",
+          });
         });
-      });
       // @ts-expect-error ok in tests
       global.Notification.permission = "granted";
 
@@ -144,13 +146,15 @@ describe("DynamicFavicon", () => {
       ]);
 
       // @ts-expect-error ok in tests
-      global.Notification = vi.fn().mockImplementation((title, options) => {
-        expect(title).toBe("Execution failed");
-        expect(options).toEqual({
-          body: "Your notebook run encountered 1 error(s).",
-          icon: "/src/assets/circle-x.ico",
+      global.Notification = vi
+        .fn()
+        .mockImplementation(function (title, options) {
+          expect(title).toBe("Execution failed");
+          expect(options).toEqual({
+            body: "Your notebook run encountered 1 error(s).",
+            icon: "/src/assets/circle-x.ico",
+          });
         });
-      });
       // @ts-expect-error ok in tests
       global.Notification.permission = "granted";
 

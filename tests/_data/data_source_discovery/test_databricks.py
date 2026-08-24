@@ -67,6 +67,10 @@ connection = sql.connect(
         "Authorization"
     ].removeprefix("Bearer "),
 )""",
+                "hidesWhen": {
+                    "kind": "dialect",
+                    "substrings": ["databricks"],
+                },
             }
         ]
     )

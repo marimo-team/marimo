@@ -43,7 +43,7 @@ class SecretContainer {
       this.secrets[privateVar] = `os.environ.get("${envVar}")`;
       return privateVar;
     }
-    return `"${value}"`;
+    return `"${escapePythonString(value)}"`;
   }
 
   formatSecrets(): string {
@@ -260,6 +260,32 @@ function generateHuggingfaceCode(
   return { imports, code: `hf = HfApi(token=${token})` };
 }
 
+function generateGithubCode(
+  connection: Extract<StorageConnection, { type: "github" }>,
+  secrets: SecretContainer,
+): { imports: Set<string>; code: string } {
+  const imports = new Set([
+    "from fsspec.implementations.github import GithubFileSystem",
+  ]);
+  const params: string[] = [
+    `org=${secrets.print("org", connection.org)},`,
+    `repo=${secrets.print("repo", connection.repo)},`,
+  ];
+
+  if (connection.sha) {
+    params.push(`sha=${secrets.print("sha", connection.sha)},`);
+  }
+  if (connection.username && connection.token) {
+    params.push(
+      `username=${secrets.print("username", connection.username)},`,
+      `token=${secrets.print("token", connection.token)},`,
+    );
+  }
+
+  const paramsStr = params.map((param) => `    ${param}`).join("\n");
+  return { imports, code: `fs = GithubFileSystem(\n${paramsStr}\n)` };
+}
+
 export function generateStorageCode(
   connection: StorageConnection,
   options: StorageCodeOptions,
@@ -290,6 +316,9 @@ export function generateStorageCode(
       break;
     case "huggingface":
       result = generateHuggingfaceCode(connection, secrets);
+      break;
+    case "github":
+      result = generateGithubCode(connection, secrets);
       break;
     default:
       assertNever(connection);

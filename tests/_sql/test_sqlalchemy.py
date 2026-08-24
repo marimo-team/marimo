@@ -1282,3 +1282,15 @@ def test_snowflake_get_database_names_delegates(make_engine):
 
     mocked.assert_called_once()
     assert result == expected
+
+
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_snowflake_default_database_queried_when_not_in_url(make_engine):
+    """Snowflake falls back to querying the current database when the
+    connection URL has no database (e.g. engines built with `creator=`)."""
+    engine = make_engine(default_database=None)
+    engine._mock_conn.execute.return_value.fetchone.return_value = ("MY_DB",)
+
+    assert engine.get_default_database() == "MY_DB"
+    executed_sql = engine._mock_conn.execute.call_args[0][0]
+    assert str(executed_sql) == "SELECT current_database()"

@@ -238,6 +238,68 @@ export const HuggingfaceStorageSchema = z
   })
   .describe(FieldOptions.of({ direction: "two-columns" }));
 
+function isFilled(value: string | undefined): boolean {
+  return value != null && value !== "";
+}
+
+export const GithubStorageSchema = z
+  .object({
+    type: z.literal("github"),
+    org: z
+      .string()
+      .nonempty()
+      .describe(
+        FieldOptions.of({
+          label: "Organization or user",
+        }),
+      ),
+    repo: z
+      .string()
+      .nonempty()
+      .describe(
+        FieldOptions.of({
+          label: "Repository",
+        }),
+      ),
+    sha: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Branch, tag, or commit",
+          placeholder: "main",
+          description: "Leave empty to use the default branch",
+        }),
+      ),
+    username: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Username",
+          description: "Set this together with access token",
+          optionRegex: "(github.?username|github.?user)",
+        }),
+      ),
+    token: z
+      .string()
+      .optional()
+      .describe(
+        FieldOptions.of({
+          label: "Access Token",
+          description:
+            "Set this together with username. Required for private repos and to avoid GitHub's rate limits.",
+          inputType: "password",
+          optionRegex: "(github.?token|gh.?token|github.?pat)",
+        }),
+      ),
+  })
+  .refine((value) => isFilled(value.username) === isFilled(value.token), {
+    message: "Username and access token are required together",
+    path: ["token"],
+  })
+  .describe(FieldOptions.of({ direction: "two-columns" }));
+
 export const StorageConnectionSchema = z.discriminatedUnion("type", [
   S3StorageSchema,
   GCSStorageSchema,
@@ -245,6 +307,7 @@ export const StorageConnectionSchema = z.discriminatedUnion("type", [
   CoreWeaveStorageSchema,
   GoogleDriveStorageSchema,
   HuggingfaceStorageSchema,
+  GithubStorageSchema,
 ]);
 
 export type StorageConnection = z.infer<typeof StorageConnectionSchema>;

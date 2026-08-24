@@ -77,6 +77,10 @@ class CacheState:
     """
 
     store: Store
+    # True when `cache.store` was set by an untrusted layer (cloned repo's
+    # pyproject.toml / notebook header). Such a store must never redirect an
+    # unverified `pickle.loads` at attacker bytes.
+    store_from_untrusted_origin: bool = False
     hash_memo: dict[str, bytes] = field(default_factory=dict)
     # Cache-signing policy resolved once for the session from the effective
     # config (user/env only; project/script trust is stripped upstream). A

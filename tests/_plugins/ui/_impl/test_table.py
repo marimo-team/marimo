@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -1400,6 +1400,23 @@ def test_show_column_summaries_disabled():
     summaries = table._get_column_summaries(EmptyArgs())
     assert summaries.is_disabled is False
     assert len(summaries.stats) == 0
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars is required"
+)
+def test_polars_duration_column_summaries_do_not_warn() -> None:
+    import polars as pl
+
+    data = pl.DataFrame(
+        {"duration": [timedelta(days=day) for day in range(1, 13)]}
+    )
+    table = ui.table(data, show_column_summaries=True)
+
+    with patch("marimo._plugins.ui._impl.table.LOGGER") as logger:
+        table._get_column_summaries(ColumnSummariesArgs())
+
+    logger.warning.assert_not_called()
 
 
 @pytest.mark.skipif(

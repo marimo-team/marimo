@@ -365,6 +365,19 @@ def test_checkbox_init() -> None:
     assert ui.checkbox(value=True).value
 
 
+def test_checkbox_rejects_non_bool_value() -> None:
+    # `checkbox` is typed `UIElement[bool, bool]`; a non-bool value must raise
+    # instead of being silently accepted.
+    for bad in ("yes", 1, 0, [], None):
+        with pytest.raises(ValueError, match="must be a bool"):
+            ui.checkbox(value=bad)
+
+    # bools still work
+    assert ui.checkbox(value=True).value is True
+    assert ui.checkbox(value=False).value is False
+    assert ui.checkbox().value is False
+
+
 def test_radio() -> None:
     radio = ui.radio(options=["1", "2", "3"], value="1")
     assert radio.value == "1"

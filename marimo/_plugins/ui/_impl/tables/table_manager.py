@@ -125,12 +125,20 @@ class TableManager(abc.ABC, Generic[T]):
         strict_json: bool = False,
         ensure_ascii: bool = True,
     ) -> str:
-        pass
+        """Serialize rows for frontend display or strict export.
+
+        `strict_json=False` requests output for the frontend special-value
+        parser. The output can contain bare non-finite numbers. A strict JSON
+        parser can reject this output.
+
+        `strict_json=True` requests standards-compliant output for downloads
+        and external JSON consumers.
+        """
 
     def to_json(
         self,
         format_mapping: FormatMapping | None = None,
-        strict_json: bool = False,  # Whether the result should be strictly JSON compliant (eg. nan -> null)
+        strict_json: bool = False,
         encoding: str | None = "utf-8",
         ensure_ascii: bool = True,
     ) -> bytes:

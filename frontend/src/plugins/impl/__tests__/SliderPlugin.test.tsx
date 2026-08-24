@@ -1,12 +1,20 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { act, fireEvent, render } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
 import type { z } from "zod";
 import { SetupMocks } from "@/__mocks__/common";
 import { initialModeAtom } from "@/core/mode";
 import { store } from "@/core/state/jotai";
-import type { IPluginProps } from "../../types";
+import type { IPluginProps, Setter } from "../../types";
 import { SliderPlugin } from "../SliderPlugin";
 
 vi.mock("@/components/ui/slider", () => ({
@@ -57,7 +65,7 @@ describe("SliderPlugin", () => {
   }: {
     debounce: boolean;
     includeInput: boolean;
-    setValue: ReturnType<typeof vi.fn>;
+    setValue: Mock<Setter<number>>;
   }): IPluginProps<
     number,
     z.infer<typeof SliderPlugin.prototype.validator>
@@ -93,7 +101,7 @@ describe("SliderPlugin", () => {
   }: {
     steps: number[];
     valueIndex: number;
-    setValue: ReturnType<typeof vi.fn>;
+    setValue: Mock<Setter<number>>;
   }): IPluginProps<
     number,
     z.infer<typeof SliderPlugin.prototype.validator>

@@ -6,6 +6,7 @@ from marimo._data.data_source_discovery.helpers import (
     environment_variable,
     has_all,
     has_value,
+    hides_when_storage,
 )
 from marimo._data.data_source_discovery.models import (
     DetectedDataSource,
@@ -62,6 +63,9 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
             confidence="high",
             origins=(ENVIRONMENT_ORIGIN,),
             configuration=tuple(configuration),
+            hides_when=hides_when_storage(
+                protocols=("s3", "cloudflare", "coreweave"),
+            ),
             code="""\
 import s3fs
 

@@ -13,6 +13,7 @@ from marimo._data.data_source_discovery import discover_data_sources
 from marimo._data.data_source_discovery.discover import LOGGER
 from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
+    hides_when_dialect,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
 from marimo._data.data_source_discovery.types import (
@@ -31,6 +32,7 @@ def test_isolates_failures_and_deduplicates() -> None:
         origins=(ENVIRONMENT_ORIGIN,),
         configuration=(),
         code="connection = shared()",
+        hides_when=hides_when_dialect("example"),
     )
     duplicate = DetectedDataSource(
         id="shared",
@@ -41,6 +43,7 @@ def test_isolates_failures_and_deduplicates() -> None:
         origins=(ENVIRONMENT_ORIGIN,),
         configuration=(),
         code="connection = replacement()",
+        hides_when=hides_when_dialect("example"),
     )
 
     def fail(_context: DiscoveryContext) -> list[DetectedDataSource]:

@@ -2,8 +2,11 @@
 
 import { PlusIcon, SparklesIcon } from "lucide-react";
 import { Tooltip, TooltipProvider } from "@/components/ui/tooltip";
-import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
-import { useDataSourceDiscovery } from "@/hooks/useDataSourceDiscovery";
+import type {
+  DataSourceDiscoveryGroup,
+  DetectedDataSource,
+} from "@/core/datasets/data-source-discovery";
+import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { useInsertCode } from "./components";
 import { cn } from "@/utils/cn";
 
@@ -94,19 +97,20 @@ const DetectedDataSourceDetails: React.FC<{
 );
 
 export const AutoDiscoveredDataSources: React.FC<{
-  onSubmit: () => void;
+  onSubmit?: () => void;
   className?: string;
-}> = ({ onSubmit, className }) => {
+  group?: DataSourceDiscoveryGroup;
+}> = ({ onSubmit, className, group }) => {
   const insertCode = useInsertCode();
-  const { data } = useDataSourceDiscovery();
+  const sources = useDetectedDataSources(group);
 
   return (
     <QuickAddDataSources
       className={className}
-      sources={data ?? []}
+      sources={sources}
       onAdd={(source) => {
         insertCode(source.code);
-        onSubmit();
+        onSubmit?.();
       }}
     />
   );

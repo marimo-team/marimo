@@ -4,6 +4,7 @@ import { atom } from "jotai";
 import { isSchemaless } from "@/components/datasources/utils";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
+import { sortBy } from "@/utils/arrays";
 import type {
   DatabaseSchema,
   DataSourceConnection as DataSourceConnectionType,
@@ -13,6 +14,7 @@ import { store } from "../state/jotai";
 import type { VariableName } from "../variables/types";
 import {
   type ConnectionName,
+  DEFAULT_DUCKDB_DATABASE,
   DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
 } from "./engines";
@@ -340,6 +342,40 @@ export { dataSourceConnectionsAtom, useDataSourceActions };
 export const dataConnectionsMapAtom = atom(
   (get) => get(dataSourceConnectionsAtom).connectionsMap,
 );
+
+/**
+ * Get the data connections that are available to the user.
+ * Filters out internal engines if it has no databases or if it has only the in-memory database and no schemas.
+ */
+export const connectionsAtom = atom((get) => {
+  const dataConnections = new Map(get(dataConnectionsMapAtom));
+
+  // Filter out the internal engines if it has no databases
+  // Or if it has only the in-memory database and no schemas
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (!connection) {
+      continue;
+    }
+
+    if (connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
+
+    if (
+      connection.databases.length === 1 &&
+      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
+      connection.databases[0].schemas.length === 0
+    ) {
+      dataConnections.delete(engine);
+    }
+  }
+
+  // Put internal engines last to prioritize user-defined connections
+  return sortBy([...dataConnections.values()], (connection) =>
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
+  );
+});
 
 export function setLatestEngineSelected(engine: ConnectionName) {
   const existing = store.get(dataSourceConnectionsAtom);
