@@ -156,11 +156,7 @@ const NUMERIC_STRING_SPECIALS: Record<string, StringValueSentinelType> = {
 
 // These source-library dtypes are temporal, but their normalized marimo data
 // types are "string", "number", or "unknown" instead of a temporal type.
-const NAT_DTYPE_PREFIXES = [
-  "timedelta64[",
-  "period[",
-  "duration",
-] as const;
+const NAT_DTYPE_PREFIXES = ["timedelta64[", "period[", "duration"] as const;
 
 function isNaTType(
   dataType: DataType | undefined,

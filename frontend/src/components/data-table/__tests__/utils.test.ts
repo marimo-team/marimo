@@ -328,12 +328,12 @@ describe("detectSentinel", () => {
   });
 
   it("should match NaT in Narwhals duration columns", () => {
-    expect(
-      detectSentinel("NaT", "number", "Duration(time_unit='us')"),
-    ).toEqual({
-      type: "nat",
-      value: "NaT",
-    });
+    expect(detectSentinel("NaT", "number", "Duration(time_unit='us')")).toEqual(
+      {
+        type: "nat",
+        value: "NaT",
+      },
+    );
   });
 });
 

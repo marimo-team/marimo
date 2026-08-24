@@ -62,9 +62,7 @@ describe("RowExpandedPanel", () => {
         rowIdx={0}
         setRowIdx={mockSetRowIdx}
         totalRows={1}
-        fieldTypes={[
-          ["duration", ["string", "timedelta64[us]"]],
-        ]}
+        fieldTypes={[["duration", ["string", "timedelta64[us]"]]]}
         getRow={async () => ({ rows: [{ duration: "NaT" }] })}
         isSelectable={false}
         isRowSelected={false}
