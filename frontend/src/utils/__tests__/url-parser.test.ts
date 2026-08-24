@@ -117,4 +117,11 @@ describe("parseContent", () => {
       url: "https://example.com/x",
     });
   });
+
+  it("keeps apostrophes, which are valid in URLs", () => {
+    const parts = parseContent("https://example.com/O'Reilly");
+    expect(parts).toEqual([
+      { type: "url", url: "https://example.com/O'Reilly" },
+    ]);
+  });
 });
