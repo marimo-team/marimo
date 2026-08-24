@@ -1222,6 +1222,45 @@ def test_get_inspector_yields_existing_inspector_for_non_use_database_dialect():
     mock_sa_engine.connect.assert_not_called()
 
 
+@pytest.mark.skipif(not HAS_SQLALCHEMY, reason="SQLAlchemy not installed")
+def test_get_tables_in_schema_reuses_connection():
+    import sqlalchemy as sa
+
+    mock_inspector = mock.MagicMock()
+    mock_inspector.get_table_names.return_value = ["users"]
+    mock_inspector.get_view_names.return_value = []
+    mock_inspector.get_multi_columns.return_value = {
+        ("public", "users"): [{"name": "id", "type": sa.INTEGER()}]
+    }
+    mock_inspector.get_multi_pk_constraint.return_value = {
+        ("public", "users"): {"constrained_columns": ["id"]}
+    }
+    mock_inspector.get_multi_indexes.return_value = {("public", "users"): []}
+
+    mock_connection = mock.MagicMock()
+    mock_sa_engine = mock.MagicMock()
+    mock_sa_engine.dialect.name = "snowflake"
+    mock_sa_engine.url.database = "MY_DB"
+    mock_sa_engine.connect.return_value.__enter__.return_value = (
+        mock_connection
+    )
+
+    with mock.patch("sqlalchemy.inspect", return_value=mock_inspector):
+        engine = SQLAlchemyEngine(
+            mock_sa_engine, engine_name=VariableName("test")
+        )
+        tables = engine.get_tables_in_schema(
+            schema="public",
+            database="MY_DB",
+            include_table_details=True,
+        )
+
+    assert [table.name for table in tables] == ["users"]
+    mock_sa_engine.connect.assert_called_once_with()
+    executed = mock_connection.execute.call_args[0][0]
+    assert str(executed) == 'USE DATABASE "MY_DB"'
+
+
 # ------------------------------------------------------------------ #
 #  _get_schema_names
 # ------------------------------------------------------------------ #
