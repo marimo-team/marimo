@@ -301,6 +301,8 @@ describe("detectSentinel", () => {
 
   it("should not match NaT in non-temporal columns", () => {
     expect(detectSentinel("NaT", "string")).toBeNull();
+    expect(detectSentinel("NaT", "string", "object")).toBeNull();
+    expect(detectSentinel("NaT", "string", "category")).toBeNull();
   });
 
   it("should match NaT in temporal columns", () => {
@@ -312,6 +314,26 @@ describe("detectSentinel", () => {
       type: "nat",
       value: "NaT",
     });
+  });
+
+  it("should match NaT in pandas timedelta and period columns", () => {
+    expect(detectSentinel("NaT", "string", "timedelta64[us]")).toEqual({
+      type: "nat",
+      value: "NaT",
+    });
+    expect(detectSentinel("NaT", "unknown", "period[M]")).toEqual({
+      type: "nat",
+      value: "NaT",
+    });
+  });
+
+  it("should match NaT in Narwhals duration columns", () => {
+    expect(detectSentinel("NaT", "number", "Duration(time_unit='us')")).toEqual(
+      {
+        type: "nat",
+        value: "NaT",
+      },
+    );
   });
 });
 
