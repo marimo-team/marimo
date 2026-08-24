@@ -481,7 +481,8 @@ class TestEmbedTrace:
         )
 
         assert "ZeroDivisionError: division by zero" in result
-        assert (file_path + "&quot;, line 17") in result
+        assert file_path in result
+        assert "line 17" in result
         assert "y / x" in result
 
 

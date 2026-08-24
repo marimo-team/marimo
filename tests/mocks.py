@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import difflib
+import html
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -17,6 +18,21 @@ class SnapshotFunc(Protocol):
     def __call__(
         self, filename: str, result: str, keep_version: bool = False
     ) -> None: ...
+
+
+def normalize_html_entities(value: str) -> str:
+    """Normalize HTML entity encodings for semantic comparisons.
+
+    Pygments 2.21+ emits quotes literally in HTML text nodes while earlier
+    versions use `&#39;`/`&quot;` entities. Repeated `html.unescape`
+    makes these representations equivalent without changing markup structure
+    when both sides use the same encoding for a given character.
+    """
+    previous = None
+    while previous != value:
+        previous = value
+        value = html.unescape(value)
+    return value
 
 
 class ToText(HTMLParser):
@@ -64,7 +80,7 @@ def snapshotter(current_file: str) -> SnapshotFunc:
         maybe_make_dirs(filepath)
 
         def normalize(string: str) -> str:
-            return string.replace("\r\n", "\n")
+            return normalize_html_entities(string.replace("\r\n", "\n"))
 
         result = normalize(result)
 
