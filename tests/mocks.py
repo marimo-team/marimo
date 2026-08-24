@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import difflib
-import html
 import re
 from html.parser import HTMLParser
 from pathlib import Path
@@ -20,18 +19,32 @@ class SnapshotFunc(Protocol):
     ) -> None: ...
 
 
+_QUOTE_ENTITY_PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"&amp;quot;", re.IGNORECASE), "&quot;"),
+    (re.compile(r"&amp;#39;", re.IGNORECASE), "&#39;"),
+    (re.compile(r"&amp;#x27;", re.IGNORECASE), "&#x27;"),
+    (re.compile(r"&amp;apos;", re.IGNORECASE), "&apos;"),
+    (re.compile(r"&quot;", re.IGNORECASE), '"'),
+    (re.compile(r"&#34;", re.IGNORECASE), '"'),
+    (re.compile(r"&#x22;", re.IGNORECASE), '"'),
+    (re.compile(r"&#39;", re.IGNORECASE), "'"),
+    (re.compile(r"&#x27;", re.IGNORECASE), "'"),
+    (re.compile(r"&apos;", re.IGNORECASE), "'"),
+)
+
+
 def normalize_html_entities(value: str) -> str:
-    """Normalize HTML entity encodings for semantic comparisons.
+    """Normalize HTML quote entity encodings for semantic comparisons.
 
     Pygments 2.21+ emits quotes literally in HTML text nodes while earlier
-    versions use `&#39;`/`&quot;` entities. Repeated `html.unescape`
-    makes these representations equivalent without changing markup structure
-    when both sides use the same encoding for a given character.
+    versions use `&#39;`/`&quot;` entities. Only quote entities are
+    normalized so other encodings like `&lt;`/`&gt;` remain comparable.
     """
     previous = None
     while previous != value:
         previous = value
-        value = html.unescape(value)
+        for pattern, replacement in _QUOTE_ENTITY_PATTERNS:
+            value = pattern.sub(replacement, value)
     return value
 
 
@@ -80,7 +93,10 @@ def snapshotter(current_file: str) -> SnapshotFunc:
         maybe_make_dirs(filepath)
 
         def normalize(string: str) -> str:
-            return normalize_html_entities(string.replace("\r\n", "\n"))
+            string = string.replace("\r\n", "\n")
+            if not filename.endswith(".json"):
+                string = normalize_html_entities(string)
+            return string
 
         result = normalize(result)
 

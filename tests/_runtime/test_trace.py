@@ -18,6 +18,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.runtime import Kernel
 from marimo._utils import async_path
 from tests._messaging.mocks import MockStderr, MockStream
+from tests.mocks import normalize_html_entities
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -481,8 +482,8 @@ class TestEmbedTrace:
         )
 
         assert "ZeroDivisionError: division by zero" in result
-        assert file_path in result
-        assert "line 17" in result
+        normalized = normalize_html_entities(result)
+        assert f'{file_path}", line 17' in normalized
         assert "y / x" in result
 
 
