@@ -571,8 +571,9 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     if db_type == "enum" or db_type.startswith("enum"):
         return "string"
 
-    # Spatial extension types
-    if db_type in _GEOMETRY_TYPES:
+    # GEOMETRY has been core in DuckDB since version 1.5; it is not a spatial
+    # extension type.
+    if db_type in _GEOMETRY_TYPES or db_type.startswith("geometry("):
         return "geometry"
 
     # Nested types
