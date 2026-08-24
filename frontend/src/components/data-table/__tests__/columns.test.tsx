@@ -3,7 +3,7 @@
 import type { Column } from "@tanstack/react-table";
 import { fireEvent, render, waitFor } from "@testing-library/react";
 import { I18nProvider } from "react-aria";
-import { describe, expect, it, test, vi } from "vitest";
+import { beforeAll, describe, expect, it, test, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Logger } from "@/utils/Logger";
 import { parseContent } from "@/utils/url-parser";
@@ -930,6 +930,128 @@ describe("renderCellValue with string + edge whitespace", () => {
       "span[aria-label$='space'], span[aria-label$='spaces']",
     );
     expect(markerSpans.length).toBe(0);
+  });
+});
+
+describe("renderCellValue with JSON document strings", () => {
+  beforeAll(() => {
+    // JsonViewer reads the color scheme through matchMedia, which jsdom
+    // does not implement.
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    });
+  });
+
+  const createMockStringColumn = () =>
+    ({
+      id: "json_data",
+      columnDef: {
+        meta: {
+          dataType: "string" as const,
+          dtype: "str",
+        },
+      },
+      getColumnFormatting: () => undefined,
+      getColumnWrapping: () => undefined,
+      applyColumnFormatting: (value: unknown) => value,
+    }) as unknown as Column<unknown>;
+
+  const renderCell = (value: string) => {
+    const result = renderCellValue({
+      column: createMockStringColumn(),
+      renderValue: () => value,
+      getValue: () => value,
+      selectCell: undefined,
+      cellStyles: "",
+    });
+    return render(
+      <I18nProvider locale="en-US">
+        <TooltipProvider>{result}</TooltipProvider>
+      </I18nProvider>,
+    );
+  };
+
+  it("opens the JSON viewer for a str cell that holds a JSON object", () => {
+    const value =
+      '{"vendor":"ACME","attachments":[{"name":"inv.pdf","url":"https://example.com/p/AAA"}]}';
+    const { container } = renderCell(value);
+
+    const trigger = container.querySelector("button");
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger!);
+
+    // Popover content mounts in a portal, so query the document.
+    expect(document.querySelector(".marimo-json-output")).toBeTruthy();
+    expect(document.body.textContent).toContain('"vendor":"ACME"');
+  });
+
+  it("opens the JSON viewer for a str cell that holds a JSON array", () => {
+    const value = '[{"name":"inv.pdf","url":"https://example.com/p/AAA"}]';
+    const { container } = renderCell(value);
+
+    const trigger = container.querySelector("button");
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger!);
+
+    expect(document.querySelector(".marimo-json-output")).toBeTruthy();
+    expect(document.body.textContent).toContain('"name":"inv.pdf"');
+  });
+
+  it("opens the JSON viewer when the JSON document has edge whitespace", () => {
+    const { container } = renderCell('  {"a": 1}  ');
+
+    const trigger = container.querySelector("button");
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger!);
+
+    expect(document.querySelector(".marimo-json-output")).toBeTruthy();
+  });
+
+  it("keeps a Python repr as inline text", () => {
+    const value = "{'vendor': 'ACME'}";
+    const { container } = renderCell(value);
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toBe(value);
+  });
+
+  it("keeps a truncated JSON document as inline text", () => {
+    const value = '{"vendor":"ACME","attachments":';
+    const { container } = renderCell(value);
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toBe(value);
+  });
+
+  it("keeps JSON scalar strings as inline text", () => {
+    const value = '"hello"';
+    const { container } = renderCell(value);
+
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.textContent).toBe(value);
+  });
+
+  it("keeps the text popout for long strings that are not JSON", () => {
+    const value =
+      "This long plain sentence exceeds the fifty character popout threshold.";
+    const { container } = renderCell(value);
+
+    const trigger = container.querySelector("button");
+    expect(trigger).toBeTruthy();
+    fireEvent.click(trigger!);
+
+    expect(document.querySelector(".marimo-json-output")).toBeNull();
+    expect(document.body.textContent).toContain(value);
   });
 });
 
