@@ -114,7 +114,7 @@ def _duckdb_geometry_columns(
     infos: dict[str, GeometryColumnInfo] = {}
     for name, dtype in zip(native.columns, native.types, strict=False):
         type_name = str(dtype)
-        if type_name == _DUCKDB_WKB_TYPE:
+        if type_name == _DUCKDB_WKB_TYPE or type_name.startswith("GEOMETRY("):
             infos[name] = GeometryColumnInfo(
                 encoding="wkb", external_type=type_name
             )
