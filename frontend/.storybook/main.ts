@@ -20,4 +20,14 @@ export default {
   docs: {
     docsMode: false,
   },
+  viteFinal: (config) => {
+    // `resolve.tsconfigPaths` only applies to files matched by tsconfig's
+    // `include`, which does not cover `.mdx` stories, so alias `@` explicitly.
+    config.resolve ??= {};
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": path.resolve(import.meta.dirname, "../src"),
+    };
+    return config;
+  },
 } satisfies StorybookConfig;
