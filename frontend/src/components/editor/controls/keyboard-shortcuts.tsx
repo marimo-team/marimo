@@ -271,22 +271,29 @@ export const KeyboardShortcuts: React.FC = () => {
     );
   };
 
-  const renderCommandGroup = (group: HotkeyGroup) =>
-    renderGroup(
+  const renderCommandGroup = (group: HotkeyGroup) => {
+    const isVim = config.keymap.preset === "vim";
+    const commandModeKey = hotkeys.getHotkey("command.enterCommandMode").key;
+    // Nothing to advertise if the user has disabled the shortcut.
+    if (!isVim && commandModeKey === "") {
+      return renderGroup(group);
+    }
+    return renderGroup(
       group,
       <p className="text-xs text-muted-foreground flex items-center gap-1">
         Press{" "}
-        {config.keymap.preset === "vim" ? (
+        {isVim ? (
           <>
             <KeyboardHotkeys shortcut={isPlatformMac() ? "Cmd" : "Ctrl"} />
             <Kbd>Esc</Kbd>
           </>
         ) : (
-          <Kbd>Esc</Kbd>
+          <KeyboardHotkeys shortcut={commandModeKey} />
         )}{" "}
         in a cell to enter command mode
       </p>,
     );
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => setIsOpen(open)}>
