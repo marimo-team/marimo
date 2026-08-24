@@ -33,6 +33,7 @@ import {
   dataConnectionsMapAtom,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
+import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
 import {
   type ConnectionName,
   INTERNAL_SQL_ENGINES,
@@ -49,14 +50,52 @@ interface SelectProps {
   cellId: CellId;
 }
 
-export const SQLEngineSelect: React.FC<SelectProps> = ({
+export const SQLEngineSelect: React.FC<SelectProps> = (props) => {
+  const detectedDataSources = useDetectedDataSources("database");
+
+  if (detectedDataSources.length === 0) {
+    return (
+      <SQLEngineSelectImpl
+        {...props}
+        detectedDataSources={detectedDataSources}
+      />
+    );
+  }
+
+  return (
+    <SQLEngineSelectWithDetectedSources
+      {...props}
+      detectedDataSources={detectedDataSources}
+    />
+  );
+};
+
+const SQLEngineSelectWithDetectedSources: React.FC<
+  SelectProps & { detectedDataSources: DetectedDataSource[] }
+> = ({ detectedDataSources, ...props }) => {
+  const addDetectedDataSource = useAddDetectedDataSource();
+  return (
+    <SQLEngineSelectImpl
+      {...props}
+      detectedDataSources={detectedDataSources}
+      addDetectedDataSource={addDetectedDataSource}
+    />
+  );
+};
+
+const SQLEngineSelectImpl: React.FC<
+  SelectProps & {
+    detectedDataSources: DetectedDataSource[];
+    addDetectedDataSource?: (source: DetectedDataSource) => void;
+  }
+> = ({
   selectedEngine,
   onChange,
   cellId,
+  detectedDataSources,
+  addDetectedDataSource,
 }) => {
   const connectionsMap = useAtomValue(dataConnectionsMapAtom);
-  const detectedDataSources = useDetectedDataSources("database");
-  const addDetectedDataSource = useAddDetectedDataSource();
 
   const internalEngineConnections: DataSourceConnection[] = [];
   const userDefinedConnections: DataSourceConnection[] = [];
@@ -86,7 +125,7 @@ export const SQLEngineSelect: React.FC<SelectProps> = ({
       const source = detectedDataSources.find(
         (source) => source.id === sourceId,
       );
-      if (source) {
+      if (source && addDetectedDataSource) {
         addDetectedDataSource(source);
       }
       return;
