@@ -615,8 +615,10 @@ def test_print_code_expand_dict_nan_pandas() -> None:
     )
 
 
-# The property tests above draw filter values from an alphanumeric alphabet,
-# so they never exercise a search string that is also a regex.
+# The values here are valid strings that are also regexes: "a.c" matches
+# "abc" when interpreted as a regex, and "(" is not a valid regex at all. If
+# `contains` is emitted without a literal flag, the generated pandas code
+# diverges from the widget (or raises), so this test fails.
 @pytest.mark.parametrize("value", ["a.c", "("])
 @pytest.mark.skipif(
     not DependencyManager.pandas.has(), reason="pandas not installed"
@@ -967,6 +969,10 @@ def test_print_code_expand_dict_nested_dict_polars() -> None:
     assert code_result.columns == ["a", "nested", "other"]
 
 
+# The values here are valid strings that are also regexes: "a.c" matches
+# "abc" when interpreted as a regex, and "(" is not a valid regex at all. If
+# `contains` is emitted without a literal flag, the generated polars code
+# diverges from the widget (or raises), so this test fails.
 @pytest.mark.parametrize("value", ["a.c", "("])
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars not installed"
