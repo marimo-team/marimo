@@ -1590,6 +1590,18 @@ components:
       - label
       title: DetectedDataSourceOrigin
       type: object
+    DiagnosticsConfig:
+      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
+        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
+      properties:
+        enabled:
+          type: boolean
+        sql_linter:
+          type: boolean
+      required: []
+      title: DiagnosticsConfig
+      type: object
     DialectHidesWhen:
       description: Hide this suggestion when a live SQL engine dialect contains a
         substring.
@@ -1605,18 +1617,6 @@ components:
       - kind
       - substrings
       title: DialectHidesWhen
-      type: object
-    DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
-        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
-      properties:
-        enabled:
-          type: boolean
-        sql_linter:
-          type: boolean
-      required: []
-      title: DiagnosticsConfig
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
@@ -4643,8 +4643,11 @@ components:
         \ is found, otherwise `[]`.\n    - `default_sql_output`: the default output\
         \ format for SQL queries. Can be one of:\n        `\"auto\"`, `\"native\"\
         `, `\"polars\"`, `\"lazy-polars\"`, or `\"pandas\"`.\n        The default\
-        \ is `\"auto\"`.\n    - `default_auto_download`: an Optional list of export\
-        \ types to automatically snapshot your notebook as:\n       `html`, `markdown`,\
+        \ is `\"auto\"`.\n    - `sql_keyword_case`: the keyword case used in generated\
+        \ SQL, such as\n        cell boilerplate, autocomplete suggestions, and table\
+        \ snippets.\n        Can be `\"upper\"` or `\"lower\"`. The default is `\"\
+        upper\"`.\n    - `default_auto_download`: an Optional list of export types\
+        \ to automatically snapshot your notebook as:\n       `html`, `markdown`,\
         \ `ipynb`.\n       The default is None.\n    - `default_csv_encoding`: the\
         \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
         \    - `show_tracebacks`: if `True`, show detailed error tracebacks in run\
@@ -4694,6 +4697,10 @@ components:
           type: boolean
         show_tracebacks:
           type: boolean
+        sql_keyword_case:
+          enum:
+          - lower
+          - upper
         std_stream_max_bytes:
           type: integer
         watcher_on_save:
