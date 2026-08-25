@@ -1,7 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { HTMLProps, PropsWithChildren } from "react";
-import type { SqlOutputType } from "@/core/config/config-schema";
+import type {
+  SqlKeywordCase,
+  SqlOutputType,
+} from "@/core/config/config-schema";
 import { cn } from "@/utils/cn";
 
 export const formItemClasses = "flex flex-row items-center space-x-1 space-y-0";
@@ -59,4 +62,12 @@ export const SQL_OUTPUT_SELECT_OPTIONS: {
   { label: "Polars", value: "polars" },
   { label: "Lazy Polars", value: "lazy-polars" },
   { label: "Pandas", value: "pandas" },
+];
+
+export const SQL_KEYWORD_CASE_SELECT_OPTIONS: {
+  label: string;
+  value: SqlKeywordCase;
+}[] = [
+  { label: "Uppercase (Default)", value: "upper" },
+  { label: "Lowercase", value: "lower" },
 ];
