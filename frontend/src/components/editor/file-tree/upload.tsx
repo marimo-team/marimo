@@ -220,11 +220,14 @@ function showUploadResultToast(
 ) {
   const total = result.successful.length + result.failed.length;
   if (result.failed.length > 0) {
+    let title: string;
+    if (result.successful.length === 0) {
+      title = total === 1 ? "File upload failed" : "Files failed to upload";
+    } else {
+      title = `${result.successful.length} of ${total} files uploaded`;
+    }
     toast({
-      title:
-        result.successful.length === 0
-          ? "File upload failed"
-          : `${result.successful.length} of ${total} files uploaded`,
+      title,
       description: (
         <div className="flex flex-col gap-1">
           <div>Destination: {destinationLabel}.</div>
