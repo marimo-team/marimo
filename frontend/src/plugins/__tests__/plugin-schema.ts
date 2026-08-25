@@ -1,17 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { z, type ZodType } from "zod";
+import type { PluginFunctions } from "../core/rpc";
+import type { IPlugin } from "../types";
 
-interface FunctionContract {
-  input: ZodType;
-  output: ZodType;
-}
-
-export interface PluginContract {
-  tagName: string;
-  validator: ZodType;
-  functions?: Record<string, FunctionContract>;
-}
+export type PluginContract = Pick<
+  IPlugin<unknown, unknown, PluginFunctions>,
+  "tagName" | "validator" | "functions"
+>;
 
 export interface PluginOpenAPIDocument {
   openapi: "3.1.0";
@@ -88,16 +84,20 @@ function getZodSchemaType(schema: unknown): string {
   return type;
 }
 
+function rewriteSharedReference(
+  reference: string,
+  componentName: string,
+): string {
+  const prefix = "#/components/schemas/__shared#/$defs/";
+  return reference.startsWith(prefix)
+    ? `#/components/schemas/${componentName}.def.${reference.slice(prefix.length)}`
+    : reference;
+}
+
 function rewriteSharedReferences(
   value: unknown,
   componentName: string,
 ): unknown {
-  if (typeof value === "string") {
-    const prefix = "#/components/schemas/__shared#/$defs/";
-    return value.startsWith(prefix)
-      ? `#/components/schemas/${componentName}.def.${value.slice(prefix.length)}`
-      : value;
-  }
   if (Array.isArray(value)) {
     return value.map((item) => rewriteSharedReferences(item, componentName));
   }
@@ -107,7 +107,9 @@ function rewriteSharedReferences(
   return Object.fromEntries(
     Object.entries(value).map(([key, item]) => [
       key,
-      rewriteSharedReferences(item, componentName),
+      key === "$ref" && typeof item === "string"
+        ? rewriteSharedReference(item, componentName)
+        : rewriteSharedReferences(item, componentName),
     ]),
   );
 }

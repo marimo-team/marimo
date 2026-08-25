@@ -254,12 +254,27 @@ describe("buildPluginSpec", () => {
       ),
     ]);
     const schema = doc.components.schemas["test-input.data"] as {
-      properties: Record<string, { type: string }>;
+      properties: Record<string, { type: string; default?: unknown }>;
       required?: string[];
     };
 
+    expect(schema.properties.defaulted).toEqual({
+      type: "string",
+      default: "default",
+    });
     expect(schema.properties.transformed.type).toBe("string");
     expect(schema.required).toEqual(["transformed"]);
+  });
+
+  it("only rewrites shared-definition references", () => {
+    const referenceLikeValue = "#/components/schemas/__shared#/$defs/schema0";
+    const doc = buildPluginSpec([
+      plugin("test-reference-like-value", z.literal(referenceLikeValue)),
+    ]);
+
+    expect(
+      doc.components.schemas["test-reference-like-value.data"],
+    ).toMatchObject({ const: referenceLikeValue });
   });
 
   it("resolves recursive schemas through their OpenAPI component", () => {

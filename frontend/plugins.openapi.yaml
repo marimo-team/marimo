@@ -3067,6 +3067,7 @@ components:
                           - date
                           - datetime
                           - time
+                          - geometry
                           - unknown
                       - type: string
             - type: "null"
@@ -3207,6 +3208,7 @@ components:
                       - date
                       - datetime
                       - time
+                      - geometry
                       - unknown
                   - type: string
         field_types:
@@ -3227,6 +3229,7 @@ components:
                       - date
                       - datetime
                       - time
+                      - geometry
                       - unknown
                   - type: string
         column_types_per_step:
@@ -3249,6 +3252,7 @@ components:
                         - date
                         - datetime
                         - time
+                        - geometry
                         - unknown
                     - type: string
         python_code:
@@ -4423,6 +4427,7 @@ components:
                       - date
                       - datetime
                       - time
+                      - geometry
                       - unknown
                   - type: string
         freezeColumnsLeft:
@@ -4484,6 +4489,7 @@ components:
                           - date
                           - datetime
                           - time
+                          - geometry
                           - unknown
                       - type: string
             - type: "null"
