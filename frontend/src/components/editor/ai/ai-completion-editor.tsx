@@ -16,7 +16,7 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   AddContextButton,
@@ -46,7 +46,7 @@ import {
   RejectCompletionButton,
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
-import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { useStagedAICell } from "@/core/ai/staged-cells";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -105,8 +105,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   } = aiCompletionCell ?? {};
   const enabled = aiCellId === cellId;
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const updatedCell = stagedAICells.get(cellId);
+  const updatedCell = useStagedAICell(cellId);
   let previousCellCode: string | undefined;
   if (updatedCell?.type === "update_cell") {
     previousCellCode = updatedCell.previousCode;

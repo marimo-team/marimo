@@ -1,7 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { UIMessageChunk } from "ai";
-import { useRef } from "react";
+import { useAtomValue } from "jotai";
+import { selectAtom } from "jotai/utils";
+import { useMemo, useRef } from "react";
 import {
   type AiCompletion,
   codeToCells,
@@ -51,6 +53,9 @@ const {
     return new Map([...state, [cellId, edit]]);
   },
   removeStagedCell: (state, cellId: CellId) => {
+    if (!state.has(cellId)) {
+      return state;
+    }
     const newState = new Map(state);
     newState.delete(cellId);
     return newState;
@@ -65,6 +70,15 @@ export {
   createActions as createStagedAICellsActions,
   reducer as stagedAICellsReducer,
 };
+
+export function useStagedAICell(cellId: CellId): Edit | undefined {
+  const stagedCellAtom = useMemo(
+    () =>
+      selectAtom(stagedAICellsAtom, (cells) => cells.get(cellId), Object.is),
+    [cellId],
+  );
+  return useAtomValue(stagedCellAtom);
+}
 
 interface UpdateStagedCellAction {
   cellId: CellId;

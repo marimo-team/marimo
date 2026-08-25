@@ -1,11 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue, useStore } from "jotai";
+import { useStore } from "jotai";
 import { SparklesIcon } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   type Edit,
-  stagedAICellsAtom,
+  useStagedAICell,
   useStagedCells,
 } from "@/core/ai/staged-cells";
 import { getCellEditorView } from "@/core/cells/cells";
@@ -16,12 +16,18 @@ import { Logger } from "@/utils/Logger";
 import { CompletionActionsCellFooter } from "../ai/completion-handlers";
 import { useRunCell } from "./useRunCells";
 
+const actionLabels: Record<Edit["type"], { accept: string; decline: string }> =
+  {
+    add_cell: { accept: "Keep cell", decline: "Discard cell" },
+    update_cell: { accept: "Keep change", decline: "Revert change" },
+    delete_cell: { accept: "Delete cell", decline: "Keep cell" },
+  };
+
 export const StagedAICellBackground: React.FC<{
   cellId: CellId;
   className?: string;
 }> = ({ cellId, className }) => {
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const stagedCell = stagedAICells.get(cellId);
+  const stagedCell = useStagedAICell(cellId);
 
   if (!stagedCell) {
     return null;
@@ -39,8 +45,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   cellId,
 }) => {
   const store = useStore();
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const stagedAiCell = stagedAICells.get(cellId);
+  const stagedAiCell = useStagedAICell(cellId);
   const runCell = useRunCell(cellId);
 
   const { deleteStagedCell, removeStagedCell } = useStagedCells(store);
@@ -50,7 +55,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   }
 
   const isDeletion = stagedAiCell.type === "delete_cell";
-  const isAddition = stagedAiCell.type === "add_cell";
+  const labels = actionLabels[stagedAiCell.type];
 
   const handleCompletion = (type: "accept" | "reject") => {
     const completionFunc =
@@ -58,11 +63,12 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
     completionFunc(cellId, stagedAiCell, removeStagedCell, deleteStagedCell);
   };
 
-  const tooltipContent = isAddition
-    ? "AI-generated cell"
-    : isDeletion
-      ? "AI suggests deleting this cell"
-      : "AI changed this cell";
+  const tooltipContent =
+    stagedAiCell.type === "add_cell"
+      ? "AI-generated cell"
+      : isDeletion
+        ? "AI suggests deleting this cell"
+        : "AI changed this cell";
 
   return (
     <div className="mo-ai-cell-footer">
@@ -80,19 +86,17 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
           </span>
         </Tooltip>
       </div>
-      {!isAddition && (
-        <div className="flex items-center gap-1.5">
-          <CompletionActionsCellFooter
-            isLoading={false}
-            onAccept={() => handleCompletion("accept")}
-            onDecline={() => handleCompletion("reject")}
-            size="xs"
-            runCell={isDeletion ? undefined : runCell}
-            acceptLabel={isDeletion ? "Delete cell" : "Keep change"}
-            declineLabel={isDeletion ? "Keep cell" : "Revert change"}
-          />
-        </div>
-      )}
+      <div className="flex items-center gap-1.5">
+        <CompletionActionsCellFooter
+          isLoading={false}
+          onAccept={() => handleCompletion("accept")}
+          onDecline={() => handleCompletion("reject")}
+          size="xs"
+          runCell={isDeletion ? undefined : runCell}
+          acceptLabel={labels.accept}
+          declineLabel={labels.decline}
+        />
+      </div>
     </div>
   );
 };
