@@ -213,7 +213,7 @@ openai:
 google:
   - name: Gemini Flash Latest
     model: gemini-flash-latest
-    description: ""
+    description: "Alias that points to the latest Gemini Flash release and can change when Google updates the model family"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -362,7 +362,7 @@ google:
 bedrock:
   - name: Grok 4.6
     model: xai.grok-4.6
-    description: ""
+    description: "xAI's frontier model for coding, agentic tasks, knowledge work, and visual reasoning"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -370,19 +370,9 @@ bedrock:
     release_date: 2026-08-12
     cost: {input: 2.2, output: 6.6}
 
-  - name: Claude Opus 5 (US)
-    model: us.anthropic.claude-opus-5
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-07-24
-    cost: {input: 5, output: 25}
-
   - name: GPT-5.6 Luna (Global)
     model: global.openai.gpt-5.6-luna
-    description: ""
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -392,7 +382,7 @@ bedrock:
 
   - name: GPT-5.6 Sol (Global)
     model: global.openai.gpt-5.6-sol
-    description: ""
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -982,7 +972,7 @@ ollama:
 wandb:
   - name: Qwen3.8 27B
     model: Qwen/Qwen3.8-27B
-    description: ""
+    description: "Alibaba's 27B dense multimodal model for coding, professional work, research, and long-horizon agentic tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1183,7 +1173,7 @@ wandb:
 opencode-go:
   - name: DeepSeek V4 Flash Vision Exp
     model: deepseek-v4-flash-vision-exp
-    description: ""
+    description: "Experimental multimodal variant of DeepSeek V4 Flash that adds image understanding while retaining its text and agent capabilities"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1193,7 +1183,7 @@ opencode-go:
 
   - name: Ox Alpha Free (Unlimited)
     model: ox-alpha-free
-    description: ""
+    description: "Free, limited-time OpenCode Go model for coding and agentic tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1203,7 +1193,7 @@ opencode-go:
 
   - name: Muse Spark 1.2 Contributor
     model: muse-spark-1.2-contributor
-    description: ""
+    description: "Discounted Meta coding model that permits prompts and completions to train future Meta models"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
