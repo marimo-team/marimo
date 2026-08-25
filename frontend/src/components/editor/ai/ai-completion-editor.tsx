@@ -42,6 +42,7 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
+  AI_EDIT_ACTION_LABELS,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
@@ -265,7 +266,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onAccept={handleAcceptCompletion}
         size="xs"
         multipleCompletions={false}
-        label="Keep change"
+        label={AI_EDIT_ACTION_LABELS.accept}
         acceptShortcut="Mod-↵"
         runCell={runCell}
       />
@@ -273,7 +274,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onDecline={handleDeclineCompletion}
         size="xs"
         multipleCompletions={false}
-        label="Revert change"
+        label={AI_EDIT_ACTION_LABELS.decline}
         declineShortcut="Shift-Mod-Delete"
       />
     </>
@@ -463,13 +464,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          label="Keep change"
+          label={AI_EDIT_ACTION_LABELS.accept}
           runCell={runCell}
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          label="Revert change"
+          label={AI_EDIT_ACTION_LABELS.decline}
         />
       </div>
     </div>

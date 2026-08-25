@@ -13,13 +13,16 @@ import type { CellId } from "@/core/cells/ids";
 import { updateEditorCodeFromPython } from "@/core/codemirror/language/utils";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
-import { CompletionActionsCellFooter } from "../ai/completion-handlers";
+import {
+  AI_EDIT_ACTION_LABELS,
+  CompletionActionsCellFooter,
+} from "../ai/completion-handlers";
 import { useRunCell } from "./useRunCells";
 
 const actionLabels: Record<Edit["type"], { accept: string; decline: string }> =
   {
     add_cell: { accept: "Keep cell", decline: "Discard cell" },
-    update_cell: { accept: "Keep change", decline: "Revert change" },
+    update_cell: AI_EDIT_ACTION_LABELS,
     delete_cell: { accept: "Delete cell", decline: "Keep cell" },
   };
 

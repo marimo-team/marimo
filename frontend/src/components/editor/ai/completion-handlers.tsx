@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 
+export const AI_EDIT_ACTION_LABELS = {
+  accept: "Keep change",
+  decline: "Revert change",
+} as const;
+
 /**
  * Common keyboard shortcut handlers for AI completions
  */
