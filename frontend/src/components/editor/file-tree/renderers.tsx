@@ -16,6 +16,7 @@ import { useTheme } from "@/theme/useTheme";
 import { Arrays } from "@/utils/arrays";
 import { type Base64String, base64ToDataURL } from "@/utils/json/base64";
 import { Objects } from "@/utils/objects";
+import { Paths } from "@/utils/paths";
 
 const PAGE_SIZE = 25;
 
@@ -38,12 +39,35 @@ export const MIME_TO_LANGUAGE: Record<string, string> = {
   "text/css": "css",
   "text/x-python": "python",
   "application/json": "json",
+  "application/toml": "toml",
+  "application/x-toml": "toml",
   "application/xml": "xml",
+  "text/x-toml": "toml",
   "text/x-yaml": "yaml",
   "text/csv": "markdown",
   "text/plain": "markdown",
   default: "markdown",
 };
+
+const EXTENSION_TO_LANGUAGE: Record<string, string> = {
+  toml: "toml",
+};
+
+const GENERIC_MIME_TYPES = new Set(["application/octet-stream", "text/plain"]);
+
+function resolveLanguage(mimeType: string, filename?: string): string {
+  const normalizedMimeType = mimeType.split(";", 1)[0].trim().toLowerCase();
+  if (GENERIC_MIME_TYPES.has(normalizedMimeType) && filename) {
+    const extension = Paths.extension(filename).toLowerCase();
+    const language = Object.hasOwn(EXTENSION_TO_LANGUAGE, extension)
+      ? EXTENSION_TO_LANGUAGE[extension]
+      : undefined;
+    if (language) {
+      return language;
+    }
+  }
+  return MIME_TO_LANGUAGE[normalizedMimeType] || MIME_TO_LANGUAGE.default;
+}
 
 /**
  * Media viewer props: provide either a direct `url` or `base64` + `mime`.
@@ -167,6 +191,7 @@ export const MediaRenderer: React.FC<MediaSource & { mimeType: string }> = ({
  */
 export const FileContentRenderer: React.FC<{
   mimeType: string;
+  filename?: string;
   /** Text content for text/CSV files. */
   contents?: string;
   /** Media source for image/audio/video/PDF files. */
@@ -177,6 +202,7 @@ export const FileContentRenderer: React.FC<{
   extensions?: Extension[];
 }> = ({
   mimeType,
+  filename,
   contents,
   mediaSource,
   readOnly = true,
@@ -202,7 +228,7 @@ export const FileContentRenderer: React.FC<{
   }
 
   if (contents != null) {
-    const language = MIME_TO_LANGUAGE[mimeType] || MIME_TO_LANGUAGE.default;
+    const language = resolveLanguage(mimeType, filename);
     return (
       <div className="flex-1 overflow-auto">
         <Suspense>
