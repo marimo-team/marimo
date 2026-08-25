@@ -1590,6 +1590,18 @@ components:
       - label
       title: DetectedDataSourceOrigin
       type: object
+    DiagnosticsConfig:
+      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
+        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
+      properties:
+        enabled:
+          type: boolean
+        sql_linter:
+          type: boolean
+      required: []
+      title: DiagnosticsConfig
+      type: object
     DialectHidesWhen:
       description: Hide this suggestion when a live SQL engine dialect contains a
         substring.
@@ -1605,18 +1617,6 @@ components:
       - kind
       - substrings
       title: DialectHidesWhen
-      type: object
-    DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
-        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
-      properties:
-        enabled:
-          type: boolean
-        sql_linter:
-          type: boolean
-      required: []
-      title: DiagnosticsConfig
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\

@@ -4632,15 +4632,6 @@ export interface components {
       type: "configuration" | "environment";
     };
     /**
-     * DialectHidesWhen
-     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
-     */
-    DialectHidesWhen: {
-      /** @enum {unknown} */
-      kind: "dialect";
-      substrings: string[];
-    };
-    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4652,6 +4643,15 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiscoverDataSourcesCommand

@@ -3140,6 +3140,16 @@ components:
             - json
             - parquet
             - tsv
+        locale:
+          type: object
+          properties:
+            tag:
+              type: string
+            decimal_separator:
+              type: string
+          required:
+            - tag
+            - decimal_separator
       required:
         - format
     marimo-dataframe.download_as.output:
@@ -4577,6 +4587,16 @@ components:
             - json
             - parquet
             - tsv
+        locale:
+          type: object
+          properties:
+            tag:
+              type: string
+            decimal_separator:
+              type: string
+          required:
+            - tag
+            - decimal_separator
       required:
         - format
     marimo-table.download_as.output:
