@@ -172,6 +172,7 @@ jobs:
         run: pnpm turbo test:coverage
 
       - name: 🧪 Test llm-info
+        working-directory: ${{ github.workspace }}
         run: pnpm --dir packages/llm-info test -- --run
 
       - name: 📊 Report coverage
