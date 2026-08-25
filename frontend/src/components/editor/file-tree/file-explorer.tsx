@@ -47,7 +47,7 @@ import { MarimoIcon, MarimoPlusIcon } from "@/components/icons/marimo-icons";
 import { Spinner } from "@/components/icons/spinner";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { AlertDialogDestructiveAction } from "@/components/ui/alert-dialog";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -74,7 +74,10 @@ import { FileViewer } from "./file-viewer";
 import type { RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
 import { PYTHON_CODE_FOR_FILE_TYPE } from "./types";
-import { useFileExplorerUpload } from "./upload";
+import {
+  FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE,
+  useFileExplorerUpload,
+} from "./upload";
 
 const hiddenFilesState = atomWithStorage(
   "marimo:showHiddenFiles",
@@ -85,23 +88,53 @@ const hiddenFilesState = atomWithStorage(
   },
 );
 
-const RequestingTreeContext = React.createContext<RequestingTree | null>(null);
+interface FileExplorerContextValue {
+  tree: RequestingTree;
+  uploadFiles: (destinationPath: FilePath) => void;
+  externalDropDestinationPath: FilePath | null;
+}
+
+const RequestingTreeContext =
+  React.createContext<FileExplorerContextValue | null>(null);
 
 export const FileExplorer: React.FC<{
   height: number;
-}> = ({ height }) => {
+  externalDropDestinationPath?: FilePath | null;
+}> = ({ height, externalDropDestinationPath = null }) => {
   const treeRef = useRef<TreeApi<FileInfo>>(null);
   const dndManager = useTreeDndManager();
   const [tree] = useAtom(treeAtom);
   const [data, setData] = useState<FileInfo[]>([]);
   const [openFile, setOpenFile] = useState<FileInfo | null>(null);
+  const [selectedFolderPath, setSelectedFolderPath] = useState<FilePath | null>(
+    null,
+  );
   const [showHiddenFiles, setShowHiddenFiles] =
     useAtom<boolean>(hiddenFilesState);
+  // Keep external state to remember which folders are open when this
+  // component is unmounted.
+  const [openState, setOpenState] = useAtom(openStateAtom);
+
+  const refreshUploadDestination = useEvent((destinationPath: FilePath) => {
+    return tree.refreshPath(destinationPath);
+  });
+
+  const uploadDestinationRef = useRef<FilePath>("" as FilePath);
+  const { getInputProps: getUploadInputProps, open: openUploadPicker } =
+    useFileExplorerUpload({
+      noClick: true,
+      noDrag: true,
+      noKeyboard: true,
+      destinationPath: () => uploadDestinationRef.current,
+      getDestinationLabel: (path) => getUploadDestinationLabel(tree, path),
+      refreshDestination: refreshUploadDestination,
+    });
+  const handleUploadFiles = useEvent((destinationPath: FilePath) => {
+    uploadDestinationRef.current = destinationPath;
+    openUploadPicker();
+  });
 
   const { openPrompt } = useImperativeModal();
-  // Keep external state to remember which folders are open
-  // when this component is unmounted
-  const [openState, setOpenState] = useAtom(openStateAtom);
   const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
 
   const handleRefresh = useEvent(() => {
@@ -152,6 +185,22 @@ export const FileExplorer: React.FC<{
     () => filterHiddenTree(data, showHiddenFiles),
     [data, showHiddenFiles],
   );
+  React.useEffect(() => {
+    if (
+      selectedFolderPath &&
+      !treeContainsPath(visibleData, selectedFolderPath)
+    ) {
+      setSelectedFolderPath(null);
+    }
+  }, [selectedFolderPath, visibleData]);
+  const contextValue = React.useMemo<FileExplorerContextValue>(
+    () => ({
+      tree,
+      uploadFiles: handleUploadFiles,
+      externalDropDestinationPath,
+    }),
+    [tree, handleUploadFiles, externalDropDestinationPath],
+  );
 
   if (isPending) {
     return <Spinner size="medium" centered={true} />;
@@ -193,6 +242,10 @@ export const FileExplorer: React.FC<{
 
   return (
     <>
+      <input
+        data-testid="file-explorer-upload-input"
+        {...getUploadInputProps()}
+      />
       <Toolbar
         onRefresh={handleRefresh}
         onHidden={handleHiddenFilesToggle}
@@ -201,9 +254,14 @@ export const FileExplorer: React.FC<{
         onCreateNotebook={handleCreateNotebook}
         onCreateFolder={handleCreateFolder}
         onCollapseAll={handleCollapseAll}
-        tree={tree}
+        uploadDestinationPath={selectedFolderPath ?? tree.getRootPath()}
+        uploadDestinationLabel={getUploadDestinationLabel(
+          tree,
+          selectedFolderPath ?? tree.getRootPath(),
+        )}
+        onUpload={handleUploadFiles}
       />
-      <RequestingTreeContext value={tree}>
+      <RequestingTreeContext value={contextValue}>
         <Tree<FileInfo>
           width="100%"
           ref={treeRef}
@@ -232,11 +290,15 @@ export const FileExplorer: React.FC<{
           onSelect={(nodes) => {
             const first = nodes[0];
             if (!first) {
+              setSelectedFolderPath(null);
               return;
             }
-            if (!first.data.isDirectory) {
-              setOpenFile(first.data);
+            if (first.data.isDirectory) {
+              setSelectedFolderPath(first.data.path as FilePath);
+              return;
             }
+            setSelectedFolderPath(null);
+            setOpenFile(first.data);
           }}
           onToggle={async (id) => {
             const result = await tree.expand(id);
@@ -269,7 +331,9 @@ interface ToolbarProps {
   onCreateNotebook: () => void;
   onCreateFolder: () => void;
   onCollapseAll: () => void;
-  tree: RequestingTree;
+  uploadDestinationPath: FilePath;
+  uploadDestinationLabel: string;
+  onUpload: (destinationPath: FilePath) => void;
 }
 
 const Toolbar = ({
@@ -280,11 +344,11 @@ const Toolbar = ({
   onCreateNotebook,
   onCreateFolder,
   onCollapseAll,
+  uploadDestinationPath,
+  uploadDestinationLabel,
+  onUpload,
 }: ToolbarProps) => {
-  const { getRootProps, getInputProps } = useFileExplorerUpload({
-    noDrag: true,
-    noDragEventsBubbling: true,
-  });
+  const uploadLabel = `Upload files to ${uploadDestinationLabel}`;
 
   return (
     <div className="flex items-center justify-end px-2 shrink-0 border-b">
@@ -318,19 +382,17 @@ const Toolbar = ({
           <FolderPlusIcon size={16} />
         </Button>
       </Tooltip>
-      <Tooltip content="Upload file">
-        <button
+      <Tooltip content={uploadLabel}>
+        <Button
           data-testid="file-explorer-upload-button"
-          {...getRootProps({})}
-          className={buttonVariants({
-            variant: "text",
-            size: "xs",
-          })}
+          aria-label={uploadLabel}
+          onClick={() => onUpload(uploadDestinationPath)}
+          variant="text"
+          size="xs"
         >
           <UploadIcon size={16} />
-        </button>
+        </Button>
       </Tooltip>
-      <input {...getInputProps({})} type="file" />
       <RefreshIconButton
         data-testid="file-explorer-refresh-button"
         onClick={onRefresh}
@@ -411,7 +473,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     });
   };
 
-  const tree = use(RequestingTreeContext);
+  const fileExplorer = use(RequestingTreeContext);
+  const tree = fileExplorer?.tree;
+  const isExternalDropTarget =
+    node.data.isDirectory &&
+    fileExplorer?.externalDropDestinationPath === node.data.path;
 
   const handleOpenMarimoFile = async (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
@@ -483,6 +549,9 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
     <div
       style={style}
       ref={dragHandle}
+      {...(node.data.isDirectory
+        ? { [FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE]: node.data.path }
+        : {})}
       className={cn(
         "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group",
       )}
@@ -490,6 +559,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
       onClick={(evt) => {
         evt.stopPropagation();
         if (node.data.isDirectory) {
+          node.select();
           node.toggle();
         }
       }}
@@ -501,6 +571,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
           node.willReceiveDrop &&
             node.data.isDirectory &&
             "bg-accent/80 hover:bg-accent/80 text-accent-foreground",
+          node.isSelected &&
+            "bg-accent/60 hover:bg-accent/60 text-accent-foreground",
+          isExternalDropTarget &&
+            "bg-primary/15 hover:bg-primary/15 text-accent-foreground ring-1 ring-inset ring-primary",
         )}
       >
         {node.data.isMarimoFile ? (
@@ -562,6 +636,15 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileInfo>) => {
               >
                 <FolderPlusIcon className={MENU_ITEM_ICON_CLASS} />
                 Create folder
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() =>
+                  fileExplorer?.uploadFiles(node.data.path as FilePath)
+                }
+                data-testid="file-explorer-upload-files-menu-item"
+              >
+                <UploadIcon className={MENU_ITEM_ICON_CLASS} />
+                Upload files here
               </DropdownMenuItem>
               <DropdownMenuSeparator />
             </>
@@ -680,6 +763,16 @@ function openMarimoNotebook(
   openNotebook(path);
 }
 
+export function getUploadDestinationLabel(
+  tree: RequestingTree,
+  destinationPath: FilePath,
+): string {
+  if (destinationPath === tree.getRootPath()) {
+    return "workspace root";
+  }
+  return tree.relativeFromRoot(destinationPath);
+}
+
 export function filterHiddenTree(
   list: FileInfo[],
   showHidden: boolean,
@@ -710,4 +803,12 @@ export function isDirectoryOrFileHidden(filename: string): boolean {
     return true;
   }
   return false;
+}
+
+function treeContainsPath(list: FileInfo[], path: FilePath): boolean {
+  return list.some(
+    (item) =>
+      item.path === path ||
+      (item.children ? treeContainsPath(item.children, path) : false),
+  );
 }
