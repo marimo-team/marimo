@@ -115,6 +115,11 @@ fe-codegen:
 	pnpm run codegen
 	pnpm format packages/openapi/
 
+.PHONY: fe-plugin-schema
+# 🔄 Generate frontend plugin API schema
+fe-plugin-schema:
+	pnpm --filter @marimo-team/frontend plugins:generate-schema
+
 .PHONY: design-md
 # 🔄 Generate DESIGN.md
 design-md:
