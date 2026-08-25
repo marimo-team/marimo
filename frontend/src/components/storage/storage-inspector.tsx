@@ -8,7 +8,6 @@ import {
   HardDriveIcon,
   HelpCircleIcon,
   LoaderCircle,
-  PlusIcon,
   ViewIcon,
   XIcon,
 } from "lucide-react";
@@ -17,7 +16,7 @@ import { useLocale } from "react-aria";
 import { EngineVariable } from "@/components/databases/engine-variable";
 import { useAddCodeToNewCell } from "@/components/editor/cell/useAddCell";
 import { PanelEmptyState } from "@/components/editor/chrome/panels/empty-state";
-import { AddConnectionDialog } from "@/components/editor/connections/add-connection-dialog";
+import { AddConnectionButton } from "@/components/editor/connections/add-connection-button";
 import {
   FILE_ICON_COLOR,
   renderFileIcon,
@@ -1011,12 +1010,12 @@ export const StorageInspector: React.FC = () => {
           </span>
         }
         action={
-          <AddConnectionDialog defaultTab="storage">
-            <Button variant="outline" size="sm">
-              Add remote storage
-              <PlusIcon className="h-4 w-4 ml-2" />
-            </Button>
-          </AddConnectionDialog>
+          <AddConnectionButton
+            group="storage"
+            label="Add remote storage"
+            variant="outline"
+            size="sm"
+          />
         }
         icon={<HardDriveIcon className="h-8 w-8" />}
       />
@@ -1076,15 +1075,14 @@ export const StorageInspector: React.FC = () => {
           >
             <HelpCircleIcon className="h-3.5 w-3.5 shrink-0 cursor-help text-muted-foreground hover:text-foreground mr-2" />
           </Tooltip>
-          <AddConnectionDialog defaultTab="storage">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="px-2 border-0 border-l border-muted-background rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            >
-              <PlusIcon className="h-4 w-4" />
-            </Button>
-          </AddConnectionDialog>
+          <AddConnectionButton
+            group="storage"
+            label="Add remote storage"
+            compact={true}
+            variant="ghost"
+            size="sm"
+            className="px-2 border-0 border-l border-muted-background rounded-none focus-visible:ring-0 focus-visible:ring-offset-0"
+          />
         </div>
         <CommandList className="flex flex-col">
           {namespaces.map((ns) => {

@@ -1,24 +1,65 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { Provider } from "jotai";
 import type React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import {
+  type DetectedDataSource,
+  invalidateDataSourceDiscovery,
+} from "@/core/datasets/data-source-discovery";
+import { DiscoverDataSources } from "@/core/datasets/request-registry";
 import { layoutStateAtom } from "@/core/layout/layout";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
+import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { isWasm } from "@/core/wasm/utils";
+import { WebSocketState } from "@/core/websocket/types";
 import {
   DEFAULT_EXPORT_OPTIONS,
   exportOptionsAtom,
   lastExportFormatAtom,
 } from "../../actions/export-dialog/state";
 import { NotebookMenuDropdown } from "../notebook-menu-dropdown";
+
+const POSTGRES_SOURCE: DetectedDataSource = {
+  id: "postgres-libpq-environment",
+  integration: "postgres",
+  category: "database",
+  displayName: "PostgreSQL",
+  confidence: "high",
+  origins: [{ type: "environment", label: "Kernel environment" }],
+  configuration: [],
+  code: "engine = create_engine()",
+  hidesWhen: { kind: "dialect", substrings: ["postgres"] },
+};
+
+const S3_SOURCE: DetectedDataSource = {
+  id: "aws-s3-environment",
+  integration: "aws",
+  category: "object-storage",
+  displayName: "AWS S3",
+  confidence: "high",
+  origins: [{ type: "environment", label: "Kernel environment" }],
+  configuration: [],
+  code: "storage = create_s3_storage()",
+  hidesWhen: {
+    kind: "storage",
+    protocols: ["s3"],
+    backendTypes: ["s3"],
+  },
+};
 
 vi.mock("@/core/wasm/utils", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/core/wasm/utils")>();
@@ -59,6 +100,7 @@ describe("NotebookMenuDropdown", () => {
     store.set(requestClientAtom, MockRequestClient.create());
     store.set(filenameAtom, "/project/notebook.py");
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
+    store.set(connectionAtom, { state: WebSocketState.OPEN });
     store.set(kioskModeAtom, false);
     store.set(layoutStateAtom, {
       selectedLayout: "vertical",
@@ -73,11 +115,77 @@ describe("NotebookMenuDropdown", () => {
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     }));
+    invalidateDataSourceDiscovery();
+    vi.spyOn(DiscoverDataSources, "request").mockResolvedValue({
+      request_id: "request-id",
+      sources: [],
+    });
   });
 
   afterEach(() => {
     document.title = "";
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it("shows detected databases in the add connection submenu", async () => {
+    vi.mocked(DiscoverDataSources.request).mockResolvedValue({
+      request_id: "request-id",
+      sources: [POSTGRES_SOURCE],
+    });
+
+    render(<NotebookMenuDropdown />, { wrapper });
+    await waitFor(() =>
+      expect(DiscoverDataSources.request).toHaveBeenCalledOnce(),
+    );
+    await act(async () => Promise.resolve());
+    openNotebookMenu();
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Add database connection" }),
+    );
+
+    const suggestion = await screen.findByRole("menuitem", {
+      name: "Add PostgreSQL",
+    });
+    const browseAll = screen.getByRole("menuitem", {
+      name: "Browse all connections",
+    });
+    expect(suggestion).toBeVisible();
+    expect(browseAll).toBeVisible();
+    expect(
+      suggestion.compareDocumentPosition(browseAll) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("shows detected storage in the add remote storage submenu", async () => {
+    vi.mocked(DiscoverDataSources.request).mockResolvedValue({
+      request_id: "request-id",
+      sources: [S3_SOURCE],
+    });
+
+    render(<NotebookMenuDropdown />, { wrapper });
+    await waitFor(() =>
+      expect(DiscoverDataSources.request).toHaveBeenCalledOnce(),
+    );
+    await act(async () => Promise.resolve());
+    openNotebookMenu();
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: "Add remote storage" }),
+    );
+
+    const suggestion = await screen.findByRole("menuitem", {
+      name: "Add AWS S3",
+    });
+    const browseAll = screen.getByRole("menuitem", {
+      name: "Browse all connections",
+    });
+    expect(suggestion).toBeVisible();
+    expect(browseAll).toBeVisible();
+    expect(
+      suggestion.compareDocumentPosition(browseAll) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("returns focus to the notebook menu when the dialog closes", async () => {

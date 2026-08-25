@@ -3,7 +3,7 @@
 import { CommandList } from "cmdk";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
+import { PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
@@ -64,7 +64,7 @@ import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { PythonIcon } from "../editor/cell/code/icons";
 import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { AddConnectionDialog } from "../editor/connections/add-connection-dialog";
+import { AddConnectionButton } from "../editor/connections/add-connection-button";
 import { DatasetColumnPreview } from "./column-preview";
 import {
   ColumnName,
@@ -250,12 +250,12 @@ export const DataSources: React.FC = () => {
         title="No tables found"
         description="Any datasets/dataframes in the global scope will be shown here."
         action={
-          <AddConnectionDialog>
-            <Button variant="outline" size="sm">
-              Add database or catalog
-              <PlusIcon className="h-4 w-4 ml-2" />
-            </Button>
-          </AddConnectionDialog>
+          <AddConnectionButton
+            group="database"
+            label="Add database or catalog"
+            variant="outline"
+            size="sm"
+          />
         }
         icon={<DatabaseIcon />}
       />
@@ -301,15 +301,14 @@ export const DataSources: React.FC = () => {
           className="px-2 rounded-none focus-visible:outline-hidden"
         />
 
-        <AddConnectionDialog>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 rounded-none focus-visible:outline-hidden"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Button>
-        </AddConnectionDialog>
+        <AddConnectionButton
+          group="database"
+          label="Add database or catalog"
+          compact={true}
+          variant="ghost"
+          size="sm"
+          className="px-2 rounded-none focus-visible:outline-hidden"
+        />
       </div>
 
       <CommandList className="flex flex-col">
