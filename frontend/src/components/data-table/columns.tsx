@@ -196,150 +196,148 @@ export function generateColumns<T>({
     columnKeys.splice(indexColumnIdx, 1);
   }
 
-  const columns = columnKeys.map(
-    (key, idx): ColumnDef<T> => ({
-      id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
-      // Use an accessorFn instead of an accessorKey because column names
-      // may have periods in them ...
-      // https://github.com/TanStack/table/issues/1671
-      accessorFn: (row) => {
-        return row[key as keyof T];
-      },
-      enableHiding: !rowHeadersSet.has(key) && key !== "",
-      header: ({ column, table }) => {
-        const stats = chartSpecModel?.getColumnStats(key);
-        const dtype = column.columnDef.meta?.dtype;
-        const headerTitle = headerTooltip?.[key];
-        const headerJustify = textJustifyColumns?.[key];
+  const columns = columnKeys.map((key, idx): ColumnDef<T> => ({
+    id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
+    // Use an accessorFn instead of an accessorKey because column names
+    // may have periods in them ...
+    // https://github.com/TanStack/table/issues/1671
+    accessorFn: (row) => {
+      return row[key as keyof T];
+    },
+    enableHiding: !rowHeadersSet.has(key) && key !== "",
+    header: ({ column, table }) => {
+      const stats = chartSpecModel?.getColumnStats(key);
+      const dtype = column.columnDef.meta?.dtype;
+      const headerTitle = headerTooltip?.[key];
+      const headerJustify = textJustifyColumns?.[key];
 
-        const dtypeHeader =
-          showDataTypes && dtype ? (
-            <div
-              className={cn(
-                "flex flex-row gap-1",
-                headerJustify === "center" && "justify-center",
-                headerJustify === "right" && "justify-end",
-              )}
-            >
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  (nulls: {stats.nulls})
-                </span>
-              )}
-            </div>
-          ) : null;
-
-        const headerName = (
-          <span
-            className={cn(
-              "font-bold",
-              headerTitle && "underline decoration-dotted",
-            )}
-          >
-            {key === "" ? " " : key}
-          </span>
-        );
-
-        const headerWithTooltip = headerTitle ? (
-          <Tooltip content={headerTitle} delayDuration={300}>
-            {headerName}
-          </Tooltip>
-        ) : (
-          headerName
-        );
-
-        const dataTableColumnHeader = (
-          <DataTableColumnHeader
-            header={headerWithTooltip}
-            subheader={dtypeHeader}
-            column={column}
-            justify={headerJustify}
-            calculateTopKRows={calculateTopKRows}
-            table={table}
-          />
-        );
-
-        // Row headers have no summaries
-        if (rowHeadersSet.has(key)) {
-          return dataTableColumnHeader;
-        }
-
-        return (
+      const dtypeHeader =
+        showDataTypes && dtype ? (
           <div
             className={cn(
-              "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-              headerJustify === "center" && "items-center",
-              headerJustify === "right" && "items-end",
+              "flex flex-row gap-1",
+              headerJustify === "center" && "justify-center",
+              headerJustify === "right" && "justify-end",
             )}
           >
-            {dataTableColumnHeader}
-            <TableColumnSummary columnId={key} />
+            <span className="text-xs text-muted-foreground">{dtype}</span>
+            {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+              <span className="text-xs text-muted-foreground">
+                (nulls: {stats.nulls})
+              </span>
+            )}
           </div>
-        );
-      },
+        ) : null;
 
-      cell: ({ column, renderValue, getValue, cell }) => {
-        function selectCell() {
-          if (selection !== "single-cell" && selection !== "multi-cell") {
-            return;
-          }
+      const headerName = (
+        <span
+          className={cn(
+            "font-bold",
+            headerTitle && "underline decoration-dotted",
+          )}
+        >
+          {key === "" ? " " : key}
+        </span>
+      );
 
-          cell.toggleSelected?.();
+      const headerWithTooltip = headerTitle ? (
+        <Tooltip content={headerTitle} delayDuration={300}>
+          {headerName}
+        </Tooltip>
+      ) : (
+        headerName
+      );
+
+      const dataTableColumnHeader = (
+        <DataTableColumnHeader
+          header={headerWithTooltip}
+          subheader={dtypeHeader}
+          column={column}
+          justify={headerJustify}
+          calculateTopKRows={calculateTopKRows}
+          table={table}
+        />
+      );
+
+      // Row headers have no summaries
+      if (rowHeadersSet.has(key)) {
+        return dataTableColumnHeader;
+      }
+
+      return (
+        <div
+          className={cn(
+            "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
+            headerJustify === "center" && "items-center",
+            headerJustify === "right" && "items-end",
+          )}
+        >
+          {dataTableColumnHeader}
+          <TableColumnSummary columnId={key} />
+        </div>
+      );
+    },
+
+    cell: ({ column, renderValue, getValue, cell }) => {
+      function selectCell() {
+        if (selection !== "single-cell" && selection !== "multi-cell") {
+          return;
         }
 
-        const justify = getJustify(key);
-        const wrapped = wrappedColumns?.includes(key);
-        const isCellSelected = cell?.getIsSelected?.() || false;
-        const canSelectCell =
-          (selection === "single-cell" || selection === "multi-cell") &&
-          !isCellSelected;
+        cell.toggleSelected?.();
+      }
 
-        const dataType = column.columnDef.meta?.dataType;
-        const isNumeric = isNumericType(dataType);
-        const cellStyles = getCellStyleClass({
-          justify,
-          wrapped,
-          canSelectCell,
-          isSelected: isCellSelected,
-          isNumeric,
-        });
+      const justify = getJustify(key);
+      const wrapped = wrappedColumns?.includes(key);
+      const isCellSelected = cell?.getIsSelected?.() || false;
+      const canSelectCell =
+        (selection === "single-cell" || selection === "multi-cell") &&
+        !isCellSelected;
 
-        const renderedCell = renderCellValue({
-          column,
-          renderValue,
-          getValue,
-          selectCell,
-          cellStyles,
-        });
+      const dataType = column.columnDef.meta?.dataType;
+      const isNumeric = isNumericType(dataType);
+      const cellStyles = getCellStyleClass({
+        justify,
+        wrapped,
+        canSelectCell,
+        isSelected: isCellSelected,
+        isNumeric,
+      });
 
-        // Row headers are bold
-        if (rowHeadersSet.has(key)) {
-          return <b>{renderedCell}</b>;
+      const renderedCell = renderCellValue({
+        column,
+        renderValue,
+        getValue,
+        selectCell,
+        cellStyles,
+      });
+
+      // Row headers are bold
+      if (rowHeadersSet.has(key)) {
+        return <b>{renderedCell}</b>;
+      }
+
+      return renderedCell;
+    },
+    // Remove any default filtering
+    filterFn: undefined,
+    // Unnamed index columns and geometry columns are not sortable
+    enableSorting: !!key && getMeta(key).dataType !== "geometry",
+    meta: {
+      ...getMeta(key),
+      width: columnWidths?.[key],
+    },
+    // size seeds the width before measurement; minSize/maxSize pin
+    // getSize() to the fixed width so the per-paint measurement writeback
+    // cannot drift the header width or sticky-pin offsets.
+    ...(columnWidths?.[key] !== undefined
+      ? {
+          size: columnWidths[key],
+          minSize: columnWidths[key],
+          maxSize: columnWidths[key],
         }
-
-        return renderedCell;
-      },
-      // Remove any default filtering
-      filterFn: undefined,
-      // Unnamed index columns and geometry columns are not sortable
-      enableSorting: !!key && getMeta(key).dataType !== "geometry",
-      meta: {
-        ...getMeta(key),
-        width: columnWidths?.[key],
-      },
-      // size seeds the width before measurement; minSize/maxSize pin
-      // getSize() to the fixed width so the per-paint measurement writeback
-      // cannot drift the header width or sticky-pin offsets.
-      ...(columnWidths?.[key] !== undefined
-        ? {
-            size: columnWidths[key],
-            minSize: columnWidths[key],
-            maxSize: columnWidths[key],
-          }
-        : {}),
-    }),
-  );
+      : {}),
+  }));
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
