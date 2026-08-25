@@ -2705,7 +2705,7 @@ def launch_kernel(
                 set_ui_element_queue=set_ui_element_queue,
                 virtual_file_storage=virtual_file_storage,
             )
-        ) as (kernel, ctx):
+        ) as (kernel, _ctx):
             if is_edit_mode:
                 # out-of-band commands are only processed in edit mode
                 kernel.start_out_of_band_worker(completion_queue)
