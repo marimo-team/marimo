@@ -14,7 +14,13 @@ from marimo._plugins.core.web_component import JSONType
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, ItemsView, Iterator, ValuesView
+    from collections.abc import (
+        Callable,
+        ItemsView,
+        Iterator,
+        Mapping,
+        ValuesView,
+    )
 
 U = TypeVar("U")
 V = TypeVar("V")
@@ -22,7 +28,7 @@ V = TypeVar("V")
 
 # Explicit type check, since the api has led to some confusion.
 def validate_and_clone(
-    elements: dict[str, UIElement[U, V]],
+    elements: Mapping[str, UIElement[U, V]],
 ) -> dict[str, UIElement[U, V]]:
     invalid: list[str] = []
     new_elements = {}
@@ -211,7 +217,7 @@ class batch(_batch_base):
     def __init__(
         self,
         html: Html,
-        elements: dict[str, UIElement[Any, Any]],
+        elements: Mapping[str, UIElement[Any, Any]],
         on_change: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         self._html = html

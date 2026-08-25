@@ -26,6 +26,23 @@ def test_batch_rejects_non_ui_elements() -> None:
         md("Example {thing}").batch(thing={"key": "value"})  # type: ignore
 
 
+def test_validate_and_clone_accepts_readonly_mapping() -> None:
+    """`validate_and_clone` accepts any Mapping of UI elements, not just dict."""
+    from types import MappingProxyType
+
+    from marimo._plugins.ui._impl.batch import validate_and_clone
+
+    a = ui.text(value="hello")
+    elements = MappingProxyType({"a": a})
+
+    cloned = validate_and_clone(elements)
+
+    assert isinstance(cloned, dict)
+    assert set(cloned) == {"a"}
+    # returns clones, not the originals
+    assert cloned["a"]._id != a._id
+
+
 def test_dictionary_rejects_non_ui_elements() -> None:
     """Test that dictionary raises ValueError for non-UIElement arguments."""
     with pytest.raises(

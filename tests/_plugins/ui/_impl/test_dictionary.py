@@ -32,6 +32,23 @@ def test_dictionary() -> None:
     assert dictionary.value == {"a": 2, "b": "goodbye", "c": 1}
 
 
+def test_dictionary_accepts_readonly_mapping() -> None:
+    # `elements` is typed as a covariant Mapping, so any read-only mapping of
+    # UI elements (not just a plain dict) must be accepted and cloned.
+    from types import MappingProxyType
+
+    a = ui.text(value="hello")
+    b = ui.slider(1, 10, value=2)
+    elements = MappingProxyType({"a": a, "b": b})
+
+    dictionary = ui.dictionary(elements)
+
+    assert dictionary.value == {"a": "hello", "b": 2}
+    # elements are cloned, not the originals
+    assert dictionary.elements["a"]._id != a._id
+    assert dictionary.elements["b"]._id != b._id
+
+
 def test_nested_dict() -> None:
     inner = ui.dictionary({"slider": ui.slider(1, 10)})
     outer = ui.dictionary({"inner": inner})
