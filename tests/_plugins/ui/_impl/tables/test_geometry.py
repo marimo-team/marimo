@@ -276,6 +276,24 @@ class TestArrowManager:
             "geoarrow.wkb",
         )
 
+    def test_selection_column_preserves_geoarrow_metadata(self) -> None:
+        from marimo._plugins.ui._impl.tables.selection import (
+            INDEX_COLUMN_NAME,
+            add_selection_column,
+        )
+
+        table, has_stable_row_id = add_selection_column(
+            geo.arrow_wkb_known_crs()
+        )
+        field = table.schema.field("geom")
+
+        assert has_stable_row_id is True
+        assert INDEX_COLUMN_NAME in table.column_names
+        assert field.metadata[b"ARROW:extension:name"] == b"geoarrow.wkb"
+        assert ui.table(geo.arrow_wkb_known_crs())._manager.get_field_type(
+            "geom"
+        ) == ("geometry", "geoarrow.wkb")
+
     def test_formatting_skips_geometry_columns_in_mapping(self) -> None:
         manager = get_table_manager(geo.arrow_wkb_known_crs())
 
@@ -826,8 +844,6 @@ class TestHostCorpusSmoke:
 
     Each fixture is wrapped in ui.table. Search and column summaries must
     return clean payloads with the expected geometry field types.
-    selection is None so ingest does not rewrite the frame; default
-    multi-selection drops GeoArrow field metadata via with_row_index.
     """
 
     def test_search_and_summaries(
@@ -836,7 +852,7 @@ class TestHostCorpusSmoke:
         expected_geometry: dict[str, tuple[str, str]],
     ) -> None:
         with _closing_data(make_data) as data:
-            table = ui.table(data, selection=None, show_column_summaries=True)
+            table = ui.table(data, show_column_summaries=True)
             field_types = dict(table._manager.get_field_types())
             for name, expected in expected_geometry.items():
                 assert field_types[name] == expected
