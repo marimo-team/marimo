@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
@@ -881,3 +884,61 @@ class TestManagerTemplateHook:
         }
 
         assert manager.get_field_type("geometry") == ("geometry", "geometry")
+
+
+@pytest.mark.requires("pyarrow")
+def test_geoarrow_wkb_without_geopandas_or_shapely() -> None:
+    repo_root = str(Path(__file__).resolve().parents[5])
+    script = """
+import json
+import sys
+
+sys.path.insert(0, sys.argv[1])
+
+
+class BlockedDependency:
+    def find_spec(self, fullname, path=None, target=None):
+        del path, target
+        if fullname.partition(".")[0] in {"geopandas", "shapely"}:
+            raise RuntimeError(f"blocked import: {fullname}")
+        return None
+
+
+sys.meta_path.insert(0, BlockedDependency())
+
+import pyarrow as pa
+from marimo._plugins.ui._impl.tables.utils import get_table_manager
+
+wkb = bytes.fromhex("0101000000000000000000f03f0000000000000040")
+schema = pa.schema(
+    [
+        pa.field("a", pa.int64()),
+        pa.field(
+            "geom",
+            pa.binary(),
+            metadata={
+                b"ARROW:extension:name": b"geoarrow.wkb",
+                b"ARROW:extension:metadata": b'{"crs": "EPSG:4326"}',
+            },
+        ),
+    ]
+)
+table = pa.table({"a": [0, 1], "geom": [wkb, None]}, schema=schema)
+manager = get_table_manager(table)
+
+assert manager.get_field_type("geom") == ("geometry", "geoarrow.wkb")
+rows = json.loads(manager.to_json_str())
+assert rows[0]["geom"] == f"<geometry, {len(wkb)} B>"
+assert rows[1]["geom"] is None
+stats = manager.get_stats("geom")
+assert stats.total == 2
+assert stats.nulls == 1
+assert stats.unique is None
+assert stats.min is None
+"""
+    subprocess.run(
+        [sys.executable, "-c", script, repo_root],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
