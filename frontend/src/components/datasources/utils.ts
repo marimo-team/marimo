@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { BigQueryDialect } from "@marimo-team/codemirror-sql/dialects";
+import { sqlKeyword } from "@/core/codemirror/language/languages/sql/keyword-case";
 import { isKnownDialect } from "@/core/codemirror/language/languages/sql/utils";
 import type { SQLTableContext } from "@/core/datasets/data-source-connections";
 import { DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -111,7 +112,7 @@ interface SqlCodeFormatter {
 const defaultFormatter: SqlCodeFormatter = {
   formatTablePath: (tablePath: string[]) => tablePath.join("."),
   formatSelectClause: (columnName: string, tableName: string) =>
-    `SELECT ${columnName} FROM ${tableName} LIMIT 100`,
+    `${sqlKeyword("SELECT")} ${columnName} ${sqlKeyword("FROM")} ${tableName} ${sqlKeyword("LIMIT")} 100`,
 };
 
 function getFormatter(dialect: string): SqlCodeFormatter {
@@ -136,7 +137,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
       return {
         formatTablePath: defaultFormatter.formatTablePath,
         formatSelectClause: (columnName: string, tableName: string) =>
-          `SELECT TOP 100 ${columnName} FROM ${tableName}`,
+          `${sqlKeyword("SELECT TOP")} 100 ${columnName} ${sqlKeyword("FROM")} ${tableName}`,
       };
     case "timescaledb":
     case "postgres":
@@ -148,7 +149,7 @@ function getFormatter(dialect: string): SqlCodeFormatter {
         formatTablePath: (tablePath: string[]) =>
           tablePath.map((part) => `"${part}"`).join("."),
         formatSelectClause: (columnName: string, tableName: string) =>
-          `SELECT ${columnName === "*" ? "*" : `"${columnName}"`} FROM ${tableName} LIMIT 100`,
+          `${sqlKeyword("SELECT")} ${columnName === "*" ? "*" : `"${columnName}"`} ${sqlKeyword("FROM")} ${tableName} ${sqlKeyword("LIMIT")} 100`,
       };
     case "db2":
     case "db2i":
@@ -231,7 +232,7 @@ export function sqlCode({
     return `_df = mo.sql(f"""\n${selectClause}\n""", engine=${engine})`;
   }
 
-  return `_df = mo.sql(f'SELECT "${columnName}" FROM ${table.name} LIMIT 100')`;
+  return `_df = mo.sql(f'${sqlKeyword("SELECT")} "${columnName}" ${sqlKeyword("FROM")} ${table.name} ${sqlKeyword("LIMIT")} 100')`;
 }
 
 export function convertStatsName(stat: ColumnHeaderStatsKey, type: DataType) {

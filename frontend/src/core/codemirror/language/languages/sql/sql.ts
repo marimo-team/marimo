@@ -62,6 +62,7 @@ import {
   tablesCompletionSource,
 } from "./completion-sources";
 import { SCHEMA_CACHE } from "./completion-store";
+import { sqlKeyword } from "./keyword-case";
 import { getSQLMode, type SQLMode } from "./sql-mode";
 import { isKnownDialect } from "./utils";
 
@@ -99,11 +100,12 @@ export class SQLLanguageAdapter implements LanguageAdapter<SQLLanguageAdapterMet
   }
 
   get defaultCode(): string {
+    const query = `${sqlKeyword("SELECT")} * ${sqlKeyword("FROM")} `;
     const engine = getLatestEngine();
     if (engine && engine !== DUCKDB_ENGINE) {
-      return `_df = mo.sql(f"""SELECT * FROM """, engine=${engine})`;
+      return `_df = mo.sql(f"""${query}""", engine=${engine})`;
     }
-    return this.parser.defaultCode;
+    return `_df = mo.sql(f"""${query}""")`;
   }
 
   static fromQuery = (query: string) => SQLParser.fromQuery(query);
