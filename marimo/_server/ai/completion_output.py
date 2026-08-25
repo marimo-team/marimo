@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 from marimo._server.models.completion import Language
 
+# Mirrored by frontend/src/core/ai/completion-output.ts.
 CELL_COMPLETION_DATA_TYPE = "data-cell-completion"
 NOTEBOOK_CELLS_COMPLETION_DATA_TYPE = "data-notebook-cells-completion"
 

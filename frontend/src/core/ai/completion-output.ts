@@ -3,9 +3,16 @@
 import type { DataUIPart, UIMessage, UIMessageChunk } from "ai";
 import { z } from "zod";
 
-export const CELL_COMPLETION_DATA_TYPE = "data-cell-completion" as const;
+// Mirrored from marimo/_server/ai/completion_output.py; SSE data parts are not
+// represented in OpenAPI.
+const CELL_COMPLETION_DATA_PART = "cell-completion" as const;
+const NOTEBOOK_CELLS_COMPLETION_DATA_PART =
+  "notebook-cells-completion" as const;
+
+export const CELL_COMPLETION_DATA_TYPE =
+  `data-${CELL_COMPLETION_DATA_PART}` as const;
 export const NOTEBOOK_CELLS_COMPLETION_DATA_TYPE =
-  "data-notebook-cells-completion" as const;
+  `data-${NOTEBOOK_CELLS_COMPLETION_DATA_PART}` as const;
 
 export const cellCompletionSchema = z.object({
   code: z.string(),
@@ -26,12 +33,15 @@ export type NotebookCellsCompletion = z.infer<
   typeof notebookCellsCompletionSchema
 >;
 
-// A type alias satisfies AI SDK's `UIDataTypes` index signature while an
-// equivalent interface does not.
-// oxlint-disable-next-line typescript-eslint/consistent-type-definitions
+const completionDataSchemas = {
+  [CELL_COMPLETION_DATA_PART]: cellCompletionSchema,
+  [NOTEBOOK_CELLS_COMPLETION_DATA_PART]: notebookCellsCompletionSchema,
+};
+
 export type CompletionDataParts = {
-  "cell-completion": CellCompletion;
-  "notebook-cells-completion": NotebookCellsCompletion;
+  [Name in keyof typeof completionDataSchemas]: z.infer<
+    (typeof completionDataSchemas)[Name]
+  >;
 };
 
 export type CompletionUIMessage = UIMessage<unknown, CompletionDataParts>;
