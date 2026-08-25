@@ -126,6 +126,7 @@ def test_default_configuration_snapshot(config_tree: Path) -> None:
             },
             "runtime": {
                 "dotenv": ["<root>/home/project/.env"],
+                "sql_keyword_case": "upper",
                 "watcher_on_save": "lazy",
                 "auto_reload": "off",
                 "default_csv_encoding": "utf-8",
@@ -259,6 +260,7 @@ def test_layered_configuration_snapshot(
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "watcher_on_save": "lazy",
+                    "sql_keyword_case": "upper",
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
                     "reactive_tests": True,
@@ -336,6 +338,7 @@ def test_layered_configuration_snapshot(
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "dotenv": ["<root>/home/project/script.env"],
+                    "sql_keyword_case": "upper",
                     "watcher_on_save": "lazy",
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
@@ -438,6 +441,7 @@ def test_layered_configuration_snapshot(
                 "mcp": {"mcpServers": {}, "presets": []},
                 "runtime": {
                     "watcher_on_save": "lazy",
+                    "sql_keyword_case": "upper",
                     "output_max_bytes": 8000000,
                     "auto_reload": "off",
                     "default_csv_encoding": "utf-8",
@@ -687,6 +691,7 @@ on_cell_change = "autorun"
 output_max_bytes = 8000000
 reactive_tests = true
 show_tracebacks = false
+sql_keyword_case = "upper"
 std_stream_max_bytes = 1000000
 watcher_on_save = "lazy"
 
@@ -860,6 +865,7 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                 },
                 "runtime": {
                     "reactive_tests": True,
+                    "sql_keyword_case": "upper",
                     "auto_instantiate": False,
                     "default_sql_output": "auto",
                     "output_max_bytes": 8000000,
@@ -891,6 +897,7 @@ def test_secret_roundtrip_snapshot(config_tree: Path) -> None:
                     "default_sql_output": "auto",
                     "default_csv_encoding": "utf-8",
                     "std_stream_max_bytes": 1000000,
+                    "sql_keyword_case": "upper",
                     "watcher_on_save": "lazy",
                     "reactive_tests": True,
                     "show_tracebacks": False,
