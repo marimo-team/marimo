@@ -828,13 +828,13 @@ def _duckdb_crs_geometry() -> tuple[Any, Any]:
         pytest.param(
             _duckdb_geometry,
             {"geom": ("geometry", "GEOMETRY")},
-            marks=pytest.mark.requires("duckdb"),
+            marks=pytest.mark.requires("duckdb", "pyarrow"),
             id="duckdb_geometry",
         ),
         pytest.param(
             _duckdb_crs_geometry,
             {"geom": ("geometry", "GEOMETRY('OGC:CRS84')")},
-            marks=pytest.mark.requires("duckdb"),
+            marks=pytest.mark.requires("duckdb", "pyarrow"),
             id="duckdb_crs_geometry",
         ),
     ],
@@ -952,9 +952,12 @@ assert stats.nulls == 1
 assert stats.unique is None
 assert stats.min is None
 """
-    subprocess.run(
-        [sys.executable, "-c", script, repo_root],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        subprocess.run(
+            [sys.executable, "-c", script, repo_root],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except subprocess.CalledProcessError as e:
+        raise AssertionError(e.stderr) from e
