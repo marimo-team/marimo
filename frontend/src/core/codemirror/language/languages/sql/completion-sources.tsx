@@ -10,6 +10,7 @@ import { DefaultSqlTooltipRenders } from "@marimo-team/codemirror-sql";
 import { once } from "@/utils/once";
 import { languageMetadataField } from "../../metadata";
 import { SCHEMA_CACHE } from "./completion-store";
+import { sqlKeywordCase } from "./keyword-case";
 import type { SQLLanguageAdapterMetadata } from "./sql";
 
 function getSQLMetadata(state: EditorState): SQLLanguageAdapterMetadata {
@@ -79,7 +80,9 @@ export function customKeywordCompletionSource(): CompletionSource {
       };
     };
 
-    const uppercaseKeywords = true;
+    // Read per-request so setting changes apply without a reload; the
+    // completion override array is only rebuilt on language switch.
+    const uppercaseKeywords = sqlKeywordCase() === "upper";
     const result = keywordCompletionSource(
       dialect,
       uppercaseKeywords,
