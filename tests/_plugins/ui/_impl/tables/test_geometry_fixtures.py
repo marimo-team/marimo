@@ -3,18 +3,12 @@
 from __future__ import annotations
 
 import json
-import os
 
 import pytest
 
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from tests._plugins.ui._impl.tables import geometry_fixtures as geo
 from tests.mocks import snapshotter
-
-pytestmark = pytest.mark.skipif(
-    os.getenv("CI") is not None,
-    reason="Geometry characterization tests are disabled until they can run reliably in CI.",
-)
 
 snapshot = snapshotter(__file__)
 
