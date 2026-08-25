@@ -96,7 +96,7 @@ async function prepareVisualCase(
   });
   await expect(page.locator(".marimo-output-loading")).toHaveCount(0);
 
-  const focusedInput = page.getByLabel("Focused input");
+  const focusedInput = page.getByTestId("marimo-plugin-text-input");
   await focusedInput.focus();
   await expect(focusedInput).toBeFocused();
 }
