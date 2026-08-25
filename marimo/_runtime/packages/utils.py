@@ -150,7 +150,7 @@ def strip_requirement_name(requirement: str) -> str:
 
     # URL dependencies (package @ <url>) — leave as-is.
     if "@" in requirement:
-        name, rhs = requirement.split("@", 1)
+        _name, rhs = requirement.split("@", 1)
         rhs = rhs.strip()
         if re.match(r"^[a-zA-Z][a-zA-Z0-9+.\-]*://", rhs):
             return requirement

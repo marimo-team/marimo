@@ -76,7 +76,7 @@ class TestSigningPolicyFromConfig:
         assert policy.verification == "on"
 
     def test_trusted_signers_normalized(self, keypair) -> None:
-        _priv, pub, fp = keypair
+        _priv, _pub, fp = keypair
         # An urlsafe, padded variant must canonicalize to fingerprint() output.
         policy = SigningPolicy.from_config(
             {

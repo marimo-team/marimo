@@ -950,7 +950,7 @@ class TestReviewFixes(_FileStoreLoaderTest):
 
         from cryptography.exceptions import UnsupportedAlgorithm
 
-        signer, verifier = _keypair()
+        signer, _verifier = _keypair()
         writer = LazyLoader(
             "test", store=self.store, signer=signer, verification="on"
         )

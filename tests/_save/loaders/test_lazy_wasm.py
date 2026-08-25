@@ -781,7 +781,7 @@ class TestOnRestoreFailure:
         assert ret_ref in _cache_state().poisoned_keys
 
     def test_none_manifest_poisons_only_manifest_path(self) -> None:
-        store, loader, key = self._loader_and_key()
+        _store, loader, key = self._loader_and_key()
         manifest_path = str(loader.build_path(key))
 
         loader._on_restore_failure(key, None)
@@ -791,7 +791,7 @@ class TestOnRestoreFailure:
         assert _cache_state().poisoned_keys == {manifest_path}
 
     def test_undecodable_manifest_poisons_only_manifest_path(self) -> None:
-        store, loader, key = self._loader_and_key()
+        _store, loader, key = self._loader_and_key()
         manifest_path = str(loader.build_path(key))
 
         # Garbage bytes must not raise; manifest path is still poisoned.
