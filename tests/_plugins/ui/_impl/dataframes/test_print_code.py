@@ -615,6 +615,69 @@ def test_print_code_expand_dict_nan_pandas() -> None:
     )
 
 
+# The values here are valid strings that are also regexes: "a.c" matches
+# "abc" when interpreted as a regex, and "(" is not a valid regex at all. If
+# `contains` is emitted without a literal flag, the generated pandas code
+# diverges from the widget (or raises), so this test fails.
+@pytest.mark.parametrize("value", ["a.c", "("])
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="pandas not installed"
+)
+def test_print_code_contains_is_literal_pandas(value: str) -> None:
+    import pandas as pd
+
+    my_df = pd.DataFrame({"strings": ["abc", "a.c", "f(x)", "zzz"]})
+
+    transformations = Transformations(
+        [
+            FilterRowsTransform(
+                type=TransformType.FILTER_ROWS,
+                operation="keep_rows",
+                where=FilterGroup(
+                    type="group",
+                    operator="and",
+                    children=[
+                        FilterCondition(
+                            type="condition",
+                            column_id="strings",
+                            operator="contains",
+                            value=value,
+                        )
+                    ],
+                ),
+            )
+        ]
+    )
+
+    pandas_code = python_print_transforms(
+        "my_df",
+        list(my_df.columns),
+        transformations.transforms,
+        python_print_pandas,
+    )
+
+    loc = {"pd": pd, "my_df": my_df.copy()}
+    exec(pandas_code, {}, loc)
+    code_result = loc["my_df_next"]
+
+    nw_df = nw.from_native(my_df.copy(), eager_only=True).lazy()
+    real_result = (
+        _apply_transforms(
+            nw_df,
+            NarwhalsTransformHandler(),
+            transformations,
+        )
+        .collect()
+        .to_native()
+        .reset_index(drop=True)
+    )
+
+    pd.testing.assert_frame_equal(
+        code_result.reset_index(drop=True),
+        real_result,
+    )
+
+
 @given(
     transform=create_transform_strategy(
         defined_column_id,
@@ -904,6 +967,66 @@ def test_print_code_expand_dict_nested_dict_polars() -> None:
     pl_testing.assert_frame_equal(code_result, real_result)
 
     assert code_result.columns == ["a", "nested", "other"]
+
+
+# The values here are valid strings that are also regexes: "a.c" matches
+# "abc" when interpreted as a regex, and "(" is not a valid regex at all. If
+# `contains` is emitted without a literal flag, the generated polars code
+# diverges from the widget (or raises), so this test fails.
+@pytest.mark.parametrize("value", ["a.c", "("])
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars not installed"
+)
+def test_print_code_contains_is_literal_polars(value: str) -> None:
+    import polars as pl
+    import polars.testing as pl_testing
+
+    my_df = pl.DataFrame({"strings": ["abc", "a.c", "f(x)", "zzz"]})
+
+    transformations = Transformations(
+        [
+            FilterRowsTransform(
+                type=TransformType.FILTER_ROWS,
+                operation="keep_rows",
+                where=FilterGroup(
+                    type="group",
+                    operator="and",
+                    children=[
+                        FilterCondition(
+                            type="condition",
+                            column_id="strings",
+                            operator="contains",
+                            value=value,
+                        )
+                    ],
+                ),
+            )
+        ]
+    )
+
+    polars_code = python_print_transforms(
+        "my_df",
+        my_df.columns,
+        transformations.transforms,
+        python_print_polars,
+    )
+
+    loc = {"pl": pl, "my_df": my_df.clone()}
+    exec(polars_code, globals(), loc)
+    code_result = loc["my_df_next"]
+
+    nw_df = nw.from_native(my_df.clone(), eager_only=True).lazy()
+    real_result = (
+        _apply_transforms(
+            nw_df,
+            NarwhalsTransformHandler(),
+            transformations,
+        )
+        .collect()
+        .to_native()
+    )
+
+    pl_testing.assert_frame_equal(code_result, real_result)
 
 
 @given(
