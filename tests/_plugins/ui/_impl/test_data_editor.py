@@ -118,6 +118,39 @@ def test_apply_edits_new_row():
     ]
 
 
+def test_apply_edits_row_oriented_append_to_empty():
+    # Appending a row to an empty row-oriented editor should not crash, even
+    # though there is no existing row to read column names from.
+    data: list[dict[str, Any]] = []
+    edits = {"edits": [{"rowIdx": 0, "columnId": "A", "value": "x"}]}
+    result = apply_edits(data, edits)
+    assert result == [{"A": "x"}]
+
+
+def test_apply_edits_row_oriented_append_to_empty_with_schema():
+    # When a schema is available, an appended first row should include every
+    # known column, mirroring the non-empty append behavior.
+    data: list[dict[str, Any]] = []
+    edits = {"edits": [{"rowIdx": 0, "columnId": "A", "value": "1"}]}
+    schema = nw.Schema({"A": nw.Int64(), "B": nw.String()})
+    result = apply_edits(data, edits, schema=schema)
+    assert result == [{"A": 1, "B": None}]
+
+
+def test_apply_edits_row_oriented_remove_all_then_add():
+    # Removing every row and then adding one back (an edit replay reachable
+    # from the UI) should append cleanly instead of raising IndexError.
+    data = [{"A": 1, "B": "a"}]
+    edits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 0, "columnId": "A", "value": "x"},
+        ]
+    }
+    result = apply_edits(data, edits)
+    assert result == [{"A": "x"}]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
