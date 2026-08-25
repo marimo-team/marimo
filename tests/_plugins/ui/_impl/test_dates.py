@@ -137,6 +137,24 @@ def test_date_range() -> None:
         ui.date_range(value=("2024-02-01", "2024-01-01"))
 
 
+def test_date_range_single_bound_default() -> None:
+    # When only start is given, the default must respect the supplied
+    # bound instead of falling back to today (which would be out of the
+    # declared [start, stop] range). Mirrors the date/datetime siblings.
+    dr = ui.date_range(start="2030-01-01")
+    assert dr.start == datetime.date(2030, 1, 1)
+    assert dr.value == (datetime.date(2030, 1, 1), datetime.date(2030, 1, 1))
+    assert dr.start <= dr.value[0]
+    assert dr.value[1] <= dr.stop
+
+    # When only stop is given, the default must respect it as well.
+    dr = ui.date_range(stop="2000-01-01")
+    assert dr.stop == datetime.date(2000, 1, 1)
+    assert dr.value == (datetime.date(2000, 1, 1), datetime.date(2000, 1, 1))
+    assert dr.start <= dr.value[0]
+    assert dr.value[1] <= dr.stop
+
+
 @pytest.mark.skipif(not HAS_PANDAS, reason="pandas not installed")
 def test_date_from_dataframe() -> None:
     import pandas as pd
