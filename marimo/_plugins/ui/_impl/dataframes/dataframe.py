@@ -380,6 +380,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                 ),
             ),
             filename=bound_filename,
+            locale=args.locale,
         )
         return DownloadAsResponse(url=url, filename=filename)
 

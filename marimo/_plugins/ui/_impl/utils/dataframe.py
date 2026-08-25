@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypeVar, Union
+from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, Union
 
 from narwhals.typing import IntoDataFrame, IntoLazyFrame
 
@@ -10,6 +10,10 @@ from marimo import _loggers
 from marimo._output.data import data as mo_data
 from marimo._output.mime import MIME
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.delimited import (
+    ResolvedExportLocale,
+    resolve_delimited_dialect,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._runtime.context.types import (
@@ -113,6 +117,7 @@ class DownloadOptions:
 
     delimited: DelimitedOptions = field(default_factory=DelimitedOptions)
     json: JsonOptions = field(default_factory=JsonOptions)
+    locale: ResolvedExportLocale | None = None
 
 
 @dataclass(frozen=True)
@@ -122,18 +127,18 @@ class _ExportFormat:
 
 
 def _serialize_delimited(
-    separator_override: str | None,
+    download_format: Literal["csv", "tsv"],
 ) -> Callable[[TableManager[Any], DownloadOptions], bytes]:
     def serialize(
         manager: TableManager[Any], options: DownloadOptions
     ) -> bytes:
         encoding = options.delimited.encoding or get_default_csv_encoding()
-        separator = (
-            separator_override
-            if separator_override is not None
-            else options.delimited.separator
+        dialect = resolve_delimited_dialect(
+            download_format,
+            options.locale,
+            options.delimited.separator if download_format == "csv" else None,
         )
-        return manager.to_csv(encoding=encoding, separator=separator)
+        return manager.to_delimited_str(dialect).encode(encoding)
 
     return serialize
 
@@ -156,8 +161,8 @@ def _serialize_parquet(
 
 
 _EXPORT_FORMATS: dict[str, _ExportFormat] = {
-    "csv": _ExportFormat("csv", _serialize_delimited(None)),
-    "tsv": _ExportFormat("tsv", _serialize_delimited("\t")),
+    "csv": _ExportFormat("csv", _serialize_delimited("csv")),
+    "tsv": _ExportFormat("tsv", _serialize_delimited("tsv")),
     "json": _ExportFormat("json", _serialize_json),
     "parquet": _ExportFormat("parquet", _serialize_parquet),
 }
@@ -169,6 +174,7 @@ def download_as(
     drop_marimo_index: bool = False,
     options: DownloadOptions | None = None,
     filename: str | None = None,
+    locale: ResolvedExportLocale | None = None,
 ) -> tuple[str, str]:
     """Download the table data in the specified format.
 
@@ -183,6 +189,9 @@ def download_as(
             Defaults to each format's defaults.
         filename (str | None, optional): The filename to use for the
             downloaded file. Defaults to None, which uses a random filename.
+        locale (ResolvedExportLocale | None, optional): Browser-resolved
+            locale for CSV and TSV numeric decimals. Ignored for JSON and
+            Parquet. Defaults to None, which keeps locale-neutral output.
 
     Returns:
         tuple: (url, user-facing filename with extension) for the downloaded file.
@@ -191,6 +200,8 @@ def download_as(
         ValueError: If unrecognized format.
     """
     options = options or DownloadOptions()
+    if locale is not None:
+        options = replace(options, locale=locale)
     if drop_marimo_index:
         # Remove the selection column if exists
         manager = manager.drop_columns([INDEX_COLUMN_NAME])

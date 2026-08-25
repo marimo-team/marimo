@@ -41,6 +41,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
+from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -94,6 +95,7 @@ class TableSearchError(Exception):
 @dataclass
 class DownloadAsArgs:
     format: Literal["csv", "tsv", "json", "parquet"]
+    locale: ResolvedExportLocale | None = None
 
 
 @dataclass
@@ -1099,6 +1101,7 @@ class table(
                 args.format,
                 drop_marimo_index=True,
                 filename=bound_filename,
+                locale=args.locale,
             )
             return DownloadAsResponse(url=url, filename=filename)
         else:
