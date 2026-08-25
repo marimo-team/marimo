@@ -13,6 +13,11 @@ from marimo._messaging.msgspec_encoder import encode_json_str
 from marimo._output.mime import MIME
 from marimo._output.superjson import SuperJson
 from marimo._plugins.core.web_component import JSONType
+from marimo._plugins.ui._impl.tables.delimited import (
+    DelimitedDialect,
+    format_delimited_number,
+    is_delimited_number,
+)
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_column,
@@ -89,6 +94,16 @@ class DefaultTableManager(TableManager[JsonTableData]):
         format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
+        return self.to_delimited_str(
+            DelimitedDialect(separator or ",", "."),
+            format_mapping,
+        )
+
+    def to_delimited_str(
+        self,
+        dialect: DelimitedDialect,
+        format_mapping: FormatMapping | None = None,
+    ) -> str:
         import csv
         import io
 
@@ -100,12 +115,12 @@ class DefaultTableManager(TableManager[JsonTableData]):
         writer = csv.DictWriter(
             buf,
             fieldnames=columns,
-            delimiter=separator or ",",
+            delimiter=dialect.field_separator,
             lineterminator="\n",
         )
         writer.writeheader()
         writer.writerows(
-            {col: _to_csv_cell(row.get(col)) for col in columns}
+            {col: _to_delimited_cell(row.get(col), dialect) for col in columns}
             for row in rows
         )
         return buf.getvalue()
@@ -535,3 +550,9 @@ def _to_csv_cell(value: Any) -> str:
     if isinstance(value, (dict, list, tuple)):
         return str(encode_json_str(SuperJson(value)))
     return str(value)
+
+
+def _to_delimited_cell(value: Any, dialect: DelimitedDialect) -> str:
+    if is_delimited_number(value):
+        return format_delimited_number(value, dialect.decimal_separator)
+    return _to_csv_cell(value)
