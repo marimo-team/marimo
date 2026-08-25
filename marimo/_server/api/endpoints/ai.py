@@ -14,6 +14,12 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
+from marimo._server.ai.completion_output import (
+    CELL_COMPLETION_DATA_TYPE,
+    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+    CellCompletion,
+    NotebookCellsCompletion,
+)
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -158,12 +164,21 @@ async def ai_completion(
         model=model,
     )
 
-    return await provider.stream_completion(
+    output_type = (
+        NotebookCellsCompletion if support_multiple_cells else CellCompletion
+    )
+    data_type = (
+        NOTEBOOK_CELLS_COMPLETION_DATA_TYPE
+        if support_multiple_cells
+        else CELL_COMPLETION_DATA_TYPE
+    )
+
+    return await provider.stream_structured_completion(
         messages=messages,
         system_prompt=system_prompt,
         max_tokens=get_max_tokens(config),
-        additional_tools=[],
-        enable_capabilities=False,
+        output_type=output_type,
+        data_type=data_type,
         stream_options=StreamOptions(
             span_info=SpanInfo(
                 endpoint="completion",

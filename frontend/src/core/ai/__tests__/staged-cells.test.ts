@@ -5,10 +5,10 @@ import { getDefaultStore } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
-import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {
   type StagedAICells,
   stagedAICellsAtom,
+  stagedGenerationStatusAtom,
   useStagedCells,
   visibleForTesting,
 } from "../staged-cells";
@@ -29,19 +29,27 @@ const mockCellHandle = {
   },
 };
 
-vi.mock("../../cells/cells", () => ({
-  useCellActions: () => ({
-    createNewCell: mockCreateNewCell,
-    updateCellEditor: mockUpdateCellEditor,
-  }),
-  cellHandleAtom: vi.fn(() => ({
-    read: vi.fn(() => mockCellHandle),
-  })),
-  getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
-}));
+vi.mock("../../cells/cells", async () => {
+  const { atom } = await import("jotai");
+  return {
+    notebookAtom: atom({ cellData: {}, cellIds: { inOrderIds: [] } }),
+    useCellActions: () => ({
+      createNewCell: mockCreateNewCell,
+      updateCellEditor: mockUpdateCellEditor,
+    }),
+    cellHandleAtom: vi.fn(() => ({
+      read: vi.fn(() => mockCellHandle),
+    })),
+    getCellEditorView: vi.fn(() => mockCellHandle.current.editorViewOrNull),
+  };
+});
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
   useDeleteCellCallback: () => mockDeleteCellCallback,
+}));
+
+vi.mock("@/core/network/requests", () => ({
+  getRequestClient: () => ({ sendRun: vi.fn() }),
 }));
 
 vi.mock("../../codemirror/language/utils", () => ({
@@ -67,9 +75,11 @@ describe("staged-cells", () => {
 
     // Reset mocks
     vi.clearAllMocks();
+    vi.mocked(CellId.create).mockReset();
 
     // Reset the atom state
     store.set(stagedAICellsAtom, new Map());
+    store.set(stagedGenerationStatusAtom, "idle");
   });
 
   describe("reducer and actions", () => {
@@ -395,18 +405,31 @@ describe("onStream", () => {
   let store: ReturnType<typeof getDefaultStore>;
   beforeEach(() => {
     store = getDefaultStore();
+    vi.clearAllMocks();
+    vi.mocked(CellId.create).mockReset();
+    store.set(stagedAICellsAtom, new Map());
+    store.set(stagedGenerationStatusAtom, "idle");
   });
 
   it("should create a cell creation stream", () => {
     const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
+    result.current.onStream({ type: "start" });
 
     // No cell or cell update should have been called
     expect(mockCreateNewCell).not.toHaveBeenCalled();
     expect(mockUpdateCellEditor).not.toHaveBeenCalled();
+    expect(store.get(stagedGenerationStatusAtom)).toBe("streaming");
   });
 
-  it("should not create cells when text-delta is received and no stream has been created", () => {
+  it("should mark cells complete only after a successful finish", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "start" });
+    result.current.onStream({ type: "finish", finishReason: "stop" });
+
+    expect(store.get(stagedGenerationStatusAtom)).toBe("complete");
+  });
+
+  it("should ignore text output", () => {
     const { result } = renderHook(() => useStagedCells(store));
     result.current.onStream({
       type: "text-delta",
@@ -419,64 +442,167 @@ describe("onStream", () => {
     expect(mockUpdateCellEditor).not.toHaveBeenCalled();
   });
 
-  it("should create cells when text-delta is received and a stream has been created", () => {
+  it("should create cells from a validated completion", () => {
     const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
+    result.current.onStream({ type: "start" });
 
     // Mock CellId.create to return a predictable ID
     const mockCellId = cellId("mock-cell-id");
     vi.mocked(CellId.create).mockReturnValue(mockCellId);
 
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "some code",
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "python", code: "print('```')" }],
+      },
     });
 
     expect(mockCreateNewCell).toHaveBeenCalledWith({
       cellId: "__end__",
-      code: "some code",
+      code: "print('```')",
       before: false,
       newCellId: "mock-cell-id",
     });
   });
 
-  it("should handle delta chunks", () => {
+  it("should create multiple typed cells", () => {
     const { result } = renderHook(() => useStagedCells(store));
-    result.current.onStream({ type: "text-start", id: "test-id" });
+    result.current.onStream({ type: "start" });
 
-    const mockCellId = cellId("mock-cell-id");
-    vi.mocked(CellId.create).mockReturnValue(mockCellId);
+    vi.mocked(CellId.create)
+      .mockReturnValueOnce(cellId("python-cell"))
+      .mockReturnValueOnce(cellId("sql-cell"));
 
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "``",
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [
+          { language: "python", code: "value = 1" },
+          { language: "python", code: "value" },
+        ],
+      },
     });
 
-    expect(mockCreateNewCell).toHaveBeenCalledWith({
-      cellId: "__end__",
-      code: "``",
-      before: false,
-      newCellId: "mock-cell-id",
-    });
-
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "```python\nsome code",
-    });
-
-    // Now the cell is recognized and only some code is seen
-    expect(vi.mocked(updateEditorCodeFromPython)).toHaveBeenCalledWith(
-      mockCellHandle.current.editorViewOrNull,
-      "some code",
+    expect(mockCreateNewCell).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "value = 1",
+        newCellId: "python-cell",
+      }),
     );
+    expect(mockCreateNewCell).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "value",
+        newCellId: "sql-cell",
+      }),
+    );
+  });
 
-    result.current.onStream({
-      type: "text-delta",
-      id: "test-id",
-      delta: "\n```",
+  it("should apply cumulative snapshots without recreating cells", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "start" });
+
+    vi.mocked(CellId.create)
+      .mockReturnValueOnce(cellId("first-cell"))
+      .mockReturnValueOnce(cellId("second-cell"));
+
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "python", code: "value" }],
+      },
     });
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [
+          { language: "python", code: "value = 1" },
+          { language: "python", code: "value" },
+        ],
+      },
+    });
+
+    expect(mockCreateNewCell).toHaveBeenCalledTimes(2);
+    expect(store.get(stagedAICellsAtom).has(cellId("first-cell"))).toBe(true);
+    expect(store.get(stagedAICellsAtom).has(cellId("second-cell"))).toBe(true);
+  });
+
+  it("should remove trailing cells when a retry produces a shorter snapshot", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "start" });
+
+    vi.mocked(CellId.create)
+      .mockReturnValueOnce(cellId("first-cell"))
+      .mockReturnValueOnce(cellId("second-cell"));
+
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [
+          { language: "python", code: "value = 1" },
+          { language: "python", code: "value" },
+        ],
+      },
+    });
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "python", code: "replacement = 2" }],
+      },
+    });
+
+    expect(mockDeleteCellCallback).toHaveBeenCalledWith({
+      cellId: cellId("second-cell"),
+    });
+    expect(store.get(stagedAICellsAtom).has(cellId("first-cell"))).toBe(true);
+    expect(store.get(stagedAICellsAtom).has(cellId("second-cell"))).toBe(false);
+  });
+
+  it("should remove a provisional marimo import when a retry no longer needs it", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "start" });
+
+    vi.mocked(CellId.create)
+      .mockReturnValueOnce(cellId("generated-cell"))
+      .mockReturnValueOnce(cellId("marimo-import"));
+
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "sql", code: "result = mo.sql('SELECT 1')" }],
+      },
+    });
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "python", code: "result = 1" }],
+      },
+    });
+
+    expect(mockDeleteCellCallback).toHaveBeenCalledWith({
+      cellId: cellId("marimo-import"),
+    });
+    expect(store.get(stagedAICellsAtom).has(cellId("marimo-import"))).toBe(
+      false,
+    );
+  });
+
+  it("should discard provisional cells when generation fails", () => {
+    const { result } = renderHook(() => useStagedCells(store));
+    result.current.onStream({ type: "start" });
+
+    vi.mocked(CellId.create).mockReturnValue(cellId("partial-cell"));
+    result.current.onData({
+      type: "data-notebook-cells-completion",
+      data: {
+        cells: [{ language: "python", code: "partial" }],
+      },
+    });
+    result.current.onStream({ type: "error", errorText: "invalid output" });
+
+    expect(mockDeleteCellCallback).toHaveBeenCalledWith({
+      cellId: cellId("partial-cell"),
+    });
+    expect(store.get(stagedAICellsAtom)).toEqual(new Map());
+    expect(store.get(stagedGenerationStatusAtom)).toBe("idle");
   });
 });

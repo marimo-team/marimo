@@ -4,6 +4,7 @@ import { useAtomValue, useStore } from "jotai";
 import {
   type Edit,
   stagedAICellsAtom,
+  stagedGenerationStatusAtom,
   useStagedCells,
 } from "@/core/ai/staged-cells";
 import { getCellEditorView } from "@/core/cells/cells";
@@ -38,6 +39,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
 }) => {
   const store = useStore();
   const stagedAICells = useAtomValue(stagedAICellsAtom);
+  const generationStatus = useAtomValue(stagedGenerationStatusAtom);
   const stagedAiCell = stagedAICells.get(cellId);
   const runCell = useRunCell(cellId);
 
@@ -56,7 +58,7 @@ export const StagedAICellFooter: React.FC<{ cellId: CellId }> = ({
   return (
     <div className="flex items-center justify-end gap-1.5 w-full pb-1 pt-2">
       <CompletionActionsCellFooter
-        isLoading={false}
+        isLoading={generationStatus === "streaming"}
         onAccept={() => handleCompletion("accept")}
         onDecline={() => handleCompletion("reject")}
         size="xs"

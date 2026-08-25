@@ -37,7 +37,6 @@ import {
 import {
   buildCompletionRequestBody,
   convertToFileUIPart,
-  handleToolCall,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   useFileState,
 } from "@/components/chat/chat-utils";
@@ -52,13 +51,14 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
+import {
+  type CompletionUIMessage,
+  isDataChunk,
+} from "@/core/ai/completion-output";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import type { ToolNotebookContext } from "@/core/ai/tools/base";
-import { useCellActions } from "@/core/cells/cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
@@ -95,11 +95,10 @@ export const AddCellWithAI: React.FC<{
   const store = useStore();
   const [input, setInput] = useState("");
 
-  const { deleteAllStagedCells, clearStagedCells, onStream, addStagedCell } =
+  const { deleteAllStagedCells, clearStagedCells, onStream, onData } =
     useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, sendRun } = useRequestClient();
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
@@ -108,18 +107,13 @@ export const AddCellWithAI: React.FC<{
   const { files, addFiles, removeFile } = useFileState();
   const aiConfig = useAtomValue(aiAtom);
 
-  const { createNewCell, prepareForRun } = useCellActions();
-  const toolContext: ToolNotebookContext = {
-    store,
-    addStagedCell,
-    createNewCell,
-    prepareForRun,
-    sendRun,
-  };
-
-  const { sendMessage, stop, status, addToolOutput } = useChat({
+  const {
+    sendMessage,
+    stop: stopChat,
+    status,
+  } = useChat<CompletionUIMessage>({
     throttle: AI_SDK_UI_THROTTLE_MS,
-    transport: new StreamingChunkTransport(
+    transport: new StreamingChunkTransport<CompletionUIMessage>(
       {
         api: runtimeManager.getAiURL("completion").toString(),
         headers: () => runtimeManager.headers(),
@@ -142,22 +136,16 @@ export const AddCellWithAI: React.FC<{
         },
       },
       (chunk) => {
-        onStream(chunk);
+        // useChat sends data parts to onData, where completion payloads are
+        // validated and applied. Keep onStream for lifecycle events only.
+        if (!isDataChunk(chunk)) {
+          onStream(chunk);
+        }
       },
     ),
-    onToolCall: async ({ toolCall }) => {
-      await handleToolCall({
-        invokeAiTool,
-        addToolOutput,
-        toolCall: {
-          toolName: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          input: toolCall.input as Record<string, never>,
-        },
-        toolContext,
-      });
-    },
+    onData,
     onError: (error) => {
+      deleteAllStagedCells();
       toast({
         title: "Generate with AI failed",
         description: prettyError(error),
@@ -167,6 +155,10 @@ export const AddCellWithAI: React.FC<{
 
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.size > 0;
+  const stop = useEvent(() => {
+    deleteAllStagedCells();
+    void stopChat();
+  });
 
   const currentModel = aiConfig?.models?.edit_model || DEFAULT_AI_MODEL;
   const currentProvider = AiModelId.parse(currentModel).providerId;
@@ -230,13 +222,13 @@ export const AddCellWithAI: React.FC<{
   };
 
   const handleDeclineCompletion = () => {
-    deleteAllStagedCells();
+    stop();
     // Focus the input so the user can refine the prompt.
     inputRef.current?.view?.focus();
   };
 
   const handleClose = () => {
-    deleteAllStagedCells();
+    stop();
     onClose();
   };
 
