@@ -124,7 +124,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             "You can create multiple cells with different languages.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Return each cell through the provided structured output. Put only raw cell code in each code field, without Markdown fences or commentary.\n"
+            "Each cell's `code` value must contain only raw cell code, without Markdown fences or commentary.\n"
             "For SQL cells, the code should be a complete mo.sql expression. For markdown cells, the code should be a complete mo.md expression.\n"
             "Create clear variable names if they will be used in other cells. Do not prefix with underscore.\n"
             "Separate logic into multiple cells to keep the code organized and readable."
@@ -136,7 +136,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Return the raw cell code through the provided structured output, without Markdown fences or commentary."
+            "The `code` value must contain only raw cell code, without Markdown fences or commentary."
         )
 
     # When we are modifying or inserting into an existing cell, we need to
@@ -163,7 +163,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Return the raw inserted code through the provided structured output, without Markdown fences or commentary."
+                "The `code` value must contain only the code to insert, without Markdown fences or commentary."
             )
         else:
             system_prompt += (
@@ -172,7 +172,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Return the raw rewritten code through the provided structured output, without Markdown fences or commentary."
+                "The `code` value must contain the complete rewritten section, without Markdown fences, commentary, or elisions."
             )
 
     if selected_text:
@@ -204,11 +204,6 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += "\n\n" + _tag(
             "code_from_other_cells", other_cell_codes
         )
-
-    if support_multiple_cells:
-        system_prompt += "\n\nAgain, return only the requested cells through the provided structured output."
-    else:
-        system_prompt += f"\n\nAgain, return only the raw {language} code through the provided structured output."
 
     return system_prompt
 
