@@ -195,6 +195,7 @@ export function useNotebookActions({
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
       label: "Download",
+      redundant: true,
       handle: NOOP_HANDLER,
       dropdown: [
         {

@@ -31,7 +31,9 @@ import {
   exportOptionsAtom,
   lastExportFormatAtom,
 } from "../../actions/export-dialog/state";
+import CommandPalette from "../command-palette";
 import { NotebookMenuDropdown } from "../notebook-menu-dropdown";
+import { commandPaletteAtom } from "../state";
 
 const POSTGRES_SOURCE: DetectedDataSource = {
   id: "postgres-libpq-environment",
@@ -66,6 +68,10 @@ vi.mock("@/core/wasm/utils", async (importOriginal) => {
   return { ...actual, isWasm: vi.fn(() => false) };
 });
 
+global.HTMLElement.prototype.scrollIntoView = () => {
+  // jsdom does not implement scrollIntoView; cmdk calls it on selection.
+};
+
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
     <Provider store={store}>
@@ -83,14 +89,19 @@ function openNotebookMenu() {
   });
 }
 
-async function openDownloadMenu() {
-  openNotebookMenu();
-  fireEvent.click(await screen.findByRole("menuitem", { name: "Download" }));
+function renderNotebookControls() {
+  return render(
+    <>
+      <NotebookMenuDropdown />
+      <CommandPalette />
+    </>,
+    { wrapper },
+  );
 }
 
-async function selectDownload(name: string | RegExp) {
-  await openDownloadMenu();
-  fireEvent.click(await screen.findByRole("menuitem", { name }));
+async function selectDownloadCommand(name: string) {
+  act(() => store.set(commandPaletteAtom, true));
+  fireEvent.click(await screen.findByText(`Download > ${name}`));
 }
 
 describe("NotebookMenuDropdown", () => {
@@ -108,6 +119,7 @@ describe("NotebookMenuDropdown", () => {
     });
     store.set(exportOptionsAtom, DEFAULT_EXPORT_OPTIONS);
     store.set(lastExportFormatAtom, "html");
+    store.set(commandPaletteAtom, false);
     vi.mocked(isWasm).mockReturnValue(false);
     vi.stubGlobal("PointerEvent", MouseEvent);
     vi.stubGlobal("matchMedia", () => ({
@@ -203,10 +215,22 @@ describe("NotebookMenuDropdown", () => {
     await waitFor(() => expect(menuButton).toHaveFocus());
   });
 
-  it("opens the HTML shortcut with code excluded", async () => {
-    render(<NotebookMenuDropdown />, { wrapper });
+  it("hides the download menu but keeps its command palette actions", async () => {
+    renderNotebookControls();
 
-    await selectDownload("Download as HTML (exclude code)");
+    openNotebookMenu();
+    expect(
+      screen.queryByRole("menuitem", { name: "Download" }),
+    ).not.toBeInTheDocument();
+
+    act(() => store.set(commandPaletteAtom, true));
+    expect(await screen.findByText("Download > Download as PNG")).toBeVisible();
+  });
+
+  it("opens the HTML shortcut with code excluded", async () => {
+    renderNotebookControls();
+
+    await selectDownloadCommand("Download as HTML (exclude code)");
 
     expect(await screen.findByTestId("export-dialog")).toBeVisible();
     expect(screen.getByTestId("export-format-html")).toHaveAttribute(
@@ -223,19 +247,9 @@ describe("NotebookMenuDropdown", () => {
       selectedLayout: "slides",
       layoutData: {},
     });
-    render(<NotebookMenuDropdown />, { wrapper });
+    renderNotebookControls();
 
-    await openDownloadMenu();
-    fireEvent.click(
-      await screen.findByRole("menuitem", {
-        name: "Download as PDF",
-      }),
-    );
-    fireEvent.click(
-      await screen.findByRole("menuitem", {
-        name: /Slides Layout/,
-      }),
-    );
+    await selectDownloadCommand("Download as PDF > Slides Layout");
 
     expect(await screen.findByTestId("export-dialog")).toBeVisible();
     expect(screen.getByTestId("export-format-pdf")).toHaveAttribute(
@@ -251,27 +265,22 @@ describe("NotebookMenuDropdown", () => {
       selectedLayout: "slides",
       layoutData: {},
     });
-    render(<NotebookMenuDropdown />, { wrapper });
+    renderNotebookControls();
 
-    await openDownloadMenu();
-    fireEvent.click(
-      await screen.findByRole("menuitem", {
-        name: "Download as PDF",
-      }),
-    );
+    act(() => store.set(commandPaletteAtom, true));
 
     expect(
-      screen.getByRole("menuitem", { name: "Document Layout" }),
+      await screen.findByText("Download > Download as PDF > Document Layout"),
     ).toBeVisible();
     expect(
-      screen.queryByRole("menuitem", { name: /Slides Layout/ }),
+      screen.queryByText("Download > Download as PDF > Slides Layout"),
     ).not.toBeInTheDocument();
   });
 
   it("preselects each Python format from its download shortcut", async () => {
-    render(<NotebookMenuDropdown />, { wrapper });
+    renderNotebookControls();
 
-    await selectDownload("Download notebook source");
+    await selectDownloadCommand("Download notebook source");
 
     expect(await screen.findByTestId("export-dialog")).toBeVisible();
     expect(screen.getByTestId("export-format-script")).toHaveAttribute(
@@ -287,7 +296,7 @@ describe("NotebookMenuDropdown", () => {
       expect(screen.queryByTestId("export-dialog")).not.toBeInTheDocument(),
     );
 
-    await selectDownload("Download flat script");
+    await selectDownloadCommand("Download flat script");
 
     expect(await screen.findByTestId("export-dialog")).toBeVisible();
     expect(screen.getByRole("radio", { name: "Flat script" })).toBeChecked();
