@@ -19,6 +19,13 @@ If you want to add a new LLM model or provider, you can do so by editing the YAM
 
 `google-vertex` maps into the `google` section, so Anthropic models with `@default` ids (e.g. `claude-opus-5@default`) are Vertex-only — note that in their `description` if you keep them.
 
+The sync leaves descriptions empty for human review. Before you merge a sync:
+
+- Replace every empty model description with clear, user-facing prose.
+- Review related models for descriptions that became outdated after the sync.
+- Prefer concrete capabilities and intended uses.
+- Remove redundant aliases and models that do not belong in marimo's catalog.
+
 ```bash
 pnpm sync-models                          # all providers, 10 newest each
 pnpm sync-models --provider=anthropic     # one provider

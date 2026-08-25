@@ -117,6 +117,12 @@ jobs:
           - Syncs `packages/llm-info/data/models.yml` from `models.dev`.
           - Runs llm-info code generation and tests.
 
+          ## Human review required
+          - Replace every empty model description with clear, user-facing prose.
+          - Review related models for descriptions that became outdated after this sync.
+          - Prefer concrete capabilities and intended uses.
+          - Remove redundant aliases and models that do not belong in marimo's catalog.
+
           ## Test plan
           - `pnpm --dir packages/llm-info test`
           EOF
