@@ -13,6 +13,7 @@ from marimo import _loggers
 from marimo._data.models import ExternalDataType
 from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -30,6 +31,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+from marimo._utils.narwhals_utils import dataframe_to_csv
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -262,15 +264,22 @@ class PandasTableManagerFactory(TableManagerFactory):
                 format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
-                has_headers = len(self.get_row_headers()) > 0
-                resolved_separator = (
-                    separator if separator is not None else ","
+                return self.to_delimited_str(
+                    DelimitedDialect(separator or ",", "."),
+                    format_mapping,
                 )
-                return self.apply_formatting(
-                    format_mapping
-                )._original_data.to_csv(
-                    index=has_headers, sep=resolved_separator
-                )
+
+            # Include a non-trivial pandas index, then reuse the Narwhals
+            # writer so decimal formatting lives in one place.
+            def to_delimited_str(
+                self,
+                dialect: DelimitedDialect,
+                format_mapping: FormatMapping | None = None,
+            ) -> str:
+                manager = self.apply_formatting(format_mapping)
+                if len(self.get_row_headers()) > 0:
+                    manager = manager.with_index_as_columns()
+                return dataframe_to_csv(manager.as_frame(), dialect=dialect)
 
             def to_json_str(
                 self,

@@ -7,12 +7,14 @@ from functools import cached_property
 from typing import Any
 
 import narwhals.stable.v2 as nw
+from narwhals.exceptions import ComputeError as NarwhalsComputeError
 
 from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
 from marimo._output.data.data import sanitize_json_bigint
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -23,6 +25,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+from marimo._utils.narwhals_utils import dataframe_to_csv
 
 LOGGER = _loggers.marimo_logger()
 
@@ -73,16 +76,23 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 format_mapping: FormatMapping | None = None,
                 separator: str | None = None,
             ) -> str:
-                resolved_separator = (
-                    separator if separator is not None else ","
+                return self.to_delimited_str(
+                    DelimitedDialect(separator or ",", "."),
+                    format_mapping,
                 )
-                _data = self.apply_formatting(format_mapping).collect()
+
+            def to_delimited_str(
+                self,
+                dialect: DelimitedDialect,
+                format_mapping: FormatMapping | None = None,
+            ) -> str:
+                data = self.apply_formatting(format_mapping).collect()
                 try:
-                    return _data.write_csv(separator=resolved_separator)
-                except pl.exceptions.ComputeError:
+                    return dataframe_to_csv(data, dialect=dialect)
+                except (pl.exceptions.ComputeError, NarwhalsComputeError):
                     # Likely CSV format does not support nested data or objects
                     # Try to convert columns to json or strings
-                    result = _data
+                    result = data
                     for column in result.get_columns():
                         dtype = column.dtype
                         if isinstance(dtype, pl.Struct):
@@ -107,7 +117,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
                             result = self._convert_time_to_string(
                                 result, column
                             )
-                    return result.write_csv(separator=resolved_separator)
+                    return dataframe_to_csv(result, dialect=dialect)
 
             def to_json_str(
                 self,

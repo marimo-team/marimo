@@ -16,6 +16,7 @@ from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY
 from marimo._plugins.ui._impl.table import SortArgs
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
@@ -170,6 +171,64 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
+
+    def test_to_delimited_str_pt_br(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "integer": [1234],
+                "fraction": [1234.567890123456],
+                "text": ["value.1,2;3"],
+                "null": [None],
+            }
+        )
+        manager = self.factory.create()(df)
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert (
+            result
+            == 'integer;fraction;text;null\n1234;1234,567890123456;"value.1,2;3";\n'
+        )
+
+    def test_to_delimited_str_decimal_and_exponent(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "decimal": [decimal.Decimal("1234.567890123456")],
+                    "exponent": [1.23e-10],
+                }
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "decimal;exponent\n1234,567890123456;1,23e-10\n"
+
+    def test_to_delimited_str_non_finite(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {"value": [float("nan"), float("inf"), float("-inf")]}
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "value\nnan\ninf\n-inf\n"
+
+    def test_to_delimited_str_unicode_decimal(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(pl.DataFrame({"value": [12.5]}))
+        result = manager.to_delimited_str(DelimitedDialect(",", "٫"))
+        assert result == "value\n12٫5\n"
+
+    def test_to_csv_str_remains_locale_neutral(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame({"value": [12.5], "text": ["1.2"]})
+        )
+        assert manager.to_csv_str() == "value,text\n12.5,1.2\n"
 
     @pytest.mark.skipif(
         is_windows(),

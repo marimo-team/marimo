@@ -17,6 +17,7 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._output.data.data import sanitize_json_bigint
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -99,8 +100,18 @@ class NarwhalsTableManager(
         format_mapping: FormatMapping | None = None,
         separator: str | None = None,
     ) -> str:
-        _data = self.apply_formatting(format_mapping).as_frame()
-        return dataframe_to_csv(_data, separator=separator)
+        return self.to_delimited_str(
+            DelimitedDialect(separator or ",", "."),
+            format_mapping,
+        )
+
+    def to_delimited_str(
+        self,
+        dialect: DelimitedDialect,
+        format_mapping: FormatMapping | None = None,
+    ) -> str:
+        data = self.apply_formatting(format_mapping).as_frame()
+        return dataframe_to_csv(data, dialect=dialect)
 
     def to_json_str(
         self,

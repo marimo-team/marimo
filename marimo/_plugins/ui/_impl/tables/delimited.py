@@ -4,6 +4,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from decimal import Decimal
+from numbers import Integral, Real
 from typing import Any, Literal
 
 DownloadFormat = Literal["csv", "tsv"]
@@ -57,9 +58,9 @@ def resolve_delimited_dialect(
 
 
 def is_delimited_number(value: Any) -> bool:
-    return not isinstance(value, bool) and isinstance(
-        value, (int, float, Decimal)
-    )
+    if isinstance(value, bool):
+        return False
+    return isinstance(value, (Integral, Real, Decimal))
 
 
 def format_delimited_number(

@@ -90,28 +90,57 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
+def dataframe_to_csv(
+    df: IntoFrame,
+    separator: str | None = None,
+    dialect: Any | None = None,
+) -> str:
     """
     Convert a dataframe to a CSV string.
+
+    `dialect` is optional and duck-typed as
+    `{field_separator, decimal_separator}` so this utility can stay outside
+    the UI plugin import graph.
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
-    resolved_separator = separator if separator is not None else ","
+    field_separator = (
+        dialect.field_separator if dialect is not None else separator or ","
+    )
+    decimal_separator = (
+        dialect.decimal_separator if dialect is not None else "."
+    )
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if resolved_separator == ",":
+    if field_separator == "," and decimal_separator == ".":
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and
     # write_csv(separator=...) is not consistently reliable across them.
-    # For non-comma separators, use Python's csv writer for stable behavior.
+    # For non-default dialects, use Python's csv writer for stable behavior.
     buffer = io.StringIO()
-    writer = csv.writer(
-        buffer, delimiter=resolved_separator, lineterminator="\n"
-    )
+    writer = csv.writer(buffer, delimiter=field_separator, lineterminator="\n")
     writer.writerow(frame.columns)
-    writer.writerows(frame.iter_rows())
+    rows = frame.iter_rows()
+    if decimal_separator == ".":
+        writer.writerows(rows)
+        return buffer.getvalue()
+
+    from marimo._plugins.ui._impl.tables.delimited import (
+        format_delimited_number,
+        is_delimited_number,
+    )
+
+    writer.writerows(
+        tuple(
+            format_delimited_number(value, decimal_separator)
+            if is_delimited_number(value)
+            else value
+            for value in row
+        )
+        for row in rows
+    )
     return buffer.getvalue()
 
 
