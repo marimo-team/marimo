@@ -171,6 +171,9 @@ jobs:
           TURBO_TOKEN: ${{ steps.secrets.outputs.TURBO_TOKEN }}
         run: pnpm turbo test:coverage
 
+      - name: 🧪 Test llm-info
+        run: pnpm --dir packages/llm-info test -- --run
+
       - name: 📊 Report coverage
         # Runs even when tests fail (reportOnFailure writes the summary anyway).
         # Fork PRs run with a read-only GITHUB_TOKEN, so posting the comment

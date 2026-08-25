@@ -53,14 +53,17 @@ jobs:
       - name: 📥 Install repo
         uses: ./.github/actions/install
 
-      - name: 🔄 Sync models (5 newest per provider)
-        run: pnpm --dir packages/llm-info sync-models -n 5
-
       - name: 🛠️ Generate llm-info data
         run: pnpm --dir packages/llm-info codegen
 
       - name: 🧪 Test llm-info
         run: pnpm --dir packages/llm-info test
+
+      # Validate the existing catalog before the sync adds entries with blank
+      # descriptions. Pull request CI validates the synced catalog after a
+      # human reviews those descriptions.
+      - name: 🔄 Sync models (5 newest per provider)
+        run: pnpm --dir packages/llm-info sync-models -n 5
 
       - name: 🔎 Check for model catalog changes
         id: changes
