@@ -100,6 +100,9 @@ class DataEdits(TypedDict):
 
 RowOrientedData = list[dict[str, Any]]
 ColumnOrientedData = dict[str, list[Any]]
+Scalar = str | int | float | bool | None
+ScalarData = list[Scalar]
+_DEFAULT_SCALAR_COLUMN = "value"
 
 
 @dataclass
@@ -109,6 +112,7 @@ class _EditableTable:
     row_count: int
     representative_values: dict[str, Any]
     dtypes: dict[str, DType]
+    appended_row_start: int | None = None
 
     @classmethod
     def from_rows(
@@ -172,6 +176,17 @@ class _EditableTable:
             elif is_column_edit(edit):
                 self._apply_column_edit(edit)
 
+    def _get_original_value(self, row_idx: int, column: str) -> Any:
+        if row_idx >= self.row_count or (
+            self.appended_row_start is not None
+            and row_idx >= self.appended_row_start
+        ):
+            return self.representative_values.get(column)
+        if isinstance(self.data, list):
+            return self.data[row_idx].get(column)
+        values = self.data.get(column, [])
+        return values[row_idx] if row_idx < len(values) else None
+
     def _materialize_columns(self) -> None:
         if isinstance(self.data, list):
             return
@@ -181,6 +196,8 @@ class _EditableTable:
 
     def _apply_positional_edit(self, edit: PositionalEdit) -> None:
         column_id = edit["columnId"]
+        row_idx = edit["rowIdx"]
+        original_value = self._get_original_value(row_idx, column_id)
         if column_id not in self.column_names:
             self.column_names.append(column_id)
             self.representative_values[column_id] = None
@@ -191,9 +208,10 @@ class _EditableTable:
             self.data[column_id] = [None] * self.row_count
         self._materialize_columns()
 
-        row_idx = edit["rowIdx"]
         if row_idx >= self.row_count:
             new_row_count = row_idx + 1
+            if self.appended_row_start is None:
+                self.appended_row_start = self.row_count
             if isinstance(self.data, list):
                 self.data.extend(
                     dict.fromkeys(self.column_names)
@@ -206,7 +224,7 @@ class _EditableTable:
 
         converted_value = _convert_value(
             edit["value"],
-            self.representative_values.get(column_id),
+            original_value,
             self.dtypes.get(column_id),
         )
         if isinstance(self.data, list):
@@ -229,6 +247,11 @@ class _EditableTable:
                 if row_idx < len(values):
                     values.pop(row_idx)
         self.row_count -= 1
+        if self.appended_row_start is not None:
+            if row_idx < self.appended_row_start:
+                self.appended_row_start -= 1
+            if self.appended_row_start >= self.row_count:
+                self.appended_row_start = None
 
     def _apply_column_edit(self, edit: ColumnEdit) -> None:
         new_column_name = edit.get("newName")
@@ -324,7 +347,12 @@ def experimental_data_editor(
 class data_editor(
     UIElement[
         DataEdits,
-        Union[RowOrientedData, ColumnOrientedData, IntoDataFrame],
+        Union[
+            ScalarData,
+            RowOrientedData,
+            ColumnOrientedData,
+            IntoDataFrame,
+        ],
     ]
 ):
     """A data editor component for editing tabular data.
@@ -335,8 +363,9 @@ class data_editor(
 
     The data can be supplied as:
     1. an eager dataframe (e.g., Polars, Pandas, PyArrow)
-    2. a list of dicts, with one dict for each row, keyed by column names
-    3. a dict of lists, with each list representing a column
+    2. a list of scalar values, displayed in a column named `value`
+    3. a list of dicts, with one dict for each row, keyed by column names
+    4. a dict of lists, with each list representing a column
 
     Examples:
         Create a data editor from a Pandas dataframe:
@@ -363,12 +392,12 @@ class data_editor(
         ```
 
     Attributes:
-        value (RowOrientedData | ColumnOrientedData | IntoDataFrame): The current state of the edited data.
-        data (RowOrientedData | ColumnOrientedData | IntoDataFrame): The original data passed to the editor.
+        value (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The current state of the edited data.
+        data (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The original data passed to the editor.
 
     Args:
-        data (RowOrientedData | ColumnOrientedData | IntoDataFrame): The data to be edited.
-            Can be a Pandas dataframe, a list of dicts, or a dict of lists.
+        data (ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame): The data to be edited.
+            Can be a dataframe, a list of scalars, a list of dicts, or a dict of lists.
         label (str): Markdown label for the element.
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
         editable_columns (Union[list[str], Literal["all"]]): A list of column names to be editable.
@@ -384,11 +413,20 @@ class data_editor(
 
     def __init__(
         self,
-        data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
+        data: ScalarData
+        | RowOrientedData
+        | ColumnOrientedData
+        | IntoDataFrame,
         *,
         label: str = "",
         on_change: Callable[
-            [RowOrientedData | ColumnOrientedData | IntoDataFrame], None
+            [
+                ScalarData
+                | RowOrientedData
+                | ColumnOrientedData
+                | IntoDataFrame
+            ],
+            None,
         ]
         | None = None,
         editable_columns: list[str] | Literal["all"] = "all",
@@ -440,12 +478,12 @@ class data_editor(
     @property
     def data(
         self,
-    ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
+    ) -> ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame:
         return self._data
 
     def _convert_value(
         self, value: DataEdits
-    ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
+    ) -> ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame:
         self._edits = value
         # list/dict edit paths mutate in place, so deepcopy first.
         # The dataframe path constructs a new native frame via narwhals
@@ -461,22 +499,16 @@ class data_editor(
 
 
 def apply_edits(
-    data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
+    data: ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame,
     edits: DataEdits,
     schema: nw.Schema | None = None,
     *,
     column_names: Sequence[str] | None = None,
-) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
+) -> ScalarData | RowOrientedData | ColumnOrientedData | IntoDataFrame:
     if len(edits["edits"]) == 0:
         return data
     if isinstance(data, list):
-        table = _EditableTable.from_rows(
-            data,
-            schema,
-            column_names,
-        )
-        table.apply(edits)
-        return data
+        return _apply_edits_list(data, edits, schema, column_names)
     elif isinstance(data, dict):
         table = _EditableTable.from_columns(data, schema)
         table.apply(edits)
@@ -488,6 +520,43 @@ def apply_edits(
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
         ) from e
+
+
+def _apply_edits_list(
+    data: ScalarData | RowOrientedData,
+    edits: DataEdits,
+    schema: nw.Schema | None,
+    column_names: Sequence[str] | None,
+) -> ScalarData | RowOrientedData:
+    is_empty_scalar_data = (
+        not data
+        and schema is None
+        and list(column_names or ()) == [_DEFAULT_SCALAR_COLUMN]
+    )
+    if not is_empty_scalar_data and all(isinstance(row, dict) for row in data):
+        rows = cast(RowOrientedData, data)
+        table = _EditableTable.from_rows(rows, schema, column_names)
+        table.apply(edits)
+        return rows
+
+    if any(isinstance(row, dict) for row in data):
+        raise ValueError(
+            "Row-oriented data must contain either only dictionaries or "
+            "only scalar values"
+        )
+
+    scalar_column = (
+        column_names[0]
+        if column_names is not None and len(column_names) == 1
+        else _DEFAULT_SCALAR_COLUMN
+    )
+    rows = [{scalar_column: value} for value in data]
+    table = _EditableTable.from_rows(rows, schema, [scalar_column])
+    table.apply(edits)
+
+    if table.column_names == [scalar_column]:
+        return [cast(Scalar, row[scalar_column]) for row in rows]
+    return rows
 
 
 def _apply_edits_dataframe(

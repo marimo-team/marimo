@@ -104,6 +104,48 @@ def test_apply_edits_column_oriented():
     assert result == {"A": [1, 2, 3], "B": ["a", "x", "c"]}
 
 
+def test_data_editor_appends_to_scalar_list():
+    editor = data_editor([1, 2])
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 2, "columnId": "value", "value": "3"}]
+    }
+
+    assert editor._convert_value(edits) == [1, 2, 3]
+
+
+def test_data_editor_appends_to_empty_scalar_list():
+    editor = data_editor([])
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "value", "value": "x"}]
+    }
+
+    assert editor._convert_value(edits) == ["x"]
+
+
+def test_data_editor_edits_heterogeneous_scalar_list():
+    editor = data_editor([1, "a"])
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 1, "columnId": "value", "value": "b"}]
+    }
+
+    assert editor._convert_value(edits) == [1, "b"]
+
+
+def test_data_editor_promotes_scalar_list_when_adding_column():
+    editor = data_editor([1, 2])
+    edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 1, "type": "insert", "newName": "B"},
+            {"rowIdx": 0, "columnId": "B", "value": "x"},
+        ]
+    }
+
+    assert editor._convert_value(edits) == [
+        {"value": 1, "B": "x"},
+        {"value": 2, "B": None},
+    ]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
@@ -116,6 +158,34 @@ def test_apply_edits_new_row():
         {"A": 2, "B": "b"},
         {"A": 3, "B": None},
     ]
+
+
+def test_apply_edits_converts_every_cell_in_appended_row():
+    data = [{"A": 1, "B": 2.5}]
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 1, "columnId": "A", "value": "2"},
+            {"rowIdx": 1, "columnId": "B", "value": "3.5"},
+        ]
+    }
+
+    assert apply_edits(data, edits) == [
+        {"A": 1, "B": 2.5},
+        {"A": 2, "B": 3.5},
+    ]
+
+
+def test_apply_edits_tracks_appended_rows_after_removal():
+    data = [{"A": 1}]
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 2, "columnId": "A", "value": "3"},
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 1, "columnId": "A", "value": "4"},
+        ]
+    }
+
+    assert apply_edits(data, edits) == [{"A": None}, {"A": 4}]
 
 
 def test_apply_edits_appends_to_empty_row_oriented_data():
