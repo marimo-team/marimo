@@ -71,6 +71,7 @@ import {
   CONTEXT_TRIGGER,
   mentionsCompletionSource,
 } from "./completion-utils";
+import { StagedCellSubmissionController } from "./staged-cell-submission";
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -93,10 +94,11 @@ export const AddCellWithAI: React.FC<{
   const [input, setInput] = useState("");
 
   const {
+    acceptOwnedStagedCells,
     beginStagedCellGeneration,
-    clearStagedCells,
-    deleteAllStagedCells,
+    discardOwnedStagedCells,
     finishStagedCellGeneration,
+    hasOwnedStagedCells,
     onData,
   } = useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
@@ -104,6 +106,9 @@ export const AddCellWithAI: React.FC<{
 
   const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+  const submissionController = useRef(
+    new StagedCellSubmissionController(),
+  ).current;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { files, addFiles, removeFile } = useFileState();
@@ -157,9 +162,16 @@ export const AddCellWithAI: React.FC<{
   });
 
   const isLoading = status === "streaming" || status === "submitted";
-  const hasCompletion = stagedAICells.size > 0;
+  const hasCompletion = stagedAICells.size > 0 && hasOwnedStagedCells();
   const stop = useEvent(() => {
+    submissionController.cancel();
     finishStagedCellGeneration(false);
+    void stopChat();
+  });
+
+  const reject = useEvent(() => {
+    submissionController.cancel();
+    discardOwnedStagedCells();
     void stopChat();
   });
 
@@ -176,15 +188,27 @@ export const AddCellWithAI: React.FC<{
 
   const submit = async () => {
     if (!isLoading) {
-      if (inputRef.current?.view) {
-        storePrompt(inputRef.current.view);
-      }
-      // TODO: When we have conversations, don't delete existing cells
-      deleteAllStagedCells();
-
-      const fileParts = files ? await convertToFileUIPart(files) : undefined;
-      beginStagedCellGeneration();
-      void sendMessage({ text: input, files: fileParts });
+      await submissionController.run({
+        prepare: async () => {
+          if (inputRef.current?.view) {
+            storePrompt(inputRef.current.view);
+          }
+          return files ? await convertToFileUIPart(files) : undefined;
+        },
+        submit: async (fileParts) => {
+          beginStagedCellGeneration();
+          await sendMessage({ text: input, files: fileParts });
+        },
+        onError: (error, submissionStarted) => {
+          if (submissionStarted) {
+            finishStagedCellGeneration(false);
+          }
+          toast({
+            title: "Generate with AI failed",
+            description: prettyError(error),
+          });
+        },
+      });
     }
   };
 
@@ -227,18 +251,19 @@ export const AddCellWithAI: React.FC<{
   );
 
   const handleAcceptCompletion = () => {
-    clearStagedCells();
-    onClose();
+    if (acceptOwnedStagedCells()) {
+      onClose();
+    }
   };
 
   const handleDeclineCompletion = () => {
-    stop();
+    reject();
     // Focus the input so the user can refine the prompt.
     inputRef.current?.view?.focus();
   };
 
   const handleClose = () => {
-    stop();
+    reject();
     onClose();
   };
 

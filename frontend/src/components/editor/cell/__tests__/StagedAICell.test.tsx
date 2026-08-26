@@ -4,10 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
-import {
-  stagedAICellsAtom,
-  stagedGenerationInProgressAtom,
-} from "@/core/ai/staged-cells";
+import { stagedAICellsAtom, visibleForTesting } from "@/core/ai/staged-cells";
 import { StagedAICellFooter } from "../StagedAICell";
 
 vi.mock("@/components/editor/cell/useDeleteCell", () => ({
@@ -34,7 +31,10 @@ describe("StagedAICellFooter", () => {
       stagedAICellsAtom,
       new Map([[generatedCellId, { type: "add_cell" }]]),
     );
-    store.set(stagedGenerationInProgressAtom, true);
+    store.set(visibleForTesting.stagedGenerationAtom, {
+      id: Symbol("staged-cell-generation"),
+      status: "in_progress",
+    });
 
     const { rerender } = render(
       <Provider store={store}>
@@ -45,7 +45,7 @@ describe("StagedAICellFooter", () => {
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
 
-    store.set(stagedGenerationInProgressAtom, false);
+    store.set(visibleForTesting.stagedGenerationAtom, null);
     rerender(
       <Provider store={store}>
         <StagedAICellFooter cellId={generatedCellId} />
