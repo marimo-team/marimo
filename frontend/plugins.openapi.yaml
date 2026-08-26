@@ -3071,6 +3071,11 @@ components:
                           - unknown
                       - type: string
             - type: "null"
+        columnNames:
+          default: []
+          type: array
+          items:
+            type: string
         editableColumns:
           anyOf:
             - type: array
