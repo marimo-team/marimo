@@ -39,7 +39,9 @@ def test_accepts_non_dict_mapping() -> None:
 
     Regression test for https://github.com/marimo-team/marimo/issues/10631
     """
-    source = MappingProxyType({"a": ui.slider(1, 10), "b": ui.text(value="hi")})
+    source = MappingProxyType(
+        {"a": ui.slider(1, 10), "b": ui.text(value="hi")}
+    )
     d = ui.dictionary(source)
     assert d.value == {"a": 1, "b": "hi"}
     # elements are still cloned, independent of the original mapping
