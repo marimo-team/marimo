@@ -118,6 +118,67 @@ def test_apply_edits_new_row():
     ]
 
 
+def test_apply_edits_appends_to_empty_row_oriented_data():
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "columnId": "A", "value": "x"},
+            {"rowIdx": 0, "columnId": "B", "value": 1},
+        ]
+    }
+
+    assert apply_edits([], edits) == [{"A": "x", "B": 1}]
+
+
+def test_apply_edits_appends_schema_to_empty_row_oriented_data():
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "1"}]
+    }
+    schema = nw.Schema({"A": nw.Int64(), "B": nw.String()})
+
+    assert apply_edits([], edits, schema) == [{"A": 1, "B": None}]
+
+
+def test_apply_edits_extends_row_oriented_data_to_index():
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 2, "columnId": "A", "value": "x"}]
+    }
+
+    assert apply_edits([], edits) == [
+        {"A": None},
+        {"A": None},
+        {"A": "x"},
+    ]
+
+
+def test_data_editor_replays_add_after_removing_all_rows():
+    editor = data_editor([{"A": 1, "B": "a"}])
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 0, "columnId": "A", "value": "2"},
+            {"rowIdx": 0, "columnId": "B", "value": "b"},
+        ]
+    }
+
+    assert editor._convert_value(edits) == [{"A": 2, "B": "b"}]
+
+
+def test_apply_edits_tracks_column_changes_without_rows():
+    data = [{"A": 1, "B": "a"}]
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"columnIdx": 1, "type": "insert", "newName": "C"},
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "rename", "newName": "D"},
+            {"rowIdx": 0, "columnId": "D", "value": "x"},
+            {"rowIdx": 0, "columnId": "B", "value": "b"},
+        ]
+    }
+
+    assert apply_edits(data, edits) == [{"D": "x", "B": "b"}]
+
+
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )

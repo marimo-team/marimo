@@ -28,7 +28,7 @@ from marimo._utils.deprecated import deprecated
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
 
     from narwhals.dtypes import DType
     from typing_extensions import TypeIs
@@ -209,6 +209,7 @@ class data_editor(
         field_types = table_manager.get_field_types()
 
         column_names = table_manager.get_column_names()
+        self._column_names = column_names
 
         if isinstance(editable_columns, list):
             for col in editable_columns:
@@ -247,7 +248,7 @@ class data_editor(
         data = self._data
         if isinstance(data, (list, dict)):
             data = deepcopy(data)
-        return apply_edits(data, value)
+        return apply_edits(data, value, column_names=self._column_names)
 
     def __hash__(self) -> int:
         return id(self)
@@ -257,12 +258,16 @@ def apply_edits(
     data: RowOrientedData | ColumnOrientedData | IntoDataFrame,
     edits: DataEdits,
     schema: nw.Schema | None = None,
+    *,
+    column_names: Sequence[str] | None = None,
 ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
     if len(edits["edits"]) == 0:
         return data
     # If row-oriented, apply edits to the data
     if isinstance(data, list):
-        return _apply_edits_row_oriented(data, edits, schema)
+        return _apply_edits_row_oriented(
+            data, edits, schema, column_names=column_names
+        )
     # If column-oriented, apply edits to the data
     elif isinstance(data, dict):
         return _apply_edits_column_oriented(data, edits, schema)
@@ -295,14 +300,32 @@ def _apply_edits_row_oriented(
     data: RowOrientedData,
     edits: DataEdits,
     schema: nw.Schema | None = None,
+    *,
+    column_names: Sequence[str] | None = None,
 ) -> RowOrientedData:
+    if column_names is not None:
+        columns = list(column_names)
+    elif schema is not None:
+        columns = list(schema.keys())
+    elif data:
+        columns = list(data[0])
+    else:
+        columns = []
+
+    column_set = set(columns)
+    original_values = data[0].copy() if data else {}
+
     for edit in edits["edits"]:
         if is_positional_edit(edit):
-            _apply_positional_edit_row_oriented(data, edit, schema)
+            _apply_positional_edit_row_oriented(
+                data, edit, columns, column_set, original_values, schema
+            )
         elif is_row_edit(edit):
             _apply_row_edit_row_oriented(data, edit)
         elif is_column_edit(edit):
-            _apply_column_edit_row_oriented(data, edit)
+            _apply_column_edit_row_oriented(
+                data, edit, columns, column_set, original_values
+            )
 
     return data
 
@@ -453,17 +476,27 @@ def _apply_positional_edit_column_oriented(
 def _apply_positional_edit_row_oriented(
     data: RowOrientedData,
     edit: PositionalEdit,
+    columns: list[str],
+    column_set: set[str],
+    original_values: dict[str, Any],
     schema: nw.Schema | None = None,
 ) -> None:
     """Apply a positional edit to row-oriented data."""
-    if edit["rowIdx"] >= len(data):
-        # Create a new row with None values for all columns
-        new_row = {col: None for col in data[0]}
-        data.append(new_row)
-    original_value = data[0][edit["columnId"]] if data else None
-    dtype = schema.get(edit["columnId"]) if schema else None
-    data[edit["rowIdx"]][edit["columnId"]] = _convert_value(
-        edit["value"], original_value, dtype
+    column_id = edit["columnId"]
+    if column_id not in column_set:
+        columns.append(column_id)
+        column_set.add(column_id)
+        original_values[column_id] = None
+
+    row_idx = edit["rowIdx"]
+    if row_idx >= len(data):
+        data.extend(
+            dict.fromkeys(columns) for _ in range(row_idx - len(data) + 1)
+        )
+
+    dtype = schema.get(column_id) if schema else None
+    data[row_idx][column_id] = _convert_value(
+        edit["value"], original_values.get(column_id), dtype
     )
 
 
@@ -571,61 +604,53 @@ def _apply_column_edit_column_oriented(
 def _apply_column_edit_row_oriented(
     data: RowOrientedData,
     edit: ColumnEdit,
+    column_order: list[str],
+    column_set: set[str],
+    original_values: dict[str, Any],
 ) -> None:
     """Apply a column edit to row-oriented data."""
-    if not data:
-        return
-
-    column_order = list(data[0].keys())
     new_column_name = edit.get("newName")
 
-    _validate_column_edit(edit, len(data[0]) + 1, new_column_name)
+    _validate_column_edit(edit, len(column_order) + 1, new_column_name)
 
     column_idx = edit["columnIdx"]
     edit_type = edit["type"]
 
     if edit_type == "insert":
         assert new_column_name is not None
-
-        if column_idx < len(column_order):
-            new_column_order = (
-                column_order[:column_idx]
-                + [new_column_name]
-                + column_order[column_idx:]
-            )
-        else:
-            new_column_order = column_order + [new_column_name]
+        column_order.insert(column_idx, new_column_name)
+        column_set.add(new_column_name)
+        original_values[new_column_name] = None
 
         for row_idx, row in enumerate(data):
             new_row = {
-                column: row.get(column, None) for column in new_column_order
+                column: row.get(column, None) for column in column_order
             }
             data[row_idx] = new_row
         return
 
-    # Find column by index
-    column_id = None
-    for idx, column in enumerate(data[0]):
-        if idx == column_idx:
-            column_id = column
-            break
-
-    if column_id is None:
+    if column_idx >= len(column_order):
         raise ValueError(f"Column index {column_idx} not found")
 
+    column_id = column_order[column_idx]
+
     if edit_type == "remove":
+        column_order.pop(column_idx)
+        column_set.discard(column_id)
+        original_values.pop(column_id, None)
         for d in data:
-            del d[column_id]
+            d.pop(column_id, None)
     elif edit_type == "rename":
         assert new_column_name is not None
-
-        # Get the column name at the specified index
-        column_name = list(data[0].keys())[column_idx]
+        column_order[column_idx] = new_column_name
+        column_set.discard(column_id)
+        column_set.add(new_column_name)
+        original_values[new_column_name] = original_values.pop(column_id, None)
 
         for row in data:
             new_row = {}
             for key in row:
-                if key == column_name:
+                if key == column_id:
                     new_row[new_column_name] = row[key]
                 else:
                     new_row[key] = row[key]
