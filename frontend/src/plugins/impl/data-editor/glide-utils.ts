@@ -13,7 +13,7 @@ import type {
   Edits,
   ModifiedGridColumn,
   PositionalEdit,
-  RowEdit,
+  RemoveRowEdit,
 } from "./types";
 
 export function getColumnKind(fieldType: DataType): GridCellKind {
@@ -84,7 +84,7 @@ export function isPositionalEdit(
   return "rowIdx" in edit && "columnId" in edit && "value" in edit;
 }
 
-export function isRowEdit(edit: Edits["edits"][number]): edit is RowEdit {
+export function isRowEdit(edit: Edits["edits"][number]): edit is RemoveRowEdit {
   return "rowIdx" in edit && "type" in edit;
 }
 
@@ -92,16 +92,14 @@ export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
   return "columnIdx" in edit && "type" in edit;
 }
 
-export function pasteCells<T>(options: {
+export function pasteCells(options: {
   selection: GridSelection;
-  data: T[];
-  setData: (updater: (prev: T[]) => T[]) => void;
+  data: Record<string, unknown>[];
   columns: ModifiedGridColumn[];
   editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
 }) {
-  const { selection, data, setData, onAddEdits, columns, editableColumns } =
-    options;
+  const { selection, data, onAddEdits, columns, editableColumns } = options;
   if (!selection.current) {
     return;
   }
@@ -207,27 +205,6 @@ export function pasteCells<T>(options: {
 
       if (edits.length > 0) {
         onAddEdits(edits);
-
-        setData((prev: T[]) => {
-          const newData = [...prev];
-
-          // Apply all edits to the data
-          for (const edit of edits) {
-            if (isPositionalEdit(edit)) {
-              const rowIdx = edit.rowIdx;
-              const columnId = edit.columnId;
-
-              if (rowIdx < newData.length) {
-                const row = newData[rowIdx] as Record<string, unknown>;
-                if (columnId in row) {
-                  row[columnId] = edit.value;
-                }
-              }
-            }
-          }
-
-          return newData;
-        });
       }
     })
     .catch((error) => {

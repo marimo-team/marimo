@@ -6,18 +6,31 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlideDataEditor } from "../glide-data-editor";
 
-const capturedPortalRef = vi.hoisted(() => ({
+const capturedDataEditor = vi.hoisted(() => ({
   ref: undefined as React.RefObject<HTMLElement> | undefined,
+  onCellEdited: undefined as
+    | ((cell: [number, number], value: { data: unknown }) => void)
+    | undefined,
+  onRowAppended: undefined as (() => void) | undefined,
 }));
 
 vi.mock("@glideapps/glide-data-grid", async () => {
   const React = await import("react");
   return {
     default: React.forwardRef(function MockDataEditor(
-      props: { portalElementRef?: React.RefObject<HTMLElement> },
+      props: {
+        portalElementRef?: React.RefObject<HTMLElement>;
+        onCellEdited?: (
+          cell: [number, number],
+          value: { data: unknown },
+        ) => void;
+        onRowAppended?: () => void;
+      },
       _ref: React.Ref<HTMLDivElement>,
     ) {
-      capturedPortalRef.ref = props.portalElementRef;
+      capturedDataEditor.ref = props.portalElementRef;
+      capturedDataEditor.onCellEdited = props.onCellEdited;
+      capturedDataEditor.onRowAppended = props.onRowAppended;
       return <div data-testid="mock-data-editor" />;
     }),
     CompactSelection: {
@@ -40,17 +53,9 @@ vi.mock("@/theme/useTheme", () => ({
 
 const editorProps = {
   data: [{ name: "alice" }],
-  setData: vi.fn(),
   columnFields: new Map([["name", "string"]]) as Map<string, "string">,
-  setColumnFields: vi.fn(),
   editableColumns: "all" as const,
-  edits: [],
   onAddEdits: vi.fn(),
-  onAddRows: vi.fn(),
-  onDeleteRows: vi.fn(),
-  onRenameColumn: vi.fn(),
-  onDeleteColumn: vi.fn(),
-  onAddColumn: vi.fn(),
 };
 
 describe("GlideDataEditor portal", () => {
@@ -80,28 +85,40 @@ describe("GlideDataEditor portal", () => {
     const portal = screen.getByTestId("glide-data-editor-portal");
     expect(portal.parentElement).toBe(document.body);
     expect(container.contains(portal)).toBe(false);
-    expect(capturedPortalRef.ref).toBeDefined();
+    expect(capturedDataEditor.ref).toBeDefined();
     await waitFor(() => {
-      expect(capturedPortalRef.ref?.current).toBe(portal);
+      expect(capturedDataEditor.ref?.current).toBe(portal);
     });
   });
 
-  it("replays initial edits when the source data is empty", async () => {
-    const setData = vi.fn();
+  it("emits cell edits", () => {
+    const onAddEdits = vi.fn();
     render(
       <TooltipProvider>
-        <GlideDataEditor
-          {...editorProps}
-          data={[]}
-          setData={setData}
-          edits={[{ rowIdx: 0, columnId: "name", value: "alice" }]}
-        />
+        <GlideDataEditor {...editorProps} onAddEdits={onAddEdits} />
       </TooltipProvider>,
     );
 
-    await waitFor(() => {
-      expect(setData).toHaveBeenCalledWith([{ name: "alice" }]);
-    });
+    act(() => capturedDataEditor.onCellEdited?.([0, 0], { data: "bob" }));
+
+    expect(onAddEdits).toHaveBeenCalledWith([
+      { rowIdx: 0, columnId: "name", value: "bob" },
+    ]);
+  });
+
+  it("emits one positional edit per cell when appending a row", () => {
+    const onAddEdits = vi.fn();
+    render(
+      <TooltipProvider>
+        <GlideDataEditor {...editorProps} onAddEdits={onAddEdits} />
+      </TooltipProvider>,
+    );
+
+    act(() => capturedDataEditor.onRowAppended?.());
+
+    expect(onAddEdits).toHaveBeenCalledWith([
+      { rowIdx: 1, columnId: "name", value: "" },
+    ]);
   });
 
   it("mounts into the fullscreen element when fullscreen is already active", () => {

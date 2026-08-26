@@ -301,6 +301,13 @@ def test_apply_edits_extends_row_oriented_data_to_index():
     ]
 
 
+def test_apply_edits_ignores_negative_row_index():
+    data = [{"A": 1}]
+    edits: DataEdits = {"edits": [{"rowIdx": -1, "columnId": "A", "value": 2}]}
+
+    assert apply_edits(data, edits) == [{"A": 1}]
+
+
 def test_data_editor_replays_add_after_removing_all_rows():
     editor = data_editor([{"A": 1, "B": "a"}])
     edits: DataEdits = {

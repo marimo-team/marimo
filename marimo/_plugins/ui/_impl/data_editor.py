@@ -36,17 +36,6 @@ if TYPE_CHECKING:
     from typing_extensions import TypeIs
 
 
-@dataclass
-class DataEditorValue:
-    """A dataclass representing the value of a data editor.
-
-    Attributes:
-        data (List[Dict[str, Any]]): Row-oriented data as a list of dictionaries.
-    """
-
-    data: list[dict[str, Any]]
-
-
 class PositionalEdit(TypedDict):
     """A typed dictionary representing a single edit in the data editor.
 
@@ -61,38 +50,40 @@ class PositionalEdit(TypedDict):
     value: Any
 
 
-class _RequiredColumnEdit(TypedDict):
+class RemoveColumnEdit(TypedDict):
     columnIdx: int
-    newName: str | None
-    type: Literal["insert", "remove", "rename"]
+    type: Literal["remove"]
 
 
-class ColumnEdit(_RequiredColumnEdit, total=False):
-    """A typed dictionary representing a bulk edit of a column.
+class RenameColumnEdit(TypedDict):
+    columnIdx: int
+    newName: str
+    type: Literal["rename"]
 
-    Attributes:
-        columnIdx (int): The index of the column being edited.
-        If insert/remove, this is the index of the column to be edited. If rename, this is the index of the column to be renamed.
-        newName (Optional[str]): The new name of the column.
-        type (Literal["insert", "remove", "rename"]): The type of edit.
-        dataType (Optional[DataType]): The type selected for an inserted column.
-    """
 
+class _RequiredInsertColumnEdit(TypedDict):
+    columnIdx: int
+    newName: str
+    type: Literal["insert"]
+
+
+class InsertColumnEdit(_RequiredInsertColumnEdit, total=False):
     dataType: DataType
 
 
+ColumnEdit = RemoveColumnEdit | RenameColumnEdit | InsertColumnEdit
+
+
 class RowEdit(TypedDict):
-    """A typed dictionary representing a bulk edit of a row.
+    """A typed dictionary representing a row removal.
 
     Attributes:
-        rowIdx (int): The index of the row being edited.
-        type (Literal["insert", "remove"]): The type of edit.
-
-    Note: Insert is already handled with positional edits, so we can focus on 'remove' here
+        rowIdx (int): The index of the row being removed.
+        type (Literal["remove"]): The type of edit.
     """
 
     rowIdx: int
-    type: Literal["insert", "remove"]
+    type: Literal["remove"]
 
 
 class DataEdits(TypedDict):
@@ -163,7 +154,7 @@ def _sample_indices(length: int) -> Sequence[int]:
     ]
 
 
-def _infer_conversion_values_from_rows(
+def _infer_conversion_examples_from_rows(
     data: RowOrientedData,
 ) -> dict[str, Any]:
     values: dict[str, Any] = {}
@@ -174,7 +165,7 @@ def _infer_conversion_values_from_rows(
     return values
 
 
-def _infer_conversion_values_from_columns(
+def _infer_conversion_examples_from_columns(
     data: ColumnOrientedData,
     row_count: int,
 ) -> dict[str, Any]:
@@ -194,7 +185,7 @@ class _EditableTable:
     data: RowOrientedData | ColumnOrientedData
     column_names: list[str]
     row_count: int
-    conversion_values: dict[str, Any]
+    conversion_examples: dict[str, Any]
     dtypes: dict[str, DType]
 
     @classmethod
@@ -229,7 +220,7 @@ class _EditableTable:
             data,
             column_order,
             len(data),
-            _infer_conversion_values_from_rows(data),
+            _infer_conversion_examples_from_rows(data),
             dtypes,
         )
 
@@ -250,7 +241,7 @@ class _EditableTable:
             data,
             column_order,
             row_count,
-            _infer_conversion_values_from_columns(data, row_count),
+            _infer_conversion_examples_from_columns(data, row_count),
             dtypes,
         )
 
@@ -281,9 +272,11 @@ class _EditableTable:
     def _apply_positional_edit(self, edit: PositionalEdit) -> None:
         column_id = edit["columnId"]
         row_idx = edit["rowIdx"]
+        if row_idx < 0:
+            return
         if column_id not in self.column_names:
             self.column_names.append(column_id)
-            self.conversion_values[column_id] = None
+            self.conversion_examples[column_id] = None
             if isinstance(self.data, list):
                 for row in self.data:
                     row[column_id] = None
@@ -307,7 +300,7 @@ class _EditableTable:
         conversion_value = (
             self._get_cell_value(row_idx, column_id)
             if dtype is not None
-            else self.conversion_values.get(column_id)
+            else self.conversion_examples.get(column_id)
         )
         converted_value = _convert_value(
             edit["value"],
@@ -323,9 +316,7 @@ class _EditableTable:
 
     def _apply_row_edit(self, edit: RowEdit) -> None:
         row_idx = edit["rowIdx"]
-        if edit["type"] != "remove" or not _is_valid_index(
-            row_idx, self.row_count
-        ):
+        if edit["type"] != "remove" or not 0 <= row_idx < self.row_count:
             return
         if isinstance(self.data, list):
             self.data.pop(row_idx)
@@ -336,7 +327,7 @@ class _EditableTable:
         self.row_count -= 1
 
     def _apply_column_edit(self, edit: ColumnEdit) -> None:
-        new_column_name = edit.get("newName")
+        new_column_name = cast(str | None, edit.get("newName"))
         _validate_column_edit(edit, len(self.column_names), new_column_name)
 
         column_idx = edit["columnIdx"]
@@ -365,8 +356,10 @@ class _EditableTable:
                 )
                 self.data.clear()
                 self.data.update(items)
-            self.conversion_values[new_column_name] = None
-            dtype = _dtype_from_data_type(edit.get("dataType"))
+            self.conversion_examples[new_column_name] = None
+            dtype = _dtype_from_data_type(
+                cast(DataType | None, edit.get("dataType"))
+            )
             if dtype is None:
                 self.dtypes.pop(new_column_name, None)
             else:
@@ -382,7 +375,7 @@ class _EditableTable:
                     row.pop(old_name, None)
             else:
                 self.data.pop(old_name, None)
-            self.conversion_values.pop(old_name, None)
+            self.conversion_examples.pop(old_name, None)
             self.dtypes.pop(old_name, None)
             return
 
@@ -408,10 +401,9 @@ class _EditableTable:
             }
             self.data.clear()
             self.data.update(renamed_columns)
-        self.conversion_values[new_column_name] = self.conversion_values.pop(
-            old_name, None
+        self.conversion_examples[new_column_name] = (
+            self.conversion_examples.pop(old_name, None)
         )
-        self.dtypes.pop(new_column_name, None)
         dtype = self.dtypes.pop(old_name, None)
         if dtype is not None:
             self.dtypes[new_column_name] = dtype
@@ -661,111 +653,100 @@ def _apply_edits_dataframe(
     return new_native_df  # type: ignore[no-any-return]
 
 
+def _convert_list(value: Any) -> list[Any]:
+    if not isinstance(value, str):
+        return value if isinstance(value, list) else [value]
+
+    try:
+        parsed = ast.literal_eval(value)
+        return parsed if isinstance(parsed, list) else list(parsed)
+    except (TypeError, ValueError, SyntaxError):
+        return value.split(",")
+
+
+def _convert_by_dtype(value: Any, dtype: DType) -> tuple[bool, Any]:
+    if dtype == nw.Datetime:
+        return True, datetime.datetime.fromisoformat(value)
+    if dtype == nw.Date:
+        return True, datetime.date.fromisoformat(value)
+    if dtype == nw.Time:
+        return True, datetime.time.fromisoformat(value)
+    if dtype == nw.Duration:
+        return True, datetime.timedelta(microseconds=float(value))
+    if hasattr(dtype, "is_float") and dtype.is_float():
+        return True, float(value)
+    if hasattr(dtype, "is_integer") and dtype.is_integer():
+        return True, _convert_to_integer(value)
+    if dtype == nw.String or dtype == nw.Enum or dtype == nw.Categorical:
+        return True, str(value)
+    if dtype == nw.Boolean:
+        return True, bool(value)
+    if dtype == nw.List:
+        return True, _convert_list(value)
+    return False, value
+
+
+def _convert_like(value: Any, example: Any) -> Any:
+    if example is None:
+        return value
+    if isinstance(example, bool):
+        return bool(value)
+    if isinstance(example, int):
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return value
+        try:
+            decimal_value = Decimal(str(value))
+        except (InvalidOperation, ValueError):
+            return float(value)
+        if decimal_value.is_finite() and (
+            decimal_value == decimal_value.to_integral_value()
+        ):
+            return int(decimal_value)
+        if (
+            not decimal_value.is_finite()
+            or abs(decimal_value) <= _MAX_SAFE_INTEGER
+        ):
+            return float(value)
+        return value
+    if isinstance(example, float):
+        return float(value)
+    if isinstance(example, str):
+        return str(value)
+    if isinstance(example, datetime.timedelta):
+        return datetime.timedelta(microseconds=float(value))
+    if isinstance(example, datetime.datetime):
+        return datetime.datetime.fromisoformat(value)
+    if isinstance(example, datetime.date):
+        return datetime.date.fromisoformat(value)
+    if isinstance(example, list):
+        return _convert_list(value)
+    return value
+
+
 def _convert_value(
     value: Any,
     original_value: Any,
     dtype: DType | None = None,
 ) -> Any:
+    if value is None:
+        return None
+
+    if dtype is not None:
+        try:
+            handled, converted = _convert_by_dtype(value, dtype)
+        except ValueError as error:
+            LOGGER.error(str(error))
+            return original_value
+        if handled:
+            return converted
+        # Some pandas extension dtypes map to nw.Unknown. Using the example
+        # preserves a numeric column instead of coercing it to object.
+        LOGGER.debug("Unhandled dtype %s; coercing from example", dtype)
+
     try:
-        # None is a valid value for all dtypes
-        if value is None:
-            return None
-
-        if dtype is not None:
-            if dtype == nw.Datetime:
-                return datetime.datetime.fromisoformat(value)
-            elif dtype == nw.Date:
-                return datetime.date.fromisoformat(value)
-            elif dtype == nw.Time:
-                return datetime.time.fromisoformat(value)
-            elif dtype == nw.Duration:
-                return datetime.timedelta(microseconds=float(value))
-            elif hasattr(dtype, "is_float") and dtype.is_float():
-                return float(value)
-            elif hasattr(dtype, "is_integer") and dtype.is_integer():
-                return _convert_to_integer(value)
-            elif (
-                dtype == nw.String
-                or dtype == nw.Enum
-                or dtype == nw.Categorical
-            ):
-                return str(value)
-            elif dtype == nw.Boolean:
-                return bool(value)
-            elif dtype == nw.List:
-                # Handle list conversion
-                if isinstance(value, str):
-                    # Attempt to parse string as a list
-                    try:
-                        return list(ast.literal_eval(value))
-                    except (ValueError, SyntaxError):
-                        # If parsing fails, split the string
-                        return value.split(",")
-                elif isinstance(value, list):
-                    return value  # type: ignore
-                else:
-                    # If it's not a string or list, wrap it in a list
-                    return [value]
-            else:
-                # narwhals maps some pandas extension dtypes (notably
-                # float16) to nw.Unknown. Stringifying here would coerce the
-                # whole column to object; fall through to the original-value
-                # coercion below, which keeps the column numeric.
-                LOGGER.debug(
-                    "Unhandled dtype %s; coercing from original value", dtype
-                )
-
-        if original_value is None:
-            return value
-
-        if isinstance(original_value, bool):
-            return bool(value)
-        elif isinstance(original_value, int):
-            if isinstance(value, (int, float)) and not isinstance(value, bool):
-                return value
-            try:
-                decimal_value = Decimal(str(value))
-            except (InvalidOperation, ValueError):
-                return float(value)
-            if decimal_value.is_finite() and (
-                decimal_value == decimal_value.to_integral_value()
-            ):
-                return int(decimal_value)
-            if (
-                not decimal_value.is_finite()
-                or abs(decimal_value) <= _MAX_SAFE_INTEGER
-            ):
-                return float(value)
-            return value
-        elif isinstance(original_value, float):
-            return float(value)
-        elif isinstance(original_value, str):
-            return str(value)
-        # The more specific time checks are handled first to avoid parent classes matching
-        elif isinstance(original_value, (datetime.timedelta)):
-            return datetime.timedelta(microseconds=float(value))
-        elif isinstance(original_value, (datetime.datetime)):
-            return datetime.datetime.fromisoformat(value)
-        elif isinstance(original_value, (datetime.date)):
-            return datetime.date.fromisoformat(value)
-        elif isinstance(original_value, list):
-            # Handle list conversion
-            if isinstance(value, str):
-                # Attempt to parse string as a list
-                try:
-                    return list(ast.literal_eval(value))
-                except (ValueError, SyntaxError):
-                    # If parsing fails, split the string
-                    return list(value.split(","))
-            elif isinstance(value, list):
-                return value  # type: ignore[return-value]
-            else:
-                # If it's not a string or list, wrap it in a list
-                return [value]
-        else:
-            return value
-    except ValueError as e:
-        LOGGER.error(str(e))
+        return _convert_like(value, original_value)
+    except ValueError as error:
+        LOGGER.error(str(error))
         return original_value if dtype is not None else value
 
 
@@ -807,7 +788,3 @@ def _validate_column_edit(
     max_index = column_count if edit_type == "insert" else column_count - 1
     if column_idx < 0 or column_idx > max_index:
         raise ValueError(f"Column index {column_idx} is out of bounds")
-
-
-def _is_valid_index(index: int, length: int) -> bool:
-    return index >= 0 and index < length

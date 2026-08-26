@@ -1,8 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { GridCellKind, GridColumn } from "@glideapps/glide-data-grid";
-import type { FieldTypesWithExternalType } from "@/components/data-table/types";
+import type { FieldTypes } from "@/components/data-table/types";
 import type { DataType } from "@/core/kernel/messages";
+
+export type EditorRow = Record<string, unknown>;
+
+export interface EditorState {
+  data: EditorRow[];
+  columnFields: FieldTypes;
+}
 
 export interface PositionalEdit {
   rowIdx: number;
@@ -16,32 +23,38 @@ export const BulkEdit = {
   Rename: "rename",
 } as const;
 
-type BulkEdit = (typeof BulkEdit)[keyof typeof BulkEdit];
-
-export interface RowEdit {
+export interface RemoveRowEdit {
   rowIdx: number;
-  type: BulkEdit;
+  type: typeof BulkEdit.Remove;
 }
 
-export interface ColumnEdit {
+export interface RemoveColumnEdit {
   columnIdx: number;
-  newName?: string;
-  type: BulkEdit;
+  type: typeof BulkEdit.Remove;
+}
+
+export interface RenameColumnEdit {
+  columnIdx: number;
+  newName: string;
+  type: typeof BulkEdit.Rename;
+}
+
+export interface InsertColumnEdit {
+  columnIdx: number;
+  newName: string;
+  type: typeof BulkEdit.Insert;
   dataType?: DataType;
 }
 
+export type ColumnEdit = RemoveColumnEdit | RenameColumnEdit | InsertColumnEdit;
+
+export type Edit = PositionalEdit | RemoveRowEdit | ColumnEdit;
+
 export interface Edits {
-  edits: (PositionalEdit | RowEdit | ColumnEdit)[];
+  edits: Edit[];
 }
 
 export type ModifiedGridColumn = GridColumn & {
   kind: GridCellKind;
   dataType: DataType;
 };
-
-export interface DataEditorProps<T> {
-  data: T[];
-  fieldTypes: FieldTypesWithExternalType | null | undefined;
-  onAddEdits: (edits: Edits["edits"]) => void;
-  onAddRows: (newRows: object[]) => void;
-}

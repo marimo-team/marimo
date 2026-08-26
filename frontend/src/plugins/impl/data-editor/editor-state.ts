@@ -8,25 +8,27 @@ import {
   renameColumn,
 } from "./data-utils";
 import { isColumnEdit, isPositionalEdit, isRowEdit } from "./glide-utils";
-import { BulkEdit, type Edits } from "./types";
+import { BulkEdit, type EditorState, type Edits } from "./types";
 
-export function replayEdits<T>(
-  data: T[],
-  columnFields: FieldTypes,
+export function applyEditorEdits(
+  state: EditorState,
   edits: Edits["edits"],
-): { data: T[]; columnFields: FieldTypes } {
-  let nextData = [...data];
-  let nextColumnFields = new Map(columnFields);
+): EditorState {
+  let nextData = [...state.data];
+  let nextColumnFields: FieldTypes = new Map(state.columnFields);
 
   for (const edit of edits) {
     if (isPositionalEdit(edit)) {
+      if (edit.rowIdx < 0) {
+        continue;
+      }
       while (nextData.length <= edit.rowIdx) {
-        nextData.push({} as T);
+        nextData.push({});
       }
       nextData[edit.rowIdx] = {
-        ...(nextData[edit.rowIdx] as Record<string, unknown>),
+        ...nextData[edit.rowIdx],
         [edit.columnId]: edit.value,
-      } as T;
+      };
       if (!nextColumnFields.has(edit.columnId)) {
         nextColumnFields.set(edit.columnId, "unknown");
       }
