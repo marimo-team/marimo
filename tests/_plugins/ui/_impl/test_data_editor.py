@@ -129,6 +129,20 @@ def test_apply_edits_appends_to_empty_row_oriented_data():
     assert apply_edits([], edits) == [{"A": "x", "B": 1}]
 
 
+def test_apply_edits_backfills_columns_discovered_in_later_rows():
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "columnId": "A", "value": "a"},
+            {"rowIdx": 1, "columnId": "B", "value": "b"},
+        ]
+    }
+
+    assert apply_edits([], edits) == [
+        {"A": "a", "B": None},
+        {"A": None, "B": "b"},
+    ]
+
+
 def test_apply_edits_appends_schema_to_empty_row_oriented_data():
     edits: DataEdits = {
         "edits": [{"rowIdx": 0, "columnId": "A", "value": "1"}]
@@ -161,6 +175,44 @@ def test_data_editor_replays_add_after_removing_all_rows():
     }
 
     assert editor._convert_value(edits) == [{"A": 2, "B": "b"}]
+
+
+def test_apply_edits_uses_first_non_null_value_for_conversion():
+    data = [{"A": None}, {"A": 7}]
+    editor = data_editor(data)
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 0, "columnId": "A", "value": "8"},
+        ]
+    }
+
+    assert editor._convert_value(edits) == [{"A": 8}]
+
+
+def test_apply_edits_tracks_schema_rename_without_rows():
+    schema = nw.Schema({"A": nw.Int64()})
+    edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "rename", "newName": "C"},
+            {"rowIdx": 0, "columnId": "C", "value": "7"},
+        ]
+    }
+
+    assert apply_edits([], edits, schema) == [{"C": 7}]
+
+
+def test_apply_edits_drops_schema_for_reused_column_name():
+    schema = nw.Schema({"A": nw.Int64()})
+    edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "A"},
+            {"rowIdx": 0, "columnId": "A", "value": "007"},
+        ]
+    }
+
+    assert apply_edits([], edits, schema) == [{"A": "007"}]
 
 
 def test_apply_edits_tracks_column_changes_without_rows():
