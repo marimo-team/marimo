@@ -47,7 +47,43 @@ describe("StagedCellSubmissionController", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
-  it("distinguishes preprocessing errors from submission errors", async () => {
+  it("blocks another submission until a cancelled submission settles", async () => {
+    const submission = new Deferred<void>();
+    const firstSubmit = vi.fn(() => submission.promise);
+    const secondSubmit = vi.fn(async () => undefined);
+    const onError = vi.fn();
+    const controller = new StagedCellSubmissionController();
+
+    const firstRun = controller.run({
+      prepare: async () => "first",
+      submit: firstSubmit,
+      onError,
+    });
+    await vi.waitFor(() => {
+      expect(firstSubmit).toHaveBeenCalledExactlyOnceWith("first");
+    });
+
+    controller.cancel();
+    await controller.run({
+      prepare: async () => "second",
+      submit: secondSubmit,
+      onError,
+    });
+    expect(secondSubmit).not.toHaveBeenCalled();
+
+    submission.resolve();
+    await firstRun;
+    await controller.run({
+      prepare: async () => "second",
+      submit: secondSubmit,
+      onError,
+    });
+
+    expect(secondSubmit).toHaveBeenCalledExactlyOnceWith("second");
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("reports preprocessing and submission errors", async () => {
     const preprocessingError = new Error("preprocessing failed");
     const submissionError = new Error("submission failed");
     const onError = vi.fn();
@@ -64,7 +100,7 @@ describe("StagedCellSubmissionController", () => {
       onError,
     });
 
-    expect(onError).toHaveBeenNthCalledWith(1, preprocessingError, false);
-    expect(onError).toHaveBeenNthCalledWith(2, submissionError, true);
+    expect(onError).toHaveBeenNthCalledWith(1, preprocessingError);
+    expect(onError).toHaveBeenNthCalledWith(2, submissionError);
   });
 });

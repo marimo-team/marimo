@@ -53,7 +53,7 @@ import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
 import type { CompletionUIMessage } from "@/core/ai/completion-output";
-import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
+import { useStagedCellGeneration } from "@/core/ai/staged-cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
@@ -100,11 +100,10 @@ export const AddCellWithAI: React.FC<{
     finishStagedCellGeneration,
     hasOwnedStagedCells,
     onData,
-  } = useStagedCells(store);
+  } = useStagedCellGeneration(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
   const submissionController = useRef(
     new StagedCellSubmissionController(),
@@ -139,6 +138,14 @@ export const AddCellWithAI: React.FC<{
     [language, runtimeManager],
   );
 
+  const handleGenerationError = useEvent((error: unknown) => {
+    finishStagedCellGeneration(false);
+    toast({
+      title: "Generate with AI failed",
+      description: prettyError(error),
+    });
+  });
+
   const {
     sendMessage,
     stop: stopChat,
@@ -147,13 +154,7 @@ export const AddCellWithAI: React.FC<{
     throttle: AI_SDK_UI_THROTTLE_MS,
     transport,
     onData,
-    onError: (error) => {
-      finishStagedCellGeneration(false);
-      toast({
-        title: "Generate with AI failed",
-        description: prettyError(error),
-      });
-    },
+    onError: handleGenerationError,
     onFinish: ({ isAbort, isDisconnect, isError, finishReason }) => {
       finishStagedCellGeneration(
         !isAbort && !isDisconnect && !isError && finishReason === "stop",
@@ -162,7 +163,7 @@ export const AddCellWithAI: React.FC<{
   });
 
   const isLoading = status === "streaming" || status === "submitted";
-  const hasCompletion = stagedAICells.size > 0 && hasOwnedStagedCells();
+  const hasCompletion = hasOwnedStagedCells();
   const stop = useEvent(() => {
     submissionController.cancel();
     finishStagedCellGeneration(false);
@@ -200,15 +201,7 @@ export const AddCellWithAI: React.FC<{
           beginStagedCellGeneration();
           await sendMessage({ text: input, files: fileParts });
         },
-        onError: (error, submissionStarted) => {
-          if (submissionStarted) {
-            finishStagedCellGeneration(false);
-          }
-          toast({
-            title: "Generate with AI failed",
-            description: prettyError(error),
-          });
-        },
+        onError: handleGenerationError,
       });
     }
   };

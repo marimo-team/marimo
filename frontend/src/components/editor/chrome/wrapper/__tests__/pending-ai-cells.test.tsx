@@ -39,6 +39,7 @@ describe("PendingAICells", () => {
     store.set(visibleForTesting.stagedGenerationAtom, {
       id: generationId,
       status: "in_progress",
+      cellIds: [cellId("generated-cell")],
     });
 
     const view = (

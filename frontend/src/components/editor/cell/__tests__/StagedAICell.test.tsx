@@ -34,6 +34,7 @@ describe("StagedAICellFooter", () => {
     store.set(visibleForTesting.stagedGenerationAtom, {
       id: Symbol("staged-cell-generation"),
       status: "in_progress",
+      cellIds: [generatedCellId],
     });
 
     const { rerender } = render(

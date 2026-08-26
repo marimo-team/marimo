@@ -3,15 +3,21 @@
 interface SubmissionCallbacks<T> {
   prepare: () => Promise<T>;
   submit: (prepared: T) => Promise<void>;
-  onError: (error: unknown, submissionStarted: boolean) => void;
+  onError: (error: unknown) => void;
+}
+
+interface SubmissionAttempt {
+  cancelled: boolean;
 }
 
 /** Coordinates preprocessing and submission without resuming cancelled work. */
 export class StagedCellSubmissionController {
-  private activeAttempt: symbol | null = null;
+  private activeAttempt: SubmissionAttempt | null = null;
 
   cancel() {
-    this.activeAttempt = null;
+    if (this.activeAttempt) {
+      this.activeAttempt.cancelled = true;
+    }
   }
 
   async run<T>({ prepare, submit, onError }: SubmissionCallbacks<T>) {
@@ -19,26 +25,22 @@ export class StagedCellSubmissionController {
       return;
     }
 
-    const attempt = Symbol("staged-cell-submission");
+    const attempt: SubmissionAttempt = { cancelled: false };
     this.activeAttempt = attempt;
-    let submissionStarted = false;
 
     try {
       const prepared = await prepare();
-      if (this.activeAttempt !== attempt) {
+      if (attempt.cancelled) {
         return;
       }
 
-      submissionStarted = true;
       await submit(prepared);
     } catch (error) {
-      if (this.activeAttempt === attempt) {
-        onError(error, submissionStarted);
+      if (!attempt.cancelled) {
+        onError(error);
       }
     } finally {
-      if (this.activeAttempt === attempt) {
-        this.activeAttempt = null;
-      }
+      this.activeAttempt = null;
     }
   }
 }
