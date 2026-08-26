@@ -326,9 +326,14 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_bedrock(cls, config: AiConfig) -> AnyProviderConfig:
+    def for_bedrock(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "bedrock")
-        key = _get_key(ai_config, "Bedrock")
+        key = _get_key(ai_config, "Bedrock", secret_resolver=secret_resolver)
         return cls(
             base_url=_get_base_url(ai_config, "Bedrock"),
             api_key=key,
@@ -349,7 +354,7 @@ class AnyProviderConfig:
         elif model_id.provider == "google":
             return cls.for_google(config, secret_resolver=secret_resolver)
         elif model_id.provider == "bedrock":
-            return cls.for_bedrock(config)
+            return cls.for_bedrock(config, secret_resolver=secret_resolver)
         elif model_id.provider == "ollama":
             return cls.for_ollama(config, secret_resolver=secret_resolver)
         elif model_id.provider == "openai":
@@ -469,40 +474,16 @@ def _get_key(
     config = cast(dict[str, Any], config)
 
     if name == "Bedrock":
-        if "profile_name" in config:
-            profile_name = config.get("profile_name", "")
-            return f"profile:{profile_name}"
-        elif (
-            "aws_access_key_id" in config and "aws_secret_access_key" in config
-        ):
-            return f"{config['aws_access_key_id']}:{config['aws_secret_access_key']}"
-        else:
-            return ""
+        return _get_bedrock_key(config, secret_resolver=secret_resolver)
 
     if "api_key" in config:
         key = config["api_key"]
         if key:
-            if isinstance(key, str) and key.startswith(ENV_SECRET_PREFIX):
-                secret_name = key.removeprefix(ENV_SECRET_PREFIX)
-                if not secret_name:
-                    raise HTTPException(
-                        status_code=HTTPStatus.BAD_REQUEST,
-                        detail=f"{name} API key has an empty environment variable reference.",
-                    )
-
-                resolved_key = AnyProviderConfig._resolve_secret(
-                    secret_name, secret_resolver
-                )
-                if not resolved_key:
-                    raise HTTPException(
-                        status_code=HTTPStatus.BAD_REQUEST,
-                        detail=(
-                            f"{name} API key environment variable "
-                            f"'{secret_name}' is not set."
-                        ),
-                    )
-                return resolved_key
-            return cast(str, key)
+            return _resolve_environment_reference(
+                cast(str, key),
+                name=f"{name} API key",
+                secret_resolver=secret_resolver,
+            )
 
     if "http://127.0.0.1:11434/" in config.get("base_url", ""):
         # Ollama can be configured and in that case the api key is not needed.
@@ -519,6 +500,69 @@ def _get_key(
         )
 
     return ""
+
+
+def _get_bedrock_key(
+    config: dict[str, Any],
+    *,
+    secret_resolver: SecretResolver | None,
+) -> str:
+    profile_name = config.get("profile_name")
+    if profile_name:
+        return f"profile:{profile_name}"
+
+    access_key_id = config.get("aws_access_key_id")
+    secret_access_key = config.get("aws_secret_access_key")
+    if not access_key_id and not secret_access_key:
+        # Let the AWS SDK use its default credential chain.
+        return ""
+    if not access_key_id or not secret_access_key:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=(
+                "Bedrock AWS access key ID and secret access key "
+                "must be configured together."
+            ),
+        )
+
+    resolved_access_key_id = _resolve_environment_reference(
+        cast(str, access_key_id),
+        name="Bedrock AWS access key ID",
+        secret_resolver=secret_resolver,
+    )
+    resolved_secret_access_key = _resolve_environment_reference(
+        cast(str, secret_access_key),
+        name="Bedrock AWS secret access key",
+        secret_resolver=secret_resolver,
+    )
+    return f"{resolved_access_key_id}:{resolved_secret_access_key}"
+
+
+def _resolve_environment_reference(
+    value: str,
+    *,
+    name: str,
+    secret_resolver: SecretResolver | None,
+) -> str:
+    if not value.startswith(ENV_SECRET_PREFIX):
+        return value
+
+    secret_name = value.removeprefix(ENV_SECRET_PREFIX)
+    if not secret_name:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"{name} has an empty environment variable reference.",
+        )
+
+    resolved_value = AnyProviderConfig._resolve_secret(
+        secret_name, secret_resolver
+    )
+    if not resolved_value:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail=f"{name} environment variable '{secret_name}' is not set.",
+        )
+    return resolved_value
 
 
 def _get_base_url(config: Any, name: str = "") -> str | None:

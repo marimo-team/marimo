@@ -87,6 +87,10 @@ The `env:` syntax works with each provider that accepts `api_key`. This
 includes custom providers. marimo returns a configuration error when the
 referenced variable is empty or absent.
 
+For Amazon Bedrock, `aws_access_key_id` and `aws_secret_access_key` also
+accept `env:` references. Configure both fields together. If neither field is
+set, the AWS SDK uses its default credential chain.
+
 The `env:` prefix is reserved for environment variable references. A literal
 API key cannot start with this prefix.
 

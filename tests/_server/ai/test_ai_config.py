@@ -414,6 +414,28 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-access-key:test-secret-key"
         assert provider_config.base_url == "us-west-2"
 
+    def test_for_model_bedrock_resolves_environment_references(self) -> None:
+        config: AiConfig = {
+            "bedrock": {
+                "aws_access_key_id": "env:AWS_ACCESS_KEY_ID",
+                "aws_secret_access_key": "env:AWS_SECRET_ACCESS_KEY",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "bedrock/anthropic.claude-sonnet-4-5",
+            config,
+            secret_resolver=lambda key: {
+                "AWS_ACCESS_KEY_ID": "resolved-access-key",
+                "AWS_SECRET_ACCESS_KEY": "resolved-secret-key",
+            }.get(key),
+        )
+
+        assert (
+            provider_config.api_key
+            == "resolved-access-key:resolved-secret-key"
+        )
+
     def test_for_model_openai(self) -> None:
         """Test for_model with OpenAI model."""
         config: AiConfig = {"open_ai": {"api_key": "test-key"}}
@@ -916,6 +938,36 @@ class TestGetKey:
         result = _get_key(config, "Bedrock")
 
         assert result == "access-key:secret-key"
+
+    @pytest.mark.parametrize(
+        "config",
+        [
+            {"aws_access_key_id": "access-key"},
+            {"aws_secret_access_key": "secret-key"},
+        ],
+    )
+    def test_get_key_bedrock_rejects_partial_credentials(
+        self, config: dict[str, str]
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(config, "Bedrock")
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "must be configured together" in str(exc_info.value.detail)
+
+    def test_get_key_bedrock_rejects_missing_environment_reference(
+        self,
+    ) -> None:
+        config = {
+            "aws_access_key_id": "env:MISSING_ACCESS_KEY",
+            "aws_secret_access_key": "env:AWS_SECRET_ACCESS_KEY",
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(config, "Bedrock", secret_resolver=lambda _key: None)
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert "'MISSING_ACCESS_KEY' is not set" in str(exc_info.value.detail)
 
     def test_get_key_bedrock_fallback(self):
         """Test Bedrock key fallback when no credentials."""
