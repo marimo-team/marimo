@@ -3,7 +3,7 @@
 import type { GridSelection } from "@glideapps/glide-data-grid";
 import { CompactSelection, GridCellKind } from "@glideapps/glide-data-grid";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { pasteCells } from "../glide-utils";
+import { isValidCellValue, pasteCells } from "../glide-utils";
 import type { ModifiedGridColumn } from "../types";
 
 // Mock navigator.clipboard
@@ -14,6 +14,20 @@ const mockClipboard = {
 Object.defineProperty(navigator, "clipboard", {
   value: mockClipboard,
   writable: true,
+});
+
+describe("isValidCellValue", () => {
+  it("distinguishes integer and number precision", () => {
+    expect(isValidCellValue("number", 3.5)).toBe(true);
+    expect(isValidCellValue("number", Number.POSITIVE_INFINITY)).toBe(true);
+    expect(isValidCellValue("integer", 3)).toBe(true);
+    expect(isValidCellValue("integer", 3.5)).toBe(false);
+    expect(isValidCellValue("integer", "9007199254740993")).toBe(true);
+    expect(isValidCellValue("integer", "9007199254740993.0")).toBe(true);
+    expect(isValidCellValue("integer", "9007199254740993.1")).toBe(false);
+    expect(isValidCellValue("integer", "1.0000000000000001")).toBe(false);
+    expect(isValidCellValue("integer", "1e-324")).toBe(false);
+  });
 });
 
 describe("pasteCells", () => {
@@ -140,7 +154,7 @@ describe("pasteCells", () => {
     });
   });
 
-  it("should convert number values correctly", async () => {
+  it("should skip fractional values for integer columns", async () => {
     mockClipboard.readText.mockResolvedValue("Eve\t25.5\tfalse");
 
     const mockSetLocalData = vi.fn();
@@ -158,7 +172,6 @@ describe("pasteCells", () => {
     await vi.waitFor(() => {
       expect(mockOnAddEdits).toHaveBeenCalledWith([
         { rowIdx: 0, columnId: "name", value: "Eve" },
-        { rowIdx: 0, columnId: "age", value: 25.5 },
         { rowIdx: 0, columnId: "active", value: false },
       ]);
     });
@@ -206,6 +219,30 @@ describe("pasteCells", () => {
     await vi.waitFor(() => {
       expect(mockOnAddEdits).toHaveBeenCalledWith([
         { rowIdx: 0, columnId: "name", value: "Grace" },
+        { rowIdx: 0, columnId: "active", value: false },
+      ]);
+    });
+  });
+
+  it("should preserve unsafe integer precision", async () => {
+    mockClipboard.readText.mockResolvedValue("Grace\t9007199254740993\tfalse");
+
+    const mockSetLocalData = vi.fn();
+    const mockOnAddEdits = vi.fn();
+
+    pasteCells({
+      selection: createMockSelection(0, 0),
+      data: createMockData(),
+      setData: mockSetLocalData,
+      columns: createMockColumns(),
+      editableColumns: "all",
+      onAddEdits: mockOnAddEdits,
+    });
+
+    await vi.waitFor(() => {
+      expect(mockOnAddEdits).toHaveBeenCalledWith([
+        { rowIdx: 0, columnId: "name", value: "Grace" },
+        { rowIdx: 0, columnId: "age", value: "9007199254740993" },
         { rowIdx: 0, columnId: "active", value: false },
       ]);
     });

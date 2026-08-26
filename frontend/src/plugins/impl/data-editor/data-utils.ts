@@ -4,46 +4,48 @@ import type { FieldTypes } from "@/components/data-table/types";
 import type { DataType } from "@/core/kernel/messages";
 import { Logger } from "@/utils/Logger";
 
-/**
- * For modifying data, we do not worry about the order of the columns.
- * Because we define getCellContent based on columnTitle, the order does not matter.
- *
- * For column fields, we do care about the order
- */
+export function orderColumnFields(
+  columnFields: FieldTypes,
+  columnNames: string[],
+): FieldTypes {
+  const ordered = new Map<string, DataType>();
+  for (const columnName of columnNames) {
+    ordered.set(columnName, columnFields.get(columnName) ?? "unknown");
+  }
+  for (const [columnName, dataType] of columnFields) {
+    if (!ordered.has(columnName)) {
+      ordered.set(columnName, dataType);
+    }
+  }
+  return ordered;
+}
 
-export function removeColumn<T>(data: T[], columnIdx: number): T[] {
+export function removeColumn<T>(data: T[], columnName: string): T[] {
   return data.map((row) => {
     const rowData = row as Record<string, unknown>;
-    const keys = Object.keys(rowData);
-
-    // If the column index is out of bounds, return the original row
-    if (columnIdx < 0 || columnIdx >= keys.length) {
-      return rowData as T;
-    }
-
-    const keyToRemove = keys[columnIdx];
-
-    // Create new object without the specified key
-    const { [keyToRemove]: _, ...rest } = rowData;
+    const { [columnName]: _, ...rest } = rowData;
     return rest as T;
   });
 }
 
-/**
- * Insert a new column at the end of the data.
- * @param data - The data to insert the column into
- * @param newName - The name of the new column
- * @returns The data with the new column inserted at the end
- */
-export function insertColumn<T>(data: T[], newName?: string): T[] {
+export function insertColumn<T>(
+  data: T[],
+  newName?: string,
+  columnIdx?: number,
+): T[] {
   if (!newName) {
     return data;
   }
 
-  return data.map((row) => ({
-    ...(row as Record<string, unknown>),
-    [newName]: "",
-  })) as T[];
+  return data.map((row) => {
+    const entries = Object.entries(row as Record<string, unknown>);
+    const insertAt = Math.max(
+      0,
+      Math.min(columnIdx ?? entries.length, entries.length),
+    );
+    entries.splice(insertAt, 0, [newName, ""]);
+    return Object.fromEntries(entries) as T;
+  });
 }
 
 export function renameColumn<T>(
@@ -54,11 +56,20 @@ export function renameColumn<T>(
   if (!oldName || !newName || oldName === newName) {
     return data;
   }
+  if (
+    data.some((row) => Object.hasOwn(row as Record<string, unknown>, newName))
+  ) {
+    return data;
+  }
 
   return data.map((row) => {
     const rowData = row as Record<string, unknown>;
-    const { [oldName]: _, ...rest } = rowData;
-    return { ...rest, [newName]: rowData[oldName] } as T;
+    return Object.fromEntries(
+      Object.entries(rowData).map(([columnName, value]) => [
+        columnName === oldName ? newName : columnName,
+        value,
+      ]),
+    ) as T;
   });
 }
 

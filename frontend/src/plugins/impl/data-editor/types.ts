@@ -27,6 +27,7 @@ export interface ColumnEdit {
   columnIdx: number;
   newName?: string;
   type: BulkEdit;
+  dataType?: DataType;
 }
 
 export interface Edits {

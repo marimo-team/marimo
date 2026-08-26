@@ -34,13 +34,11 @@ import { copyToClipboard } from "@/utils/copy";
 import {
   getColumnHeaderIcon,
   getColumnKind,
-  isColumnEdit,
-  isPositionalEdit,
-  isRowEdit,
+  isValidCellValue,
   pasteCells,
 } from "./glide-utils";
 import { getGlideTheme } from "./themes";
-import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
+import type { Edits, ModifiedGridColumn } from "./types";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { Button } from "@/components/ui/button";
@@ -57,6 +55,7 @@ import {
   renameColumn,
 } from "./data-utils";
 import { GlideDataEditorPortal } from "./glide-portal";
+import { replayEdits } from "./replay-edits";
 
 interface GlideDataEditorProps<T> {
   data: T[];
@@ -70,7 +69,7 @@ interface GlideDataEditorProps<T> {
   onDeleteRows: (rows: number[]) => void;
   onRenameColumn: (columnIdx: number, newName: string) => void;
   onDeleteColumn: (columnIdx: number) => void;
-  onAddColumn: (columnIdx: number, newName: string) => void;
+  onAddColumn: (columnIdx: number, newName: string, dataType: DataType) => void;
 }
 
 export const GlideDataEditor = <T,>({
@@ -132,102 +131,18 @@ export const GlideDataEditor = <T,>({
 
   // Apply initial edits after data has loaded
   useEffect(() => {
-    // Don't apply if already applied or data hasn't loaded yet
-    if (hasAppliedEdits.current || data.length === 0) {
+    if (hasAppliedEdits.current) {
       return;
     }
-
-    // Mark as applied once data loads - prevents re-applying user edits
     hasAppliedEdits.current = true;
 
-    // No initial edits to apply
     if (edits.length === 0) {
       return;
     }
 
-    // Group edits by row index to build new rows
-    const newRows = new Map<number, Record<string, unknown>>();
-
-    for (const edit of edits) {
-      if (isPositionalEdit(edit)) {
-        if (edit.rowIdx >= data.length) {
-          // This is a new row
-          if (!newRows.has(edit.rowIdx)) {
-            newRows.set(edit.rowIdx, {});
-          }
-          const row = newRows.get(edit.rowIdx);
-          if (row) {
-            row[edit.columnId] = edit.value;
-          }
-        } else {
-          // This is an existing row, update the data
-          setData((prev) => {
-            const newData = [...prev];
-            newData[edit.rowIdx][edit.columnId as keyof T] =
-              edit.value as T[keyof T];
-            return newData;
-          });
-        }
-      } else if (isRowEdit(edit) && edit.type === BulkEdit.Remove) {
-        // Add rows is currently handled under positional edits, so we only cover deletes here
-        setData((prev) => prev.filter((_, i) => i !== edit.rowIdx));
-      } else if (isColumnEdit(edit)) {
-        switch (edit.type) {
-          case BulkEdit.Remove:
-            // Remove the column from the data
-            setData((prev) => removeColumn(prev, edit.columnIdx));
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "remove",
-              }),
-            );
-            break;
-          case BulkEdit.Insert:
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "insert",
-                newColumnName: edit.newName,
-              }),
-            );
-            setData((prev) => insertColumn(prev, edit.newName));
-            break;
-          case BulkEdit.Rename: {
-            const oldName = columns[edit.columnIdx].title;
-            const newName = edit.newName;
-            if (!oldName || !newName) {
-              return;
-            }
-
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "rename",
-                newColumnName: newName,
-              }),
-            );
-
-            setData((prev) => renameColumn(prev, oldName, newName));
-            break;
-          }
-        }
-      }
-    }
-
-    // Add new rows in order
-    const sortedNewRows = [...newRows.entries()]
-      .toSorted(([a], [b]) => a - b)
-      .map(([, row]) => row);
-
-    if (sortedNewRows.length > 0) {
-      setData((prev) => [...prev, ...(sortedNewRows as T[])]);
-    }
-
-    // Force re-render to update the total rows
+    const replayed = replayEdits(data, columnFields, edits);
+    setData(replayed.data);
+    setColumnFields(replayed.columnFields);
     rerender();
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [data.length]);
@@ -314,22 +229,7 @@ export const GlideDataEditor = <T,>({
       const key = columns[col].title;
 
       const columnType = columnFields.get(key);
-      // Verify the new value is of the correct type
-      switch (columnType) {
-        case "number":
-        case "integer":
-          if (Number.isNaN(Number(newValue.data))) {
-            return false;
-          }
-          break;
-        case "boolean":
-          if (typeof newValue.data !== "boolean") {
-            return false;
-          }
-          break;
-      }
-
-      return true;
+      return isValidCellValue(columnType, newValue.data);
     },
     [columnFields, columns],
   );
@@ -483,7 +383,8 @@ export const GlideDataEditor = <T,>({
         }),
       );
 
-      setData((prev) => removeColumn(prev, menu.col));
+      const columnName = columns[menu.col].title;
+      setData((prev) => removeColumn(prev, columnName));
       setMenu(undefined);
     }
   };
@@ -506,7 +407,7 @@ export const GlideDataEditor = <T,>({
         return;
       }
 
-      onAddColumn(clampedColumnIdx, columnName);
+      onAddColumn(clampedColumnIdx, columnName, dataType);
 
       setColumnFields((prev) =>
         modifyColumnFields({
@@ -518,9 +419,7 @@ export const GlideDataEditor = <T,>({
         }),
       );
 
-      // Update the data - add the new column to all rows,
-      // ordering does not matter as we call getCellContent based on columnTitle
-      setData((prev) => insertColumn(prev, columnName));
+      setData((prev) => insertColumn(prev, columnName, clampedColumnIdx));
       setMenu(undefined);
     }
   };

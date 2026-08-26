@@ -5,6 +5,7 @@ import ast
 import datetime
 from copy import deepcopy
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -20,6 +21,7 @@ from narwhals.typing import IntoDataFrame
 
 import marimo._output.data.data as mo_data
 from marimo import _loggers
+from marimo._data.models import DataType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
@@ -59,7 +61,13 @@ class PositionalEdit(TypedDict):
     value: Any
 
 
-class ColumnEdit(TypedDict):
+class _RequiredColumnEdit(TypedDict):
+    columnIdx: int
+    newName: str | None
+    type: Literal["insert", "remove", "rename"]
+
+
+class ColumnEdit(_RequiredColumnEdit, total=False):
     """A typed dictionary representing a bulk edit of a column.
 
     Attributes:
@@ -67,11 +75,10 @@ class ColumnEdit(TypedDict):
         If insert/remove, this is the index of the column to be edited. If rename, this is the index of the column to be renamed.
         newName (Optional[str]): The new name of the column.
         type (Literal["insert", "remove", "rename"]): The type of edit.
+        dataType (Optional[DataType]): The type selected for an inserted column.
     """
 
-    columnIdx: int
-    newName: str | None
-    type: Literal["insert", "remove", "rename"]
+    dataType: DataType
 
 
 class RowEdit(TypedDict):
@@ -103,6 +110,83 @@ ColumnOrientedData = dict[str, list[Any]]
 Scalar = str | int | float | bool | None
 ScalarData = list[Scalar]
 _DEFAULT_SCALAR_COLUMN = "value"
+_TYPE_INFERENCE_SAMPLE_SIZE = 10
+_MAX_SAFE_INTEGER = Decimal(2**53 - 1)
+
+
+def _dtype_from_data_type(data_type: DataType | None) -> DType | None:
+    if data_type == "string":
+        return nw.String()
+    if data_type == "boolean":
+        return nw.Boolean()
+    if data_type == "integer":
+        return nw.Int64()
+    if data_type == "number":
+        return nw.Float64()
+    if data_type == "date":
+        return nw.Date()
+    if data_type == "datetime":
+        return nw.Datetime()
+    if data_type == "time":
+        return nw.Time()
+    return None
+
+
+def _convert_to_integer(value: Any) -> int:
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    try:
+        decimal_value = Decimal(str(value))
+    except (InvalidOperation, ValueError) as error:
+        raise ValueError(f"Cannot convert {value!r} to integer") from error
+    if (
+        not decimal_value.is_finite()
+        or decimal_value != decimal_value.to_integral_value()
+    ):
+        raise ValueError(
+            f"Cannot convert non-integral value {value!r} to integer"
+        )
+    return int(decimal_value)
+
+
+def _sample_indices(length: int) -> Sequence[int]:
+    if length <= _TYPE_INFERENCE_SAMPLE_SIZE:
+        return range(length)
+    return [
+        *(
+            index * length // _TYPE_INFERENCE_SAMPLE_SIZE
+            for index in range(_TYPE_INFERENCE_SAMPLE_SIZE - 1)
+        ),
+        length - 1,
+    ]
+
+
+def _infer_conversion_values_from_rows(
+    data: RowOrientedData,
+) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for row_idx in _sample_indices(len(data)):
+        for column, value in data[row_idx].items():
+            if value is not None:
+                values[column] = value
+    return values
+
+
+def _infer_conversion_values_from_columns(
+    data: ColumnOrientedData,
+    row_count: int,
+) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for row_idx in _sample_indices(row_count):
+        for column, column_values in data.items():
+            if (
+                row_idx < len(column_values)
+                and column_values[row_idx] is not None
+            ):
+                values[column] = column_values[row_idx]
+    return values
 
 
 @dataclass
@@ -110,9 +194,8 @@ class _EditableTable:
     data: RowOrientedData | ColumnOrientedData
     column_names: list[str]
     row_count: int
-    representative_values: dict[str, Any]
+    conversion_values: dict[str, Any]
     dtypes: dict[str, DType]
-    appended_row_start: int | None = None
 
     @classmethod
     def from_rows(
@@ -121,26 +204,33 @@ class _EditableTable:
         schema: nw.Schema | None,
         column_names: Sequence[str] | None,
     ) -> _EditableTable:
-        if column_names is not None:
-            column_order = list(column_names)
-        elif schema is not None:
-            column_order = list(schema.keys())
-        else:
-            column_order = []
-
-        column_set = set(column_order)
-        representative_values: dict[str, Any] = {}
+        column_order: list[str] = []
+        column_set: set[str] = set()
         for row in data:
-            for column, value in row.items():
+            for column in row:
                 if column not in column_set:
                     column_order.append(column)
                     column_set.add(column)
-                if value is not None and column not in representative_values:
-                    representative_values[column] = value
+
+        fallback_columns = (
+            column_names
+            if column_names is not None
+            else schema.keys()
+            if schema is not None
+            else ()
+        )
+        for column in fallback_columns:
+            if column not in column_set:
+                column_order.append(column)
+                column_set.add(column)
 
         dtypes = dict(schema.items()) if schema is not None else {}
         return cls(
-            data, column_order, len(data), representative_values, dtypes
+            data,
+            column_order,
+            len(data),
+            _infer_conversion_values_from_rows(data),
+            dtypes,
         )
 
     @classmethod
@@ -154,17 +244,14 @@ class _EditableTable:
             column_order.extend(
                 column for column in schema if column not in data
             )
-        representative_values = {
-            column: next(
-                (value for value in data.get(column, []) if value is not None),
-                None,
-            )
-            for column in column_order
-        }
         dtypes = dict(schema.items()) if schema is not None else {}
         row_count = max((len(values) for values in data.values()), default=0)
         return cls(
-            data, column_order, row_count, representative_values, dtypes
+            data,
+            column_order,
+            row_count,
+            _infer_conversion_values_from_columns(data, row_count),
+            dtypes,
         )
 
     def apply(self, edits: DataEdits) -> None:
@@ -176,17 +263,6 @@ class _EditableTable:
             elif is_column_edit(edit):
                 self._apply_column_edit(edit)
 
-    def _get_original_value(self, row_idx: int, column: str) -> Any:
-        if row_idx >= self.row_count or (
-            self.appended_row_start is not None
-            and row_idx >= self.appended_row_start
-        ):
-            return self.representative_values.get(column)
-        if isinstance(self.data, list):
-            return self.data[row_idx].get(column)
-        values = self.data.get(column, [])
-        return values[row_idx] if row_idx < len(values) else None
-
     def _materialize_columns(self) -> None:
         if isinstance(self.data, list):
             return
@@ -194,13 +270,20 @@ class _EditableTable:
             values = self.data.setdefault(column, [])
             values.extend([None] * (self.row_count - len(values)))
 
+    def _get_cell_value(self, row_idx: int, column: str) -> Any:
+        if row_idx >= self.row_count:
+            return None
+        if isinstance(self.data, list):
+            return self.data[row_idx].get(column)
+        values = self.data.get(column, [])
+        return values[row_idx] if row_idx < len(values) else None
+
     def _apply_positional_edit(self, edit: PositionalEdit) -> None:
         column_id = edit["columnId"]
         row_idx = edit["rowIdx"]
-        original_value = self._get_original_value(row_idx, column_id)
         if column_id not in self.column_names:
             self.column_names.append(column_id)
-            self.representative_values[column_id] = None
+            self.conversion_values[column_id] = None
             if isinstance(self.data, list):
                 for row in self.data:
                     row[column_id] = None
@@ -210,8 +293,6 @@ class _EditableTable:
 
         if row_idx >= self.row_count:
             new_row_count = row_idx + 1
-            if self.appended_row_start is None:
-                self.appended_row_start = self.row_count
             if isinstance(self.data, list):
                 self.data.extend(
                     dict.fromkeys(self.column_names)
@@ -222,10 +303,16 @@ class _EditableTable:
                     values.extend([None] * (new_row_count - len(values)))
             self.row_count = new_row_count
 
+        dtype = self.dtypes.get(column_id)
+        conversion_value = (
+            self._get_cell_value(row_idx, column_id)
+            if dtype is not None
+            else self.conversion_values.get(column_id)
+        )
         converted_value = _convert_value(
             edit["value"],
-            original_value,
-            self.dtypes.get(column_id),
+            conversion_value,
+            dtype,
         )
         if isinstance(self.data, list):
             self.data[row_idx][column_id] = converted_value
@@ -247,11 +334,6 @@ class _EditableTable:
                 if row_idx < len(values):
                     values.pop(row_idx)
         self.row_count -= 1
-        if self.appended_row_start is not None:
-            if row_idx < self.appended_row_start:
-                self.appended_row_start -= 1
-            if self.appended_row_start >= self.row_count:
-                self.appended_row_start = None
 
     def _apply_column_edit(self, edit: ColumnEdit) -> None:
         new_column_name = edit.get("newName")
@@ -283,8 +365,12 @@ class _EditableTable:
                 )
                 self.data.clear()
                 self.data.update(items)
-            self.representative_values[new_column_name] = None
-            self.dtypes.pop(new_column_name, None)
+            self.conversion_values[new_column_name] = None
+            dtype = _dtype_from_data_type(edit.get("dataType"))
+            if dtype is None:
+                self.dtypes.pop(new_column_name, None)
+            else:
+                self.dtypes[new_column_name] = dtype
             return
 
         old_name = self.column_names[column_idx]
@@ -296,7 +382,7 @@ class _EditableTable:
                     row.pop(old_name, None)
             else:
                 self.data.pop(old_name, None)
-            self.representative_values.pop(old_name, None)
+            self.conversion_values.pop(old_name, None)
             self.dtypes.pop(old_name, None)
             return
 
@@ -322,8 +408,8 @@ class _EditableTable:
             }
             self.data.clear()
             self.data.update(renamed_columns)
-        self.representative_values[new_column_name] = (
-            self.representative_values.pop(old_name, None)
+        self.conversion_values[new_column_name] = self.conversion_values.pop(
+            old_name, None
         )
         self.dtypes.pop(new_column_name, None)
         dtype = self.dtypes.pop(old_name, None)
@@ -450,10 +536,9 @@ class data_editor(
 
         self._data = data
         self._edits: DataEdits | None = None
-        field_types = table_manager.get_field_types()
-
         column_names = table_manager.get_column_names()
         self._column_names = column_names
+        field_types = table_manager.get_field_types()
 
         if isinstance(editable_columns, list):
             for col in editable_columns:
@@ -469,6 +554,7 @@ class data_editor(
             args={
                 "data": mo_data.csv(table_manager.to_csv()).url,
                 "field-types": field_types or None,
+                "column-names": column_names,
                 "editable-columns": editable_columns,
                 "column-sizing-mode": "auto",
             },
@@ -590,12 +676,14 @@ def _convert_value(
                 return datetime.datetime.fromisoformat(value)
             elif dtype == nw.Date:
                 return datetime.date.fromisoformat(value)
+            elif dtype == nw.Time:
+                return datetime.time.fromisoformat(value)
             elif dtype == nw.Duration:
                 return datetime.timedelta(microseconds=float(value))
             elif hasattr(dtype, "is_float") and dtype.is_float():
                 return float(value)
             elif hasattr(dtype, "is_integer") and dtype.is_integer():
-                return int(value)
+                return _convert_to_integer(value)
             elif (
                 dtype == nw.String
                 or dtype == nw.Enum
@@ -630,11 +718,27 @@ def _convert_value(
         if original_value is None:
             return value
 
-        # Try to convert the value to the original type
-        original_type: Any = type(original_value)
-
-        if isinstance(original_value, (int, float)):
-            return original_type(value)
+        if isinstance(original_value, bool):
+            return bool(value)
+        elif isinstance(original_value, int):
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return value
+            try:
+                decimal_value = Decimal(str(value))
+            except (InvalidOperation, ValueError):
+                return float(value)
+            if decimal_value.is_finite() and (
+                decimal_value == decimal_value.to_integral_value()
+            ):
+                return int(decimal_value)
+            if (
+                not decimal_value.is_finite()
+                or abs(decimal_value) <= _MAX_SAFE_INTEGER
+            ):
+                return float(value)
+            return value
+        elif isinstance(original_value, float):
+            return float(value)
         elif isinstance(original_value, str):
             return str(value)
         # The more specific time checks are handled first to avoid parent classes matching
@@ -662,8 +766,7 @@ def _convert_value(
             return value
     except ValueError as e:
         LOGGER.error(str(e))
-        # If conversion fails, return the original value
-        return original_value  # type: ignore[return-value]
+        return original_value if dtype is not None else value
 
 
 def is_positional_edit(

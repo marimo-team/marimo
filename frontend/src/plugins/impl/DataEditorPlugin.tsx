@@ -8,6 +8,7 @@ import { LoadingTable } from "@/components/data-table/loading-table";
 import { type FieldTypes, toFieldTypes } from "@/components/data-table/types";
 import { Alert, AlertTitle } from "@/components/ui/alert";
 import { DelayMount } from "@/components/utils/delay-mount";
+import type { DataType } from "@/core/kernel/messages";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { createPlugin } from "../core/builder";
 import type { Setter } from "../types";
@@ -17,6 +18,7 @@ import {
   type DataEditorProps,
   type Edits,
 } from "./data-editor/types";
+import { orderColumnFields } from "./data-editor/data-utils";
 import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
@@ -45,6 +47,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       label: z.string().nullable(),
       data: z.union([z.string(), z.array(z.object({}).passthrough())]),
       fieldTypes: columnToFieldTypesSchema.nullish(),
+      columnNames: z.array(z.string()).default([]),
       editableColumns: z.union([z.array(z.string()), z.literal("all")]),
       columnSizingMode: z.enum(["auto", "fit"]).default("auto"), // TODO: Remove this
     }),
@@ -55,6 +58,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
       <LoadingDataEditor
         data={props.data.data}
         fieldTypes={props.data.fieldTypes}
+        columnNames={props.data.columnNames}
         edits={props.value}
         onEdits={props.setValue}
         host={props.host}
@@ -72,10 +76,11 @@ interface Props extends Omit<
   onEdits: Setter<Edits>;
   host: HTMLElement;
   editableColumns: string[] | "all";
+  columnNames: string[];
 }
 
 const LoadingDataEditor = (props: Props) => {
-  const [data, setData] = useState<unknown[]>([]);
+  const [data, setData] = useState<unknown[] | null>(null);
   const [columnFields, setColumnFields] = useState<FieldTypes>(new Map());
 
   // Load the data
@@ -98,9 +103,12 @@ const LoadingDataEditor = (props: Props) => {
 
     setData(localData);
     setColumnFields(
-      toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
+      orderColumnFields(
+        toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
+        props.columnNames,
+      ),
     );
-  }, [props.fieldTypes, props.data]);
+  }, [props.fieldTypes, props.columnNames, props.data]);
 
   if (error) {
     return (
@@ -113,7 +121,7 @@ const LoadingDataEditor = (props: Props) => {
     );
   }
 
-  if (!data) {
+  if (data === null) {
     return (
       <DelayMount milliseconds={200}>
         <LoadingTable pageSize={10} />
@@ -124,7 +132,13 @@ const LoadingDataEditor = (props: Props) => {
   return (
     <LazyDataEditor
       data={data}
-      setData={setData}
+      setData={(nextData) => {
+        if (typeof nextData === "function") {
+          setData((previousData) => nextData(previousData ?? []));
+        } else {
+          setData(nextData);
+        }
+      }}
       columnFields={columnFields}
       setColumnFields={setColumnFields}
       editableColumns={props.editableColumns}
@@ -166,10 +180,13 @@ const LoadingDataEditor = (props: Props) => {
           edits: [...v.edits, { columnIdx, type: BulkEdit.Remove }],
         }));
       }}
-      onAddColumn={(columnIdx: number, newName: string) => {
+      onAddColumn={(columnIdx: number, newName: string, dataType: DataType) => {
         props.onEdits((v) => ({
           ...v,
-          edits: [...v.edits, { columnIdx, newName, type: BulkEdit.Insert }],
+          edits: [
+            ...v.edits,
+            { columnIdx, newName, dataType, type: BulkEdit.Insert },
+          ],
         }));
       }}
     />

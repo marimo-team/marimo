@@ -8,6 +8,7 @@ from typing import Any
 import narwhals.stable.v2 as nw
 import pytest
 
+from marimo._data.models import DataType
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._plugins import ui
 from marimo._plugins.ui._impl.data_editor import (
@@ -122,6 +123,25 @@ def test_data_editor_appends_to_empty_scalar_list():
     assert editor._convert_value(edits) == ["x"]
 
 
+@pytest.mark.parametrize(
+    ("data", "expected_columns"),
+    [([], ["value"]), ({"A": []}, ["A"])],
+)
+def test_data_editor_exposes_columns_for_empty_data(data, expected_columns):
+    editor = data_editor(data)
+
+    assert editor._component_args["column-names"] == expected_columns
+    assert editor._component_args["field-types"] is None
+
+
+def test_data_editor_preserves_numeric_string_column_order():
+    editor = data_editor([{"10": "x", "2": "y"}])
+    edits: DataEdits = {"edits": [{"columnIdx": 0, "type": "remove"}]}
+
+    assert editor._component_args["column-names"] == ["10", "2"]
+    assert editor._convert_value(edits) == [{"2": "y"}]
+
+
 def test_data_editor_edits_heterogeneous_scalar_list():
     editor = data_editor([1, "a"])
     edits: DataEdits = {
@@ -129,6 +149,46 @@ def test_data_editor_edits_heterogeneous_scalar_list():
     }
 
     assert editor._convert_value(edits) == [1, "b"]
+
+
+def test_data_editor_appends_to_heterogeneous_scalar_list():
+    editor = data_editor([1, "a"])
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 2, "columnId": "value", "value": "b"}]
+    }
+
+    assert editor._convert_value(edits) == [1, "a", "b"]
+
+
+def test_data_editor_uses_inferred_type_for_null_scalar():
+    editor = data_editor([None, 7])
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "value", "value": "8"}]
+    }
+
+    assert editor._convert_value(edits) == [8, 7]
+
+
+@pytest.mark.parametrize(
+    ("data", "column", "expected"),
+    [
+        ([1, 1.5, 2], "value", [3.5, 1.5, 2]),
+        (
+            [{"A": 1}, {"A": 1.5}, {"A": 2}],
+            "A",
+            [{"A": 3.5}, {"A": 1.5}, {"A": 2}],
+        ),
+        ({"A": [1, 1.5, 2]}, "A", {"A": [3.5, 1.5, 2]}),
+    ],
+)
+def test_apply_edits_preserves_untyped_numeric_precision(
+    data: Any, column: str, expected: Any
+):
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": column, "value": 3.5}]
+    }
+
+    assert apply_edits(data, edits) == expected
 
 
 def test_data_editor_promotes_scalar_list_when_adding_column():
@@ -254,7 +314,7 @@ def test_data_editor_replays_add_after_removing_all_rows():
     assert editor._convert_value(edits) == [{"A": 2, "B": "b"}]
 
 
-def test_apply_edits_uses_first_non_null_value_for_conversion():
+def test_apply_edits_uses_inferred_column_type_for_conversion():
     data = [{"A": None}, {"A": 7}]
     editor = data_editor(data)
     edits: DataEdits = {
@@ -265,6 +325,14 @@ def test_apply_edits_uses_first_non_null_value_for_conversion():
     }
 
     assert editor._convert_value(edits) == [{"A": 8}]
+
+
+def test_apply_edits_preserves_row_column_order_with_schema():
+    data = [{"B": "x", "A": 1}]
+    schema = nw.Schema({"A": nw.Int64(), "B": nw.String()})
+    edits: DataEdits = {"edits": [{"columnIdx": 0, "type": "remove"}]}
+
+    assert apply_edits(data, edits, schema) == [{"A": 1}]
 
 
 @pytest.mark.parametrize(
@@ -298,6 +366,37 @@ def test_apply_edits_drops_schema_for_reused_column_name(data, expected):
     }
 
     assert apply_edits(data, edits, schema) == expected
+
+
+@pytest.mark.parametrize(
+    ("data_type", "value", "expected"),
+    [
+        ("number", "3.5", 3.5),
+        ("boolean", False, False),
+        (
+            "datetime",
+            "2026-08-26T10:30:00",
+            datetime.datetime(2026, 8, 26, 10, 30),
+        ),
+    ],
+)
+def test_apply_edits_uses_inserted_column_type(
+    data_type: DataType, value: Any, expected: Any
+):
+    data = [{"A": 1}]
+    edits: DataEdits = {
+        "edits": [
+            {
+                "columnIdx": 1,
+                "type": "insert",
+                "newName": "B",
+                "dataType": data_type,
+            },
+            {"rowIdx": 0, "columnId": "B", "value": value},
+        ]
+    }
+
+    assert apply_edits(data, edits) == [{"A": 1, "B": expected}]
 
 
 def test_apply_edits_tracks_column_changes_without_rows():
@@ -643,6 +742,24 @@ def test_apply_edits_dataframe():
     }
     result = apply_edits(df, edits)
     assert pd.DataFrame({"A": [1, 2, 3], "B": ["a", "x", "c"]}).equals(result)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.pandas.has(), reason="Pandas not installed"
+)
+@pytest.mark.parametrize("value", ["invalid", 3.5])
+def test_apply_edits_dataframe_rejects_invalid_typed_value(value):
+    import pandas as pd
+
+    data = pd.DataFrame({"A": [1, 2]})
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": value}]
+    }
+
+    result = apply_edits(data, edits)
+
+    assert result["A"].tolist() == [1, 2]
+    assert result["A"].dtype == data["A"].dtype
 
 
 @pytest.mark.skipif(
@@ -1472,17 +1589,22 @@ class TestConvertValue:
 
     def test_convert_value_value_error_handling(self):
         """Test error handling when conversion fails."""
-        # This should fail to convert "invalid" to int
         result = _convert_value("invalid", 42, None)
-        # Should return original value when conversion fails
-        assert result == 42
+        assert result == "invalid"
 
     def test_convert_value_value_error_handling_with_dtype(self):
         """Test error handling when conversion fails with dtype."""
-        # This should fail to convert "invalid" to int
         result = _convert_value("invalid", 42, nw.Int64)
-        # Should return original value when conversion fails
         assert result == 42
+
+    @pytest.mark.parametrize("dtype", [None, nw.Int64])
+    def test_convert_value_preserves_large_integers(self, dtype):
+        result = _convert_value("9007199254740993", 1, dtype)
+        assert result == 9007199254740993
+
+    def test_convert_value_does_not_round_large_untyped_fraction(self):
+        result = _convert_value("9007199254740993.1", 1, None)
+        assert result == "9007199254740993.1"
 
     def test_convert_value_list_parsing_error(self):
         """Test list parsing error handling."""

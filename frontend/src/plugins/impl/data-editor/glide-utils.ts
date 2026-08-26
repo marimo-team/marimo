@@ -52,6 +52,32 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
   }
 }
 
+export function isValidCellValue(
+  dataType: DataType | undefined,
+  value: unknown,
+): boolean {
+  if (dataType === "number") {
+    return !Number.isNaN(Number(value));
+  }
+  if (dataType === "integer") {
+    if (typeof value === "bigint") {
+      return true;
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) && Number.isInteger(value);
+    }
+    if (typeof value === "string") {
+      const normalized = value.trim();
+      return /^[+-]?[0-9]+(?:\.0+)?$/u.test(normalized);
+    }
+    return false;
+  }
+  if (dataType === "boolean") {
+    return typeof value === "boolean";
+  }
+  return true;
+}
+
 export function isPositionalEdit(
   edit: Edits["edits"][number],
 ): edit is PositionalEdit {
@@ -143,10 +169,19 @@ export function pasteCells<T>(options: {
           let convertedValue: unknown = cellValue;
 
           switch (columnType) {
-            case "integer":
+            case "integer": {
+              const numValue = Number(cellValue);
+              if (!isValidCellValue(columnType, cellValue)) {
+                continue;
+              }
+              convertedValue = Number.isSafeInteger(numValue)
+                ? numValue
+                : cellValue.trim();
+              break;
+            }
             case "number": {
               const numValue = Number(cellValue);
-              if (Number.isNaN(numValue)) {
+              if (!isValidCellValue(columnType, numValue)) {
                 continue;
               }
               convertedValue = numValue;

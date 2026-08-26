@@ -57,6 +57,7 @@ describe("GlideDataEditor portal", () => {
   let fullscreenElement: Element | null;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     fullscreenElement = null;
     Object.defineProperty(document, "fullscreenElement", {
       get: () => fullscreenElement,
@@ -82,6 +83,24 @@ describe("GlideDataEditor portal", () => {
     expect(capturedPortalRef.ref).toBeDefined();
     await waitFor(() => {
       expect(capturedPortalRef.ref?.current).toBe(portal);
+    });
+  });
+
+  it("replays initial edits when the source data is empty", async () => {
+    const setData = vi.fn();
+    render(
+      <TooltipProvider>
+        <GlideDataEditor
+          {...editorProps}
+          data={[]}
+          setData={setData}
+          edits={[{ rowIdx: 0, columnId: "name", value: "alice" }]}
+        />
+      </TooltipProvider>,
+    );
+
+    await waitFor(() => {
+      expect(setData).toHaveBeenCalledWith([{ name: "alice" }]);
     });
   });
 
