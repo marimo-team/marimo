@@ -79,6 +79,10 @@ async function prepareVisualCase(
     "data-theme",
     visualCase.theme,
   );
+  await expect(page.locator("html")).toHaveCSS(
+    "color-scheme",
+    visualCase.theme,
+  );
   await expect(page.locator("#App")).toHaveAttribute(
     "data-connection-state",
     "OPEN",
