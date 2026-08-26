@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -11,6 +12,28 @@ from tests._plugins.ui._impl.tables import geometry_fixtures as geo
 from tests.mocks import snapshotter
 
 snapshot = snapshotter(__file__)
+
+_PANDAS_STRING_STORAGE = frozenset({"str", "object"})
+
+
+def _assert_field_types(
+    actual: list[tuple[str, tuple[str, str]]],
+    expected: list[tuple[str, tuple[str, str]]],
+) -> None:
+    """Compare field types, allowing pandas 2/3 string storage names."""
+    assert len(actual) == len(expected)
+    for (name, (sem, ext)), (exp_name, (exp_sem, exp_ext)) in zip(
+        actual, expected, strict=True
+    ):
+        assert name == exp_name
+        assert sem == exp_sem
+        if sem == "string" and {ext, exp_ext} <= _PANDAS_STRING_STORAGE:
+            continue
+        assert ext == exp_ext
+
+
+def _normalize_pandas_string_storage(text: str) -> str:
+    return re.sub(r'\["string",\s*"str"\]', '["string", "object"]', text)
 
 
 @pytest.mark.requires("geopandas")
@@ -24,10 +47,13 @@ class TestGeoPandasCharacterization:
 
     def test_geometry_column_types_geometry(self) -> None:
         manager = get_table_manager(geo.gdf_point_known_crs())
-        assert dict(manager.get_field_types()) == {
-            "name": ("string", "str"),
-            "geometry": ("geometry", "geometry"),
-        }
+        _assert_field_types(
+            manager.get_field_types(),
+            [
+                ("name", ("string", "str")),
+                ("geometry", ("geometry", "geometry")),
+            ],
+        )
 
     @pytest.mark.parametrize(
         ("make_frame", "expected_field_types"),
@@ -98,7 +124,7 @@ class TestGeoPandasCharacterization:
         self, make_frame, expected_field_types
     ) -> None:
         manager = get_table_manager(make_frame())
-        assert manager.get_field_types() == expected_field_types
+        _assert_field_types(manager.get_field_types(), expected_field_types)
         assert isinstance(manager.to_json_str(), str)
 
 
@@ -190,7 +216,9 @@ class TestFalsePositiveBaselines:
         manager = get_table_manager(pd.DataFrame(geo.false_positive_data()))
         snapshot(
             "false_positives.pandas.field_types.json",
-            json.dumps(manager.get_field_types()),
+            _normalize_pandas_string_storage(
+                json.dumps(manager.get_field_types())
+            ),
         )
         snapshot(
             "false_positives.pandas.json",
