@@ -10,6 +10,7 @@ import {
 import {
   appConfigAtom,
   configOverridesAtom,
+  keyboardShortcutExtensionsAtom,
   userConfigAtom,
 } from "../core/config/config";
 import { marimoVersionAtom, showCodeInRunModeAtom } from "../core/meta/state";
@@ -43,6 +44,7 @@ describe("main", () => {
     store.set(appConfigAtom, parseAppConfig({}));
     store.set(userConfigAtom, defaultUserConfig());
     store.set(configOverridesAtom, {});
+    store.set(keyboardShortcutExtensionsAtom, {});
   });
 
   it.each(["edit", "read", "home", "run"])(
@@ -155,6 +157,53 @@ describe("main", () => {
     expect(store.get(appConfigAtom)).toEqual(
       expect.objectContaining({ app_title: "My App" }),
     );
+  });
+
+  it("should reject keyboard shortcuts with whitespace-only keys", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      {
+        mode: "edit",
+        keyboardShortcuts: {
+          "extension.companion.show-message": {
+            name: "Show companion message",
+            key: " \t ",
+            group: "Other",
+          },
+        },
+      },
+      el,
+    );
+
+    expect(error).toBeDefined();
+    expect(error?.message).toBe("Invalid marimo mount options");
+    expect(store.get(keyboardShortcutExtensionsAtom)).toEqual({});
+  });
+
+  it("should trim keyboard shortcut keys", () => {
+    const el = document.createElement("div");
+    const error = mount(
+      {
+        mode: "edit",
+        keyboardShortcuts: {
+          "extension.companion.show-message": {
+            name: "Show companion message",
+            key: "  Mod-Shift-Y  ",
+            group: "Other",
+          },
+        },
+      },
+      el,
+    );
+
+    expect(error).toBeUndefined();
+    expect(store.get(keyboardShortcutExtensionsAtom)).toEqual({
+      "extension.companion.show-message": {
+        name: "Show companion message",
+        key: "Mod-Shift-Y",
+        group: "Other",
+      },
+    });
   });
 
   it("should throw on invalid options", () => {

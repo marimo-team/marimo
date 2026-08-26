@@ -9,6 +9,7 @@ KnownEntryPoint = Literal[
     "marimo.cell.executor",
     "marimo.cache.store",
     "marimo.kernel.lifespan",
+    "marimo.keyboard_shortcuts",
     "marimo.server.asgi.lifespan",
     "marimo.server.asgi.middleware",
 ]

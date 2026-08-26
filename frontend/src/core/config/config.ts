@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { merge } from "lodash-es";
-import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
+import {
+  type ExtensionHotkeyAction,
+  type Hotkey,
+  OverridingHotkeyProvider,
+} from "../hotkeys/hotkeys";
 import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
 import { store } from "../state/jotai";
 import {
@@ -34,10 +38,15 @@ export const hotkeyOverridesAtom = atom((get) => {
 
 export const platformAtom = atom<Platform>(resolvePlatform());
 
+export const keyboardShortcutExtensionsAtom = atom<
+  Partial<Record<ExtensionHotkeyAction, Hotkey>>
+>({});
+
 export const hotkeysAtom = atom((get) => {
   const overrides = get(hotkeyOverridesAtom);
   const platform = get(platformAtom);
-  return new OverridingHotkeyProvider(overrides, { platform });
+  const extensions = get(keyboardShortcutExtensionsAtom);
+  return new OverridingHotkeyProvider(overrides, { platform, extensions });
 });
 
 export const autoSaveConfigAtom = atom((get) => {
