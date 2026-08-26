@@ -150,9 +150,7 @@ def test_download_as_pt_br_csv() -> None:
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
     from marimo._plugins.ui._impl.utils.dataframe import download_as
 
-    manager = DefaultTableManager(
-        [{"value": 1234.56, "text": "unchanged.1"}]
-    )
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
         manager, "csv", locale=ResolvedExportLocale("pt-BR", ",")
     )
@@ -166,9 +164,7 @@ def test_download_as_pt_br_tsv() -> None:
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
     from marimo._plugins.ui._impl.utils.dataframe import download_as
 
-    manager = DefaultTableManager(
-        [{"value": 1234.56, "text": "unchanged.1"}]
-    )
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
         manager, "tsv", locale=ResolvedExportLocale("pt-BR", ",")
     )
@@ -181,9 +177,7 @@ def test_download_as_legacy_csv_without_locale() -> None:
     )
     from marimo._plugins.ui._impl.utils.dataframe import download_as
 
-    manager = DefaultTableManager(
-        [{"value": 1234.56, "text": "unchanged.1"}]
-    )
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(manager, "csv")
     assert _download_text(url) == "value,text\n1234.56,unchanged.1\n"
 
@@ -199,9 +193,7 @@ def test_download_as_explicit_csv_separator_wins() -> None:
         download_as,
     )
 
-    manager = DefaultTableManager(
-        [{"value": 1234.56, "text": "unchanged.1"}]
-    )
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
         manager,
         "csv",
@@ -218,9 +210,7 @@ def test_download_as_json_stays_locale_neutral() -> None:
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
     from marimo._plugins.ui._impl.utils.dataframe import download_as
 
-    manager = DefaultTableManager(
-        [{"value": 1234.56, "text": "unchanged.1"}]
-    )
+    manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
         manager, "json", locale=ResolvedExportLocale("pt-BR", ",")
     )

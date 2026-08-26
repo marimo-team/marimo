@@ -1723,9 +1723,7 @@ def test_table_download_csv_follows_pt_br() -> None:
 
     table = ui.table([{"value": 1234.56, "text": "unchanged.1"}])
     url = table._download_as(
-        DownloadAsArgs(
-            format="csv", locale=ResolvedExportLocale("pt-BR", ",")
-        )
+        DownloadAsArgs(format="csv", locale=ResolvedExportLocale("pt-BR", ","))
     ).url
     assert from_data_uri(url)[1].decode("utf-8") == (
         "value;text\n1234,56;unchanged.1\n"
@@ -1737,9 +1735,7 @@ def test_table_download_tsv_follows_pt_br() -> None:
 
     table = ui.table([{"value": 1234.56, "text": "unchanged.1"}])
     url = table._download_as(
-        DownloadAsArgs(
-            format="tsv", locale=ResolvedExportLocale("pt-BR", ",")
-        )
+        DownloadAsArgs(format="tsv", locale=ResolvedExportLocale("pt-BR", ","))
     ).url
     assert from_data_uri(url)[1].decode("utf-8") == (
         "value\ttext\n1234,56\tunchanged.1\n"
