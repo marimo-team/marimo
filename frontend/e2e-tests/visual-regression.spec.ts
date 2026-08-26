@@ -10,7 +10,6 @@ type VisualView = "edit" | "read";
 
 interface VisualCase {
   readonly app: ApplicationNames;
-  readonly includeNarrow: boolean;
   readonly name: `${VisualView}-${VisualTheme}`;
   readonly theme: VisualTheme;
   readonly view: VisualView;
@@ -22,28 +21,24 @@ const NARROW_VIEWPORT = { width: 390, height: 720 } as const;
 const VISUAL_CASES = [
   {
     app: "visual_tokens.py",
-    includeNarrow: false,
     name: "edit-light",
     theme: "light",
     view: "edit",
   },
   {
     app: "visual_tokens.py",
-    includeNarrow: true,
     name: "edit-dark",
     theme: "dark",
     view: "edit",
   },
   {
     app: "visual_tokens.py//run",
-    includeNarrow: true,
     name: "read-light",
     theme: "light",
     view: "read",
   },
   {
     app: "visual_tokens.py//run",
-    includeNarrow: false,
     name: "read-dark",
     theme: "dark",
     view: "read",
@@ -123,12 +118,13 @@ for (const visualCase of VISUAL_CASES) {
       { mask },
     );
 
-    if (visualCase.includeNarrow) {
-      await page.setViewportSize(NARROW_VIEWPORT);
-      await expect(page).toHaveScreenshot(
-        `${visualCase.name}-390x720.png`,
-        { mask },
-      );
-    }
+    await page.setViewportSize(NARROW_VIEWPORT);
+    await page
+      .getByRole("heading", { name: "Semantic token fixture" })
+      .scrollIntoViewIfNeeded();
+    await expect(page).toHaveScreenshot(
+      `${visualCase.name}-390x720.png`,
+      { mask },
+    );
   });
 }
