@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import MappingProxyType
+
 import pytest
 
 from marimo._plugins import ui
@@ -30,6 +32,18 @@ def test_dictionary() -> None:
     dictionary._update({"a": "2"})
     dictionary._update({"b": "goodbye", "c": 1})
     assert dictionary.value == {"a": 2, "b": "goodbye", "c": 1}
+
+
+def test_accepts_non_dict_mapping() -> None:
+    """`elements` only needs to be a Mapping, not specifically a dict.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/10631
+    """
+    source = MappingProxyType({"a": ui.slider(1, 10), "b": ui.text(value="hi")})
+    d = ui.dictionary(source)
+    assert d.value == {"a": 1, "b": "hi"}
+    # elements are still cloned, independent of the original mapping
+    assert d.elements["a"]._id != source["a"]._id
 
 
 def test_nested_dict() -> None:

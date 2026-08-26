@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import MappingProxyType
+
 import pytest
 
 from marimo import md
@@ -42,6 +44,16 @@ def test_dictionary_rejects_non_ui_elements() -> None:
         ValueError, match="`.batch` only accepts UIElements as arguments"
     ):
         ui.dictionary({"valid": ui.slider(1, 10), "invalid": "string"})  # type: ignore
+
+
+def test_accepts_non_dict_mapping() -> None:
+    """`elements` only needs to be a Mapping, not specifically a dict.
+
+    Regression test for https://github.com/marimo-team/marimo/issues/10631
+    """
+    source = MappingProxyType({"a": ui.slider(1, 10)})
+    b = ui.batch(Html("{a}"), elements=source)
+    assert b.value == {"a": 1}
 
 
 def test_update_on_frontend_value_change_only() -> None:

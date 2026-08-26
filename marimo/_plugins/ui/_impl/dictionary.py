@@ -12,7 +12,7 @@ from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.batch import _batch_base, validate_and_clone
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
 
 @mddoc
@@ -91,7 +91,7 @@ class dictionary(_batch_base):
             to run when this element's value changes.
 
     Args:
-        elements (dict[str, UIElement[Any, Any]]): A dict mapping names to UI
+        elements (Mapping[str, UIElement[Any, Any]]): A dict mapping names to UI
             elements to include.
         label (str, optional): A descriptive name for the dictionary. Defaults to "".
         on_change (Callable[[dict[str, object]], None], optional): Optional callback
@@ -100,7 +100,7 @@ class dictionary(_batch_base):
 
     def __init__(
         self,
-        elements: dict[str, UIElement[Any, Any]],
+        elements: Mapping[str, UIElement[Any, Any]],
         *,
         label: str = "",
         on_change: Callable[[dict[str, object]], None] | None = None,
