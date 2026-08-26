@@ -61,7 +61,10 @@ export const PendingAICells: React.FC = () => {
   };
 
   const runAllCells = () => {
-    runCell(listStagedCells);
+    const cellsToRun = listStagedCells.filter(
+      (cellId) => stagedAiCells.get(cellId)?.type !== "delete_cell",
+    );
+    runCell(cellsToRun);
   };
 
   const cyanShadow = "shadow-[0_0_6px_0_#00A2C733]";
@@ -96,6 +99,7 @@ export const PendingAICells: React.FC = () => {
           multipleCompletions={true}
           onAccept={acceptAllCompletions}
           isLoading={generationInProgress}
+          label="Keep all"
           size="xs"
           buttonStyles="h-6.5"
           playButtonStyles="h-6.5"
@@ -106,6 +110,7 @@ export const PendingAICells: React.FC = () => {
           onDecline={rejectAllCompletions}
           disabled={generationInProgress}
           size="xs"
+          label="Discard all"
           className="h-6.5"
         />
       </div>

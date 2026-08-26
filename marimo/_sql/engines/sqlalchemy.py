@@ -94,6 +94,13 @@ def safe_execute(
     return decorator
 
 
+def _index_by_table_name(
+    reflected: dict[tuple[str | None, str], T],
+) -> dict[str, T]:
+    """Index reflection results by table name within a single schema."""
+    return {name: value for (_schema, name), value in reflected.items()}
+
+
 # ------------------------------------------------------------------ #
 #  SQLAlchemyEngine                                                   #
 # ------------------------------------------------------------------ #
@@ -507,22 +514,19 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     #  Tables resolution                                             #
     # -------------------------------------------------------------- #
 
+    @staticmethod
+    def _get_table_names(
+        inspector: Inspector, schema: str
+    ) -> tuple[list[str], list[str]]:
+        return inspector.get_table_names(
+            schema=schema
+        ), inspector.get_view_names(schema=schema)
+
     @safe_execute(
-        fallback=([], []),
+        fallback=[],
         message="Failed to get tables in schema",
         log_level="warning",
     )
-    def _get_table_names(
-        self, schema: str, database: str
-    ) -> tuple[list[str], list[str]]:
-
-        with self._get_inspector(database) as inspector:
-            if inspector is None:
-                return [], []
-            return inspector.get_table_names(
-                schema=schema
-            ), inspector.get_view_names(schema=schema)
-
     def get_tables_in_schema(
         self,
         *,
@@ -534,15 +538,30 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         """Return all tables in a schema."""
         del schema_path  # SQLAlchemy schemas don't nest
 
-        table_names, view_names = self._get_table_names(
-            schema=schema, database=database
-        )
+        with self._get_inspector(database) as inspector:
+            if inspector is None:
+                return []
+            return self._get_tables_from_inspector(
+                inspector,
+                schema=schema,
+                include_table_details=include_table_details,
+            )
 
-        tables: list[tuple[DataTableType, str]] = []
-        for name in table_names:
-            tables.append(("table", name))
-        for name in view_names:
-            tables.append(("view", name))
+    def _get_tables_from_inspector(
+        self,
+        inspector: Inspector,
+        *,
+        schema: str,
+        include_table_details: bool,
+    ) -> list[DataTable]:
+        table_names, view_names = self._get_table_names(inspector, schema)
+        tables: list[tuple[DataTableType, str]] = [
+            ("table", name) for name in table_names
+        ]
+        tables.extend(("view", name) for name in view_names)
+
+        if not tables:
+            return []
 
         if not include_table_details:
             return [
@@ -562,13 +581,35 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                 for table_type, name in tables
             ]
 
-        data_tables: list[DataTable] = []
-        for t_type, t_name in tables:
-            table = self.get_table_details(
-                table_name=t_name, schema_name=schema, database_name=database
+        batched = self._get_batched_table_details(
+            inspector,
+            table_names=table_names,
+            view_names=view_names,
+            schema=schema,
+        )
+        if batched is None:
+            batched = {}
+        elif len(batched) < len(tables):
+            LOGGER.debug(
+                "Batched reflection returned %d of %d tables in schema %s",
+                len(batched),
+                len(tables),
+                schema,
             )
+
+        data_tables: list[DataTable] = []
+        for table_type, table_name in tables:
+            # Tables missing from the batch (stale listings, dialect quirks)
+            # fall back on the same inspector and connection.
+            table = batched.get(table_name)
+            if table is None:
+                table = self._get_table_details_from_inspector(
+                    inspector,
+                    table_name=table_name,
+                    schema=schema,
+                )
             if table is not None:
-                table.type = t_type
+                table.type = table_type
                 data_tables.append(table)
 
         return data_tables
@@ -577,42 +618,36 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
     #  Table Details resolution                                      #
     # -------------------------------------------------------------- #
 
+    @staticmethod
     @safe_execute(
         fallback=None,
         message="Failed to get table details",
         log_level="warning",
     )
     def _get_columns(
-        self, table_name: str, schema: str, database: str
+        inspector: Inspector, *, table_name: str, schema: str
     ) -> list[ReflectedColumn] | None:
+        return inspector.get_columns(table_name, schema=schema)
 
-        with self._get_inspector(database) as inspector:
-            if inspector is None:
-                return None
-            return inspector.get_columns(table_name, schema=schema)
-
+    @staticmethod
     @safe_execute(fallback=[], message="Failed to get primary keys")
     def _fetch_primary_keys(
-        self, table_name: str, schema: str, database: str
+        inspector: Inspector, *, table_name: str, schema: str
     ) -> list[str]:
-
-        with self._get_inspector(database) as inspector:
-            if inspector is None:
-                return []
-            return inspector.get_pk_constraint(table_name, schema=schema).get(
-                "constrained_columns", []
-            )
+        return inspector.get_pk_constraint(table_name, schema=schema).get(
+            "constrained_columns", []
+        )
 
     @safe_execute(fallback=[], message="Failed to get indexes")
     def _fetch_indexes(
-        self, table_name: str, schema: str, database: str
+        self,
+        inspector: Inspector,
+        *,
+        table_name: str,
+        schema: str,
     ) -> list[str]:
-
-        with self._get_inspector(database) as inspector:
-            if inspector is None:
-                return []
-            indexes = inspector.get_indexes(table_name, schema=schema)
-            return self._extract_index_columns(indexes)
+        indexes = inspector.get_indexes(table_name, schema=schema)
+        return self._extract_index_columns(indexes)
 
     @staticmethod
     def _extract_index_columns(indexes: list[ReflectedIndex]) -> list[str]:
@@ -627,6 +662,120 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
                         index_columns.append(col)
         return index_columns
 
+    @safe_execute(
+        fallback=None,
+        message="Failed to get batched table details",
+        log_level="warning",
+    )
+    def _get_batched_table_details(
+        self,
+        inspector: Inspector,
+        *,
+        table_names: list[str],
+        view_names: list[str],
+        schema: str,
+    ) -> dict[str, DataTable] | None:
+        """Reflect details for many tables at once."""
+        if not hasattr(inspector, "get_multi_columns"):
+            return None
+
+        # Only importable on SQLAlchemy 2.0+, hence the hasattr guard
+        from sqlalchemy.engine.reflection import ObjectKind, ObjectScope
+
+        object_names = [*table_names, *view_names]
+        try:
+            multi_columns = inspector.get_multi_columns(
+                schema=schema,
+                filter_names=object_names,
+                kind=ObjectKind.ANY,
+                scope=ObjectScope.ANY,
+            )
+        except Exception:
+            LOGGER.warning("Failed to get batched columns", exc_info=True)
+            return None
+
+        try:
+            multi_pk_constraints = (
+                inspector.get_multi_pk_constraint(
+                    schema=schema,
+                    filter_names=table_names,
+                    kind=ObjectKind.ANY,
+                    scope=ObjectScope.ANY,
+                )
+                if table_names
+                else {}
+            )
+        except Exception:
+            LOGGER.warning("Failed to get batched primary keys", exc_info=True)
+            multi_pk_constraints = None
+
+        try:
+            multi_indexes = (
+                inspector.get_multi_indexes(
+                    schema=schema,
+                    filter_names=table_names,
+                    kind=ObjectKind.ANY,
+                    scope=ObjectScope.ANY,
+                )
+                if table_names
+                else {}
+            )
+        except Exception:
+            LOGGER.warning("Failed to get batched indexes", exc_info=True)
+            multi_indexes = None
+
+        columns_by_table = _index_by_table_name(multi_columns)
+        pk_constraints_by_table = (
+            _index_by_table_name(multi_pk_constraints)
+            if multi_pk_constraints is not None
+            else None
+        )
+        indexes_by_table = (
+            _index_by_table_name(multi_indexes)
+            if multi_indexes is not None
+            else None
+        )
+
+        tables: dict[str, DataTable] = {}
+        table_name_set = set(table_names)
+        for name, columns in columns_by_table.items():
+            if name not in table_name_set:
+                primary_keys = []
+            elif pk_constraints_by_table is None:
+                primary_keys = self._fetch_primary_keys(
+                    inspector, table_name=name, schema=schema
+                )
+            else:
+                pk_constraint = pk_constraints_by_table.get(name)
+                primary_keys = (
+                    pk_constraint.get("constrained_columns", [])
+                    if pk_constraint
+                    else []
+                )
+
+            if name not in table_name_set:
+                index_columns = []
+            elif indexes_by_table is None:
+                index_columns = self._fetch_indexes(
+                    inspector, table_name=name, schema=schema
+                )
+            else:
+                index_columns = self._extract_index_columns(
+                    indexes_by_table.get(name, [])
+                )
+            tables[name] = self._build_data_table(
+                table_name=name,
+                columns=columns,
+                primary_keys=primary_keys,
+                index_list=index_columns,
+            )
+        return tables
+
+    @safe_execute(
+        fallback=None,
+        message="Failed to get table details",
+        log_level="warning",
+    )
     def get_table_details(
         self,
         *,
@@ -638,19 +787,54 @@ class SQLAlchemyEngine(SQLConnection["Engine"]):
         """Get a single table from the engine."""
         del schema_path  # SQLAlchemy schemas don't nest
 
+        with self._get_inspector(database_name) as inspector:
+            if inspector is None:
+                return None
+            return self._get_table_details_from_inspector(
+                inspector, table_name=table_name, schema=schema_name
+            )
+
+    @safe_execute(
+        fallback=None,
+        message="Failed to get table details",
+        log_level="warning",
+    )
+    def _get_table_details_from_inspector(
+        self,
+        inspector: Inspector,
+        *,
+        table_name: str,
+        schema: str,
+    ) -> DataTable | None:
         columns = self._get_columns(
-            table_name, schema=schema_name, database=database_name
+            inspector, table_name=table_name, schema=schema
         )
         if columns is None:
             return None
 
         primary_keys = self._fetch_primary_keys(
-            table_name, schema_name, database_name
+            inspector, table_name=table_name, schema=schema
         )
         index_list = self._fetch_indexes(
-            table_name, schema_name, database_name
+            inspector, table_name=table_name, schema=schema
         )
 
+        return self._build_data_table(
+            table_name=table_name,
+            columns=columns,
+            primary_keys=primary_keys,
+            index_list=index_list,
+        )
+
+    def _build_data_table(
+        self,
+        *,
+        table_name: str,
+        columns: list[ReflectedColumn],
+        primary_keys: list[str],
+        index_list: list[str],
+    ) -> DataTable:
+        """Convert reflected column metadata into a DataTable."""
         cols: list[DataTableColumn] = []
         for col in columns:
             engine_type = col["type"]

@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import mimetypes
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -43,6 +42,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException as MarimoHTTPException
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -189,9 +189,7 @@ def download_file(
     if not file_path.is_file():
         raise MarimoHTTPException(status_code=404, detail="File not found")
 
-    media_type = (
-        mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    )
+    media_type = guess_mime_type(file_path.name) or "application/octet-stream"
     return FileResponse(
         file_path,
         media_type=media_type,

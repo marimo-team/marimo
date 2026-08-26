@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom, useAtomValue } from "jotai";
-import { useRef } from "react";
+import { selectAtom } from "jotai/utils";
+import { useMemo, useRef } from "react";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { CellId } from "@/core/cells/ids";
 import { createReducerAndAtoms } from "@/utils/createReducer";
@@ -69,6 +70,9 @@ const {
     return new Map([...state, [cellId, edit]]);
   },
   removeStagedCell: (state, cellId: CellId) => {
+    if (!state.has(cellId)) {
+      return state;
+    }
     const newState = new Map(state);
     newState.delete(cellId);
     return newState;
@@ -76,6 +80,15 @@ const {
 });
 
 export { useStagedAICellsActions };
+
+export function useStagedAICell(cellId: CellId): Edit | undefined {
+  const stagedCellAtom = useMemo(
+    () =>
+      selectAtom(stagedAICellsAtom, (cells) => cells.get(cellId), Object.is),
+    [cellId],
+  );
+  return useAtomValue(stagedCellAtom);
+}
 
 interface UpdateStagedCellAction {
   cellId: CellId;

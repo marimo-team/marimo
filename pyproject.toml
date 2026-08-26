@@ -221,7 +221,8 @@ test-optional = [
     "jupytext>=1.17.2",
     # For standard scientific computing/ ML
     # flax 0.10 requires jax>=0.4.27, so keep the floors compatible.
-    "jax>=0.4.27; python_version == '3.12'",
+    # TODO: Remove <0.11.1 after Flax 0.12.9 enters CI's 7-day dependency window.
+    "jax>=0.4.27,<0.11.1; python_version == '3.12'",
     "flax>=0.10.0; python_version == '3.12'",
     "torch>=2.4.0; python_version == '3.12'",
     "scikit-bio>=0.6.3; python_version == '3.12'",
@@ -361,7 +362,6 @@ ignore = [
 
     # From new version of Ruff: We should fix these, but it raises too many errors
     "BLE001", # Do not catch blind exception: `Exception`
-    "RUF059", # Unused unpacked variable
     "DTZ001", # `datetime.datetime()` called without a `tzinfo` argument
     "PLW1510", # `subprocess.run` without explicit `check`
     "S110", # `try`-`except`-`pass`

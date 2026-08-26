@@ -910,6 +910,19 @@ def test_pyodide_bridge_file_details(
     assert response["file"]["path"] == str(test_file)
 
 
+def test_pyodide_bridge_toml_file_details(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+) -> None:
+    test_file = tmp_path / "pyproject.toml"
+    test_file.write_text('[project]\nname = "demo"')
+
+    request_json = json.dumps({"path": str(test_file)})
+    response = json.loads(pyodide_bridge.file_details(request_json))
+
+    assert response["mimeType"] == "application/toml"
+
+
 def test_pyodide_bridge_file_details_honors_limit(
     pyodide_bridge: PyodideBridge,
     tmp_path: Path,

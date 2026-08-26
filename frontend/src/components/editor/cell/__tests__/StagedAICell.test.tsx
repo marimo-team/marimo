@@ -4,6 +4,7 @@ import { render, screen } from "@testing-library/react";
 import { createStore, Provider } from "jotai";
 import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { stagedAICellsAtom, visibleForTesting } from "@/core/ai/staged-cells";
 import { StagedAICellFooter } from "../StagedAICell";
 
@@ -39,21 +40,25 @@ describe("StagedAICellFooter", () => {
 
     const { rerender } = render(
       <Provider store={store}>
-        <StagedAICellFooter cellId={generatedCellId} />
+        <TooltipProvider>
+          <StagedAICellFooter cellId={generatedCellId} />
+        </TooltipProvider>
       </Provider>,
     );
 
-    expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Keep cell" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Discard cell" })).toBeDisabled();
 
     store.set(visibleForTesting.stagedGenerationAtom, null);
     rerender(
       <Provider store={store}>
-        <StagedAICellFooter cellId={generatedCellId} />
+        <TooltipProvider>
+          <StagedAICellFooter cellId={generatedCellId} />
+        </TooltipProvider>
       </Provider>,
     );
 
-    expect(screen.getByRole("button", { name: "Accept" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Keep cell" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Discard cell" })).toBeEnabled();
   });
 });

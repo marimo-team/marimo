@@ -51,7 +51,7 @@ describe("PendingAICells", () => {
     );
     const { rerender } = render(view);
 
-    const acceptButton = screen.getByRole("button", { name: "Accept all" });
+    const acceptButton = screen.getByRole("button", { name: "Keep all" });
     const acceptButtons = within(
       acceptButton.parentElement as HTMLElement,
     ).getAllByRole("button");
@@ -59,7 +59,7 @@ describe("PendingAICells", () => {
     for (const button of acceptButtons) {
       expect(button).toBeDisabled();
     }
-    expect(screen.getByRole("button", { name: "Reject all" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Discard all" })).toBeDisabled();
 
     act(() => {
       store.set(visibleForTesting.stagedGenerationAtom, {
@@ -72,6 +72,6 @@ describe("PendingAICells", () => {
     for (const button of acceptButtons) {
       expect(button).toBeEnabled();
     }
-    expect(screen.getByRole("button", { name: "Reject all" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Discard all" })).toBeEnabled();
   });
 });
