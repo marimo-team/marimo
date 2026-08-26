@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.capabilities import AbstractCapability
+    from pydantic_ai.messages import FinishReason as PydanticFinishReason
     from pydantic_ai.models import Model
     from pydantic_ai.models.anthropic import AnthropicModelSettings
     from pydantic_ai.models.bedrock import (
@@ -78,6 +79,9 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from pydantic_ai.ui.vercel_ai.response_types import (
+        FinishReason as VercelFinishReason,
+    )
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
@@ -102,6 +106,21 @@ class BaseModelSettings:
 
 
 ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
+
+
+def _structured_completion_finish_reason(
+    finish_reason: PydanticFinishReason | None,
+) -> VercelFinishReason:
+    match finish_reason:
+        case "stop" | "length" | "error":
+            return finish_reason
+        case None:
+            return "stop"
+        case "content_filter":
+            return "content-filter"
+        case "tool_call":
+            # A structured-output tool call is the successful final result.
+            return "stop"
 
 
 class PydanticProvider(ABC, Generic[ProviderT]):
@@ -262,7 +281,11 @@ class PydanticProvider(ABC, Generic[ProviderT]):
                     )
 
             yield FinishStepChunk()
-            yield FinishChunk(finish_reason="stop")
+            yield FinishChunk(
+                finish_reason=_structured_completion_finish_reason(
+                    result.response.finish_reason
+                )
+            )
             yield DoneChunk()
 
         async def safe_completion_events() -> AsyncIterator[BaseChunk]:
@@ -272,6 +295,7 @@ class PydanticProvider(ABC, Generic[ProviderT]):
                 ):
                     yield event
             except Exception as error:
+                LOGGER.exception("Structured completion failed")
                 yield ErrorChunk(error_text=str(error))
                 yield FinishStepChunk()
                 yield FinishChunk(finish_reason="error")

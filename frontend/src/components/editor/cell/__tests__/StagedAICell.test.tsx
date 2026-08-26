@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import {
   stagedAICellsAtom,
-  stagedGenerationStatusAtom,
+  stagedGenerationInProgressAtom,
 } from "@/core/ai/staged-cells";
 import { StagedAICellFooter } from "../StagedAICell";
 
@@ -34,7 +34,7 @@ describe("StagedAICellFooter", () => {
       stagedAICellsAtom,
       new Map([[generatedCellId, { type: "add_cell" }]]),
     );
-    store.set(stagedGenerationStatusAtom, "streaming");
+    store.set(stagedGenerationInProgressAtom, true);
 
     const { rerender } = render(
       <Provider store={store}>
@@ -45,7 +45,7 @@ describe("StagedAICellFooter", () => {
     expect(screen.getByRole("button", { name: "Accept" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
 
-    store.set(stagedGenerationStatusAtom, "complete");
+    store.set(stagedGenerationInProgressAtom, false);
     rerender(
       <Provider store={store}>
         <StagedAICellFooter cellId={generatedCellId} />

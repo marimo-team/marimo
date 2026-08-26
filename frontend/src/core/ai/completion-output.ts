@@ -20,11 +20,11 @@ export const cellCompletionSchema = z.object({
 
 export const generatedCellSchema = z.object({
   language: z.enum(["python", "sql", "markdown"]),
-  code: z.string(),
+  code: z.string().min(1),
 });
 
 export const notebookCellsCompletionSchema = z.object({
-  cells: z.array(generatedCellSchema),
+  cells: z.array(generatedCellSchema).min(1),
 });
 
 export type CellCompletion = z.infer<typeof cellCompletionSchema>;
@@ -33,6 +33,8 @@ export type NotebookCellsCompletion = z.infer<
   typeof notebookCellsCompletionSchema
 >;
 
+// Keep parsing data parts explicitly at the SSE boundary. AI SDK 7.0.37 types
+// schema keys without `data-`, but its runtime lookup uses the full wire type.
 const completionDataSchemas = {
   [CELL_COMPLETION_DATA_PART]: cellCompletionSchema,
   [NOTEBOOK_CELLS_COMPLETION_DATA_PART]: notebookCellsCompletionSchema,

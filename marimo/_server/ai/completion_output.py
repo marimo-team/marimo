@@ -20,10 +20,13 @@ class GeneratedCell(BaseModel):
     """A notebook cell generated from the user's request."""
 
     language: Language
-    code: str = Field(description="Raw cell code without Markdown fences.")
+    code: str = Field(
+        min_length=1,
+        description="Raw cell code without Markdown fences.",
+    )
 
 
 class NotebookCellsCompletion(BaseModel):
     """The ordered notebook cells generated from the user's request."""
 
-    cells: list[GeneratedCell]
+    cells: list[GeneratedCell] = Field(min_length=1)

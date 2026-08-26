@@ -24,8 +24,9 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { DefaultChatTransport } from "ai";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
@@ -51,10 +52,7 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
-import {
-  type CompletionUIMessage,
-  isDataChunk,
-} from "@/core/ai/completion-output";
+import type { CompletionUIMessage } from "@/core/ai/completion-output";
 import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { aiAtom } from "@/core/config/config";
@@ -73,7 +71,6 @@ import {
   CONTEXT_TRIGGER,
   mentionsCompletionSource,
 } from "./completion-utils";
-import { StreamingChunkTransport } from "./transport/chat-transport";
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -95,8 +92,13 @@ export const AddCellWithAI: React.FC<{
   const store = useStore();
   const [input, setInput] = useState("");
 
-  const { deleteAllStagedCells, clearStagedCells, onStream, onData } =
-    useStagedCells(store);
+  const {
+    beginStagedCellGeneration,
+    clearStagedCells,
+    deleteAllStagedCells,
+    finishStagedCellGeneration,
+    onData,
+  } = useStagedCells(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
 
@@ -107,58 +109,65 @@ export const AddCellWithAI: React.FC<{
   const { files, addFiles, removeFile } = useFileState();
   const aiConfig = useAtomValue(aiAtom);
 
-  const {
-    sendMessage,
-    stop: stopChat,
-    status,
-  } = useChat<CompletionUIMessage>({
-    throttle: AI_SDK_UI_THROTTLE_MS,
-    transport: new StreamingChunkTransport<CompletionUIMessage>(
-      {
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<CompletionUIMessage>({
         api: runtimeManager.getAiURL("completion").toString(),
         headers: () => runtimeManager.headers(),
         prepareSendMessagesRequest: async (options) => {
           const completionBody = await buildCompletionRequestBody(
             options.messages,
           );
-          const body: AiCompletionRequest = {
-            ...options,
+          const body = {
             ...completionBody,
             code: "",
             prompt: "", // Don't need prompt since we are using messages
             language: language,
-          };
+          } satisfies AiCompletionRequest;
 
           return {
             api: runtimeManager.getAiURL("completion").toString(),
             body: body,
           };
         },
-      },
-      (chunk) => {
-        // useChat sends data parts to onData, where completion payloads are
-        // validated and applied. Keep onStream for lifecycle events only.
-        if (!isDataChunk(chunk)) {
-          onStream(chunk);
-        }
-      },
-    ),
+      }),
+    [language, runtimeManager],
+  );
+
+  const {
+    sendMessage,
+    stop: stopChat,
+    status,
+  } = useChat<CompletionUIMessage>({
+    throttle: AI_SDK_UI_THROTTLE_MS,
+    transport,
     onData,
     onError: (error) => {
-      deleteAllStagedCells();
+      finishStagedCellGeneration(false);
       toast({
         title: "Generate with AI failed",
         description: prettyError(error),
       });
+    },
+    onFinish: ({ isAbort, isDisconnect, isError, finishReason }) => {
+      finishStagedCellGeneration(
+        !isAbort && !isDisconnect && !isError && finishReason === "stop",
+      );
     },
   });
 
   const isLoading = status === "streaming" || status === "submitted";
   const hasCompletion = stagedAICells.size > 0;
   const stop = useEvent(() => {
-    deleteAllStagedCells();
+    finishStagedCellGeneration(false);
     void stopChat();
   });
+
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   const currentModel = aiConfig?.models?.edit_model || DEFAULT_AI_MODEL;
   const currentProvider = AiModelId.parse(currentModel).providerId;
@@ -174,7 +183,8 @@ export const AddCellWithAI: React.FC<{
       deleteAllStagedCells();
 
       const fileParts = files ? await convertToFileUIPart(files) : undefined;
-      sendMessage({ text: input, files: fileParts });
+      beginStagedCellGeneration();
+      void sendMessage({ text: input, files: fileParts });
     }
   };
 

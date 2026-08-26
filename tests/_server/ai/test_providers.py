@@ -8,6 +8,7 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
@@ -30,10 +31,44 @@ from marimo._server.ai.providers import (
     StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
+    _structured_completion_finish_reason,
     get_completion_provider,
 )
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import SpanInfo
+
+
+@pytest.mark.parametrize(
+    ("pydantic_reason", "vercel_reason"),
+    [
+        ("stop", "stop"),
+        ("length", "length"),
+        ("content_filter", "content-filter"),
+        ("tool_call", "stop"),
+        ("error", "error"),
+        (None, "stop"),
+    ],
+)
+def test_structured_completion_finish_reason(
+    pydantic_reason: Any, vercel_reason: Any
+) -> None:
+    assert (
+        _structured_completion_finish_reason(pydantic_reason) == vercel_reason
+    )
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        pytest.param([], id="no-cells"),
+        pytest.param([{"language": "python", "code": ""}], id="empty-code"),
+    ],
+)
+def test_notebook_cells_completion_requires_content(
+    cells: list[dict[str, str]],
+) -> None:
+    with pytest.raises(ValidationError):
+        NotebookCellsCompletion.model_validate({"cells": cells})
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -226,7 +261,10 @@ async def test_stream_structured_completion_reports_final_validation_error() -> 
     config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
     provider = OpenAIProvider("gpt-4", config)
 
-    with patch.object(provider, "create_model", return_value=model):
+    with (
+        patch.object(provider, "create_model", return_value=model),
+        patch("marimo._server.ai.providers.LOGGER.exception") as log_exception,
+    ):
         response = await provider.stream_structured_completion(
             messages=[
                 {
@@ -244,14 +282,15 @@ async def test_stream_structured_completion_reports_final_validation_error() -> 
             ),
         )
 
-    chunks = [chunk async for chunk in response.body_iterator]
-    body = "".join(
-        chunk.decode() if isinstance(chunk, bytes) else chunk
-        for chunk in chunks
-    )
+        chunks = [chunk async for chunk in response.body_iterator]
+        body = "".join(
+            chunk.decode() if isinstance(chunk, bytes) else chunk
+            for chunk in chunks
+        )
     assert '"code":"partial"' in body
     assert '"type":"error"' in body
     assert '"finishReason":"error"' in body
+    log_exception.assert_called_once_with("Structured completion failed")
 
 
 @pytest.mark.parametrize(

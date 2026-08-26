@@ -95,7 +95,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
   children,
 }) => {
   const [showInputPrompt, setShowInputPrompt] = useState(false);
-  const [completionBody, setCompletionBody] = useState<object>({});
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
@@ -149,6 +148,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
         description: prettyError(error),
       });
     },
+    onFinish: ({ isAbort, isDisconnect, isError, finishReason }) => {
+      if (isAbort || isDisconnect || isError || finishReason !== "stop") {
+        setCompletion("");
+      }
+    },
   });
   const isLoading = status === "submitted" || status === "streaming";
 
@@ -162,22 +166,17 @@ export const AiCompletionEditor: React.FC<Props> = ({
       await stopChat();
       setCompletion("");
 
-      const contextBody =
-        Object.keys(completionBody).length > 0
-          ? completionBody
-          : getAICompletionBody({ input: prompt });
-      const body: AiCompletionRequest = {
-        ...contextBody,
+      const body = {
+        ...getAICompletionBody({ input: prompt }),
         prompt,
         includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
         code: currentCode,
         language: currentLanguageAdapter ?? "python",
-      };
+      } satisfies AiCompletionRequest;
 
       await sendMessage({ text: prompt }, { body });
     },
     [
-      completionBody,
       currentCode,
       currentLanguageAdapter,
       includeOtherCells,
@@ -237,7 +236,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
   // Reject discards the suggestion but keeps the prompt open for refinement.
   const handleDeclineCompletion = () => {
     stop();
-    setCompletion("");
     setShowInputPrompt(true);
     inputRef.current?.view?.focus();
   };
@@ -344,13 +342,9 @@ export const AiCompletionEditor: React.FC<Props> = ({
               onClose={() => {
                 stop();
                 declineChange();
-                setCompletion("");
               }}
               value={input}
-              onChange={(newValue) => {
-                setInput(newValue);
-                setCompletionBody(getAICompletionBody({ input: newValue }));
-              }}
+              onChange={setInput}
               onSubmit={() => {
                 if (!isLoading) {
                   if (inputRef.current?.view) {
@@ -422,7 +416,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
               onClick={() => {
                 stop();
                 declineChange();
-                setCompletion("");
               }}
             >
               <XIcon className="text-(--red-10)" size={16} />

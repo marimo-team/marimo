@@ -1,16 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import type { UIMessageChunk } from "ai";
 import { useRef } from "react";
 import { useDeleteCellCallback } from "@/components/editor/cell/useDeleteCell";
 import { CellId } from "@/core/cells/ids";
-import { logNever } from "@/utils/assertNever";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
 import {
   type CompletionDataPart,
-  isDataChunk,
   NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
   type GeneratedCell,
   notebookCellsCompletionSchema,
@@ -21,7 +18,6 @@ import {
   getCellEditorView,
   useCellActions,
 } from "../cells/cells";
-import type { LanguageAdapterType } from "../codemirror/language/types";
 import { updateEditorCodeFromPython } from "../codemirror/language/utils";
 import type { JotaiStore } from "../state/jotai";
 import type { EditType } from "./tools/edit-notebook-tool";
@@ -39,9 +35,8 @@ export type Edit =
   | { type: Extract<EditType, "delete_cell">; previousCode: string };
 
 export type StagedAICells = Map<CellId, Edit>;
-export type StagedGenerationStatus = "idle" | "streaming" | "complete";
 
-export const stagedGenerationStatusAtom = atom<StagedGenerationStatus>("idle");
+export const stagedGenerationInProgressAtom = atom(false);
 
 const initialState = (): StagedAICells => {
   return new Map();
@@ -76,7 +71,6 @@ export {
 interface UpdateStagedCellAction {
   cellId: CellId;
   code: string;
-  language?: LanguageAdapterType;
 }
 
 /**
@@ -91,11 +85,11 @@ export function useStagedCells(store: JotaiStore) {
   const { createNewCell, updateCellCode } = useCellActions();
   const deleteCellCallback = useDeleteCellCallback();
 
-  const cellCreationStream = useRef<CellCreationStream | null>(null);
+  const stagedCellReconciler = useRef<StagedCellReconciler | null>(null);
 
   const clearStagedCells = () => {
     clearStagedCellsState();
-    store.set(stagedGenerationStatusAtom, "idle");
+    store.set(stagedGenerationInProgressAtom, false);
   };
 
   const createStagedCell = (code: string): CellId => {
@@ -142,92 +136,39 @@ export function useStagedCells(store: JotaiStore) {
       deleteCellCallback({ cellId });
     }
     clearStagedCellsState();
-    store.set(stagedGenerationStatusAtom, "idle");
+    store.set(stagedGenerationInProgressAtom, false);
   };
 
-  const onStream = (chunk: UIMessageChunk) => {
-    switch (chunk.type) {
-      case "start":
-        store.set(stagedGenerationStatusAtom, "streaming");
-        cellCreationStream.current = new CellCreationStream({
-          createStagedCell,
-          updateStagedCell,
-          deleteStagedCell,
-          addStagedCell,
-          createNewCell,
-        });
-        break;
-      case "text-start":
-      case "text-delta":
-        // The validated data part is authoritative; text may contain the
-        // provider's native or prompted structured-output representation.
-        break;
-      case "text-end":
-        break;
-      case "finish":
-        if (chunk.finishReason === "stop") {
-          store.set(stagedGenerationStatusAtom, "complete");
-        } else {
-          deleteAllStagedCells();
-        }
-        cellCreationStream.current = null;
-        break;
-      case "abort":
-      case "error":
-        deleteAllStagedCells();
-        cellCreationStream.current = null;
-        Logger.error("Error", chunk.type, { chunk });
-        break;
-      case "tool-input-error":
-      case "tool-output-error":
-        Logger.error("Error", chunk.type, { chunk });
-        break;
-      case "tool-approval-request":
-        Logger.log("Tool approval request", { chunk });
-        break;
-      case "tool-output-denied":
-        Logger.error("Tool output denied", { chunk });
-        break;
-      // These logs are not useful for debugging
-      case "start-step":
-      case "finish-step":
-      case "data-reasoning-signature":
-        break;
-      case "message-metadata":
-      case "tool-input-available":
-      case "tool-output-available":
-      case "tool-approval-response":
-      case "reasoning-start":
-      case "reasoning-delta":
-      case "reasoning-end":
-      case "file":
-      case "reasoning-file":
-      case "source-document":
-      case "source-url":
-      case "tool-input-start":
-      case "tool-input-delta":
-      case "custom":
-        Logger.debug(chunk.type, { chunk });
-        break;
-      default:
-        if (isDataChunk(chunk)) {
-          Logger.debug("Data chunk", { chunk });
-          break;
-        }
-        logNever(chunk);
+  const beginStagedCellGeneration = () => {
+    store.set(stagedGenerationInProgressAtom, true);
+    stagedCellReconciler.current = new StagedCellReconciler({
+      createStagedCell,
+      updateStagedCell,
+      deleteStagedCell,
+      addStagedCell,
+      createNewCell,
+    });
+  };
+
+  const finishStagedCellGeneration = (successful: boolean) => {
+    if (successful) {
+      store.set(stagedGenerationInProgressAtom, false);
+    } else {
+      deleteAllStagedCells();
     }
+    stagedCellReconciler.current = null;
   };
 
   const onData = (part: CompletionDataPart) => {
     if (part.type !== NOTEBOOK_CELLS_COMPLETION_DATA_TYPE) {
       return;
     }
-    if (!cellCreationStream.current) {
-      Logger.error("Cell creation stream not found");
+    if (!stagedCellReconciler.current) {
+      Logger.error("Staged cell generation not started");
       return;
     }
     const completion = notebookCellsCompletionSchema.parse(part.data);
-    cellCreationStream.current.update(completion.cells);
+    stagedCellReconciler.current.reconcile(completion.cells);
   };
 
   return {
@@ -238,7 +179,8 @@ export function useStagedCells(store: JotaiStore) {
     clearStagedCells,
     deleteStagedCell,
     deleteAllStagedCells,
-    onStream,
+    beginStagedCellGeneration,
+    finishStagedCellGeneration,
     onData,
   };
 }
@@ -256,7 +198,7 @@ interface CreatedCell {
   cell: GeneratedCell;
 }
 
-interface CellCreationStreamOptions {
+interface StagedCellReconcilerOptions {
   createStagedCell: (code: string) => CellId;
   updateStagedCell: (opts: UpdateStagedCellAction) => void;
   deleteStagedCell: (cellId: CellId) => void;
@@ -264,7 +206,7 @@ interface CellCreationStreamOptions {
   createNewCell: (opts: CreateNewCellAction) => void;
 }
 
-class CellCreationStream {
+class StagedCellReconciler {
   private createdCells: CreatedCell[] = [];
   private onCreateCell: (code: string) => CellId;
   private onUpdateCell: (opts: UpdateStagedCellAction) => void;
@@ -273,7 +215,7 @@ class CellCreationStream {
   private createNewCell: (opts: CreateNewCellAction) => void;
   private marimoImportCellId: CellId | null = null;
 
-  constructor(options: CellCreationStreamOptions) {
+  constructor(options: StagedCellReconcilerOptions) {
     this.onCreateCell = options.createStagedCell;
     this.onUpdateCell = options.updateStagedCell;
     this.onDeleteCell = options.deleteStagedCell;
@@ -281,15 +223,18 @@ class CellCreationStream {
     this.createNewCell = options.createNewCell;
   }
 
-  update(completionCells: GeneratedCell[]) {
+  reconcile(completionCells: GeneratedCell[]) {
     for (const [idx, cell] of completionCells.entries()) {
       if (idx < this.createdCells.length) {
         const existingCell = this.createdCells[idx];
+        const codeChanged = existingCell.cell.code !== cell.code;
         this.createdCells[idx] = { ...existingCell, cell };
+        if (!codeChanged) {
+          continue;
+        }
         this.onUpdateCell({
           cellId: existingCell.cellId,
           code: cell.code,
-          language: cell.language,
         });
       } else {
         const newCellId = this.onCreateCell(cell.code);
