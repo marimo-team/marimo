@@ -143,13 +143,20 @@ def test_apply_edits_backfills_columns_discovered_in_later_rows():
     ]
 
 
-def test_apply_edits_appends_schema_to_empty_row_oriented_data():
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ([], [{"A": 1, "B": None}]),
+        ({}, {"A": [1], "B": [None]}),
+    ],
+)
+def test_apply_edits_appends_schema_to_empty_data(data, expected):
     edits: DataEdits = {
         "edits": [{"rowIdx": 0, "columnId": "A", "value": "1"}]
     }
     schema = nw.Schema({"A": nw.Int64(), "B": nw.String()})
 
-    assert apply_edits([], edits, schema) == [{"A": 1, "B": None}]
+    assert apply_edits(data, edits, schema) == expected
 
 
 def test_apply_edits_extends_row_oriented_data_to_index():
@@ -190,7 +197,11 @@ def test_apply_edits_uses_first_non_null_value_for_conversion():
     assert editor._convert_value(edits) == [{"A": 8}]
 
 
-def test_apply_edits_tracks_schema_rename_without_rows():
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [([], [{"C": 7}]), ({}, {"C": [7]})],
+)
+def test_apply_edits_tracks_schema_rename_without_rows(data, expected):
     schema = nw.Schema({"A": nw.Int64()})
     edits: DataEdits = {
         "edits": [
@@ -199,10 +210,14 @@ def test_apply_edits_tracks_schema_rename_without_rows():
         ]
     }
 
-    assert apply_edits([], edits, schema) == [{"C": 7}]
+    assert apply_edits(data, edits, schema) == expected
 
 
-def test_apply_edits_drops_schema_for_reused_column_name():
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [([], [{"A": "007"}]), ({}, {"A": ["007"]})],
+)
+def test_apply_edits_drops_schema_for_reused_column_name(data, expected):
     schema = nw.Schema({"A": nw.Int64()})
     edits: DataEdits = {
         "edits": [
@@ -212,7 +227,7 @@ def test_apply_edits_drops_schema_for_reused_column_name():
         ]
     }
 
-    assert apply_edits([], edits, schema) == [{"A": "007"}]
+    assert apply_edits(data, edits, schema) == expected
 
 
 def test_apply_edits_tracks_column_changes_without_rows():
@@ -229,6 +244,100 @@ def test_apply_edits_tracks_column_changes_without_rows():
     }
 
     assert apply_edits(data, edits) == [{"D": "x", "B": "b"}]
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        (
+            [{"A": 1, "B": "x"}, {"A": 2, "B": "y"}],
+            [
+                {"C": None, "D": None, "B": None},
+                {"C": None, "D": "v", "B": None},
+                {"C": 7, "D": None, "B": None},
+            ],
+        ),
+        (
+            {"A": [1, 2], "B": ["x", "y"]},
+            {
+                "C": [None, None, 7],
+                "D": [None, "v", None],
+                "B": [None, None, None],
+            },
+        ),
+    ],
+)
+def test_apply_edits_replays_mixed_edits_across_orientations(data, expected):
+    edits: DataEdits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "rename", "newName": "C"},
+            {"columnIdx": 1, "type": "insert", "newName": "D"},
+            {"rowIdx": 2, "columnId": "C", "value": "7"},
+            {"rowIdx": 1, "columnId": "D", "value": "v"},
+        ]
+    }
+    schema = nw.Schema({"A": nw.Int64(), "B": nw.String()})
+
+    assert apply_edits(data, edits, schema) == expected
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        ([{"A": 1}, {"A": 2}], [{"C": None}, {"C": "x"}]),
+        ({"A": [1, 2]}, {"C": [None, "x"]}),
+    ],
+)
+def test_apply_edits_preserves_rows_without_columns(data, expected):
+    edits: DataEdits = {
+        "edits": [
+            {"columnIdx": 0, "type": "remove"},
+            {"columnIdx": 0, "type": "insert", "newName": "C"},
+            {"rowIdx": 1, "columnId": "C", "value": "x"},
+        ]
+    }
+
+    assert apply_edits(data, edits) == expected
+
+
+def test_apply_edits_extends_every_column_to_new_row():
+    data = {"A": [1], "B": ["x"]}
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 2, "columnId": "A", "value": "3"}]
+    }
+
+    assert apply_edits(data, edits) == {
+        "A": [1, None, 3],
+        "B": ["x", None, None],
+    }
+
+
+def test_apply_edits_preserves_sparse_row_shape():
+    data = [{"A": 1}, {"B": 2}]
+    edits: DataEdits = {
+        "edits": [{"rowIdx": 0, "columnId": "A", "value": "3"}]
+    }
+
+    assert apply_edits(data, edits) == [{"A": 3}, {"B": 2}]
+
+
+def test_invalid_edit_does_not_normalize_column_lengths():
+    data = {"A": [1], "B": []}
+    edits: DataEdits = {"edits": [{"columnIdx": 2, "type": "remove"}]}
+
+    with pytest.raises(ValueError, match="Column index 2 is out of bounds"):
+        apply_edits(data, edits)
+
+    assert data == {"A": [1], "B": []}
+
+
+def test_remove_column_preserves_rows_in_ragged_data():
+    data = {"A": [1, 2, 3], "B": ["x"]}
+    edits: DataEdits = {"edits": [{"columnIdx": 0, "type": "remove"}]}
+
+    assert apply_edits(data, edits) == {"B": ["x", None, None]}
 
 
 @pytest.mark.skipif(

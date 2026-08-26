@@ -103,20 +103,20 @@ ColumnOrientedData = dict[str, list[Any]]
 
 
 @dataclass
-class _RowEditState:
-    column_order: list[str]
-    column_set: set[str]
-    original_values: dict[str, Any]
+class _EditableTable:
+    data: RowOrientedData | ColumnOrientedData
+    column_names: list[str]
+    row_count: int
+    representative_values: dict[str, Any]
     dtypes: dict[str, DType]
 
     @classmethod
-    def from_data(
+    def from_rows(
         cls,
         data: RowOrientedData,
         schema: nw.Schema | None,
         column_names: Sequence[str] | None,
-    ) -> _RowEditState:
-        has_explicit_columns = column_names is not None or schema is not None
+    ) -> _EditableTable:
         if column_names is not None:
             column_order = list(column_names)
         elif schema is not None:
@@ -125,65 +125,187 @@ class _RowEditState:
             column_order = []
 
         column_set = set(column_order)
-        original_values: dict[str, Any] = {}
-        missing_values = set(column_order) if has_explicit_columns else set()
+        representative_values: dict[str, Any] = {}
         for row in data:
             for column, value in row.items():
-                if not has_explicit_columns and column not in column_set:
+                if column not in column_set:
                     column_order.append(column)
                     column_set.add(column)
-                if (
-                    column in column_set
-                    and value is not None
-                    and column not in original_values
-                ):
-                    original_values[column] = value
-                    missing_values.discard(column)
-            if has_explicit_columns and not missing_values:
-                break
+                if value is not None and column not in representative_values:
+                    representative_values[column] = value
 
         dtypes = dict(schema.items()) if schema is not None else {}
-        return cls(column_order, column_set, original_values, dtypes)
-
-    def add_column(self, data: RowOrientedData, column: str) -> None:
-        if column in self.column_set:
-            return
-        self.column_order.append(column)
-        self.column_set.add(column)
-        for row in data:
-            row.setdefault(column, None)
-
-    def insert_column(self, index: int, column: str) -> None:
-        self.column_order.insert(index, column)
-        self.column_set.add(column)
-        self.original_values[column] = None
-        self.dtypes.pop(column, None)
-
-    def remove_column(self, index: int) -> str:
-        column = self.column_order.pop(index)
-        self.column_set.discard(column)
-        self.original_values.pop(column, None)
-        self.dtypes.pop(column, None)
-        return column
-
-    def rename_column(self, index: int, new_name: str) -> str:
-        old_name = self.column_order[index]
-        if old_name == new_name:
-            return old_name
-        self.column_order[index] = new_name
-        self.column_set.discard(old_name)
-        self.column_set.add(new_name)
-        self.original_values[new_name] = self.original_values.pop(
-            old_name, None
+        return cls(
+            data, column_order, len(data), representative_values, dtypes
         )
-        self.dtypes.pop(new_name, None)
+
+    @classmethod
+    def from_columns(
+        cls,
+        data: ColumnOrientedData,
+        schema: nw.Schema | None,
+    ) -> _EditableTable:
+        column_order = list(data)
+        if schema is not None:
+            column_order.extend(
+                column for column in schema if column not in data
+            )
+        representative_values = {
+            column: next(
+                (value for value in data.get(column, []) if value is not None),
+                None,
+            )
+            for column in column_order
+        }
+        dtypes = dict(schema.items()) if schema is not None else {}
+        row_count = max((len(values) for values in data.values()), default=0)
+        return cls(
+            data, column_order, row_count, representative_values, dtypes
+        )
+
+    def apply(self, edits: DataEdits) -> None:
+        for edit in edits["edits"]:
+            if is_positional_edit(edit):
+                self._apply_positional_edit(edit)
+            elif is_row_edit(edit):
+                self._apply_row_edit(edit)
+            elif is_column_edit(edit):
+                self._apply_column_edit(edit)
+
+    def _materialize_columns(self) -> None:
+        if isinstance(self.data, list):
+            return
+        for column in self.column_names:
+            values = self.data.setdefault(column, [])
+            values.extend([None] * (self.row_count - len(values)))
+
+    def _apply_positional_edit(self, edit: PositionalEdit) -> None:
+        column_id = edit["columnId"]
+        if column_id not in self.column_names:
+            self.column_names.append(column_id)
+            self.representative_values[column_id] = None
+            if isinstance(self.data, list):
+                for row in self.data:
+                    row[column_id] = None
+        if isinstance(self.data, dict) and column_id not in self.data:
+            self.data[column_id] = [None] * self.row_count
+        self._materialize_columns()
+
+        row_idx = edit["rowIdx"]
+        if row_idx >= self.row_count:
+            new_row_count = row_idx + 1
+            if isinstance(self.data, list):
+                self.data.extend(
+                    dict.fromkeys(self.column_names)
+                    for _ in range(new_row_count - self.row_count)
+                )
+            else:
+                for values in self.data.values():
+                    values.extend([None] * (new_row_count - len(values)))
+            self.row_count = new_row_count
+
+        converted_value = _convert_value(
+            edit["value"],
+            self.representative_values.get(column_id),
+            self.dtypes.get(column_id),
+        )
+        if isinstance(self.data, list):
+            self.data[row_idx][column_id] = converted_value
+        else:
+            values = self.data[column_id]
+            values.extend([None] * (row_idx - len(values) + 1))
+            values[row_idx] = converted_value
+
+    def _apply_row_edit(self, edit: RowEdit) -> None:
+        row_idx = edit["rowIdx"]
+        if edit["type"] != "remove" or not _is_valid_index(
+            row_idx, self.row_count
+        ):
+            return
+        if isinstance(self.data, list):
+            self.data.pop(row_idx)
+        else:
+            for values in self.data.values():
+                if row_idx < len(values):
+                    values.pop(row_idx)
+        self.row_count -= 1
+
+    def _apply_column_edit(self, edit: ColumnEdit) -> None:
+        new_column_name = edit.get("newName")
+        _validate_column_edit(edit, len(self.column_names), new_column_name)
+
+        column_idx = edit["columnIdx"]
+        edit_type = edit["type"]
+        if edit_type == "insert":
+            assert new_column_name is not None
+            if new_column_name in self.column_names:
+                raise ValueError(f"Column {new_column_name} already exists")
+
+            self._materialize_columns()
+            self.column_names.insert(column_idx, new_column_name)
+            if isinstance(self.data, list):
+                for row_idx, row in enumerate(self.data):
+                    self.data[row_idx] = {
+                        column: None
+                        if column == new_column_name
+                        else row[column]
+                        for column in self.column_names
+                        if column == new_column_name or column in row
+                    }
+            else:
+                items = list(self.data.items())
+                items.insert(
+                    column_idx,
+                    (new_column_name, [None] * self.row_count),
+                )
+                self.data.clear()
+                self.data.update(items)
+            self.representative_values[new_column_name] = None
+            self.dtypes.pop(new_column_name, None)
+            return
+
+        old_name = self.column_names[column_idx]
+        if edit_type == "remove":
+            self._materialize_columns()
+            self.column_names.pop(column_idx)
+            if isinstance(self.data, list):
+                for row in self.data:
+                    row.pop(old_name, None)
+            else:
+                self.data.pop(old_name, None)
+            self.representative_values.pop(old_name, None)
+            self.dtypes.pop(old_name, None)
+            return
+
+        assert edit_type == "rename"
+        assert new_column_name is not None
+        if old_name == new_column_name:
+            return
+        if new_column_name in self.column_names:
+            raise ValueError(f"Column {new_column_name} already exists")
+
+        self._materialize_columns()
+        self.column_names[column_idx] = new_column_name
+        if isinstance(self.data, list):
+            for row_idx, row in enumerate(self.data):
+                self.data[row_idx] = {
+                    new_column_name if column == old_name else column: value
+                    for column, value in row.items()
+                }
+        else:
+            renamed_columns = {
+                new_column_name if column == old_name else column: values
+                for column, values in self.data.items()
+            }
+            self.data.clear()
+            self.data.update(renamed_columns)
+        self.representative_values[new_column_name] = (
+            self.representative_values.pop(old_name, None)
+        )
+        self.dtypes.pop(new_column_name, None)
         dtype = self.dtypes.pop(old_name, None)
         if dtype is not None:
-            self.dtypes[new_name] = dtype
-        return old_name
-
-    def empty_row(self) -> dict[str, Any]:
-        return dict.fromkeys(self.column_order)
+            self.dtypes[new_column_name] = dtype
 
 
 @deprecated(
@@ -347,14 +469,18 @@ def apply_edits(
 ) -> RowOrientedData | ColumnOrientedData | IntoDataFrame:
     if len(edits["edits"]) == 0:
         return data
-    # If row-oriented, apply edits to the data
     if isinstance(data, list):
-        return _apply_edits_row_oriented(
-            data, edits, schema, column_names=column_names
+        table = _EditableTable.from_rows(
+            data,
+            schema,
+            column_names,
         )
-    # If column-oriented, apply edits to the data
+        table.apply(edits)
+        return data
     elif isinstance(data, dict):
-        return _apply_edits_column_oriented(data, edits, schema)
+        table = _EditableTable.from_columns(data, schema)
+        table.apply(edits)
+        return data
 
     try:
         return _apply_edits_dataframe(data, edits, schema)
@@ -362,42 +488,6 @@ def apply_edits(
         raise ValueError(
             f"Data editor does not support this type of data: {type(data)}"
         ) from e
-
-
-def _apply_edits_column_oriented(
-    data: ColumnOrientedData,
-    edits: DataEdits,
-    schema: nw.Schema | None = None,
-) -> ColumnOrientedData:
-    for edit in edits["edits"]:
-        if is_positional_edit(edit):
-            _apply_positional_edit_column_oriented(data, edit, schema)
-        elif is_row_edit(edit):
-            _apply_row_edit_column_oriented(data, edit)
-        elif is_column_edit(edit):
-            _apply_column_edit_column_oriented(data, edit)
-
-    return data
-
-
-def _apply_edits_row_oriented(
-    data: RowOrientedData,
-    edits: DataEdits,
-    schema: nw.Schema | None = None,
-    *,
-    column_names: Sequence[str] | None = None,
-) -> RowOrientedData:
-    state = _RowEditState.from_data(data, schema, column_names)
-
-    for edit in edits["edits"]:
-        if is_positional_edit(edit):
-            _apply_positional_edit_row_oriented(data, edit, state)
-        elif is_row_edit(edit):
-            _apply_row_edit_row_oriented(data, edit)
-        elif is_column_edit(edit):
-            _apply_column_edit_row_oriented(data, edit, state)
-
-    return data
 
 
 def _apply_edits_dataframe(
@@ -408,9 +498,10 @@ def _apply_edits_dataframe(
     schema = schema or cast(nw.Schema, df.schema)
 
     # TODO: We should try to find more performant methods of bulk edits for dataframes
-    new_data = _apply_edits_column_oriented(column_oriented, edits, schema)
+    table = _EditableTable.from_columns(column_oriented, schema)
+    table.apply(edits)
     new_native_df = nw.from_dict(
-        new_data, backend=nw.get_native_namespace(df)
+        column_oriented, backend=nw.get_native_namespace(df)
     ).to_native()
     return new_native_df  # type: ignore[no-any-return]
 
@@ -527,187 +618,23 @@ def is_column_edit(
     return "columnIdx" in edit and "type" in edit
 
 
-def _apply_positional_edit_column_oriented(
-    data: ColumnOrientedData,
-    edit: PositionalEdit,
-    schema: nw.Schema | None = None,
-) -> None:
-    """Apply a positional edit to column-oriented data."""
-    column = data[edit["columnId"]]
-    if edit["rowIdx"] >= len(column):
-        # Extend the column with None values up to the new row index
-        column.extend([None] * (edit["rowIdx"] - len(column) + 1))
-    dtype = schema.get(edit["columnId"]) if schema else None
-    column[edit["rowIdx"]] = _convert_value(
-        edit["value"], column[0] if column else None, dtype
-    )
-
-
-def _apply_positional_edit_row_oriented(
-    data: RowOrientedData,
-    edit: PositionalEdit,
-    state: _RowEditState,
-) -> None:
-    """Apply a positional edit to row-oriented data."""
-    column_id = edit["columnId"]
-    state.add_column(data, column_id)
-
-    row_idx = edit["rowIdx"]
-    if row_idx >= len(data):
-        data.extend(state.empty_row() for _ in range(row_idx - len(data) + 1))
-
-    data[row_idx][column_id] = _convert_value(
-        edit["value"],
-        state.original_values.get(column_id),
-        state.dtypes.get(column_id),
-    )
-
-
-def _apply_row_edit_column_oriented(
-    data: ColumnOrientedData,
-    edit: RowEdit,
-) -> None:
-    """Apply a row edit to column-oriented data."""
-    if edit["type"] == "remove":
-        rowIdx = edit["rowIdx"]
-        for column in data.values():
-            if not _is_valid_index(rowIdx, len(column)):
-                continue
-            del column[rowIdx]
-
-
-def _apply_row_edit_row_oriented(
-    data: RowOrientedData,
-    edit: RowEdit,
-) -> None:
-    """Apply a row edit to row-oriented data."""
-    rowIdx = edit["rowIdx"]
-    if not _is_valid_index(rowIdx, len(data)):
-        return
-    if edit["type"] == "remove":
-        data.pop(rowIdx)
-
-
 def _validate_column_edit(
     edit: ColumnEdit,
-    data_length: int,
+    column_count: int,
     new_column_name: str | None,
 ) -> None:
     """Validate column edit parameters."""
     column_idx = edit["columnIdx"]
     edit_type = edit["type"]
 
-    if column_idx < 0 or column_idx > data_length:
-        raise ValueError(f"Column index {column_idx} is out of bounds")
-
     if edit_type in ("insert", "rename") and new_column_name is None:
         raise ValueError(
             "New column name is required for insert/rename operations"
         )
 
-
-def _apply_column_edit_column_oriented(
-    data: ColumnOrientedData,
-    edit: ColumnEdit,
-) -> None:
-    """Apply a column edit to column-oriented data."""
-    column_order = list(data.keys())
-    new_column_name = edit.get("newName")
-
-    column_idx = edit["columnIdx"]
-    edit_type = edit["type"]
-
-    _validate_column_edit(edit, len(data), new_column_name)
-
-    column_idx = edit["columnIdx"]
-    edit_type = edit["type"]
-
-    if edit_type == "insert":
-        assert new_column_name is not None
-
-        data_length = len(data[column_order[0]]) if column_order else 0
-
-        if column_idx == len(column_order):
-            # Add new column at the end
-            data[new_column_name] = [None] * data_length
-        else:
-            # Insert new column at specific index
-            column_data = data.copy()
-            data.clear()
-            for idx, key in enumerate(column_order):
-                if idx == column_idx:
-                    data[new_column_name] = [None] * data_length
-                data[key] = column_data[key]
-        return
-
-    # Find column by index
-    column_id = None
-    for idx, key in enumerate(column_order):
-        if idx == column_idx:
-            column_id = key
-            break
-
-    if column_id is None:
-        raise ValueError(f"Column index {column_idx} not found")
-
-    if edit_type == "rename":
-        assert new_column_name is not None
-
-        column_data = data.copy()
-        data.clear()
-        for key in column_order:
-            if key == column_id:
-                data[new_column_name] = column_data[key]
-            else:
-                data[key] = column_data[key]
-    elif edit_type == "remove":
-        del data[column_id]
-
-
-def _apply_column_edit_row_oriented(
-    data: RowOrientedData,
-    edit: ColumnEdit,
-    state: _RowEditState,
-) -> None:
-    """Apply a column edit to row-oriented data."""
-    new_column_name = edit.get("newName")
-
-    _validate_column_edit(edit, len(state.column_order) + 1, new_column_name)
-
-    column_idx = edit["columnIdx"]
-    edit_type = edit["type"]
-
-    if edit_type == "insert":
-        assert new_column_name is not None
-        state.insert_column(column_idx, new_column_name)
-
-        for row_idx, row in enumerate(data):
-            new_row = {
-                column: row.get(column, None) for column in state.column_order
-            }
-            data[row_idx] = new_row
-        return
-
-    if column_idx >= len(state.column_order):
-        raise ValueError(f"Column index {column_idx} not found")
-
-    if edit_type == "remove":
-        column_id = state.remove_column(column_idx)
-        for d in data:
-            d.pop(column_id, None)
-    elif edit_type == "rename":
-        assert new_column_name is not None
-        column_id = state.rename_column(column_idx, new_column_name)
-
-        for row in data:
-            new_row = {}
-            for key in row:
-                if key == column_id:
-                    new_row[new_column_name] = row[key]
-                else:
-                    new_row[key] = row[key]
-            row.clear()
-            row.update(new_row)
+    max_index = column_count if edit_type == "insert" else column_count - 1
+    if column_idx < 0 or column_idx > max_index:
+        raise ValueError(f"Column index {column_idx} is out of bounds")
 
 
 def _is_valid_index(index: int, length: int) -> bool:
