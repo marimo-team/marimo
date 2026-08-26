@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from starlette.exceptions import HTTPException
 
 from marimo._config.config import MarimoConfig
 from marimo._server.ai.prompts import (
@@ -34,28 +35,58 @@ HEADERS = {
 }
 
 
+def _custom_provider_config(api_key: str, dotenvs: list[str]) -> MarimoConfig:
+    return MarimoConfig(
+        ai={
+            "models": {"chat_model": "gateway/custom-model"},
+            "custom_providers": {
+                "gateway": {
+                    "api_key": api_key,
+                    "base_url": "https://gateway.example.com/v1",
+                }
+            },
+        },
+        runtime={"dotenv": dotenvs},
+    )
+
+
 def test_get_provider_config_resolves_dotenv(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.delenv("CUSTOM_API_KEY", raising=False)
     env_file = tmp_path / ".env"
     env_file.write_text("CUSTOM_API_KEY=dotenv-key", encoding="utf-8")
-    config = MarimoConfig(
-        ai={
-            "models": {"chat_model": "gateway/custom-model"},
-            "custom_providers": {
-                "gateway": {
-                    "api_key": "env:CUSTOM_API_KEY",
-                    "base_url": "https://gateway.example.com/v1",
-                }
-            },
-        },
-        runtime={"dotenv": [str(env_file)]},
-    )
+    config = _custom_provider_config("env:CUSTOM_API_KEY", [str(env_file)])
 
     provider_config = get_provider_config("gateway/custom-model", config)
 
     assert provider_config.api_key == "dotenv-key"
+
+
+def test_get_provider_config_prefers_environment_over_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("CUSTOM_API_KEY", "environment-key")
+    env_file = tmp_path / ".env"
+    env_file.write_text("CUSTOM_API_KEY=dotenv-key", encoding="utf-8")
+    config = _custom_provider_config("env:CUSTOM_API_KEY", [str(env_file)])
+
+    provider_config = get_provider_config("gateway/custom-model", config)
+
+    assert provider_config.api_key == "environment-key"
+
+
+def test_get_provider_config_rejects_missing_environment_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MISSING_API_KEY", raising=False)
+    config = _custom_provider_config("env:MISSING_API_KEY", [])
+
+    with pytest.raises(HTTPException) as exc_info:
+        get_provider_config("gateway/custom-model", config)
+
+    assert exc_info.value.status_code == 400
+    assert "'MISSING_API_KEY' is not set" in str(exc_info.value.detail)
 
 
 def test_get_provider_config_resolves_default_dotenv_key(
