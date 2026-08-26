@@ -11,6 +11,8 @@ from click.testing import CliRunner
 from marimo._cli.cli import main as cli_main
 from marimo._cli.pair.commands import (
     AgentConfig,
+    _codex_repository_skill_dirs,
+    _codex_skill_dirs,
     _opencode_skill_dirs,
     _plugin_skill_dirs,
     pair_agents,
@@ -146,6 +148,37 @@ class TestPairPrompt:
                 assert result.exit_code == 0, flag
                 assert TEST_URL in result.output, flag
 
+    def test_prompt_handles_skill_permission_error(self) -> None:
+        with patch.object(Path, "exists", side_effect=PermissionError):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "prompt", "--url", TEST_URL, "--codex"],
+            )
+
+        assert result.exit_code == 0
+        assert "could not be found" in result.output
+        assert TEST_URL in result.output
+
+    def test_prompt_finds_codex_user_skill(self, tmp_path: Path) -> None:
+        home = tmp_path / "home"
+        cwd = tmp_path / "project"
+        skill = home / ".agents" / "skills" / "marimo-pair" / "SKILL.md"
+        skill.parent.mkdir(parents=True)
+        skill.write_text("test")
+        cwd.mkdir()
+
+        with (
+            patch.object(Path, "home", return_value=home),
+            patch.object(Path, "cwd", return_value=cwd),
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "prompt", "--url", TEST_URL, "--codex"],
+            )
+
+        assert result.exit_code == 0
+        assert "could not be found" not in result.output
+
 
 class TestPairPromptWithToken:
     def test_with_token_writes_file_and_outputs_prompt(
@@ -265,6 +298,59 @@ class TestOpencodeSkillDirs:
         ]
 
 
+class TestCodexSkillDirs:
+    def test_codex_skill_dirs_include_supported_global_locations(
+        self, tmp_path: Path
+    ) -> None:
+        home = tmp_path / "home"
+        cwd = tmp_path / "project"
+        cwd.mkdir()
+
+        with (
+            patch.object(Path, "home", return_value=home),
+            patch.object(Path, "cwd", return_value=cwd),
+        ):
+            skill_dirs = _codex_skill_dirs()
+
+        assert home / ".agents" / "skills" in skill_dirs
+        assert Path("/etc/codex/skills") in skill_dirs
+
+    def test_codex_repository_skill_dirs_stop_at_repository_root(
+        self, tmp_path: Path
+    ) -> None:
+        repository = tmp_path / "repository"
+        cwd = repository / "packages" / "notebooks"
+        cwd.mkdir(parents=True)
+        (repository / ".git").mkdir()
+
+        assert _codex_repository_skill_dirs(cwd) == [
+            cwd / ".agents" / "skills",
+            cwd.parent / ".agents" / "skills",
+            repository / ".agents" / "skills",
+        ]
+
+    def test_codex_repository_skill_dirs_only_check_cwd_without_repository(
+        self, tmp_path: Path
+    ) -> None:
+        cwd = tmp_path / "notebooks"
+        cwd.mkdir()
+
+        assert _codex_repository_skill_dirs(cwd) == [
+            cwd / ".agents" / "skills"
+        ]
+
+    def test_codex_repository_skill_dirs_stop_on_permission_error(
+        self, tmp_path: Path
+    ) -> None:
+        cwd = tmp_path / "repository" / "notebooks"
+        cwd.mkdir(parents=True)
+
+        with patch.object(Path, "exists", side_effect=PermissionError):
+            assert _codex_repository_skill_dirs(cwd) == [
+                cwd / ".agents" / "skills"
+            ]
+
+
 class TestAgentConfig:
     def test_has_skill_true(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / "skills"
@@ -301,6 +387,15 @@ class TestAgentConfig:
 
         agent = AgentConfig(name="test", skill_dirs=[dir1, dir2])
         assert agent.has_skill() is True
+
+    def test_has_skill_skips_permission_error(self, tmp_path: Path) -> None:
+        agent = AgentConfig(
+            name="test",
+            skill_dirs=[tmp_path / "inaccessible", tmp_path / "installed"],
+        )
+
+        with patch.object(Path, "exists", side_effect=[PermissionError, True]):
+            assert agent.has_skill() is True
 
 
 class TestPluginSkillDirs:
