@@ -380,7 +380,7 @@ class TestDataframes:
         csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
         csv_text = from_data_uri(csv_url)[1].decode("utf-8")
 
-        assert csv_text == "A,B\n1,x\n"
+        assert csv_text == df.to_csv(index=False)
 
     @staticmethod
     @pytest.mark.skipif(

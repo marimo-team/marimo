@@ -307,6 +307,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         {downloadOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
+            aria-label={`Download ${option.label}: ${option.description}`}
             onSelect={() => {
               void handleDownload(option.format);
             }}
@@ -327,6 +328,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         {copyOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
+            aria-label={`Copy ${option.label} to clipboard: ${option.description}`}
             onSelect={async () => {
               try {
                 await handleClipboardCopy(option.format);

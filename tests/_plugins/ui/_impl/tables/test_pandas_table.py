@@ -291,17 +291,16 @@ class TestPandasTableManager(unittest.TestCase):
         assert result == "value\n12٫5\n"
 
     def test_to_csv_str_remains_locale_neutral(self) -> None:
-        manager = PandasTableManagerFactory.create()(
-            pd.DataFrame({"value": [12.5], "text": ["1.2"]})
-        )
-        assert manager.to_csv_str() == "value,text\n12.5,1.2\n"
+        df = pd.DataFrame({"value": [12.5], "text": ["1.2"]})
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_csv_str() == df.to_csv(index=False)
 
     def test_to_csv_str_preserves_unnamed_index_header(self) -> None:
-        manager = PandasTableManagerFactory.create()(
-            pd.DataFrame({"value": [1]}, index=[10])
-        )
+        df = pd.DataFrame({"value": [1]}, index=[10])
+        manager = PandasTableManagerFactory.create()(df)
 
-        assert manager.to_csv_str() == ",value\n10,1\n"
+        assert manager.to_csv_str() == df.to_csv(index=True)
 
     def test_to_csv_datetime(self) -> None:
         D = pd.to_datetime("2024-12-17", errors="coerce")

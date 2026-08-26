@@ -48,7 +48,11 @@ describe("ExportMenu", () => {
     fireEvent.keyDown(screen.getByTestId("export-button"), {
       key: "ArrowDown",
     });
-    fireEvent.click((await screen.findAllByText("CSV"))[0]);
+    fireEvent.click(
+      await screen.findByRole("menuitem", {
+        name: "Download CSV: Comma-separated values",
+      }),
+    );
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith({
