@@ -7,18 +7,24 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._config.config import MarimoConfig
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
     FIM_SUFFIX_TAG,
 )
 from marimo._server.ai.tools.types import ToolCallResult
-from marimo._server.api.endpoints.ai import resolve_completion_messages
+from marimo._server.api.endpoints.ai import (
+    get_provider_config,
+    resolve_completion_messages,
+)
 from marimo._server.models.completion import AiCompletionRequest
 from tests._server.conftest import get_session_config_manager
 from tests._server.mocks import token_header, with_session
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from starlette.testclient import TestClient
 
 SESSION_ID = "session-123"
@@ -26,6 +32,46 @@ HEADERS = {
     "Marimo-Session-Id": SESSION_ID,
     **token_header("fake-token"),
 }
+
+
+def test_get_provider_config_resolves_dotenv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CUSTOM_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("CUSTOM_API_KEY=dotenv-key", encoding="utf-8")
+    config = MarimoConfig(
+        ai={
+            "models": {"chat_model": "gateway/custom-model"},
+            "custom_providers": {
+                "gateway": {
+                    "api_key": "env:CUSTOM_API_KEY",
+                    "base_url": "https://gateway.example.com/v1",
+                }
+            },
+        },
+        runtime={"dotenv": [str(env_file)]},
+    )
+
+    provider_config = get_provider_config("gateway/custom-model", config)
+
+    assert provider_config.api_key == "dotenv-key"
+
+
+def test_get_provider_config_resolves_default_dotenv_key(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    env_file = tmp_path / ".env"
+    env_file.write_text("OPENAI_API_KEY=dotenv-key", encoding="utf-8")
+    config = MarimoConfig(
+        ai={"open_ai": {}},
+        runtime={"dotenv": [str(env_file)]},
+    )
+
+    provider_config = get_provider_config("openai/gpt-4o", config)
+
+    assert provider_config.api_key == "dotenv-key"
 
 
 # Anthropic

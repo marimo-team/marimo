@@ -14,6 +14,7 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
+from marimo._secrets.secrets import get_secret_value
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -100,6 +101,14 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
     return ai_config
 
 
+def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
+    return AnyProviderConfig.for_model(
+        model,
+        get_ai_config(config),
+        secret_resolver=lambda key: get_secret_value(key, config),
+    )
+
+
 @router.post("/completion")
 @requires("edit")
 async def ai_completion(
@@ -154,7 +163,7 @@ async def ai_completion(
 
     model = get_edit_model(ai_config)
     provider = get_completion_provider(
-        AnyProviderConfig.for_model(model, ai_config),
+        get_provider_config(model, config),
         model=model,
     )
 
@@ -219,7 +228,7 @@ async def ai_chat(
 
     model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
-        AnyProviderConfig.for_model(model, ai_config),
+        get_provider_config(model, config),
         model=model,
     )
     additional_tools = body.tools or []
@@ -301,10 +310,8 @@ async def ai_inline_completion(
     # of 4096, since it is smaller/faster for inline completions
     INLINE_COMPLETION_MAX_TOKENS = 1024
 
-    ai_config = get_ai_config(config)
-
     model = get_autocomplete_model(config)
-    provider_config = AnyProviderConfig.for_model(model, ai_config)
+    provider_config = get_provider_config(model, config)
     # Inline completion never uses tools
     if provider_config.tools:
         provider_config.tools.clear()
