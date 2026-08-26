@@ -175,6 +175,7 @@ export const AddCellWithAI: React.FC<{
     void stopChat();
   });
 
+  // Parent-driven unmounts bypass the close handlers, so cancel in-flight work here.
   useEffect(() => {
     return () => {
       stop();
