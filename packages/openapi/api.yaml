@@ -330,8 +330,8 @@ components:
     BedrockConfig:
       description: "Configuration options for Bedrock.\n\n    **Keys.**\n\n    - `profile_name`:\
         \ the AWS profile to use\n    - `region_name`: the AWS region to use\n   \
-        \ - `aws_access_key_id`: the AWS access key ID or an `env:` reference\n  \
-        \  - `aws_secret_access_key`: the AWS secret access key or an `env:` reference"
+        \ - `aws_access_key_id`: the AWS access key ID\n    - `aws_secret_access_key`:\
+        \ the AWS secret access key"
       properties:
         aws_access_key_id:
           type: string
