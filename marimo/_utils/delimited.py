@@ -5,7 +5,7 @@ import math
 from dataclasses import dataclass
 from decimal import Decimal
 from numbers import Integral, Real
-from typing import Any
+from typing import TypeGuard
 
 
 @dataclass(frozen=True)
@@ -14,7 +14,7 @@ class DelimitedDialect:
     decimal_separator: str
 
 
-def is_delimited_number(value: Any) -> bool:
+def is_delimited_number(value: object) -> TypeGuard[Real | Decimal]:
     if isinstance(value, bool):
         return False
     return isinstance(value, (Integral, Real, Decimal))

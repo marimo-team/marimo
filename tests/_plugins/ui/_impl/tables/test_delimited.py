@@ -1,16 +1,48 @@
 from __future__ import annotations
 
+from decimal import Decimal
+from numbers import Real
+
 import pytest
 
 from marimo._plugins.ui._impl.tables.delimited import (
-    DelimitedDialect,
     ResolvedExportLocale,
     resolve_delimited_dialect,
+)
+from marimo._utils.delimited import (
+    DelimitedDialect,
+    format_delimited_number,
+    is_delimited_number,
 )
 
 
 def locale(tag: str, decimal_separator: str) -> ResolvedExportLocale:
     return ResolvedExportLocale(tag=tag, decimal_separator=decimal_separator)
+
+
+def _format_if_delimited_number(value: object) -> str | None:
+    from typing_extensions import assert_type
+
+    if is_delimited_number(value):
+        assert_type(value, Real | Decimal)
+        return format_delimited_number(value, ",")
+    return None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (1, "1"),
+        (1.25, "1,25"),
+        (Decimal("1.25"), "1,25"),
+        (True, None),
+        ("1.25", None),
+    ],
+)
+def test_delimited_number_narrowing(
+    value: object, expected: str | None
+) -> None:
+    assert _format_if_delimited_number(value) == expected
 
 
 def test_resolve_csv_comma_decimal_uses_semicolon_fields() -> None:

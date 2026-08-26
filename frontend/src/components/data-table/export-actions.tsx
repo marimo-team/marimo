@@ -192,6 +192,15 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
       return null;
     }
 
+    if (response.error) {
+      toast({
+        title: "Export failed",
+        description: response.error,
+        variant: "danger",
+      });
+      return null;
+    }
+
     return {
       url: response.url,
       filename: response.filename,

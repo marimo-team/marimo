@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import functools
 import io
+import json
 from functools import cached_property
 from typing import Any
 
@@ -38,6 +39,32 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+
+        def serialize_sequence_column(
+            column: pl.Series, dtype: pl.List | pl.Array
+        ) -> pl.Series:
+            inner = dtype.inner
+            if not isinstance(inner, (pl.Struct, pl.List, pl.Array)):
+                try:
+                    if isinstance(dtype, pl.List):
+                        return column.cast(pl.List(pl.Utf8)).list.join(",")
+                    if isinstance(dtype, pl.Array):
+                        return column.cast(
+                            pl.Array(pl.Utf8, shape=dtype.shape)
+                        ).arr.join(",")
+                except pl.exceptions.PolarsError:
+                    pass
+
+            return pl.Series(
+                column.name,
+                [
+                    None
+                    if value is None
+                    else json.dumps(value, default=str, separators=(",", ":"))
+                    for value in column.to_list()
+                ],
+                dtype=pl.Utf8,
+            )
 
         class PolarsTableManager(
             NarwhalsTableManager[pl.DataFrame, pl.LazyFrame]
@@ -92,15 +119,9 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         result = result.with_columns(
                             column.struct.json_encode()
                         )
-                    elif isinstance(dtype, pl.List):
+                    elif isinstance(dtype, (pl.List, pl.Array)):
                         result = result.with_columns(
-                            column.cast(pl.List(pl.Utf8)).list.join(",")
-                        )
-                    elif isinstance(dtype, pl.Array):
-                        result = result.with_columns(
-                            column.cast(
-                                pl.Array(pl.Utf8, shape=dtype.shape)
-                            ).arr.join(",")
+                            serialize_sequence_column(column, dtype)
                         )
                     elif isinstance(dtype, pl.Object):
                         result = self._cast_object_to_string(result, column)

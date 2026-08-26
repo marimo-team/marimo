@@ -1,9 +1,65 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it } from "vitest";
-import { buildDownloadAsRequest, sourceFormatForCopy } from "../export-actions";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type React from "react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/components/ui/use-toast";
+import { downloadByURL } from "@/utils/download";
+import {
+  buildDownloadAsRequest,
+  ExportMenu,
+  sourceFormatForCopy,
+} from "../export-actions";
+
+vi.mock("@/components/ui/use-toast", () => ({
+  toast: vi.fn(() => ({ dismiss: vi.fn(), update: vi.fn() })),
+}));
+
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: React.ReactNode }) => children,
+  TooltipProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
+vi.mock("@/utils/download", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/utils/download")>();
+  return { ...actual, downloadByURL: vi.fn() };
+});
 
 const PT_BR_LOCALE = { tag: "pt-BR", decimal_separator: "," };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("ExportMenu", () => {
+  it("stops a download and shows a standalone export error", async () => {
+    const downloadAs = vi.fn().mockResolvedValue({
+      url: "",
+      filename: "",
+      error: "The export locale is invalid.",
+    });
+    render(
+      <TooltipProvider>
+        <ExportMenu downloadAs={downloadAs} />
+      </TooltipProvider>,
+    );
+
+    fireEvent.keyDown(screen.getByTestId("export-button"), {
+      key: "ArrowDown",
+    });
+    fireEvent.click((await screen.findAllByText("CSV"))[0]);
+
+    await waitFor(() => {
+      expect(toast).toHaveBeenCalledWith({
+        title: "Export failed",
+        description: "The export locale is invalid.",
+        variant: "danger",
+      });
+    });
+    expect(downloadByURL).not.toHaveBeenCalled();
+  });
+});
 
 describe("buildDownloadAsRequest", () => {
   it("includes locale for CSV and TSV", () => {

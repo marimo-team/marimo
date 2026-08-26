@@ -214,6 +214,55 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             '"{""value"":1}";1,2;3,4;1d;{\'value\': 2}\n'
         )
 
+    def test_to_delimited_str_normalizes_nested_containers(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "list_struct": pl.Series(
+                        [
+                            [{"a": 1}, {"a": 2}],
+                            [],
+                            None,
+                        ],
+                        dtype=pl.List(pl.Struct({"a": pl.Int64})),
+                    ),
+                    "list_list": pl.Series(
+                        [
+                            [[1, 2], [3]],
+                            [],
+                            None,
+                        ],
+                        dtype=pl.List(pl.List(pl.Int64)),
+                    ),
+                    "array_struct": pl.Series(
+                        [
+                            [{"b": "x"}, {"b": "y"}],
+                            [{"b": "m"}, {"b": "n"}],
+                            None,
+                        ],
+                        dtype=pl.Array(pl.Struct({"b": pl.String}), 2),
+                    ),
+                }
+            )
+        )
+
+        assert manager.to_csv_str() == (
+            "list_struct,list_list,array_struct\n"
+            '"[{""a"":1},{""a"":2}]","[[1,2],[3]]",'
+            '"[{""b"":""x""},{""b"":""y""}]"\n'
+            '[],[],"[{""b"":""m""},{""b"":""n""}]"\n'
+            ",,\n"
+        )
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            "list_struct;list_list;array_struct\n"
+            '"[{""a"":1},{""a"":2}]";[[1,2],[3]];'
+            '"[{""b"":""x""},{""b"":""y""}]"\n'
+            '[];[];"[{""b"":""m""},{""b"":""n""}]"\n'
+            ";;\n"
+        )
+
     def test_to_delimited_str_decimal_and_exponent(self) -> None:
         import polars as pl
 
