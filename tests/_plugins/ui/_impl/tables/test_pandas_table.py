@@ -296,6 +296,13 @@ class TestPandasTableManager(unittest.TestCase):
         )
         assert manager.to_csv_str() == "value,text\n12.5,1.2\n"
 
+    def test_to_csv_str_preserves_unnamed_index_header(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame({"value": [1]}, index=[10])
+        )
+
+        assert manager.to_csv_str() == ",value\n10,1\n"
+
     def test_to_csv_datetime(self) -> None:
         D = pd.to_datetime("2024-12-17", errors="coerce")
 

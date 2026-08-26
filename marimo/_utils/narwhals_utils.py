@@ -11,6 +11,11 @@ import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
 
 from marimo import _loggers
+from marimo._utils.delimited import (
+    DelimitedDialect,
+    format_delimited_number,
+    is_delimited_number,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -93,14 +98,12 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
 def dataframe_to_csv(
     df: IntoFrame,
     separator: str | None = None,
-    dialect: Any | None = None,
+    dialect: DelimitedDialect | None = None,
 ) -> str:
     """
     Convert a dataframe to a CSV string.
 
-    `dialect` is optional and duck-typed as
-    `{field_separator, decimal_separator}` so this utility can stay outside
-    the UI plugin import graph.
+    `dialect` controls the field and decimal separators.
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
@@ -126,11 +129,6 @@ def dataframe_to_csv(
     if decimal_separator == ".":
         writer.writerows(rows)
         return buffer.getvalue()
-
-    from marimo._plugins.ui._impl.tables.delimited import (
-        format_delimited_number,
-        is_delimited_number,
-    )
 
     writer.writerows(
         tuple(

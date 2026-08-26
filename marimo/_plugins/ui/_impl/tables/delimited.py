@@ -1,26 +1,23 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
-from decimal import Decimal
-from numbers import Integral, Real
-from typing import Any, Literal
+from typing import Literal
+
+from marimo._utils.delimited import DelimitedDialect
 
 DownloadFormat = Literal["csv", "tsv"]
 
 _FORBIDDEN_DECIMAL_SEPARATORS = frozenset({"\r", "\n", "\0"})
 
 
+class InvalidExportLocaleError(ValueError):
+    pass
+
+
 @dataclass(frozen=True)
 class ResolvedExportLocale:
     tag: str
-    decimal_separator: str
-
-
-@dataclass(frozen=True)
-class DelimitedDialect:
-    field_separator: str
     decimal_separator: str
 
 
@@ -57,29 +54,13 @@ def resolve_delimited_dialect(
     return DelimitedDialect(field_separator, decimal_separator)
 
 
-def is_delimited_number(value: Any) -> bool:
-    if isinstance(value, bool):
-        return False
-    return isinstance(value, (Integral, Real, Decimal))
-
-
-def format_delimited_number(
-    value: float | Decimal, decimal_separator: str
-) -> str:
-    """Format a numeric value without grouping, using `decimal_separator`."""
-    if isinstance(value, float) and not math.isfinite(value):
-        return str(value)
-    text = str(value)
-    if decimal_separator == ".":
-        return text
-    return text.replace(".", decimal_separator)
-
-
 def _validate_locale(locale: ResolvedExportLocale) -> None:
     if locale.tag == "":
-        raise ValueError("Locale tag must be a non-empty string.")
+        raise InvalidExportLocaleError(
+            "Locale tag must be a non-empty string."
+        )
     separator = locale.decimal_separator
     if len(separator) != 1 or separator in _FORBIDDEN_DECIMAL_SEPARATORS:
-        raise ValueError(
+        raise InvalidExportLocaleError(
             "Decimal separator must be a single Unicode character."
         )

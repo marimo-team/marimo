@@ -18,8 +18,8 @@ from marimo._data.models import (
     DataType,
     ExternalDataType,
 )
-from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import FormatMapping
+from marimo._utils.delimited import DelimitedDialect
 
 if TYPE_CHECKING:
     from marimo._plugins.ui._impl.table import SortArgs
@@ -110,12 +110,6 @@ class TableManager(abc.ABC, Generic[T]):
         dialect: DelimitedDialect,
         format_mapping: FormatMapping | None = None,
     ) -> str:
-        """Serialize using a field and decimal separator.
-
-        The default implementation is locale-neutral: it uses the field
-        separator and leaves decimal points unchanged. Adapters that can
-        format numeric values should override this.
-        """
         return self.to_csv_str(
             format_mapping, separator=dialect.field_separator
         )

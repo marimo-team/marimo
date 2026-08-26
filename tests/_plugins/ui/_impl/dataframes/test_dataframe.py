@@ -373,6 +373,19 @@ class TestDataframes:
     @pytest.mark.skipif(
         not HAS_DEPS, reason="optional dependencies not installed"
     )
+    def test_dataframe_download_empty_csv_separator_uses_default() -> None:
+        df = pd.DataFrame({"A": [1], "B": ["x"]})
+        subject = ui.dataframe(df, download_csv_separator="")
+
+        csv_url = subject._download_as(DownloadAsArgs(format="csv")).url
+        csv_text = from_data_uri(csv_url)[1].decode("utf-8")
+
+        assert csv_text == "A,B\n1,x\n"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
     def test_dataframe_download_csv_follows_pt_br() -> None:
         from marimo._plugins.ui._impl.tables.delimited import (
             ResolvedExportLocale,
@@ -410,6 +423,25 @@ class TestDataframes:
             ).url
         )[1].decode("utf-8")
         assert tsv_text == "value\ttext\n1234,56\tunchanged.1\n"
+
+    @staticmethod
+    @pytest.mark.skipif(
+        not HAS_DEPS, reason="optional dependencies not installed"
+    )
+    def test_dataframe_download_reports_malformed_locale() -> None:
+        from marimo._plugins.ui._impl.tables.delimited import (
+            ResolvedExportLocale,
+        )
+
+        subject = ui.dataframe(pd.DataFrame({"value": [1]}))
+
+        response = subject._download_as(
+            DownloadAsArgs(format="csv", locale=ResolvedExportLocale("", ","))
+        )
+
+        assert response.url == ""
+        assert response.filename == ""
+        assert response.error == "Locale tag must be a non-empty string."
 
     @staticmethod
     @pytest.mark.skipif(

@@ -7,14 +7,12 @@ from functools import cached_property
 from typing import Any
 
 import narwhals.stable.v2 as nw
-from narwhals.exceptions import ComputeError as NarwhalsComputeError
 
 from marimo import _loggers
 from marimo._data.models import (
     ExternalDataType,
 )
 from marimo._output.data.data import sanitize_json_bigint
-from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -25,6 +23,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
+from marimo._utils.delimited import DelimitedDialect
 from marimo._utils.narwhals_utils import dataframe_to_csv
 
 LOGGER = _loggers.marimo_logger()
@@ -86,38 +85,28 @@ class PolarsTableManagerFactory(TableManagerFactory):
                 dialect: DelimitedDialect,
                 format_mapping: FormatMapping | None = None,
             ) -> str:
-                data = self.apply_formatting(format_mapping).collect()
-                try:
-                    return dataframe_to_csv(data, dialect=dialect)
-                except (pl.exceptions.ComputeError, NarwhalsComputeError):
-                    # Likely CSV format does not support nested data or objects
-                    # Try to convert columns to json or strings
-                    result = data
-                    for column in result.get_columns():
-                        dtype = column.dtype
-                        if isinstance(dtype, pl.Struct):
-                            result = result.with_columns(
-                                column.struct.json_encode()
-                            )
-                        elif isinstance(dtype, pl.List):
-                            result = result.with_columns(
-                                column.cast(pl.List(pl.Utf8)).list.join(",")
-                            )
-                        elif isinstance(dtype, pl.Array):
-                            result = result.with_columns(
-                                column.cast(
-                                    pl.Array(pl.Utf8, shape=dtype.shape)
-                                ).arr.join(",")
-                            )
-                        elif isinstance(dtype, pl.Object):
-                            result = self._cast_object_to_string(
-                                result, column
-                            )
-                        elif isinstance(dtype, pl.Duration):
-                            result = self._convert_time_to_string(
-                                result, column
-                            )
-                    return dataframe_to_csv(result, dialect=dialect)
+                result = self.apply_formatting(format_mapping).collect()
+                for column in result.get_columns():
+                    dtype = column.dtype
+                    if isinstance(dtype, pl.Struct):
+                        result = result.with_columns(
+                            column.struct.json_encode()
+                        )
+                    elif isinstance(dtype, pl.List):
+                        result = result.with_columns(
+                            column.cast(pl.List(pl.Utf8)).list.join(",")
+                        )
+                    elif isinstance(dtype, pl.Array):
+                        result = result.with_columns(
+                            column.cast(
+                                pl.Array(pl.Utf8, shape=dtype.shape)
+                            ).arr.join(",")
+                        )
+                    elif isinstance(dtype, pl.Object):
+                        result = self._cast_object_to_string(result, column)
+                    elif isinstance(dtype, pl.Duration):
+                        result = self._convert_time_to_string(result, column)
+                return dataframe_to_csv(result, dialect=dialect)
 
             def to_json_str(
                 self,

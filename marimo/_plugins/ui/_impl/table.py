@@ -41,7 +41,10 @@ from marimo._plugins.ui._impl.dataframes.transforms.types import (
     TransformType,
     validate_operator_for_dtype,
 )
-from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+from marimo._plugins.ui._impl.tables.delimited import (
+    InvalidExportLocaleError,
+    ResolvedExportLocale,
+)
 from marimo._plugins.ui._impl.tables.selection import (
     INDEX_COLUMN_NAME,
     add_selection_column,
@@ -1096,13 +1099,16 @@ class table(
         if isinstance(manager_candidate, TableManager):
             bound_filename = get_bound_name(self._id)
 
-            url, filename = download_as(
-                manager_candidate,
-                args.format,
-                drop_marimo_index=True,
-                filename=bound_filename,
-                locale=args.locale,
-            )
+            try:
+                url, filename = download_as(
+                    manager_candidate,
+                    args.format,
+                    drop_marimo_index=True,
+                    filename=bound_filename,
+                    locale=args.locale,
+                )
+            except InvalidExportLocaleError as error:
+                return DownloadAsResponse(error=str(error))
             return DownloadAsResponse(url=url, filename=filename)
         else:
             raise NotImplementedError(

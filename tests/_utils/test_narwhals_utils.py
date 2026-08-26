@@ -6,7 +6,7 @@ import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
+from marimo._utils.delimited import DelimitedDialect
 from marimo._utils.narwhals_utils import (
     assert_narwhals_dataframe_or_lazyframe,
     assert_narwhals_series,

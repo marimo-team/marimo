@@ -17,7 +17,6 @@ from narwhals.typing import IntoDataFrameT, IntoLazyFrameT
 from marimo import _loggers
 from marimo._data.models import BinValue, ColumnStats, ExternalDataType
 from marimo._output.data.data import sanitize_json_bigint
-from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
@@ -36,6 +35,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableCoordinate,
     TableManager,
 )
+from marimo._utils.delimited import DelimitedDialect
 from marimo._utils.narwhals_utils import (
     can_narwhalify,
     dataframe_to_csv,

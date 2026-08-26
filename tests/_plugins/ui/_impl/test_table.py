@@ -1757,6 +1757,20 @@ def test_table_download_json_stays_locale_neutral() -> None:
     assert "1234,56" not in text
 
 
+def test_table_download_reports_malformed_locale() -> None:
+    from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
+
+    table = ui.table([{"value": 1}])
+
+    response = table._download_as(
+        DownloadAsArgs(format="csv", locale=ResolvedExportLocale("", ","))
+    )
+
+    assert response.url == ""
+    assert response.filename == ""
+    assert response.error == "Locale tag must be a non-empty string."
+
+
 def test_download_as_parquet_without_libs_reports_missing_packages(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

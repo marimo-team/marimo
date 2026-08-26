@@ -190,6 +190,30 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             == 'integer;fraction;text;null\n1234;1234,567890123456;"value.1,2;3";\n'
         )
 
+    def test_to_delimited_str_normalizes_nested_values(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "struct": [{"value": 1}],
+                    "list": [[1, 2]],
+                    "array": pl.Series([[3, 4]], dtype=pl.Array(pl.Int64, 2)),
+                    "duration": [datetime.timedelta(days=1)],
+                    "object": pl.Series(
+                        "object", [{"value": 2}], dtype=pl.Object
+                    ),
+                }
+            )
+        )
+
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+
+        assert (
+            result == "struct;list;array;duration;object\n"
+            '"{""value"":1}";1,2;3,4;1d;{\'value\': 2}\n'
+        )
+
     def test_to_delimited_str_decimal_and_exponent(self) -> None:
         import polars as pl
 

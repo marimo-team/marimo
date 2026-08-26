@@ -133,10 +133,13 @@ def _serialize_delimited(
         manager: TableManager[Any], options: DownloadOptions
     ) -> bytes:
         encoding = options.delimited.encoding or get_default_csv_encoding()
+        explicit_separator = options.delimited.separator or None
+        if download_format == "tsv":
+            explicit_separator = None
         dialect = resolve_delimited_dialect(
             download_format,
             options.locale,
-            options.delimited.separator if download_format == "csv" else None,
+            explicit_separator,
         )
         return manager.to_delimited_str(dialect).encode(encoding)
 
