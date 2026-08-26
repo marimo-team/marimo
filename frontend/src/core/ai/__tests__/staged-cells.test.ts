@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { renderHook } from "@testing-library/react";
-import { getDefaultStore } from "jotai";
+import { act, renderHook } from "@testing-library/react";
+import { getDefaultStore, Provider } from "jotai";
+import { createElement, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { CellId } from "@/core/cells/ids";
@@ -9,6 +10,7 @@ import { updateEditorCodeFromPython } from "../../codemirror/language/utils";
 import {
   type StagedAICells,
   stagedAICellsAtom,
+  useStagedAICell,
   useStagedCells,
   visibleForTesting,
 } from "../staged-cells";
@@ -149,6 +151,16 @@ describe("staged-cells", () => {
       expect(newState.has(cellId2)).toBe(true);
     });
 
+    it("should preserve state when removing a cell that is not staged", () => {
+      const state = new Map([[cellId1, { type: "add_cell" as const }]]);
+      const newState = reducer(state, {
+        type: "removeStagedCell",
+        payload: cellId2,
+      });
+
+      expect(newState).toBe(state);
+    });
+
     it("should clear all cells", () => {
       const state = new Map([
         [cellId1, { type: "add_cell" as const }],
@@ -205,6 +217,37 @@ describe("staged-cells", () => {
     it("should initialize atom with empty map", () => {
       const state = store.get(stagedAICellsAtom);
       expect(state).toEqual(new Map());
+    });
+
+    it("should not rerender a cell when another cell's staging changes", () => {
+      let renderCount = 0;
+      const wrapper = ({ children }: { children: ReactNode }) =>
+        createElement(Provider, { store }, children);
+
+      renderHook(
+        () => {
+          renderCount++;
+          return useStagedAICell(cellId2);
+        },
+        { wrapper },
+      );
+      const initialRenderCount = renderCount;
+
+      act(() => {
+        store.set(
+          stagedAICellsAtom,
+          new Map([[cellId1, { type: "add_cell" }]]),
+        );
+      });
+      expect(renderCount).toBe(initialRenderCount);
+
+      act(() => {
+        store.set(
+          stagedAICellsAtom,
+          new Map([[cellId2, { type: "add_cell" }]]),
+        );
+      });
+      expect(renderCount).toBeGreaterThan(initialRenderCount);
     });
   });
 

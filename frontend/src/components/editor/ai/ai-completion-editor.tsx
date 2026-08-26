@@ -16,7 +16,7 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   AddContextButton,
@@ -42,11 +42,12 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
+  AI_EDIT_ACTION_LABELS,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
-import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { useStagedAICell } from "@/core/ai/staged-cells";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -105,8 +106,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   } = aiCompletionCell ?? {};
   const enabled = aiCellId === cellId;
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const updatedCell = stagedAICells.get(cellId);
+  const updatedCell = useStagedAICell(cellId);
   let previousCellCode: string | undefined;
   if (updatedCell?.type === "update_cell") {
     previousCellCode = updatedCell.previousCode;
@@ -266,19 +266,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onAccept={handleAcceptCompletion}
         size="xs"
         multipleCompletions={false}
+        label={AI_EDIT_ACTION_LABELS.accept}
         acceptShortcut="Mod-↵"
         runCell={runCell}
-        borderless={true}
-        buttonStyles="hover:shadow-none"
-        playButtonStyles="hover:shadow-none"
       />
       <RejectCompletionButton
         onDecline={handleDeclineCompletion}
         size="xs"
         multipleCompletions={false}
+        label={AI_EDIT_ACTION_LABELS.decline}
         declineShortcut="Shift-Mod-Delete"
-        borderless={true}
-        className="hover:shadow-none"
       />
     </>
   );
@@ -422,8 +419,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border",
-        "shadow-[0_0_6px_1px_rgba(34,197,94,0.15)]",
+        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border bg-(--gray-2) dark:bg-(--gray-3)",
         className,
       )}
     >
@@ -468,15 +464,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          borderless={true}
+          label={AI_EDIT_ACTION_LABELS.accept}
           runCell={runCell}
-          // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          borderless={true}
-          // declineShortcut="Shift-Mod-Delete"
+          label={AI_EDIT_ACTION_LABELS.decline}
         />
       </div>
     </div>
