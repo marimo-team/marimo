@@ -14,7 +14,6 @@ import { getCurrentLanguageAdapter } from "@/core/codemirror/language/commands";
 import { getEditorCodeAsPython } from "@/core/codemirror/language/utils";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExecuteCellsRequest } from "@/core/network/types";
-import { useStagedAICellsActions } from "@/core/ai/staged-cells";
 import { Logger } from "@/utils/Logger";
 
 export const hasRunAnyCellAtom = atom<boolean>(false);
@@ -55,7 +54,6 @@ export function useRunCells() {
   const { prepareForRun } = useCellActions();
   const { sendRun } = useRequestClient();
   const setHasRunAnyCell = useSetAtom(hasRunAnyCellAtom);
-  const { removeStagedCell } = useStagedAICellsActions();
 
   const runCellsMemoized = useEvent(async (cellIds: CellId[]) => {
     if (cellIds.length === 0) {
@@ -66,12 +64,6 @@ export function useRunCells() {
 
     // Set a flag that a user has manually run at least one cell.
     setHasRunAnyCell(true);
-
-    // Running a proposed cell means the user has reviewed and kept the
-    // current code, including when the proposal was a deletion.
-    for (const cellId of cellIds) {
-      removeStagedCell(cellId);
-    }
 
     return runCells({ cellIds, sendRun, prepareForRun, notebook });
   });

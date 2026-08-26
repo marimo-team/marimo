@@ -16,7 +16,7 @@ import { customPythonLanguageSupport } from "@/core/codemirror/language/language
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   AddContextButton,
@@ -42,11 +42,12 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
+  AI_EDIT_ACTION_LABELS,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
-import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { useStagedAICell } from "@/core/ai/staged-cells";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -105,8 +106,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
   } = aiCompletionCell ?? {};
   const enabled = aiCellId === cellId;
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const updatedCell = stagedAICells.get(cellId);
+  const updatedCell = useStagedAICell(cellId);
   let previousCellCode: string | undefined;
   if (updatedCell?.type === "update_cell") {
     previousCellCode = updatedCell.previousCode;
@@ -266,7 +266,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onAccept={handleAcceptCompletion}
         size="xs"
         multipleCompletions={false}
-        label="Keep change"
+        label={AI_EDIT_ACTION_LABELS.accept}
         acceptShortcut="Mod-↵"
         runCell={runCell}
       />
@@ -274,7 +274,7 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onDecline={handleDeclineCompletion}
         size="xs"
         multipleCompletions={false}
-        label="Revert change"
+        label={AI_EDIT_ACTION_LABELS.decline}
         declineShortcut="Shift-Mod-Delete"
       />
     </>
@@ -441,7 +441,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
         )}
 
         <p className="transition-opacity duration-200 text-muted-foreground">
-          {isLoading ? "Generating change..." : "AI changed this cell"}
+          {isLoading ? "Generating fix..." : "Showing fix"}
         </p>
       </div>
 
@@ -464,13 +464,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          label="Keep change"
+          label={AI_EDIT_ACTION_LABELS.accept}
           runCell={runCell}
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          label="Revert change"
+          label={AI_EDIT_ACTION_LABELS.decline}
         />
       </div>
     </div>

@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 
+export const AI_EDIT_ACTION_LABELS = {
+  accept: "Keep change",
+  decline: "Revert change",
+} as const;
+
 /**
  * Common keyboard shortcut handlers for AI completions
  */
@@ -57,19 +62,20 @@ export const CompletionActionsCellFooter: React.FC<{
   runCell,
   acceptLabel,
   declineLabel,
+  size,
 }) => {
   return (
     <>
       <AcceptCompletionButton
         isLoading={isLoading}
         onAccept={onAccept}
-        size="xs"
+        size={size}
         runCell={runCell}
         label={acceptLabel}
       />
       <RejectCompletionButton
         onDecline={onDecline}
-        size="xs"
+        size={size}
         label={declineLabel}
       />
     </>
@@ -129,11 +135,7 @@ export const AcceptCompletionButton: React.FC<{
           )}
         </Button>
         <Tooltip
-          content={
-            multipleCompletions
-              ? "Accept and run all cells"
-              : "Accept and run cell"
-          }
+          content={`${text} and run ${multipleCompletions ? "all cells" : "cell"}`}
         >
           <Button
             variant="text"
