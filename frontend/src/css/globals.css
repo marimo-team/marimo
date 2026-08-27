@@ -117,6 +117,7 @@
     --cm-search-match-selected-background-dark: #6199ff88;
   }
 
+  :root:has(body.dark),
   .dark,
   .marimo:is(.dark *) {
     color-scheme: dark;
