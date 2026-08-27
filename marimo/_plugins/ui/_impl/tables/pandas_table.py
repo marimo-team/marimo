@@ -212,52 +212,48 @@ class PandasTableManagerFactory(TableManagerFactory):
             data: pd.DataFrame, decimal_separator: str
         ) -> pd.DataFrame:
             """Prepare values pandas does not localize itself."""
+
+            def localize_number(
+                value: object, *, stringify_unchanged: bool
+            ) -> object:
+                if not is_delimited_number(value):
+                    return value
+                formatted = format_delimited_number(value, decimal_separator)
+                if (
+                    not stringify_unchanged
+                    and formatted == str(value)
+                    and not (
+                        isinstance(value, float) and not math.isfinite(value)
+                    )
+                ):
+                    return value
+                return formatted
+
             localized_data: pd.DataFrame | None = None
             for position, dtype in enumerate(data.dtypes):
                 column = data.iloc[:, position]
-                if (
+                force_numeric_strings = bool(
                     pd.api.types.is_float_dtype(dtype)
                     and not pd.api.types.is_extension_array_dtype(dtype)
                     and column.isna().any()
-                ):
-                    if localized_data is None:
-                        localized_data = data.copy()
-                    localized_data.isetitem(
-                        position,
-                        column.astype(object)
-                        .where(column.notna(), "nan")
-                        .array,
-                    )
-                    continue
-
-                if (
+                )
+                if not force_numeric_strings and (
                     decimal_separator == "."
                     or not pd.api.types.is_object_dtype(dtype)
                 ):
                     continue
 
-                changed = False
-
-                def localize_number(value: object) -> object:
-                    nonlocal changed
-                    if not is_delimited_number(value):
-                        return value
-                    if isinstance(value, float) and not math.isfinite(value):
-                        changed = True
-                        return str(value)
-                    formatted = format_delimited_number(
-                        value, decimal_separator
+                localized_column = column.map(
+                    functools.partial(
+                        localize_number,
+                        stringify_unchanged=force_numeric_strings,
                     )
-                    if formatted == str(value):
-                        return value
-                    changed = True
-                    return formatted
-
-                localized_column = column.map(localize_number)
-                if changed:
-                    if localized_data is None:
-                        localized_data = data.copy()
-                    localized_data.isetitem(position, localized_column.array)
+                )
+                if localized_column.equals(column):
+                    continue
+                if localized_data is None:
+                    localized_data = data.copy()
+                localized_data.isetitem(position, localized_column.array)
 
             return localized_data if localized_data is not None else data
 
@@ -342,9 +338,27 @@ class PandasTableManagerFactory(TableManagerFactory):
                 data = prepare_delimited_data(
                     manager._original_data, dialect.decimal_separator
                 )
+                include_index = len(self.get_row_headers()) > 0
+                if include_index:
+                    index_frame = data.index.to_frame(index=False)
+                    localized_index = prepare_delimited_data(
+                        index_frame, dialect.decimal_separator
+                    )
+                    if localized_index is not index_frame:
+                        if data is manager._original_data:
+                            data = data.copy()
+                        if isinstance(data.index, pd.MultiIndex):
+                            data.index = pd.MultiIndex.from_frame(
+                                localized_index, names=data.index.names
+                            )
+                        else:
+                            data.index = pd.Index(
+                                localized_index.iloc[:, 0].array,
+                                name=data.index.name,
+                            )
 
                 return data.to_csv(
-                    index=len(self.get_row_headers()) > 0,
+                    index=include_index,
                     sep=dialect.field_separator,
                     decimal=dialect.decimal_separator,
                     lineterminator="\n",

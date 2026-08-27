@@ -110,7 +110,7 @@ def dataframe_to_csv(
     dialect = dialect or DelimitedDialect(",", ".")
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if dialect == DelimitedDialect(",", "."):
+    if dialect.field_separator == "," and dialect.decimal_separator == ".":
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and

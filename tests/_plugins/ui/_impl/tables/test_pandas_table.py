@@ -315,6 +315,15 @@ class TestPandasTableManager(unittest.TestCase):
         result = manager.to_delimited_str(DelimitedDialect(";", ","))
         assert result == "value\nnan\ninf\n-inf\n"
 
+    def test_to_delimited_str_localizes_float_column_with_nan(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame({"value": [1.5, float("nan")]})
+        )
+
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+
+        assert result == "value\n1,5\nnan\n"
+
     def test_to_delimited_str_unicode_decimal(self) -> None:
         manager = PandasTableManagerFactory.create()(
             pd.DataFrame({"value": [12.5]})
@@ -340,6 +349,17 @@ class TestPandasTableManager(unittest.TestCase):
 
         assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
             ";value\n10;1,5\n"
+        )
+
+    def test_to_delimited_str_localizes_decimal_index(self) -> None:
+        df = pd.DataFrame(
+            {"value": [decimal.Decimal("2.5")]},
+            index=[decimal.Decimal("1.5")],
+        )
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            ";value\n1,5;2,5\n"
         )
 
     def test_to_delimited_str_preserves_unnamed_multi_index_headers(

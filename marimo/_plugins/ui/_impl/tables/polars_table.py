@@ -31,6 +31,14 @@ from marimo._utils.narwhals_utils import dataframe_to_csv
 LOGGER = _loggers.marimo_logger()
 
 
+def _supports_decimal_comma() -> bool:
+    import polars as pl
+
+    return (
+        "decimal_comma" in inspect.signature(pl.DataFrame.write_csv).parameters
+    )
+
+
 class PolarsTableManagerFactory(TableManagerFactory):
     @staticmethod
     def package_name() -> str:
@@ -41,10 +49,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import polars as pl
 
-        supports_decimal_comma = (
-            "decimal_comma"
-            in inspect.signature(pl.DataFrame.write_csv).parameters
-        )
+        supports_decimal_comma = _supports_decimal_comma()
 
         def serialize_sequence_column(
             column: pl.Series, dtype: pl.List | pl.Array
@@ -134,11 +139,15 @@ class PolarsTableManagerFactory(TableManagerFactory):
                     elif isinstance(dtype, pl.Duration):
                         result = self._convert_time_to_string(result, column)
 
-                has_nan = any(
-                    column.dtype.is_float() and column.is_nan().any()
+                # Native Polars uses different temporal and binary text
+                # representations, and writes NaN as an empty field.
+                requires_compatibility_writer = any(
+                    column.dtype.is_temporal()
+                    or column.dtype == pl.Binary
+                    or (column.dtype.is_float() and column.is_nan().any())
                     for column in result.get_columns()
                 )
-                if has_nan:
+                if requires_compatibility_writer:
                     return dataframe_to_csv(result, dialect=dialect)
 
                 if dialect.decimal_separator == ".":
