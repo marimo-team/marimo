@@ -1388,6 +1388,7 @@ def test_cli_sandbox_edit_new_file() -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
                 ["edit", path, "--headless", "--no-token", "--sandbox"],
@@ -1921,6 +1922,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
                 ["new", "--sandbox", "--headless", "--no-token"],

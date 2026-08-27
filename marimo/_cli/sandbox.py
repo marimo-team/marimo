@@ -19,9 +19,10 @@ from marimo import _loggers
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._environments import script_metadata
+from marimo._environments import environment, script_metadata
 from marimo._environments.uv import (
     UvCommandError,
+    UvError,
     UvMissingScriptMetadataError,
     UvNotFoundError,
     find_uv_bin,
@@ -40,7 +41,8 @@ from marimo._version import __version__
 class SandboxMode(Enum):
     """Sandbox mode for marimo notebooks.
 
-    - SINGLE: Single-file sandbox (wraps entire process with uv run)
+    - SINGLE: Single-file sandbox (the server runs from the notebook's
+      script environment)
     - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
     """
 
@@ -107,7 +109,8 @@ def resolve_sandbox_mode(
 
     Returns:
         - None: No sandboxing
-        - SandboxMode.SINGLE: Single-file sandbox (wrap with uv run)
+        - SandboxMode.SINGLE: Single-file sandbox (server in the script
+          environment)
         - SandboxMode.MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
 
     When sandbox is None, prompts the user if the notebook has sandbox metadata
@@ -131,7 +134,7 @@ def resolve_sandbox_mode(
 
     # Sandbox enabled - determine mode based on target type
     # Directory or home page -> multi-file sandbox (IPC kernels)
-    # Single file -> single-file sandbox (uv run wrapper)
+    # Single file -> single-file sandbox (server in the script environment)
     return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
 
 
@@ -258,7 +261,9 @@ def construct_uv_flags(
     additional_deps: list[str],
     python_version_override: str | None = None,
 ) -> list[str]:
-    # NB. Used in quarto plugin
+    # Deprecated: retained for the quarto plugin. marimo launches
+    # sandboxes from the script environment instead; the flags built here
+    # flatten `[[tool.uv.index]]` semantics (#10547).
 
     # If name if a filepath, parse the dependencies from the file
     dependencies = _resolve_requirements_txt_lines(pyproject)
@@ -332,6 +337,7 @@ def construct_uv_command(
     additional_deps: list[str],
     python_version_override: str | None = None,
 ) -> list[str]:
+    """Deprecated: retained for the quarto plugin."""
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
@@ -364,6 +370,28 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
+def _runtime_overlay(
+    additional_features: list[DepFeatures],
+    additional_deps: list[str],
+) -> list[str]:
+    """The requirements marimo layers into a sandbox launch.
+
+    marimo itself rides the overlay, pinned to the running version or as
+    an editable install from a development checkout, so the inner server
+    matches the CLI regardless of what the manifest's `marimo` resolves
+    to. Overlay entries never enter the manifest.
+    """
+    if is_editable("marimo"):
+        LOGGER.info("Using editable of marimo for sandbox")
+        marimo_dep = f"-e {get_marimo_dir()}"
+    elif additional_features:
+        features = ",".join(additional_features)
+        marimo_dep = f"marimo[{features}]=={__version__}"
+    else:
+        marimo_dep = f"marimo=={__version__}"
+    return [marimo_dep, *additional_deps]
+
+
 def run_in_sandbox(
     args: list[str],
     *,
@@ -374,14 +402,17 @@ def run_in_sandbox(
     python_version_override: str | None = None,
     pyodide_constraints: bool = False,
 ) -> int:
-    """Run marimo in a sandboxed uv environment.
+    """Runs marimo inside the notebook's script environment.
 
-    This wraps the marimo command with `uv run` to create an isolated
-    virtual environment with the notebook's dependencies.
+    Synchronizes the environment from the notebook's metadata, then
+    launches `python -m marimo <args...>` from it with marimo layered on
+    top. uv resolves the metadata with its full semantics, so indexes,
+    sources, and credentials behave as they do for `uv run notebook.py`,
+    and the environment is shared with it. A target without a metadata
+    block runs in an ephemeral environment instead.
 
     Used for "single" sandbox mode (marimo edit --sandbox notebook.py).
-    For "multi" sandbox mode (directory), see IPCKernelManagerImpl which
-    creates per-notebook sandboxed kernels.
+    For "multi" sandbox mode (directory), see IPCKernelManagerImpl.
     """
     try:
         require_uv_bin()
@@ -394,7 +425,7 @@ def run_in_sandbox(
 
     # Ensure marimo and the python version are in the script metadata before
     # running. Adding marimo is best-effort: the sandbox still runs without
-    # it, since the requirements normalization injects marimo.
+    # it, since the runtime overlay carries marimo.
     if name is not None and name.endswith(".py"):
         try:
             script_metadata.ensure_marimo(name)
@@ -407,15 +438,9 @@ def run_in_sandbox(
             LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
         script_metadata.ensure_requires_python(name)
 
-    uv_cmd = construct_uv_command(
-        args,
-        name,
-        additional_features or [],
-        additional_deps or [],
-        python_version_override=python_version_override,
-    )
-
-    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}", err=True)
+    cmd = ["-m", "marimo", *args]
+    if "--sandbox" in cmd:
+        cmd.remove("--sandbox")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
@@ -439,6 +464,7 @@ def run_in_sandbox(
         constraint_tmp.close()
         constraint_path = constraint_tmp.name
         if write_constraint_file(constraint_path):
+            # Resolution happens in the child uv process; see below.
             env["UV_CONSTRAINT"] = constraint_path
 
         def cleanup_constraint_file() -> None:
@@ -449,20 +475,79 @@ def run_in_sandbox(
 
         atexit.register(cleanup_constraint_file)
 
+    overlay = _runtime_overlay(
+        additional_features or [], additional_deps or []
+    )
+
+    # Explicit override > metadata requires-python (uv reads it) > host.
+    pyproject = (
+        PyProjectReader.from_filename(name)
+        if name is not None
+        else PyProjectReader({}, config_path=None)
+    )
+    python_request = python_version_override or (
+        None if pyproject.python_version else platform.python_version()
+    )
+
+    # An interpreter override (html-wasm pins the Pyodide version) must
+    # not replace the notebook's shared script environment; it resolves
+    # ephemerally with the notebook's dependencies layered instead.
+    overridden = python_version_override is not None or pyodide_constraints
+
+    plan: environment.ProcessPlan | None = None
+    if name is not None and not overridden and os.path.isfile(name):
+        try:
+            with script_metadata.materialized_for_environment(name) as target:
+                handle = environment.sync(
+                    target.path,
+                    cwd=target.directory,
+                    python_override=python_request,
+                )
+            echo(
+                f"Using script environment: {muted(handle.root)}",
+                err=True,
+            )
+            plan = environment.launch(
+                handle, cmd, overlay=overlay, base_env=env
+            )
+        except UvMissingScriptMetadataError:
+            # No metadata block yet; run ephemerally below.
+            pass
+        except UvError as e:
+            echo(str(e), err=True)
+            return getattr(e, "returncode", None) or 1
+
+    if plan is None:
+        if overridden and name is not None and os.path.isfile(name):
+            overlay = [
+                line
+                for line in _resolve_requirements_txt_lines(pyproject)
+                if line.strip() and not is_marimo_dependency(line)
+            ] + overlay
+        plan = environment.launch_isolated(
+            cmd,
+            overlay=overlay,
+            python=python_request or platform.python_version(),
+            base_env=env,
+        )
+
+    echo(f"Running in a sandbox: {muted(' '.join(plan.argv))}", err=True)
+
     if sys.platform == "win32":
         # The console already delivers Ctrl-C to uv and the inner server;
         # forwarding CTRL_C_EVENT would rebroadcast to the whole console,
         # including ourselves (#4842). Let the inner server drive shutdown.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        process = subprocess.Popen(uv_cmd, env=env)
+        process = subprocess.Popen(plan.argv, env=plan.env)
     else:
-        # On Unix, run `uv` in its own session so that (a) the tty no
+        # On Unix, run the child in its own session so that (a) the tty no
         # longer delivers SIGINT/SIGTERM to it directly and (b) we can
         # signal the whole subtree with a single killpg. The signal
         # handlers below are then the sole path for forwarding signals
-        # from the CLI down to uv, the inner marimo server, and the
-        # kernel.
-        process = subprocess.Popen(uv_cmd, env=env, start_new_session=True)
+        # from the CLI down to the inner marimo server and the kernel.
+        process = subprocess.Popen(
+            plan.argv, env=plan.env, start_new_session=True
+        )
 
         def handler(sig: int, frame: object) -> None:
             del frame

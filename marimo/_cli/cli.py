@@ -540,8 +540,11 @@ def edit(
     if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:], name=name, additional_features=["lsp"]
+            )
+        )
 
     # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
     if sandbox_mode is SandboxMode.MULTI:
@@ -747,8 +750,11 @@ def new(
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
-        return
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:], name=None, additional_features=["lsp"]
+            )
+        )
 
     workspace: NotebookWorkspace | None = None
 
@@ -1234,8 +1240,7 @@ def run(
             sandbox=sandbox, name=validated_paths[0]
         )
         if sandbox_mode is SandboxMode.SINGLE:
-            run_in_sandbox(sys.argv[1:], name=validated_paths[0])
-            return
+            sys.exit(run_in_sandbox(sys.argv[1:], name=validated_paths[0]))
 
     # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
     if sandbox_mode is SandboxMode.MULTI:

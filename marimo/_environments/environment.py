@@ -111,12 +111,6 @@ def launch(
     if not overlay:
         return ProcessPlan(argv=(environment.python, *args), env=env)
 
-    with_args: list[str] = []
-    for requirement in overlay:
-        if requirement.startswith("-e "):
-            with_args.extend(["--with-editable", requirement[3:].strip()])
-        else:
-            with_args.extend(["--with", requirement])
     return ProcessPlan(
         argv=(
             require_uv_bin(),
@@ -127,13 +121,59 @@ def launch(
             "--no-project",
             "--python",
             environment.python,
-            *with_args,
+            *_with_args(overlay),
             "--",
             "python",
             *args,
         ),
         env=env,
     )
+
+
+def launch_isolated(
+    args: Sequence[str],
+    *,
+    overlay: Sequence[str],
+    python: str,
+    base_env: Mapping[str, str] | None = None,
+) -> ProcessPlan:
+    """Plans `python <args...>` in an ephemeral environment.
+
+    For targets without a manifest, such as a new notebook. uv resolves
+    the overlay into a cached environment and runs the process in an
+    ephemeral copy, so packages installed during the session die with
+    it and nothing persists per invocation.
+    """
+    env = dict(os.environ if base_env is None else base_env)
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("UV_PROJECT_ENVIRONMENT", None)
+    return ProcessPlan(
+        argv=(
+            require_uv_bin(),
+            "run",
+            "--isolated",
+            "--no-project",
+            "--compile-bytecode",
+            "--python",
+            python,
+            *_with_args(overlay),
+            "--",
+            "python",
+            *args,
+        ),
+        env=env,
+    )
+
+
+def _with_args(overlay: Sequence[str]) -> list[str]:
+    """`uv run` flags for overlay requirements; `-e <path>` is editable."""
+    with_args: list[str] = []
+    for requirement in overlay:
+        if requirement.startswith("-e "):
+            with_args.extend(["--with-editable", requirement[3:].strip()])
+        else:
+            with_args.extend(["--with", requirement])
+    return with_args
 
 
 def sync(

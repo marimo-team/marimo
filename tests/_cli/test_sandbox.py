@@ -760,3 +760,118 @@ import marimo
     )
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == "3.12"
+
+
+def _supports_sync() -> bool:
+    from marimo._environments.environment import ensure_supported_uv
+    from marimo._environments.uv import UvError, is_uv_available
+
+    if not is_uv_available():
+        return False
+    try:
+        ensure_supported_uv()
+    except UvError:
+        return False
+    return True
+
+
+SUPPORTS_SYNC = _supports_sync()
+
+
+@pytest.fixture
+def _restore_signal_handlers():
+    """run_in_sandbox installs forwarding handlers; undo them."""
+    import signal
+
+    saved = {
+        sig: signal.getsignal(sig)
+        for name in ("SIGINT", "SIGTERM", "SIGHUP")
+        if (sig := getattr(signal, name, None)) is not None
+    }
+    yield
+    for sig, handler in saved.items():
+        signal.signal(sig, handler)
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+@pytest.mark.skipif(
+    os.name == "nt", reason="signal forwarding differs on Windows"
+)
+@pytest.mark.usefixtures("_restore_signal_handlers")
+def test_run_in_sandbox_from_script_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The provisioned path: a markdown notebook's manifest is
+    synchronized and marimo launches from the script environment."""
+    from marimo._cli.sandbox import run_in_sandbox
+
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        """---
+pyproject: |
+  dependencies = []
+---
+
+# Hello
+""",
+        encoding="utf-8",
+    )
+
+    code = run_in_sandbox(["--version"], name=str(notebook))
+
+    assert code == 0
+    # The carrier is deleted after synchronization.
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["notebook.md"]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+@pytest.mark.skipif(
+    os.name == "nt", reason="signal forwarding differs on Windows"
+)
+@pytest.mark.usefixtures("_restore_signal_handlers")
+def test_run_in_sandbox_without_a_manifest() -> None:
+    """No target means no manifest: marimo runs ephemerally."""
+    from marimo._cli.sandbox import run_in_sandbox
+
+    code = run_in_sandbox(["--version"], name=None)
+
+    assert code == 0
+
+
+def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
+    """Every sandbox entry point exits with the inner process's code."""
+    from unittest.mock import patch as mock_patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["numpy"]\n# ///\n', encoding="utf-8"
+    )
+    runner = CliRunner()
+
+    for command, target in (
+        (
+            ["edit", str(notebook), "--sandbox", "--headless", "--no-token"],
+            "marimo._cli.sandbox.run_in_sandbox",
+        ),
+        (
+            ["export", "html", str(notebook), "--sandbox"],
+            "marimo._cli.export.commands.run_in_sandbox",
+        ),
+    ):
+        with (
+            mock_patch(target, return_value=3),
+            mock_patch(
+                "marimo._cli.sandbox.maybe_prompt_run_in_sandbox",
+                return_value=True,
+            ),
+        ):
+            result = runner.invoke(cli_main, command)
+        assert result.exit_code == 3, (command, result.output)

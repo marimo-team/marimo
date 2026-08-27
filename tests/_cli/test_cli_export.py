@@ -662,7 +662,7 @@ class TestExportHTML:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "run --isolated" in output
+        assert "Using script environment" in output
         html = normalize_index_html(output)
         html = _normalize_html_path(html, temp_marimo_file)
         assert '<marimo-code hidden=""></marimo-code>' not in html
@@ -1295,7 +1295,7 @@ class TestExportIpynb:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "run --isolated" in output
+        assert "Using script environment" in output
 
     @staticmethod
     @pytest.mark.skipif(
