@@ -597,6 +597,13 @@ class ScopedVisitor(ast.NodeVisitor):
         unbounded_refs |= set(self.ref_stack[-1])
 
         # Process the function body
+        if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
+            # A function body can refer to the function's binding in the
+            # enclosing scope. Register the name before visiting the body so
+            # a nested private function's self-references are not mistaken
+            # for cell-local references. Variable metadata is attached after
+            # the body has been visited and its references are known.
+            self.block_stack[-1].defs.add(node.name)
         self.generic_visit(node)
         refs = self.ref_stack.pop()
         # The scope a level up from the one just investigated also is dependent
