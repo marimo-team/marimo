@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.print import echo
-from marimo._utils.uv import find_uv_bin
+from marimo._environments.uv import UvCommandError, uv
 from marimo._version import __version__
 
 if TYPE_CHECKING:
@@ -207,18 +207,13 @@ def install_marimo_into_venv(venv_python: str) -> None:
     Args:
         venv_python: Path to the venv's Python interpreter.
     """
-    uv_bin = find_uv_bin()
-
     packages = [f"marimo=={__version__}"] + get_ipc_kernel_deps()
 
     echo("Installing marimo into configured venv...", err=True)
 
-    result = subprocess.run(
-        [uv_bin, "pip", "install", "--python", venv_python] + packages,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    try:
+        uv(["pip", "install", "--python", venv_python] + packages)
+    except UvCommandError as e:
         LOGGER.warning(
-            f"Failed to install marimo into configured venv: {result.stderr}"
+            f"Failed to install marimo into configured venv: {e.stderr}"
         )

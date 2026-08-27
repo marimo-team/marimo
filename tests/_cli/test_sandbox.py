@@ -434,8 +434,8 @@ import marimo
     # Mock the prompt to return True (simulating user typing 'y')
     with patch("marimo._cli.sandbox.click.confirm", return_value=True):
         with patch(
-            "marimo._cli.sandbox.DependencyManager.which",
-            return_value="/usr/bin/uv",
+            "marimo._cli.sandbox.is_uv_available",
+            return_value=True,
         ):
             with patch(
                 "marimo._cli.sandbox.sys.stdin.isatty", return_value=True

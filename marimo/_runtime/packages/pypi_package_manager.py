@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._environments.uv import UvCommandError, find_uv_bin, uv
 from marimo._runtime.packages._micropip_streaming import (
     stream_transaction_install,
 )
@@ -32,7 +33,6 @@ from marimo._runtime.packages.utils import (
     split_packages,
 )
 from marimo._utils.platform import is_pyodide
-from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 from marimo._utils.versions import (
     extract_extras,
@@ -772,18 +772,12 @@ class UvPackageManager(PypiPackageManager):
         if filename is None and not self.is_in_uv_project:
             return None
 
-        tree_cmd = [self._uv_bin, "tree", "--no-dedupe"]
+        tree_cmd = ["tree", "--no-dedupe"]
         if filename:
             tree_cmd += ["--script", filename]
 
         try:
-            result = run_package_command(
-                tree_cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                check=True,
-            )
+            result = uv(tree_cmd)
             tree = parse_uv_tree(result.stdout)
 
             # If in a uv project and the only top-level item is the project itself,
@@ -793,7 +787,7 @@ class UvPackageManager(PypiPackageManager):
 
             return tree
 
-        except subprocess.CalledProcessError:
+        except UvCommandError:
             # Only log error if the script has dependency metadata
             if filename and self._has_script_metadata(filename):
                 LOGGER.error(f"Failed to get dependency tree for {filename}")
