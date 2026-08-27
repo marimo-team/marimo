@@ -15,6 +15,7 @@ from marimo._environments.environment import (
     Environment,
     UvUnsupportedVersionError,
     ensure_supported_uv,
+    launch,
     sync,
 )
 from marimo._environments.uv import (
@@ -267,3 +268,54 @@ def test_report_actions_map_to_the_handle(
     )
 
     assert sync("nb.py").action == action
+
+
+def test_launch_without_overlay_is_direct() -> None:
+    env = Environment(python="/env/bin/python", root="/env", action="created")
+
+    plan = launch(env, ["-m", "marimo"], base_env={"PATH": "/usr/bin"})
+
+    assert plan.argv == ("/env/bin/python", "-m", "marimo")
+    assert plan.env["VIRTUAL_ENV"] == "/env"
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+def test_launch_overlay_chains_without_mutating(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Overlay packages import alongside manifest packages, and neither
+    the script environment nor the manifest records them."""
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path / "uv-cache"))
+    pkg = tmp_path / "localpkg"
+    (pkg / "localpkg").mkdir(parents=True)
+    (pkg / "localpkg" / "__init__.py").write_text("value = 1\n")
+    (pkg / "pyproject.toml").write_text(
+        '[project]\nname = "localpkg"\nversion = "0.1.0"\n'
+    )
+    script = tmp_path / "nb.py"
+    script.write_text(
+        "# /// script\n"
+        f'# requires-python = "{REQUIRES_PYTHON}"\n'
+        '# dependencies = ["six"]\n'
+        "# ///\n",
+        encoding="utf-8",
+    )
+
+    env = sync(str(script), cwd=str(tmp_path))
+    plan = launch(
+        env,
+        ["-c", "import six, idna, localpkg; print('chained')"],
+        overlay=["idna", f"-e {pkg}"],
+    )
+
+    result = subprocess.run(
+        list(plan.argv), env=plan.env, capture_output=True, text=True
+    )
+    assert result.returncode == 0, result.stderr
+    assert "chained" in result.stdout
+    # The script environment itself has only the manifest's packages.
+    entries = _site_packages(env.root)
+    assert any(entry.startswith("six") for entry in entries)
+    assert not any(entry.startswith("idna") for entry in entries)
+    assert "idna" not in script.read_text()

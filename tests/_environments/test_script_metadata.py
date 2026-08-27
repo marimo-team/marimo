@@ -3,15 +3,13 @@ from __future__ import annotations
 
 import platform
 import subprocess
-from typing import TYPE_CHECKING
+import sys
+from pathlib import Path
 
 import pytest
 
 from marimo._environments import script_metadata
 from marimo._environments.uv import UvNotFoundError, is_uv_available
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 HAS_UV = is_uv_available()
 
@@ -321,3 +319,104 @@ def test_edits_accept_relative_notebook_paths(
     project = script_metadata.loads((notebooks / "nb.py").read_text())
     assert project is not None
     assert project["dependencies"] == []
+
+
+def test_materialize_python_notebook_is_itself(tmp_path: Path) -> None:
+    script = tmp_path / "nb.py"
+    script.write_text("# /// script\n# dependencies = []\n# ///\n")
+
+    with script_metadata.materialized_for_environment(
+        str(script)
+    ) as materialized:
+        assert materialized.path == str(script)
+        assert materialized.directory == str(tmp_path)
+    assert script.exists()
+
+
+def test_materialize_markdown_carrier_is_adjacent_and_stable(
+    tmp_path: Path,
+) -> None:
+    """The carrier sits next to the notebook under a versioned,
+    deterministic name, carries the header verbatim, and is deleted on
+    exit."""
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        """---
+pyproject: |
+  dependencies = []
+
+  [tool.uv.sources]
+  mylib = { path = "./lib" }
+---
+
+# Hello
+"""
+    )
+
+    with script_metadata.materialized_for_environment(str(notebook)) as first:
+        assert first.directory == str(tmp_path)
+        carrier = Path(first.path)
+        assert carrier.parent == tmp_path
+        assert carrier.name == ".marimo-v1-notebook.md.py"
+        # The header is verbatim: relative paths are uv's to anchor.
+        assert 'path = "./lib"' in carrier.read_text()
+    assert not carrier.exists()
+
+    with script_metadata.materialized_for_environment(str(notebook)) as second:
+        assert second.path == first.path
+
+
+def test_stranded_carriers_are_swept(tmp_path: Path) -> None:
+    """A stray from a killed process is removed on the next operation;
+    a fresh carrier (a concurrent process's) is spared."""
+    import os as _os
+    import time as _time
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
+    )
+    stale = tmp_path / ".marimo-v1-notebook.md.stranded.py"
+    stale.write_text("# stray\n")
+    old = _time.time() - 3600
+    _os.utime(stale, (old, old))
+    fresh = tmp_path / ".marimo-v1-notebook.md.inflight.py"
+    fresh.write_text("# in flight\n")
+
+    with script_metadata.materialized_for_environment(str(notebook)):
+        pass
+
+    assert not stale.exists()
+    assert fresh.exists()
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Windows ignores POSIX directory permissions",
+)
+def test_materialize_falls_back_when_directory_is_read_only(
+    tmp_path: Path,
+) -> None:
+    """A read-only notebook directory materializes the carrier at a
+    deterministic temp path instead of failing."""
+    import os as _os
+    import stat as _stat
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
+    )
+    _os.chmod(tmp_path, _stat.S_IRUSR | _stat.S_IXUSR)
+    try:
+        with script_metadata.materialized_for_environment(
+            str(notebook)
+        ) as first:
+            assert Path(first.path).parent != tmp_path
+            assert Path(first.path).exists()
+            fallback = first.path
+        with script_metadata.materialized_for_environment(
+            str(notebook)
+        ) as second:
+            assert second.path == fallback
+    finally:
+        _os.chmod(tmp_path, 0o700)
