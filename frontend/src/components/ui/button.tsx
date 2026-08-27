@@ -34,7 +34,7 @@ const buttonVariants = cva(
         ),
         warn: cn(
           "border shadow-xs",
-          "bg-warning text-warning-foreground border-warning hover:bg-warning/90",
+          "bg-action text-action-foreground border-action hover:bg-action-hover",
           activeCommon,
         ),
         action: cn(

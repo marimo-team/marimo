@@ -26,10 +26,10 @@ describe("buttonVariants", () => {
     {
       variant: "warn" as const,
       expected: [
-        "bg-warning",
-        "text-warning-foreground",
-        "border-warning",
-        "hover:bg-warning/90",
+        "bg-action",
+        "text-action-foreground",
+        "border-action",
+        "hover:bg-action-hover",
       ],
     },
   ])("uses semantic theme colors for $variant", ({ variant, expected }) => {

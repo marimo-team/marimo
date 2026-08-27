@@ -51,6 +51,17 @@ function getThemedUrl(app: ApplicationNames, theme: VisualTheme): string {
   return url.toString();
 }
 
+async function resolveColor(page: Page, value: string): Promise<string> {
+  return page.evaluate((cssValue) => {
+    const probe = document.createElement("span");
+    probe.style.color = cssValue;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, value);
+}
+
 async function prepareVisualCase(
   page: Page,
   visualCase: VisualCase,
@@ -98,6 +109,47 @@ async function prepareVisualCase(
   const focusedInput = page.getByTestId("marimo-plugin-text-input");
   await focusedInput.focus();
   await expect(focusedInput).toBeFocused();
+
+  await expect(page.locator("select").first()).toBeVisible();
+
+  const accentColor = await page.locator("html").evaluate(
+    (element) => getComputedStyle(element).accentColor,
+  );
+  const primaryColor = await resolveColor(page, "var(--primary)");
+  expect(accentColor).toBe(primaryColor);
+
+  const semanticAliases =
+    visualCase.theme === "light"
+      ? [
+          ["--ring", "hsl(215deg 20.2% 65.1%)"],
+          ["--destructive", "var(--red-9)"],
+          ["--destructive-foreground", "var(--red-1)"],
+          ["--error", "var(--red-9)"],
+          ["--error-foreground", "var(--red-1)"],
+          ["--success", "var(--grass-9)"],
+          ["--success-foreground", "var(--grass-1)"],
+          ["--action", "var(--yellow-4)"],
+          ["--action-hover", "var(--yellow-3)"],
+          ["--action-foreground", "var(--yellow-11)"],
+        ]
+      : [
+          ["--ring", "var(--blue-8)"],
+          ["--destructive", "var(--red-6)"],
+          ["--destructive-foreground", "var(--red-12)"],
+          ["--error", "var(--red-6)"],
+          ["--error-foreground", "var(--red-12)"],
+          ["--success", "var(--grass-6)"],
+          ["--success-foreground", "var(--grass-12)"],
+          ["--action", "var(--yellow-4)"],
+          ["--action-hover", "var(--yellow-5)"],
+          ["--action-foreground", "var(--yellow-12)"],
+        ];
+
+  for (const [semanticToken, sourceColor] of semanticAliases) {
+    const actualColor = await resolveColor(page, `var(${semanticToken})`);
+    const expectedColor = await resolveColor(page, sourceColor);
+    expect(actualColor, semanticToken).toBe(expectedColor);
+  }
 }
 
 for (const visualCase of VISUAL_CASES) {

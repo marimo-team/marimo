@@ -59,12 +59,6 @@ module.exports = {
           foreground:
             "color-mix(in srgb, var(--success-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
-        warning: {
-          DEFAULT:
-            "color-mix(in srgb, var(--warning), transparent calc((1 - <alpha-value>) * 100%))",
-          foreground:
-            "color-mix(in srgb, var(--warning-foreground), transparent calc((1 - <alpha-value>) * 100%))",
-        },
         stale: "var(--stale)",
         muted: {
           DEFAULT:

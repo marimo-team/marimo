@@ -80,26 +80,21 @@
     );
     --accent: light-dark(hsl(209deg 100% 96.5%), hsl(192deg 56.6% 26.5%));
     --accent-foreground: light-dark(hsl(211deg 90% 42%), hsl(190deg 80% 84%));
-    --ring: light-dark(var(--blue-8), var(--blue-8));
+    --ring: hsl(215deg 20.2% 65.1%);
 
     /* Semantic colors. */
-    --destructive: light-dark(var(--red-9), var(--red-6));
-    --destructive-foreground: light-dark(var(--red-1), var(--red-12));
-    --error: light-dark(var(--red-9), var(--red-6));
-    --error-foreground: light-dark(var(--red-1), var(--red-12));
-    --success: light-dark(var(--grass-9), var(--grass-6));
-    --success-foreground: light-dark(var(--grass-1), var(--grass-12));
-    --warning: light-dark(var(--yellow-9), var(--yellow-6));
-    --warning-foreground: light-dark(var(--yellow-12), var(--yellow-12));
-    --action: light-dark(var(--yellow-4), var(--yellow-4));
-    --action-hover: light-dark(var(--yellow-3), var(--yellow-5));
-    --action-foreground: light-dark(var(--yellow-11), var(--yellow-12));
+    --destructive: var(--red-9);
+    --destructive-foreground: var(--red-1);
+    --error: var(--red-9);
+    --error-foreground: var(--red-1);
+    --success: var(--grass-9);
+    --success-foreground: var(--grass-1);
+    --action: var(--yellow-4);
+    --action-hover: var(--yellow-3);
+    --action-foreground: var(--yellow-11);
     --link: light-dark(hsl(211deg 90% 42%), hsl(211deg 90% 62%));
     --link-visited: light-dark(hsl(272deg 51% 54%), hsl(272deg 51% 74%));
-    --stale: light-dark(
-      hsl(42deg 56% 44% / 25%),
-      hsl(54deg 100% 86.7% / 25%)
-    );
+    --stale: hsl(42deg 56% 44% / 25%);
 
     accent-color: var(--primary);
 
@@ -128,6 +123,21 @@
   .dark,
   .marimo:is(.dark *) {
     color-scheme: dark;
+  }
+
+  .dark,
+  .marimo:is(.dark *) {
+    --ring: var(--blue-8);
+    --destructive: var(--red-6);
+    --destructive-foreground: var(--red-12);
+    --error: var(--red-6);
+    --error-foreground: var(--red-12);
+    --success: var(--grass-6);
+    --success-foreground: var(--grass-12);
+    --action: var(--yellow-4);
+    --action-hover: var(--yellow-5);
+    --action-foreground: var(--yellow-12);
+    --stale: hsl(54deg 100% 86.7% / 25%);
   }
 }
 
