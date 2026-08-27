@@ -14,12 +14,6 @@ from starlette.responses import (
 from marimo import _loggers
 from marimo._ai._pydantic_ai_utils import create_simple_prompt, generate_id
 from marimo._config.config import AiConfig, CopilotMode, MarimoConfig
-from marimo._server.ai.completion_output import (
-    CELL_COMPLETION_DATA_TYPE,
-    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
-    CellCompletion,
-    NotebookCellsCompletion,
-)
 from marimo._server.ai.config import (
     AnyProviderConfig,
     get_autocomplete_model,
@@ -162,6 +156,14 @@ async def ai_completion(
     provider = get_completion_provider(
         AnyProviderConfig.for_model(model, ai_config),
         model=model,
+    )
+
+    # These models require the optional Pydantic AI dependency checked above.
+    from marimo._server.ai.completion_output import (
+        CELL_COMPLETION_DATA_TYPE,
+        NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+        CellCompletion,
+        NotebookCellsCompletion,
     )
 
     output_type = (
