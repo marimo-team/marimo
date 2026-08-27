@@ -41,6 +41,7 @@ from marimo._server.ai.tracing import (
     trace_stream,
 )
 from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
 
@@ -121,6 +122,10 @@ def _structured_completion_finish_reason(
         case "tool_call":
             # A structured-output tool call is the successful final result.
             return "stop"
+        case _:
+            # Preserve the stream if Pydantic AI adds a new finish reason.
+            log_never(finish_reason)
+            return "other"
 
 
 class PydanticProvider(ABC, Generic[ProviderT]):

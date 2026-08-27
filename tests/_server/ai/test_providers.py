@@ -57,6 +57,16 @@ def test_structured_completion_finish_reason(
     )
 
 
+def test_structured_completion_unknown_finish_reason() -> None:
+    with patch("marimo._server.ai.providers.log_never") as log_never:
+        assert (
+            _structured_completion_finish_reason(cast(Any, "future_reason"))
+            == "other"
+        )
+
+    log_never.assert_called_once_with("future_reason")
+
+
 @pytest.mark.parametrize(
     "cells",
     [
