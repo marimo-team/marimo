@@ -59,6 +59,7 @@ from marimo._plugins.ui._impl.tables.table_manager import (
 )
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
 from marimo._plugins.ui._impl.utils.dataframe import (
+    DownloadOptions,
     ListOrTuple,
     TableData,
     download_as,
@@ -1105,7 +1106,7 @@ class table(
                     args.format,
                     drop_marimo_index=True,
                     filename=bound_filename,
-                    locale=args.locale,
+                    options=DownloadOptions(locale=args.locale),
                 )
             except InvalidExportLocaleError as error:
                 return DownloadAsResponse(error=str(error))

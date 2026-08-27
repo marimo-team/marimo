@@ -4,6 +4,7 @@ from __future__ import annotations
 import functools
 import io
 import json
+import math
 from functools import cached_property
 from typing import TYPE_CHECKING, Any
 
@@ -30,8 +31,11 @@ from marimo._plugins.ui._impl.tables.table_manager import (
     TableManager,
     TableManagerFactory,
 )
-from marimo._utils.delimited import DelimitedDialect
-from marimo._utils.narwhals_utils import dataframe_to_csv
+from marimo._utils.delimited import (
+    DelimitedDialect,
+    format_delimited_number,
+    is_delimited_number,
+)
 
 if TYPE_CHECKING:
     import pandas as pd
@@ -204,6 +208,55 @@ class PandasTableManagerFactory(TableManagerFactory):
     def create() -> type[TableManager[Any]]:
         import pandas as pd
 
+        def prepare_delimited_data(
+            data: pd.DataFrame, decimal_separator: str
+        ) -> pd.DataFrame:
+            """Prepare values pandas does not localize itself."""
+
+            def localize_number(
+                value: object, *, stringify_unchanged: bool
+            ) -> object:
+                if not is_delimited_number(value):
+                    return value
+                formatted = format_delimited_number(value, decimal_separator)
+                if (
+                    not stringify_unchanged
+                    and formatted == str(value)
+                    and not (
+                        isinstance(value, float) and not math.isfinite(value)
+                    )
+                ):
+                    return value
+                return formatted
+
+            localized_data: pd.DataFrame | None = None
+            for position, dtype in enumerate(data.dtypes):
+                column = data.iloc[:, position]
+                force_numeric_strings = bool(
+                    pd.api.types.is_float_dtype(dtype)
+                    and not pd.api.types.is_extension_array_dtype(dtype)
+                    and column.isna().any()
+                )
+                if not force_numeric_strings and (
+                    decimal_separator == "."
+                    or not pd.api.types.is_object_dtype(dtype)
+                ):
+                    continue
+
+                localized_column = column.map(
+                    functools.partial(
+                        localize_number,
+                        stringify_unchanged=force_numeric_strings,
+                    )
+                )
+                if localized_column.equals(column):
+                    continue
+                if localized_data is None:
+                    localized_data = data.copy()
+                localized_data.isetitem(position, localized_column.array)
+
+            return localized_data if localized_data is not None else data
+
         class PandasTableManager(NarwhalsTableManager[pd.DataFrame, Any]):
             type = "pandas"
 
@@ -273,17 +326,48 @@ class PandasTableManagerFactory(TableManagerFactory):
                     sep=resolved_separator,
                 )
 
-            # Include a non-trivial pandas index, then reuse the Narwhals
-            # writer so decimal formatting lives in one place.
             def to_delimited_str(
                 self,
                 dialect: DelimitedDialect,
                 format_mapping: FormatMapping | None = None,
             ) -> str:
                 manager = self.apply_formatting(format_mapping)
-                if len(self.get_row_headers()) > 0:
-                    manager = manager.with_index_as_columns()
-                return dataframe_to_csv(manager.as_frame(), dialect=dialect)
+                # pandas applies `decimal` only to numeric dtypes. Prepare
+                # Decimal and mixed object columns before using its native
+                # writer for the full frame.
+                data = prepare_delimited_data(
+                    manager._original_data, dialect.decimal_separator
+                )
+                include_index = len(self.get_row_headers()) > 0
+                if include_index:
+                    index_frame = data.index.to_frame(index=False)
+                    localized_index = prepare_delimited_data(
+                        index_frame, dialect.decimal_separator
+                    )
+                    if localized_index is not index_frame:
+                        if data is manager._original_data:
+                            data = data.copy()
+                        if isinstance(data.index, pd.MultiIndex):
+                            data.index = pd.MultiIndex.from_frame(
+                                localized_index, names=data.index.names
+                            )
+                        else:
+                            data.index = pd.Index(
+                                localized_index.iloc[:, 0].array,
+                                name=data.index.name,
+                            )
+
+                # Default exports historically use pandas' platform newline.
+                is_default_dialect = (
+                    dialect.field_separator == ","
+                    and dialect.decimal_separator == "."
+                )
+                return data.to_csv(
+                    index=include_index,
+                    sep=dialect.field_separator,
+                    decimal=dialect.decimal_separator,
+                    lineterminator=None if is_default_dialect else "\n",
+                )
 
             def to_json_str(
                 self,

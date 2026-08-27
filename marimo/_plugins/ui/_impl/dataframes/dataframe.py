@@ -380,9 +380,9 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
                     json=JsonOptions(
                         ensure_ascii=self._download_json_ensure_ascii
                     ),
+                    locale=args.locale,
                 ),
                 filename=bound_filename,
-                locale=args.locale,
             )
         except InvalidExportLocaleError as error:
             return DownloadAsResponse(error=str(error))
