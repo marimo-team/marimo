@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import io
 import json
 from functools import cached_property
@@ -39,6 +40,11 @@ class PolarsTableManagerFactory(TableManagerFactory):
     @functools.lru_cache(maxsize=1)
     def create() -> type[TableManager[Any]]:
         import polars as pl
+
+        supports_decimal_comma = (
+            "decimal_comma"
+            in inspect.signature(pl.DataFrame.write_csv).parameters
+        )
 
         def serialize_sequence_column(
             column: pl.Series, dtype: pl.List | pl.Array
@@ -127,6 +133,21 @@ class PolarsTableManagerFactory(TableManagerFactory):
                         result = self._cast_object_to_string(result, column)
                     elif isinstance(dtype, pl.Duration):
                         result = self._convert_time_to_string(result, column)
+
+                has_nan = any(
+                    column.dtype.is_float() and column.is_nan().any()
+                    for column in result.get_columns()
+                )
+                if has_nan:
+                    return dataframe_to_csv(result, dialect=dialect)
+
+                if dialect.decimal_separator == ".":
+                    return result.write_csv(separator=dialect.field_separator)
+                if dialect.decimal_separator == "," and supports_decimal_comma:
+                    return result.write_csv(
+                        separator=dialect.field_separator,
+                        decimal_comma=True,
+                    )
                 return dataframe_to_csv(result, dialect=dialect)
 
             def to_json_str(

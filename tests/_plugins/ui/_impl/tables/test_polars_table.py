@@ -8,6 +8,7 @@ import unittest
 from enum import Enum
 from math import isnan
 from typing import Any
+from unittest import mock
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -189,6 +190,30 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
             result
             == 'integer;fraction;text;null\n1234;1234,567890123456;"value.1,2;3";\n'
         )
+
+    def test_to_delimited_str_uses_native_decimal_comma_writer(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(pl.DataFrame({"value": [1.5]}))
+        with mock.patch(
+            "marimo._plugins.ui._impl.tables.polars_table.dataframe_to_csv"
+        ) as fallback:
+            assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+                "value\n1,5\n"
+            )
+        fallback.assert_not_called()
+
+    def test_to_delimited_str_uses_native_tsv_writer(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(pl.DataFrame({"value": [1.5]}))
+        with mock.patch(
+            "marimo._plugins.ui._impl.tables.polars_table.dataframe_to_csv"
+        ) as fallback:
+            assert manager.to_delimited_str(DelimitedDialect("\t", ".")) == (
+                "value\n1.5\n"
+            )
+        fallback.assert_not_called()
 
     def test_to_delimited_str_normalizes_nested_values(self) -> None:
         import polars as pl
