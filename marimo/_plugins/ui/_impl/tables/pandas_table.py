@@ -357,11 +357,16 @@ class PandasTableManagerFactory(TableManagerFactory):
                                 name=data.index.name,
                             )
 
+                # Default exports historically use pandas' platform newline.
+                is_default_dialect = (
+                    dialect.field_separator == ","
+                    and dialect.decimal_separator == "."
+                )
                 return data.to_csv(
                     index=include_index,
                     sep=dialect.field_separator,
                     decimal=dialect.decimal_separator,
-                    lineterminator="\n",
+                    lineterminator=None if is_default_dialect else "\n",
                 )
 
             def to_json_str(

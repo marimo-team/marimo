@@ -278,6 +278,26 @@ class TestPandasTableManager(unittest.TestCase):
             lineterminator="\n",
         )
 
+    def test_to_delimited_str_uses_platform_newline_for_default(self) -> None:
+        df = pd.DataFrame({"value": [1.5]})
+        manager = PandasTableManagerFactory.create()(df)
+
+        with (
+            patch("os.linesep", "\r\n"),
+            patch.object(df, "to_csv", wraps=df.to_csv) as writer,
+        ):
+            assert (
+                manager.to_delimited_str(DelimitedDialect(",", "."))
+                == "value\r\n1.5\r\n"
+            )
+
+        writer.assert_called_once_with(
+            index=False,
+            sep=",",
+            decimal=".",
+            lineterminator=None,
+        )
+
     def test_to_delimited_str_decimal_and_exponent(self) -> None:
         manager = PandasTableManagerFactory.create()(
             pd.DataFrame(
