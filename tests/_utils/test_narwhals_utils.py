@@ -119,7 +119,7 @@ def test_dataframe_to_csv(df: IntoDataFrame) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_dataframe_to_csv_with_separator(df: IntoDataFrame) -> None:
     df_wrapped = nw.from_native(df)
-    csv = dataframe_to_csv(df_wrapped, separator=";")
+    csv = dataframe_to_csv(df_wrapped, dialect=DelimitedDialect(";", "."))
     assert "a;b" in csv
     assert "1;x" in csv
     assert "2;y" in csv

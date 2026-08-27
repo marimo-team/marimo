@@ -148,11 +148,16 @@ def test_download_as_pt_br_csv() -> None:
         DefaultTableManager,
     )
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
-    from marimo._plugins.ui._impl.utils.dataframe import download_as
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
 
     manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
-        manager, "csv", locale=ResolvedExportLocale("pt-BR", ",")
+        manager,
+        "csv",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
     )
     assert _download_text(url) == "value;text\n1234,56;unchanged.1\n"
 
@@ -162,11 +167,16 @@ def test_download_as_pt_br_tsv() -> None:
         DefaultTableManager,
     )
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
-    from marimo._plugins.ui._impl.utils.dataframe import download_as
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
 
     manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
-        manager, "tsv", locale=ResolvedExportLocale("pt-BR", ",")
+        manager,
+        "tsv",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
     )
     assert _download_text(url) == "value\ttext\n1234,56\tunchanged.1\n"
 
@@ -197,8 +207,10 @@ def test_download_as_explicit_csv_separator_wins() -> None:
     url, _ = download_as(
         manager,
         "csv",
-        locale=ResolvedExportLocale("pt-BR", ","),
-        options=DownloadOptions(delimited=DelimitedOptions(separator="|")),
+        options=DownloadOptions(
+            delimited=DelimitedOptions(separator="|"),
+            locale=ResolvedExportLocale("pt-BR", ","),
+        ),
     )
     assert _download_text(url) == "value|text\n1234,56|unchanged.1\n"
 
@@ -208,11 +220,16 @@ def test_download_as_json_stays_locale_neutral() -> None:
         DefaultTableManager,
     )
     from marimo._plugins.ui._impl.tables.delimited import ResolvedExportLocale
-    from marimo._plugins.ui._impl.utils.dataframe import download_as
+    from marimo._plugins.ui._impl.utils.dataframe import (
+        DownloadOptions,
+        download_as,
+    )
 
     manager = DefaultTableManager([{"value": 1234.56, "text": "unchanged.1"}])
     url, _ = download_as(
-        manager, "json", locale=ResolvedExportLocale("pt-BR", ",")
+        manager,
+        "json",
+        options=DownloadOptions(locale=ResolvedExportLocale("pt-BR", ",")),
     )
     text = _download_text(url)
     assert "1234.56" in text

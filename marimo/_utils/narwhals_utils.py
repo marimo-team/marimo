@@ -97,7 +97,6 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
 
 def dataframe_to_csv(
     df: IntoFrame,
-    separator: str | None = None,
     dialect: DelimitedDialect | None = None,
 ) -> str:
     """
@@ -108,31 +107,28 @@ def dataframe_to_csv(
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
-    field_separator = (
-        dialect.field_separator if dialect is not None else separator or ","
-    )
-    decimal_separator = (
-        dialect.decimal_separator if dialect is not None else "."
-    )
+    dialect = dialect or DelimitedDialect(",", ".")
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if field_separator == "," and decimal_separator == ".":
+    if dialect == DelimitedDialect(",", "."):
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and
     # write_csv(separator=...) is not consistently reliable across them.
     # For non-default dialects, use Python's csv writer for stable behavior.
     buffer = io.StringIO()
-    writer = csv.writer(buffer, delimiter=field_separator, lineterminator="\n")
+    writer = csv.writer(
+        buffer, delimiter=dialect.field_separator, lineterminator="\n"
+    )
     writer.writerow(frame.columns)
     rows = frame.iter_rows()
-    if decimal_separator == ".":
+    if dialect.decimal_separator == ".":
         writer.writerows(rows)
         return buffer.getvalue()
 
     writer.writerows(
         tuple(
-            format_delimited_number(value, decimal_separator)
+            format_delimited_number(value, dialect.decimal_separator)
             if is_delimited_number(value)
             else value
             for value in row
