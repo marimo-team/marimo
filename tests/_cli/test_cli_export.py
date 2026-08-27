@@ -209,6 +209,22 @@ def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
     assert graph == {notebook.resolve(): (module.resolve(),)}
 
 
+def _supports_script_environments() -> bool:
+    from marimo._environments.environment import ensure_supported_uv
+    from marimo._environments.uv import UvError, is_uv_available
+
+    if not is_uv_available():
+        return False
+    try:
+        ensure_supported_uv()
+    except UvError:
+        return False
+    return True
+
+
+SUPPORTS_SCRIPT_ENVS = _supports_script_environments()
+
+
 class TestExportHTML:
     @staticmethod
     def test_cli_export_html(temp_marimo_file: str) -> None:
@@ -651,6 +667,9 @@ class TestExportHTML:
 
     @staticmethod
     @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+    @pytest.mark.skipif(
+        not SUPPORTS_SCRIPT_ENVS, reason="uv >= 0.7.21 required"
+    )
     def test_cli_export_html_sandbox(temp_marimo_file: str) -> None:
         # Must use subprocess: sandbox re-invokes via uv using sys.argv[1:]
         p = subprocess.run(
@@ -1273,6 +1292,9 @@ class TestExportIpynb:
     @pytest.mark.skipif(
         not HAS_UV or not DependencyManager.nbformat.has(),
         reason="This test requires both uv and nbformat.",
+    )
+    @pytest.mark.skipif(
+        not SUPPORTS_SCRIPT_ENVS, reason="uv >= 0.7.21 required"
     )
     def test_cli_export_ipynb_sandbox(temp_marimo_file: str) -> None:
         output_file = temp_marimo_file.replace(".py", "_sandbox.ipynb")

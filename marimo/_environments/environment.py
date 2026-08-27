@@ -19,10 +19,15 @@ from typing import TYPE_CHECKING, Literal
 import msgspec
 
 from marimo import _loggers
-from marimo._environments.uv import UvError, require_uv_bin, uv
+from marimo._environments.uv import (
+    UvError,
+    require_uv_bin,
+    uv,
+    uv_stream,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -181,13 +186,15 @@ def sync(
     *,
     cwd: str | None = None,
     python_override: str | None = None,
+    on_output: Callable[[str], None] | None = None,
 ) -> Environment:
     """Makes the script's environment match its metadata.
 
     Runs uv from `cwd`, normally the notebook's directory, so
     directory-scoped uv configuration applies. `python_override` wins
     over the script's `requires-python` (html-wasm export pins the
-    Pyodide interpreter). Raises `UvCommandError` on failure and never
+    Pyodide interpreter). With `on_output`, uv's progress streams to the
+    callback line by line. Raises `UvCommandError` on failure and never
     mutates `script`.
     """
     ensure_supported_uv()
@@ -201,12 +208,18 @@ def sync(
     ]
     if python_override is not None:
         args.extend(["--python", python_override])
-    completed = uv(args, env=_sync_env(), cwd=cwd)
+    if on_output is not None:
+        completed = uv_stream(args, on_output, env=_sync_env(), cwd=cwd)
+    else:
+        completed = uv(args, env=_sync_env(), cwd=cwd)
     return _parse_report(completed.stdout)
 
 
 def sync_notebook(
-    path: str, *, python_override: str | None = None
+    path: str,
+    *,
+    python_override: str | None = None,
+    on_output: Callable[[str], None] | None = None,
 ) -> Environment:
     """Synchronizes a notebook's script environment.
 
@@ -223,6 +236,7 @@ def sync_notebook(
             target.path,
             cwd=target.directory,
             python_override=python_override,
+            on_output=on_output,
         )
 
 
@@ -335,12 +349,6 @@ def _venv_bin_dir(root: str) -> str:
 
 
 def _sync_env() -> dict[str, str]:
-    """Environment for `uv sync --script` invocations.
+    from marimo._environments.uv import script_command_env
 
-    Script environments are selected by the script and its metadata; an
-    enclosing project or virtualenv must not redirect synchronization.
-    """
-    env = dict(os.environ)
-    env.pop("VIRTUAL_ENV", None)
-    env.pop("UV_PROJECT_ENVIRONMENT", None)
-    return env
+    return script_command_env()

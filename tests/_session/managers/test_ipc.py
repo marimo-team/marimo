@@ -198,6 +198,22 @@ class TestConstructKernelEnv:
         # Ephemeral sandboxes are always writable.
         assert env["MARIMO_MANAGE_SCRIPT_METADATA"] == "true"
 
+    def test_inherited_sandbox_identity_is_stripped(self) -> None:
+        """A configured-venv kernel inside a sandboxed server must not
+        inherit script routing from the server's environment."""
+        env = construct_kernel_env(
+            base_env={
+                **self.BASE_ENV,
+                "MARIMO_SANDBOX_MODE": "multi",
+                "MARIMO_MANAGE_SCRIPT_METADATA": "true",
+            },
+            venv_python=self.CONFIGURED_PYTHON,
+            is_ephemeral_sandbox=False,
+            writable=False,
+        )
+        assert "MARIMO_SANDBOX_MODE" not in env
+        assert "MARIMO_MANAGE_SCRIPT_METADATA" not in env
+
     # -- configured venvs --------------------------------------------------
 
     def test_configured_readonly_venv_with_pythonpath(self) -> None:
