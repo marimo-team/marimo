@@ -200,9 +200,15 @@ class PackageManager(abc.ABC):
 
         if proc.stdout:
             for line in iter(proc.stdout.readline, b""):
-                # Send to terminal (original behavior)
-                sys.stdout.buffer.write(line)
-                sys.stdout.buffer.flush()
+                # The terminal tee is best effort: a kernel replaces
+                # sys.stdout with a redirect whose buffer may be None.
+                try:
+                    buffer = getattr(sys.stdout, "buffer", None)
+                    if buffer is not None:
+                        buffer.write(line)
+                        buffer.flush()
+                except Exception:
+                    pass
                 # Send to callback for streaming
                 log_callback(line.decode("utf-8", errors="replace"))
             proc.stdout.close()

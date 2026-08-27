@@ -20,6 +20,7 @@ from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments.environment import (
+    Environment,
     launch,
     launch_isolated,
     sync_notebook,
@@ -175,6 +176,12 @@ def construct_kernel_env(
     """
     env = dict(base_env)
 
+    # Sandbox identity is per-kernel, not inherited: a configured venv
+    # kernel inside a sandboxed server must not route package changes
+    # through a script environment it does not run in.
+    env.pop("MARIMO_SANDBOX_MODE", None)
+    env.pop("MARIMO_MANAGE_SCRIPT_METADATA", None)
+
     if kernel_pythonpath is not None:
         existing = env.get("PYTHONPATH", "")
         if existing:
@@ -226,9 +233,15 @@ class IPCKernelManagerImpl(KernelManager):
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
         self._venv_python: str | None = None
+        self._script_environment: Environment | None = None
         # The kernel's own pid: a launcher such as uv may sit between the
         # manager and the kernel, so _process.pid is not the kernel.
         self._kernel_pid: int | None = None
+
+    @property
+    def script_environment(self) -> Environment | None:
+        """The synchronized script environment the kernel runs in, if any."""
+        return self._script_environment
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -334,7 +347,9 @@ class IPCKernelManagerImpl(KernelManager):
                         "Failed to add marimo to script metadata: %s", e
                     )
                 try:
-                    handle = sync_notebook(filename)
+                    handle = sync_notebook(
+                        filename, on_output=lambda _line: None
+                    )
                 except UvMissingScriptMetadataError:
                     handle = None
                 except UvError as e:
@@ -344,6 +359,7 @@ class IPCKernelManagerImpl(KernelManager):
 
             if handle is not None:
                 self._venv_python = handle.python
+                self._script_environment = handle
                 plan = launch(
                     handle,
                     kernel_args_list,
@@ -371,6 +387,13 @@ class IPCKernelManagerImpl(KernelManager):
             # Ephemeral sandboxes are always writable; the kernel manages
             # the notebook's script metadata.
             env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            if handle is not None:
+                # Only a kernel that runs in the script environment may
+                # route package changes through it; an isolated kernel
+                # installs into itself imperatively.
+                env["MARIMO_SANDBOX_MODE"] = "multi"
+            else:
+                env.pop("MARIMO_SANDBOX_MODE", None)
             cmd = list(plan.argv)
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")

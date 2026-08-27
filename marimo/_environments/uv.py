@@ -12,12 +12,17 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
+import threading
 from typing import TYPE_CHECKING
 
+from marimo import _loggers
 from marimo._environments.errors import EnvironmentManagerError
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
+
+LOGGER = _loggers.marimo_logger()
 
 UV_INSTALL_HINT = (
     "Install uv from https://docs.astral.sh/uv/getting-started/installation/"
@@ -166,3 +171,96 @@ def uv(
     if completed.returncode != 0:
         raise _refine(completed)
     return completed
+
+
+def uv_stream(
+    args: Sequence[str],
+    on_output: Callable[[str], None],
+    *,
+    env: Mapping[str, str] | None = None,
+    cwd: str | None = None,
+) -> subprocess.CompletedProcess[str]:
+    """Runs a uv command, streaming its diagnostics to a callback.
+
+    uv writes progress to stderr and machine-readable output to stdout:
+    stderr lines stream to `on_output` (and this process's stderr) while
+    stdout is captured for the caller. `on_output` runs in the calling
+    thread, so callbacks that rely on thread-local state, such as a
+    kernel's notification context, keep working. Failures raise the same
+    refined errors as `uv()`.
+    """
+    command = [find_uv_bin(), *args]
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.DEVNULL,
+            env=dict(env) if env is not None else None,
+            cwd=cwd,
+            bufsize=0,
+            # A kernel interrupt must not propagate to uv; run it in its
+            # own session (ignored on Windows).
+            start_new_session=True,
+        )
+    except FileNotFoundError as e:
+        raise UvNotFoundError() from e
+
+    assert process.stdout is not None
+    assert process.stderr is not None
+    stdout_pipe = process.stdout
+    stdout_chunks: list[bytes] = []
+
+    def drain_stdout() -> None:
+        stdout_chunks.append(stdout_pipe.read())
+        stdout_pipe.close()
+
+    reader = threading.Thread(target=drain_stdout, daemon=True)
+    reader.start()
+
+    stderr_lines: list[bytes] = []
+    for line in iter(process.stderr.readline, b""):
+        stderr_lines.append(line)
+        decoded = line.decode("utf-8", errors="replace")
+        # The terminal tee is best effort: a kernel replaces sys.stderr
+        # with a redirect whose `buffer` may be None, and nothing here
+        # may stop the stream or deadlock uv.
+        try:
+            buffer = getattr(sys.stderr, "buffer", None)
+            if buffer is not None:
+                buffer.write(line)
+                buffer.flush()
+            else:
+                sys.stderr.write(decoded)
+        except Exception:
+            pass
+        try:
+            on_output(decoded)
+        except Exception:
+            LOGGER.exception("Failed to stream uv output")
+    process.stderr.close()
+    returncode = process.wait()
+    reader.join()
+
+    completed = subprocess.CompletedProcess(
+        command,
+        returncode,
+        stdout=b"".join(stdout_chunks).decode("utf-8", errors="replace"),
+        stderr=b"".join(stderr_lines).decode("utf-8", errors="replace"),
+    )
+    if completed.returncode != 0:
+        raise _refine(completed)
+    return completed
+
+
+def script_command_env() -> dict[str, str]:
+    """Environment for uv script commands.
+
+    A script's environment is selected by the script and its metadata; an
+    enclosing project or virtualenv must not redirect it or warn about
+    the mismatch.
+    """
+    env = dict(os.environ)
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("UV_PROJECT_ENVIRONMENT", None)
+    return env

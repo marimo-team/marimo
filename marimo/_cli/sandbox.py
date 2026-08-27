@@ -476,12 +476,19 @@ def run_in_sandbox(
     if name is not None and not overridden and os.path.isfile(name):
         try:
             handle = environment.sync_notebook(
-                name, python_override=python_request
+                name,
+                python_override=python_request,
+                # Stream uv's progress to the terminal; a first
+                # synchronization can install for a while.
+                on_output=lambda _line: None,
             )
             echo(
                 f"Using script environment: {muted(handle.root)}",
                 err=True,
             )
+            # Only a server whose kernel runs in the script environment
+            # may route package changes through it.
+            env["MARIMO_SANDBOX_MODE"] = "single"
             plan = environment.launch(
                 handle, cmd, overlay=overlay, base_env=env
             )

@@ -18,6 +18,9 @@ class GlobalSettings:
     PROFILE_DIR: str | None = None
     LOG_LEVEL: int = logging.WARNING
     MANAGE_SCRIPT_METADATA: bool = is_env_true("MARIMO_MANAGE_SCRIPT_METADATA")
+    # "single" or "multi" when this process belongs to a sandbox whose
+    # dependencies live in script environments; None otherwise.
+    SANDBOX_MODE: str | None = os.environ.get("MARIMO_SANDBOX_MODE") or None
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
     # Mark the session cookie as `Secure` so browsers only send it over HTTPS.
     # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default

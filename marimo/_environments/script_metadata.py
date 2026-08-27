@@ -28,7 +28,12 @@ from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._environments.errors import EnvironmentManagerError
-from marimo._environments.uv import UvError, uv
+from marimo._environments.uv import (
+    UvError,
+    script_command_env,
+    uv,
+    uv_stream,
+)
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
@@ -98,32 +103,48 @@ def with_python_version_requirement(project: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_dependencies(
-    path: str, packages: Sequence[str], *, upgrade: bool = False
+    path: str,
+    packages: Sequence[str],
+    *,
+    upgrade: bool = False,
+    on_output: Callable[[str], None] | None = None,
 ) -> None:
     """Add packages to the script's metadata via `uv add --script`."""
     if not packages:
         return
-    args = ["--quiet", "add", "--script"]
+    args = ["add", "--script"]
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            [*args, target, *(["--upgrade"] if upgrade else []), *packages],
-            cwd=cwd,
-        )
+        command = [
+            *args,
+            target,
+            *(["--upgrade"] if upgrade else []),
+            *packages,
+        ]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
 
-def remove_dependencies(path: str, packages: Sequence[str]) -> None:
+def remove_dependencies(
+    path: str,
+    packages: Sequence[str],
+    *,
+    on_output: Callable[[str], None] | None = None,
+) -> None:
     """Remove packages from the script's metadata via `uv remove --script`."""
     if not packages:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            ["--quiet", "remove", "--script", target, *packages],
-            cwd=cwd,
-        )
+        command = ["remove", "--script", target, *packages]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
@@ -148,7 +169,12 @@ def ensure_marimo(path: str) -> None:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(["add", "--script", target, "marimo"], timeout=30, cwd=cwd)
+        uv(
+            ["add", "--script", target, "marimo"],
+            env=script_command_env(),
+            timeout=30,
+            cwd=cwd,
+        )
 
     _edit(path, edit)
 

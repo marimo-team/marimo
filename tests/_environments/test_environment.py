@@ -319,3 +319,21 @@ def test_launch_overlay_chains_without_mutating(
     assert any(entry.startswith("six") for entry in entries)
     assert not any(entry.startswith("idna") for entry in entries)
     assert "idna" not in script.read_text()
+
+
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+def test_sync_streams_progress(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """With a callback, uv's progress streams line by line while the
+    JSON report stays parseable."""
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path / "uv-cache"))
+    script = tmp_path / "nb.py"
+    script.write_text(EMPTY_SCRIPT, encoding="utf-8")
+    lines: list[str] = []
+
+    env = sync(str(script), cwd=str(tmp_path), on_output=lines.append)
+
+    assert env.action == "created"
+    # Content wording is uv's, not ours; presence is the contract.
+    assert lines, "expected streamed diagnostics"
