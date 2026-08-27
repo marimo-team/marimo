@@ -11,8 +11,6 @@ import pytest
 from marimo._cli.sandbox import (
     SandboxMode,
     _normalize_sandbox_dependencies,
-    build_sandbox_venv,
-    cleanup_sandbox_dir,
     construct_uv_command,
     resolve_sandbox_mode,
     run_in_sandbox,
@@ -560,128 +558,6 @@ import marimo
     assert "--python" in uv_cmd
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == platform.python_version()
-
-
-def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
-    """Test that additional deps are added when not present."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text(
-        """# /// script
-# dependencies = ["numpy"]
-# ///
-import marimo
-"""
-    )
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(
-            str(script_path),
-            additional_deps=["pyzmq", "msgspec"],
-        )
-
-    assert any("numpy" in r for r in reqs)
-    assert "pyzmq" in reqs
-    assert "msgspec" in reqs
-
-
-def test_get_sandbox_requirements_no_duplicate_deps(tmp_path: Path) -> None:
-    """Test that additional deps aren't duplicated if already present."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text(
-        """# /// script
-# dependencies = ["numpy", "pyzmq>=25.0"]
-# ///
-import marimo
-"""
-    )
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(
-            str(script_path),
-            additional_deps=["pyzmq", "msgspec"],
-        )
-
-    # Should have only one pyzmq entry (uv resolves versions, so it may be ==X.Y.Z)
-    pyzmq_entries = [r for r in reqs if "pyzmq" in r.lower()]
-    assert len(pyzmq_entries) == 1
-    assert "msgspec" in reqs
-
-
-def test_get_sandbox_requirements_none_filename() -> None:
-    """Test get_sandbox_requirements with None filename."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(None, additional_deps=["pyzmq"])
-
-    # Should have marimo and additional deps
-    assert any("marimo" in r for r in reqs)
-    assert "pyzmq" in reqs
-
-
-def test_cleanup_sandbox_dir_removes_directory(tmp_path: Path) -> None:
-    """Test that cleanup_sandbox_dir removes the directory."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    sandbox_dir = tmp_path / "sandbox"
-    sandbox_dir.mkdir()
-    (sandbox_dir / "file.txt").write_text("test")
-
-    cleanup_sandbox_dir(str(sandbox_dir))
-
-    assert not sandbox_dir.exists()
-
-
-def test_cleanup_sandbox_dir_handles_none() -> None:
-    """Test that cleanup_sandbox_dir handles None gracefully."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    cleanup_sandbox_dir(None)  # Should not raise
-
-
-def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
-    """Test that cleanup_sandbox_dir handles nonexistent directory."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    nonexistent = str(tmp_path / "does_not_exist")
-    cleanup_sandbox_dir(nonexistent)  # Should not raise
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
-    """Test venv is created and returns paths."""
-    script = tmp_path / "test.py"
-    script.write_text("# /// script\n# dependencies = []\n# ///\n")
-
-    sandbox_dir, venv_python = build_sandbox_venv(str(script))
-    try:
-        assert os.path.isdir(sandbox_dir)
-        assert os.path.exists(venv_python)
-        assert "python" in venv_python
-    finally:
-        cleanup_sandbox_dir(sandbox_dir)
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
-    """Test additional deps are passed through."""
-    from marimo._session._venv import get_ipc_kernel_deps
-
-    script = tmp_path / "test.py"
-    script.write_text("# /// script\n# dependencies = []\n# ///\n")
-
-    sandbox_dir, venv_python = build_sandbox_venv(
-        str(script), additional_deps=get_ipc_kernel_deps()
-    )
-    try:
-        assert os.path.isdir(sandbox_dir)
-        assert os.path.exists(venv_python)
-    finally:
-        cleanup_sandbox_dir(sandbox_dir)
 
 
 def test_resolve_local_path_line() -> None:

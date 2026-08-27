@@ -244,3 +244,55 @@ class TestConstructKernelEnv:
         )
         assert "UV_PROJECT_ENVIRONMENT" in base
         assert "VIRTUAL_ENV" not in base
+
+
+class TestParseKernelInfo:
+    def test_full_line(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        pid, exe = _parse_kernel_info("KERNEL_INFO 1234 /env/bin/python")
+        assert pid == 1234
+        assert exe == "/env/bin/python"
+
+    def test_tolerates_absence_and_junk(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        assert _parse_kernel_info("") == (None, None)
+        assert _parse_kernel_info("something else") == (None, None)
+        assert _parse_kernel_info("KERNEL_INFO not-a-pid") == (None, None)
+
+    def test_pid_only(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        assert _parse_kernel_info("KERNEL_INFO 99") == (99, None)
+
+
+def test_launch_kernel_handshake_reports_identity() -> None:
+    """The kernel prints KERNEL_READY then KERNEL_INFO <pid> <exe>, so a
+    manager separated from the kernel by a launcher can target it."""
+    import subprocess
+    import sys as _sys
+
+    code = (
+        "from unittest.mock import patch, MagicMock\n"
+        "import marimo._ipc.launch_kernel as lk\n"
+        "with patch.object(\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
+        "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
+        "    lk.main()\n"
+    )
+    completed = subprocess.run(
+        [_sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+    assert completed.returncode == 0, completed.stderr
+    lines = completed.stdout.splitlines()
+    assert lines[0] == "KERNEL_READY"
+    from marimo._session.managers.ipc import _parse_kernel_info
+
+    pid, exe = _parse_kernel_info(lines[1])
+    assert pid is not None
+    assert exe is not None

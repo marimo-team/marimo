@@ -8,18 +8,24 @@ via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
+import sys
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 from marimo import _loggers
-from marimo._cli.sandbox import (
-    build_sandbox_venv,
-    cleanup_sandbox_dir,
-)
 from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.environment import (
+    launch,
+    launch_isolated,
+    sync_notebook,
+)
+from marimo._environments.overlay import runtime_overlay
+from marimo._environments.uv import UvError, UvMissingScriptMetadataError
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session._venv import (
@@ -128,6 +134,23 @@ class IPCQueueManagerImpl(QueueManager):
         self.input_queue.put(text)
 
 
+def _parse_kernel_info(line: str) -> tuple[int | None, str | None]:
+    """Parses the optional `KERNEL_INFO <pid> <executable>` line.
+
+    Tolerates absence and shorter forms for version skew with kernels
+    that predate the line.
+    """
+    parts = line.split(" ", 2)
+    if len(parts) < 2 or parts[0] != "KERNEL_INFO":
+        return None, None
+    try:
+        pid = int(parts[1])
+    except ValueError:
+        return None, None
+    executable = parts[2] if len(parts) > 2 and parts[2] else None
+    return pid, executable
+
+
 def construct_kernel_env(
     base_env: dict[str, str],
     venv_python: str,
@@ -141,8 +164,8 @@ def construct_kernel_env(
     Args:
         base_env: Starting environment (typically `os.environ.copy()`).
         venv_python: Path to the Python executable in the target venv.
-        is_ephemeral_sandbox: Whether this is an ephemeral sandbox venv
-            built by `build_sandbox_venv`.
+        is_ephemeral_sandbox: Whether the kernel runs in a sandbox venv
+            rather than a configured one.
         writable: Whether the kernel venv supports package installs.
         kernel_pythonpath: Extra PYTHONPATH entries for read-only
             configured venvs that don't have marimo installed.
@@ -202,8 +225,10 @@ class IPCKernelManagerImpl(KernelManager):
 
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
-        self._sandbox_dir: str | None = None
         self._venv_python: str | None = None
+        # The kernel's own pid: a launcher such as uv may sit between the
+        # manager and the kernel, so _process.pid is not the kernel.
+        self._kernel_pid: int | None = None
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -232,7 +257,6 @@ class IPCKernelManagerImpl(KernelManager):
         # Ephemeral sandboxes are always writable; configured venvs respect the
         # flag.
         writable = True
-        is_ephemeral_sandbox = False
         kernel_pythonpath: str | None = None
 
         # An explicitly configured venv takes precedence over an ephemeral
@@ -278,41 +302,76 @@ class IPCKernelManagerImpl(KernelManager):
                 # current runtime as a last chance effort to expose marimo
                 # to the kernel.
                 kernel_pythonpath = get_kernel_pythonpath()
-        else:
-            # Fall back to building ephemeral sandbox venv
-            # with IPC dependencies.
-            # NB. "Ephemeral" sandboxes (or rather tmp sandboxes built by uv)
-            # are always writable, and as such install marimo as a default,
-            # making them much easier than a configured venv we cannot manage.
-            is_ephemeral_sandbox = True
-            try:
-                self._sandbox_dir, venv_python = build_sandbox_venv(
-                    self.app_metadata.filename,
-                    additional_deps=get_ipc_kernel_deps(),
-                )
-            except Exception as e:
-                cleanup_sandbox_dir(self._sandbox_dir)
-                raise KernelStartupError(
-                    f"Failed to build sandbox environment.\n\n{e}"
-                ) from e
-
-            echo(
-                f"Running kernel in sandbox: {muted(venv_python)}",
-                err=True,
+            # Store the venv python for package manager targeting
+            self._venv_python = venv_python
+            env = construct_kernel_env(
+                base_env=os.environ.copy(),
+                venv_python=venv_python,
+                is_ephemeral_sandbox=False,
+                writable=writable,
+                kernel_pythonpath=kernel_pythonpath,
             )
+            cmd: list[str] = [venv_python, "-m", "marimo._ipc.launch_kernel"]
+            plan_launched = False
+        else:
+            # Synchronize the notebook's script environment; a notebook
+            # without a metadata block runs ephemerally, and packages
+            # installed during its session die with it.
+            kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
+            overlay = runtime_overlay(additional_deps=get_ipc_kernel_deps())
+            handle = None
+            filename = self.app_metadata.filename
+            if filename is not None:
+                from marimo._environments import script_metadata
 
-        # Store the venv python for package manager targeting
-        self._venv_python = venv_python
+                # Best-effort: give metadata-less notebooks a block so
+                # they get a real script environment instead of an
+                # ephemeral one whose installs the server cannot target.
+                try:
+                    script_metadata.ensure_marimo(filename)
+                except Exception as e:
+                    LOGGER.warning(
+                        "Failed to add marimo to script metadata: %s", e
+                    )
+                try:
+                    handle = sync_notebook(filename)
+                except UvMissingScriptMetadataError:
+                    handle = None
+                except UvError as e:
+                    raise KernelStartupError(
+                        f"Failed to build sandbox environment.\n\n{e}"
+                    ) from e
 
-        env = construct_kernel_env(
-            base_env=os.environ.copy(),
-            venv_python=venv_python,
-            is_ephemeral_sandbox=is_ephemeral_sandbox,
-            writable=writable,
-            kernel_pythonpath=kernel_pythonpath,
-        )
+            if handle is not None:
+                self._venv_python = handle.python
+                plan = launch(
+                    handle,
+                    kernel_args_list,
+                    overlay=overlay,
+                    base_env=os.environ.copy(),
+                )
+                echo(
+                    f"Running kernel in script environment: "
+                    f"{muted(handle.root)}",
+                    err=True,
+                )
+            else:
+                import platform
 
-        cmd = [venv_python, "-m", "marimo._ipc.launch_kernel"]
+                plan = launch_isolated(
+                    kernel_args_list,
+                    overlay=overlay,
+                    python=platform.python_version(),
+                    base_env=os.environ.copy(),
+                )
+                echo("Running kernel in an ephemeral sandbox", err=True)
+
+            plan_launched = True
+            env = plan.env
+            # Ephemeral sandboxes are always writable; the kernel manages
+            # the notebook's script metadata.
+            env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            cmd = list(plan.argv)
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
 
@@ -343,17 +402,45 @@ class IPCKernelManagerImpl(KernelManager):
                     f"Stderr:\n{stderr}"
                 )
 
+            if plan_launched:
+                # Plan-launched kernels run the overlay-pinned marimo, so
+                # the KERNEL_INFO line is guaranteed; a configured venv
+                # may run an older marimo that never prints it, and
+                # reading would hang its startup.
+                info = self._process.stdout.readline().decode().strip()
+                kernel_pid, kernel_executable = _parse_kernel_info(info)
+                self._kernel_pid = kernel_pid
+                if self._venv_python is None and kernel_executable is not None:
+                    # An ephemeral kernel's environment is only knowable
+                    # from the kernel itself; the server package panel
+                    # targets it.
+                    self._venv_python = kernel_executable
+
+            # Drain the kernel's stderr so a chatty launcher (uv
+            # resolution output) cannot fill the pipe and deadlock it;
+            # tee to the server's stderr as the kernel's console.
+            stderr_pipe = self._process.stderr
+
+            def drain_stderr() -> None:
+                assert stderr_pipe is not None
+                for line in iter(stderr_pipe.readline, b""):
+                    try:
+                        sys.stderr.buffer.write(line)
+                        sys.stderr.buffer.flush()
+                    except Exception:
+                        pass
+                stderr_pipe.close()
+
+            threading.Thread(target=drain_stderr, daemon=True).start()
+
             LOGGER.debug("Kernel ready")
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
         except KernelStartupError:
-            # Already a KernelStartupError, just cleanup and re-raise
-            cleanup_sandbox_dir(self._sandbox_dir)
             raise
         except Exception as e:
             # Wrap other exceptions as KernelStartupError
-            cleanup_sandbox_dir(self._sandbox_dir)
             raise KernelStartupError(
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
@@ -385,7 +472,7 @@ class IPCKernelManagerImpl(KernelManager):
 
         if self._process.pid is not None and self.is_alive():
             interrupt_kernel_process(
-                self._process.pid,
+                self._kernel_pid or self._process.pid,
                 self.queue_manager.win32_interrupt_queue,
             )
 
@@ -397,6 +484,13 @@ class IPCKernelManagerImpl(KernelManager):
             )
             self.queue_manager.close_queues()
             if self._process.poll() is None and self.kernel_task is not None:
+                # The kernel leads its own process group; kill it first
+                # so user-code subprocesses die too, then the launcher.
+                if self._kernel_pid is not None and sys.platform != "win32":
+                    try:
+                        os.killpg(os.getpgid(self._kernel_pid), signal.SIGTERM)
+                    except (ProcessLookupError, PermissionError):
+                        pass
                 try:
                     try_kill_process_and_group(self.kernel_task)
                 except ProcessLookupError:
@@ -405,8 +499,6 @@ class IPCKernelManagerImpl(KernelManager):
                     LOGGER.warning(e)
 
         # Always attempt cleanup, even if _process is None
-        cleanup_sandbox_dir(self._sandbox_dir)
-        self._sandbox_dir = None
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:
