@@ -387,9 +387,19 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         return
 
     if is_windows():
-        # TODO(akshayka): Investigate whether we need to kill an entire
-        # process group on Windows, and if so how ...
-        process.terminate()
+        # A launcher such as uv may sit between us and the kernel; kill
+        # the whole tree rooted at the direct child.
+        import subprocess as _subprocess
+
+        try:
+            completed = _subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(pid)],
+                capture_output=True,
+            )
+            if completed.returncode != 0:
+                process.terminate()
+        except Exception:
+            process.terminate()
         return
 
     pgid = os.getpgid(pid)

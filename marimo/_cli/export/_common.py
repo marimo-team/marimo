@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,8 @@ from marimo._utils.marimo_path import MarimoPath
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+
+    from marimo._environments.environment import Environment
 
 
 def is_multi_target(paths: list[Path]) -> bool:
@@ -45,42 +48,67 @@ def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
     return [notebooks[k] for k in sorted(notebooks)]
 
 
+@dataclass(frozen=True)
+class SandboxTarget:
+    """Where a sandboxed export runs.
+
+    `environment` is the notebook's script environment, or None for a
+    notebook without a metadata block, which runs ephemerally.
+    """
+
+    environment: Environment | None
+
+
 class SandboxVenvPool:
+    """Caches synchronized script environments by notebook path."""
+
     def __init__(self) -> None:
-        self._envs: dict[tuple[str, ...], tuple[str, str]] = {}
+        self._targets: dict[str, SandboxTarget] = {}
 
-    def get_python(self, notebook_path: str) -> str:
-        from marimo._cli.sandbox import (
-            build_sandbox_venv,
-            get_sandbox_requirements,
-        )
+    def get_target(self, notebook_path: str) -> SandboxTarget:
+        from marimo._environments.environment import sync_notebook
+        from marimo._environments.uv import UvMissingScriptMetadataError
 
-        requirements = tuple(get_sandbox_requirements(notebook_path))
-        existing = self._envs.get(requirements)
+        key = str(Path(notebook_path).resolve())
+        existing = self._targets.get(key)
         if existing is not None:
-            return existing[1]
+            return existing
 
-        sandbox_dir, venv_python = build_sandbox_venv(notebook_path)
-        self._envs[requirements] = (sandbox_dir, venv_python)
-        return venv_python
+        try:
+            target = SandboxTarget(environment=sync_notebook(key))
+        except UvMissingScriptMetadataError:
+            target = SandboxTarget(environment=None)
+        self._targets[key] = target
+        return target
 
     def close(self) -> None:
-        from marimo._cli.sandbox import cleanup_sandbox_dir
-
-        for sandbox_dir, _ in self._envs.values():
-            cleanup_sandbox_dir(sandbox_dir)
-        self._envs.clear()
+        # uv owns the environments; there is nothing to remove.
+        self._targets.clear()
 
 
 def run_python_subprocess(
     *,
-    venv_python: str,
+    sandbox: SandboxTarget,
     script: str,
     payload: dict[str, Any],
     action: str,
 ) -> str:
+    import platform
+
+    from marimo._environments.environment import launch, launch_isolated
+    from marimo._environments.overlay import runtime_overlay
+
+    args = ["-c", script, json.dumps(payload)]
+    overlay = runtime_overlay()
+    if sandbox.environment is not None:
+        plan = launch(sandbox.environment, args, overlay=overlay)
+    else:
+        plan = launch_isolated(
+            args, overlay=overlay, python=platform.python_version()
+        )
     result = subprocess.run(
-        [venv_python, "-c", script, json.dumps(payload)],
+        list(plan.argv),
+        env=plan.env,
         check=False,
         capture_output=True,
         text=True,
@@ -89,7 +117,7 @@ def run_python_subprocess(
         stderr = result.stderr.strip()
         raise click.ClickException(
             f"Failed to {action} in sandbox.\n\n"
-            f"Command:\n\n  {venv_python} -c <script>\n\n"
+            f"Command:\n\n  python -c <script>\n\n"
             f"Stderr:\n\n{stderr}"
         )
     return result.stdout

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import sys
 
 from marimo._ipc.queue_manager import QueueManager
@@ -29,6 +30,11 @@ def main() -> None:
     queue_manager = QueueManager.connect(args.connection_info)
 
     sys.stdout.write("KERNEL_READY\n")
+    # A second line reports the kernel's identity: a launcher such as uv
+    # may sit between the manager and this process, so the manager cannot
+    # rely on its direct child's pid. Emitted after KERNEL_READY so
+    # managers that only read the ready line keep working.
+    sys.stdout.write(f"KERNEL_INFO {os.getpid()} {sys.executable}\n")
     sys.stdout.flush()
 
     runtime.launch_kernel(

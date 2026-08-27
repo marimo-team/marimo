@@ -205,6 +205,27 @@ def sync(
     return _parse_report(completed.stdout)
 
 
+def sync_notebook(
+    path: str, *, python_override: str | None = None
+) -> Environment:
+    """Synchronizes a notebook's script environment.
+
+    Materializes the manifest when it lives in frontmatter. Raises
+    `UvMissingScriptMetadataError` when the notebook has no metadata
+    block.
+    """
+    from marimo._environments.script_metadata import (
+        materialized_for_environment,
+    )
+
+    with materialized_for_environment(path) as target:
+        return sync(
+            target.path,
+            cwd=target.directory,
+            python_override=python_override,
+        )
+
+
 def ensure_supported_uv() -> None:
     """Raise `UvUnsupportedVersionError` for a uv below the minimum."""
     version = _uv_version()
