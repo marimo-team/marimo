@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from functools import cached_property
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -15,6 +14,7 @@ if TYPE_CHECKING:
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._environments import script_metadata
 from marimo._environments.uv import UvCommandError, find_uv_bin, uv
 from marimo._runtime.packages._micropip_streaming import (
     stream_transaction_install,
@@ -561,100 +561,17 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
-        if filepath.endswith((".md", ".qmd")):
-            # md and qmd require writing to a faux python file first.
-            return self._process_md_changes(
-                filepath, packages_to_add, packages_to_remove, upgrade=upgrade
+        try:
+            script_metadata.add_dependencies(
+                filepath, packages_to_add, upgrade=upgrade
             )
-        return self._process_changes_for_script_metadata(
-            filepath, packages_to_add, packages_to_remove, upgrade=upgrade
-        )
-
-    def _process_md_changes(
-        self,
-        filepath: str,
-        packages_to_add: list[str],
-        packages_to_remove: list[str],
-        upgrade: bool,
-    ) -> bool:
-        from marimo._convert.markdown.to_ir import extract_frontmatter
-        from marimo._utils import yaml
-        from marimo._utils.inline_script_metadata import (
-            get_headers_from_frontmatter,
-        )
-
-        # Get script metadata
-        with open(filepath, encoding="utf-8") as f:
-            frontmatter, body = extract_frontmatter(f.read())
-        headers = get_headers_from_frontmatter(frontmatter)
-        pyproject = bool(headers.get("pyproject", ""))
-        header = (
-            headers.get("pyproject", "")
-            if pyproject
-            else headers.get("header", "")
-        )
-        pyproject = pyproject or not bool(header)
-
-        # Write out and process the header
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".py", encoding="utf-8"
-        ) as temp_file:
-            temp_file.write(header)
-            temp_file.flush()
-        # Have UV modify it
-        result = self._process_changes_for_script_metadata(
-            temp_file.name,
-            packages_to_add,
-            packages_to_remove,
-            upgrade=upgrade,
-        )
-        with open(temp_file.name, encoding="utf-8") as f:
-            header = f.read()
-        # Clean up the temporary file
-        os.unlink(temp_file.name)
-
-        # Write back the changes to the original file
-        if pyproject:
-            # Strip '# '
-            # and leading/trailing ///
-            header = "\n".join(
-                [line[2:] for line in header.strip().splitlines()[1:-1]]
+            script_metadata.remove_dependencies(filepath, packages_to_remove)
+        except script_metadata.ScriptMetadataError as e:
+            LOGGER.warning(
+                f"Failed to update script metadata for {filepath}: {e}"
             )
-            frontmatter["pyproject"] = header
-        else:
-            frontmatter["header"] = header
-
-        header = yaml.marimo_compat_dump(
-            frontmatter,
-            sort_keys=False,
-        )
-        document = ["---", header.strip(), "---", body]
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write("\n".join(document))
-
-        return result
-
-    def _process_changes_for_script_metadata(
-        self,
-        filepath: str,
-        packages_to_add: list[str],
-        packages_to_remove: list[str],
-        upgrade: bool,
-    ) -> bool:
-        success = True
-        if packages_to_add:
-            cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
-            if upgrade:
-                cmd.append("--upgrade")
-            cmd.extend(packages_to_add)
-            success &= self._run_sync(cmd, log_callback=None)
-        if packages_to_remove:
-            success &= self._run_sync(
-                [self._uv_bin, "--quiet", "remove", "--script", filepath]
-                + packages_to_remove,
-                log_callback=None,
-            )
-        return success
+            return False
+        return True
 
     def _get_version_map(self) -> VersionMap:
         packages = self.list_packages()

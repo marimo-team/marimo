@@ -202,8 +202,8 @@ class SafeWrap(Generic[T]):
 def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     from marimo._ast.app_config import _AppConfig
     from marimo._ast.parse import NON_MARIMO_MARKDOWN_VIOLATION
+    from marimo._environments.script_metadata import wrap_block
     from marimo._utils import yaml
-    from marimo._utils.scripts import wrap_script_metadata
 
     app_config = app_config_from_root(root)
     config_only = _AppConfig.sanitize(app_config)
@@ -233,7 +233,7 @@ def _tree_to_ir(root: Element) -> SafeWrap[NotebookSerializationV1]:
     if frontmatter:
         header_value = yaml.dump(frontmatter, sort_keys=False)
     elif pyproject and not header_str:
-        header_value = wrap_script_metadata(pyproject)
+        header_value = wrap_block(pyproject)
     elif header_str:
         header_value = header_str
     else:
