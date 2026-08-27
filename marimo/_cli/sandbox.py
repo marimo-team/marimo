@@ -19,6 +19,7 @@ from marimo import _loggers
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments import script_metadata
 from marimo._environments.uv import (
     UvCommandError,
     UvMissingScriptMetadataError,
@@ -30,7 +31,6 @@ from marimo._environments.uv import (
 )
 from marimo._utils.inline_script_metadata import (
     PyProjectReader,
-    has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
 from marimo._utils.versions import is_editable
@@ -364,82 +364,6 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
-def _ensure_python_version_in_script_metadata(name: str) -> None:
-    """Add requires-python to script metadata if not present.
-
-    Inserts a requires-python line directly into the existing PEP 723
-    metadata block without re-serializing, to avoid reformatting diffs.
-    """
-    import re
-
-    from marimo._utils.scripts import read_pyproject_from_script
-
-    with open(name, encoding="utf-8") as f:
-        content = f.read()
-
-    project = read_pyproject_from_script(content)
-    if project is None:
-        # No script metadata exists
-        return
-
-    if "requires-python" in project:
-        return
-
-    version_tuple = platform.python_version_tuple()
-    requires_line = (
-        f'# requires-python = ">={version_tuple[0]}.{version_tuple[1]}"\n'
-    )
-
-    # Insert directly after the opening "# /// script" marker to avoid
-    # re-serializing the entire block and causing formatting churn.
-    new_content = re.sub(
-        r"^# /// script$",
-        "# /// script\n" + requires_line.rstrip(),
-        content,
-        count=1,
-        flags=re.MULTILINE,
-    )
-
-    if new_content != content:
-        with open(name, "w", encoding="utf-8") as f:
-            f.write(new_content)
-
-
-def _ensure_marimo_in_script_metadata(name: str | None) -> None:
-    """Ensure marimo is in the script metadata.
-
-    If the file has no PEP 723 script metadata or marimo is not listed
-    as a dependency, add marimo using uv.
-    """
-    # Only applicable to `.py` files.
-    if name is None or not name.endswith(".py"):
-        return
-
-    # If the file doesn't exist or is empty, don't create it here - let marimo
-    # create the notebook normally with proper structure
-    if not os.path.exists(name) or os.path.getsize(name) == 0:
-        return
-
-    # Check if script metadata exists and whether marimo is present
-    # Returns: True (has marimo), False (no marimo), None (no metadata)
-    has_marimo = has_marimo_in_script_metadata(name)
-    if has_marimo is True:
-        # marimo is already present
-        return
-
-    # Add marimo to script metadata using uv
-    # This will create the script metadata block if it doesn't exist
-    try:
-        result = uv(["add", "--script", name, "marimo"], timeout=30)
-        LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
-    except UvCommandError as e:
-        LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
-    except subprocess.TimeoutExpired:
-        LOGGER.warning("Timed out adding marimo to script metadata")
-    except Exception as e:
-        LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
-
-
 def run_in_sandbox(
     args: list[str],
     *,
@@ -468,10 +392,17 @@ def run_in_sandbox(
             additional_tip="Install uv from https://github.com/astral-sh/uv",
         ) from e
 
-    # Ensure marimo and python version are in the script metadata before running
-    _ensure_marimo_in_script_metadata(name)
+    # Ensure marimo and the python version are in the script metadata before
+    # running. Adding marimo is best-effort: the sandbox still runs without
+    # it, since the requirements normalization injects marimo.
     if name is not None and name.endswith(".py"):
-        _ensure_python_version_in_script_metadata(name)
+        try:
+            script_metadata.ensure_marimo(name)
+        except subprocess.TimeoutExpired:
+            LOGGER.warning("Timed out adding marimo to script metadata")
+        except Exception as e:
+            LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
+        script_metadata.ensure_requires_python(name)
 
     uv_cmd = construct_uv_command(
         args,

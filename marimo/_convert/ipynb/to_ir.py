@@ -1394,8 +1394,8 @@ def build_metadata(
     Uses PyProjectReader utilities to parse existing metadata and properly
     merge dependencies.
     """
+    from marimo._environments import script_metadata
     from marimo._utils.inline_script_metadata import PyProjectReader
-    from marimo._utils.scripts import write_pyproject_to_script
 
     # If no exclamation mark processing happened or no packages found
     if not extra_metadata or not extra_metadata.pip_packages:
@@ -1419,7 +1419,7 @@ def build_metadata(
         project = {"dependencies": pip_packages}
 
     # Convert project dict to PEP 723 format using utility
-    return write_pyproject_to_script(project)
+    return script_metadata.dumps(project)
 
 
 def _transform_sources(
