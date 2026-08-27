@@ -2,14 +2,11 @@
 """Provision script environments with uv.
 
 `sync()` makes a script's environment match its PEP 723 metadata and
-returns a frozen `Environment`: the interpreter to launch, the environment
-root, and the action uv took. Synchronizing is idempotent and cheap when
-nothing changed, so callers synchronize before every launch instead of
-tracking staleness themselves.
-
-uv owns resolution, so index configuration, sources, and credentials in
-the metadata apply exactly as they do for `uv run script.py`. The
-environment is uv's own script environment, shared with `uv run`.
+returns a frozen `Environment`. Synchronizing is idempotent and cheap
+when nothing changed; callers synchronize before every launch. uv owns
+resolution, so the metadata's indexes, sources, and credentials apply
+exactly as they do for `uv run script.py`, and the environment is the
+same one `uv run` uses.
 """
 
 from __future__ import annotations
@@ -22,10 +19,10 @@ from typing import TYPE_CHECKING, Literal
 import msgspec
 
 from marimo import _loggers
-from marimo._environments.uv import UvError, uv
+from marimo._environments.uv import UvError, require_uv_bin, uv
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Mapping, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -56,10 +53,8 @@ class UvSyncReportError(UvError):
 class Environment:
     """A synchronized script environment.
 
-    A process launched from a previous handle must be relaunched when
-    `requires_restart` says so; an `updated` environment keeps its
-    interpreter, and newly installed packages are importable without a
-    relaunch.
+    An `updated` environment keeps its interpreter; newly installed
+    packages are importable without a relaunch.
     """
 
     python: str
@@ -75,12 +70,10 @@ class Environment:
     def process_env(
         self, base: Mapping[str, str] | None = None
     ) -> dict[str, str]:
-        """Environment variables for a process running in this environment.
+        """Environment variables for a process in this environment.
 
-        Package operations inside the process must target this environment,
-        not an enclosing project or virtualenv, and subprocesses the
-        process spawns by name must resolve this environment's tools
-        first, as they would under `uv run`.
+        Sets `VIRTUAL_ENV`, drops `UV_PROJECT_ENVIRONMENT`, and puts the
+        environment's bin directory first on `PATH`, as `uv run` would.
         """
         env = dict(os.environ if base is None else base)
         env["VIRTUAL_ENV"] = self.root
@@ -91,20 +84,71 @@ class Environment:
         return env
 
 
+@dataclass(frozen=True)
+class ProcessPlan:
+    """A command ready to run inside a script environment."""
+
+    argv: tuple[str, ...]
+    env: dict[str, str]
+
+
+def launch(
+    environment: Environment,
+    args: Sequence[str],
+    *,
+    overlay: Sequence[str] = (),
+    base_env: Mapping[str, str] | None = None,
+) -> ProcessPlan:
+    """Plans running `python <args...>` inside the environment.
+
+    With no overlay, the plan invokes the environment's interpreter
+    directly. Overlay requirements (PEP 508, or `-e <path>` for an
+    editable install) are layered via `uv run --with` into a cached side
+    environment for this process only; the script environment and the
+    manifest are never modified.
+    """
+    env = environment.process_env(base_env)
+    if not overlay:
+        return ProcessPlan(argv=(environment.python, *args), env=env)
+
+    with_args: list[str] = []
+    for requirement in overlay:
+        if requirement.startswith("-e "):
+            with_args.extend(["--with-editable", requirement[3:].strip()])
+        else:
+            with_args.extend(["--with", requirement])
+    return ProcessPlan(
+        argv=(
+            require_uv_bin(),
+            "run",
+            # The script environment is VIRTUAL_ENV in `env`; --active
+            # makes uv layer on top of it instead of ignoring it.
+            "--active",
+            "--no-project",
+            "--python",
+            environment.python,
+            *with_args,
+            "--",
+            "python",
+            *args,
+        ),
+        env=env,
+    )
+
+
 def sync(
     script: str,
     *,
     cwd: str | None = None,
     python_override: str | None = None,
 ) -> Environment:
-    """Make the script's environment match its metadata.
+    """Makes the script's environment match its metadata.
 
-    `cwd` is the directory uv runs from, normally the notebook's own
-    directory so directory-scoped uv configuration applies. The
-    `python_override` wins over the script's `requires-python`; html-wasm
-    export needs the environment's interpreter to match Pyodide even when
-    the script declares something else. Raises `UvCommandError` subclasses
-    on resolution or synchronization failure and never mutates `script`.
+    Runs uv from `cwd`, normally the notebook's directory, so
+    directory-scoped uv configuration applies. `python_override` wins
+    over the script's `requires-python` (html-wasm export pins the
+    Pyodide interpreter). Raises `UvCommandError` on failure and never
+    mutates `script`.
     """
     ensure_supported_uv()
     args = [
@@ -135,11 +179,10 @@ def ensure_supported_uv() -> None:
 
 
 def _uv_version() -> str:
-    """The version string of the invoked uv.
+    """The invoked uv's version string.
 
-    Probed per call: the probe is cheap next to any synchronization, and
-    caching would pin a stale answer across `uv self update` or a changed
-    `UV` environment variable.
+    Probed per call; caching would pin a stale answer across
+    `uv self update` or a changed `UV` environment variable.
     """
     # "uv 0.7.21 (a1b2c3d4 2025-01-01)"
     stdout = uv(["--version"]).stdout.strip()
@@ -208,9 +251,8 @@ def _parse_report(stdout: str) -> Environment:
 def _venv_python(root: str) -> str | None:
     """The environment's interpreter, preferring the unversioned name.
 
-    Symlinks are deliberately not resolved: bin/python commonly links to
-    the base interpreter, and resolving it would launch outside the
-    environment.
+    Symlinks are not resolved: bin/python commonly links to the base
+    interpreter, and resolving it would launch outside the environment.
     """
     bin_dir = _venv_bin_dir(root)
     candidates: tuple[str, ...]
