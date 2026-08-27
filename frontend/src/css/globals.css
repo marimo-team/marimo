@@ -80,21 +80,28 @@
     );
     --accent: light-dark(hsl(209deg 100% 96.5%), hsl(192deg 56.6% 26.5%));
     --accent-foreground: light-dark(hsl(211deg 90% 42%), hsl(190deg 80% 84%));
-    --ring: hsl(215deg 20.2% 65.1%);
+    --ring: light-dark(var(--blue-8), var(--blue-8));
 
     /* Semantic colors. */
-    --destructive: hsl(0deg 100% 70%);
-    --destructive-foreground: hsl(210deg 40% 98%);
-    --error: hsl(0deg 77% 64%);
-    --error-foreground: hsl(210deg 40% 98%);
-    --success: hsl(130deg 100% 70%);
-    --success-foreground: hsl(210deg 40% 98%);
-    --action: hsl(52deg 96.8% 82%);
-    --action-hover: hsl(54deg 100% 86.7%);
-    --action-foreground: hsl(42deg 100% 29%);
+    --destructive: light-dark(var(--red-9), var(--red-6));
+    --destructive-foreground: light-dark(var(--red-1), var(--red-12));
+    --error: light-dark(var(--red-9), var(--red-6));
+    --error-foreground: light-dark(var(--red-1), var(--red-12));
+    --success: light-dark(var(--grass-9), var(--grass-6));
+    --success-foreground: light-dark(var(--grass-1), var(--grass-12));
+    --warning: light-dark(var(--yellow-9), var(--yellow-6));
+    --warning-foreground: light-dark(var(--yellow-12), var(--yellow-12));
+    --action: light-dark(var(--yellow-4), var(--yellow-4));
+    --action-hover: light-dark(var(--yellow-3), var(--yellow-5));
+    --action-foreground: light-dark(var(--yellow-11), var(--yellow-12));
     --link: light-dark(hsl(211deg 90% 42%), hsl(211deg 90% 62%));
     --link-visited: light-dark(hsl(272deg 51% 54%), hsl(272deg 51% 74%));
-    --stale: hsl(42deg 56% 44% / 25%);
+    --stale: light-dark(
+      hsl(42deg 56% 44% / 25%),
+      hsl(54deg 100% 86.7% / 25%)
+    );
+
+    accent-color: var(--primary);
 
     /* Base shadows. */
     --base-shadow: light-dark(hsl(0deg 0% 85% / 40%), hsla(0deg 0% 36% / 60%));
