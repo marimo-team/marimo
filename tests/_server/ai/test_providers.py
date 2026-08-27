@@ -1,14 +1,23 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
+import asyncio
 import os
+from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic import ValidationError
 
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._server.ai.completion_output import (
+    CELL_COMPLETION_DATA_TYPE,
+    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+    CellCompletion,
+    NotebookCellsCompletion,
+)
 from marimo._server.ai.config import AnyProviderConfig
 from marimo._server.ai.ids import AiModelId
 from marimo._server.ai.providers import (
@@ -22,9 +31,276 @@ from marimo._server.ai.providers import (
     StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
+    _structured_completion_finish_reason,
     get_completion_provider,
 )
+from marimo._server.ai.tools.types import ToolDefinition
 from marimo._server.ai.tracing import SpanInfo
+
+
+@pytest.mark.parametrize(
+    ("pydantic_reason", "vercel_reason"),
+    [
+        ("stop", "stop"),
+        ("length", "length"),
+        ("content_filter", "content-filter"),
+        ("tool_call", "stop"),
+        ("error", "error"),
+        (None, "stop"),
+    ],
+)
+def test_structured_completion_finish_reason(
+    pydantic_reason: Any, vercel_reason: Any
+) -> None:
+    assert (
+        _structured_completion_finish_reason(pydantic_reason) == vercel_reason
+    )
+
+
+def test_structured_completion_unknown_finish_reason() -> None:
+    with patch("marimo._server.ai.providers.log_never") as log_never:
+        assert (
+            _structured_completion_finish_reason(cast(Any, "future_reason"))
+            == "other"
+        )
+
+    log_never.assert_called_once_with("future_reason")
+
+
+@pytest.mark.parametrize(
+    "cells",
+    [
+        pytest.param([], id="no-cells"),
+        pytest.param([{"language": "python", "code": ""}], id="empty-code"),
+    ],
+)
+def test_notebook_cells_completion_requires_content(
+    cells: list[dict[str, str]],
+) -> None:
+    with pytest.raises(ValidationError):
+        NotebookCellsCompletion.model_validate({"cells": cells})
+
+
+@pytest.mark.requires("pydantic_ai")
+@pytest.mark.parametrize(
+    "test_model_kwargs",
+    [
+        pytest.param(
+            {"custom_output_args": {"code": "print('```')"}},
+            id="tool-output",
+        ),
+        pytest.param(
+            {
+                "custom_output_text": '{"code":"print(\'```\')"}',
+                "profile": {
+                    "default_structured_output_mode": "native",
+                    "supports_json_schema_output": True,
+                },
+            },
+            id="native-output",
+        ),
+        pytest.param(
+            {
+                "custom_output_text": '{"code":"print(\'```\')"}',
+                "profile": {"default_structured_output_mode": "prompted"},
+            },
+            id="prompted-output",
+        ),
+    ],
+)
+async def test_stream_structured_completion_emits_validated_data(
+    test_model_kwargs: dict[str, Any],
+) -> None:
+    from pydantic_ai.models.test import TestModel
+    from pydantic_ai.profiles import ModelProfile
+
+    if profile := test_model_kwargs.get("profile"):
+        test_model_kwargs = {
+            **test_model_kwargs,
+            "profile": ModelProfile(**profile),
+        }
+
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+    stream_options = StreamOptions(
+        span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+    )
+
+    with patch.object(
+        provider,
+        "create_model",
+        return_value=TestModel(**test_model_kwargs),
+    ):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cell code.",
+            max_tokens=100,
+            output_type=CellCompletion,
+            data_type=CELL_COMPLETION_DATA_TYPE,
+            stream_options=stream_options,
+        )
+
+    chunks = [chunk async for chunk in response.body_iterator]
+    body = "".join(
+        chunk.decode() if isinstance(chunk, bytes) else chunk
+        for chunk in chunks
+    )
+    assert '"type":"data-cell-completion"' in body
+    assert "print('```')" in body
+    assert '"transient":true' in body
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_structured_completion_emits_partial_snapshots() -> None:
+    from pydantic_ai.models.function import (
+        AgentInfo,
+        DeltaToolCall,
+        DeltaToolCalls,
+        FunctionModel,
+    )
+
+    async def respond(
+        messages: list[Any], info: AgentInfo
+    ) -> AsyncIterator[DeltaToolCalls]:
+        del messages
+        assert info.function_tools == []
+        yield {
+            0: DeltaToolCall(
+                name="final_result",
+                json_args=('{"cells":[{"language":"python","code":"a'),
+                tool_call_id="completion",
+            )
+        }
+        await asyncio.sleep(0.11)
+        yield {
+            0: DeltaToolCall(
+                json_args=(' = 1"},{"language":"python","code":"b')
+            )
+        }
+        await asyncio.sleep(0.11)
+        yield {0: DeltaToolCall(json_args=' = a + 1"}]}')}
+
+    from pydantic_ai.profiles import ModelProfile
+
+    model = FunctionModel(
+        stream_function=respond,
+        profile=ModelProfile(default_structured_output_mode="tool"),
+    )
+    config = AnyProviderConfig(
+        api_key="test-key",
+        base_url="http://test-url",
+        tools=[
+            ToolDefinition(
+                name="configured_tool",
+                description="Must not be exposed to completion generation.",
+                parameters={"type": "object"},
+                source="backend",
+                mode=["ask"],
+            )
+        ],
+    )
+    provider = OpenAIProvider("gpt-4", config)
+
+    with patch.object(provider, "create_model", return_value=model):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cells.",
+            max_tokens=100,
+            output_type=NotebookCellsCompletion,
+            data_type=NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+            ),
+        )
+
+    chunks = [chunk async for chunk in response.body_iterator]
+    body = "".join(
+        chunk.decode() if isinstance(chunk, bytes) else chunk
+        for chunk in chunks
+    )
+    assert body.count('"type":"data-notebook-cells-completion"') == 3
+    assert body.index('"code":"a"') < body.index('"code":"a = 1"')
+    assert body.index('"code":"b"') < body.index('"code":"b = a + 1"')
+    assert '"finishReason":"stop"' in body
+
+
+@pytest.mark.requires("pydantic_ai")
+async def test_stream_structured_completion_reports_final_validation_error() -> (
+    None
+):
+    from pydantic_ai.models.function import (
+        AgentInfo,
+        DeltaToolCall,
+        DeltaToolCalls,
+        FunctionModel,
+    )
+
+    async def respond(
+        messages: list[Any], info: AgentInfo
+    ) -> AsyncIterator[DeltaToolCalls]:
+        del messages, info
+        yield {
+            0: DeltaToolCall(
+                name="final_result",
+                json_args=(
+                    '{"cells":[{"language":"python","code":"partial"}]}'
+                ),
+                tool_call_id="completion",
+            )
+        }
+        yield {0: DeltaToolCall(json_args=" invalid")}
+
+    from pydantic_ai.profiles import ModelProfile
+
+    model = FunctionModel(
+        stream_function=respond,
+        profile=ModelProfile(default_structured_output_mode="tool"),
+    )
+    config = AnyProviderConfig(api_key="test-key", base_url="http://test-url")
+    provider = OpenAIProvider("gpt-4", config)
+
+    with (
+        patch.object(provider, "create_model", return_value=model),
+        patch("marimo._server.ai.providers.LOGGER.exception") as log_exception,
+    ):
+        response = await provider.stream_structured_completion(
+            messages=[
+                {
+                    "id": "user-message",
+                    "role": "user",
+                    "parts": [{"type": "text", "text": "write code"}],
+                }
+            ],
+            system_prompt="Return cells.",
+            max_tokens=100,
+            output_type=NotebookCellsCompletion,
+            data_type=NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+            stream_options=StreamOptions(
+                span_info=SpanInfo(endpoint="completion", model="openai/gpt-4")
+            ),
+        )
+
+        chunks = [chunk async for chunk in response.body_iterator]
+        body = "".join(
+            chunk.decode() if isinstance(chunk, bytes) else chunk
+            for chunk in chunks
+        )
+    assert '"code":"partial"' in body
+    assert '"type":"error"' in body
+    assert '"finishReason":"error"' in body
+    log_exception.assert_called_once_with("Structured completion failed")
 
 
 @pytest.mark.parametrize(

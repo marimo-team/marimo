@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { merge } from "lodash-es";
+import { mergeWith } from "lodash-es";
 import { OverridingHotkeyProvider } from "../hotkeys/hotkeys";
 import { type Platform, resolvePlatform } from "../hotkeys/shortcuts";
 import { store } from "../state/jotai";
@@ -12,6 +12,19 @@ import {
 } from "./config-schema";
 
 /**
+ * Deep-merge config objects, replacing arrays instead of merging them by
+ * index. Lodash `merge` keeps leftover tail items. Python `deep_merge` replaces arrays.
+ */
+export function mergeConfig<T extends object>(...sources: object[]): T {
+  return mergeWith({}, ...sources, (_obj: unknown, src: unknown) => {
+    if (Array.isArray(src)) {
+      return [...src];
+    }
+    return undefined;
+  }) as T;
+}
+
+/**
  * Atom for storing the user config.
  */
 export const userConfigAtom = atom<UserConfig>(defaultUserConfig());
@@ -21,7 +34,7 @@ export const configOverridesAtom = atom<{}>({});
 export const resolvedMarimoConfigAtom = atom<UserConfig>((get) => {
   const overrides = get(configOverridesAtom);
   const userConfig = get(userConfigAtom);
-  return merge({}, userConfig, overrides);
+  return mergeConfig(userConfig, overrides);
 });
 
 export const autoInstantiateAtom = atom((get) => {

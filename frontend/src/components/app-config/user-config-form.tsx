@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { merge } from "lodash-es";
 import {
   AlertTriangleIcon,
   BrainIcon,
@@ -35,7 +34,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import { useUserConfig } from "@/core/config/config";
+import { mergeConfig, useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
   type UserConfig,
@@ -203,7 +202,7 @@ export const UserConfigForm: React.FC = () => {
     await saveUserConfig({ config: dirtyValues });
     // Only apply the changed keys; this avoids stale request responses
     // overwriting newer config changes.
-    setConfig((prev) => merge({}, prev, dirtyValues));
+    setConfig((prev) => mergeConfig(prev, dirtyValues));
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
 

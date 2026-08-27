@@ -315,6 +315,7 @@ class AiConfig(TypedDict, total=False):
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+    - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -335,6 +336,7 @@ class AiConfig(TypedDict, total=False):
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
+    allow_provider_config: NotRequired[bool]
     models: AiModelConfig
     # providers
     open_ai: OpenAiConfig
@@ -808,6 +810,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "enabled": True,
+        "allow_provider_config": True,
         "models": {
             "displayed_models": [],
             "custom_models": [],

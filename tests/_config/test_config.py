@@ -15,6 +15,17 @@ def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
     assert user_config == {**DEFAULT_CONFIG, **override}
 
 
+def test_allow_provider_config_defaults_true() -> None:
+    assert DEFAULT_CONFIG["ai"]["allow_provider_config"] is True
+
+
+def test_allow_provider_config_can_be_disabled() -> None:
+    merged = merge_default_config(
+        PartialMarimoConfig(ai={"allow_provider_config": False})
+    )
+    assert merged["ai"]["allow_provider_config"] is False
+
+
 def test_configure_partial_keymap() -> None:
     assert_config(
         PartialMarimoConfig(keymap={"preset": "vim", "overrides": {}})

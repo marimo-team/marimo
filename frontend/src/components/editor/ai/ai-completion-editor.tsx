@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useCompletion } from "@ai-sdk/react";
+import { useChat } from "@ai-sdk/react";
 import { EditorView } from "@codemirror/view";
 import {
   CircleCheckIcon,
@@ -10,13 +10,14 @@ import {
 } from "lucide-react";
 import React, { useCallback, useEffect, useId, useState } from "react";
 import CodeMirrorMerge from "react-codemirror-merge";
+import { DefaultChatTransport } from "ai";
 import { Button } from "@/components/ui/button";
 import { customPythonLanguageSupport } from "@/core/codemirror/language/languages/python";
 
 import "./merge-editor.css";
 import { storePrompt } from "@marimo-team/codemirror-ai";
 import type { ReactCodeMirrorRef } from "@uiw/react-codemirror";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom } from "jotai";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
   AddContextButton,
@@ -27,14 +28,19 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
+import {
+  CELL_COMPLETION_DATA_TYPE,
+  cellCompletionSchema,
+  type CompletionUIMessage,
+} from "@/core/ai/completion-output";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
-import { stripWrappingBackticks } from "@/core/ai/strip-wrapping-backticks";
 import { type AiCompletionCell, includeOtherCellsAtom } from "@/core/ai/state";
 import type { CellId } from "@/core/cells/ids";
 import { getCodes } from "@/core/codemirror/copilot/getCodes";
 import type { LanguageAdapterType } from "@/core/codemirror/language/types";
 import { selectAllText } from "@/core/codemirror/utils";
 import { useRuntimeManager } from "@/core/runtime/config";
+import type { AiCompletionRequest } from "@/core/network/types";
 import { useTheme } from "@/theme/useTheme";
 import { cn } from "@/utils/cn";
 import { prettyError } from "@/utils/errors";
@@ -42,11 +48,12 @@ import { retryWithTimeout } from "@/utils/timeout";
 import { PromptInput } from "./add-cell-with-ai";
 import {
   AcceptCompletionButton,
+  AI_EDIT_ACTION_LABELS,
   createAiCompletionOnKeydown,
   RejectCompletionButton,
 } from "./completion-handlers";
 import { addContextCompletion, getAICompletionBody } from "./completion-utils";
-import { stagedAICellsAtom } from "@/core/ai/staged-cells";
+import { useStagedAICell } from "@/core/ai/staged-cells";
 
 const Original = CodeMirrorMerge.Original;
 const Modified = CodeMirrorMerge.Modified;
@@ -89,7 +96,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
   children,
 }) => {
   const [showInputPrompt, setShowInputPrompt] = useState(false);
-  const [completionBody, setCompletionBody] = useState<object>({});
 
   const [includeOtherCells, setIncludeOtherCells] = useAtom(
     includeOtherCellsAtom,
@@ -105,57 +111,90 @@ export const AiCompletionEditor: React.FC<Props> = ({
   } = aiCompletionCell ?? {};
   const enabled = aiCellId === cellId;
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
-  const updatedCell = stagedAICells.get(cellId);
+  const updatedCell = useStagedAICell(cellId);
   let previousCellCode: string | undefined;
   if (updatedCell?.type === "update_cell") {
     previousCellCode = updatedCell.previousCode;
   }
 
+  const [completion, setCompletion] = useState("");
+  const [input, setInput] = useState(initialPrompt ?? "");
+  const transport = React.useMemo(
+    () =>
+      new DefaultChatTransport<CompletionUIMessage>({
+        api: runtimeManager.getAiURL("completion").toString(),
+        headers: () => runtimeManager.headers(),
+        prepareSendMessagesRequest: ({ body }) => ({ body: body ?? {} }),
+      }),
+    [runtimeManager],
+  );
   const {
-    completion: untrimmedCompletion,
-    input,
-    stop,
-    isLoading,
-    setCompletion,
-    setInput,
-    handleSubmit,
-    complete,
-  } = useCompletion({
-    api: runtimeManager.getAiURL("completion").toString(),
-    headers: runtimeManager.headers(),
-    initialInput: initialPrompt,
+    sendMessage,
+    stop: stopChat,
+    status,
+  } = useChat<CompletionUIMessage>({
     throttle: AI_SDK_UI_THROTTLE_MS,
-    body: {
-      ...(Object.keys(completionBody).length > 0
-        ? completionBody
-        : initialPrompt
-          ? getAICompletionBody({ input: initialPrompt })
-          : {}),
-      includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
-      code: currentCode,
-      language: currentLanguageAdapter,
+    transport,
+    onData: (part) => {
+      if (part.type === CELL_COMPLETION_DATA_TYPE) {
+        const completion = cellCompletionSchema.parse(part.data);
+        setCompletion(completion.code.trimEnd());
+      }
     },
     onError: (error) => {
+      setCompletion("");
       toast({
         title: "Completion failed",
         description: prettyError(error),
       });
     },
-    onFinish: (_prompt, completion) => {
-      setCompletion(stripWrappingBackticks(completion).trimEnd());
+    onFinish: ({ isAbort, isDisconnect, isError, finishReason }) => {
+      if (isAbort || isDisconnect || isError || finishReason !== "stop") {
+        setCompletion("");
+      }
     },
   });
+  const isLoading = status === "submitted" || status === "streaming";
+
+  const stop = useCallback(() => {
+    setCompletion("");
+    void stopChat();
+  }, [stopChat]);
+
+  const complete = useCallback(
+    async (prompt: string) => {
+      await stopChat();
+      setCompletion("");
+
+      const body = {
+        ...getAICompletionBody({ input: prompt }),
+        prompt,
+        includeOtherCode: includeOtherCells ? getCodes(currentCode) : "",
+        code: currentCode,
+        language: currentLanguageAdapter ?? "python",
+      } satisfies AiCompletionRequest;
+
+      await sendMessage({ text: prompt }, { body });
+    },
+    [
+      currentCode,
+      currentLanguageAdapter,
+      includeOtherCells,
+      sendMessage,
+      stopChat,
+    ],
+  );
+
+  const handleSubmit = useCallback(() => {
+    void complete(input);
+  }, [complete, input]);
 
   const inputRef = React.useRef<ReactCodeMirrorRef>(null);
-  const completion = stripWrappingBackticks(untrimmedCompletion, {
-    streaming: isLoading,
-  }).trimEnd();
 
   const initialSubmit = useCallback(() => {
     if (triggerImmediately && !isLoading && initialPrompt) {
       // Use complete to pass the prompt directly, else input might be empty
-      complete(initialPrompt);
+      void complete(initialPrompt);
     }
     // oxlint-disable-next-line react-hooks/exhaustive-deps
   }, [triggerImmediately]);
@@ -197,7 +236,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
   // Reject discards the suggestion but keeps the prompt open for refinement.
   const handleDeclineCompletion = () => {
     stop();
-    setCompletion("");
     setShowInputPrompt(true);
     inputRef.current?.view?.focus();
   };
@@ -266,19 +304,16 @@ export const AiCompletionEditor: React.FC<Props> = ({
         onAccept={handleAcceptCompletion}
         size="xs"
         multipleCompletions={false}
+        label={AI_EDIT_ACTION_LABELS.accept}
         acceptShortcut="Mod-↵"
         runCell={runCell}
-        borderless={true}
-        buttonStyles="hover:shadow-none"
-        playButtonStyles="hover:shadow-none"
       />
       <RejectCompletionButton
         onDecline={handleDeclineCompletion}
         size="xs"
         multipleCompletions={false}
+        label={AI_EDIT_ACTION_LABELS.decline}
         declineShortcut="Shift-Mod-Delete"
-        borderless={true}
-        className="hover:shadow-none"
       />
     </>
   );
@@ -302,14 +337,11 @@ export const AiCompletionEditor: React.FC<Props> = ({
               inputRef={inputRef}
               className="h-full my-0 py-2 flex items-center"
               onClose={() => {
+                stop();
                 declineChange();
-                setCompletion("");
               }}
               value={input}
-              onChange={(newValue) => {
-                setInput(newValue);
-                setCompletionBody(getAICompletionBody({ input: newValue }));
-              }}
+              onChange={setInput}
               onSubmit={() => {
                 if (!isLoading) {
                   if (inputRef.current?.view) {
@@ -381,7 +413,6 @@ export const AiCompletionEditor: React.FC<Props> = ({
               onClick={() => {
                 stop();
                 declineChange();
-                setCompletion("");
               }}
             >
               <XIcon className="text-(--red-10)" size={16} />
@@ -422,8 +453,7 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
   return (
     <div
       className={cn(
-        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border",
-        "shadow-[0_0_6px_1px_rgba(34,197,94,0.15)]",
+        "flex flex-row items-center gap-6 rounded-md py-2 px-2.5 text-sm border border-border bg-(--gray-2) dark:bg-(--gray-3)",
         className,
       )}
     >
@@ -468,15 +498,13 @@ const CompletionBanner: React.FC<CompletionBannerProps> = ({
           isLoading={isLoading}
           onAccept={onAccept}
           size="xs"
-          borderless={true}
+          label={AI_EDIT_ACTION_LABELS.accept}
           runCell={runCell}
-          // acceptShortcut="Mod-↵"
         />
         <RejectCompletionButton
           onDecline={onReject}
           size="xs"
-          borderless={true}
-          // declineShortcut="Shift-Mod-Delete"
+          label={AI_EDIT_ACTION_LABELS.decline}
         />
       </div>
     </div>
