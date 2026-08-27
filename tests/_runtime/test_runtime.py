@@ -1953,6 +1953,33 @@ except NameError:
         assert cell.exception is None
         assert k.globals["result"] == 3
 
+    async def test_nested_private_recursive_function(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        """Regression test for #10675: a private nested function can call
+        itself recursively."""
+        k = any_kernel
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    def _sum(xs):
+                        def _recursive_sum(xs, total=0):
+                            if not xs:
+                                return total
+                            return _recursive_sum(xs[1:], total + xs[0])
+
+                        return _recursive_sum(xs)
+
+                    result = _sum([1, 2, 3, 4, 5])
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert cell.exception is None
+        assert k.globals["result"] == 15
+
     async def test_private_recursive_function_local_shadow(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
