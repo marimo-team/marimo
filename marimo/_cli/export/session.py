@@ -340,8 +340,7 @@ def session(
             notebook, force_overwrite=force_overwrite
         ):
             return
-        run_in_sandbox(sys.argv[1:], name=str(name))
-        return
+        sys.exit(run_in_sandbox(sys.argv[1:], name=str(name)))
 
     asyncio_run(
         _export_sessions(

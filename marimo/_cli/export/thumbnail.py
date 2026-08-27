@@ -104,14 +104,16 @@ def _bootstrap_thumbnail_sandbox(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox
 
-    run_in_sandbox(
-        args,
-        name=name,
-        additional_deps=_thumbnail_sandbox_deps,
-        extra_env={
-            _sandbox_bootstrapped_env: "1",
-            _sandbox_mode_env: sandbox_mode.value,
-        },
+    sys.exit(
+        run_in_sandbox(
+            args,
+            name=name,
+            additional_deps=_thumbnail_sandbox_deps,
+            extra_env={
+                _sandbox_bootstrapped_env: "1",
+                _sandbox_mode_env: sandbox_mode.value,
+            },
+        )
     )
 
 
