@@ -169,6 +169,7 @@ export const UserConfigSchema = z
         max_tokens: z.number().int().positive().nullable().optional(),
         mode: z.enum(COPILOT_MODES).prefault("manual"),
         inline_tooltip: z.boolean().prefault(false),
+        allow_provider_config: z.boolean().prefault(true),
         open_ai: AiConfigSchema.optional(),
         anthropic: AiConfigSchema.optional(),
         google: AiConfigSchema.optional(),

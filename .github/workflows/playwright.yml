@@ -35,7 +35,7 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.playwright == 'true' }}
     timeout-minutes: 18 # 2024-01-18 avg: 5.0m max: 7.0m
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -108,7 +108,7 @@ jobs:
       - name: 📥 Install Playwright Browsers
         working-directory: ./frontend
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm playwright install chromium webkit --with-deps
+        run: pnpm playwright install chromium --with-deps
 
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend

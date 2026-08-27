@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { isPlatformMac } from "@/core/hotkeys/shortcuts";
 
+export const AI_EDIT_ACTION_LABELS = {
+  accept: "Keep change",
+  decline: "Revert change",
+} as const;
+
 /**
  * Common keyboard shortcut handlers for AI completions
  */
@@ -48,16 +53,32 @@ export const CompletionActionsCellFooter: React.FC<{
   size?: "xs" | "sm";
   multipleCompletions?: boolean;
   runCell?: () => void;
-}> = ({ isLoading, onAccept, onDecline, runCell }) => {
+  acceptLabel?: string;
+  declineLabel?: string;
+}> = ({
+  isLoading,
+  onAccept,
+  onDecline,
+  runCell,
+  acceptLabel,
+  declineLabel,
+  size,
+}) => {
   return (
     <>
       <AcceptCompletionButton
         isLoading={isLoading}
         onAccept={onAccept}
-        size="xs"
+        size={size}
         runCell={runCell}
+        label={acceptLabel}
       />
-      <RejectCompletionButton onDecline={onDecline} size="xs" />
+      <RejectCompletionButton
+        onDecline={onDecline}
+        size={size}
+        label={declineLabel}
+        disabled={isLoading}
+      />
     </>
   );
 };
@@ -72,6 +93,7 @@ export const AcceptCompletionButton: React.FC<{
   borderless?: boolean;
   acceptShortcut?: string;
   runCell?: () => void;
+  label?: string;
 }> = ({
   isLoading,
   onAccept,
@@ -82,6 +104,7 @@ export const AcceptCompletionButton: React.FC<{
   runCell,
   playButtonStyles,
   borderless = false,
+  label,
 }) => {
   const handleAcceptAndRun = () => {
     onAccept();
@@ -90,7 +113,7 @@ export const AcceptCompletionButton: React.FC<{
     }
   };
 
-  const text = multipleCompletions ? "Accept all" : "Accept";
+  const text = label ?? (multipleCompletions ? "Accept all" : "Accept");
 
   const baseClasses = `h-6 text-(--grass-11) bg-(--grass-3)/60
     hover:bg-(--grass-3) dark:bg-(--grass-4)/80 dark:hover:bg-(--grass-3) font-semibold
@@ -113,11 +136,7 @@ export const AcceptCompletionButton: React.FC<{
           )}
         </Button>
         <Tooltip
-          content={
-            multipleCompletions
-              ? "Accept and run all cells"
-              : "Accept and run cell"
-          }
+          content={`${text} and run ${multipleCompletions ? "all cells" : "cell"}`}
         >
           <Button
             variant="text"
@@ -151,30 +170,35 @@ export const AcceptCompletionButton: React.FC<{
 
 export const RejectCompletionButton: React.FC<{
   onDecline: () => void;
+  disabled?: boolean;
   multipleCompletions?: boolean;
   size?: "xs" | "sm";
   className?: string;
   borderless?: boolean;
   declineShortcut?: string;
+  label?: string;
 }> = ({
   onDecline,
+  disabled = false,
   multipleCompletions = false,
   size = "sm",
   className,
   declineShortcut,
   borderless = false,
+  label,
 }) => {
   return (
     <Button
       variant="text"
       size={size}
+      disabled={disabled}
       onClick={onDecline}
       className={`h-6 text-(--red-10) bg-(--red-3)/60 hover:bg-(--red-3)
     dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold
     active:bg-(--red-5) dark:active:bg-(--red-4)
     border-(--red-6) border hover:shadow-xs ${borderless && "border-none rounded-md"} ${className}`}
     >
-      Reject{multipleCompletions && " all"}
+      {label ?? `Reject${multipleCompletions ? " all" : ""}`}
       {declineShortcut && (
         <MinimalHotkeys className="ml-1 inline" shortcut={declineShortcut} />
       )}

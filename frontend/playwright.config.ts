@@ -45,6 +45,7 @@ const appToOptions = {
   "stdin.py": { command: "edit" },
   "layout_grid_with_sidebar.py": { command: "edit" },
   "slides.py": { command: "edit" },
+  "visual_tokens.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },
   // Run
@@ -53,6 +54,7 @@ const appToOptions = {
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "layout_grid_with_sidebar.py//run": { port: port(), command: "run" },
+  "visual_tokens.py//run": { port: port(), command: "run" },
   "output.py//run": {
     port: port(),
     command: "run",
