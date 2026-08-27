@@ -4632,15 +4632,6 @@ export interface components {
       type: "configuration" | "environment";
     };
     /**
-     * DialectHidesWhen
-     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
-     */
-    DialectHidesWhen: {
-      /** @enum {unknown} */
-      kind: "dialect";
-      substrings: string[];
-    };
-    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4652,6 +4643,15 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiscoverDataSourcesCommand
@@ -6500,6 +6500,9 @@ export interface components {
      *         - `default_sql_output`: the default output format for SQL queries. Can be one of:
      *             `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
      *             The default is `"auto"`.
+     *         - `sql_keyword_case`: the keyword case used in generated SQL, such as
+     *             cell boilerplate, autocomplete suggestions, and table snippets.
+     *             Can be `"upper"` or `"lower"`. The default is `"upper"`.
      *         - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
      *            `html`, `markdown`, `ipynb`.
      *            The default is None.
@@ -6530,6 +6533,8 @@ export interface components {
       reactive_tests: boolean;
       serve_cached_sessions_in_apps?: boolean;
       show_tracebacks?: boolean;
+      /** @enum {unknown} */
+      sql_keyword_case?: "lower" | "upper";
       std_stream_max_bytes: number;
       /** @enum {unknown} */
       watcher_on_save: "autorun" | "lazy";

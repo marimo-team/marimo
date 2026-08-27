@@ -9,6 +9,7 @@ from marimo import _loggers
 from marimo._ai._tools.base import ToolBase
 from marimo._ai._tools.types import SuccessResult, ToolGuidelines
 from marimo._ai._tools.utils.exceptions import ToolExecutionError
+from marimo._config.config import SqlKeywordCase
 from marimo._data.models import DataTable
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import SessionId
@@ -88,6 +89,9 @@ class GetDatabaseTables(
             )
 
         tables: list[TableDetails] = []
+        keyword_case = session.config_manager.get_config()["runtime"].get(
+            "sql_keyword_case", "upper"
+        )
 
         # Pre-compile regex if query exists
         compiled_pattern = None
@@ -113,6 +117,7 @@ class GetDatabaseTables(
                                 default_database=default_database,
                                 default_schema=default_schema,
                                 engine=connection.name,
+                                keyword_case=keyword_case,
                             )
                             tables.append(
                                 TableDetails(
@@ -135,6 +140,7 @@ class GetDatabaseTables(
                                 default_database=default_database,
                                 default_schema=default_schema,
                                 engine=connection.name,
+                                keyword_case=keyword_case,
                             )
                             tables.append(
                                 TableDetails(
@@ -162,12 +168,17 @@ class GetDatabaseTables(
         default_database: bool,
         default_schema: bool,
         engine: str,
+        keyword_case: SqlKeywordCase = "upper",
     ) -> str:
-        sample_query = f"SELECT * FROM {database}.{schema}.{table} LIMIT 100"
+        def kw(fragment: str) -> str:
+            return fragment.lower() if keyword_case == "lower" else fragment
+
+        select_from, limit = kw("SELECT * FROM"), kw("LIMIT")
+        sample_query = f"{select_from} {database}.{schema}.{table} {limit} 100"
         if default_database:
-            sample_query = f"SELECT * FROM {schema}.{table} LIMIT 100"
+            sample_query = f"{select_from} {schema}.{table} {limit} 100"
         if default_schema:
-            sample_query = f"SELECT * FROM {table} LIMIT 100"
+            sample_query = f"{select_from} {table} {limit} 100"
         if engine != INTERNAL_DUCKDB_ENGINE:
             wrapped_query = (
                 f'df = mo.sql(f"""{sample_query}""", engine={engine})'

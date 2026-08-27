@@ -37,6 +37,12 @@ const VALID_SQL_OUTPUT_FORMATS = [
 ] as const;
 export type SqlOutputType = (typeof VALID_SQL_OUTPUT_FORMATS)[number];
 
+/**
+ * Keyword case for generated SQL
+ */
+const VALID_SQL_KEYWORD_CASES = ["upper", "lower"] as const;
+export type SqlKeywordCase = (typeof VALID_SQL_KEYWORD_CASES)[number];
+
 export const DEFAULT_AI_MODEL = "openai/gpt-4o";
 
 /**
@@ -129,6 +135,7 @@ export const UserConfigSchema = z
         reactive_tests: z.boolean().prefault(true),
         watcher_on_save: z.enum(["lazy", "autorun"]).prefault("lazy"),
         default_sql_output: z.enum(VALID_SQL_OUTPUT_FORMATS).prefault("auto"),
+        sql_keyword_case: z.enum(VALID_SQL_KEYWORD_CASES).prefault("upper"),
         default_auto_download: z
           .array(z.enum(AUTO_DOWNLOAD_FORMATS))
           .prefault([]),

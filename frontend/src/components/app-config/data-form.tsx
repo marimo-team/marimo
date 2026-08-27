@@ -16,6 +16,7 @@ import { Checkbox } from "../ui/checkbox";
 import {
   formItemClasses,
   SettingGroup,
+  SQL_KEYWORD_CASE_SELECT_OPTIONS,
   SQL_OUTPUT_SELECT_OPTIONS,
 } from "./common";
 import { IsOverridden, OverriddenFormField } from "./is-overridden";
@@ -262,6 +263,40 @@ export const DataForm = ({
               <FormDescription>
                 The default SQL output type for new notebooks; overridden by
                 "sql_output" in the application config.
+              </FormDescription>
+            </div>
+          )}
+        />
+
+        <OverriddenFormField
+          control={form.control}
+          name="runtime.sql_keyword_case"
+          render={({ field, override }) => (
+            <div className="flex flex-col space-y-1">
+              <FormItem className={formItemClasses}>
+                <FormLabel>SQL keyword case</FormLabel>
+                <FormControl>
+                  <NativeSelect
+                    data-testid="user-config-sql-keyword-case-select"
+                    onChange={(e) => field.onChange(e.target.value)}
+                    value={override.value ?? "upper"}
+                    disabled={field.disabled || override.isOverridden}
+                    className="inline-flex mr-2"
+                  >
+                    {SQL_KEYWORD_CASE_SELECT_OPTIONS.map((option) => (
+                      <option value={option.value} key={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </NativeSelect>
+                </FormControl>
+                <FormMessage />
+                <IsOverridden override={override} />
+              </FormItem>
+
+              <FormDescription>
+                The keyword case used in generated SQL, such as cell
+                boilerplate, autocomplete suggestions, and table snippets.
               </FormDescription>
             </div>
           )}

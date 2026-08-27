@@ -7,12 +7,16 @@ import { forEachDiagnostic, forceLinting } from "@codemirror/lint";
 import { EditorState, type Extension } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { DuckDBDialect } from "@marimo-team/codemirror-sql/dialects";
+import { SQLParser } from "@marimo-team/smart-cells";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CellId } from "@/core/cells/ids";
-import type {
-  CompletionConfig,
-  DiagnosticsConfig,
-  LSPConfig,
+import { userConfigAtom } from "@/core/config/config";
+import {
+  type CompletionConfig,
+  defaultUserConfig,
+  type DiagnosticsConfig,
+  type LSPConfig,
+  type SqlKeywordCase,
 } from "@/core/config/config-schema";
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
@@ -633,6 +637,40 @@ _df = mo.sql(
     it("should not include engine in defaultCode when using default engine", () => {
       setLatestEngineSelected(DUCKDB_ENGINE);
       expect(adapter.defaultCode).toBe(`_df = mo.sql(f"""SELECT * FROM """)`);
+    });
+
+    it("should match SQLParser.defaultCode under the default config", () => {
+      setLatestEngineSelected(DUCKDB_ENGINE);
+      expect(adapter.defaultCode).toBe(new SQLParser().defaultCode);
+    });
+
+    describe("with lowercase keyword case", () => {
+      const setKeywordCase = (keywordCase: SqlKeywordCase) => {
+        const config = defaultUserConfig();
+        store.set(userConfigAtom, {
+          ...config,
+          runtime: { ...config.runtime, sql_keyword_case: keywordCase },
+        });
+      };
+
+      afterEach(() => {
+        store.set(userConfigAtom, defaultUserConfig());
+      });
+
+      it("should lowercase keywords in defaultCode with an engine", () => {
+        setKeywordCase("lower");
+        const engine = "postgres_engine" as ConnectionName;
+        setLatestEngineSelected(engine);
+        expect(adapter.defaultCode).toBe(
+          `_df = mo.sql(f"""select * from """, engine=${engine})`,
+        );
+      });
+
+      it("should lowercase keywords in defaultCode without an engine", () => {
+        setKeywordCase("lower");
+        setLatestEngineSelected(DUCKDB_ENGINE);
+        expect(adapter.defaultCode).toBe(`_df = mo.sql(f"""select * from """)`);
+      });
     });
   });
 });
@@ -2433,6 +2471,45 @@ describe("tablesCompletionSource", () => {
           expect(result?.options.some((opt) => opt.label === "SELECT")).toBe(
             true,
           );
+        });
+
+        it("should provide lowercase keyword completions when configured", async () => {
+          const config = defaultUserConfig();
+          store.set(userConfigAtom, {
+            ...config,
+            runtime: { ...config.runtime, sql_keyword_case: "lower" },
+          });
+
+          const mockConnection: DataSourceConnection = {
+            name: TEST_ENGINE,
+            dialect: "postgres",
+            display_name: "postgres",
+            source: "postgres",
+            databases: [],
+          };
+
+          store.set(dataSourceConnectionsAtom, {
+            connectionsMap: new Map([[TEST_ENGINE, mockConnection]]),
+            latestEngineSelected: TEST_ENGINE,
+          });
+
+          const state = createEditorState("sel", {
+            engine: TEST_ENGINE,
+          });
+          const ctx = createCompletionContext(state, 3);
+
+          const adapter = new SQLLanguageAdapter();
+          const extensions = adapter.getExtension(...TEST_EXTENSION_ARGS);
+          const completion = getCompletionSources(extensions)?.[2];
+
+          expect(completion).toBeDefined();
+          const result = await completion!(ctx);
+          expect(result).toBeDefined();
+          expect(result?.options.some((opt) => opt.label === "select")).toBe(
+            true,
+          );
+
+          store.set(userConfigAtom, defaultUserConfig());
         });
 
         it("should not provide keyword completions after dot", async () => {

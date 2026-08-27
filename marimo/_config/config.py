@@ -124,6 +124,7 @@ WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 ExportType = Literal["html", "markdown", "ipynb"]
 SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
+SqlKeywordCase = Literal["upper", "lower"]
 StoreKey = Literal["file", "redis", "rest", "tiered"]
 
 
@@ -167,6 +168,9 @@ class RuntimeConfig(TypedDict):
     - `default_sql_output`: the default output format for SQL queries. Can be one of:
         `"auto"`, `"native"`, `"polars"`, `"lazy-polars"`, or `"pandas"`.
         The default is `"auto"`.
+    - `sql_keyword_case`: the keyword case used in generated SQL, such as
+        cell boilerplate, autocomplete suggestions, and table snippets.
+        Can be `"upper"` or `"lower"`. The default is `"upper"`.
     - `default_auto_download`: an Optional list of export types to automatically snapshot your notebook as:
        `html`, `markdown`, `ipynb`.
        The default is None.
@@ -188,6 +192,7 @@ class RuntimeConfig(TypedDict):
     pythonpath: NotRequired[list[str]]
     dotenv: NotRequired[list[str]]
     default_sql_output: SqlOutputType
+    sql_keyword_case: NotRequired[SqlKeywordCase]
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
     show_tracebacks: NotRequired[bool]
@@ -782,6 +787,7 @@ DEFAULT_CONFIG: MarimoConfig = {
             os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
         ),
         "default_sql_output": "auto",
+        "sql_keyword_case": "upper",
         "default_csv_encoding": "utf-8",
         "show_tracebacks": False,
     },
