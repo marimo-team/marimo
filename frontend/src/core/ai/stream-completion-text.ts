@@ -1,10 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { consumeStream, parseJsonEventStream, uiMessageChunkSchema } from "ai";
-import { stripWrappingBackticks } from "./strip-wrapping-backticks";
+import {
+  CELL_COMPLETION_DATA_TYPE,
+  cellCompletionSchema,
+  isDataChunk,
+} from "./completion-output";
 
 /**
- * Read an AI SDK UI message stream response and return the assistant text.
+ * Read an AI SDK UI message stream response and return validated cell code.
  */
 export async function streamCompletionText(
   response: Response,
@@ -17,7 +21,8 @@ export async function streamCompletionText(
     throw new Error("Failed to get response body");
   }
 
-  let result = "";
+  let result: string | null = null;
+  let finishedSuccessfully = false;
 
   await consumeStream({
     stream: parseJsonEventStream({
@@ -31,10 +36,15 @@ export async function streamCompletionText(
           }
 
           const streamPart = part.value;
-          if (streamPart.type === "text-delta") {
-            result += streamPart.delta;
+          if (
+            isDataChunk(streamPart) &&
+            streamPart.type === CELL_COMPLETION_DATA_TYPE
+          ) {
+            result = cellCompletionSchema.parse(streamPart.data).code;
           } else if (streamPart.type === "error") {
             throw new Error(streamPart.errorText);
+          } else if (streamPart.type === "finish") {
+            finishedSuccessfully = streamPart.finishReason === "stop";
           }
         },
       }),
@@ -44,5 +54,12 @@ export async function streamCompletionText(
     },
   });
 
-  return stripWrappingBackticks(result);
+  if (!finishedSuccessfully) {
+    throw new Error("AI completion ended before final validation");
+  }
+  if (result === null) {
+    throw new Error("AI completion returned no cell code");
+  }
+
+  return result;
 }

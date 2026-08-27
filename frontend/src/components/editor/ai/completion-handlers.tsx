@@ -77,6 +77,7 @@ export const CompletionActionsCellFooter: React.FC<{
         onDecline={onDecline}
         size={size}
         label={declineLabel}
+        disabled={isLoading}
       />
     </>
   );
@@ -169,6 +170,7 @@ export const AcceptCompletionButton: React.FC<{
 
 export const RejectCompletionButton: React.FC<{
   onDecline: () => void;
+  disabled?: boolean;
   multipleCompletions?: boolean;
   size?: "xs" | "sm";
   className?: string;
@@ -177,6 +179,7 @@ export const RejectCompletionButton: React.FC<{
   label?: string;
 }> = ({
   onDecline,
+  disabled = false,
   multipleCompletions = false,
   size = "sm",
   className,
@@ -188,6 +191,7 @@ export const RejectCompletionButton: React.FC<{
     <Button
       variant="text"
       size={size}
+      disabled={disabled}
       onClick={onDecline}
       className={`h-6 text-(--red-10) bg-(--red-3)/60 hover:bg-(--red-3)
     dark:bg-(--red-4)/80 dark:hover:bg-(--red-3) rounded px-3 font-semibold

@@ -41,15 +41,18 @@ from marimo._server.ai.tracing import (
     trace_stream,
 )
 from marimo._server.models.completion import UIMessage as ServerUIMessage
+from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncIterator, Sequence
 
     from openai import AsyncOpenAI
+    from pydantic import BaseModel
     from pydantic_ai import Agent, DeferredToolRequests, FunctionToolset
     from pydantic_ai.capabilities import AbstractCapability
+    from pydantic_ai.messages import FinishReason as PydanticFinishReason
     from pydantic_ai.models import Model
     from pydantic_ai.models.anthropic import AnthropicModelSettings
     from pydantic_ai.models.bedrock import (
@@ -77,6 +80,9 @@ if TYPE_CHECKING:
     from pydantic_ai.settings import ModelSettings, ThinkingLevel
     from pydantic_ai.toolsets import AbstractToolset
     from pydantic_ai.ui.vercel_ai.request_types import UIMessage, UIMessagePart
+    from pydantic_ai.ui.vercel_ai.response_types import (
+        FinishReason as VercelFinishReason,
+    )
     from starlette.requests import Request
     from starlette.responses import StreamingResponse
 
@@ -101,6 +107,25 @@ class BaseModelSettings:
 
 
 ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
+
+
+def _structured_completion_finish_reason(
+    finish_reason: PydanticFinishReason | None,
+) -> VercelFinishReason:
+    match finish_reason:
+        case "stop" | "length" | "error":
+            return finish_reason
+        case None:
+            return "stop"
+        case "content_filter":
+            return "content-filter"
+        case "tool_call":
+            # A structured-output tool call is the successful final result.
+            return "stop"
+        case _:
+            # Preserve the stream if Pydantic AI adds a new finish reason.
+            log_never(finish_reason)
+            return "other"
 
 
 class PydanticProvider(ABC, Generic[ProviderT]):
@@ -173,6 +198,116 @@ class PydanticProvider(ABC, Generic[ProviderT]):
             output_type=output_type,
             deps_type=type(None),
         )
+
+    def _create_structured_completion_agent(
+        self,
+        *,
+        name: str,
+        max_tokens: int | None,
+        system_prompt: str,
+        output_type: type[BaseModel],
+    ) -> Agent[None, BaseModel]:
+        """Create a completion agent with model-adaptive structured output."""
+        from pydantic_ai import Agent
+
+        model = self.create_model()
+
+        return Agent(
+            model,
+            name=name,
+            model_settings=self._build_model_settings(model, max_tokens),
+            instructions=system_prompt,
+            output_type=output_type,
+            deps_type=type(None),
+        )
+
+    async def stream_structured_completion(
+        self,
+        messages: list[ServerUIMessage],
+        system_prompt: str,
+        max_tokens: int | None,
+        output_type: type[BaseModel],
+        data_type: str,
+        stream_options: StreamOptions,
+    ) -> StreamingResponse:
+        """Stream partially validated completion snapshots as data events."""
+        from pydantic_ai.ui.vercel_ai import VercelAIAdapter
+        from pydantic_ai.ui.vercel_ai.request_types import SubmitMessage
+        from pydantic_ai.ui.vercel_ai.response_types import (
+            BaseChunk,
+            DataChunk,
+            DoneChunk,
+            ErrorChunk,
+            FinishChunk,
+            FinishStepChunk,
+            StartChunk,
+            StartStepChunk,
+        )
+
+        agent = self._create_structured_completion_agent(
+            name=stream_options.span_info.endpoint,
+            max_tokens=max_tokens,
+            system_prompt=system_prompt,
+            output_type=output_type,
+        )
+        # Completion is pure generation. Chat and agent endpoints own tool use.
+        stream_options.span_info.tool_count = 0
+
+        run_input = SubmitMessage(
+            id=generate_id("submit-message"),
+            trigger="submit-message",
+            messages=self.convert_messages(messages),
+        )
+        adapter = VercelAIAdapter(
+            agent=agent,
+            run_input=run_input,
+            accept=stream_options.accept,
+            sdk_version=AI_SDK_VERSION,
+        )
+
+        async def completion_events() -> AsyncIterator[BaseChunk]:
+            yield StartChunk()
+            yield StartStepChunk()
+
+            message_history = adapter.sanitize_messages(adapter.messages)
+            last_data: dict[str, object] | None = None
+            async with agent.run_stream(
+                message_history=message_history
+            ) as result:
+                async for output in result.stream_output():
+                    data = output.model_dump(mode="json")
+                    if data == last_data:
+                        continue
+                    last_data = data
+                    yield DataChunk(
+                        type=data_type,
+                        data=data,
+                        transient=True,
+                    )
+
+            yield FinishStepChunk()
+            yield FinishChunk(
+                finish_reason=_structured_completion_finish_reason(
+                    result.response.finish_reason
+                )
+            )
+            yield DoneChunk()
+
+        async def safe_completion_events() -> AsyncIterator[BaseChunk]:
+            try:
+                async for event in trace_stream(
+                    completion_events(), stream_options.span_info
+                ):
+                    yield event
+            except Exception as error:
+                LOGGER.exception("Structured completion failed")
+                yield ErrorChunk(error_text=str(error))
+                yield FinishStepChunk()
+                yield FinishChunk(finish_reason="error")
+                yield DoneChunk()
+
+        event_stream = safe_completion_events()
+        return adapter.streaming_response(event_stream)
 
     def _build_model_settings(
         self, model: Model, max_tokens: int | None

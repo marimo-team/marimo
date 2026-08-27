@@ -7,6 +7,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from marimo._server.ai.completion_output import (
+    CELL_COMPLETION_DATA_TYPE,
+    NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
+    CellCompletion,
+    NotebookCellsCompletion,
+)
 from marimo._server.ai.prompts import (
     FIM_MIDDLE_TAG,
     FIM_PREFIX_TAG,
@@ -128,7 +134,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_without_code(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -156,10 +164,49 @@ class TestOpenAiEndpoints:
             _assert_completion_prompt_in_messages(
                 mock_stream_completion, "Help me create a dataframe"
             )
+            kwargs = mock_stream_completion.call_args.kwargs
+            assert kwargs["output_type"] is CellCompletion
+            assert kwargs["data_type"] == CELL_COMPLETION_DATA_TYPE
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
+    def test_completion_with_ui_messages(
+        client: TestClient, mock_stream_completion: Any
+    ) -> None:
+        user_config_manager = get_session_config_manager(client)
+        mock_stream_completion.return_value = (
+            _mock_stream_completion_response()
+        )
+
+        with patch.object(
+            user_config_manager,
+            "get_config",
+            return_value=_openai_config(),
+        ):
+            response = client.post(
+                "/api/ai/completion",
+                headers=HEADERS,
+                json={
+                    "prompt": "",
+                    "includeOtherCode": "",
+                    "code": "",
+                    "uiMessages": _create_messages("Create two cells"),
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        kwargs = mock_stream_completion.call_args.kwargs
+        assert kwargs["output_type"] is NotebookCellsCompletion
+        assert kwargs["data_type"] == NOTEBOOK_CELLS_COMPLETION_DATA_TYPE
+
+    @staticmethod
+    @with_session(SESSION_ID)
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_code(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -190,7 +237,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_custom_model(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -219,7 +268,9 @@ class TestOpenAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.OpenAIProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.OpenAIProvider.stream_structured_completion"
+    )
     def test_completion_with_custom_base_url(
         client: TestClient, mock_stream_completion: Any
     ) -> None:
@@ -368,7 +419,9 @@ class TestAnthropicAiEndpoints:
 
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.AnthropicProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.AnthropicProvider.stream_structured_completion"
+    )
     def test_anthropic_completion_with_code(
         client: TestClient, stream_completion_mock: Any
     ) -> None:
@@ -393,10 +446,6 @@ class TestAnthropicAiEndpoints:
             assert response.status_code == 200, response.text
             _assert_completion_prompt_in_messages(
                 stream_completion_mock, "Help me create a dataframe"
-            )
-            assert (
-                stream_completion_mock.call_args.kwargs["enable_capabilities"]
-                is False
             )
 
     @staticmethod
@@ -441,7 +490,9 @@ class TestAnthropicAiEndpoints:
 class TestGoogleAiEndpoints:
     @staticmethod
     @with_session(SESSION_ID)
-    @patch("marimo._server.ai.providers.GoogleProvider.stream_completion")
+    @patch(
+        "marimo._server.ai.providers.GoogleProvider.stream_structured_completion"
+    )
     def test_google_ai_completion_with_code(
         client: TestClient, stream_completion_mock: Any
     ) -> None:
@@ -488,7 +539,7 @@ class TestGoogleAiEndpoints:
         user_config_manager = get_session_config_manager(client)
 
         mock_provider = AsyncMock(spec=PydanticProvider)
-        mock_provider.stream_completion.return_value = (
+        mock_provider.stream_structured_completion.return_value = (
             _mock_stream_completion_response()
         )
 
@@ -520,7 +571,8 @@ class TestGoogleAiEndpoints:
 
         assert response.status_code == 200, response.text
         _assert_completion_prompt_in_messages(
-            mock_provider.stream_completion, "Help me create a dataframe"
+            mock_provider.stream_structured_completion,
+            "Help me create a dataframe",
         )
 
     @staticmethod
