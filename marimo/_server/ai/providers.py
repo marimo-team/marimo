@@ -106,7 +106,7 @@ class BaseModelSettings:
     thinking: ThinkingLevel | None
 
 
-ProviderT = TypeVar("ProviderT", bound="Provider", covariant=True)
+ProviderT_co = TypeVar("ProviderT_co", bound="Provider", covariant=True)
 
 
 def _structured_completion_finish_reason(
@@ -128,7 +128,7 @@ def _structured_completion_finish_reason(
             return "other"
 
 
-class PydanticProvider(ABC, Generic[ProviderT]):
+class PydanticProvider(ABC, Generic[ProviderT_co]):
     def __init__(
         self,
         model: str,
@@ -152,10 +152,10 @@ class PydanticProvider(ABC, Generic[ProviderT]):
 
         self.model: str = model
         self.config: AnyProviderConfig = config
-        self.provider: ProviderT = self.create_provider(config)
+        self.provider: ProviderT_co = self.create_provider(config)
 
     @abstractmethod
-    def create_provider(self, config: AnyProviderConfig) -> ProviderT:
+    def create_provider(self, config: AnyProviderConfig) -> ProviderT_co:
         """Create a provider for the given config."""
 
     @abstractmethod
