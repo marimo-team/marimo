@@ -187,13 +187,25 @@ def append_version(pkg_name: str, version: str | None) -> str:
     return f"{pkg_name}=={version}"
 
 
+def _is_pep508_requirement(package: str) -> bool:
+    from packaging.requirements import InvalidRequirement, Requirement
+
+    try:
+        Requirement(package)
+    except InvalidRequirement:
+        return False
+    return True
+
+
 def split_packages(package: str) -> list[str]:
-    """
-    Splits a package string into a list of packages.
+    """Split a requirement or compact CLI-style package list.
 
-    This can handle editable packages (i.e. local directories)
+    A valid PEP 508 requirement is always returned unchanged. The fallback
+    supports legacy whitespace-separated input such as `pandas numpy` and
+    editable installs. Requirements containing whitespace must be passed one
+    at a time because whitespace also separates packages in the legacy form.
 
-    e.g.
+    Examples:
     "package1[extra1,extra2]==1.0.0" -> ["package1[extra1,extra2]==1.0.0"]
     "package1 package2" -> ["package1", "package2"]
     "package1==1.0.0 package2==2.0.0" -> ["package1==1.0.0", "package2==2.0.0"]
@@ -201,8 +213,13 @@ def split_packages(package: str) -> list[str]:
     "package1 --editable /path/to/package1" -> ["package1 --editable /path/to/package1"]
     "package1 -e /path/to/package1 package2" -> ["package1 -e /path/to/package1", "package2"]
     "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
-    "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'" -> ["foo==1.0; python_version>'3.6'", "bar==2.0; sys_platform=='win32'"]
     """
+    package = package.strip()
+    if not package:
+        return []
+    if _is_pep508_requirement(package):
+        return [package]
+
     packages: list[str] = []
     current_package: list[str] = []
     in_environment_marker = False
@@ -211,12 +228,7 @@ def split_packages(package: str) -> list[str]:
         if (
             part in ["-e", "--editable", "@"]
             or current_package
-            and current_package[-1]
-            in [
-                "-e",
-                "--editable",
-                "@",
-            ]
+            and current_package[-1] in ["-e", "--editable", "@"]
         ):
             current_package.append(part)
         elif part.endswith(";"):
@@ -239,7 +251,7 @@ def split_packages(package: str) -> list[str]:
     if current_package:
         packages.append(" ".join(current_package))
 
-    return [pkg.strip() for pkg in packages]
+    return packages
 
 
 @dataclasses.dataclass

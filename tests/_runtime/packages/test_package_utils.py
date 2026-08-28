@@ -112,6 +112,13 @@ def test_split_packages() -> None:
         "bar @ https://example.com/bar.whl",
     ]
     assert split_packages(
+        "git+https://example.com/foo.git https://example.com/bar.whl /tmp/baz.whl"
+    ) == [
+        "git+https://example.com/foo.git",
+        "https://example.com/bar.whl",
+        "/tmp/baz.whl",
+    ]
+    assert split_packages(
         "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'"
     ) == [
         "foo==1.0; python_version>'3.6'",
@@ -123,6 +130,24 @@ def test_split_packages() -> None:
         "foo==1.0; python_version=='3.7.*'",
         "bar==2.0; implementation_name=='cpython'",
     ]
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        "pydantic-ai[duckduckgo, web-fetch]",
+        "foo [extra1, extra2] == 1.2.3",
+        "foo >= 1.0, < 2.0",
+        "bar ( >= 3.0 )",
+        "foo ; python_version >= '3.10' and sys_platform == 'darwin'",
+        "foo; python_version < '3.10' or implementation_name == 'pypy'",
+        "foo; python_version>'3' and(sys_platform=='win32')",
+        "foo; python_version in'3.8 3.9'",
+        "foo; python_version>='3'and sys_platform=='darwin'",
+    ],
+)
+def test_split_packages_preserves_valid_requirement(requirement: str) -> None:
+    assert split_packages(requirement) == [requirement]
 
 
 def test_strip_requirement_name() -> None:
