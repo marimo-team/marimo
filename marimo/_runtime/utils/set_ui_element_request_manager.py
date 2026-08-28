@@ -83,8 +83,7 @@ def _merge_ui_commands(
     merged: dict[UIElementId, Any] = {}
     last_cmd = cmds[-1]
     for cmd in cmds:
-        for ui_id, value in cmd.ids_and_values:
-            merged[ui_id] = value
+        merged.update(cmd.ids_and_values)
 
     return [
         UpdateUIElementCommand(

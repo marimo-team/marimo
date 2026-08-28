@@ -182,10 +182,11 @@ class HTTPRequest(Mapping[str, Any]):
             query_params[k].append(str(v))
 
         # Convert headers to dict, remove all marimo-specific headers
-        headers: dict[str, str] = {}
-        for k, v in request.headers.items():
-            if not k.startswith(("marimo", "x-marimo")):
-                headers[k] = v
+        headers: dict[str, str] = {
+            k: v
+            for k, v in request.headers.items()
+            if not k.startswith(("marimo", "x-marimo"))
+        }
 
         return HTTPRequest(
             url=url_dict,
