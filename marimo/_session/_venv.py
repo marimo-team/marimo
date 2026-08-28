@@ -14,7 +14,6 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -30,17 +29,12 @@ LOGGER = _loggers.marimo_logger()
 
 
 def get_ipc_kernel_deps() -> list[str]:
-    """Get dependencies required for IPC kernel communication.
+    """Dependencies the sandbox kernel needs for host IPC.
 
-    Returns pyzmq pinned to the currently installed version to ensure
-    compatibility between host and sandbox environments.
+    A lower bound, not a host pin. The notebook lock may already have
+    pyzmq at another version, and ZMQ does not require an exact match.
     """
-    try:
-        pyzmq_version = version("pyzmq")
-        return [f"pyzmq=={pyzmq_version}"]
-    except Exception:
-        # Fallback if pyzmq not installed
-        return ["pyzmq>=27.1.0"]
+    return ["pyzmq>=27.1.0"]
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:

@@ -12,6 +12,7 @@ from marimo._cli.sandbox import (
     _ensure_marimo_in_script_metadata,
     _ensure_python_version_in_script_metadata,
     _normalize_sandbox_dependencies,
+    _requirement_name,
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
@@ -782,6 +783,52 @@ def test_get_sandbox_requirements_none_filename() -> None:
     # Should have marimo and additional deps
     assert any("marimo" in r for r in reqs)
     assert "pyzmq" in reqs
+
+
+def test_requirement_name_strips_specifiers_and_markers() -> None:
+    assert _requirement_name("pyzmq==27.1.0") == "pyzmq"
+    assert (
+        _requirement_name(
+            "pyzmq==27.2.0 ; python_full_version < '3.15' "
+            "and sys_platform != 'emscripten'"
+        )
+        == "pyzmq"
+    )
+    assert _requirement_name("marimo[lsp]>=0.24.0") == "marimo"
+
+
+def test_get_sandbox_requirements_skips_additional_dep_already_present(
+    tmp_path: Path,
+) -> None:
+    """Do not add a second pyzmq pin next to the uv-export lock line."""
+    from marimo._cli.sandbox import get_sandbox_requirements
+
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = ["marimo>=0.24.0"]
+# ///
+import marimo
+"""
+    )
+    exported_pyzmq = (
+        "pyzmq==27.2.0 ; python_full_version < '3.15' "
+        "and sys_platform != 'emscripten'"
+    )
+
+    with (
+        patch("marimo._cli.sandbox.is_editable", return_value=False),
+        patch(
+            "marimo._cli.sandbox._resolve_requirements_txt_lines",
+            return_value=["marimo==0.24.0", exported_pyzmq],
+        ),
+    ):
+        reqs = get_sandbox_requirements(
+            str(script_path),
+            additional_deps=["pyzmq>=27.1.0"],
+        )
+
+    assert reqs == [exported_pyzmq, "marimo==0.24.0"]
 
 
 def test_cleanup_sandbox_dir_removes_directory(tmp_path: Path) -> None:
