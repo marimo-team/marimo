@@ -5,6 +5,7 @@ import itertools
 import random
 
 from marimo._utils.cell_matching import (
+    _greedy_assignment,
     _hungarian_algorithm,
     match_cell_ids_by_similarity,
 )
@@ -75,6 +76,28 @@ def test_hungarian_handles_negative_and_float_costs() -> None:
             )
             < 1e-9
         )
+
+
+def test_greedy_assignment_returns_valid_permutation() -> None:
+    rng = random.Random(7)
+    for _ in range(50):
+        n = rng.randint(1, 25)
+        scores = [[rng.uniform(-5.0, 5.0) for _ in range(n)] for _ in range(n)]
+        result = _greedy_assignment([row[:] for row in scores])
+        assert sorted(result) == list(range(n))
+
+
+def test_greedy_assignment_scales_to_large_inputs() -> None:
+    # The exact O(n^3) solver is too slow on large, tie-heavy padded matrices
+    # (several seconds at n=500); the greedy fallback used above the size cutoff
+    # must stay fast and still return a valid assignment.
+    n = 500
+    scores = [[0.0] * n for _ in range(n)]
+    for i in range(n):
+        for j in range(20):
+            scores[i][j] = float((i * 31 + j) % 97)
+    result = _greedy_assignment(scores)
+    assert sorted(result) == list(range(n))
 
 
 def test_match_cell_ids_identical_notebook() -> None:

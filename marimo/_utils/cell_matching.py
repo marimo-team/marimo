@@ -79,6 +79,33 @@ def pop_local(available: list[tuple[int, CellId_t]], idx: int) -> CellId_t:
     return available.pop(best_idx)[1]
 
 
+# Above this size the exact O(n^3) solver gets slow on dense, tie-heavy cost
+# matrices -- in particular the zero-padded matrices produced when many more
+# cells are added than removed (~0.5s at n=500 for a realistic matrix, several
+# seconds for the padded worst case). Such large simultaneous edits are rare and
+# a slightly sub-optimal match there is harmless, so fall back to a fast O(n^2)
+# greedy assignment above the cutoff.
+_MAX_OPTIMAL_ASSIGNMENT_SIZE = 100
+
+
+def _greedy_assignment(scores: list[list[float]]) -> list[int]:
+    """Fast approximate assignment; `result[column] = row`, same convention as
+    `_hungarian_algorithm`."""
+    n = len(scores)
+    result = [-1] * n
+    used_row = [False] * n
+    # Assign the most decisive columns (smallest best cost) first.
+    for j in sorted(range(n), key=lambda c: min(scores[r][c] for r in range(n))):
+        best_row, best_cost = -1, float("inf")
+        for i in range(n):
+            if not used_row[i] and scores[i][j] < best_cost:
+                best_cost, best_row = scores[i][j], i
+        if best_row != -1:
+            used_row[best_row] = True
+            result[j] = best_row
+    return result
+
+
 def _hungarian_algorithm(scores: list[list[float]]) -> list[int]:
     """Solve the assignment problem, returning a minimum-cost matching.
 
@@ -240,8 +267,13 @@ def _match_cell_ids_by_similarity(
                     # NB. transposed indices for Hungarian
                     scores[y][x] = score
 
-    # Use Hungarian algorithm to find the best matching
-    matches = _hungarian_algorithm(scores)
+    # Use the exact assignment for small problems, and a fast greedy fallback
+    # for large ones where the exact O(n^3) solver would be too slow.
+    matches = (
+        _greedy_assignment(scores)
+        if n > _MAX_OPTIMAL_ASSIGNMENT_SIZE
+        else _hungarian_algorithm(scores)
+    )
     for idx, code in enumerate(next_codes):
         if result[idx] is None:
             match_idx = next_order[next_inverse[code]].pop(0)
