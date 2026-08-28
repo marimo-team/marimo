@@ -296,9 +296,18 @@ def _apply_edits_row_oriented(
     edits: DataEdits,
     schema: nw.Schema | None = None,
 ) -> RowOrientedData:
+    # Capture the columns before applying edits: a `remove` edit can empty `data`
+    # before a later positional edit appends a new row, and that new row must
+    # still carry every original column instead of only the edited one.
+    if data:
+        columns = list(data[0].keys())
+    elif schema is not None:
+        columns = list(schema.names())
+    else:
+        columns = []
     for edit in edits["edits"]:
         if is_positional_edit(edit):
-            _apply_positional_edit_row_oriented(data, edit, schema)
+            _apply_positional_edit_row_oriented(data, edit, schema, columns)
         elif is_row_edit(edit):
             _apply_row_edit_row_oriented(data, edit)
         elif is_column_edit(edit):
@@ -454,22 +463,28 @@ def _apply_positional_edit_row_oriented(
     data: RowOrientedData,
     edit: PositionalEdit,
     schema: nw.Schema | None = None,
+    columns: list[str] | None = None,
 ) -> None:
     """Apply a positional edit to row-oriented data."""
     if edit["rowIdx"] >= len(data):
-        # Create a new row with None values for all columns. When the editor
-        # has no rows yet there is no existing row to read column names from,
-        # so fall back to the schema and always include the edited column.
+        # Determine the columns for any new row(s): prefer an existing row, then
+        # the columns captured before edits ran (survives a remove-all), then the
+        # schema; always include the edited column.
         if data:
-            columns = list(data[0].keys())
+            new_columns = list(data[0].keys())
+        elif columns:
+            new_columns = list(columns)
         elif schema is not None:
-            columns = list(schema.keys())
+            new_columns = list(schema.names())
         else:
-            columns = []
-        new_row: dict[str, Any] = {col: None for col in columns}
-        new_row.setdefault(edit["columnId"], None)
-        data.append(new_row)
-    original_value = data[0][edit["columnId"]] if data else None
+            new_columns = []
+        if edit["columnId"] not in new_columns:
+            new_columns.append(edit["columnId"])
+        # Extend through the requested index (mirrors the column-oriented path)
+        # so a non-contiguous rowIdx does not raise IndexError below.
+        while len(data) <= edit["rowIdx"]:
+            data.append({col: None for col in new_columns})
+    original_value = data[0].get(edit["columnId"]) if data else None
     dtype = schema.get(edit["columnId"]) if schema else None
     data[edit["rowIdx"]][edit["columnId"]] = _convert_value(
         edit["value"], original_value, dtype

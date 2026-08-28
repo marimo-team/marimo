@@ -138,8 +138,9 @@ def test_apply_edits_row_oriented_append_to_empty_with_schema():
 
 
 def test_apply_edits_row_oriented_remove_all_then_add():
-    # Removing every row and then adding one back (an edit replay reachable
-    # from the UI) should append cleanly instead of raising IndexError.
+    # Removing every row and then adding one back (an edit replay reachable from
+    # the UI) must append cleanly and keep every original column, not just the
+    # edited one.
     data = [{"A": 1, "B": "a"}]
     edits = {
         "edits": [
@@ -148,7 +149,53 @@ def test_apply_edits_row_oriented_remove_all_then_add():
         ]
     }
     result = apply_edits(data, edits)
-    assert result == [{"A": "x"}]
+    assert result == [{"A": "x", "B": None}]
+
+
+def test_apply_edits_row_oriented_remove_all_then_add_multi_column():
+    # The UI emits one positional edit per column; after removing every row,
+    # rebuilding a full row must not drop columns or KeyError on them.
+    data = [{"A": 1, "B": "a"}]
+    edits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 0, "columnId": "A", "value": "x"},
+            {"rowIdx": 0, "columnId": "B", "value": "y"},
+        ]
+    }
+    assert apply_edits(data, edits) == [{"A": "x", "B": "y"}]
+
+
+def test_apply_edits_row_oriented_non_contiguous_row():
+    # A positional edit at a row index past the end must extend the data with
+    # filled rows instead of raising IndexError.
+    data = [{"A": 1, "B": "a"}]
+    edits = {
+        "edits": [
+            {"rowIdx": 0, "type": "remove"},
+            {"rowIdx": 2, "columnId": "A", "value": "x"},
+        ]
+    }
+    assert apply_edits(data, edits) == [
+        {"A": None, "B": None},
+        {"A": None, "B": None},
+        {"A": "x", "B": None},
+    ]
+
+
+def test_data_editor_convert_value_remove_all_then_add_preserves_columns():
+    # End-to-end through the editor's replay path (_convert_value), not just the
+    # helper: removing all rows and adding one back keeps every column.
+    editor = data_editor(data=[{"A": 1, "B": "a"}])
+    result = editor._convert_value(
+        {
+            "edits": [
+                {"rowIdx": 0, "type": "remove"},
+                {"rowIdx": 0, "columnId": "A", "value": "x"},
+            ]
+        }
+    )
+    assert result == [{"A": "x", "B": None}]
 
 
 @pytest.mark.skipif(
