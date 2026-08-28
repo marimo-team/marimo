@@ -17,9 +17,15 @@ Object.defineProperty(navigator, "clipboard", {
 });
 
 describe("isValidCellValue", () => {
-  it("distinguishes integer and number precision", () => {
+  it("accepts only finite numbers", () => {
     expect(isValidCellValue("number", 3.5)).toBe(true);
-    expect(isValidCellValue("number", Number.POSITIVE_INFINITY)).toBe(true);
+    expect(isValidCellValue("number", Number.POSITIVE_INFINITY)).toBe(false);
+    expect(isValidCellValue("number", Number.NEGATIVE_INFINITY)).toBe(false);
+    expect(isValidCellValue("number", "Infinity")).toBe(false);
+    expect(isValidCellValue("number", Number.NaN)).toBe(false);
+  });
+
+  it("preserves integer precision", () => {
     expect(isValidCellValue("integer", 3)).toBe(true);
     expect(isValidCellValue("integer", 3.5)).toBe(false);
     expect(isValidCellValue("integer", "9007199254740993")).toBe(true);

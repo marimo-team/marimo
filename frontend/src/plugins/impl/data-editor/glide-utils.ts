@@ -57,7 +57,7 @@ export function isValidCellValue(
   value: unknown,
 ): boolean {
   if (dataType === "number") {
-    return !Number.isNaN(Number(value));
+    return Number.isFinite(Number(value));
   }
   if (dataType === "integer") {
     if (typeof value === "bigint") {

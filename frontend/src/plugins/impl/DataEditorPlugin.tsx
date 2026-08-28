@@ -2,7 +2,6 @@
 
 import glideCss from "@glideapps/glide-data-grid/dist/index.css?inline";
 import React, { useEffect, useState } from "react";
-import useEvent from "react-use-event-hook";
 import { z } from "zod";
 import { inferFieldTypes } from "@/components/data-table/columns";
 import { LoadingTable } from "@/components/data-table/loading-table";
@@ -77,9 +76,6 @@ interface Props {
 
 const LoadingDataEditor = (props: Props) => {
   const [editorState, setEditorState] = useState<EditorState | null>(null);
-  const applyCurrentEdits = useEvent((state: EditorState) =>
-    applyEditorEdits(state, props.edits.edits),
-  );
 
   // Load the data
   const { data: loadedState, error } = useAsyncData(async () => {
@@ -110,9 +106,9 @@ const LoadingDataEditor = (props: Props) => {
 
   useEffect(() => {
     if (loadedState !== undefined) {
-      setEditorState(applyCurrentEdits(loadedState));
+      setEditorState(applyEditorEdits(loadedState, props.edits.edits));
     }
-  }, [applyCurrentEdits, loadedState]);
+  }, [loadedState, props.edits.edits]);
 
   if (error) {
     return (

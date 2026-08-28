@@ -107,6 +107,52 @@ describe("DataEditorPlugin", () => {
     });
   });
 
+  it("applies edit updates after data has loaded", async () => {
+    const plugin = DataEditorPlugin;
+    const data = plugin.validator.parse({
+      initialValue: { edits: [] },
+      label: null,
+      data: [{ name: "original" }],
+      fieldTypes: null,
+      columnNames: ["name"],
+      editableColumns: "all",
+    });
+    const makeProps = (
+      value: Edits,
+    ): IPluginProps<Edits, z.infer<typeof DataEditorPlugin.validator>> => ({
+      host: document.createElement("div"),
+      data,
+      value,
+      setValue: vi.fn(),
+      functions: {},
+    });
+    const renderPlugin = (value: Edits) =>
+      React.createElement(
+        Suspense,
+        { fallback: null },
+        plugin.render(makeProps(value)),
+      );
+
+    const result = render(renderPlugin({ edits: [] }));
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-data")).toHaveTextContent(
+        JSON.stringify([{ name: "original" }]),
+      );
+    });
+
+    result.rerender(
+      renderPlugin({
+        edits: [{ rowIdx: 0, columnId: "name", value: "updated" }],
+      }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("editor-data")).toHaveTextContent(
+        JSON.stringify([{ name: "updated" }]),
+      );
+    });
+  });
+
   it("ignores a superseded async data load", async () => {
     let resolveFirst: ((data: Record<string, unknown>[]) => void) | undefined;
     let resolveSecond: ((data: Record<string, unknown>[]) => void) | undefined;
