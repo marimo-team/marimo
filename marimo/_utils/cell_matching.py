@@ -95,7 +95,9 @@ def _greedy_assignment(scores: list[list[float]]) -> list[int]:
     result = [-1] * n
     used_row = [False] * n
     # Assign the most decisive columns (smallest best cost) first.
-    for j in sorted(range(n), key=lambda c: min(scores[r][c] for r in range(n))):
+    for j in sorted(
+        range(n), key=lambda c: min(scores[r][c] for r in range(n))
+    ):
         best_row, best_cost = -1, float("inf")
         for i in range(n):
             if not used_row[i] and scores[i][j] < best_cost:
