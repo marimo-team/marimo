@@ -41,6 +41,25 @@ passing your Python as the `code` argument. Everything you do — inspecting
 state, testing transformations, and persisting changes via `cm` — runs through
 `execute_code` in the scratchpad (see below).
 
+## Required First Kernel Command
+
+Start every code-mode session with this dedicated `execute_code` call:
+
+```python
+import marimo._code_mode as cm
+help(cm)
+```
+
+Follow this order for every live kernel, including read-only tasks:
+
+1. Run only the inspection command above.
+2. Wait for successful `help(cm)` output.
+3. Use `cm.get_context()` or another `cm` API in a later `execute_code` call.
+
+Do not combine the inspection with task-specific code, and do not use another
+`cm` API before the inspection succeeds. This verifies the private, unstable
+API exposed by the marimo version in the user's active kernel.
+
 ## Scratchpad Scope
 
 `execute_code` evaluates Python in marimo's scratchpad: a temporary namespace
@@ -79,14 +98,6 @@ the scratchpad. DO NOT import it from notebook cells, library code, or
 anything a user would run — methods can change or disappear across marimo
 versions and kernels. Treat every `import marimo._code_mode as cm` as
 scratchpad-only.
-
-At session start, inspect what `cm` exposes in the active kernel:
-
-```python
-import marimo._code_mode as cm
-
-help(cm)
-```
 
 Open a code-mode context to queue notebook changes.
 
