@@ -3,12 +3,14 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import (
     Any,
     ClassVar,
     Literal,
 )
+from urllib.parse import urlsplit
 
 import msgspec
 
@@ -47,6 +49,26 @@ from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
+
+_VIRTUAL_FILE_URL_RE = re.compile(r"^(?:\.?/)?@file/[^?#]+$")
+_JAVASCRIPT_DATA_URL_RE = re.compile(
+    r"^data:(?:text|application)/javascript(?:;[^,]*)?,[^\r\n]*$"
+)
+
+
+def _is_esm_url(value: str) -> bool:
+    if _VIRTUAL_FILE_URL_RE.fullmatch(value) is not None:
+        return True
+    if _JAVASCRIPT_DATA_URL_RE.fullmatch(value) is not None:
+        return True
+    if any(character.isspace() for character in value):
+        return False
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return False
+    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
 
 
 class Notification(msgspec.Struct, tag_field="op"):
@@ -202,7 +224,12 @@ class EsmSpec(msgspec.Struct):
         import marimo._output.data.data as mo_data
         from marimo._utils.code import hash_code
 
-        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+        url = (
+            esm
+            if _is_esm_url(esm)
+            else mo_data.any_data(esm.encode("utf-8"), ext="js").url
+        )
+        return EsmSpec(url=url, hash=hash_code(esm))
 
 
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
