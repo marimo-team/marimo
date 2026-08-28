@@ -343,6 +343,70 @@ describe("RuntimeManager", () => {
     });
   });
 
+  describe("getAgentWsURL", () => {
+    it("should return the agent URL proxied through the server", () => {
+      const runtime = new RuntimeManager(mockConfig);
+      const url = runtime.getAgentWsURL("claude");
+
+      expect(url.protocol).toBe("wss:");
+      expect(url.pathname).toBe("/acp/claude");
+      expect(url.host).toBe("example.com");
+    });
+
+    it("should respect a base path prefix", () => {
+      const runtime = new RuntimeManager({
+        url: "http://example.com/prefix/",
+        lazy: true,
+      });
+      const url = runtime.getAgentWsURL("gemini");
+
+      expect(url.toString()).toBe("ws://example.com/prefix/acp/gemini");
+    });
+
+    it("should strip non-auth query params", () => {
+      const runtime = new RuntimeManager({
+        url: "https://example.com?foo=bar&baz=qux",
+        lazy: true,
+      });
+      const url = runtime.getAgentWsURL("codex");
+
+      expect(url.pathname).toBe("/acp/codex");
+      expect(url.search).toBe("");
+    });
+
+    it("should preserve access_token when cross-origin", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: "https://sandbox.example.com?foo=bar",
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getAgentWsURL("claude");
+
+      expect(url.pathname).toBe("/acp/claude");
+      expect(url.searchParams.get("access_token")).toBe("my-secret-token");
+      expect(url.searchParams.get("foo")).toBeNull();
+    });
+
+    it("should not have access_token when same-origin", () => {
+      const runtime = new RuntimeManager(
+        {
+          url: window.location.origin,
+          lazy: true,
+          authToken: "my-secret-token",
+        },
+        true,
+      );
+      const url = runtime.getAgentWsURL("claude");
+
+      expect(url.protocol).toBe("ws:");
+      expect(url.pathname).toBe("/acp/claude");
+      expect(url.search).toBe("");
+    });
+  });
+
   describe("getAiURL", () => {
     it("should return AI completion URL", () => {
       const runtime = new RuntimeManager(mockConfig);
