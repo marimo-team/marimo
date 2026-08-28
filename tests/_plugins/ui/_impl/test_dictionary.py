@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import MappingProxyType
+
 import pytest
 
 from marimo._plugins import ui
@@ -35,8 +37,6 @@ def test_dictionary() -> None:
 def test_dictionary_accepts_readonly_mapping() -> None:
     # `elements` is typed as a covariant Mapping, so any read-only mapping of
     # UI elements (not just a plain dict) must be accepted and cloned.
-    from types import MappingProxyType
-
     a = ui.text(value="hello")
     b = ui.slider(1, 10, value=2)
     elements = MappingProxyType({"a": a, "b": b})

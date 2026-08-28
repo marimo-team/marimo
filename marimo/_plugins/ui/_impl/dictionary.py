@@ -86,12 +86,12 @@ class dictionary(_batch_base):
     Attributes:
         value (dict): A dict holding the values of the UI elements, keyed by
             their names.
-        elements (dict): A dict of the wrapped elements (clones of the originals).
+        elements (Mapping): A dict of the wrapped elements (clones of the originals).
         on_change (Optional[Callable[[dict[str, object]], None]]): Optional callback
             to run when this element's value changes.
 
     Args:
-        elements (dict[str, UIElement[Any, Any]]): A dict mapping names to UI
+        elements (Mapping[str, UIElement[Any, Any]]): A dict mapping names to UI
             elements to include.
         label (str, optional): A descriptive name for the dictionary. Defaults to "".
         on_change (Callable[[dict[str, object]], None], optional): Optional callback

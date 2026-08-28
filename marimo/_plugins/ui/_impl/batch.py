@@ -204,12 +204,12 @@ class batch(_batch_base):
 
     Attributes:
         value (dict): A dict of the batched elements' values.
-        elements (dict): A dict of the batched elements (clones of the originals).
+        elements (Mapping): A dict of the batched elements (clones of the originals).
         on_change (Optional[Callable]): Optional callback to run when this element's value changes.
 
     Args:
         html (Html): A templated Html object.
-        elements (dict[str, UIElement]): The UI elements to interpolate into the HTML template.
+        elements (Mapping[str, UIElement]): The UI elements to interpolate into the HTML template.
         on_change (Optional[Callable[[Dict[str, object]], None]], optional): Optional callback
             to run when this element's value changes.
     """
