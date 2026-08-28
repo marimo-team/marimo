@@ -24,22 +24,22 @@ const buttonVariants = cva(
         ),
         destructive: cn(
           "border shadow-xs",
-          "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90",
+          "bg-destructive text-destructive-foreground border-destructive-border hover:bg-destructive-hover",
           activeCommon,
         ),
         success: cn(
           "border shadow-xs",
-          "bg-success text-success-foreground border-success hover:bg-success/90",
+          "bg-success text-success-foreground border-success-border hover:bg-success-hover",
           activeCommon,
         ),
         warn: cn(
           "border shadow-xs",
-          "bg-action text-action-foreground border-action hover:bg-action-hover",
+          "bg-action text-action-foreground border-action-border hover:bg-action-hover",
           activeCommon,
         ),
         action: cn(
           "bg-action text-action-foreground shadow-xs",
-          "hover:bg-action-hover border border-action",
+          "hover:bg-action-hover border border-action-border",
           activeCommon,
         ),
         outline: cn(

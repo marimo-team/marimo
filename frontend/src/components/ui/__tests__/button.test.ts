@@ -10,8 +10,8 @@ describe("buttonVariants", () => {
       expected: [
         "bg-destructive",
         "text-destructive-foreground",
-        "border-destructive",
-        "hover:bg-destructive/90",
+        "border-destructive-border",
+        "hover:bg-destructive-hover",
       ],
     },
     {
@@ -19,8 +19,8 @@ describe("buttonVariants", () => {
       expected: [
         "bg-success",
         "text-success-foreground",
-        "border-success",
-        "hover:bg-success/90",
+        "border-success-border",
+        "hover:bg-success-hover",
       ],
     },
     {
@@ -28,7 +28,7 @@ describe("buttonVariants", () => {
       expected: [
         "bg-action",
         "text-action-foreground",
-        "border-action",
+        "border-action-border",
         "hover:bg-action-hover",
       ],
     },
