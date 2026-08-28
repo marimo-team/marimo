@@ -1000,16 +1000,6 @@ wandb:
     release_date: 2026-07-31
     cost: {input: 0.13, output: 0.28}
 
-  - name: Kimi K3
-    model: moonshotai/Kimi-K3
-    description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-07-16
-    cost: {input: 3, output: 15}
-
   - name: MiniMax M3
     model: MiniMaxAI/MiniMax-M3
     description: "Multimodal foundation model from MiniMax with a 1M-token context window, suited for long-horizon agentic work and coding"
