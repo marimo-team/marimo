@@ -390,6 +390,13 @@ class TestEsmSpecMinting:
         assert message.esm_spec.url == url
         assert message.esm_spec.hash == hash_code(url)
 
+    def test_url_form_esm_normalizes_scheme(self, comm_manager):
+        url = "HTTPS://esm.sh/some-widget@1.0.0"
+        _, message = self._open_comm(comm_manager, {"_esm": url})
+
+        assert message.esm_spec is not None
+        assert message.esm_spec.url == "https://esm.sh/some-widget@1.0.0"
+
     def test_virtual_file_url_esm_passes_through(self, comm_manager):
         from marimo._utils.code import hash_code
 

@@ -56,19 +56,21 @@ _JAVASCRIPT_DATA_URL_RE = re.compile(
 )
 
 
-def _is_esm_url(value: str) -> bool:
+def _normalize_esm_url(value: str) -> str | None:
     if _VIRTUAL_FILE_URL_RE.fullmatch(value) is not None:
-        return True
+        return value
     if _JAVASCRIPT_DATA_URL_RE.fullmatch(value) is not None:
-        return True
+        return value
     if any(character.isspace() for character in value):
-        return False
+        return None
 
     try:
         parsed = urlsplit(value)
     except ValueError:
-        return False
-    return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+        return None
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return parsed.geturl()
+    return None
 
 
 class Notification(msgspec.Struct, tag_field="op"):
@@ -224,11 +226,9 @@ class EsmSpec(msgspec.Struct):
         import marimo._output.data.data as mo_data
         from marimo._utils.code import hash_code
 
-        url = (
-            esm
-            if _is_esm_url(esm)
-            else mo_data.any_data(esm.encode("utf-8"), ext="js").url
-        )
+        url = _normalize_esm_url(esm)
+        if url is None:
+            url = mo_data.any_data(esm.encode("utf-8"), ext="js").url
         return EsmSpec(url=url, hash=hash_code(esm))
 
 
