@@ -6510,6 +6510,13 @@ export interface components {
      *         - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
      *             When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
      *             The default is `False`.
+     *         - `gui_event_loop`: integrate a GUI toolkit's event loop with the kernel,
+     *             so that windows opened by GUI libraries (Qt, and libraries built on it
+     *             such as napari or MNE-Python) stay responsive while the kernel is idle.
+     *             Currently only `"qt"` is supported; it requires `qasync` and a Qt
+     *             binding (e.g. PySide6) to be installed in the kernel's environment.
+     *             Only supported when editing a notebook, not when running as an
+     *             application. The default is `None`.
      */
     RuntimeConfig: {
       auto_instantiate: boolean;
@@ -6525,6 +6532,7 @@ export interface components {
         | "pandas"
         | "polars";
       dotenv?: string[];
+      gui_event_loop?: "qt" | null;
       /** @enum {unknown} */
       on_cell_change: "autorun" | "lazy";
       output_max_bytes: number;

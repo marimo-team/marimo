@@ -4653,7 +4653,14 @@ components:
         \ default encoding for CSV exports.\n        The default is `\"utf-8\"`.\n\
         \    - `show_tracebacks`: if `True`, show detailed error tracebacks in run\
         \ mode.\n        When enabled, exceptions will display a clickable toast that\
-        \ opens a modal with the full traceback.\n        The default is `False`."
+        \ opens a modal with the full traceback.\n        The default is `False`.\n\
+        \    - `gui_event_loop`: integrate a GUI toolkit's event loop with the kernel,\n\
+        \        so that windows opened by GUI libraries (Qt, and libraries built\
+        \ on it\n        such as napari or MNE-Python) stay responsive while the kernel\
+        \ is idle.\n        Currently only `\"qt\"` is supported; it requires `qasync`\
+        \ and a Qt\n        binding (e.g. PySide6) to be installed in the kernel's\
+        \ environment.\n        Only supported when editing a notebook, not when running\
+        \ as an\n        application. The default is `None`."
       properties:
         auto_instantiate:
           type: boolean
@@ -4682,6 +4689,11 @@ components:
           items:
             type: string
           type: array
+        gui_event_loop:
+          anyOf:
+          - enum:
+            - qt
+          - type: 'null'
         on_cell_change:
           enum:
           - autorun
