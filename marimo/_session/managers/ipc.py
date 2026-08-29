@@ -36,7 +36,6 @@ from marimo._runtime import commands
 from marimo._session._venv import (
     check_python_version_compatibility,
     get_configured_venv_python,
-    get_ipc_kernel_deps,
     get_kernel_pythonpath,
     has_marimo_installed,
     install_marimo_into_venv,
@@ -392,7 +391,7 @@ class IPCKernelManagerImpl(KernelManager):
             # without a metadata block runs ephemerally, and packages
             # installed during its session die with it.
             kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
-            overlay = runtime_overlay(additional_deps=get_ipc_kernel_deps())
+            overlay = runtime_overlay()
             handle = None
             filename = self.app_metadata.filename
             if filename is not None:

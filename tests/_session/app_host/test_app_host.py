@@ -266,7 +266,7 @@ class TestAppHostSandbox:
                 return_value=handle,
             ) as mock_sync,
             patch(
-                "marimo._session.app_host.pool.get_ipc_kernel_deps",
+                "marimo._session.app_host.pool.runtime_overlay",
                 return_value=["kernel-dep==1.0"],
             ),
             patch(
@@ -278,7 +278,7 @@ class TestAppHostSandbox:
 
             mock_sync.assert_called_once()
             plan = mock_host_cls.call_args[1]["plan"]
-            # The kernel IPC deps ride the launch overlay.
+            # The marimo runtime rides the launch overlay.
             assert "kernel-dep==1.0" in plan.argv
             assert plan.argv[-3:] == (
                 "--",
