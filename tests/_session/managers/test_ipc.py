@@ -417,6 +417,89 @@ class TestCloseKernel:
         )
 
 
+class TestAwaitHandshakeLine:
+    @staticmethod
+    def _await(manager: object, handshake: object, deadline: float) -> str:
+        from collections import deque
+
+        return manager._await_handshake_line(
+            handshake, deadline, deque(), ["python", "-m", "kernel"]
+        )
+
+    def test_returns_pending_line(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import time; time.sleep(30)"]
+        )
+        try:
+            handshake: queue.Queue[str] = queue.Queue()
+            handshake.put("KERNEL_READY")
+            line = self._await(
+                manager, handshake, deadline=time.monotonic() + 5
+            )
+            assert line == "KERNEL_READY"
+        finally:
+            manager._process.kill()
+            manager._process.wait()
+
+    def test_child_exit_fails_fast_with_exit_code(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        from marimo._session.managers.ipc import KernelStartupError
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import sys; sys.exit(3)"]
+        )
+        manager._process.wait()
+        with pytest.raises(KernelStartupError, match="exit code 3"):
+            self._await(manager, queue.Queue(), deadline=time.monotonic() + 30)
+
+    def test_line_printed_just_before_exit_is_not_lost(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen([_sys.executable, "-c", "pass"])
+        manager._process.wait()
+        handshake: queue.Queue[str] = queue.Queue()
+        handshake.put("KERNEL_READY")
+        line = self._await(manager, handshake, deadline=time.monotonic() + 5)
+        assert line == "KERNEL_READY"
+
+    def test_hung_child_times_out_and_is_killed(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        from marimo._session.managers.ipc import KernelStartupError
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import time; time.sleep(60)"]
+        )
+        try:
+            with pytest.raises(
+                KernelStartupError, match="did not become ready"
+            ):
+                self._await(
+                    manager, queue.Queue(), deadline=time.monotonic() - 1
+                )
+            manager._process.wait(timeout=10)
+            assert manager._process.poll() is not None
+        finally:
+            if manager._process.poll() is None:
+                manager._process.kill()
+                manager._process.wait()
+
+
 class TestParseKernelInfo:
     def test_full_line(self) -> None:
         from marimo._session.managers.ipc import _parse_kernel_info
