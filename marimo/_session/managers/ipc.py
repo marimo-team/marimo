@@ -51,6 +51,7 @@ if TYPE_CHECKING:
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
+    from marimo._runtime.virtual_file.storage import VirtualFileStorageType
     from marimo._types.ids import CellId_t
 
 LOGGER = _loggers.marimo_logger()
@@ -60,6 +61,20 @@ def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
     """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
     return cast(VenvConfig, config.get("venv", {}))
+
+
+def _virtual_file_storage() -> VirtualFileStorageType | None:
+    """Storage for the kernel's virtual files.
+
+    Shared memory, so the server's /@file endpoint can read buffers the
+    kernel subprocess wrote. `marimo run` does not preflight shared
+    memory the way `marimo edit` does, so fall back to None (inline data
+    URLs) where it is unavailable rather than failing kernel startup.
+    """
+    from marimo._utils.platform import check_shared_memory_available
+
+    available, _ = check_shared_memory_available()
+    return "shared_memory" if available else None
 
 
 class KernelStartupError(Exception):
@@ -257,6 +272,7 @@ class IPCKernelManagerImpl(KernelManager):
             is_run_mode=self.mode == SessionMode.RUN,
             redirect_console_to_browser=self.redirect_console_to_browser,
             parent_pid=os.getpid(),
+            virtual_file_storage=_virtual_file_storage(),
         )
 
         venv_config = _get_venv_config(self.config_manager)

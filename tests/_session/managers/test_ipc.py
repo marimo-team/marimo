@@ -262,6 +262,77 @@ class TestConstructKernelEnv:
         assert "VIRTUAL_ENV" not in base
 
 
+class TestVirtualFileStorage:
+    @staticmethod
+    def _kernel_args(**overrides: object) -> object:
+        from marimo._ast.app_config import _AppConfig
+        from marimo._config.config import DEFAULT_CONFIG
+        from marimo._ipc.types import ConnectionInfo, KernelArgs
+        from marimo._runtime.commands import AppMetadata
+
+        kwargs: dict = {
+            "configs": {},
+            "app_metadata": AppMetadata(
+                query_params={}, cli_args={}, app_config=_AppConfig()
+            ),
+            "user_config": DEFAULT_CONFIG,
+            "log_level": 0,
+            "profile_path": None,
+            "connection_info": ConnectionInfo(
+                control=1,
+                ui_element=2,
+                completion=3,
+                win32_interrupt=None,
+                input=4,
+                stream=5,
+            ),
+        }
+        kwargs.update(overrides)
+        return KernelArgs(**kwargs)
+
+    def test_kernel_args_roundtrip(self) -> None:
+        from marimo._ipc.types import KernelArgs
+
+        args = self._kernel_args(virtual_file_storage="shared_memory")
+        decoded = KernelArgs.decode_json(args.encode_json())
+        assert decoded.virtual_file_storage == "shared_memory"
+
+    def test_payload_without_field_decodes_to_none(self) -> None:
+        """A payload from an older launcher lacks the field entirely."""
+        import json
+
+        from marimo._ipc.types import KernelArgs
+
+        payload = json.loads(self._kernel_args().encode_json())
+        payload.pop("virtual_file_storage")
+        decoded = KernelArgs.decode_json(json.dumps(payload).encode())
+        assert decoded.virtual_file_storage is None
+
+    def test_manager_requests_shared_memory_when_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._session.managers.ipc import _virtual_file_storage
+        from marimo._utils import platform
+
+        monkeypatch.setattr(
+            platform, "check_shared_memory_available", lambda: (True, "")
+        )
+        assert _virtual_file_storage() == "shared_memory"
+
+    def test_manager_falls_back_to_none_without_shm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._session.managers.ipc import _virtual_file_storage
+        from marimo._utils import platform
+
+        monkeypatch.setattr(
+            platform,
+            "check_shared_memory_available",
+            lambda: (False, "/dev/shm unavailable"),
+        )
+        assert _virtual_file_storage() is None
+
+
 class TestParseKernelInfo:
     def test_full_line(self) -> None:
         from marimo._session.managers.ipc import _parse_kernel_info
