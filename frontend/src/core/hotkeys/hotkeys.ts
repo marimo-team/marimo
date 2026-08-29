@@ -458,6 +458,11 @@ const DEFAULT_HOT_KEY = {
     group: "Command",
     key: "b",
   },
+  "command.createSqlCellAfter": {
+    name: "Create a SQL cell after current cell",
+    group: "Command",
+    key: "q",
+  },
   "command.copyCell": {
     name: "Copy cell",
     group: "Command",
