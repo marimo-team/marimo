@@ -12,6 +12,7 @@ import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
+import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
 import { useCellFocusActions } from "@/core/cells/focus";
 import type { CellId } from "@/core/cells/ids";
@@ -26,6 +27,7 @@ import {
   closeSignatureHint,
   signatureHintField,
 } from "@/core/codemirror/completion/signature-hint";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import {
   hotkeysAtom,
   isAiFeatureEnabled,
@@ -549,6 +551,23 @@ export function useCellNavigationProps(
             return false;
           }
           actions.createNewCell({ cellId, before: false, autoFocus: true });
+          return true;
+        },
+        "command.createSqlCellAfter": (cellId) => {
+          if (Events.hasModifier(evt)) {
+            return false;
+          }
+          const importCellId = maybeAddMarimoImport({
+            autoInstantiate: true,
+            createNewCell: actions.createNewCell,
+            fromCellId: cellId,
+          });
+          actions.createNewCell({
+            cellId: importCellId ?? cellId,
+            before: false,
+            autoFocus: true,
+            code: LanguageAdapters.sql.defaultCode,
+          });
           return true;
         },
         "cell.delete": () => {
