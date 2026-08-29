@@ -14,6 +14,7 @@ import sys
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._config.config import VenvConfig
@@ -61,6 +62,26 @@ def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
     """Get the [tool.marimo.venv] config from a config manager."""
     config = config_manager.get_config(hide_secrets=False)
     return cast(VenvConfig, config.get("venv", {}))
+
+
+# How long close_kernel waits for the kernel to dump its profile, and
+# for a graceful exit, before killing it. Bounded: the live server
+# closes sessions on the event loop, which must not stall indefinitely.
+PROFILE_FLUSH_TIMEOUT: float = 10.0
+GRACEFUL_EXIT_TIMEOUT: float = 5.0
+
+
+def _profile_path_for(filename: str | None) -> str | None:
+    """Where this kernel dumps profile statistics, if profiling is on."""
+    profile_dir = GLOBAL_SETTINGS.PROFILE_DIR
+    if profile_dir is None:
+        return None
+    basename = (
+        os.path.basename(filename) + str(uuid4())
+        if filename is not None
+        else str(uuid4())
+    )
+    return os.path.join(profile_dir, basename)
 
 
 def _virtual_file_storage() -> VirtualFileStorageType | None:
@@ -248,6 +269,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
         self._venv_python: str | None = None
+        self._profile_path = _profile_path_for(app_metadata.filename)
         self._script_environment: Environment | None = None
         # The kernel's own pid: a launcher such as uv may sit between the
         # manager and the kernel, so _process.pid is not the kernel.
@@ -267,7 +289,7 @@ class IPCKernelManagerImpl(KernelManager):
             app_metadata=self.app_metadata,
             user_config=self.config_manager.get_config(hide_secrets=False),
             log_level=GLOBAL_SETTINGS.LOG_LEVEL,
-            profile_path=None,
+            profile_path=self.profile_path,
             connection_info=self.connection_info,
             is_run_mode=self.mode == SessionMode.RUN,
             redirect_console_to_browser=self.redirect_console_to_browser,
@@ -492,8 +514,7 @@ class IPCKernelManagerImpl(KernelManager):
 
     @property
     def profile_path(self) -> str | None:
-        # Profiling not currently supported with IPC kernel
-        return None
+        return self._profile_path
 
     @property
     def venv_python(self) -> str | None:
@@ -516,12 +537,34 @@ class IPCKernelManagerImpl(KernelManager):
             )
 
     def close_kernel(self, *, graceful: bool = False) -> None:
-        del graceful  # unsupported here: IPC shutdown never waits for exit.
         if self._process is not None:
             self.queue_manager.put_control_request(
                 commands.StopKernelCommand()
             )
+            # A clean stop lets the kernel flush pending work (the
+            # profile dump, cache writes) before we kill it. Unlike the
+            # multiprocessing manager, every wait here is bounded.
+            if self.profile_path is not None and self.is_alive():
+                from marimo._cli.print import echo
+
+                echo(
+                    f"\tWriting profile statistics to {self.profile_path} ..."
+                )
+                # The kernel dumps stats just before exiting, so a
+                # completed exit means a complete file. (The
+                # multiprocessing manager polls for the file instead
+                # because joining its Process hangs; subprocess.wait
+                # has no such problem.)
+                try:
+                    self._process.wait(timeout=PROFILE_FLUSH_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    pass
             self.queue_manager.close_queues()
+            if graceful and self._process.poll() is None:
+                try:
+                    self._process.wait(timeout=GRACEFUL_EXIT_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    pass
             if self._process.poll() is None and self.kernel_task is not None:
                 # The kernel leads its own process group; kill it first
                 # so user-code subprocesses die too, then the launcher.
