@@ -48,9 +48,11 @@ def main() -> None:
         user_config=args.user_config,
         configs=args.configs,
         profile_path=args.profile_path,
-        # Virtual files require a web server to serve file URLs. Since we're
-        # not running one, content must be embedded as data URLs instead.
-        virtual_file_storage=None,
+        # None (the default) means no web server serves /@file/ URLs, so
+        # content is embedded as data URLs -- correct for standalone
+        # consumers like marimo-lsp. A marimo server passes
+        # "shared_memory" so its /@file endpoint can read the buffers.
+        virtual_file_storage=args.virtual_file_storage,
         # NB: IPC kernels are always subprocesses (is_ipc=True) but may be
         # edit or run mode based on is_edit_mode.
         stream_queue=queue_manager.stream_queue,
