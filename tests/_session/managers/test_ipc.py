@@ -333,6 +333,90 @@ class TestVirtualFileStorage:
         assert _virtual_file_storage() is None
 
 
+def _make_manager(filename: str | None = None) -> object:
+    from unittest.mock import MagicMock
+
+    from marimo._session.managers.ipc import (
+        IPCKernelManagerImpl,
+        IPCQueueManagerImpl,
+    )
+    from marimo._session.model import SessionMode
+
+    app_metadata = MagicMock()
+    app_metadata.filename = filename
+    return IPCKernelManagerImpl(
+        queue_manager=IPCQueueManagerImpl(MagicMock()),
+        connection_info=MagicMock(),
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=MagicMock(),
+    )
+
+
+class TestProfilePath:
+    def test_none_without_profile_dir(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "PROFILE_DIR", None)
+        assert _make_manager("nb.py").profile_path is None
+
+    def test_derived_from_profile_dir_and_filename(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "PROFILE_DIR", str(tmp_path))
+        path = _make_manager("/some/dir/nb.py").profile_path
+        assert path is not None
+        assert path.startswith(str(tmp_path))
+        assert "nb.py" in os.path.basename(path)
+
+
+class TestCloseKernel:
+    def _closable_manager(self) -> object:
+        from unittest.mock import MagicMock
+
+        manager = _make_manager("nb.py")
+        manager.queue_manager = MagicMock()
+        process = MagicMock()
+        process.poll.return_value = None
+        manager._process = process
+        manager.kernel_task = None
+        return manager
+
+    def test_graceful_waits_bounded_for_exit(self) -> None:
+        from marimo._runtime import commands
+        from marimo._session.managers.ipc import GRACEFUL_EXIT_TIMEOUT
+
+        manager = self._closable_manager()
+        manager.close_kernel(graceful=True)
+
+        (request,), _ = manager.queue_manager.put_control_request.call_args
+        assert isinstance(request, commands.StopKernelCommand)
+        manager.queue_manager.close_queues.assert_called_once()
+        manager._process.wait.assert_called_once_with(
+            timeout=GRACEFUL_EXIT_TIMEOUT
+        )
+
+    def test_default_close_does_not_wait(self) -> None:
+        manager = self._closable_manager()
+        manager.close_kernel()
+        manager._process.wait.assert_not_called()
+
+    def test_profiling_close_waits_for_flush(self) -> None:
+        from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT
+
+        manager = self._closable_manager()
+        manager._profile_path = "/tmp/profile.stats"
+        manager.close_kernel()
+        manager._process.wait.assert_called_once_with(
+            timeout=PROFILE_FLUSH_TIMEOUT
+        )
+
+
 class TestParseKernelInfo:
     def test_full_line(self) -> None:
         from marimo._session.managers.ipc import _parse_kernel_info
