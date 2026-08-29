@@ -93,9 +93,9 @@ sql = [
     "sqlglot[c]>=26.8.0"       # SQL cells parsing;
 ]
 
-# For per-notebook sandboxed kernels
+# For per-notebook sandboxed kernels. pyzmq moved to the core
+# dependencies; the extra remains for the uv wheel.
 sandbox = [
-    "pyzmq>=27.1.0",           # IPC communication for sandbox kernels
     "uv>=0.9.21",              # for sandbox management and local html-wasm exports
 ]
 

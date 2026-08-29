@@ -19,7 +19,6 @@ from marimo._environments.environment import (
 )
 from marimo._environments.overlay import runtime_overlay
 from marimo._environments.uv import UvMissingScriptMetadataError
-from marimo._session._venv import get_ipc_kernel_deps
 from marimo._session.app_host.host import AppHost
 
 LOGGER = _loggers.marimo_logger()
@@ -70,7 +69,7 @@ class AppHostPool:
         # many seconds); a notebook without a metadata block runs
         # ephemerally.
         args = ["-m", "marimo._session.app_host.main"]
-        overlay = runtime_overlay(additional_deps=get_ipc_kernel_deps())
+        overlay = runtime_overlay()
         try:
             handle = sync_notebook(abs_path)
             plan = launch(handle, args, overlay=overlay)
