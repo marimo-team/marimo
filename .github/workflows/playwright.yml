@@ -64,6 +64,11 @@ jobs:
         run: |
           sed -i 's/auto_instantiate = false/auto_instantiate = true/' pyproject.toml
 
+      - name: 🛠️ Install build tools
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends make
+
       - name: 🔐 Fetch Doppler secrets
         # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
         # Downstream tokens (TURBO_TOKEN, CODECOV_TOKEN) are optional and tolerate empty.
