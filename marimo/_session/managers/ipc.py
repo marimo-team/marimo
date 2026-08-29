@@ -8,10 +8,13 @@ via ZeroMQ channels. Each notebook gets its own sandboxed virtual environment.
 from __future__ import annotations
 
 import os
+import queue
 import signal
 import subprocess
 import sys
 import threading
+import time
+from collections import deque
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from uuid import uuid4
@@ -69,6 +72,22 @@ def _get_venv_config(config_manager: MarimoConfigReader) -> VenvConfig:
 # closes sessions on the event loop, which must not stall indefinitely.
 PROFILE_FLUSH_TIMEOUT: float = 10.0
 GRACEFUL_EXIT_TIMEOUT: float = 5.0
+
+# How long start_kernel waits for KERNEL_READY. Generous by default: a
+# cold uv resolution of the notebook's environment can take minutes.
+KERNEL_STARTUP_TIMEOUT: float = 600.0
+
+
+def _startup_timeout() -> float:
+    raw = os.environ.get("MARIMO_KERNEL_STARTUP_TIMEOUT")
+    if raw:
+        try:
+            return float(raw)
+        except ValueError:
+            LOGGER.warning(
+                "Ignoring invalid MARIMO_KERNEL_STARTUP_TIMEOUT: %s", raw
+            )
+    return KERNEL_STARTUP_TIMEOUT
 
 
 def _profile_path_for(filename: str | None) -> str | None:
@@ -169,6 +188,10 @@ class IPCQueueManagerImpl(QueueManager):
 
     def put_input(self, text: str) -> None:
         self.input_queue.put(text)
+
+
+def _decode_tail(tail: deque[bytes]) -> str:
+    return b"".join(tail).decode(errors="replace")
 
 
 def _parse_kernel_info(line: str) -> tuple[int | None, str | None]:
@@ -445,46 +468,18 @@ class IPCKernelManagerImpl(KernelManager):
                 env=env,
             )
 
-            # Send connection info via stdin
-            assert self._process.stdin is not None
-            self._process.stdin.write(kernel_args.encode_json())
-            self._process.stdin.flush()
-            self._process.stdin.close()
-
-            # Wait for ready signal
-            assert self._process.stdout is not None
-            ready = self._process.stdout.readline().decode().strip()
-            if ready != "KERNEL_READY":
-                assert self._process.stderr is not None
-                stderr = self._process.stderr.read().decode()
-                raise KernelStartupError(
-                    f"Kernel failed to start.\n\n"
-                    f"Command: {' '.join(cmd)}\n\n"
-                    f"Stderr:\n{stderr}"
-                )
-
-            if plan_launched:
-                # Plan-launched kernels run the overlay-pinned marimo, so
-                # the KERNEL_INFO line is guaranteed; a configured venv
-                # may run an older marimo that never prints it, and
-                # reading would hang its startup.
-                info = self._process.stdout.readline().decode().strip()
-                kernel_pid, kernel_executable = _parse_kernel_info(info)
-                self._kernel_pid = kernel_pid
-                if self._venv_python is None and kernel_executable is not None:
-                    # An ephemeral kernel's environment is only knowable
-                    # from the kernel itself; the server package panel
-                    # targets it.
-                    self._venv_python = kernel_executable
-
-            # Drain the kernel's stderr so a chatty launcher (uv
-            # resolution output) cannot fill the pipe and deadlock it;
-            # tee to the server's stderr as the kernel's console.
+            # Drain the kernel's stderr from the very start: uv resolves
+            # the overlay at launch time, and its output can fill the
+            # pipe before the kernel ever prints KERNEL_READY,
+            # deadlocking startup. Tee to the server's stderr as the
+            # kernel's console, keeping a tail for startup diagnostics.
             stderr_pipe = self._process.stderr
+            stderr_tail: deque[bytes] = deque(maxlen=64)
 
             def drain_stderr() -> None:
                 assert stderr_pipe is not None
                 for line in iter(stderr_pipe.readline, b""):
+                    stderr_tail.append(line)
                     try:
                         sys.stderr.buffer.write(line)
                         sys.stderr.buffer.flush()
@@ -493,6 +488,55 @@ class IPCKernelManagerImpl(KernelManager):
                 stderr_pipe.close()
 
             threading.Thread(target=drain_stderr, daemon=True).start()
+
+            # Send connection info via stdin
+            assert self._process.stdin is not None
+            self._process.stdin.write(kernel_args.encode_json())
+            self._process.stdin.flush()
+            self._process.stdin.close()
+
+            # Read the handshake on a thread so the wait can be bounded
+            # and can notice a child that dies without printing it.
+            # Plan-launched kernels run the overlay-pinned marimo, so
+            # the KERNEL_INFO line is guaranteed; a configured venv may
+            # run an older marimo that never prints it, and reading a
+            # second line would hang its startup.
+            stdout_pipe = self._process.stdout
+            assert stdout_pipe is not None
+            expected_lines = 2 if plan_launched else 1
+            handshake: queue.Queue[str] = queue.Queue()
+
+            def read_handshake() -> None:
+                for _ in range(expected_lines):
+                    line = stdout_pipe.readline()
+                    if not line:
+                        return
+                    handshake.put(line.decode().strip())
+
+            threading.Thread(target=read_handshake, daemon=True).start()
+
+            deadline = time.monotonic() + _startup_timeout()
+            ready = self._await_handshake_line(
+                handshake, deadline, stderr_tail, cmd
+            )
+            if ready != "KERNEL_READY":
+                raise KernelStartupError(
+                    f"Kernel failed to start.\n\n"
+                    f"Command: {' '.join(cmd)}\n\n"
+                    f"Stderr:\n{_decode_tail(stderr_tail)}"
+                )
+
+            if plan_launched:
+                info = self._await_handshake_line(
+                    handshake, deadline, stderr_tail, cmd
+                )
+                kernel_pid, kernel_executable = _parse_kernel_info(info)
+                self._kernel_pid = kernel_pid
+                if self._venv_python is None and kernel_executable is not None:
+                    # An ephemeral kernel's environment is only knowable
+                    # from the kernel itself; the server package panel
+                    # targets it.
+                    self._venv_python = kernel_executable
 
             LOGGER.debug("Kernel ready")
 
@@ -505,6 +549,52 @@ class IPCKernelManagerImpl(KernelManager):
             raise KernelStartupError(
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
+
+    def _await_handshake_line(
+        self,
+        handshake: queue.Queue[str],
+        deadline: float,
+        stderr_tail: deque[bytes],
+        cmd: list[str],
+    ) -> str:
+        """The next handshake line, bounded by exit and deadline.
+
+        Raises `KernelStartupError` when the child exits without
+        producing it or the deadline passes; a hung child is killed so
+        an unresponsive launch cannot leak a process tree.
+        """
+        assert self._process is not None
+        while True:
+            try:
+                return handshake.get(timeout=0.1)
+            except queue.Empty:
+                pass
+            if self._process.poll() is not None:
+                # The reader thread may still be flushing lines the
+                # child printed just before exiting.
+                try:
+                    return handshake.get(timeout=0.5)
+                except queue.Empty:
+                    raise KernelStartupError(
+                        f"Kernel exited during startup "
+                        f"(exit code {self._process.returncode}).\n\n"
+                        f"Command: {' '.join(cmd)}\n\n"
+                        f"Stderr:\n{_decode_tail(stderr_tail)}"
+                    ) from None
+            if time.monotonic() > deadline:
+                try:
+                    try_kill_process_and_group(
+                        _SubprocessWrapper(self._process)
+                    )
+                except Exception as e:
+                    LOGGER.warning(e)
+                raise KernelStartupError(
+                    f"Kernel did not become ready within "
+                    f"{_startup_timeout():.0f}s (override with "
+                    f"MARIMO_KERNEL_STARTUP_TIMEOUT).\n\n"
+                    f"Command: {' '.join(cmd)}\n\n"
+                    f"Stderr:\n{_decode_tail(stderr_tail)}"
+                )
 
     @property
     def pid(self) -> int | None:
