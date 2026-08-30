@@ -1,7 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { closeCompletion } from "@codemirror/autocomplete";
-import type { EditorState } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
+import { Facet, type EditorState } from "@codemirror/state";
 import {
   closeHoverTooltips,
   type EditorView,
@@ -9,13 +10,18 @@ import {
   keymap,
 } from "@codemirror/view";
 import type { CellId } from "@/core/cells/ids";
+import { PyNode } from "../python-node-names";
 import { hotkeysAtom, platformAtom } from "../../config/config";
 import { notebookAtom } from "../../cells/cells";
 import { store } from "../../state/jotai";
 import { variablesAtom } from "../../variables/state";
 import type { VariableName, Variables } from "../../variables/types";
 import { getPositionAtWordBounds } from "../completion/hints";
-import { goToLine, goToVariableDefinition } from "./commands";
+import {
+  findVariableDefinitionPosition,
+  goToLine,
+  goToPosition,
+} from "./commands";
 
 function keymapBindingMatchesHotkey(
   binding: KeyBinding,
@@ -50,6 +56,34 @@ function getWordUnderCursor(state: EditorState) {
   };
 }
 
+interface IdentifierAtPosition {
+  canResolveLocally: boolean;
+  position: number;
+  word: string;
+}
+
+/** Get an exact Python identifier at the given document position. */
+function getIdentifierAtPosition(
+  state: EditorState,
+  pos: number,
+): IdentifierAtPosition | null {
+  const node = syntaxTree(state).resolveInner(pos, 1);
+  if (node.name !== PyNode.VariableName && node.name !== PyNode.PropertyName) {
+    return null;
+  }
+
+  return {
+    canResolveLocally: node.name === PyNode.VariableName,
+    position: node.from,
+    word: state.doc.sliceString(node.from, node.to),
+  };
+}
+
+/** Whether this editor can ask a language server for a definition. */
+export const lspGoToDefinitionSupport = Facet.define<boolean, boolean>({
+  combine: (values) => values.some(Boolean),
+});
+
 /**
  * Get the cell id of the definition of the given variable.
  */
@@ -76,8 +110,93 @@ function isPrivateVariable(variableName: string) {
  * @param view The editor view at which the command was invoked.
  */
 export function goToDefinitionAtCursorPosition(view: EditorView): boolean {
-  const { state } = view;
-  const { position, word } = getWordUnderCursor(state);
+  const { position, word } = getWordUnderCursor(view.state);
+  return goToWord(view, word, position);
+}
+
+/** Tagged keymap handler so LSP fallback can skip marimo's local resolver. */
+export const marimoGoToDefinitionKeymap = function run(
+  view: EditorView,
+): boolean {
+  return goToDefinitionAtCursorPosition(view);
+};
+
+/**
+ * Go to the definition of the variable at the given document position.
+ *
+ * Unlike {@link goToDefinitionAtCursorPosition}, this resolves the word at an
+ * explicit position (e.g. where the user right-clicked) rather than the
+ * current text cursor.
+ * @param view The editor view at which the command was invoked.
+ * @param pos The document position to resolve the word from.
+ */
+export function goToDefinitionAtPosition(
+  view: EditorView,
+  pos: number,
+): boolean {
+  const identifier = getIdentifierAtPosition(view.state, pos);
+  if (!identifier?.canResolveLocally) {
+    return false;
+  }
+  const { position, word } = identifier;
+  return goToWord(view, word, position);
+}
+
+/**
+ * Go to the definition at an explicit position, falling back to the language
+ * server after moving the caret to the selected identifier.
+ */
+export function goToDefinitionAtPositionWithLspFallback(
+  view: EditorView,
+  pos: number,
+): boolean {
+  const identifier = getIdentifierAtPosition(view.state, pos);
+  if (!identifier) {
+    return false;
+  }
+  if (
+    identifier.canResolveLocally &&
+    goToWord(view, identifier.word, identifier.position)
+  ) {
+    return true;
+  }
+
+  view.dispatch({
+    selection: {
+      anchor: identifier.position,
+      head: identifier.position,
+    },
+  });
+  return requestLspGoToDefinition(view);
+}
+
+/**
+ * Whether to offer "Go to Definition" at the given document position.
+ * The position must be an exact Python variable token with either a definition
+ * marimo can resolve synchronously or an available language-server fallback.
+ * @param view The editor view at which the command was invoked.
+ * @param pos The document position to resolve the word from.
+ */
+export function canRequestDefinitionAtPosition(
+  view: EditorView,
+  pos: number,
+): boolean {
+  const identifier = getIdentifierAtPosition(view.state, pos);
+  if (!identifier) {
+    return false;
+  }
+  return (
+    view.state.facet(lspGoToDefinitionSupport) ||
+    (identifier.canResolveLocally &&
+      resolveDefinition(view, identifier.word, identifier.position) != null)
+  );
+}
+
+/**
+ * Close open popovers and navigate to the definition of the given word.
+ * Returns `false` (a no-op) when there is no word.
+ */
+function goToWord(view: EditorView, word: string, position: number): boolean {
   if (!word) {
     return false;
   }
@@ -98,7 +217,11 @@ export function requestLspGoToDefinition(
   hotkey = store.get(hotkeysAtom).getHotkey("cell.goToDefinition").key,
 ): boolean {
   for (const binding of view.state.facet(keymap).flat()) {
-    if (keymapBindingMatchesHotkey(binding, hotkey) && binding.run?.(view)) {
+    if (
+      binding.run !== marimoGoToDefinitionKeymap &&
+      keymapBindingMatchesHotkey(binding, hotkey) &&
+      binding.run?.(view)
+    ) {
       return true;
     }
   }
@@ -117,6 +240,43 @@ export function goToDefinitionWithLspFallback(view: EditorView): boolean {
 }
 
 /**
+ * Resolve where a variable is defined, without navigating. Prefers a local
+ * (in-cell, scope-aware) definition at the usage position, then falls back to
+ * the cell that declares it as a reactive notebook variable. Returns the target
+ * editor and position, or null when nothing resolves.
+ */
+function resolveDefinition(
+  view: EditorView,
+  variableName: string,
+  usagePosition?: number,
+): { view: EditorView; from: number } | null {
+  if (usagePosition !== undefined) {
+    const from = findVariableDefinitionPosition(
+      view.state,
+      variableName,
+      usagePosition,
+    );
+    if (from !== null) {
+      return { view, from };
+    }
+  }
+
+  // The variable may exist in another cell
+  const editorWithVariable = getEditorForVariable(view, variableName);
+  if (!editorWithVariable) {
+    return null;
+  }
+  const from = findVariableDefinitionPosition(
+    editorWithVariable.state,
+    variableName,
+  );
+  if (from === null) {
+    return null;
+  }
+  return { view: editorWithVariable, from };
+}
+
+/**
  * Go to the definition of the variable under the cursor.
  * @param view The editor view at which the command was invoked.
  */
@@ -125,23 +285,12 @@ export function goToDefinition(
   variableName: string,
   usagePosition?: number,
 ): boolean {
-  if (usagePosition !== undefined) {
-    const foundLocally = goToVariableDefinition(
-      view,
-      variableName,
-      usagePosition,
-    );
-    if (foundLocally) {
-      return true;
-    }
-  }
-
-  // The variable may exist in another cell
-  const editorWithVariable = getEditorForVariable(view, variableName);
-  if (!editorWithVariable) {
+  const location = resolveDefinition(view, variableName, usagePosition);
+  if (!location) {
     return false;
   }
-  return goToVariableDefinition(editorWithVariable, variableName);
+  goToPosition(location.view, location.from);
+  return true;
 }
 
 /**

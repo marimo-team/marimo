@@ -9,6 +9,7 @@
 export const PyNode = {
   // Names
   VariableName: "VariableName",
+  PropertyName: "PropertyName",
 
   // Declarations / scopes
   FunctionDefinition: "FunctionDefinition",
