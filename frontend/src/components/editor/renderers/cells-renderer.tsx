@@ -6,7 +6,6 @@ import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
 import {
-  type LayoutState,
   resolveLayoutData,
   resolveLayoutType,
   useLayoutActions,
@@ -23,8 +22,7 @@ interface Props {
 
 export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
-    const layoutState = useLayoutState();
-    const { selectedLayout } = layoutState;
+    const { selectedLayout } = useLayoutState();
     const kioskMode = useAtomValue(kioskModeAtom);
 
     // Render children (the editable notebook) in edit mode, and in present
@@ -55,12 +53,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     }
 
     return (
-      <PluginCellRenderer
-        appConfig={appConfig}
-        mode={mode}
-        plugin={plugin}
-        layoutState={layoutState}
-      />
+      <PluginCellRenderer appConfig={appConfig} mode={mode} plugin={plugin} />
     );
   },
 );
@@ -71,11 +64,11 @@ interface PluginCellRendererProps extends PropsWithChildren<Props> {
   mode: AppMode;
   // oxlint-disable-next-line typescript/no-explicit-any
   plugin: ICellRendererPlugin<any, any>;
-  layoutState: LayoutState;
 }
 
 export const PluginCellRenderer = (props: PluginCellRendererProps) => {
-  const { appConfig, mode, plugin, layoutState } = props;
+  const { appConfig, mode, plugin } = props;
+  const layoutState = useLayoutState();
   const notebook = useNotebook();
   const { setCurrentLayoutData } = useLayoutActions();
   const cells = flattenTopLevelNotebookCells(notebook);
