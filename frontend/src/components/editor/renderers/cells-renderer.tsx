@@ -5,19 +5,16 @@ import type React from "react";
 import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
-import { KnownQueryParams } from "@/core/constants";
 import {
-  type LayoutData,
+  type LayoutState,
+  resolveLayoutData,
+  resolveLayoutType,
   useLayoutActions,
   useLayoutState,
 } from "@/core/layout/layout";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { cellRendererPlugins } from "./plugins";
-import {
-  type ICellRendererPlugin,
-  type LayoutType,
-  OVERRIDABLE_LAYOUT_TYPES,
-} from "./types";
+import type { ICellRendererPlugin } from "./types";
 
 interface Props {
   appConfig: AppConfig;
@@ -26,7 +23,8 @@ interface Props {
 
 export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
   ({ appConfig, mode, children }) => {
-    const { selectedLayout, layoutData } = useLayoutState();
+    const layoutState = useLayoutState();
+    const { selectedLayout } = layoutState;
     const kioskMode = useAtomValue(kioskModeAtom);
 
     // Render children (the editable notebook) in edit mode, and in present
@@ -43,14 +41,11 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
     // We allow overriding the layout type by url params when in 'read' mode,
     // for example, forcing the 'slides' view.
     // https://marimo.app/?slug=14ovyr8&mode=run&view-as=slides
-    let finalLayout = selectedLayout;
-    const params = new URLSearchParams(window.location.search);
-    if (mode === "read" && params.has(KnownQueryParams.viewAs)) {
-      const viewAsOverride = params.get(KnownQueryParams.viewAs);
-      if (OVERRIDABLE_LAYOUT_TYPES.includes(viewAsOverride as LayoutType)) {
-        finalLayout = viewAsOverride as LayoutType;
-      }
-    }
+    const finalLayout = resolveLayoutType({
+      selectedLayout,
+      isReading: mode === "read",
+      searchParams: new URLSearchParams(window.location.search),
+    });
 
     const plugin = cellRendererPlugins.find((p) => p.type === finalLayout);
 
@@ -64,8 +59,7 @@ export const CellsRenderer: React.FC<PropsWithChildren<Props>> = memo(
         appConfig={appConfig}
         mode={mode}
         plugin={plugin}
-        layoutData={layoutData}
-        finalLayout={finalLayout}
+        layoutState={layoutState}
       />
     );
   },
@@ -77,15 +71,15 @@ interface PluginCellRendererProps extends PropsWithChildren<Props> {
   mode: AppMode;
   // oxlint-disable-next-line typescript/no-explicit-any
   plugin: ICellRendererPlugin<any, any>;
-  layoutData: Partial<Record<LayoutType, LayoutData>>;
-  finalLayout: LayoutType;
+  layoutState: LayoutState;
 }
 
 export const PluginCellRenderer = (props: PluginCellRendererProps) => {
-  const { appConfig, mode, plugin, layoutData, finalLayout } = props;
+  const { appConfig, mode, plugin, layoutState } = props;
   const notebook = useNotebook();
   const { setCurrentLayoutData } = useLayoutActions();
   const cells = flattenTopLevelNotebookCells(notebook);
+  const layout = resolveLayoutData({ state: layoutState, plugin, cells });
 
   const Renderer = plugin.Component;
   const body = (
@@ -93,7 +87,7 @@ export const PluginCellRenderer = (props: PluginCellRendererProps) => {
       appConfig={appConfig}
       mode={mode}
       cells={cells}
-      layout={layoutData[finalLayout] || plugin.getInitialLayout(cells)}
+      layout={layout}
       setLayout={setCurrentLayoutData}
     />
   );

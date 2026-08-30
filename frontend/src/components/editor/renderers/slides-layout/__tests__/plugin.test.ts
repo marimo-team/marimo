@@ -1,10 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { SlidesLayoutPlugin } from "../plugin";
 import type { CellData } from "@/core/cells/types";
 import type { CellId } from "@/core/cells/ids";
 import { cellId } from "@/__tests__/branded";
+import { deserializeLayout } from "../../plugins";
+import { Logger } from "@/utils/Logger";
 
 function makeCell(id: string, code = "print('hi')"): CellData {
   return {
@@ -35,12 +37,36 @@ describe("SlidesLayoutPlugin validator", () => {
     ).toBe(true);
   });
 
-  it("rejects unknown slide types", () => {
-    expect(
-      SlidesLayoutPlugin.validator.safeParse({
-        cells: [{ type: "bogus" }],
-      }).success,
-    ).toBe(false);
+  it("drops unsupported fields while preserving the rest of the layout", () => {
+    const layout = deserializeLayout({
+      type: "slides",
+      data: {
+        cells: [
+          {
+            type: "bogus",
+            speakerNotes: "Keep these notes",
+            futureCellOption: true,
+          },
+          { type: "fragment" },
+        ],
+        deck: {
+          transition: "future-transition",
+          verticalAlign: "center",
+          futureDeckOption: true,
+        },
+      },
+      cells: [makeCell("a"), makeCell("b")],
+    });
+
+    expect(layout.cells.get("a" as CellId)).toEqual({
+      speakerNotes: "Keep these notes",
+      futureCellOption: true,
+    });
+    expect(layout.cells.get("b" as CellId)).toEqual({ type: "fragment" });
+    expect(layout.deck).toEqual({
+      verticalAlign: "center",
+      futureDeckOption: true,
+    });
   });
 
   it("accepts each valid deck vertical alignment", () => {
@@ -52,12 +78,18 @@ describe("SlidesLayoutPlugin validator", () => {
     }
   });
 
-  it("rejects an unknown deck vertical alignment", () => {
+  it("falls back to the initial layout when serialized data is invalid", () => {
+    const warning = vi
+      .spyOn(Logger, "warn")
+      .mockImplementation(() => undefined);
     expect(
-      SlidesLayoutPlugin.validator.safeParse({
-        deck: { verticalAlign: "middle" },
-      }).success,
-    ).toBe(false);
+      deserializeLayout({
+        type: "slides",
+        data: null,
+        cells: [makeCell("a")],
+      }),
+    ).toEqual({ cells: new Map(), deck: {} });
+    warning.mockRestore();
   });
 });
 
@@ -169,8 +201,7 @@ describe("SlidesLayoutPlugin serializeLayout", () => {
  *   shape to `serializedSnapshot` so a diff will surface the change in review.
  *
  * Every snapshot is required to:
- *   1. pass the zod validator (today it is defined but not applied on load;
- *      this guards against regressions once it is),
+ *   1. pass the zod validator used during load,
  *   2. deserialize without throwing,
  *   3. survive a deserialize → serialize → deserialize round trip without
  *      throwing or losing any user-set field carried in the expectations.
