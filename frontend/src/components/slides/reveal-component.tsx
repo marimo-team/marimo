@@ -56,12 +56,42 @@ import { SlideNotesEditor } from "./slide-notes-editor";
 import { buildSubslideNotes, NOTES_DIVIDER } from "./slide-notes";
 import { cn } from "@/utils/cn";
 import { isIslands } from "@/core/islands/utils";
+import { initialRunCompletedAtom } from "@/core/kernel/state";
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
+import { runtimeAdapterAtom } from "@/core/runtime/adapter";
 import { useAtomValue } from "jotai";
 import RevealNotes from "reveal.js/plugin/notes";
+import {
+  createSpeakerViewUrl,
+  isSpeakerViewReceiver,
+  supportsSpeakerView,
+} from "./speaker-view";
 
 const ASPECT_RATIO = 16 / 9;
+const CODE_TOGGLE_KEY_CODE = 67;
+
+export function syncCodeToggleKeyBinding({
+  deck,
+  enabled,
+  onToggle,
+}: {
+  deck: Pick<RevealApi, "addKeyBinding" | "removeKeyBinding">;
+  enabled: boolean;
+  onToggle: () => void;
+}): void {
+  deck.removeKeyBinding(CODE_TOGGLE_KEY_CODE);
+  if (enabled) {
+    deck.addKeyBinding(
+      {
+        keyCode: CODE_TOGGLE_KEY_CODE,
+        key: "C",
+        description: "Toggle code editor",
+      },
+      onToggle,
+    );
+  }
+}
 
 /**
  * reveal.js caches the last visited vertical index on each stack and can
@@ -161,10 +191,10 @@ export function shouldShowCode(options: {
   cells: ReadonlyMap<CellId, SlideConfig>;
   cellId: CellId | undefined;
   showCodeOverrides: ReadonlySet<CellId>;
-  codeToggleEnabled: boolean;
+  codeAvailable: boolean;
 }): boolean {
-  const { cells, cellId, showCodeOverrides, codeToggleEnabled } = options;
-  if (cellId == null || !codeToggleEnabled) {
+  const { cells, cellId, showCodeOverrides, codeAvailable } = options;
+  if (cellId == null || !codeAvailable) {
     return false;
   }
   const configured = cells.get(cellId)?.showCode ?? false;
@@ -450,12 +480,15 @@ const RevealSlidesComponent = ({
   const { width, height } = useSlideDimensions(containerRef);
   const isFullscreen = useFullScreenElement() != null;
 
-  // Skip the Notes plugin inside reveal's own speaker-view iframes so pressing
-  // `S` there doesn't try to spawn another popup.
+  // A receiver frame cannot spawn another speaker view. WebAssembly exports
+  // also omit the plugin because each receiver would start another runtime.
   const kioskMode = useAtomValue(kioskModeAtom);
+  const runtimeKind = useAtomValue(runtimeAdapterAtom).kind;
+  const initialRunCompleted = useAtomValue(initialRunCompletedAtom);
+  const canResolveInitialHash = runtimeKind !== "wasm" || initialRunCompleted;
   const deckPlugins = useMemo(
-    () => (kioskMode ? [] : [RevealNotes]),
-    [kioskMode],
+    () => (kioskMode || !supportsSpeakerView(runtimeKind) ? [] : [RevealNotes]),
+    [kioskMode, runtimeKind],
   );
 
   // Store the state of the code toggle for each cell
@@ -464,7 +497,12 @@ const RevealSlidesComponent = ({
     ReadonlySet<CellId>
   >(() => new Set());
   const codeAvailable = useNotebookCodeAvailable(slideCells);
-  const codeToggleEnabled = !isIslands() && codeAvailable;
+  const codeRenderingEnabled = !isIslands() && codeAvailable;
+  const isSpeakerReceiver = isSpeakerViewReceiver(
+    kioskMode,
+    window.location.search,
+  );
+  const codeToggleEnabled = !isSpeakerReceiver && codeRenderingEnabled;
 
   const activeCell = activeIndex != null ? slideCells[activeIndex] : undefined;
   // Fall back to the first cell while the deck settles on an initial slide.
@@ -489,7 +527,7 @@ const RevealSlidesComponent = ({
       cells: layout.cells,
       cellId,
       showCodeOverrides,
-      codeToggleEnabled,
+      codeAvailable: codeRenderingEnabled,
     });
 
   // `C` and the toolbar button target the active slide's cell (the revealed
@@ -501,7 +539,7 @@ const RevealSlidesComponent = ({
 
   // A slide persisted with `showCode: true` always renders code
   const codeAlwaysShown =
-    codeToggleEnabled &&
+    codeRenderingEnabled &&
     cellIdToShowCode != null &&
     (layout.cells.get(cellIdToShowCode)?.showCode ?? false);
 
@@ -540,10 +578,7 @@ const RevealSlidesComponent = ({
   // app chrome hidden, which `<SlidesLayoutRenderer>` interprets the same as
   // read mode (no minimap, sidebar, or notes editor).
   const kioskUrl = useMemo(() => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("kiosk", "true");
-    url.searchParams.set("show-chrome", "false");
-    return url.toString();
+    return createSpeakerViewUrl(window.location.href);
   }, []);
 
   const revealConfig: RevealConfig = useMemo(
@@ -566,6 +601,14 @@ const RevealSlidesComponent = ({
   );
 
   const navigateDeckToActiveCell = useEvent((deck: RevealApi) => {
+    if (activeIndex == null && window.location.hash.startsWith("#/")) {
+      if (!canResolveInitialHash) {
+        return;
+      }
+      window.dispatchEvent(new HashChangeEvent("hashchange"));
+      clearPreviousVerticalIndices(deck);
+      return;
+    }
     const target = resolveDeckNavigationTarget({
       activeIndex,
       cells: slideCells,
@@ -586,7 +629,13 @@ const RevealSlidesComponent = ({
       return;
     }
     navigateDeckToActiveCell(deck);
-  }, [activeIndex, cellToTarget, slideCells, navigateDeckToActiveCell]);
+  }, [
+    activeIndex,
+    canResolveInitialHash,
+    cellToTarget,
+    slideCells,
+    navigateDeckToActiveCell,
+  ]);
 
   // Toggling code (re)mounts a CodeMirror editor on the active slide. Defer
   // the state update so the button/keypress paints first and the heavier mount
@@ -612,18 +661,52 @@ const RevealSlidesComponent = ({
     );
   });
 
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (deck) {
+      syncCodeToggleKeyBinding({
+        deck,
+        enabled: codeToggleEnabled,
+        onToggle: toggleShowCode,
+      });
+    }
+    return () => {
+      deckRef.current?.removeKeyBinding(CODE_TOGGLE_KEY_CODE);
+    };
+  }, [codeToggleEnabled, toggleShowCode]);
+
+  // Ignore programmatic preview navigation so the minimap selection remains
+  // pinned to the previewed cell.
+  const reportDeckCell = useEvent((deck: RevealApi) => {
+    if (parkedPreviewCell != null) {
+      return;
+    }
+    const flatIndex = resolveActiveCellIndex(
+      targetToCellIndex,
+      deck.getIndices(),
+    );
+    if (flatIndex != null) {
+      onSlideChange?.(flatIndex);
+    }
+  });
+
+  const reportCurrentCell = useEvent(() => {
+    const deck = deckRef.current;
+    if (deck) {
+      reportDeckCell(deck);
+    }
+  });
+
   const handleDeckReady = useEvent((deck: RevealApi) => {
     navigateDeckToActiveCell(deck);
-    if (codeToggleEnabled) {
-      deck.addKeyBinding(
-        {
-          keyCode: 67,
-          key: "C",
-          description: "Toggle code editor",
-        },
-        toggleShowCode,
-      );
+    if (canResolveInitialHash) {
+      reportDeckCell(deck);
     }
+    syncCodeToggleKeyBinding({
+      deck,
+      enabled: codeToggleEnabled,
+      onToggle: toggleShowCode,
+    });
 
     // Reveal listens for `keydown` on `document` and bails when
     // `document.activeElement` is an input/contenteditable (e.g. the speaker
@@ -633,27 +716,6 @@ const RevealSlidesComponent = ({
     if (revealEl instanceof HTMLElement) {
       revealEl.tabIndex = -1;
       revealEl.focus({ preventScroll: true });
-    }
-  });
-
-  // Forward the deck's current cell to the parent, except while a parked
-  // preview is parked: every reveal.js event during that window is an echo
-  // of the programmatic park (possibly with transient indices), so ignoring
-  // them keeps `activeCellId` pinned on the minimap cell.
-  const reportCurrentCell = useEvent(() => {
-    if (parkedPreviewCell != null) {
-      return;
-    }
-    const deck = deckRef.current;
-    if (!deck) {
-      return;
-    }
-    const flatIndex = resolveActiveCellIndex(
-      targetToCellIndex,
-      deck.getIndices(),
-    );
-    if (flatIndex != null) {
-      onSlideChange?.(flatIndex);
     }
   });
 

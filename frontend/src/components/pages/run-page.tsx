@@ -1,12 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { Panel, PanelGroup } from "react-resizable-panels";
+import { useAtomValue } from "jotai";
 import { MarimoIcon } from "@/components/icons/marimo-icons";
 import type { AppConfig } from "@/core/config/config-schema";
 import { Constants } from "@/core/constants";
+import { resolveLayoutType, useLayoutState } from "@/core/layout/layout";
 import { RunApp } from "@/core/run-app";
-import { isStaticNotebook } from "@/core/static/static-state";
-import { isWasm } from "@/core/wasm/utils";
+import { runtimeAdapterAtom } from "@/core/runtime/adapter";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";
 import { PanelsWrapper } from "../editor/chrome/wrapper/panels";
 import { StaticBanner } from "../static-html/static-banner";
@@ -15,16 +16,24 @@ interface Props {
   appConfig: AppConfig;
 }
 
-const showWatermark = isWasm() || isStaticNotebook();
-
 const RunPage = (props: Props) => {
+  const runtimeKind = useAtomValue(runtimeAdapterAtom).kind;
+  const isExportedNotebook = runtimeKind === "static" || runtimeKind === "wasm";
+  const { selectedLayout } = useLayoutState();
+  const finalLayout = resolveLayoutType({
+    selectedLayout,
+    isReading: true,
+    searchParams: new URLSearchParams(window.location.search),
+  });
+  const isExportedSlides = isExportedNotebook && finalLayout === "slides";
+
   return (
     <PanelsWrapper>
       <PanelGroup direction="horizontal" autoSaveId="marimo:chrome:v1:run1">
         <Panel>
-          <StaticBanner />
-          <RunApp appConfig={props.appConfig} />
-          {showWatermark && <Watermark />}
+          {!isExportedSlides && <StaticBanner />}
+          <RunApp appConfig={props.appConfig} hideHeader={isExportedSlides} />
+          {isExportedNotebook && !isExportedSlides && <Watermark />}
         </Panel>
         <ContextAwarePanel />
       </PanelGroup>

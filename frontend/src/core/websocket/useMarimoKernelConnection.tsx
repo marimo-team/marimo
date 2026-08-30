@@ -60,7 +60,7 @@ import {
 } from "../kernel/handlers";
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { SessionId } from "../kernel/session";
-import { kernelStateAtom } from "../kernel/state";
+import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
 import { type LayoutState, useLayoutActions } from "../layout/layout";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
@@ -212,6 +212,7 @@ export function useMarimoKernelConnection(opts: {
   };
   const { addCellNotification } = useRunsActions();
   const setKernelState = useSetAtom(kernelStateAtom);
+  const setInitialRunCompleted = useSetAtom(initialRunCompletedAtom);
   const setAppConfig = useSetAppConfig();
   const { setVariables, setMetadata } = useVariablesActions();
   const { addColumnPreview } = useDatasetsActions();
@@ -240,6 +241,9 @@ export function useMarimoKernelConnection(opts: {
         reloadSafe();
         return;
       case "kernel-ready": {
+        setInitialRunCompleted(
+          Boolean(msg.data.resumed || msg.data.auto_instantiated),
+        );
         const existingCells = getExistingCells();
 
         handleKernelReady(msg.data, {
@@ -268,6 +272,7 @@ export function useMarimoKernelConnection(opts: {
       }
 
       case "completed-run":
+        setInitialRunCompleted(true);
         return;
       case "interrupted":
         return;
