@@ -16,6 +16,8 @@ import { isWidgetModelId, type WidgetModelId } from "./types";
  */
 interface Data {
   modelId: WidgetModelId;
+  esmUrl?: string;
+  esmHash?: string;
 }
 
 /**
@@ -34,6 +36,8 @@ export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
       modelId: z.custom<WidgetModelId>(isWidgetModelId, {
         message: "Expected a non-empty widget model id",
       }),
+      esmUrl: z.string().optional(),
+      esmHash: z.string().optional(),
     }),
   )
   .withFunctions({})
@@ -45,7 +49,7 @@ export const AnyWidgetPlugin = createPlugin<ModelIdRef>("marimo-anywidget")
  * composition, and hot reload.
  */
 const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
-  const { modelId } = props.data;
+  const { modelId, esmUrl, esmHash } = props.data;
   const htmlRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<Error>();
   const canCreateView = useAtomValue(islandsHydratedAtom);
@@ -64,13 +68,14 @@ const AnyWidgetSlot = (props: IPluginProps<ModelIdRef, Data>) => {
       modelId,
       el,
       signal: controller.signal,
+      viewSpec: esmUrl && esmHash ? { url: esmUrl, hash: esmHash } : undefined,
     }).catch((error) => {
       if (!controller.signal.aborted) {
         setError(error instanceof Error ? error : new Error(String(error)));
       }
     });
     return () => controller.abort();
-  }, [canCreateView, modelId]);
+  }, [canCreateView, esmHash, esmUrl, modelId]);
 
   return (
     <>
