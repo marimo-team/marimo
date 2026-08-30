@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import inspect
 import os
 import sys
@@ -14,7 +13,6 @@ from collections.abc import (
     Sequence,
 )
 from dataclasses import dataclass
-from pathlib import Path
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -1007,19 +1005,6 @@ class InternalApp:
 
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
-
-    def inline_layout_file(self) -> InternalApp:
-        if self.config.layout_file:
-            layout_path = Path(self.config.layout_file)
-            if self._app._filename:
-                # Resolve relative to the current working directory
-                layout_path = Path(self._app._filename).parent / layout_path
-            layout_file = layout_path.read_bytes()
-            data_uri = base64.b64encode(layout_file).decode()
-            self.update_config(
-                {"layout_file": f"data:application/json;base64,{data_uri}"}
-            )
-        return self
 
     def with_data(
         self,

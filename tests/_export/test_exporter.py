@@ -67,6 +67,7 @@ from marimo._session.state.serialize import get_session_cache_file
 from marimo._session.state.session_view import SessionView
 from marimo._types.ids import WidgetModelId
 from marimo._utils.marimo_path import MarimoPath
+from tests._server.templates.utils import parse_mount_config
 from tests.mocks import delete_lines_with_files, snapshotter
 
 if TYPE_CHECKING:
@@ -141,6 +142,26 @@ def _wasm_export_request(
         notebook_snapshot=notebook_snapshot,
         sharing_config=sharing_config,
     )
+
+
+def _write_layout_notebook(
+    tmp_path: Path,
+    *,
+    layout_file: str = "layouts/layout.json",
+    contents: str | None,
+) -> Path:
+    notebook = tmp_path / "test.py"
+    source = (
+        (FIXTURES_DIR / "with_layout.py")
+        .read_text()
+        .replace("layouts/layout.json", layout_file)
+    )
+    notebook.write_text(source)
+    if contents is not None:
+        path = tmp_path / layout_file
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(contents)
+    return notebook
 
 
 def _pdf_export_request(
@@ -421,25 +442,78 @@ async def test_export_wasm(mode: str, expected_mode_in_content: str) -> None:
     assert expected_mode_in_content in content
 
 
-async def test_export_html_with_layout(tmp_path: Path) -> None:
-    """Test HTML export with layout file."""
-    test_file = tmp_path / "test.py"
-    test_file.write_text((FIXTURES_DIR / "with_layout.py").read_text())
-
-    # Create the layout file
-    layout_file = tmp_path / "layouts" / "layout.json"
-    layout_file.parent.mkdir(parents=True, exist_ok=True)
-    layout_file.write_text('{"type": "slides", "data": {}}')
-
-    result = await export_wasm(
-        WASMFileExportRequest(
-            path=MarimoPath(test_file),
-            options=WASMExportOptions(mode="edit", show_code=True),
-        )
+@pytest.mark.parametrize(
+    "export_kind",
+    ["static", "wasm", "wasm-executed"],
+)
+@pytest.mark.parametrize(
+    ("layout_file", "contents", "expected"),
+    [
+        (
+            "layouts/layout.json",
+            '{"type": "slides", "data": {}}',
+            {"type": "slides", "data": {}},
+        ),
+        ("layouts/layout.json", "{", None),
+        ("layouts/missing.json", None, None),
+        (
+            "data:application/json;base64,"
+            + base64.b64encode(
+                b'{"type":"slides","data":{"deck":{"transition":"fade"}}}'
+            ).decode("ascii"),
+            None,
+            {
+                "type": "slides",
+                "data": {"deck": {"transition": "fade"}},
+            },
+        ),
+        (
+            "layouts/layout.txt",
+            '{"type": "slides", "data": {}}',
+            None,
+        ),
+    ],
+    ids=["valid", "malformed", "missing", "data-uri", "non-json"],
+)
+async def test_file_export_resolves_layout_once(
+    tmp_path: Path,
+    export_kind: str,
+    layout_file: str,
+    contents: str | None,
+    expected: dict[str, Any] | None,
+) -> None:
+    test_file = _write_layout_notebook(
+        tmp_path,
+        layout_file=layout_file,
+        contents=contents,
     )
+
+    if export_kind == "static":
+        result = await export_html(
+            HTMLFileExportRequest(
+                path=MarimoPath(test_file),
+                options=HTMLExportOptions(files=(), include_code=True),
+            )
+        )
+    else:
+        result = await export_wasm(
+            WASMFileExportRequest(
+                path=MarimoPath(test_file),
+                options=WASMExportOptions(mode="run", show_code=True),
+                execution=(
+                    NotebookExecutionOptions(cli_args={}, argv=[])
+                    if export_kind == "wasm-executed"
+                    else None
+                ),
+            )
+        )
+
     assert result.did_error is False
-    assert "layout.json" not in result.text
-    assert "data:application/json" in result.text
+    assert parse_mount_config(result.text)["layout"] == expected
+    if not layout_file.startswith("data:"):
+        assert layout_file not in result.text
+    if expected is not None:
+        assert "data:application/json;base64," in result.text
 
 
 # HTML export

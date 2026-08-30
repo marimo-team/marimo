@@ -14,6 +14,7 @@ from typing import Any, Literal, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
@@ -162,6 +163,7 @@ def render_static_notebook(
     session_snapshot: NotebookSessionV1,
     notebook_snapshot: NotebookV1 | None = None,
     files: dict[str, str] | None = None,
+    layout: dict[str, Any] | None = None,
     config: dict[str, Any] | None = None,
     app_config: dict[str, Any] | None = None,
     asset_url: str | None = None,
@@ -178,6 +180,7 @@ def render_static_notebook(
         session_snapshot: Pre-computed outputs for all cells (required).
         notebook_snapshot: Notebook structure/metadata.
         files: Files to embed (key=path, value=base64 content).
+        layout: Serialized notebook layout with `type` and `data` fields.
         config: User configuration overrides.
         app_config: Notebook-specific configuration.
         asset_url: CDN URL for assets (default: jsDelivr).
@@ -207,6 +210,7 @@ def render_static_notebook(
     user_config = _parse_config(config)
     config_overrides_obj = _parse_partial_config(config or {})
     app_config_obj = _AppConfig.from_untrusted_dict(app_config)
+    layout_config = LayoutConfig(**layout) if layout is not None else None
 
     # Get HTML template
     html = _get_html_template()
@@ -223,6 +227,7 @@ def render_static_notebook(
         session_snapshot=session_snapshot,
         notebook_snapshot=notebook_snapshot,
         files=files or {},
+        layout=layout_config,
         asset_url=asset_url,
     )
 

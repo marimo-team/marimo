@@ -53,6 +53,7 @@ from marimo._schemas.export import (
     ExportFormatAvailability,
     InstallExportRequirementsRequest,
     UpdateCellOutputsRequest,
+    to_html_export_layout,
     to_html_export_options,
     to_ipynb_export_options,
     to_markdown_export_options,
@@ -239,6 +240,10 @@ async def export_as_html(
 
     resolved_config = session.config_manager.get_config()
     app = session.app_file_manager.app
+    layout = to_html_export_layout(
+        body,
+        fallback=session.app_file_manager.read_layout_config,
+    )
     html, filename = Exporter().export_as_html(
         HTMLExportRequest(
             filename=session.app_file_manager.filename,
@@ -252,6 +257,7 @@ async def export_as_html(
             ),
             display_config=resolved_config["display"],
             options=to_html_export_options(body),
+            layout=layout,
             sharing_config=resolved_config.get("sharing"),
         )
     )

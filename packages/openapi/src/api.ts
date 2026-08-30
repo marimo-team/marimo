@@ -4634,15 +4634,6 @@ export interface components {
       type: "configuration" | "environment";
     };
     /**
-     * DialectHidesWhen
-     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
-     */
-    DialectHidesWhen: {
-      /** @enum {unknown} */
-      kind: "dialect";
-      substrings: string[];
-    };
-    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4654,6 +4645,15 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiscoverDataSourcesCommand
@@ -4851,13 +4851,21 @@ export interface components {
       /** @enum {unknown} */
       type: "execute-stale-cells";
     };
-    /** ExportAsHTMLRequest */
+    /**
+     * ExportAsHTMLRequest
+     * @description Request a static HTML export.
+     *
+     *         `layout` carries the current client layout. An omitted field reads the
+     *         saved layout file, `null` selects the vertical layout, and an object uses
+     *         that serialized layout for this export.
+     */
     ExportAsHTMLRequest: {
       /** @default null */
       assetUrl?: string | null;
       download: boolean;
       files: string[];
       includeCode: boolean;
+      layout?: components["schemas"]["LayoutConfig"] | null;
     };
     /** ExportAsIPYNBRequest */
     ExportAsIPYNBRequest: {

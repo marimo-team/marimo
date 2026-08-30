@@ -1,7 +1,20 @@
 from __future__ import annotations
 
+import json
 import os
 import re
+from typing import Any, cast
+
+
+def parse_mount_config(html: str) -> dict[str, Any]:
+    property_start = html.index(
+        'Object.defineProperty(window, "__MARIMO_MOUNT_CONFIG__"'
+    )
+    start = html.index("value: Object.freeze({", property_start) + len(
+        "value: Object.freeze("
+    )
+    config, _end = json.JSONDecoder().raw_decode(html[start:])
+    return cast(dict[str, Any], config)
 
 
 def remove_hash_from_href(url: str) -> str:

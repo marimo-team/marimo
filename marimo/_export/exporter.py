@@ -271,6 +271,7 @@ class Exporter:
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             files=virtual_files,
+            layout=request.layout,
             model_notifications=model_notifications,
             asset_url=request.options.asset_url,
         )
@@ -537,6 +538,7 @@ class Exporter:
             code=request.code,
             asset_url=request.options.asset_url,
             show_code=request.options.show_code,
+            layout=request.layout,
             session_snapshot=request.session_snapshot,
             notebook_snapshot=request.notebook_snapshot,
         )

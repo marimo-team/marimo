@@ -54,6 +54,7 @@ from marimo._runtime.context.types import teardown_context
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
+from tests._server.templates.utils import parse_mount_config
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -1074,6 +1075,10 @@ def test_pyodide_bridge_export_html(
             "download": False,
             "files": [],
             "includeCode": True,
+            "layout": {
+                "type": "slides",
+                "data": {"deck": {"transition": "fade"}},
+            },
         }
     )
 
@@ -1082,8 +1087,10 @@ def test_pyodide_bridge_export_html(
 
     assert exported_file["filename"] == "test.html"
     assert exported_file["mediaType"] == "text/html; charset=utf-8"
-    # HTML should contain marimo-related content
-    assert len(exported_file["contents"]) > 0
+    assert parse_mount_config(exported_file["contents"])["layout"] == {
+        "type": "slides",
+        "data": {"deck": {"transition": "fade"}},
+    }
 
 
 @pytest.mark.parametrize(

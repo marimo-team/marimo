@@ -14,6 +14,7 @@ from marimo._server.templates.api import (
     render_notebook,
     render_static_notebook,
 )
+from tests._server.templates.utils import parse_mount_config
 
 
 class TestRenderNotebook(unittest.TestCase):
@@ -116,9 +117,15 @@ if __name__ == "__main__":
 
     def test_render_static_notebook(self) -> None:
         html = render_static_notebook(
-            code=self.code, session_snapshot=self.session_snapshot
+            code=self.code,
+            session_snapshot=self.session_snapshot,
+            layout={"type": "slides", "data": {"deck": {}}},
         )
         assert "<html" in html
+        assert parse_mount_config(html)["layout"] == {
+            "type": "slides",
+            "data": {"deck": {}},
+        }
 
     def test_render_static_notebook_with_filename(self) -> None:
         html = render_static_notebook(
