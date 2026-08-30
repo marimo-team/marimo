@@ -34,6 +34,11 @@ Export to HTML at the command line:
 marimo export html notebook.py -o notebook.html
 ```
 
+A notebook configured with the slides layout opens as a reveal.js deck and
+preserves its slide structure, speaker notes, and deck settings.
+Speaker notes are embedded in the HTML file and readable by anyone who
+receives it.
+
 Exclude code from the export:
 
 ```bash
