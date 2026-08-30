@@ -301,9 +301,11 @@ async def auto_export_as_html(
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
 
-    # Reload the file manager to get the latest state
-    session.app_file_manager.reload()
     session_view = session.session_view
+    layout = to_html_export_layout(
+        body,
+        fallback=session.app_file_manager.read_layout_config,
+    )
 
     if not session.app_file_manager.is_notebook_named:
         raise HTTPException(
@@ -312,7 +314,7 @@ async def auto_export_as_html(
         )
 
     # If we have already exported to HTML, don't do it again
-    if not session_view.needs_export("html"):
+    if not session_view.needs_auto_export_html(layout):
         LOGGER.debug("Already auto-exported to HTML")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -321,11 +323,15 @@ async def auto_export_as_html(
         LOGGER.info("No outputs to export")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "html")
+
     async def _background_export() -> None:
         app = session.app_file_manager.app
         html, _filename = Exporter().export_as_html(
             HTMLExportRequest(
-                filename=session.app_file_manager.filename,
+                filename=filename,
                 app_code=app.to_py(),
                 app_config=app.config,
                 snapshot=serialize_notebook_snapshot(
@@ -336,15 +342,18 @@ async def auto_export_as_html(
                 ),
                 display_config=session.config_manager.get_config()["display"],
                 options=to_html_export_options(body),
+                layout=layout,
             )
         )
 
         # Save the HTML file to disk, at `.marimo/<filename>.html`
-        await auto_exporter.save_html(
-            filename=session.app_file_manager.filename,
+        committed = await auto_exporter.save_html(
+            filename=filename,
             html=html,
+            revision=revision,
         )
-        session_view.mark_auto_export_html()
+        if committed:
+            session_view.mark_auto_export_html(layout, generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),
@@ -569,6 +578,10 @@ async def auto_export_as_markdown(
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "md")
+
     async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
@@ -581,11 +594,13 @@ async def auto_export_as_markdown(
         )
 
         # Save the Markdown file to disk, at `.marimo/<filename>.md`
-        await auto_exporter.save_md(
-            filename=session.app_file_manager.filename,
+        committed = await auto_exporter.save_md(
+            filename=filename,
             markdown=result.text,
+            revision=revision,
         )
-        session_view.mark_auto_export_md()
+        if committed:
+            session_view.mark_auto_export_md(generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),
@@ -658,6 +673,10 @@ async def auto_export_as_ipynb(
         session_view.mark_auto_export_ipynb()
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "ipynb")
+
     async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
@@ -671,11 +690,13 @@ async def auto_export_as_ipynb(
         )
 
         # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
-        await auto_exporter.save_ipynb(
-            filename=session.app_file_manager.filename,
+        committed = await auto_exporter.save_ipynb(
+            filename=filename,
             ipynb=ipynb,
+            revision=revision,
         )
-        session_view.mark_auto_export_ipynb()
+        if committed:
+            session_view.mark_auto_export_ipynb(generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),

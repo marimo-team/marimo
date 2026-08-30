@@ -632,15 +632,127 @@ export function coalesceChanges(changes: DocumentChange[]): DocumentChange[] {
 // ---------------------------------------------------------------------------
 
 let pendingChanges: DocumentChange[] = [];
+let stagedTransactions: DocumentChange[][] = [];
+let transactionQueue: Promise<void> = Promise.resolve();
 
-const flushChanges = debounce(() => {
-  const changes = coalesceChanges(pendingChanges);
-  pendingChanges = [];
-  if (changes.length === 0) {
+type TransactionSyncState =
+  | { status: "synchronized" }
+  | { status: "failed"; error: unknown };
+
+interface DocumentResync {
+  failure: Extract<TransactionSyncState, { status: "failed" }>;
+  includedChanges: DocumentChange[];
+}
+
+let transactionSyncState: TransactionSyncState = { status: "synchronized" };
+
+function stagePendingTransaction(): void {
+  if (transactionSyncState.status === "failed") {
     return;
   }
-  void getRequestClient().sendDocumentTransaction({ changes });
+  const changes = coalesceChanges(pendingChanges);
+  pendingChanges = [];
+  if (changes.length > 0) {
+    stagedTransactions.push(changes);
+  }
+}
+
+async function sendStagedTransactions(): Promise<void> {
+  if (transactionSyncState.status === "failed") {
+    throw transactionSyncState.error;
+  }
+
+  while (stagedTransactions.length > 0) {
+    const changes = stagedTransactions[0];
+
+    try {
+      await getRequestClient().sendDocumentTransaction({ changes });
+    } catch (error) {
+      // A transport failure is ambiguous: the server may have applied the
+      // transaction before the response was lost. Keep the failure sticky so
+      // an export cannot claim synchronization without a fresh document.
+      transactionSyncState = { status: "failed", error };
+      stagedTransactions = [];
+      throw error;
+    }
+    stagedTransactions.shift();
+  }
+}
+
+function queuePendingTransactions(): Promise<void> {
+  const queued = transactionQueue
+    .catch(() => undefined)
+    .then(sendStagedTransactions);
+  transactionQueue = queued;
+  return queued;
+}
+
+const flushChanges = debounce(() => {
+  stagePendingTransaction();
+  void queuePendingTransactions().catch(() => undefined);
 }, 400);
+
+export async function flushDocumentChanges(): Promise<void> {
+  if (transactionSyncState.status === "failed") {
+    throw transactionSyncState.error;
+  }
+  flushChanges.cancel();
+  stagePendingTransaction();
+  let awaitedQueue = queuePendingTransactions();
+  while (true) {
+    await awaitedQueue;
+    flushChanges.cancel();
+    stagePendingTransaction();
+    if (
+      pendingChanges.length === 0 &&
+      stagedTransactions.length === 0 &&
+      transactionQueue === awaitedQueue
+    ) {
+      return;
+    }
+    awaitedQueue =
+      transactionQueue === awaitedQueue
+        ? queuePendingTransactions()
+        : transactionQueue;
+  }
+}
+
+export function beginDocumentResync(): DocumentResync | null {
+  if (transactionSyncState.status !== "failed") {
+    return null;
+  }
+  flushChanges.cancel();
+  const includedChanges = pendingChanges;
+  pendingChanges = [];
+  return {
+    failure: transactionSyncState,
+    includedChanges,
+  };
+}
+
+export function abortDocumentResync(resync: DocumentResync | null): void {
+  if (resync === null || transactionSyncState !== resync.failure) {
+    return;
+  }
+  pendingChanges = [...resync.includedChanges, ...pendingChanges];
+}
+
+export async function completeDocumentResync(
+  resync: DocumentResync | null,
+): Promise<void> {
+  if (resync === null) {
+    return;
+  }
+  await transactionQueue.catch(() => undefined);
+  if (transactionSyncState !== resync.failure) {
+    return;
+  }
+  transactionSyncState = { status: "synchronized" };
+  transactionQueue = Promise.resolve();
+  if (pendingChanges.length > 0) {
+    flushChanges();
+  }
+}
 
 function isScratchChange(change: DocumentChange): boolean {
   if ("cellId" in change && change.cellId === SCRATCH_CELL_ID) {
@@ -658,7 +770,9 @@ function enqueue(change: DocumentChange) {
     return;
   }
   pendingChanges.push(change);
-  flushChanges();
+  if (transactionSyncState.status === "synchronized") {
+    flushChanges();
+  }
 }
 
 /**
@@ -747,6 +861,9 @@ export const exportedForTesting = {
   cancelPendingChanges: () => {
     flushChanges.cancel();
     pendingChanges = [];
+    stagedTransactions = [];
+    transactionSyncState = { status: "synchronized" };
+    transactionQueue = Promise.resolve();
   },
   drainChanges: (): DocumentChange[] => {
     flushChanges.cancel();

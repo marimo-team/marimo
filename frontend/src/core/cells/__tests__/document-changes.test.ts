@@ -33,12 +33,17 @@ import { OverridingHotkeyProvider } from "@/core/hotkeys/hotkeys";
 import { requestClientAtom } from "@/core/network/requests";
 import type { EditRequests, RunRequests } from "@/core/network/types";
 import { store } from "@/core/state/jotai";
+import { Deferred } from "@/utils/Deferred";
 import { MultiColumn } from "@/utils/id-tree";
 import { exportedForTesting, type NotebookState } from "../cells";
 import {
   type CellAction,
+  abortDocumentResync,
+  beginDocumentResync,
   coalesceChanges,
+  completeDocumentResync,
   type DocumentChange,
+  flushDocumentChanges,
   exportedForTesting as middlewareExports,
   toDocumentChanges,
 } from "../document-changes";
@@ -698,14 +703,15 @@ describe("coalesceChanges", () => {
   });
 });
 
-/**
- * End-to-end of the debounced flush path: dispatch through the real middleware
- * reducer, let the debounce fire, and inspect the batch that reaches
- * sendDocumentTransaction. Coalescing only matters once edits actually share a
- * debounce window, which drainChanges-based tests can't observe.
- */
-describe("flush path coalescing", () => {
+describe("document transaction middleware", () => {
   let sent: DocumentChange[][];
+
+  const updateCode = (cellId: CellId, code: string) => {
+    state = dispatch(state, {
+      type: "updateCellCode",
+      payload: { cellId, code, formattingChange: false },
+    });
+  };
 
   beforeEach(() => {
     vi.useFakeTimers();
@@ -732,54 +738,252 @@ describe("flush path coalescing", () => {
     vi.useRealTimers();
   });
 
-  it("coalesces edit + delete of the same cell within one debounce window", () => {
+  it("coalesces edit + delete of the same cell within one debounce window", async () => {
     setup("x = 1");
     const [x] = state.cellIds.inOrderIds;
     // Discard the create-cell from setup; it would flush as its own batch.
     middlewareExports.cancelPendingChanges();
 
-    // Same window: edit the cell, then delete it, with no timer advance.
-    state = dispatch(state, {
-      type: "updateCellCode",
-      payload: { cellId: x, code: "x = 2", formattingChange: false },
-    });
+    updateCode(x, "x = 2");
     state = dispatch(state, {
       type: "deleteCell",
       payload: { cellId: x },
     });
 
-    // Debounced: nothing on the wire yet.
     expect(sent).toEqual([]);
 
-    vi.advanceTimersByTime(400);
+    await vi.advanceTimersByTimeAsync(400);
 
-    // One transaction, and it is just the delete — the conflicting set-code
-    // has been dropped, so the server never sees edit+delete of one cell.
     expect(sent).toHaveLength(1);
     expect(sent[0]).toEqual([{ type: "delete-cell", cellId: x }]);
   });
 
-  it("sends edit and delete as separate clean transactions across windows", () => {
+  it("sends edit and delete as separate clean transactions across windows", async () => {
     setup("x = 1");
     const [x] = state.cellIds.inOrderIds;
     middlewareExports.cancelPendingChanges();
 
-    state = dispatch(state, {
-      type: "updateCellCode",
-      payload: { cellId: x, code: "x = 2", formattingChange: false },
-    });
-    vi.advanceTimersByTime(400);
+    updateCode(x, "x = 2");
+    await vi.advanceTimersByTimeAsync(400);
 
     state = dispatch(state, {
       type: "deleteCell",
       payload: { cellId: x },
     });
-    vi.advanceTimersByTime(400);
+    await vi.advanceTimersByTimeAsync(400);
 
-    // Two separate, individually-valid transactions: neither conflicts, which
-    // is why the bug only ever surfaced when both landed in the same window.
     expect(sent).toHaveLength(2);
     expect(sent[0]).toEqual([{ type: "set-code", cellId: x, code: "x = 2" }]);
     expect(sent[1]).toEqual([{ type: "delete-cell", cellId: x }]);
+  });
+
+  it("flushes pending changes before a dependent operation", async () => {
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+
+    await flushDocumentChanges();
+
+    expect(sent).toEqual([[{ type: "set-code", cellId: x, code: "x = 2" }]]);
+  });
+
+  it("keeps a failed transaction sticky before a dependent operation", async () => {
+    const failingClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        throw new Error("connection lost");
+      },
+    };
+    store.set(
+      requestClientAtom,
+      failingClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    await vi.advanceTimersByTimeAsync(400);
+
+    updateCode(x, "x = 3");
+    await expect(flushDocumentChanges()).rejects.toThrow("connection lost");
+
+    expect(sent).toEqual([[{ type: "set-code", cellId: x, code: "x = 2" }]]);
+  });
+
+  it("resumes after a full document save establishes a fresh baseline", async () => {
+    let attempt = 0;
+    const recoveringClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        attempt += 1;
+        if (attempt === 1) {
+          throw new Error("connection lost");
+        }
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      recoveringClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    await vi.advanceTimersByTimeAsync(400);
+
+    updateCode(x, "x = 3");
+    const resync = beginDocumentResync();
+    updateCode(x, "x = 4");
+    await completeDocumentResync(resync);
+
+    await vi.advanceTimersByTimeAsync(400);
+    expect(sent).toEqual([
+      [{ type: "set-code", cellId: x, code: "x = 2" }],
+      [{ type: "set-code", cellId: x, code: "x = 4" }],
+    ]);
+  });
+
+  it("restores buffered edits when a full document save fails", async () => {
+    const failingClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        throw new Error("connection lost");
+      },
+    };
+    store.set(
+      requestClientAtom,
+      failingClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    await vi.advanceTimersByTimeAsync(400);
+
+    updateCode(x, "x = 3");
+    const firstResync = beginDocumentResync();
+    abortDocumentResync(firstResync);
+    const secondResync = beginDocumentResync();
+    expect(secondResync?.includedChanges).toEqual([
+      { type: "set-code", cellId: x, code: "x = 3" },
+    ]);
+    await completeDocumentResync(secondResync);
+
+    updateCode(x, "x = 4");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(sent.at(-1)).toEqual([
+      { type: "set-code", cellId: x, code: "x = 4" },
+    ]);
+  });
+
+  it("keeps edits debounced while an earlier transaction is in flight", async () => {
+    const firstRelease = new Deferred<void>();
+    const firstStarted = new Deferred<void>();
+    const delayedClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        if (sent.length === 1) {
+          firstStarted.resolve();
+          await firstRelease.promise;
+        }
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      delayedClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    vi.advanceTimersByTime(400);
+    await firstStarted.promise;
+
+    updateCode(x, "x = 3");
+    firstRelease.resolve();
+    await vi.advanceTimersByTimeAsync(399);
+    expect(sent).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(sent).toEqual([
+      [{ type: "set-code", cellId: x, code: "x = 2" }],
+      [{ type: "set-code", cellId: x, code: "x = 3" }],
+    ]);
+  });
+
+  it("waits for every transaction queued while flushing", async () => {
+    const releases = Array.from({ length: 3 }, () => new Deferred<void>());
+    const starts = Array.from({ length: 3 }, () => new Deferred<void>());
+    const orderedClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        const index = sent.length;
+        sent.push(changes);
+        starts[index].resolve();
+        await releases[index].promise;
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      orderedClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    vi.advanceTimersByTime(400);
+    await starts[0].promise;
+
+    const flushed = flushDocumentChanges();
+
+    updateCode(x, "x = 3");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(sent).toHaveLength(1);
+
+    releases[0].resolve();
+    await starts[1].promise;
+
+    updateCode(x, "x = 4");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(sent).toHaveLength(2);
+
+    let flushResolved = false;
+    void flushed.then(() => {
+      flushResolved = true;
+    });
+    releases[1].resolve();
+    await starts[2].promise;
+    expect(flushResolved).toBe(false);
+
+    releases[2].resolve();
+    await flushed;
+    expect(sent).toEqual([
+      [{ type: "set-code", cellId: x, code: "x = 2" }],
+      [{ type: "set-code", cellId: x, code: "x = 3" }],
+      [{ type: "set-code", cellId: x, code: "x = 4" }],
+    ]);
   });
 });

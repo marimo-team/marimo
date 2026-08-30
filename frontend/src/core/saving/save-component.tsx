@@ -21,6 +21,11 @@ import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
+import {
+  abortDocumentResync,
+  beginDocumentResync,
+  completeDocumentResync,
+} from "../cells/document-changes";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
@@ -37,6 +42,17 @@ import { useAutoSave } from "./useAutoSave";
 
 interface SaveNotebookProps {
   kioskMode: boolean;
+}
+
+let notebookSaveQueue: Promise<void> = Promise.resolve();
+
+export function enqueueNotebookSave<T>(save: () => Promise<T>): Promise<T> {
+  const result = notebookSaveQueue.then(save);
+  notebookSaveQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
@@ -96,8 +112,8 @@ export function useSaveNotebook() {
   const store = useStore();
 
   // Save the notebook with the given filename
-  const saveNotebook = useEvent(
-    async (filename: string, userInitiated: boolean) => {
+  const saveNotebook = useEvent((filename: string, userInitiated: boolean) =>
+    enqueueNotebookSave(async () => {
       const connection = store.get(connectionAtom);
       const autoSaveConfig = store.get(autoSaveConfigAtom);
       const kioskMode = store.get(kioskModeAtom);
@@ -133,15 +149,24 @@ export function useSaveNotebook() {
         return;
       }
 
-      await sendSave({
-        cellIds: cellIds,
-        codes,
-        names: cellNames,
-        filename,
-        configs,
-        layout: getSerializedLayout(),
-        persist: true,
-      });
+      // A full save replaces the server document from this client snapshot,
+      // so it is the recovery boundary for an ambiguous transaction failure.
+      const documentResync = beginDocumentResync();
+      try {
+        await sendSave({
+          cellIds: cellIds,
+          codes,
+          names: cellNames,
+          filename,
+          configs,
+          layout: getSerializedLayout(),
+          persist: true,
+        });
+      } catch (error) {
+        abortDocumentResync(documentResync);
+        throw error;
+      }
+      await completeDocumentResync(documentResync);
 
       setLastSavedNotebook({
         names: cellNames,
@@ -149,7 +174,7 @@ export function useSaveNotebook() {
         configs,
         layout,
       });
-    },
+    }),
   );
 
   // Save the notebook with the current filename, only if the filename exists

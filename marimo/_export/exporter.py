@@ -6,7 +6,7 @@ import base64
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo import _loggers
 from marimo._ast.names import DEFAULT_CELL_NAME
@@ -873,6 +873,9 @@ async def render_pdf(request: PDFExportRequest) -> bytes | None:
     return exporter.export_as_pdf(request)
 
 
+AutoExportFormat = Literal["html", "md", "ipynb"]
+
+
 class AutoExporter:
     def __init__(self) -> None:
         # Cache directories we've already created to avoid redundant checks
@@ -881,31 +884,59 @@ class AutoExporter:
         self._executor = ThreadPoolExecutor(
             max_workers=4, thread_name_prefix="export"
         )
+        self._latest_revisions: dict[Path, int] = {}
+        self._file_locks: dict[Path, asyncio.Lock] = {}
 
-    async def _save_file(
-        self, filename: str | None, content: str, extension: str
-    ) -> None:
+    @staticmethod
+    def _export_path(
+        filename: str | None, extension: AutoExportFormat
+    ) -> Path:
         notebook_path = get_filename(filename)
         download_name = get_download_filename(filename, extension)
-        export_dir = notebook_output_dir(notebook_path)
+        return notebook_output_dir(notebook_path) / download_name
 
-        await self._ensure_export_dir_async(export_dir)
-        filepath = export_dir / download_name
+    def reserve_revision(
+        self, filename: str | None, extension: AutoExportFormat
+    ) -> int:
+        filepath = self._export_path(filename, extension)
+        revision = self._latest_revisions.get(filepath, 0) + 1
+        self._latest_revisions[filepath] = revision
+        return revision
 
-        # Run blocking file I/O in thread pool
-        loop = asyncio.get_running_loop()
-        await loop.run_in_executor(
-            self._executor, self._write_file_sync, filepath, content
-        )
+    async def _save_file(
+        self,
+        filename: str | None,
+        content: str,
+        extension: AutoExportFormat,
+        revision: int,
+    ) -> bool:
+        filepath = self._export_path(filename, extension)
+        lock = self._file_locks.setdefault(filepath, asyncio.Lock())
+        async with lock:
+            if revision != self._latest_revisions.get(filepath):
+                return False
 
-    async def save_html(self, filename: str | None, html: str) -> None:
-        await self._save_file(filename, html, "html")
+            await self._ensure_export_dir_async(filepath.parent)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                self._executor, self._write_file_sync, filepath, content
+            )
+            return revision == self._latest_revisions.get(filepath)
 
-    async def save_md(self, filename: str | None, markdown: str) -> None:
-        await self._save_file(filename, markdown, "md")
+    async def save_html(
+        self, filename: str | None, html: str, *, revision: int
+    ) -> bool:
+        return await self._save_file(filename, html, "html", revision)
 
-    async def save_ipynb(self, filename: str | None, ipynb: str) -> None:
-        await self._save_file(filename, ipynb, "ipynb")
+    async def save_md(
+        self, filename: str | None, markdown: str, *, revision: int
+    ) -> bool:
+        return await self._save_file(filename, markdown, "md", revision)
+
+    async def save_ipynb(
+        self, filename: str | None, ipynb: str, *, revision: int
+    ) -> bool:
+        return await self._save_file(filename, ipynb, "ipynb", revision)
 
     def _write_file_sync(self, filepath: Path, content: str) -> None:
         """Synchronous file write (runs in thread pool)"""
@@ -927,6 +958,8 @@ class AutoExporter:
     def cleanup(self) -> None:
         """Cleanup resources"""
         self._executor.shutdown(wait=False)
+        self._latest_revisions.clear()
+        self._file_locks.clear()
 
 
 def get_html_contents() -> str:
