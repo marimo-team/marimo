@@ -397,7 +397,7 @@ def _make_temp_fixture(fixture_name: str, subdir: str):
     @pytest.fixture
     def _fixture(tmp_path: Path) -> str:
         fixture_file = FIXTURE_DIR / fixture_name
-        tmp_file = tmp_path / subdir / fixture_name.split("/")[-1]
+        tmp_file = tmp_path / subdir / fixture_name.rsplit("/", maxsplit=1)[-1]
         tmp_file.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(fixture_file, tmp_file)
         return str(tmp_file)

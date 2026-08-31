@@ -219,7 +219,7 @@ def log_sql_error(
     )
 
     # Log clean SQL error without traces
-    log_msg = message if message else metadata["clean_message"]
+    log_msg = message or metadata["clean_message"]
     if metadata["sql_line"] is not None and metadata["sql_col"] is not None:
         log_msg += f" (Line {metadata['sql_line'] + 1}, Col {metadata['sql_col'] + 1})"
     if metadata["sql_statement"]:

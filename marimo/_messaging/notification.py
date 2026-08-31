@@ -88,7 +88,7 @@ class CellNotification(Notification, tag="cell-op"):
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
-    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:

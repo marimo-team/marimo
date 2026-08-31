@@ -53,7 +53,7 @@ def resolve_lint_config(
         existing = list(lint_config.get("ignore") or [])
         lint_config["ignore"] = existing + parsed
 
-    return lint_config if lint_config else None
+    return lint_config or None
 
 
 def run_check(

@@ -408,7 +408,7 @@ class SecurityConfigManager(PartialMarimoConfigReader):
             # when False.
             config["sharing"] = cast(
                 SharingConfig,
-                {key: False for key in SharingConfig.__annotations__},
+                dict.fromkeys(SharingConfig.__annotations__, False),
             )
         return config
 

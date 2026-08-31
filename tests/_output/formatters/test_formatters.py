@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import math
 import os.path
 import re
 import sys
@@ -692,7 +693,7 @@ def test_as_html_basic_types() -> None:
     assert result.text == "<span>42</span>"
 
     # Float
-    result = as_html(3.14)
+    result = as_html(math.pi)
     assert result.text == "<span>3.14</span>"
 
     # Boolean

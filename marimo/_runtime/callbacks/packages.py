@@ -170,7 +170,7 @@ class PackagesCallbacks:
 
         packages = sorted(missing_packages)
         if self.package_manager.should_auto_install():
-            version = {pkg: "" for pkg in packages}
+            version = dict.fromkeys(packages, "")
             self._kernel.enqueue_control_request(
                 InstallPackagesCommand(
                     manager=self.package_manager.name, versions=version
@@ -227,9 +227,9 @@ class PackagesCallbacks:
         ]
 
         # Frontend shows package names, not module names
-        package_statuses: PackageStatusType = {
-            pkg: "queued" for pkg in missing_packages
-        }
+        package_statuses: PackageStatusType = dict.fromkeys(
+            missing_packages, "queued"
+        )
         broadcast_notification(
             InstallingPackageAlertNotification(
                 packages=package_statuses, source=request.source

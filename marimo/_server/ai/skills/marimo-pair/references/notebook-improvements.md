@@ -38,10 +38,13 @@ one and hoist scattered imports into it. `name="setup"` auto-positions the cell
 first — no `before`/`after` needed:
 
 ```python
-cid = ctx.create_cell('''import polars as pl
+cid = ctx.create_cell(
+    """import polars as pl
 import marimo as mo
 import anywidget
-import traitlets''', name="setup")
+import traitlets""",
+    name="setup",
+)
 ctx.run_cell(cid)
 ```
 
@@ -68,8 +71,10 @@ cell-internal helpers that aren't meant to be reused.
 objects = pl.read_csv("https://example.com/objects.csv")
 artists = pl.read_csv("https://example.com/artists.csv")
 
+
 def top_counts(df, col, n=5):
     return df.group_by(col).len().sort("len", descending=True).head(n)
+
 
 result = top_counts(objects.join(artists, on="id"), "category")
 ```
@@ -98,6 +103,7 @@ def load_data():
     objects = pl.read_csv("https://example.com/objects.csv")
     artists = pl.read_csv("https://example.com/artists.csv")
     return objects.join(artists, on="id", how="left")
+
 
 df = load_data()
 ```

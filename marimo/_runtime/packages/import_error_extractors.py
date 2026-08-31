@@ -12,7 +12,7 @@ def extract_missing_module_from_cause_chain(
     This handles cases where a `ModuleNotFoundError` was raised and then wrapped,
     e.g., via `raise ImportError("helpful message") from err`
     """
-    current: None | BaseException = error
+    current: BaseException | None = error
     while current is not None:
         if (
             isinstance(current, ModuleNotFoundError)
@@ -95,7 +95,7 @@ def extract_packages_special_cases(message: str) -> list[str] | None:
         if substring in message:
             packages.extend(package_names)
 
-    return packages if packages else None
+    return packages or None
 
 
 def try_extract_packages_from_import_error_message(

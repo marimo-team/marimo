@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import math
 import sys
 from dataclasses import dataclass, field
 from enum import Enum
@@ -511,10 +512,10 @@ def test_type_conversion() -> None:
         boolean: bool
 
     parsed = parse_raw(
-        {"integer": 42, "floating": 3.14, "boolean": True}, TypeConversion
+        {"integer": 42, "floating": math.pi, "boolean": True}, TypeConversion
     )
     assert parsed.integer == 42
-    assert parsed.floating == 3.14
+    assert parsed.floating == math.pi
     assert parsed.boolean is True
 
 

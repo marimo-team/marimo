@@ -585,7 +585,7 @@ def _extract_pip_install(
     pip_packages = [_normalize_git_url_package(p) for p in packages]
 
     # For display: show templates only if there are no real packages
-    display_items = packages if packages else templates
+    display_items = packages or templates
 
     # Comment out the pip command, showing items in comment
     # Add pass for indented commands to prevent empty blocks
@@ -725,7 +725,7 @@ def _extract_package_name(pkg: str) -> str:
     """
     # Handle PEP 508 URL format: "name @ git+..."
     if " @ " in pkg:
-        name = pkg.split(" @ ")[0].strip()
+        name = pkg.split(" @ ", maxsplit=1)[0].strip()
         return _normalize_package_name(name)
 
     # Strip version specifiers and extras

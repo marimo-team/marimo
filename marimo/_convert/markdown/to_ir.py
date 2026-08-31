@@ -89,7 +89,7 @@ def extract_attribs(
 
 
 def _is_code_tag(text: str) -> bool:
-    head = text.split("\n")[0].strip()
+    head = text.split("\n", maxsplit=1)[0].strip()
     # ```python {.marimo attr=...}, and the legacy
     # ```{.python.marimo attr=...} form we still read
     return bool(
@@ -150,7 +150,7 @@ def app_config_from_root(root: Element) -> dict[str, Any]:
 
 
 def get_source_from_tag(tag: Element) -> str:
-    source = tag.text if tag.text else ""
+    source = tag.text or ""
     if tag.tag == MARIMO_MD:
         # Only check here to allow for empty code blocks.
         if not (source and source.strip()):
@@ -277,7 +277,7 @@ class IdentityParser(Markdown):
     # library has been around since 2004, the internals should be relatively
     # stable.
     output_formats: dict[Literal["identity"], Callable[[Element], str]] = {  # type: ignore[assignment, misc]
-        "identity": lambda x: x.text if x.text else "",
+        "identity": lambda x: x.text or "",
     }
 
     def build_parser(self) -> IdentityParser:
