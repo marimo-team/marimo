@@ -28,4 +28,9 @@
   }
 
   /* stylelint-enable unit-allowed-list */
+
+  :is(ul, ol) > li {
+    margin-block: 0;
+    padding-block: 0;
+  }
 }
