@@ -44,6 +44,7 @@ for port in "${EDIT_PORT}" "${RUN_PORT}"; do
 done
 
 LOG_DIR="$(mktemp -d "${TMPDIR:-/tmp}/marimo-visual-regression.XXXXXX")"
+readonly CONFIG_ROOT="${LOG_DIR}/config"
 EDIT_PID=""
 RUN_PID=""
 
@@ -78,14 +79,16 @@ wait_for_server() {
 
 (
   cd "${FRONTEND_ROOT}"
-  exec env _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
+  exec env XDG_CONFIG_HOME="${CONFIG_ROOT}" \
+    _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
     uv run marimo -q edit -p "${EDIT_PORT}" --headless --no-token
 ) >"${LOG_DIR}/edit.log" 2>&1 &
 EDIT_PID="$!"
 
 (
   cd "${FRONTEND_ROOT}"
-  exec env _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
+  exec env XDG_CONFIG_HOME="${CONFIG_ROOT}" \
+    _MARIMO_CONFIG_OVERLOAD_RUNTIME_AUTO_INSTANTIATE=true \
     uv run marimo -q run "${FIXTURE}" -p "${RUN_PORT}" --headless --no-token
 ) >"${LOG_DIR}/run.log" 2>&1 &
 RUN_PID="$!"

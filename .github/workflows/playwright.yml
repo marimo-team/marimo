@@ -52,6 +52,10 @@ jobs:
     steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: 🔧 Trust Git workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Write TOML
         run: |
           echo "[runtime]" > .marimo.toml
