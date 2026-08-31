@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -1072,7 +1073,7 @@ class TestInvokeToolEndpoint:
             "array_param": [1, 2, 3, "four"],
             "object_param": {
                 "nested_string": "nested value",
-                "nested_number": 3.14,
+                "nested_number": math.pi,
                 "nested_array": ["a", "b", "c"],
             },
         }

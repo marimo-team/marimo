@@ -2,6 +2,7 @@
 
 import decimal
 import json
+import math
 import sys
 
 import pytest
@@ -14,7 +15,7 @@ def test_enc_hook() -> None:
     """Test the enc_hook function."""
     assert enc_hook(1) == 1
     assert enc_hook("hello") == "hello"
-    assert enc_hook(3.14) == 3.14
+    assert enc_hook(math.pi) == math.pi
     assert enc_hook(True) is True
     assert enc_hook(None) is None
 

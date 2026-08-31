@@ -166,7 +166,7 @@ def _normalize_sandbox_dependencies(
 
     # Prefer the one with brackets if it exists
     bracketed = next((d for d in marimo_deps if "[" in d), None)
-    chosen = bracketed if bracketed else marimo_deps[0]
+    chosen = bracketed or marimo_deps[0]
 
     # Remove all marimo deps
     filtered = [d for d in dependencies if not is_marimo_dependency(d)]

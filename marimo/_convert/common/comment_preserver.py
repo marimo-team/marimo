@@ -159,7 +159,7 @@ class CommentPreserver:
                     inline_comment = comment
 
             # Prefer line comment over inline comment
-            chosen_comment = line_comment if line_comment else inline_comment
+            chosen_comment = line_comment or inline_comment
 
             if chosen_comment:
                 comment_text = chosen_comment.text

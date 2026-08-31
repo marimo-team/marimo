@@ -177,8 +177,7 @@ def get_and_update_context_from_scope(
     ctx_scope = set(scope)
     if scope_refs is None:
         scope_refs = set()
-    for ref in scope_refs:
-        ctx_scope.discard(ref)
+    ctx_scope.difference_update(scope_refs)
 
     # This is typically done in post execution hook, but it will not be
     # called in script mode.

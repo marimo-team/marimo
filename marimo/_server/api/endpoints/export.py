@@ -169,7 +169,7 @@ async def install_export_requirements(
     format_availability = await _get_export_format_availability(body.format)
     if format_availability.missing_packages:
         await install_packages_on_server(
-            {package: "" for package in format_availability.missing_packages}
+            dict.fromkeys(format_availability.missing_packages, "")
         )
         format_availability = await _get_export_format_availability(
             body.format

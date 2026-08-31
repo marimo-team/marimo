@@ -345,7 +345,7 @@ class ReferenceStub:
         if self._blob is not None:
             return self._blob
         maybe_bytes = get_store().get(self.name)
-        return maybe_bytes if maybe_bytes else b""
+        return maybe_bytes or b""
 
 
 class ImmediateReferenceStub(CustomStub):

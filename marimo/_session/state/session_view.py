@@ -566,7 +566,7 @@ class SessionView:
             time_elapsed = notification.timestamp
         elif event == "end":
             start = self.last_execution_time.get(cell_id)
-            start = start if start else 0
+            start = start or 0
             time_elapsed = time.time() - start
             time_elapsed = round(time_elapsed * 1000)
 

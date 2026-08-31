@@ -51,7 +51,7 @@ class AppScriptRunner:
         self.app = app
         self.filename = filename
         self._docstring = extract_docstring_from_header(app._app._header)
-        self._glbls = glbls if glbls else {}
+        self._glbls = glbls or {}
 
         # Setup cell cannot be overridden, and it's possible that some
         # variables are not defined, so ignore it.

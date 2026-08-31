@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import gc
+import math
 import os
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -26,7 +27,7 @@ def test_get_variable_preview() -> None:
 
     # Test basic types
     assert get_variable_preview(42) == "42"
-    assert get_variable_preview(3.14) == "3.14"
+    assert get_variable_preview(math.pi) == "3.14"
 
     # Test strings
     assert get_variable_preview("Hello, world!") == "'Hello, world!'"
@@ -299,7 +300,7 @@ class TestStringifyVariableValue:
         assert result == "None"
 
     def test_float(self) -> None:
-        result = _stringify_variable_value(3.14159)
+        result = _stringify_variable_value(math.pi)
         assert "3.14" in result
 
     def test_bool(self) -> None:
@@ -460,7 +461,7 @@ class TestCreateVariableValue:
 
     def test_float_value(self) -> None:
         """Test float value."""
-        vv = create_variable_value("pi", 3.14159)
+        vv = create_variable_value("pi", math.pi)
         assert vv.name == "pi"
         assert "3.14" in vv.value
         assert vv.datatype == "float"

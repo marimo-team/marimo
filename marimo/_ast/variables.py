@@ -67,7 +67,7 @@ def get_cell_from_local(
     name: str, cell_id: CellId_t = _EMPTY_CELL_ID
 ) -> CellId_t | None:
     local = unmangle_local(if_local_then_mangle(name, cell_id)).cell
-    return local if local else None
+    return local or None
 
 
 # Demangle every occurrence of `_cell_<cell_id><_name>` inside a free-form

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import math
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
@@ -178,6 +179,6 @@ class TestResolveScreenshotTarget:
     def test_unsupported_type_raises(self) -> None:
         ctx = _fake_ctx(["cell-a"])
         with pytest.raises(TypeError, match="Unsupported"):
-            _resolve(ctx, 3.14)
+            _resolve(ctx, math.pi)
         with pytest.raises(TypeError, match="Unsupported"):
             _resolve(ctx, object())

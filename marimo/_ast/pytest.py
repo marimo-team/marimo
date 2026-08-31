@@ -40,8 +40,8 @@ def _pytest_scaffold(stub: Any) -> Any:
 def build_stub_fn(
     func_body: ast.FunctionDef | ast.AsyncFunctionDef,
     file: str = "",
-    basis: None | Callable[..., Any] = None,
-    allowed: None | list[str] = None,
+    basis: Callable[..., Any] | None = None,
+    allowed: list[str] | None = None,
 ) -> Callable[..., Any]:
     # Avoid declaring the function in the global scope, since it may cause
     # issues with meta-analysis tools like cxfreeze (see #3828).

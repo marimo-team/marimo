@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import math
 from copy import deepcopy
 from typing import Any
 
@@ -267,7 +268,7 @@ def test_apply_edits_various_datatypes():
     assert result == [
         {
             "int": 3,
-            "float": 3.14,
+            "float": math.pi,
             "str": "updated",
             "bool": False,
             "datetime": datetime.datetime(2023, 3, 15, 15, 30),
@@ -952,13 +953,13 @@ class TestConvertValue:
     def test_convert_value_with_dtype_float32(self):
         """Test Float32 conversion with dtype."""
         result = _convert_value("3.14", None, nw.Float32)
-        assert result == 3.14
+        assert result == math.pi
         assert isinstance(result, float)
 
     def test_convert_value_with_dtype_float64(self):
         """Test Float64 conversion with dtype."""
         result = _convert_value("3.14", None, nw.Float64)
-        assert result == 3.14
+        assert result == math.pi
         assert isinstance(result, float)
 
     def test_convert_value_with_dtype_int16(self):
@@ -1114,7 +1115,7 @@ class TestConvertValue:
     def test_convert_value_without_dtype_float_conversion(self):
         """Test conversion without dtype - float type conversion."""
         result = _convert_value("3.14", 1.0, None)
-        assert result == 3.14
+        assert result == math.pi
         assert isinstance(result, float)
 
     def test_convert_value_without_dtype_string_conversion(self):

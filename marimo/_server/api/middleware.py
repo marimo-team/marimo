@@ -383,9 +383,7 @@ class ProxyMiddleware:
         self.path_rewrite = path_rewrite
         self.require_auth = require_auth
         self.connection_error_handler = (
-            connection_error_handler
-            if connection_error_handler
-            else _handle_proxy_connection_error
+            connection_error_handler or _handle_proxy_connection_error
         )
 
     def _is_authenticated(self, scope: Scope) -> bool:

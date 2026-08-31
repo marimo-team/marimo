@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import array
+import math
 import pickle
 from typing import Any
 
@@ -81,7 +82,7 @@ def test_plain_objects_pass_through() -> None:
 
 def test_0d_array() -> None:
     """Scalar (0-d) arrays are a special code path in _contiguous_tensor_bytes."""
-    obj = _ArrayWithSet([3.14], tags={"x"})
+    obj = _ArrayWithSet([math.pi], tags={"x"})
     det1 = deterministic_dumps(obj, "sha256")
     det2 = deterministic_dumps(obj, "sha256")
     assert det1 == det2

@@ -130,7 +130,7 @@ class LintContext:
                 lint_rule = record.__dict__["lint_rule"]
 
             # Default to MF006 (misc) if no specific rule
-            rule_code = lint_rule if lint_rule else "MF006"
+            rule_code = lint_rule or "MF006"
 
             if rule_code not in self._logs_by_rule:
                 self._logs_by_rule[rule_code] = []
@@ -153,7 +153,7 @@ class LintContext:
             if hasattr(record, "__dict__") and "lint_rule" in record.__dict__:
                 lint_rule = record.__dict__["lint_rule"]
 
-            rule_code = lint_rule if lint_rule else "MF006"
+            rule_code = lint_rule or "MF006"
             if rule_code not in self._logs_by_rule:
                 self._logs_by_rule[rule_code] = []
             self._logs_by_rule[rule_code].append(record)

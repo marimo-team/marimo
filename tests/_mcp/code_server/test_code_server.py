@@ -191,7 +191,7 @@ def _make_idle_scratch_notification(
     return CellNotification(
         cell_id=SCRATCH_CELL_ID,
         output=output,
-        console=console if console else None,
+        console=console or None,
         status="idle",
     )
 

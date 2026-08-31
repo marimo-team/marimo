@@ -92,7 +92,7 @@ def _escape_fallback(s: str) -> str:
 
 def _leaf_formatter(
     value: object,
-) -> bool | None | str | int:
+) -> bool | str | int | None:
     formatter = formatting.get_formatter(value)
 
     # Because we don't flatten subclasses of structures, we need to avoid

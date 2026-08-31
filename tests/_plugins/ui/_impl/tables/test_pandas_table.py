@@ -6,7 +6,7 @@ import json
 import re
 import unittest
 import warnings
-from math import isnan, nan
+from math import isnan, nan, pi
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
@@ -67,7 +67,7 @@ def _normalize_pandas_json(text: str) -> str:
     # Match NaN preceded by : or , or [ (JSON value positions), not inside quotes.
     text = re.sub(r"(?<=[:,\[])NaN(?=[,\]\}])", "null", text)
     # Replace "NaT" string with null for consistent null representation.
-    text = re.sub(r'"NaT"', "null", text)
+    text = text.replace(r'"NaT"', "null")
     return text
 
 
@@ -1646,7 +1646,7 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.datetime(2021, 1, 3),
                 ],
                 "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-                "G": [None, "text", 3.14],
+                "G": [None, "text", pi],
             }
         )
         manager = self.factory.create()(data)
@@ -1768,7 +1768,7 @@ class TestPandasTableManager(unittest.TestCase):
                     datetime.datetime(2021, 1, 3),
                 ],
                 "F": [[1, 2, 3], [4, 5, 6], [7, 8, 9]],
-                "G": [None, "text", 3.14],
+                "G": [None, "text", pi],
                 "H": [1 + 2j, 3 + 4j, 5 + 6j],
             }
         )
@@ -1887,7 +1887,7 @@ class TestPandasTableManager(unittest.TestCase):
         should not raise, falling back to string comparison."""
         df = pd.DataFrame(
             {
-                "mixed": [42, "hello", 3.14, True, None, "world", 7],
+                "mixed": [42, "hello", pi, True, None, "world", 7],
                 "normal": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0],
             }
         )

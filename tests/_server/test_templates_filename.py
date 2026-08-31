@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 
 import pytest
 
@@ -207,7 +208,7 @@ class TestJsonScriptEscaping:
         test_data = {
             "string": "test</script>",
             "number": 42,
-            "float": 3.14,
+            "float": math.pi,
             "bool": True,
             "null": None,
             "array": [1, 2, 3],
