@@ -360,6 +360,16 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Claude Opus 5 (US)
+    model: us.anthropic.claude-opus-5
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-24
+    cost: {input: 5, output: 25}
+
   - name: Grok 4.6
     model: xai.grok-4.6
     description: "xAI's frontier model for coding, agentic tasks, knowledge work, and visual reasoning"
@@ -843,6 +853,24 @@ github:
     cost: {input: 0, output: 0}
 
 ollama:
+  - name: GLM-5.3-Flash
+    model: glm-5.3-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-26
+
+  - name: GLM-5.3
+    model: glm-5.3
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-14
+
   - name: DeepSeek V4 Flash 0731
     model: deepseek-v4-flash:0731
     description: "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total"
@@ -970,6 +998,26 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Granite 4.2 8B
+    model: ibm-granite/granite-4.2-8b
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-24
+    cost: {input: 0.1, output: 0.15}
+
+  - name: DeepSeek V4 Pro 0813
+    model: deepseek-ai/DeepSeek-V4-Pro-0813
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-13
+    cost: {input: 1.31, output: 3.96}
+
   - name: Qwen3.8 27B
     model: Qwen/Qwen3.8-27B
     description: "Alibaba's 27B dense multimodal model for coding, professional work, research, and long-horizon agentic tasks"
@@ -1161,6 +1209,36 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: Hy4 preview
+    model: hy4-preview
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-28
+    cost: {input: 0.834, output: 2.501}
+
+  - name: GLM-5.3-Flash (2x usage)
+    model: glm-5.3-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-26
+    cost: {input: 0.075, output: 0.25}
+
+  - name: Qwen3.8 Flash
+    model: qwen3.8-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-26
+    cost: {input: 0.15, output: 0.47}
+
   - name: DeepSeek V4 Flash Vision Exp
     model: deepseek-v4-flash-vision-exp
     description: "Experimental multimodal variant of DeepSeek V4 Flash that adds image understanding while retaining its text and agent capabilities"
