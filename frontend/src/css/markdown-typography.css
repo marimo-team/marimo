@@ -1,1 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
+
+:is(.markdown, .mo-markdown-renderer) {
+  :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--heading-font);
+    font-weight: inherit;
+    margin-block: 1.5rem 1rem;
+    line-height: 1.25;
+  }
+
+  /* Keep heading sizes relative to the renderer text size. */
+  /* stylelint-disable unit-allowed-list */
+
+  h1 {
+    font-size: 2.25em;
+  }
+
+  h2 {
+    font-size: 1.5em;
+  }
+
+  h3 {
+    font-size: 1.25em;
+  }
+
+  :is(h4, h5, h6) {
+    font-size: 1em;
+  }
+
+  /* stylelint-enable unit-allowed-list */
+}
