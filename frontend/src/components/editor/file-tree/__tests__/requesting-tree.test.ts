@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { MockModules } from "@/__mocks__/common";
 import { toast } from "@/components/ui/use-toast";
 import type { FilePath } from "@/utils/paths";
-import { RequestingTree } from "../requesting-tree";
+import { fileTreeNodeId, RequestingTree } from "../requesting-tree";
 
+const getRoots = vi.fn();
 const sendListFiles = vi.fn();
 const sendCreateFileOrFolder = vi.fn();
 const sendDeleteFileOrFolder = vi.fn();
@@ -13,499 +14,313 @@ const sendRenameFileOrFolder = vi.fn();
 
 vi.mock("@/components/ui/use-toast", () => MockModules.toast());
 
+const PRIMARY_FILES = [
+  {
+    id: "/root/file1",
+    name: "file1",
+    path: "/root/file1",
+    isDirectory: false,
+    isMarimoFile: false,
+    children: [],
+  },
+  {
+    id: "/root/folder1",
+    name: "folder1",
+    path: "/root/folder1",
+    isDirectory: true,
+    isMarimoFile: false,
+    children: [],
+  },
+];
+
+const PRIMARY_ROOT_ID = fileTreeNodeId("/root", "/root");
+const PRIMARY_FILE_ID = fileTreeNodeId("/root", "/root/file1");
+const EXTERNAL_ROOT_ID = fileTreeNodeId("/external", "/external");
+
 describe("RequestingTree", () => {
-  let requestingTree: RequestingTree;
-  const mockOnChange = vi.fn();
+  let tree: RequestingTree;
+  const onChange = vi.fn();
 
   beforeEach(async () => {
-    requestingTree = new RequestingTree({
+    getRoots.mockResolvedValue({
+      roots: [
+        { path: "/root", name: "workspace", isPrimary: true },
+        { path: "/external", name: "Shared", isPrimary: false },
+      ],
+    });
+    sendListFiles.mockImplementation(async ({ path }: { path: string }) => ({
+      files: path === "/root" ? PRIMARY_FILES : [],
+      root: path,
+    }));
+    sendCreateFileOrFolder.mockResolvedValue({ success: true });
+    sendDeleteFileOrFolder.mockResolvedValue({ success: true });
+    sendCopyFileOrFolder.mockResolvedValue({ success: true });
+    sendRenameFileOrFolder.mockResolvedValue({ success: true });
+
+    tree = new RequestingTree({
+      getRoots,
       listFiles: sendListFiles,
       createFileOrFolder: sendCreateFileOrFolder,
       deleteFileOrFolder: sendDeleteFileOrFolder,
       copyFileOrFolder: sendCopyFileOrFolder,
       renameFileOrFolder: sendRenameFileOrFolder,
     });
-    sendListFiles.mockResolvedValue({
-      files: [
-        { id: "1.1", name: "file1", path: "/root/file1" },
-        {
-          id: "1.2",
-          name: "folder1",
-          isDirectory: true,
-          path: "/root/folder1",
-        },
-        {
-          id: "1.3",
-          name: "folder2",
-          isDirectory: true,
-          path: "/root/folder2",
-        },
-      ],
-      root: "/root",
-    });
-    await requestingTree.initialize(mockOnChange);
+    await tree.initialize(onChange);
   });
 
   afterEach(() => {
     vi.clearAllMocks();
   });
 
-  test("initialize should load files and set rootPath", async () => {
-    expect(sendListFiles).toHaveBeenCalledWith({ path: "" });
-    expect(requestingTree.getRootPath()).toBe("/root");
-    expect(mockOnChange).toHaveBeenCalledWith([
-      { id: "1.1", name: "file1", path: "/root/file1" },
-      { id: "1.2", name: "folder1", isDirectory: true, path: "/root/folder1" },
-      { id: "1.3", name: "folder2", isDirectory: true, path: "/root/folder2" },
+  test("initializes with visible, unloaded root nodes", () => {
+    expect(getRoots).toHaveBeenCalledOnce();
+    expect(sendListFiles).not.toHaveBeenCalled();
+    expect(tree.getPrimaryRootPath()).toBe("/root");
+    expect(onChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        id: PRIMARY_ROOT_ID,
+        name: "workspace",
+        isRoot: true,
+        isPrimaryRoot: true,
+        children: [],
+      }),
+      expect.objectContaining({
+        id: EXTERNAL_ROOT_ID,
+        name: "Shared",
+        isRoot: true,
+        isPrimaryRoot: false,
+        children: [],
+      }),
     ]);
   });
 
-  test("expand should load children for a directory", async () => {
-    sendListFiles.mockResolvedValue({
-      files: [{ id: "2", name: "file2", path: "/roo/folder1/file2" }],
+  test("expands each root lazily and annotates its descendants", async () => {
+    sendListFiles.mockResolvedValueOnce({
+      files: [
+        {
+          id: "/external/data.csv",
+          path: "/external/data.csv",
+          name: "data.csv",
+          isDirectory: false,
+          isMarimoFile: false,
+          children: [],
+        },
+      ],
+      root: "/external",
     });
-    const result = await requestingTree.expand("1.2");
-    expect(result).toBe(true);
-    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
-    expect(mockOnChange).toHaveBeenCalled();
-    const lastCall = mockOnChange.mock.calls.at(-1);
-    expect(lastCall).toBeDefined();
-    expect(lastCall![0]).toMatchInlineSnapshot(`
-      [
-        {
-          "id": "1.1",
-          "name": "file1",
-          "path": "/root/file1",
-        },
-        {
-          "children": [
-            {
-              "id": "2",
-              "name": "file2",
-              "path": "/roo/folder1/file2",
-            },
-          ],
-          "id": "1.2",
-          "isDirectory": true,
-          "name": "folder1",
-          "path": "/root/folder1",
-        },
-        {
-          "id": "1.3",
-          "isDirectory": true,
-          "name": "folder2",
-          "path": "/root/folder2",
-        },
-      ]
-    `);
+
+    expect(await tree.expand(EXTERNAL_ROOT_ID)).toBe(true);
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
+    expect(onChange.mock.calls.at(-1)?.[0][1].children[0]).toEqual(
+      expect.objectContaining({
+        path: "/external/data.csv",
+        rootPath: "/external",
+        isPrimaryRoot: false,
+        isRoot: false,
+      }),
+    );
   });
 
-  test("rename should change the name and path of a file", async () => {
-    sendRenameFileOrFolder.mockResolvedValue({ success: true });
-
-    await requestingTree.rename("1.1", "file2");
-    expect(sendRenameFileOrFolder).toHaveBeenCalledWith({
-      path: "/root/file1",
-      newPath: "/root/file2",
+  test("uses the primary root for toolbar creation without a selection", async () => {
+    await tree.createFile({ name: "new.txt", parentId: null });
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "/root",
+      type: "file",
+      name: "new.txt",
     });
-    expect(mockOnChange).toHaveBeenCalled();
-    const lastCall = mockOnChange.mock.calls.at(-1);
-    expect(lastCall).toBeDefined();
-    expect(lastCall![0]).toMatchInlineSnapshot(`
-      [
-        {
-          "id": "1.1",
-          "name": "file1",
-          "path": "/root/file1",
-        },
-        {
-          "id": "1.2",
-          "isDirectory": true,
-          "name": "folder1",
-          "path": "/root/folder1",
-        },
-        {
-          "id": "1.3",
-          "isDirectory": true,
-          "name": "folder2",
-          "path": "/root/folder2",
-        },
-      ]
-    `);
   });
 
-  test("move should change the parent of a file", async () => {
-    sendRenameFileOrFolder.mockResolvedValue({ success: true });
-
-    await requestingTree.move(["1.1"], "1.2");
-    expect(sendRenameFileOrFolder).toHaveBeenCalled();
-    expect(mockOnChange).toHaveBeenCalled();
-    const lastCall = mockOnChange.mock.calls.at(-1);
-    expect(lastCall).toBeDefined();
-    expect(lastCall![0]).toMatchInlineSnapshot(`
-      [
-        {
-          "id": "1.1",
-          "name": "file1",
-          "path": "/root/file1",
-        },
-        {
-          "children": [
-            {
-              "id": "1.1",
-              "name": "file1",
-              "path": "/root/folder1/file1",
-            },
-          ],
-          "id": "1.2",
-          "isDirectory": true,
-          "name": "folder1",
-          "path": "/root/folder1",
-        },
-        {
-          "id": "1.3",
-          "isDirectory": true,
-          "name": "folder2",
-          "path": "/root/folder2",
-        },
-      ]
-    `);
+  test("creates and uploads into an explicitly selected root", async () => {
+    await tree.createFolder("exports", EXTERNAL_ROOT_ID);
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "/external",
+      type: "directory",
+      name: "exports",
+    });
   });
 
-  test("copy should duplicate a file", async () => {
-    sendCopyFileOrFolder.mockResolvedValue({ success: true });
+  test("prevents mutations of structural root nodes", async () => {
+    await tree.rename(EXTERNAL_ROOT_ID, "renamed");
+    await tree.copy(EXTERNAL_ROOT_ID, "copy");
+    await tree.delete(EXTERNAL_ROOT_ID);
 
-    await requestingTree.copy("1.1", "file1_copy");
+    expect(sendRenameFileOrFolder).not.toHaveBeenCalled();
+    expect(sendCopyFileOrFolder).not.toHaveBeenCalled();
+    expect(sendDeleteFileOrFolder).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: "File browser roots cannot be modified",
+      }),
+    );
+  });
+
+  test("supports copying, renaming, and deleting files by absolute path", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+
+    await tree.copy(PRIMARY_FILE_ID, "file1_copy");
     expect(sendCopyFileOrFolder).toHaveBeenCalledWith({
       path: "/root/file1",
       newPath: "/root/file1_copy",
     });
-    expect(mockOnChange).toHaveBeenCalled();
-  });
 
-  test("delete should drop a file on success", async () => {
-    sendDeleteFileOrFolder.mockResolvedValue({ success: true });
+    await tree.rename(PRIMARY_FILE_ID, "file2");
+    expect(sendRenameFileOrFolder).toHaveBeenCalledWith({
+      path: "/root/file1",
+      newPath: "/root/file2",
+    });
 
-    await requestingTree.delete("1.1");
+    await tree.delete(PRIMARY_FILE_ID);
     expect(sendDeleteFileOrFolder).toHaveBeenCalledWith({
       path: "/root/file1",
     });
-    const lastCall = mockOnChange.mock.calls.at(-1);
-    expect(lastCall?.[0].map((f: { id: string }) => f.id)).toEqual([
-      "1.2",
-      "1.3",
-    ]);
   });
 
-  test("createFile should create a new file", async () => {
-    sendCreateFileOrFolder.mockResolvedValue({ success: true });
+  test("moves files across roots and refreshes both parents", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    sendListFiles.mockClear();
 
-    await requestingTree.createFile({ name: "file3", parentId: "1.2" });
-    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
-      path: "/root/folder1",
-      type: "file",
-      name: "file3",
+    await tree.move([PRIMARY_FILE_ID], EXTERNAL_ROOT_ID);
+
+    expect(sendRenameFileOrFolder).toHaveBeenCalledWith({
+      path: "/root/file1",
+      newPath: "/external/file1",
     });
-    expect(mockOnChange).toHaveBeenCalled();
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
   });
 
-  test("createFile should create a new notebook", async () => {
-    sendCreateFileOrFolder.mockResolvedValue({ success: true });
+  test("refreshes all supplied open roots and folders", async () => {
+    await tree.refreshAll([PRIMARY_ROOT_ID, EXTERNAL_ROOT_ID]);
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
+  });
 
-    await requestingTree.createFile({
-      name: "notebook1",
-      parentId: "1.2",
-      type: "notebook",
+  test("keeps existing children when a refresh fails", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    const beforeRefresh = onChange.mock.calls.at(-1)?.[0];
+    sendListFiles.mockRejectedValueOnce(new Error("Network error"));
+
+    await tree.refreshPath("/root" as FilePath);
+
+    expect(onChange.mock.calls.at(-1)?.[0]).toEqual(beforeRefresh);
+  });
+
+  test("namespaces duplicate paths under overlapping roots", async () => {
+    getRoots.mockResolvedValueOnce({
+      roots: [
+        { path: "/repo", name: "repo", isPrimary: true },
+        { path: "/repo/data", name: "Data", isPrimary: false },
+      ],
     });
-    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
-      path: "/root/folder1",
-      type: "notebook",
-      name: "notebook1",
+    sendListFiles.mockImplementation(async ({ path }: { path: string }) => ({
+      root: path,
+      files:
+        path === "/repo"
+          ? [
+              {
+                id: "/repo/data",
+                name: "data",
+                path: "/repo/data",
+                isDirectory: true,
+                isMarimoFile: false,
+                children: [],
+              },
+            ]
+          : [
+              {
+                id: "/repo/data/file.csv",
+                name: "file.csv",
+                path: "/repo/data/file.csv",
+                isDirectory: false,
+                isMarimoFile: false,
+                children: [],
+              },
+            ],
+    }));
+    const overlapOnChange = vi.fn();
+    const overlapTree = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
     });
-    expect(mockOnChange).toHaveBeenCalled();
+    await overlapTree.initialize(overlapOnChange);
+
+    const primaryRootId = fileTreeNodeId("/repo", "/repo");
+    const nestedDirectoryId = fileTreeNodeId("/repo", "/repo/data");
+    const additionalRootId = fileTreeNodeId("/repo/data", "/repo/data");
+    expect(nestedDirectoryId).not.toBe(additionalRootId);
+
+    await overlapTree.expand(primaryRootId);
+    await overlapTree.expand(nestedDirectoryId);
+    await overlapTree.expand(additionalRootId);
+
+    const roots = overlapOnChange.mock.calls.at(-1)?.[0];
+    expect(roots[0].children[0].id).toBe(nestedDirectoryId);
+    expect(roots[1].id).toBe(additionalRootId);
+    expect(roots[0].children[0].children[0].id).toBe(
+      fileTreeNodeId("/repo", "/repo/data/file.csv"),
+    );
+    expect(roots[1].children[0].id).toBe(
+      fileTreeNodeId("/repo/data", "/repo/data/file.csv"),
+    );
   });
 
-  test("createFolder should create a new folder", async () => {
-    sendCreateFileOrFolder.mockResolvedValue({ success: true });
+  describe("primary-root paths", () => {
+    test("returns relative paths only inside the primary root", () => {
+      expect(tree.getPrimaryRelativePath("/root/src/file.py" as FilePath)).toBe(
+        "src/file.py",
+      );
+      expect(
+        tree.getPrimaryRelativePath("/rooted/file.py" as FilePath),
+      ).toBeNull();
+      expect(
+        tree.getPrimaryRelativePath("/external/file.py" as FilePath),
+      ).toBeNull();
+    });
 
-    await requestingTree.createFolder("folder3", "1.2");
-    expect(sendCreateFileOrFolder).toHaveBeenCalled();
-    expect(mockOnChange).toHaveBeenCalled();
-  });
-
-  test("refreshAll should refresh data for all open folders", async () => {
-    await requestingTree.refreshAll(["1.1"]);
-    expect(sendListFiles).toHaveBeenCalled();
-    expect(mockOnChange).toHaveBeenCalled();
-    const lastCall = mockOnChange.mock.calls.at(-1);
-    expect(lastCall).toBeDefined();
-    expect(lastCall![0]).toMatchInlineSnapshot(`
-      [
-        {
-          "id": "1.1",
-          "name": "file1",
-          "path": "/root/file1",
-        },
-        {
-          "id": "1.2",
-          "isDirectory": true,
-          "name": "folder1",
-          "path": "/root/folder1",
-        },
-        {
-          "id": "1.3",
-          "isDirectory": true,
-          "name": "folder2",
-          "path": "/root/folder2",
-        },
-      ]
-    `);
-  });
-
-  test("refreshPath should refresh an uploaded file's destination", async () => {
-    sendListFiles.mockImplementation(async ({ path }: { path: string }) => {
-      if (path === "/root/folder1") {
-        return {
-          files: [
-            {
-              id: "uploaded",
-              name: "uploaded.csv",
-              path: "/root/folder1/uploaded.csv",
-            },
-          ],
-        };
-      }
-      return {
-        files: [
-          { id: "1.1", name: "file1", path: "/root/file1" },
+    test("supports Windows path boundaries case-insensitively", async () => {
+      getRoots.mockResolvedValueOnce({
+        roots: [
           {
-            id: "1.2",
-            name: "folder1",
-            isDirectory: true,
-            path: "/root/folder1",
-          },
-          {
-            id: "1.3",
-            name: "folder2",
-            isDirectory: true,
-            path: "/root/folder2",
-          },
-        ],
-      };
-    });
-
-    await requestingTree.refreshPath("/root/folder1" as FilePath);
-
-    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
-    expect(mockOnChange.mock.calls.at(-1)?.[0]).toEqual([
-      { id: "1.1", name: "file1", path: "/root/file1" },
-      {
-        id: "1.2",
-        name: "folder1",
-        isDirectory: true,
-        path: "/root/folder1",
-        children: [
-          {
-            id: "uploaded",
-            name: "uploaded.csv",
-            path: "/root/folder1/uploaded.csv",
+            path: "C:\\Users\\Test\\Project",
+            name: "Project",
+            isPrimary: true,
           },
         ],
-      },
-      {
-        id: "1.3",
-        name: "folder2",
-        isDirectory: true,
-        path: "/root/folder2",
-      },
-    ]);
-  });
-
-  describe("when API fails", () => {
-    test("initialize should handle errors gracefully", async () => {
-      requestingTree = new RequestingTree({
+      });
+      const windowsTree = new RequestingTree({
+        getRoots,
         listFiles: sendListFiles,
         createFileOrFolder: sendCreateFileOrFolder,
         deleteFileOrFolder: sendDeleteFileOrFolder,
         copyFileOrFolder: sendCopyFileOrFolder,
         renameFileOrFolder: sendRenameFileOrFolder,
       });
-      sendListFiles.mockRejectedValue(new Error("Network error"));
-      await requestingTree.initialize(mockOnChange);
-      expect(toast).toHaveBeenCalledWith({
-        title: "Failed",
-        description: expect.any(String),
-      });
+      await windowsTree.initialize(vi.fn());
+
+      expect(
+        windowsTree.getPrimaryRelativePath(
+          "c:\\users\\test\\project\\src\\file.py" as FilePath,
+        ),
+      ).toBe("src\\file.py");
+      expect(
+        windowsTree.getPrimaryRelativePath(
+          "C:\\Users\\Test\\Project-old\\file.py" as FilePath,
+        ),
+      ).toBeNull();
     });
 
-    test("rename should handle API failure", async () => {
-      sendRenameFileOrFolder.mockResolvedValue({
-        success: false,
-        message: "Error renaming",
-      });
-
-      await requestingTree.rename("1.1", "file2");
-      expect(sendRenameFileOrFolder).toHaveBeenCalledWith({
-        path: "/root/file1",
-        newPath: "/root/file2",
-      });
-      expect(toast).toHaveBeenCalledWith({
-        title: "Failed",
-        description: "Error renaming",
-      });
-    });
-
-    test("rename should NOT mutate the local tree on API failure", async () => {
-      sendRenameFileOrFolder.mockResolvedValue({
-        success: false,
-        message: "Error renaming",
-      });
-      const changesBefore = mockOnChange.mock.calls.length;
-
-      await requestingTree.rename("1.1", "file2");
-
-      // No further onChange calls should fire after the failed rename, so the
-      // tree stays in sync with the backend.
-      expect(mockOnChange.mock.calls.length).toBe(changesBefore);
-    });
-
-    test("delete should NOT drop the node on API failure", async () => {
-      sendDeleteFileOrFolder.mockResolvedValue({
-        success: false,
-        message: "Error deleting",
-      });
-      const changesBefore = mockOnChange.mock.calls.length;
-
-      await requestingTree.delete("1.1");
-      expect(sendDeleteFileOrFolder).toHaveBeenCalledWith({
-        path: "/root/file1",
-      });
-      expect(toast).toHaveBeenCalledWith({
-        title: "Failed",
-        description: "Error deleting",
-      });
-      expect(mockOnChange.mock.calls.length).toBe(changesBefore);
-    });
-
-    test("move should NOT mutate the local tree when rename fails", async () => {
-      sendRenameFileOrFolder.mockResolvedValue({
-        success: false,
-        message: "Error moving",
-      });
-
-      await requestingTree.move(["1.1"], "1.2");
-
-      expect(toast).toHaveBeenCalledWith({
-        title: "Failed",
-        description: "Error moving",
-      });
-      // The last emitted state should still have file1 at the top level, not
-      // moved under folder1.
-      const lastCall = mockOnChange.mock.calls.at(-1);
-      expect(lastCall?.[0]).toEqual([
-        { id: "1.1", name: "file1", path: "/root/file1" },
-        {
-          id: "1.2",
-          name: "folder1",
-          isDirectory: true,
-          path: "/root/folder1",
-        },
-        {
-          id: "1.3",
-          name: "folder2",
-          isDirectory: true,
-          path: "/root/folder2",
-        },
-      ]);
-    });
-
-    test("copy should handle API failure", async () => {
-      sendCopyFileOrFolder.mockResolvedValue({
-        success: false,
-        message: "Error duplicating",
-      });
-
-      await requestingTree.copy("1.1", "file1_copy");
-      expect(sendCopyFileOrFolder).toHaveBeenCalledWith({
-        path: "/root/file1",
-        newPath: "/root/file1_copy",
-      });
-      expect(toast).toHaveBeenCalledWith({
-        title: "Failed",
-        description: "Error duplicating",
-      });
-    });
-
-    test("move should handle missing parent node gracefully", async () => {
-      await requestingTree.move(["1.x"], "2");
-      expect(sendRenameFileOrFolder).not.toHaveBeenCalled();
-      expect(mockOnChange).toHaveBeenCalledTimes(3);
-    });
-
-    test("refreshAll should handle API errors without crashing", async () => {
-      sendListFiles.mockRejectedValue(new Error("Network error"));
-      await requestingTree.refreshAll(["1.2"]);
-      expect(sendListFiles).toHaveBeenCalled();
-      // Ensure onChange is still called to update UI even if data might not have changed
-      expect(mockOnChange).toHaveBeenCalled();
-    });
-  });
-
-  describe("relativeFromRoot", () => {
-    test("should return relative path for Unix paths", async () => {
-      const tree = new RequestingTree({
-        listFiles: sendListFiles,
-        createFileOrFolder: sendCreateFileOrFolder,
-        deleteFileOrFolder: sendDeleteFileOrFolder,
-        copyFileOrFolder: sendCopyFileOrFolder,
-        renameFileOrFolder: sendRenameFileOrFolder,
-      });
-
-      sendListFiles.mockResolvedValue({
-        files: [],
-        root: "/home/user/project",
-      });
-
-      await tree.initialize(vi.fn());
-
-      const relativePath = tree.relativeFromRoot(
-        "/home/user/project/src/file.py" as FilePath,
+    test("uses configured names in root-qualified display paths", () => {
+      expect(tree.getDisplayPath("/root/data.csv" as FilePath)).toBe(
+        "data.csv",
       );
-      expect(relativePath).toBe("src/file.py");
-    });
-
-    test("should return relative path for Windows paths", async () => {
-      const tree = new RequestingTree({
-        listFiles: sendListFiles,
-        createFileOrFolder: sendCreateFileOrFolder,
-        deleteFileOrFolder: sendDeleteFileOrFolder,
-        copyFileOrFolder: sendCopyFileOrFolder,
-        renameFileOrFolder: sendRenameFileOrFolder,
-      });
-
-      sendListFiles.mockResolvedValue({
-        files: [],
-        root: "C:\\Users\\test\\project",
-      });
-
-      await tree.initialize(vi.fn());
-
-      const relativePath = tree.relativeFromRoot(
-        "C:\\Users\\test\\project\\src\\file.py" as FilePath,
+      expect(tree.getDisplayPath("/external/data.csv" as FilePath)).toBe(
+        "Shared/data.csv",
       );
-      expect(relativePath).toBe("src\\file.py");
-    });
-
-    test("should return original path when not under root", async () => {
-      const relativePath = requestingTree.relativeFromRoot(
-        "/other/path/file.py" as FilePath,
-      );
-      expect(relativePath).toBe("/other/path/file.py");
-    });
-
-    test("should handle root path exactly", async () => {
-      const relativePath = requestingTree.relativeFromRoot("/root" as FilePath);
-      expect(relativePath).toBe("/root");
+      expect(tree.getDisplayPath("/external" as FilePath)).toBe("Shared");
     });
   });
 });

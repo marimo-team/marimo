@@ -213,6 +213,19 @@ export const UserConfigSchema = z
         sql_linter: z.boolean().optional(),
       })
       .prefault(() => ({})),
+    file_browser: z
+      .looseObject({
+        folders: z
+          .array(
+            z.object({
+              path: z.string(),
+              name: z.string().optional(),
+            }),
+          )
+          .optional(),
+      })
+      .optional()
+      .prefault({}),
     sharing: z
       .looseObject({
         html: z.boolean().optional(),
@@ -236,6 +249,7 @@ export const UserConfigSchema = z
     runtime: {},
     display: {},
     diagnostics: {},
+    file_browser: {},
     experimental: {},
     server: {},
     ai: {},
@@ -340,6 +354,7 @@ export function defaultUserConfig(): UserConfig {
     runtime: {},
     display: {},
     diagnostics: {},
+    file_browser: {},
     experimental: {},
     server: {},
     ai: {},

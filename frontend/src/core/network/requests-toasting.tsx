@@ -48,6 +48,7 @@ export function createErrorToastingRequests(
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     getEnvironmentInfo: "", // No toast
+    getFileRoots: "Failed to list file browser roots",
     sendListFiles: "Failed to list files",
     sendSearchFiles: "Failed to search files",
     sendPdb: "Failed to start debug session",

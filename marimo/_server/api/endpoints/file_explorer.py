@@ -16,6 +16,7 @@ from marimo._server.files.os_file_system import (
     OSFileSystem,
     UploadTooLargeError,
 )
+from marimo._server.files.roots import resolve_file_roots
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -30,6 +31,7 @@ from marimo._server.models.files import (
     FileMoveRequest,
     FileMoveResponse,
     FileOpenRequest,
+    FileRootsResponse,
     FileSearchRequest,
     FileSearchResponse,
     FileUpdateRequest,
@@ -74,6 +76,28 @@ LOGGER = _loggers.marimo_logger()
 router = APIRouter()
 
 file_system = OSFileSystem()
+
+
+@router.get("/roots")
+@requires("edit")
+def file_roots(*, request: Request) -> FileRootsResponse:
+    """
+    responses:
+        200:
+            description: List roots shown in the file browser
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FileRootsResponse"
+    """
+    app_state = AppState(request)
+    primary_root = (
+        app_state.session_manager.workspace.directory or file_system.get_root()
+    )
+    config = app_state.config_manager.get_config().get("file_browser")
+    return FileRootsResponse(
+        roots=resolve_file_roots(primary_root, config),
+    )
 
 
 @router.post("/list_files")

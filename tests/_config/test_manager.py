@@ -434,6 +434,21 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
     }
 
 
+def test_script_config_manager_ignores_file_browser(tmp_path: Path) -> None:
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = """
+    # /// script
+    # [tool.marimo.file_browser]
+    # folders = [{path = "/private", name = "Private"}]
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    manager = ScriptConfigManager(str(notebook_path))
+    assert manager.get_config() == {}
+
+
 def test_script_config_manager_invalid_toml(tmp_path: Path) -> None:
     notebook_path = tmp_path / "notebook.py"
     notebook_content = """

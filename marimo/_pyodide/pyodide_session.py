@@ -48,6 +48,7 @@ from marimo._schemas.export import (
     to_markdown_export_options,
 )
 from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.files.roots import resolve_file_roots
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -60,6 +61,7 @@ from marimo._server.models.files import (
     FileListResponse,
     FileMoveRequest,
     FileMoveResponse,
+    FileRootsResponse,
     FileSearchRequest,
     FileSearchResponse,
     FileUpdateRequest,
@@ -300,6 +302,13 @@ class PyodideBridge:
         files = self.file_system.list_files(root)
         response = FileListResponse(files=files, root=root)
         return self._dump(response)
+
+    def file_roots(self) -> str:
+        roots = resolve_file_roots(
+            self.file_system.get_root(),
+            self.session._initial_user_config.get("file_browser"),
+        )
+        return self._dump(FileRootsResponse(roots=roots))
 
     def search_files(
         self,

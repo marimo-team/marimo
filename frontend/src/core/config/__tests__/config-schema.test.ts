@@ -75,6 +75,7 @@ test("default UserConfig - empty", () => {
         "theme": "light",
       },
       "experimental": {},
+      "file_browser": {},
       "formatting": {
         "line_length": 79,
       },
@@ -149,6 +150,7 @@ test("default UserConfig - one level", () => {
         "theme": "light",
       },
       "experimental": {},
+      "file_browser": {},
       "formatting": {
         "line_length": 79,
       },
@@ -207,6 +209,19 @@ test("default UserConfig with additional information", () => {
       },
     }),
   );
+});
+
+test("UserConfig with file browser folders", () => {
+  const config = UserConfigSchema.parse({
+    file_browser: {
+      folders: [{ path: "/data", name: "Data" }, { path: "/shared" }],
+    },
+  });
+
+  expect(config.file_browser?.folders).toEqual([
+    { path: "/data", name: "Data" },
+    { path: "/shared" },
+  ]);
 });
 
 test("UserConfig with custom_providers", () => {

@@ -48,6 +48,7 @@ export const MockRequestClient = {
       getEnvironmentInfo: vi
         .fn()
         .mockRejectedValue(new Error("Environment information unavailable")),
+      getFileRoots: vi.fn().mockResolvedValue({ roots: [] }),
       sendPdb: vi.fn().mockResolvedValue({}),
       sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
