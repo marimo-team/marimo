@@ -51,6 +51,17 @@ function getThemedUrl(app: ApplicationNames, theme: VisualTheme): string {
   return url.toString();
 }
 
+async function resolveColor(page: Page, value: string): Promise<string> {
+  return page.evaluate((cssValue) => {
+    const probe = document.createElement("span");
+    probe.style.color = cssValue;
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  }, value);
+}
+
 async function prepareVisualCase(
   page: Page,
   visualCase: VisualCase,
@@ -98,6 +109,79 @@ async function prepareVisualCase(
   const focusedInput = page.getByTestId("marimo-plugin-text-input");
   await focusedInput.focus();
   await expect(focusedInput).toBeFocused();
+
+  await expect(page.locator("select").first()).toBeVisible();
+
+  const accentColor = await page.locator("html").evaluate(
+    (element) => getComputedStyle(element).accentColor,
+  );
+  const primaryColor = await resolveColor(page, "var(--primary)");
+  expect(accentColor).toBe(primaryColor);
+
+  const semanticAliases =
+    visualCase.theme === "light"
+      ? [
+          ["--ring", "hsl(215deg 20.2% 65.1%)"],
+          ["--destructive", "var(--red-9)"],
+          ["--destructive-hover", "var(--red-10)"],
+          ["--destructive-border", "var(--red-11)"],
+          ["--destructive-foreground", "var(--red-1)"],
+          ["--error", "var(--red-9)"],
+          ["--error-foreground", "var(--red-1)"],
+          ["--success", "var(--grass-9)"],
+          ["--success-hover", "var(--grass-10)"],
+          ["--success-border", "var(--grass-11)"],
+          ["--success-foreground", "var(--grass-1)"],
+          ["--action", "var(--yellow-9)"],
+          ["--action-hover", "var(--yellow-10)"],
+          ["--action-border", "var(--yellow-11)"],
+          ["--action-foreground", "var(--yellow-12)"],
+        ]
+      : [
+          ["--ring", "var(--blue-8)"],
+          ["--destructive", "var(--red-6)"],
+          ["--destructive-hover", "var(--red-7)"],
+          ["--destructive-border", "var(--red-11)"],
+          ["--destructive-foreground", "var(--red-12)"],
+          ["--error", "var(--red-6)"],
+          ["--error-foreground", "var(--red-12)"],
+          ["--success", "var(--grass-6)"],
+          ["--success-hover", "var(--grass-7)"],
+          ["--success-border", "var(--grass-11)"],
+          ["--success-foreground", "var(--grass-12)"],
+          ["--action", "var(--yellow-6)"],
+          ["--action-hover", "var(--yellow-7)"],
+          ["--action-border", "var(--yellow-11)"],
+          ["--action-foreground", "var(--yellow-12)"],
+        ];
+
+  for (const [semanticToken, sourceColor] of semanticAliases) {
+    const actualColor = await resolveColor(page, `var(${semanticToken})`);
+    const expectedColor = await resolveColor(page, sourceColor);
+    expect(actualColor, semanticToken).toBe(expectedColor);
+  }
+
+  for (const [label, semanticToken] of [
+    ["Success", "--success-border"],
+    ["Warning", "--action-border"],
+    ["Danger", "--destructive-border"],
+  ] as const) {
+    const button = page.getByRole("button", { name: label });
+    const colors = await button.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        background: style.backgroundColor,
+        border: style.borderColor,
+      };
+    });
+    const expectedBorder = await resolveColor(
+      page,
+      `color-mix(in srgb, var(${semanticToken}), transparent 0%)`,
+    );
+
+    expect(colors.border, label).toBe(expectedBorder);
+    expect(colors.border, label).not.toBe(colors.background);
+  }
 }
 
 for (const visualCase of VISUAL_CASES) {

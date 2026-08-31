@@ -36,6 +36,9 @@ jobs:
     if: ${{ needs.changes.outputs.playwright == 'true' }}
     timeout-minutes: 18 # 2024-01-18 avg: 5.0m max: 7.0m
     runs-on: ubuntu-24.04
+    container:
+      # Keep this tag in sync with EXPECTED_PLAYWRIGHT_VERSION below.
+      image: mcr.microsoft.com/playwright:v1.62.1-noble
     permissions:
       contents: read
       id-token: write # required for Doppler OIDC
@@ -49,6 +52,10 @@ jobs:
     steps:
       - name: ⬇️ Checkout repo
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: 🔧 Trust Git workspace
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
       - name: Write TOML
         run: |
           echo "[runtime]" > .marimo.toml
@@ -60,6 +67,11 @@ jobs:
       - name: Update pyproject.toml
         run: |
           sed -i 's/auto_instantiate = false/auto_instantiate = true/' pyproject.toml
+
+      - name: 🛠️ Install build tools
+        run: |
+          apt-get update
+          apt-get install --yes --no-install-recommends make
 
       - name: 🔐 Fetch Doppler secrets
         # Skip on PRs from forks: id-token write is downgraded to read, so OIDC fails.
@@ -89,26 +101,17 @@ jobs:
         run: |
           echo "MARIMO_VERSION=$(uv run marimo --version)" >> $GITHUB_ENV
 
-      - name: 🎭 Get installed Playwright version
-        id: playwright-version
+      - name: 🎭 Verify Playwright image version
         working-directory: ./frontend
+        env:
+          EXPECTED_PLAYWRIGHT_VERSION: 1.62.1
         run: |
-          PLAYWRIGHT_VERSION=$(pnpm ls @playwright/test | grep @playwright | sed 's/.*@//')
-          echo "Playwright's Version: $PLAYWRIGHT_VERSION"
-          echo "PLAYWRIGHT_VERSION=$PLAYWRIGHT_VERSION" >> $GITHUB_ENV
-
-      - name: 📦 Cache playwright binaries
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        id: playwright-cache
-        with:
-          path: |
-            ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-2-${{ env.PLAYWRIGHT_VERSION }}
-
-      - name: 📥 Install Playwright Browsers
-        working-directory: ./frontend
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: pnpm playwright install chromium --with-deps
+          ACTUAL_PLAYWRIGHT_VERSION=$(pnpm exec playwright --version)
+          ACTUAL_PLAYWRIGHT_VERSION=${ACTUAL_PLAYWRIGHT_VERSION#Version }
+          if [[ "$ACTUAL_PLAYWRIGHT_VERSION" != "$EXPECTED_PLAYWRIGHT_VERSION" ]]; then
+            echo "Playwright package $ACTUAL_PLAYWRIGHT_VERSION does not match image $EXPECTED_PLAYWRIGHT_VERSION" >&2
+            exit 1
+          fi
 
       - name: 🎭 Run Playwright tests
         working-directory: ./frontend
