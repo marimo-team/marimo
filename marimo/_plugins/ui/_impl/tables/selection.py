@@ -19,6 +19,14 @@ def add_selection_column(data: T) -> tuple[T, bool]:
                 native = df.to_native().copy()
                 native.insert(0, INDEX_COLUMN_NAME, range(len(native)))
                 return cast(T, native), True
+            if df.implementation.is_pyarrow():
+                import pyarrow as pa
+
+                native = df.to_native()
+                index = pa.array(range(len(native)))
+                return cast(
+                    T, native.add_column(0, INDEX_COLUMN_NAME, index)
+                ), True
             return df.with_row_index(name=INDEX_COLUMN_NAME).to_native(), True  # type: ignore[return-value]
         return data, True  # already has a row index
     return data, False
