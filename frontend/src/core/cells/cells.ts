@@ -19,6 +19,7 @@ import { Objects } from "@/utils/objects";
 import { extractAllTracebackInfo, type TracebackInfo } from "@/utils/traceback";
 import { createReducerAndAtoms } from "../../utils/createReducer";
 import { foldAllBulk, unfoldAllBulk } from "../codemirror/editing/commands";
+import { editorMountScheduler } from "../codemirror/editor-mount-scheduler";
 import {
   splitEditor,
   updateEditorCodeFromPython,
@@ -1917,6 +1918,16 @@ export const getAllEditorViews = () => {
 export const getCellEditorView = (cellId: CellId) => {
   const { cellHandles } = store.get(notebookAtom);
   return cellHandles[cellId].current?.editorView;
+};
+
+/**
+ * Get the cell's editor view. When the view's build is still queued in the
+ * progressive-mount scheduler, build it synchronously first. This lets user
+ * actions target a cell whose editor is not mounted yet.
+ */
+export const ensureCellEditorView = (cellId: CellId) => {
+  editorMountScheduler.promote(cellId);
+  return getCellEditorView(cellId);
 };
 
 export function flattenTopLevelNotebookCells(
