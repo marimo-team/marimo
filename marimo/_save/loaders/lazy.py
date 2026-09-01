@@ -501,6 +501,9 @@ class LazyStore(Store):
     def export_keys(self) -> list[str]:
         return sorted(self._written_keys | self._touched_keys)
 
+    def local_dirs(self) -> list[Path]:
+        return self._inner.local_dirs()
+
 
 class WasmLazyStore(LazyStore):
     """WASM store: writes to a shared in-session `DictStore`; reads fall
