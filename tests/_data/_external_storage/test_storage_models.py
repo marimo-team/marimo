@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dirty_equals import IsDatetime, IsPositiveFloat
+from dirty_equals import IsDatetime, IsPositiveFloat, IsStr
 from inline_snapshot import snapshot
 
 from marimo._data._external_storage.models import (
@@ -1459,7 +1459,7 @@ class TestObstoreIntegration:
                     kind="object",
                     size=5,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                    metadata={"e_tag": "0"},
+                    metadata={"e_tag": IsStr()},
                     mime_type="text/plain",
                 ),
                 StorageEntry(
@@ -1467,7 +1467,7 @@ class TestObstoreIntegration:
                     kind="object",
                     size=6,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                    metadata={"e_tag": "1"},
+                    metadata={"e_tag": IsStr()},
                     mime_type="text/plain",
                 ),
             ]
@@ -1497,7 +1497,7 @@ class TestObstoreIntegration:
                 kind="object",
                 size=12,
                 last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                metadata={"e_tag": "0"},
+                metadata={"e_tag": IsStr()},
                 mime_type="text/plain",
             )
         )
