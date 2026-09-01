@@ -125,7 +125,6 @@ def _check_modules(
     sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, types.ModuleType]:
     """Returns the set of modules used by the graph that have been modified"""
-    stale_modules: dict[str, types.ModuleType] = {}
     modified_modules = reloader.check(modules=sys_modules, reload=False)
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
@@ -136,15 +135,17 @@ def _check_modules(
         t.__file__ for t in target_modules if hasattr(t, "__file__")
     }
 
-    for modname, module in modules.items():
+    stale_modules: dict[str, types.ModuleType] = {
+        modname: module
+        for modname, module in modules.items()
         if _depends_on(
             src_module=module,
             target_modules=target_modules,
             target_filenames=target_filenames,
             excludes=excludes,
             reloader=reloader,
-        ):
-            stale_modules[modname] = module
+        )
+    }
     return stale_modules
 
 

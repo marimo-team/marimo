@@ -372,14 +372,14 @@ def _convert_output_to_ipynb(
 
 
 def _clean_ansi_for_export(text: Any) -> str:
-    """Clean ANSI escape codes for export, keeping color codes intact.
+    r"""Clean ANSI escape codes for export, keeping color codes intact.
 
     ANSI codes are terminal styling sequences (colors, bold, cursor movement)
     used by logging libraries like rich, colorama, and marimo's own logger.
 
-    We keep standard color codes (like \\x1b[34m) so nbconvert's LaTeX template
+    We keep standard color codes (like \x1b[34m) so nbconvert's LaTeX template
     can convert them to colors via its ansi2latex filter. However, we must strip
-    character set selection sequences (like \\x1b(B) which nbconvert doesn't
+    character set selection sequences (like \x1b(B) which nbconvert doesn't
     handle and cause LaTeX to fail with "invalid character" errors.
     """
     if not isinstance(text, str):

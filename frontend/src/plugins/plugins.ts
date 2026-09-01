@@ -97,7 +97,7 @@ export const UI_PLUGINS: IPlugin<any, unknown>[] = [
 ];
 
 // List of output / layout plugins
-const LAYOUT_PLUGINS: IStatelessPlugin<unknown>[] = [
+export const LAYOUT_PLUGINS: IStatelessPlugin<unknown>[] = [
   new AccordionPlugin(),
   new CalloutPlugin(),
   new CarouselPlugin(),

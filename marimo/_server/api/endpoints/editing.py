@@ -10,6 +10,7 @@ from marimo._messaging.notification import FocusCellNotification
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
     dispatch_control_request,
+    enforce_consumer_capability,
     install_packages_on_server,
     notify_server_missing_packages,
     parse_request,
@@ -256,8 +257,9 @@ async def install_missing_packages(request: Request) -> BaseResponse:
         # Used when the server itself needs a package (e.g. nbformat for
         # IPYNB auto-export when running with --sandbox).
         app_state = AppState(request)
-        app_state.require_current_session()
-        await install_packages_on_server(cmd.manager, cmd.versions)
+        enforce_consumer_capability(app_state, cmd)
+        if cmd.versions:
+            await install_packages_on_server(cmd.versions)
         return SuccessResponse()
 
     # Default ("kernel"): dispatch to kernel via ZeroMQ control queue.

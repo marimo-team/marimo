@@ -5,7 +5,7 @@ import { act, renderHook } from "@testing-library/react";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type React from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 vi.mock("@/core/websocket/useWebSocket", async () => {
   const actual =
@@ -30,16 +30,17 @@ import { useRuntimeManager } from "@/core/runtime/config";
 import { connectionAtom } from "../../network/connection";
 import type { SessionId } from "../../kernel/session";
 import { WebSocketClosedReason, WebSocketState } from "../types";
+import type { IConnectionTransport } from "../transports/transport";
 import { useMarimoKernelConnection } from "../useMarimoKernelConnection";
 import { useConnectionTransport } from "../useWebSocket";
 
 interface MockTransport {
   readyState: 0 | 1 | 2 | 3;
-  reconnect: ReturnType<typeof vi.fn>;
-  close: ReturnType<typeof vi.fn>;
-  send: ReturnType<typeof vi.fn>;
-  addEventListener: ReturnType<typeof vi.fn>;
-  removeEventListener: ReturnType<typeof vi.fn>;
+  reconnect: Mock<IConnectionTransport["reconnect"]>;
+  close: Mock<IConnectionTransport["close"]>;
+  send: Mock<IConnectionTransport["send"]>;
+  addEventListener: Mock<IConnectionTransport["addEventListener"]>;
+  removeEventListener: Mock<IConnectionTransport["removeEventListener"]>;
 }
 
 function makeTransport(
@@ -56,7 +57,7 @@ function makeTransport(
 }
 
 function makeRuntimeManager(
-  reconcileFromHealth = vi.fn().mockResolvedValue(true),
+  reconcileFromHealth = vi.fn<() => Promise<boolean>>().mockResolvedValue(true),
 ) {
   return {
     reconcileFromHealth,
@@ -69,12 +70,12 @@ function makeRuntimeManager(
 
 describe("useMarimoKernelConnection.reconnect()", () => {
   let transport: MockTransport;
-  let isHealthy: ReturnType<typeof vi.fn>;
+  let isHealthy: Mock<() => Promise<boolean>>;
   let store: ReturnType<typeof createStore>;
 
   beforeEach(() => {
     transport = makeTransport(WebSocket.CLOSED);
-    isHealthy = vi.fn().mockResolvedValue(true);
+    isHealthy = vi.fn<() => Promise<boolean>>().mockResolvedValue(true);
     store = createStore();
     store.set(connectionAtom, {
       state: WebSocketState.CLOSED,

@@ -246,8 +246,6 @@ class _AsyncHTTPResponse:
                 if not chunk:
                     break
                 yield chunk
-        except Exception:
-            raise
         finally:
             await self.aclose()
 
@@ -327,17 +325,14 @@ class _AsyncHTTPClient:
 
         method = request.method or "GET"
 
-        try:
-            conn.request(
-                method=method,
-                url=path_and_query,  # Only path and query
-                body=body,
-                headers=request.headers,
-            )
-            resp = conn.getresponse()
-            return resp  # type: ignore[no-any-return]
-        except Exception:
-            raise
+        conn.request(
+            method=method,
+            url=path_and_query,  # Only path and query
+            body=body,
+            headers=request.headers,
+        )
+        resp = conn.getresponse()
+        return resp  # type: ignore[no-any-return]
 
     async def send(
         self, request: _URLRequest, stream: bool = False, max_retries: int = 2

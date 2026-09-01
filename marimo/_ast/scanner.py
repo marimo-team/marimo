@@ -613,11 +613,8 @@ def scan_parse_fallback(
 
     # Preamble
     if scan.preamble.strip():
-        try:
-            tree = ast_parse(scan.preamble, filename=filepath)
-            nodes.extend(tree.body)
-        except SyntaxError:
-            raise  # Preamble errors are fatal
+        tree = ast_parse(scan.preamble, filename=filepath)
+        nodes.extend(tree.body)
 
     # Cells
     for cell in scan.cells:

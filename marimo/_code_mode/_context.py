@@ -612,14 +612,14 @@ class _CellsView:
         ]
 
     def grep(self, pattern: str) -> Sequence[NotebookCell]:
-        """Return cells whose code matches the regex *pattern*.
+        r"""Return cells whose code matches the regex *pattern*.
 
         Uses :func:`re.search` so the pattern can match anywhere in
         the cell's code.
 
         Example::
 
-            ctx.cells.grep(r"alt\\.Chart")
+            ctx.cells.grep(r"alt\.Chart")
         """
         import re
 

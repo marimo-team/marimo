@@ -51,6 +51,8 @@ def mask_secrets(config: MarimoConfig) -> MarimoConfig:
         ("ai", "bedrock", "aws_access_key_id"),
         ("ai", "bedrock", "aws_secret_access_key"),
         ("runtime", "dotenv"),
+        # This machine's signing identity — never serialized to the frontend.
+        ("signing", "private_key_path"),
     )
 
     new_config = deep_copy(config)

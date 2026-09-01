@@ -4,8 +4,6 @@
 from __future__ import annotations
 
 import os
-import signal
-import sys
 import threading
 import time
 from multiprocessing import connection, get_context
@@ -21,7 +19,10 @@ from marimo._session.model import SessionMode
 from marimo._session.queue import ProcessLike
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.print import print_
-from marimo._utils.subprocess import try_kill_process_and_group
+from marimo._utils.subprocess import (
+    interrupt_kernel_process,
+    try_kill_process_and_group,
+)
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
@@ -234,14 +235,11 @@ class KernelManagerImpl(KernelManager):
             # no interruptions in run mode
             return
 
-        if self.kernel_task.pid is not None:
-            q = self.queue_manager.win32_interrupt_queue
-            if sys.platform == "win32" and q is not None:
-                LOGGER.debug("Queueing interrupt request for kernel.")
-                q.put_nowait(True)
-            else:
-                LOGGER.debug("Sending SIGINT to kernel")
-                os.kill(self.kernel_task.pid, signal.SIGINT)
+        if self.kernel_task.pid is not None and self.kernel_task.is_alive():
+            interrupt_kernel_process(
+                self.kernel_task.pid,
+                self.queue_manager.win32_interrupt_queue,
+            )
 
     def close_kernel(self, *, graceful: bool = False) -> None:
         assert self.kernel_task is not None, "kernel not started"

@@ -7,6 +7,7 @@ import {
   CurlyBracesIcon,
   HashIcon,
   type LucideIcon,
+  MapPinIcon,
   ToggleLeftIcon,
   TypeIcon,
 } from "lucide-react";
@@ -27,8 +28,19 @@ export const DATA_TYPE_ICON: Record<DataType | SelectableDataType, LucideIcon> =
     number: HashIcon,
     string: TypeIcon,
     integer: HashIcon,
+    geometry: MapPinIcon,
     unknown: CurlyBracesIcon,
   };
+
+/**
+ * A newer backend can send a data type this frontend does not know. Resolve
+ * those to `unknown` before indexing icon or color maps.
+ */
+export function resolveDataType(
+  dataType: DataType | SelectableDataType,
+): DataType | SelectableDataType {
+  return Object.hasOwn(DATA_TYPE_ICON, dataType) ? dataType : "unknown";
+}
 
 export function getDataTypeColor(
   dataType: DataType | SelectableDataType,
@@ -46,6 +58,8 @@ export function getDataTypeColor(
       return "bg-(--purple-4)";
     case "string":
       return "bg-(--blue-4)";
+    case "geometry":
+      return "bg-(--cyan-4) dark:bg-(--cyan-5)";
     case "unknown":
       return "bg-(--slate-4) dark:bg-(--slate-6)";
     default:

@@ -52,6 +52,52 @@ rules = """
 max_tokens = 1000
 ```
 
+## API keys from environment variables
+
+Some providers use a default environment variable when `api_key` is not set.
+
+| Provider | Environment variable |
+| --- | --- |
+| OpenAI | `OPENAI_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| Google AI | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
+| Azure OpenAI | `AZURE_API_KEY` |
+| GitHub | `GITHUB_TOKEN` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Weights & Biases | `WANDB_API_KEY` |
+| OpenCode Go | `OPENCODE_API_KEY` |
+
+For example, you can configure OpenAI without an `api_key` value:
+
+```bash
+export OPENAI_API_KEY="sk-proj-..."
+marimo edit notebook.py
+```
+
+You can also use a different environment variable. Set `api_key` to an
+`env:` reference:
+
+```toml title="marimo.toml"
+[ai.custom_providers.enterprise_gateway]
+api_key = "env:ENTERPRISE_AI_API_KEY"
+base_url = "https://gateway.example.com/v1"
+```
+
+The `env:` syntax works with each provider that accepts `api_key`. This
+includes custom providers. marimo returns a configuration error when the
+referenced variable is empty or absent.
+
+The `env:` prefix is reserved for environment variable references. A literal
+API key cannot start with this prefix.
+
+!!! warning "Use trusted configuration"
+    Use `env:` references only in configuration files that you trust. A provider
+    sends the resolved value to its configured endpoint.
+
+marimo first reads the environment of the server process. Then marimo reads
+the configured [`.env` files](runtime_configuration.md#env-files) in order.
+The first value takes precedence.
+
 ## Supported providers
 
 <div align="center">

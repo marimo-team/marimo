@@ -334,12 +334,10 @@ const PromptArea = memo<PromptAreaProps>(
       // sentence has to begin with '/' to trigger autocomplete
       return {
         triggerCompletionRegex: /^\/(\w+)?/,
-        completions: commands.map(
-          (prompt): Completion => ({
-            label: `/${prompt.name}`,
-            info: prompt.description,
-          }),
-        ),
+        completions: commands.map((prompt): Completion => ({
+          label: `/${prompt.name}`,
+          info: prompt.description,
+        })),
       };
     }, [commands]);
 

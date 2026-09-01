@@ -53,6 +53,13 @@ def test_get_chart_builder():
         )
 
 
+def test_geometry_uses_unknown_chart_builder() -> None:
+    geometry_code = get_chart_builder("geometry").altair_code("df", "geometry")
+    unknown_code = get_chart_builder("unknown").altair_code("df", "geometry")
+
+    assert geometry_code == unknown_code
+
+
 def validate_and_return_codes(simple: bool) -> list[str]:
     outputs: list[str] = []
 

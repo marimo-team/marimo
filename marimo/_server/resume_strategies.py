@@ -17,7 +17,13 @@ from marimo._types.ids import SessionId
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from marimo._server.workspace import MarimoFileKey
+
+    # Resolves a file key to a canonical absolute path, or None when the key
+    # has no backing file (untitled notebooks) or cannot be resolved.
+    FileKeyResolver = Callable[[MarimoFileKey], str | None]
 
 
 class SessionResumeStrategy(Protocol):
@@ -47,8 +53,13 @@ class EditModeResumeStrategy(SessionResumeStrategy):
     Only one session per file is allowed in edit mode.
     """
 
-    def __init__(self, repository: SessionRepository) -> None:
+    def __init__(
+        self,
+        repository: SessionRepository,
+        resolve_file_key: FileKeyResolver,
+    ) -> None:
         self._repository = repository
+        self._resolve_file_key = resolve_file_key
 
     def try_resume(
         self,
@@ -56,15 +67,15 @@ class EditModeResumeStrategy(SessionResumeStrategy):
         file_key: MarimoFileKey,
     ) -> Session | None:
         """Try to resume an orphaned session for the same file."""
-        import os
-
-        # Find sessions with the same file
+        # Find sessions with the same file. File keys can be
+        # workspace-relative, so match through the workspace resolver rather
+        # than a CWD-dependent abspath.
         sessions_with_file = []
-        for session in self._repository.get_all():
+        for session in self._repository.get_all_by_file_key(
+            file_key, resolved_path=self._resolve_file_key(file_key)
+        ):
             session_id = self._repository.get_session_id(session)
-            if session_id and session.app_file_manager.path == os.path.abspath(
-                file_key
-            ):
+            if session_id:
                 sessions_with_file.append((session_id, session))
 
         if len(sessions_with_file) == 0:
@@ -124,18 +135,21 @@ class RunModeResumeStrategy(SessionResumeStrategy):
 
 
 def create_resume_strategy(
-    mode: SessionMode, repository: SessionRepository
+    mode: SessionMode,
+    repository: SessionRepository,
+    resolve_file_key: FileKeyResolver,
 ) -> SessionResumeStrategy:
     """Factory function to create the appropriate resume strategy.
 
     Args:
         mode: The session mode
         repository: The session repository
+        resolve_file_key: Resolves a file key to a canonical absolute path
 
     Returns:
         The appropriate resume strategy for the mode
     """
     if mode == SessionMode.EDIT:
-        return EditModeResumeStrategy(repository)
+        return EditModeResumeStrategy(repository, resolve_file_key)
     else:
         return RunModeResumeStrategy(repository)

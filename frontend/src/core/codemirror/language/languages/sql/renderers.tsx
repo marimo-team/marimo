@@ -13,7 +13,7 @@ import {
   TableIcon,
   ViewIcon,
 } from "@/components/databases/namespace-icons";
-import { DATA_TYPE_ICON } from "@/components/datasets/icons";
+import { DATA_TYPE_ICON, resolveDataType } from "@/components/datasets/icons";
 import { Badge } from "@/components/ui/badge";
 import {
   type ConnectionName,
@@ -41,6 +41,7 @@ const DATA_TYPE_COLORS: Record<DataType, string> = {
   number: "bg-(--purple-4) text-(--purple-11)",
   integer: "bg-(--purple-4) text-(--purple-11)",
   string: "bg-(--blue-4) text-(--blue-11)",
+  geometry: "bg-(--cyan-4) text-(--cyan-11)",
   unknown: "bg-(--slate-4) text-(--slate-11)",
 };
 
@@ -149,7 +150,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
   );
 
   const columnItems = table.columns.map((column) => {
-    const TypeIcon = DATA_TYPE_ICON[column.type];
+    const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
     return (
       <div
         key={column.name}
@@ -288,7 +289,7 @@ export const renderTableInfo = (table: DataTable): React.ReactNode => {
 };
 
 export const renderColumnInfo = (column: DataTableColumn): React.ReactNode => {
-  const TypeIcon = DATA_TYPE_ICON[column.type];
+  const TypeIcon = DATA_TYPE_ICON[resolveDataType(column.type)];
 
   const typeBadge = (
     <Badge

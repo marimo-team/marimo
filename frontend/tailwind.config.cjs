@@ -44,6 +44,10 @@ module.exports = {
         destructive: {
           DEFAULT:
             "color-mix(in srgb, var(--destructive), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--destructive-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--destructive-border), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--destructive-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
@@ -52,6 +56,16 @@ module.exports = {
             "color-mix(in srgb, var(--error), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--error-foreground), transparent calc((1 - <alpha-value>) * 100%))",
+        },
+        success: {
+          DEFAULT:
+            "color-mix(in srgb, var(--success), transparent calc((1 - <alpha-value>) * 100%))",
+          hover:
+            "color-mix(in srgb, var(--success-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--success-border), transparent calc((1 - <alpha-value>) * 100%))",
+          foreground:
+            "color-mix(in srgb, var(--success-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },
         stale: "var(--stale)",
         muted: {
@@ -71,6 +85,8 @@ module.exports = {
             "color-mix(in srgb, var(--action), transparent calc((1 - <alpha-value>) * 100%))",
           hover:
             "color-mix(in srgb, var(--action-hover), transparent calc((1 - <alpha-value>) * 100%))",
+          border:
+            "color-mix(in srgb, var(--action-border), transparent calc((1 - <alpha-value>) * 100%))",
           foreground:
             "color-mix(in srgb, var(--action-foreground), transparent calc((1 - <alpha-value>) * 100%))",
         },

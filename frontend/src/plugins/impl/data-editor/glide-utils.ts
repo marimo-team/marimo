@@ -43,6 +43,7 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
       return GridColumnIcon.HeaderDate;
     case "time":
       return GridColumnIcon.HeaderTime;
+    case "geometry":
     case "unknown":
       return GridColumnIcon.HeaderString;
     default:

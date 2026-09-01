@@ -8,6 +8,7 @@ import pytest
 from inline_snapshot import snapshot
 
 from marimo._output.md import _md, latex
+from tests.mocks import normalize_html_entities
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -37,7 +38,10 @@ def test_md_code_blocks() -> None:
     # Test code block conversion
     code_input = "```python\nprint('Hello, world!')\n```"
     expected_output = '<div class="language-python codehilite"><pre><span></span><code><span class="nb">print</span><span class="p">(</span><span class="s1">&#39;Hello, world!&#39;</span><span class="p">)</span>\n</code></pre></div>'
-    assert _md(code_input, apply_markdown_class=False).text == expected_output
+    result = _md(code_input, apply_markdown_class=False).text
+    assert normalize_html_entities(result) == normalize_html_entities(
+        expected_output
+    )
 
 
 def test_md_latex() -> None:

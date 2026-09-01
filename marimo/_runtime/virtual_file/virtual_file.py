@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import base64
 import dataclasses
-import mimetypes
 import random
 import string
 import threading
@@ -22,6 +21,7 @@ from marimo._runtime.virtual_file.storage import (
 )
 from marimo._utils.data_uri import build_data_url
 from marimo._utils.http import HTTPException, HTTPStatus
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -68,7 +68,7 @@ class VirtualFile:
         if not as_data_url:
             self.url = url or f"./@file/{len(buffer)}-{filename}"
         else:
-            mimetype = mimetypes.guess_type(self.filename)[0] or "text/plain"
+            mimetype = guess_mime_type(self.filename) or "text/plain"
             self.url = url or build_data_url(
                 mimetype=cast(KnownMimeType, mimetype),
                 data=base64.b64encode(buffer),

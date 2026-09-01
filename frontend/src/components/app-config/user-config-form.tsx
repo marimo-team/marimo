@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
-import { merge } from "lodash-es";
 import {
   AlertTriangleIcon,
   BrainIcon,
@@ -35,7 +34,7 @@ import { NumberField } from "@/components/ui/number-field";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KEYMAP_PRESETS } from "@/core/codemirror/keymaps/keymaps";
 import { capabilitiesAtom } from "@/core/config/capabilities";
-import { useUserConfig } from "@/core/config/config";
+import { mergeConfig, useUserConfig } from "@/core/config/config";
 import {
   PackageManagerNames,
   type UserConfig,
@@ -203,7 +202,7 @@ export const UserConfigForm: React.FC = () => {
     await saveUserConfig({ config: dirtyValues });
     // Only apply the changed keys; this avoids stale request responses
     // overwriting newer config changes.
-    setConfig((prev) => merge({}, prev, dirtyValues));
+    setConfig((prev) => mergeConfig(prev, dirtyValues));
   };
   const onSubmit = useDebouncedCallback(onSubmitNotDebounced, FORM_DEBOUNCE);
 
@@ -981,6 +980,32 @@ export const UserConfigForm: React.FC = () => {
                     <FormDescription>
                       Visually emphasizes variables in a cell that are defined
                       elsewhere in the notebook.
+                    </FormDescription>
+                  </div>
+                )}
+              />
+              <OverriddenFormField
+                control={form.control}
+                name="display.code_lens"
+                render={({ field, override }) => (
+                  <div className="flex flex-col space-y-1">
+                    <FormItem className={formItemClasses}>
+                      <FormLabel>Code lens</FormLabel>
+                      <FormControl>
+                        <Checkbox
+                          data-testid="code-lens-checkbox"
+                          checked={override.value}
+                          disabled={override.isOverridden}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                      <IsOverridden override={override} />
+                    </FormItem>
+
+                    <FormDescription>
+                      Shows inline icons in cell editors for datasources and
+                      storage buckets.
                     </FormDescription>
                   </div>
                 )}

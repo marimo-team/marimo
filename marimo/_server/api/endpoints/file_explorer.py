@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import mimetypes
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -43,11 +42,33 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException as MarimoHTTPException
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from starlette.requests import Request
 
 LOGGER = _loggers.marimo_logger()
+
+# Design note on scope and path handling (please read).
+#
+# Every endpoint below is gated by `@requires("edit")`, so it is reachable only
+# in edit mode, not by a run-mode viewer (`read` scope). Edit-mode marimo is
+# equivalent to a standard IDE, which allows file traversal and arbitrary file
+# read/write. Moreover, edit-mode marimo is, by design, equivalent to
+# arbitrary code execution. As such, there is no privilege escalation or
+# unexpected file read/write vulnerability in these endpoints.
+#
+# See marimo's security model and disclosure policy in docs/security.md
+# (https://docs.marimo.io/security/) before drafting an advisory for this file.
+#
+# A brief checklist if you are considering disclosing a vulnerability:
+#   - Is unexpected or unintended code execution possible?
+#   - Are unauthenticated users allowed unintended environment details?
+#   - Are unauthenticated users allowed unintended file system access?
+#   - Are unauthenticated users allowed unintended arbitrary code execution?
+#
+# The marimo team takes security seriously, and we welcome responsible
+# disclosure of any vulnerabilities. We are happy to discuss any reports.
 
 # Router for file system endpoints
 router = APIRouter()
@@ -77,7 +98,9 @@ async def list_files(
     """
     app_state = AppState(request)
     body = await parse_request(request, cls=FileListRequest)
-    # Use workspace's directory as default, fall back to cwd
+    # Use workspace's directory as default, fall back to cwd.
+    # NB. This isn't a security boundary; the workspace is just the initial view
+    # for the browser.
     directory = app_state.session_manager.workspace.directory
     root = body.path or directory or file_system.get_root()
     files = file_system.list_files(root)
@@ -166,9 +189,7 @@ def download_file(
     if not file_path.is_file():
         raise MarimoHTTPException(status_code=404, detail="File not found")
 
-    media_type = (
-        mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    )
+    media_type = guess_mime_type(file_path.name) or "application/octet-stream"
     return FileResponse(
         file_path,
         media_type=media_type,

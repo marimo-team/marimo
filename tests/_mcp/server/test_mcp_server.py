@@ -1,6 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
+from unittest.mock import MagicMock
+
 import pytest
 
+from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._mcp.server.lifespan import mcp_server_lifespan
 
 pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
@@ -42,6 +46,90 @@ def test_mcp_server_starts_up():
 
     # Verify /mcp route exists
     assert any("/mcp" in str(route.path) for route in app.routes)
+
+
+def test_mcp_server_requires_supported_mcp_version(monkeypatch):
+    has_required_version = MagicMock(return_value=False)
+    has_mcp = MagicMock(return_value=True)
+    get_version = MagicMock(return_value="1.9.0")
+    monkeypatch.setattr(
+        DependencyManager.mcp,
+        "has_required_version",
+        has_required_version,
+    )
+    monkeypatch.setattr(DependencyManager.mcp, "has", has_mcp)
+    monkeypatch.setattr(DependencyManager.mcp, "get_version", get_version)
+
+    with pytest.raises(
+        MarimoCLIMissingDependencyError,
+        match="MCP SDK 1.9.0 is not supported",
+    ):
+        setup_mcp_server(Starlette())
+
+    has_required_version.assert_called_once_with(quiet=True)
+    has_mcp.assert_called_once_with(quiet=True)
+    get_version.assert_called_once_with()
+
+
+def test_mcp_server_requires_mcp_dependency(monkeypatch):
+    has_required_version = MagicMock(return_value=False)
+    has_mcp = MagicMock(return_value=False)
+    monkeypatch.setattr(
+        DependencyManager.mcp,
+        "has_required_version",
+        has_required_version,
+    )
+    monkeypatch.setattr(DependencyManager.mcp, "has", has_mcp)
+
+    with pytest.raises(
+        MarimoCLIMissingDependencyError,
+        match="MCP dependencies not available",
+    ):
+        setup_mcp_server(Starlette())
+
+    has_required_version.assert_called_once_with(quiet=True)
+    has_mcp.assert_called_once_with(quiet=True)
+
+
+async def test_mcp_server_supports_modern_protocol():
+    """The v2 server should negotiate the modern protocol directly."""
+    from mcp import Client
+
+    app = create_test_app()
+    async with Client(app.state.mcp) as client:
+        tools = await client.list_tools()
+        prompts = await client.list_prompts()
+
+        assert client.protocol_version == "2026-07-28"
+        assert tools.tools
+        assert {prompt.name for prompt in prompts.prompts} == {
+            "active_notebooks",
+            "errors_summary",
+        }
+
+
+async def test_mcp_server_supports_streamable_http():
+    import httpx2
+    from mcp import Client
+    from mcp.client.streamable_http import streamable_http_client
+
+    app = create_test_app()
+    http_transport = httpx2.ASGITransport(app=app)
+    async with mcp_server_lifespan(app):
+        async with httpx2.AsyncClient(
+            transport=http_transport,
+            base_url="http://localhost:8000",
+            follow_redirects=True,
+        ) as http_client:
+            transport = streamable_http_client(
+                "http://localhost:8000/mcp/server",
+                http_client=http_client,
+            )
+            async with Client(transport, mode="2026-07-28") as client:
+                tools = await client.list_tools()
+
+                assert client.protocol_version == "2026-07-28"
+                assert tools.tools
 
 
 async def test_mcp_server_requires_edit_scope():

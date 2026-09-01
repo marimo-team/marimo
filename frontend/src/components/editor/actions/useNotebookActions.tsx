@@ -73,6 +73,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
+import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { copyToClipboard } from "@/utils/copy";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
@@ -81,6 +82,7 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { isPanelHidden, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
+import { useAddDetectedDataSource } from "../connections/components";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
@@ -135,6 +137,9 @@ export function useNotebookActions({
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const setExportOptions = useSetAtom(exportOptionsAtom);
   const { readCode, saveCellConfig } = useRequestClient();
+  const detectedDatabaseSources = useDetectedDataSources("database");
+  const detectedStorageSources = useDetectedDataSources("storage");
+  const addDetectedDataSource = useAddDetectedDataSource();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
@@ -190,6 +195,7 @@ export function useNotebookActions({
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
       label: "Download",
+      redundant: true,
       handle: NOOP_HANDLER,
       dropdown: [
         {
@@ -455,6 +461,27 @@ export function useNotebookActions({
       handle: () => {
         openModal(<AddConnectionDialogContent onClose={closeModal} />);
       },
+      dropdown:
+        detectedDatabaseSources.length === 0
+          ? undefined
+          : [
+              ...detectedDatabaseSources.map((source) => ({
+                icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+                label: `Add ${source.displayName}`,
+                description: "Detected in your environment",
+                handle: () => addDetectedDataSource(source),
+              })),
+              {
+                divider: true,
+                icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
+                label: "Browse all connections",
+                handle: () => {
+                  openModal(
+                    <AddConnectionDialogContent onClose={closeModal} />,
+                  );
+                },
+              },
+            ],
     },
     {
       icon: <HardDrive size={14} strokeWidth={1.5} />,
@@ -467,6 +494,30 @@ export function useNotebookActions({
           />,
         );
       },
+      dropdown:
+        detectedStorageSources.length === 0
+          ? undefined
+          : [
+              ...detectedStorageSources.map((source) => ({
+                icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+                label: `Add ${source.displayName}`,
+                description: "Detected in your environment",
+                handle: () => addDetectedDataSource(source),
+              })),
+              {
+                divider: true,
+                icon: <HardDrive size={14} strokeWidth={1.5} />,
+                label: "Browse all connections",
+                handle: () => {
+                  openModal(
+                    <AddConnectionDialogContent
+                      defaultTab="storage"
+                      onClose={closeModal}
+                    />,
+                  );
+                },
+              },
+            ],
     },
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,

@@ -53,14 +53,14 @@ jobs:
       - name: 📥 Install repo
         uses: ./.github/actions/install
 
-      - name: 🔄 Sync models (5 newest per provider)
-        run: pnpm --dir packages/llm-info sync-models -n 5
-
       - name: 🛠️ Generate llm-info data
         run: pnpm --dir packages/llm-info codegen
 
       - name: 🧪 Test llm-info
         run: pnpm --dir packages/llm-info test
+
+      - name: 🔄 Sync models (5 newest per provider)
+        run: pnpm --dir packages/llm-info sync-models -n 5
 
       - name: 🔎 Check for model catalog changes
         id: changes
@@ -77,7 +77,7 @@ jobs:
         id: existing_pr
         if: steps.changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           number="$(gh pr list --state open --head "$BRANCH_NAME" --json number --jq '.[0].number // ""')"
           echo "number=$number" >> "$GITHUB_OUTPUT"
@@ -102,7 +102,7 @@ jobs:
       - name: 📝 Create update PR
         if: steps.changes.outputs.has_changes == 'true' && steps.existing_pr.outputs.number == ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           gh pr create \
             --draft \
@@ -116,6 +116,12 @@ jobs:
           ## Summary
           - Syncs `packages/llm-info/data/models.yml` from `models.dev`.
           - Runs llm-info code generation and tests.
+
+          ## Human review required
+          - Replace every empty model description with clear, user-facing prose.
+          - Review related models for descriptions that became outdated after this sync.
+          - Prefer concrete capabilities and intended uses.
+          - Remove redundant aliases and models that do not belong in marimo's catalog.
 
           ## Test plan
           - `pnpm --dir packages/llm-info test`

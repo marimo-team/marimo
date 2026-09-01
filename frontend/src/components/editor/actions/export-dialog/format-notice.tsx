@@ -1,9 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { AlertCircleIcon } from "lucide-react";
+import { AlertCircleIcon, DownloadCloudIcon } from "lucide-react";
 import type { PropsWithChildren } from "react";
 import { Spinner } from "@/components/icons/spinner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { assertNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
 import type {
@@ -56,10 +57,14 @@ export function FormatNotice({
   format,
   formatLabel,
   status,
+  onInstall,
+  isInstalling = false,
 }: {
   format: ExportFormat;
   formatLabel: string;
   status: ExportFormatStatus;
+  onInstall?: () => void;
+  isInstalling?: boolean;
 }) {
   if (status.availabilityCheckFailed) {
     return (
@@ -80,20 +85,47 @@ export function FormatNotice({
         format={format}
         formatLabel={formatLabel}
         reason={status.reason}
+        onInstall={onInstall}
+        isInstalling={isInstalling}
       />
     </div>
   );
 }
 
-function Notice({ children }: PropsWithChildren) {
+function Notice({
+  children,
+  onInstall,
+  isInstalling = false,
+}: PropsWithChildren<{
+  onInstall?: () => void;
+  isInstalling?: boolean;
+}>) {
   return (
     <Alert
       variant="warning"
-      className="flex items-start gap-2.5 p-3 text-(--yellow-12) has-[svg]:pl-3 sm:items-center [&>svg]:static [&>svg+div]:translate-y-0"
+      className="flex items-center gap-2.5 px-3 py-2 text-(--yellow-12) has-[svg]:pl-3 [&>svg]:static [&>svg+div]:translate-y-0"
     >
-      <AlertCircleIcon className="mt-0.5 size-4 shrink-0 sm:mt-0" />
-      <AlertDescription className="min-w-0 flex-1 text-sm leading-5">
-        {children}
+      <AlertCircleIcon className="size-4 shrink-0" />
+      <AlertDescription className="flex min-w-0 flex-1 items-center gap-3 text-sm leading-5">
+        <span className="min-w-0 flex-1">{children}</span>
+        {onInstall ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="shrink-0 border-input bg-background text-foreground hover:border-input hover:bg-muted hover:text-foreground"
+            disabled={isInstalling}
+            aria-busy={isInstalling}
+            onClick={onInstall}
+          >
+            {isInstalling ? (
+              <Spinner size="small" className="mr-1.5 size-3.5" />
+            ) : (
+              <DownloadCloudIcon className="mr-1.5 size-3.5" />
+            )}
+            Install
+          </Button>
+        ) : null}
       </AlertDescription>
     </Alert>
   );
@@ -103,10 +135,14 @@ function ReasonNotice({
   format,
   formatLabel,
   reason,
+  onInstall,
+  isInstalling,
 }: {
   format: ExportFormat;
   formatLabel: string;
   reason: ExportBlockReason;
+  onInstall?: () => void;
+  isInstalling: boolean;
 }) {
   switch (reason.type) {
     case "checking-requirements":
@@ -126,30 +162,39 @@ function ReasonNotice({
       return <Notice>Name and save this notebook before exporting.</Notice>;
     case "missing-packages":
       return (
-        <Notice>
-          Install{" "}
+        <Notice onInstall={onInstall} isInstalling={isInstalling}>
+          {formatLabel} export requires{" "}
           <code className="break-words font-mono">
             {reason.packages.join(", ")}
-          </code>{" "}
-          where marimo is running to use this export.
+          </code>
+          .
         </Notice>
       );
     case "missing-setup":
       return (
-        <Notice>
-          <span className="block min-w-0">
-            {reason.requirements.map((requirement) => {
-              const details = SETUP_REQUIREMENTS[requirement.name];
-              return (
-                <span className="block" key={requirement.name}>
-                  {details.description}
-                  <code className="mt-1 block break-all font-mono">
-                    {requirement.command}
-                  </code>
-                </span>
-              );
-            })}
-          </span>
+        <Notice onInstall={onInstall} isInstalling={isInstalling}>
+          {onInstall ? (
+            reason.requirements
+              .map(
+                (requirement) =>
+                  SETUP_REQUIREMENTS[requirement.name].description,
+              )
+              .join(" ")
+          ) : (
+            <span className="block min-w-0">
+              {reason.requirements.map((requirement) => {
+                const details = SETUP_REQUIREMENTS[requirement.name];
+                return (
+                  <span className="block" key={requirement.name}>
+                    {details.description}
+                    <code className="mt-1 block break-all font-mono">
+                      {requirement.command}
+                    </code>
+                  </span>
+                );
+              })}
+            </span>
+          )}
         </Notice>
       );
     case "wasm-runtime":

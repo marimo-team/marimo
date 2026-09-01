@@ -245,6 +245,7 @@ class DependencyManager:
     ruff = Dependency("ruff")
     black = Dependency("black")
     geopandas = Dependency("geopandas")
+    shapely = Dependency("shapely")
     pint = Dependency("pint")
     opentelemetry = Dependency("opentelemetry")
     anthropic = Dependency("anthropic")
@@ -269,7 +270,7 @@ class DependencyManager:
 
     redshift_connector = Dependency("redshift_connector")
     starrocks = Dependency("starrocks")
-    mcp = Dependency("mcp")
+    mcp = Dependency("mcp", min_version="2.0.0", max_version="3.0.0")
     pydantic_ai = Dependency(
         "pydantic_ai", pkg_name_to_install="pydantic-ai-slim"
     )
@@ -286,10 +287,6 @@ class DependencyManager:
     huggingface_hub = Dependency("huggingface_hub")
     cloudpathlib = Dependency("cloudpathlib")
     cryptography = Dependency("cryptography")
-
-    # Version requirements to properly support the new superfences introduced in
-    # pymdown#2470
-    new_superfences = Dependency("pymdownx", min_version="10.11.0")
 
     @staticmethod
     def has(pkg: str) -> bool:

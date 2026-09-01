@@ -24,39 +24,55 @@ const CREDENTIAL_CHECKERS: Record<KnownProviderId, CredentialChecker> = {
   "opencode-go": (ai) => Boolean(ai?.opencode_go?.api_key),
   bedrock: (ai) => Boolean(ai?.bedrock?.region_name),
   ollama: (ai) => Boolean(ai?.ollama?.base_url),
-  // These providers don't have user-configurable credentials in the UI
+  // No user-configurable credentials in the UI.
   deepseek: () => false,
-  marimo: () => false,
+  // Hosted marimo models (marimo.app / molab) route through open_ai_compatible.
+  marimo: (ai) => Boolean(ai?.open_ai_compatible?.base_url),
 };
 
 /**
- * Returns the first configured provider based on credentials.
+ * Known providers with credentials, then custom providers with a base URL.
  */
-export function getConfiguredProvider(
-  config: UserConfig["ai"],
-): ProviderId | undefined {
-  for (const provider of KNOWN_PROVIDERS) {
-    if (CREDENTIAL_CHECKERS[provider](config)) {
-      return provider;
-    }
-  }
+export function listConfiguredProviders(
+  ai: AiConfig | undefined,
+): ProviderId[] {
+  const knownProviders = KNOWN_PROVIDERS.filter((provider) =>
+    CREDENTIAL_CHECKERS[provider](ai),
+  );
+  const customProviders = Object.entries(ai?.custom_providers ?? {})
+    .filter(([, providerConfig]) => Boolean(providerConfig?.base_url))
+    .map(([name]) => name);
+  return [...knownProviders, ...customProviders];
+}
 
-  // Check custom providers
-  const customProviders = config?.custom_providers;
-  if (customProviders) {
-    const firstCustomProvider = Object.entries(customProviders).find(
-      ([_, providerConfig]) => providerConfig?.base_url,
-    );
-    if (firstCustomProvider) {
-      return firstCustomProvider[0];
-    }
+/**
+ * Keep provider groups whose provider has credentials configured.
+ */
+export function filterToConfiguredProviders<T>(
+  entries: readonly [ProviderId, T][],
+  ai: AiConfig | undefined,
+): [ProviderId, T][] {
+  const configured = new Set<string>(listConfiguredProviders(ai));
+  return entries.filter(([provider]) => configured.has(provider));
+}
+
+/**
+ * When provider setup is locked, only show models for configured providers.
+ */
+export function listModelsForAiSettings<T>(
+  entries: readonly [ProviderId, T][],
+  ai: AiConfig | undefined,
+): [ProviderId, T][] {
+  if (ai?.allow_provider_config !== false) {
+    return [...entries];
   }
+  return filterToConfiguredProviders(entries, ai);
 }
 
 export function getRecommendedModel(
   config: UserConfig["ai"],
 ): string | undefined {
-  const provider = getConfiguredProvider(config);
+  const provider = listConfiguredProviders(config)[0];
   if (!provider) {
     return undefined;
   }

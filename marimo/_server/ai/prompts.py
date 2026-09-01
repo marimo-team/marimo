@@ -121,14 +121,11 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt = (
             "You are an AI assistant integrated into the marimo notebook code editor.\n"
             "Your goal is to create new cells in the notebook.\n"
-            "You can create multiple cells with different languages. Each cell should be wrapped in backticks.\n"
+            "You can create multiple cells with different languages.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
-            "```python\n{PYTHON_CODE}\n```\n\n"
-            '```sql\ndf_name = mo.sql(f"""{SQL_QUERY}""")\n```\n\n'
-            '```markdown\nmo.md(f"""{MARKDOWN_CONTENT}""")\n```\n\n'
-            "You can have multiple cells of any type. Each cell is wrapped in backticks with the appropriate language identifier.\n"
+            "Each cell's `code` value must contain only raw cell code, without Markdown fences or commentary.\n"
+            "For SQL cells, the code should be a complete mo.sql expression. For markdown cells, the code should be a complete mo.md expression.\n"
             "Create clear variable names if they will be used in other cells. Do not prefix with underscore.\n"
             "Separate logic into multiple cells to keep the code organized and readable."
         )
@@ -139,8 +136,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
             f"Your output must be valid {language} code.\n"
             "The user may reference additional context in the form @kind://name. You can use this context to help you with the current task.\n"
             "You can reference variables from other cells, but you cannot redefine a variable if it already exists.\n"
-            "Immediately start with the following format. Do NOT comment on the code, just output the code itself: \n\n"
-            "```\n{CELL_CODE}\n```"
+            "The `code` value must contain only raw cell code, without Markdown fences or commentary."
         )
 
     # When we are modifying or inserting into an existing cell, we need to
@@ -167,8 +163,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "<insert_here></insert_here> tags. Don't include the insert_here tags in your output.\n"
                 "Match the indentation in the original file in the inserted content, "
                 "don't include any indentation on blank lines.\n"
-                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
-                "```\n{INSERTED_CODE}\n```"
+                "The `code` value must contain only the code to insert, without Markdown fences or commentary."
             )
         else:
             system_prompt += (
@@ -177,8 +172,7 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
                 "Start at the indentation level in the original file in the rewritten content. "
                 "Don't stop until you've rewritten the entire section, even if you have no more changes to make, "
                 "always write out the whole section with no unnecessary elisions.\n"
-                "Immediately start with the following format. Do NOT comment on the code, just output the code itself:\n\n"
-                "```\n{REWRITTEN_CODE}\n```"
+                "The `code` value must contain the complete rewritten section, without Markdown fences, commentary, or elisions."
             )
 
     if selected_text:
@@ -210,11 +204,6 @@ def get_refactor_or_insert_notebook_cell_system_prompt(
         system_prompt += "\n\n" + _tag(
             "code_from_other_cells", other_cell_codes
         )
-
-    if support_multiple_cells:
-        system_prompt += "\n\nAgain, just output code wrapped in cells. Each cell is wrapped in backticks with the appropriate language identifier (python, sql, markdown)."
-    else:
-        system_prompt += f"\n\nAgain, just output the code itself and make sure to return the code as just {language}."
 
     return system_prompt
 
@@ -287,12 +276,10 @@ def _get_session_info(session_id: SessionId) -> str:
 def _single_cell_language_rules() -> str:
     """Per-language rules for chat modes that emit one cell at a time."""
     out = ""
-    for language in language_rules:
-        if not language_rules[language]:
+    for language, rules in language_rules.items():
+        if not rules:
             continue
-        out += (
-            f"\n\n## Rules for {language}:\n{_rules(language_rules[language])}"
-        )
+        out += f"\n\n## Rules for {language}:\n{_rules(rules)}"
     return out
 
 

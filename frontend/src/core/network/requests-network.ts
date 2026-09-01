@@ -4,6 +4,10 @@ import { once } from "@/utils/once";
 import { getRuntimeManager } from "../runtime/config";
 import { API, createClientWithRuntimeManager } from "./api";
 import {
+  getDefaultExportFilename,
+  getDefaultMarkdownExportFilename,
+} from "./export-filename";
+import {
   waitForConnectionOpen,
   waitForConnectionOpenIfNotebook,
 } from "./connection";
@@ -413,6 +417,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     getExportAvailability: () => {
       return getClient().GET("/api/export/availability").then(handleResponse);
     },
+    installExportRequirements: (request) => {
+      return getClient()
+        .POST("/api/export/requirements/install", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponse);
+    },
     exportAsHTML: async (request) => {
       if (
         process.env.NODE_ENV === "development" ||
@@ -426,7 +438,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleExportResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("html"),
+          }),
+        );
     },
     exportAsMarkdown: async (request) => {
       return getClient()
@@ -435,7 +451,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleExportResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultMarkdownExportFilename(request.flavor),
+          }),
+        );
     },
     exportAsScript: async (request) => {
       return getClient()
@@ -444,7 +464,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleExportResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("script.py"),
+          }),
+        );
     },
     exportAsIPYNB: async (request) => {
       return getClient()
@@ -453,7 +477,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "text",
           params: getParams(),
         })
-        .then(handleExportResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("ipynb"),
+          }),
+        );
     },
     exportAsPDF: async (request) => {
       return getClient()
@@ -462,7 +490,11 @@ export function createNetworkRequests(): EditRequests & RunRequests {
           parseAs: "blob",
           params: getParams(),
         })
-        .then(handleExportResponse);
+        .then((response) =>
+          handleExportResponse(response, {
+            defaultFilename: getDefaultExportFilename("pdf"),
+          }),
+        );
     },
     autoExportAsHTML: async (request) => {
       return getClient()

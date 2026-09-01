@@ -6,6 +6,7 @@ from marimo._data.data_source_discovery.helpers import (
     environment_variable,
     has_all,
     has_value,
+    hides_when_dialect,
     is_valid_port,
 )
 from marimo._data.data_source_discovery.models import DetectedDataSource
@@ -70,6 +71,7 @@ def discover(context: DiscoveryContext) -> list[DetectedDataSource]:
             origins=(ENVIRONMENT_ORIGIN,),
             configuration=tuple(configuration),
             code=code,
+            hides_when=hides_when_dialect("postgres"),
         )
     ]
 

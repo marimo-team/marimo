@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 import {
   configOverridesAtom,
   connectionTransportTypeAtom,
+  mergeConfig,
   resolvedMarimoConfigAtom,
   userConfigAtom,
 } from "../config";
@@ -46,6 +47,7 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
@@ -66,6 +68,7 @@ test("default UserConfig - empty", () => {
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
+        "code_lens": true,
         "dataframes": "rich",
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
@@ -119,6 +122,7 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
@@ -139,6 +143,7 @@ test("default UserConfig - one level", () => {
       "display": {
         "cell_output": "below",
         "code_editor_font_size": 14,
+        "code_lens": true,
         "dataframes": "rich",
         "default_table_max_columns": 50,
         "default_table_page_size": 10,
@@ -312,4 +317,32 @@ test("connectionTransportTypeAtom reads server.transport", () => {
     server: { ...config.server, transport: "sse" },
   });
   expect(store.get(connectionTransportTypeAtom)).toBe("sse");
+});
+
+test("mergeConfig replaces arrays instead of merging by index", () => {
+  const prev = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a", "wandb/b", "wandb/c"],
+        custom_models: ["wandb/custom"],
+      },
+    },
+  };
+  const patch = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  };
+
+  expect(mergeConfig(prev, patch)).toEqual({
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  });
 });

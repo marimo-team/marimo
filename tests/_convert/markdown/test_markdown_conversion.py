@@ -463,6 +463,33 @@ def test_no_frontmatter() -> None:
     assert len(ids) == 3
 
 
+def test_legacy_code_fences_still_parse() -> None:
+    """The legacy `{.python.marimo}` fence form is read, though not emitted."""
+    script = dedent(
+        remove_empty_lines(
+            """
+    # My Notebook
+
+    ```{.python.marimo}
+    print("Hello, World!")
+    ```
+
+    ```{.sql.marimo query="df"}
+    SELECT 1
+    ```
+    """
+        )
+    )
+    notebook_ir = convert_from_md_to_marimo_ir(script)
+    app = InternalApp(load_notebook_ir(notebook_ir))
+    codes = [
+        app.cell_manager.cell_data_at(cell_id).code
+        for cell_id in app.cell_manager.cell_ids()
+    ]
+    assert 'print("Hello, World!")' in codes
+    assert any("SELECT 1" in code for code in codes)
+
+
 def test_plain_markdown_flagged_non_marimo() -> None:
     """Plain markdown parses as valid but carries a non-marimo violation."""
     from marimo._ast.parse import is_non_marimo_markdown

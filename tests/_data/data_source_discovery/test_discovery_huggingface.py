@@ -46,6 +46,11 @@ def test_discovers_hf_token() -> None:
 from huggingface_hub import HfApi
 
 hf = HfApi()""",
+                "hidesWhen": {
+                    "kind": "storage",
+                    "protocols": ["hf"],
+                    "backendTypes": ["huggingface"],
+                },
             }
         ]
     )

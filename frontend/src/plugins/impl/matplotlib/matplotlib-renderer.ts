@@ -281,6 +281,8 @@ export class MatplotlibRenderer {
   #image: HTMLImageElement | null = null;
   #imageGeneration = 0;
   #currentChartBase64 = "";
+  /** The devicePixelRatio the canvas buffer was last sized with. */
+  #backingDpr = 1;
 
   constructor(
     container: HTMLDivElement,
@@ -317,8 +319,12 @@ export class MatplotlibRenderer {
     });
 
     // Watch for devicePixelRatio changes (e.g. browser zoom, moving between
-    // displays). matchMedia fires exactly once per DPR transition.
+    // displays). matchMedia fires exactly once per DPR transition, but Safari
+    // doesn't re-evaluate the query on zoom — it only fires resize (#10625).
     this.#watchDevicePixelRatio(options.signal);
+    window.addEventListener("resize", this.#syncForDevicePixelRatio, {
+      signal: options.signal,
+    });
 
     // Clean up on abort
     options.signal.addEventListener("abort", () => {
@@ -334,6 +340,7 @@ export class MatplotlibRenderer {
   /** Set the canvas buffer + CSS size to match current logical size and DPR. */
   #syncCanvasSize(canvas: HTMLCanvasElement = this.#canvas): void {
     const dpr = globalThis.devicePixelRatio ?? 1;
+    this.#backingDpr = dpr;
     const { width, height } = this.#state;
     canvas.width = width * dpr;
     canvas.height = height * dpr;
@@ -342,6 +349,33 @@ export class MatplotlibRenderer {
     canvas.style.height = "auto";
     canvas.style.aspectRatio = `${width} / ${height}`;
   }
+
+  /**
+   * Scale to draw at, read back from the buffer rather than from
+   * `devicePixelRatio`, so sizing and drawing cannot disagree (#10625).
+   * Per-axis: `canvas.width`/`height` are integers, so a fractional DPR
+   * truncates each dimension by a different fraction of a device pixel.
+   */
+  get #backingScale(): { x: number; y: number } {
+    const { width, height } = this.#state;
+    const dpr = globalThis.devicePixelRatio ?? 1;
+    return {
+      x: width > 0 ? this.#canvas.width / width : dpr,
+      y: height > 0 ? this.#canvas.height / height : dpr,
+    };
+  }
+
+  /**
+   * Re-size the buffer when the DPR changed. resize fires far more often than
+   * the DPR moves, and `canvas.width` truncates, so compare ratios directly.
+   */
+  #syncForDevicePixelRatio = (): void => {
+    if ((globalThis.devicePixelRatio ?? 1) === this.#backingDpr) {
+      return;
+    }
+    this.#syncCanvasSize();
+    this.#scheduleRedraw();
+  };
 
   /**
    * Observe devicePixelRatio changes via matchMedia. Each listener fires once
@@ -355,8 +389,7 @@ export class MatplotlibRenderer {
       `(resolution: ${globalThis.devicePixelRatio ?? 1}dppx)`,
     );
     const onChange = () => {
-      this.#syncCanvasSize();
-      this.#drawCanvas();
+      this.#syncForDevicePixelRatio();
       // Re-register for the next DPR transition
       this.#watchDevicePixelRatio(signal);
     };
@@ -416,8 +449,8 @@ export class MatplotlibRenderer {
     this.#image = null;
     const ctx = this.#canvas.getContext("2d");
     if (ctx) {
-      const dpr = globalThis.devicePixelRatio ?? 1;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const scale = this.#backingScale;
+      ctx.setTransform(scale.x, 0, 0, scale.y, 0, 0);
       ctx.clearRect(0, 0, this.#state.width, this.#state.height);
     }
 
@@ -447,8 +480,8 @@ export class MatplotlibRenderer {
     const ix = this.#interaction;
 
     // Scale for HiDPI: all coordinates remain in logical pixels
-    const dpr = globalThis.devicePixelRatio ?? 1;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const scale = this.#backingScale;
+    ctx.setTransform(scale.x, 0, 0, scale.y, 0, 0);
 
     // Clear and draw the base image
     ctx.clearRect(0, 0, s.width, s.height);

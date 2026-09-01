@@ -9,7 +9,7 @@ import {
   CircleHelpIcon,
 } from "lucide-react";
 import React from "react";
-import { type SupportedRole, useModelChange } from "@/core/ai/config";
+import { type SupportedRole, useAIConfigActions } from "@/core/ai/config";
 import {
   AiModelId,
   isKnownAIProvider,
@@ -33,6 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
+import { listModelsForAiSettings } from "./ai-utils";
 import { getCurrentRoleTooltip, getTagColour } from "./display-helpers";
 
 interface AIModelDropdownProps {
@@ -64,7 +65,7 @@ export const AIModelDropdown = ({
 
   const ai = useAtomValue(aiAtom);
   const completion = useAtomValue(completionAtom);
-  const { saveModelChange } = useModelChange();
+  const { saveModelChange } = useAIConfigActions();
   const { handleClick } = useOpenSettingsToTab();
 
   // Only include autocompleteModel if copilot is set to "custom"
@@ -84,7 +85,10 @@ export const AIModelDropdown = ({
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
   });
-  const modelsByProvider = aiModelRegistry.getListModelsByProvider();
+  const modelsByProvider = listModelsForAiSettings(
+    aiModelRegistry.getListModelsByProvider(),
+    ai,
+  );
 
   const activeModel =
     forRole === "autocomplete"

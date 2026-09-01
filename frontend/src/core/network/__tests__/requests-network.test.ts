@@ -143,6 +143,19 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
     });
 
+    it("installExportRequirements should POST the export format", async () => {
+      const requests = createNetworkRequests();
+      await requests.installExportRequirements({ format: "pdf" });
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/requirements/install",
+        expect.objectContaining({
+          body: { format: "pdf" },
+          params: expect.anything(),
+        }),
+      );
+    });
+
     it("discoverDataSources should POST to the discovery endpoint", async () => {
       const requests = createNetworkRequests();
       const request = { requestId: "discovery-request" } as any;

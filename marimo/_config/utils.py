@@ -121,6 +121,35 @@ def get_user_config_path() -> str | None:
     return None
 
 
+def is_trusted_user_config_path(path: str) -> bool:
+    """Whether `path` is a genuinely user-owned config location.
+
+    Only the XDG config file and `~/.marimo.toml` in the home directory itself
+    are user-owned. `get_user_config_path` also returns the first `.marimo.toml`
+    found walking up from the cwd; such a file lives inside a project/repo and
+    is untrusted origin — an attacker can commit it to a cloned repo.
+    """
+    try:
+        real = os.path.realpath(path)
+    except OSError:
+        return False
+
+    trusted: set[str] = set()
+    try:
+        trusted.add(os.path.realpath(str(marimo_config_path())))
+    except OSError:
+        pass
+    home_expansion = os.path.expanduser("~")
+    if home_expansion != "~":
+        try:
+            trusted.add(
+                os.path.realpath(os.path.join(home_expansion, CONFIG_FILENAME))
+            )
+        except OSError:
+            pass
+    return real in trusted
+
+
 def deep_copy(obj: Any) -> Any:
     if isinstance(obj, dict):
         return {k: deep_copy(v) for k, v in obj.items()}  # type: ignore

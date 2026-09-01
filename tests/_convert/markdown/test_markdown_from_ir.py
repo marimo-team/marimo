@@ -320,11 +320,7 @@ def test_convert_from_ir_to_markdown_qmd_format():
 
     # Test .md filename produces standard format
     markdown_md = convert_from_ir_to_markdown(notebook, filename="notebook.md")
-    # Should use either superfences or fallback format
-    assert (
-        "```python {.marimo" in markdown_md
-        or "```{.python.marimo" in markdown_md
-    )
+    assert "```python {.marimo" in markdown_md
 
 
 def test_convert_from_ir_to_markdown_mdx_format():
@@ -389,10 +385,7 @@ def test_convert_from_ir_to_markdown_explicit_flavor():
     markdown_md = convert_from_ir_to_markdown(
         notebook, filename="notebook.qmd", flavor="pymdown"
     )
-    assert (
-        "```python {.marimo" in markdown_md
-        or "```{.python.marimo" in markdown_md
-    )
+    assert "```python {.marimo" in markdown_md
 
 
 @pytest.mark.parametrize(

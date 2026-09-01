@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 import asyncio
+import subprocess
 import sys
 from types import SimpleNamespace
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -16,6 +17,7 @@ from marimo._export.dependencies import (
     _is_playwright_chromium_installed,
     get_missing_export_packages,
     get_missing_export_setup,
+    install_export_setup,
     require_export_dependencies,
 )
 from marimo._export.exporter import Exporter
@@ -75,6 +77,52 @@ def test_pdf_requirement_is_an_actionable_package_spec(
 def test_ipynb_requirement_uses_nbformat() -> None:
     with patch.object(DependencyManager.nbformat, "has", return_value=False):
         assert get_missing_export_packages("ipynb") == ["nbformat"]
+
+
+async def test_install_export_setup_uses_server_python() -> None:
+    completed = subprocess.CompletedProcess([], 0, "", "")
+    with patch(
+        "marimo._export.dependencies.subprocess.run",
+        return_value=completed,
+    ) as run:
+        await install_export_setup("playwright-chromium")
+
+    run.assert_called_once_with(
+        [sys.executable, "-m", "playwright", "install", "chromium"],
+        capture_output=True,
+        text=True,
+        timeout=ANY,
+    )
+    assert run.call_args.kwargs["timeout"] > 0
+
+
+async def test_install_export_setup_reports_failure() -> None:
+    completed = subprocess.CompletedProcess([], 1, "", "install failed")
+    with (
+        patch(
+            "marimo._export.dependencies.subprocess.run",
+            return_value=completed,
+        ),
+        pytest.raises(
+            RuntimeError,
+            match="Playwright Chromium installation failed",
+        ),
+    ):
+        await install_export_setup("playwright-chromium")
+
+
+async def test_install_export_setup_reports_timeout() -> None:
+    with (
+        patch(
+            "marimo._export.dependencies.subprocess.run",
+            side_effect=subprocess.TimeoutExpired("playwright", timeout=1),
+        ),
+        pytest.raises(
+            RuntimeError,
+            match="Playwright Chromium installation failed",
+        ),
+    ):
+        await install_export_setup("playwright-chromium")
 
 
 @pytest.mark.parametrize(

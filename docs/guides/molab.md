@@ -346,7 +346,14 @@ package manager sidebar panel to install specific package versions).
 
 Notebooks get a limited amount of persistent storage; view the file tree by
 clicking the file icon in the sidebar. From here you can upload additional data
-files.
+files. Only files uploaded through the sidebar, or cached with
+[`mo.persistent_cache`](../api/caching.md), are persisted. Cached files are
+subject to limitations on file size and persistence duration, which may change
+at molab's discretion.
+
+molab notebooks also support remote storage, making it easy to save and load
+files from Google Drive, Hugging Face, and S3-compatible buckets. Read
+our [remote storage guide](working_with_data/remote_storage.md) to learn more.
 
 ### Run notebooks locally
 

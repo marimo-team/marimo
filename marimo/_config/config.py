@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import (
     TYPE_CHECKING,
@@ -208,6 +208,8 @@ class DisplayConfig(TypedDict):
     - `default_table_page_size`: default number of rows to display in tables
     - `default_table_max_columns`: default maximum number of columns to display in tables
     - `reference_highlighting`: if `True`, highlight reactive variable references
+    - `code_lens`: if `True`, show inline icons in cell editors linking
+      datasources, storage buckets, and caches to their panels
     - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
     """
 
@@ -220,6 +222,7 @@ class DisplayConfig(TypedDict):
     default_table_page_size: int
     default_table_max_columns: int
     reference_highlighting: NotRequired[bool]
+    code_lens: NotRequired[bool]
     locale: NotRequired[str | None]
 
 
@@ -312,6 +315,7 @@ class AiConfig(TypedDict, total=False):
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+    - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -332,8 +336,8 @@ class AiConfig(TypedDict, total=False):
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
+    allow_provider_config: NotRequired[bool]
     models: AiModelConfig
-
     # providers
     open_ai: OpenAiConfig
     anthropic: AnthropicConfig
@@ -356,7 +360,7 @@ class OpenAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the OpenAI API key
+    - `api_key`: the OpenAI API key or an `env:` reference
     - `base_url`: the base URL for the API
     - `project`: the project ID for the OpenAI API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -383,7 +387,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic API key
+    - `api_key`: the Anthropic API key or an `env:` reference
     """
 
     api_key: str
@@ -395,7 +399,7 @@ class GoogleAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Google AI API key
+    - `api_key`: the Google AI API key or an `env:` reference
     """
 
     api_key: str
@@ -425,7 +429,7 @@ class GitHubConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the GitHub API token
+    - `api_key`: the GitHub API token or an `env:` reference
     - `base_url`: the base URL for the API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
@@ -589,13 +593,41 @@ class SharingConfig(TypedDict):
 
 @dataclass
 class StoreConfig(TypedDict, total=False):
-    """Configuration for cache stores."""
+    """Configuration for a single cache store."""
 
     type: StoreKey
     args: dict[str, Any]
 
 
-CacheConfig = list[StoreConfig] | StoreConfig
+# One store, or a list composed into a TieredStore.
+CacheStoreConfig = list[StoreConfig] | StoreConfig
+
+CacheVerification = Literal["off", "on", "strict"]
+
+
+class CacheConfig(TypedDict, total=False):
+    """Configuration for caching.
+
+    `verification` is the signature-checking posture; `store` is the backing
+    store, or a list of stores composed into a `TieredStore`.
+    """
+
+    verification: CacheVerification
+    store: CacheStoreConfig
+
+
+class SigningConfig(TypedDict, total=False):
+    """Cache-signing trust and identity.
+
+    `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+    advisory label. Trusting a key allows arbitrary code execution from its
+    holder on this machine — a cache restore is `pickle.loads` — so there is no
+    lesser cache-only grant. `private_key_path` is this machine's signing
+    identity; it is never serialized to the frontend.
+    """
+
+    trusted_signers: dict[str, str]
+    private_key_path: str
 
 
 class ExperimentalConfig(TypedDict, total=False):
@@ -613,7 +645,6 @@ class ExperimentalConfig(TypedDict, total=False):
     line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
-    cache: CacheConfig
     execution_type: ExecutionType
 
 
@@ -645,6 +676,8 @@ class MarimoConfig(TypedDict):
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 @mddoc
@@ -712,6 +745,8 @@ class PartialMarimoConfig(TypedDict, total=False):
     datasources: NotRequired[DatasourcesConfig]
     sharing: NotRequired[SharingConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -730,6 +765,7 @@ DEFAULT_CONFIG: MarimoConfig = {
         "default_table_page_size": 10,
         "default_table_max_columns": 50,
         "reference_highlighting": True,
+        "code_lens": True,
     },
     "formatting": {"line_length": 79},
     "keymap": {"preset": "default", "overrides": {}},
@@ -742,10 +778,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
         ),
         "std_stream_max_bytes": int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
@@ -774,6 +810,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "enabled": True,
+        "allow_provider_config": True,
         "models": {
             "displayed_models": [],
             "custom_models": [],
@@ -825,7 +862,12 @@ def merge_config(
     # Fields that should be replaced instead of merged.
     # These are "record" types where keys can be added/removed,
     # as opposed to config objects where you only set specific fields.
-    replace_paths = frozenset({"ai.custom_providers"})
+    # NB. `signing.trusted_signers` is replaced, not deep-merged. A deep merge
+    # unions the fingerprints from every layer. Then no layer can remove a
+    # signer that a lower-priority one anchored.
+    replace_paths = frozenset(
+        {"ai.custom_providers", "signing.trusted_signers"}
+    )
 
     merged = cast(
         MarimoConfig,

@@ -15,7 +15,10 @@ describe("waitForWs", () => {
       onopen: null,
       onerror: null,
     };
-    global.WebSocket = vi.fn(() => mockWs) as any;
+    // vitest 4 requires a `function` (not an arrow) for mocks called with `new`
+    global.WebSocket = vi.fn(function () {
+      return mockWs;
+    }) as any;
   });
 
   afterEach(() => {

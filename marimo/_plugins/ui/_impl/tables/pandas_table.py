@@ -11,12 +11,15 @@ import narwhals.stable.v2 as nw
 
 from marimo import _loggers
 from marimo._data.models import ExternalDataType
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.msgspec_encoder import enc_hook
 from marimo._output.data.data import sanitize_json_bigint
 from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
+)
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    format_geometry_cell,
 )
 from marimo._plugins.ui._impl.tables.narwhals_table import NarwhalsTableManager
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
@@ -46,6 +49,25 @@ def _dataframe_to_arrow_ipc(df: pd.DataFrame) -> bytes:
     with pa.ipc.new_file(out, table.schema) as writer:
         writer.write_table(table)
     return out.getvalue()
+
+
+def _format_geometry_columns(
+    df: pd.DataFrame,
+    geometry_columns: dict[str, GeometryColumnInfo],
+) -> None:
+    import pandas as pd
+
+    for col, geometry_info in geometry_columns.items():
+        if col not in df.columns:
+            continue
+        df[col] = pd.Series(
+            [
+                format_geometry_cell(value, geometry_info.encoding)
+                for value in df[col]
+            ],
+            index=df.index,
+            dtype=object,
+        )
 
 
 def _trivial_range_index(index: pd.Index) -> bool:
@@ -130,38 +152,44 @@ def _resolve_index_column_conflicts(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def _extension_column_needs_stringify(series: pd.Series[Any]) -> bool:
-    """Whether an extension-array column should be cast to str for JSON."""
+def _stringify_preserving_nulls(
+    series: pd.Series[Any],
+    notna_mask: pd.Series[bool] | None = None,
+) -> pd.Series[Any]:
+    """Convert values to strings and preserve missing values."""
+    if notna_mask is None:
+        notna_mask = series.notna()
+
+    stringified = series.apply(str)
+    if not notna_mask.all():
+        stringified = stringified.astype(object).where(notna_mask, None)
+    return stringified
+
+
+def _extension_column_needs_stringify(
+    series: pd.Series[Any],
+    notna_mask: pd.Series[bool] | None = None,
+) -> bool:
+    """Whether an extension-array column needs a string cast for JSON."""
     from pandas.api.types import is_extension_array_dtype
 
     try:
         if not is_extension_array_dtype(series.dtype):
             return False
 
-        notna = series.notna()
-        if not notna.any():
+        if notna_mask is None:
+            notna_mask = series.notna()
+        if not notna_mask.any():
             return False
 
         # Position-based sample: avoids dropna() copies and .at on
         # duplicate labels (which can return a Series instead of a scalar).
-        sample = series.iat[int(notna.to_numpy().argmax())]
+        sample = series.iat[int(notna_mask.to_numpy().argmax())]
         serialized = json.loads(json.dumps(sample, default=enc_hook))
         return not isinstance(serialized, (str, int, float, bool, type(None)))
     except Exception:
         # Conservative fallback: stringify if sampling or serialization fails.
         return True
-
-
-def _maybe_convert_geopandas_to_pandas(data: pd.DataFrame) -> pd.DataFrame:
-    # Convert to pandas dataframe since geopandas will fail on
-    # certain operations (like to_json(orient="records"))
-    if DependencyManager.geopandas.imported():
-        import geopandas as gpd  # type: ignore
-        import pandas as pd
-
-        if isinstance(data, gpd.GeoDataFrame):
-            return pd.DataFrame(data)
-    return data
 
 
 class PandasTableManagerFactory(TableManagerFactory):
@@ -178,7 +206,6 @@ class PandasTableManagerFactory(TableManagerFactory):
             type = "pandas"
 
             def __init__(self, data: pd.DataFrame) -> None:
-                data = _maybe_convert_geopandas_to_pandas(data)
                 data = self._handle_multi_col_indexes(data)
                 data = self._handle_non_string_column_names(data)
                 self._original_data = data
@@ -206,32 +233,27 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if not mixed_cols:
                     return super().sort_values(by)
 
-                df = self.data
+                df = self._original_data.copy()
                 temp_cols: list[str] = []
                 sort_cols: list[str] = []
                 for col in columns:
                     if col in mixed_cols:
                         temp = f"__sort_{col}"
-                        # Preserve nulls so nulls_last=True works.
-                        # On pandas <3.0, cast(String) turns None
-                        # into the string "None" instead of null.
-                        df = df.with_columns(
-                            nw.when(nw.col(col).is_null())
-                            .then(None)
-                            .otherwise(nw.col(col).cast(nw.String))
-                            .alias(temp)
+                        series = df[col]
+                        df[temp] = series.where(
+                            series.isna(), series.astype(str)
                         )
                         temp_cols.append(temp)
                         sort_cols.append(temp)
                     else:
                         sort_cols.append(col)
 
-                df = df.sort(
+                df = df.sort_values(
                     sort_cols,
-                    descending=descending,
-                    nulls_last=True,
-                ).drop(temp_cols)
-                return self.with_new_data(df)
+                    ascending=[not value for value in descending],
+                    na_position="last",
+                ).drop(columns=temp_cols)
+                return PandasTableManager(df)
 
             # We override narwhals's to_csv_str to handle pandas
             # headers
@@ -256,12 +278,24 @@ class PandasTableManagerFactory(TableManagerFactory):
                 strict_json: bool = False,
                 ensure_ascii: bool = True,
             ) -> str:
+                """Serialize pandas rows for frontend display or strict export.
+
+                The frontend path can emit `NaN`, `Infinity`, `-Infinity`,
+                and typed `NaT` sentinels. The frontend parser and table
+                renderer display these values.
+
+                The strict path converts values that standard JSON does not
+                support. Pandas encodes these values as JSON `null`.
+                """
+
                 def to_json(
                     result: pd.DataFrame,
                 ) -> list[dict[str, Any]] | str:
-                    """
-                    to_dict preserves nans, infs and is more accurate than to_json.
-                    By default, we use to_dict unless strict_json is True
+                    """Serialize the prepared dataframe.
+
+                    The frontend path intentionally preserves non-finite
+                    sentinels through `to_dict`. The strict export path uses
+                    pandas JSON, which converts them to JSON `null`.
                     """
                     if strict_json:
                         try:
@@ -281,38 +315,67 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 from pandas.api.types import (
                     is_complex_dtype,
+                    is_extension_array_dtype,
                     is_object_dtype,
                     is_timedelta64_dtype,
                     is_timedelta64_ns_dtype,
                 )
 
-                _data = self.apply_formatting(format_mapping)._original_data
-                result = _data.copy()  # to avoid SettingWithCopyWarning
+                formatted = self.apply_formatting(format_mapping)
+                # Copy to avoid SettingWithCopyWarning.
+                geometry_columns = formatted._geometry_columns
+                result = pd.DataFrame(formatted._original_data.copy())
                 try:
+                    _format_geometry_columns(
+                        result,
+                        geometry_columns,
+                    )
                     for col in result.columns:
-                        dtype = result[col].dtype
-                        # Complex dtypes are converted to {'imag': num, 'real': num} by default
-                        # We want to preserve the original display
+                        series = result[col]
+                        dtype = series.dtype
+                        if str(col) in geometry_columns:
+                            continue
+                        # Complex dtypes become {'imag': num, 'real': num} by default.
+                        # Preserve their display values instead.
                         if is_complex_dtype(dtype):
-                            result[col] = result[col].apply(str)
-                        if _extension_column_needs_stringify(result[col]):
-                            # Extension arrays with rich Python values (e.g.
-                            # pint-pandas) serialize to nested dicts via
-                            # to_dict; stringify to preserve display.
-                            result[col] = result[col].astype(str)
+                            result[col] = _stringify_preserving_nulls(series)
+
+                        notna_mask = (
+                            series.notna()
+                            if is_extension_array_dtype(dtype)
+                            else None
+                        )
+                        if _extension_column_needs_stringify(
+                            series, notna_mask
+                        ):
+                            # Extension arrays with rich Python values serialize to nested
+                            # dictionaries through to_dict. Preserve their display values.
+                            result[col] = _stringify_preserving_nulls(
+                                series, notna_mask
+                            )
+
                         if is_timedelta64_dtype(
                             dtype
                         ) or is_timedelta64_ns_dtype(dtype):
-                            result[col] = result[col].apply(str)
+                            # Preserve the NaT sentinel for frontend rendering;
+                            # strict exports require JSON nulls.
+                            result[col] = (
+                                _stringify_preserving_nulls(series)
+                                if strict_json
+                                else series.apply(str)
+                            )
                         if is_object_dtype(dtype):
-                            # Check if column contains date objects (not datetime), and convert them to string
-                            # Typically, this will change to YYYY-MM-DD format
+                            # Convert date objects to the YYYY-MM-DD display form.
                             inferred_dtype = self._infer_dtype(col)
                             if inferred_dtype == "date":
-                                result[col] = result[col].apply(str)
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
                             elif inferred_dtype == "bytes":
-                                # Cast bytes to string to avoid overflow error
-                                result[col] = result[col].apply(str)
+                                # Convert bytes to strings to avoid an overflow error.
+                                result[col] = _stringify_preserving_nulls(
+                                    series
+                                )
 
                 except Exception as e:
                     LOGGER.error(
@@ -341,18 +404,40 @@ class PandasTableManagerFactory(TableManagerFactory):
             def to_arrow_ipc(self) -> bytes:
                 import pyarrow as pa
 
+                df = self._original_data
+                if self._geometry_columns:
+                    df = pd.DataFrame(df.copy())
+                    _format_geometry_columns(df, self._geometry_columns)
+
                 try:
-                    return _dataframe_to_arrow_ipc(self._original_data)
+                    return _dataframe_to_arrow_ipc(df)
                 except Exception:
                     # Fall back: convert extension-type columns that
                     # PyArrow cannot handle (e.g. pint-pandas) to plain
                     # values so the IPC write can succeed.
-                    df = self._original_data.copy()
+                    df = pd.DataFrame(
+                        df.copy()
+                    )  # convert to base dataframe from extension dataframe
                     for col in df.columns:
                         try:
                             pa.Array.from_pandas(df[col])
                         except Exception:
-                            df[col] = df[col].astype(object).infer_objects()
+                            converted = df[col].astype(object).infer_objects()
+                            try:
+                                pa.Array.from_pandas(converted)
+                            except Exception:
+                                notna = df[col].notna().to_numpy()
+                                converted = pd.Series(
+                                    [
+                                        str(value) if present else None
+                                        for value, present in zip(
+                                            df[col], notna, strict=True
+                                        )
+                                    ],
+                                    index=df.index,
+                                    dtype=object,
+                                )
+                            df[col] = converted
                     return _dataframe_to_arrow_ipc(df)
 
             def apply_formatting(
@@ -413,9 +498,7 @@ class PandasTableManagerFactory(TableManagerFactory):
                 if not isinstance(data.columns, pd.Index):
                     return data
 
-                if len(data.columns) > 0 and not isinstance(
-                    data.columns[0], str
-                ):
+                if any(not isinstance(name, str) for name in data.columns):
                     data_copy = data.copy()
                     data_copy.columns = pd.Index(
                         [str(name) for name in data_copy.columns]
@@ -501,9 +584,9 @@ class PandasTableManagerFactory(TableManagerFactory):
 
                 return [(names[0], self._map_dtype_to_field_type(index.dtype))]
 
-            # We override the default implementation to use pandas's
-            # internal fields since they get displayed in the UI.
-            def get_field_type(
+            # Override the dtype mapper to use pandas's internal fields
+            # since they get displayed in the UI.
+            def _get_field_type_from_dtype(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]
@@ -551,6 +634,8 @@ class PandasTableManagerFactory(TableManagerFactory):
             def get_unique_column_values(
                 self, column: str
             ) -> list[str | int | float]:
+                if column in self._geometry_columns:
+                    return []
                 return self._original_data[column].unique().tolist()  # type: ignore[return-value,no-any-return]
 
         return PandasTableManager

@@ -360,6 +360,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         export.ExportAsIPYNBRequest,
         export.ExportAsPDFRequest,
         export.ExportAvailabilityResponse,
+        export.InstallExportRequirementsRequest,
         export.UpdateCellOutputsRequest,
         files.FileCreateMultipartRequest,
         files.FileCreateRequest,

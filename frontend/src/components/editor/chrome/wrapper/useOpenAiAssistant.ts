@@ -4,7 +4,7 @@ import { useSetAtom, useStore } from "jotai";
 import useEvent from "react-use-event-hook";
 import { agentSessionStateAtom } from "@/components/chat/acp/state";
 import { toast } from "@/components/ui/use-toast";
-import { useModelChange } from "@/core/ai/config";
+import { useAIConfigActions } from "@/core/ai/config";
 import { pendingAiPromptAtom } from "@/core/ai/state";
 import type { CopilotMode } from "@/core/ai/tools/registry";
 import { aiModelConfiguredAtom } from "@/core/config/config";
@@ -43,7 +43,7 @@ export function resolveAiPanelTab(
 export function useOpenAiAssistant() {
   const { openApplication } = useChromeActions();
   const { setAiPanelTab } = useAiPanelTab();
-  const { saveModeChange } = useModelChange();
+  const { saveModeChange } = useAIConfigActions();
   const setPendingPrompt = useSetAtom(pendingAiPromptAtom);
   const store = useStore();
 

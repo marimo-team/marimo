@@ -22,10 +22,15 @@ export type AutoExportAsMarkdownRequest =
   schemas["AutoExportAsMarkdownRequest"];
 export type ExportAsHTMLRequest = schemas["ExportAsHTMLRequest"];
 export type ExportAsMarkdownRequest = schemas["ExportAsMarkdownRequest"];
+export type MarkdownExportFlavor = NonNullable<
+  ExportAsMarkdownRequest["flavor"]
+>;
 export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
 export type ExportAvailabilityResponse = schemas["ExportAvailabilityResponse"];
+export type InstallExportRequirementsRequest =
+  schemas["InstallExportRequirementsRequest"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
 
 export interface ExportedFile<T extends BlobPart = BlobPart> {
@@ -128,6 +133,7 @@ export type OpenTutorialRequest = schemas["OpenTutorialRequest"];
 export type TutorialId = OpenTutorialRequest["tutorialId"];
 export type InvokeAiToolRequest = schemas["InvokeAiToolRequest"];
 export type InvokeAiToolResponse = schemas["InvokeAiToolResponse"];
+export type ChatOptions = schemas["ChatOptions"];
 export type ClearCacheRequest = schemas["ClearCacheRequest"];
 export type GetCacheInfoRequest = schemas["GetCacheInfoRequest"];
 export type LspHealthResponse = schemas["LspHealthResponse"];
@@ -219,6 +225,9 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
   getExportAvailability: () => Promise<ExportAvailabilityResponse>;
+  installExportRequirements: (
+    request: InstallExportRequirementsRequest,
+  ) => Promise<ExportAvailabilityResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<ExportedFile<string>>;
   exportAsIPYNB: (
     request: ExportAsIPYNBRequest,

@@ -3,18 +3,37 @@ from __future__ import annotations
 
 import os
 from abc import ABC, abstractmethod
+from contextlib import asynccontextmanager
 from enum import Enum
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
+
+from marimo._utils.typing import override
 
 if TYPE_CHECKING:
-    from contextlib import AsyncExitStack
+    from collections.abc import AsyncGenerator
+    from typing import TypeGuard
 
     from marimo._config.config import (
+        MCPServerConfig,
         MCPServerStdioConfig,
         MCPServerStreamableHttpConfig,
     )
     from marimo._server.ai.mcp.config import MCPServerDefinition
-    from marimo._server.ai.mcp.types import TransportConnectorResponse
+    from mcp.client import Transport
+    from mcp.shared._stream_protocols import ReadStream, WriteStream
+    from mcp.shared.message import SessionMessage
+
+
+def _is_stdio_config(
+    config: MCPServerConfig,
+) -> TypeGuard[MCPServerStdioConfig]:
+    return "command" in config
+
+
+def _is_streamable_http_config(
+    config: MCPServerConfig,
+) -> TypeGuard[MCPServerStreamableHttpConfig]:
+    return "url" in config
 
 
 class MCPTransportType(str, Enum):
@@ -29,33 +48,28 @@ class MCPTransportConnector(ABC):
     """Abstract base class for MCP transport connectors."""
 
     @abstractmethod
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        """Connect to the MCP server and return read/write streams.
+    def create(self, server_def: MCPServerDefinition) -> Transport:
+        """Create a transport for an MCP server.
 
         Args:
             server_def: Server definition with transport-specific parameters
-            exit_stack: Async exit stack for resource management
 
         Returns:
-            Tuple of (read_stream, write_stream) for the ClientSession
+            A transport managed by the MCP client.
         """
 
 
 class StdioTransportConnector(MCPTransportConnector):
     """STDIO transport connector for process-based MCP servers."""
 
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        # Import MCP SDK components for stdio transport
+    @override
+    def create(self, server_def: MCPServerDefinition) -> Transport:
         from mcp import StdioServerParameters
         from mcp.client.stdio import stdio_client
 
-        # Type narrowing for mypy
-        assert "command" in server_def.config
-        config = cast("MCPServerStdioConfig", server_def.config)
+        config = server_def.config
+        if not _is_stdio_config(config):
+            raise ValueError("STDIO transport requires a command")
 
         # Set up environment variables for the server process
         env = os.environ.copy()
@@ -68,59 +82,41 @@ class StdioTransportConnector(MCPTransportConnector):
             env=env,
         )
 
-        # Establish connection with proper resource management
-        read, write, *_ = await exit_stack.enter_async_context(
-            stdio_client(server_params)
-        )
-
-        return read, write
+        return stdio_client(server_params)
 
 
 class StreamableHTTPTransportConnector(MCPTransportConnector):
     """Streamable HTTP transport connector for modern HTTP-based MCP servers."""
 
-    async def connect(
-        self, server_def: MCPServerDefinition, exit_stack: AsyncExitStack
-    ) -> TransportConnectorResponse:
-        # Import MCP SDK components for streamable HTTP transport
-        # Try for latest MCP SDK v2.0
-        try:
-            import httpx
+    @override
+    def create(self, server_def: MCPServerDefinition) -> Transport:
+        import httpx2
 
-            from mcp.client.streamable_http import streamable_http_client
+        from mcp.client.streamable_http import streamable_http_client
 
-            # Type narrowing for mypy
-            assert "url" in server_def.config
-            config = cast("MCPServerStreamableHttpConfig", server_def.config)
+        config = server_def.config
+        if not _is_streamable_http_config(config):
+            raise ValueError("Streamable HTTP transport requires a URL")
 
-            headers = config.get("headers", {})
-            http_client = httpx.AsyncClient(
-                headers=headers, timeout=server_def.timeout
-            )
+        @asynccontextmanager
+        async def transport() -> AsyncGenerator[
+            tuple[
+                ReadStream[SessionMessage | Exception],
+                WriteStream[SessionMessage],
+            ]
+        ]:
+            timeout = httpx2.Timeout(server_def.timeout, read=300.0)
+            async with httpx2.AsyncClient(
+                headers=config.get("headers", {}),
+                follow_redirects=True,
+                timeout=timeout,
+            ) as http_client:
+                async with streamable_http_client(
+                    config["url"], http_client=http_client
+                ) as streams:
+                    yield streams
 
-            # Establish streamable HTTP connection
-            read, write, *_ = await exit_stack.enter_async_context(
-                streamable_http_client(
-                    config["url"],
-                    http_client=http_client,
-                )
-            )
-        # Fallback to ealierst implementation of MCP SDK v1.8 to v1.28
-        except ImportError:
-            from mcp.client.streamable_http import streamablehttp_client
-
-            assert "url" in server_def.config
-            config = cast("MCPServerStreamableHttpConfig", server_def.config)
-
-            read, write, *_ = await exit_stack.enter_async_context(
-                streamablehttp_client(
-                    config["url"],
-                    headers=config.get("headers", {}),
-                    timeout=server_def.timeout,
-                )
-            )
-
-        return read, write
+        return transport()
 
 
 class MCPTransportRegistry:

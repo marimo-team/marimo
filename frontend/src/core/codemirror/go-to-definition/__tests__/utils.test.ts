@@ -5,7 +5,9 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { cellId, variableName } from "@/__tests__/branded";
+import type { CellHandle } from "@/components/editor/notebook-cell";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
+import { editorMountScheduler } from "@/core/codemirror/editor-mount-scheduler";
 import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import {
@@ -183,6 +185,52 @@ print(mymodule)`;
     expect(moduleView.state.selection.main.head).toBe(
       moduleCode.indexOf("mymodule"),
     );
+  });
+
+  test("builds the defining cell's queued editor before jumping", async () => {
+    const definingCell = cellId("queued-defining-cell");
+    const usageCell = cellId("usage-cell");
+    const definingCode = "a = 10";
+    const usageCode = "print(a)";
+
+    const definingView = createEditor(definingCode, definingCode.length);
+    const usageView = createEditor(usageCode, usageCode.indexOf("a"));
+    views.push(definingView, usageView);
+
+    // The defining cell's editor build still waits in the mount queue, the
+    // state right after a large notebook opens.
+    const handle: { current: CellHandle | null } = { current: null };
+    editorMountScheduler.request(definingCell, () => {
+      handle.current = {
+        editorView: definingView,
+        editorViewOrNull: definingView,
+      };
+    });
+
+    const notebook = initialNotebookState();
+    notebook.cellHandles[definingCell] = handle;
+    notebook.cellHandles[usageCell] = {
+      current: { editorView: usageView, editorViewOrNull: usageView },
+    };
+
+    store.set(notebookAtom, notebook);
+    store.set(variablesAtom, {
+      [variableName("a")]: {
+        dataType: "int",
+        declaredBy: [definingCell],
+        name: variableName("a"),
+        usedBy: [usageCell],
+        value: "10",
+      },
+    });
+
+    const result = goToDefinitionAtCursorPosition(usageView);
+
+    expect(result).toBe(true);
+    // The jump built the queued editor synchronously.
+    expect(handle.current?.editorView).toBe(definingView);
+    await tick();
+    expect(definingView.state.selection.main.head).toBe(0);
   });
 });
 

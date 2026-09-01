@@ -1,11 +1,19 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockInstance,
+  vi,
+} from "vitest";
 import { smartScrollIntoView } from "../scroll";
 
 describe("smartScrollIntoView", () => {
   let element: HTMLElement;
-  let mockScrollBy: ReturnType<typeof vi.fn>;
+  let mockScrollBy: MockInstance<typeof window.scrollBy>;
 
   const mockRect = (top: number, bottom: number): DOMRect => ({
     top,
@@ -23,14 +31,19 @@ describe("smartScrollIntoView", () => {
     element = document.createElement("div");
     document.body.append(element);
 
-    mockScrollBy = vi.fn();
-    window.scrollBy = mockScrollBy;
+    mockScrollBy = vi
+      .spyOn(window, "scrollBy")
+      .mockImplementation(() => undefined);
 
     Object.defineProperty(window, "innerHeight", {
       writable: true,
       configurable: true,
       value: 1000,
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("should scroll when element is above viewport", () => {

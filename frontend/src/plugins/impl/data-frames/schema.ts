@@ -15,7 +15,10 @@ import {
 } from "./utils/operators";
 
 export const columnToFieldTypesSchema = z.array(
-  z.tuple([z.coerce.string(), z.tuple([z.enum(DATA_TYPES), z.string()])]),
+  z.tuple([
+    z.coerce.string(),
+    z.tuple([z.enum(DATA_TYPES).catch("unknown"), z.string()]),
+  ]),
 );
 
 export const column_id = z

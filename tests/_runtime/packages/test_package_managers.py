@@ -391,7 +391,9 @@ async def test_package_manager_run_without_callback() -> None:
         result = await pm.run(["echo", "test"], log_callback=None)
 
         assert result is True
-        mock_run.assert_called_once_with(["echo", "test"])
+        mock_run.assert_called_once_with(
+            ["echo", "test"], start_new_session=True
+        )
 
 
 async def test_package_manager_run_with_callback() -> None:

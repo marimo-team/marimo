@@ -449,6 +449,29 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-openrouter-key"
         assert provider_config.base_url == "https://openrouter.ai/api/v1/"
 
+    def test_for_model_custom_provider_resolves_api_key_reference(
+        self,
+    ) -> None:
+        config: AiConfig = {
+            "custom_providers": {
+                "gateway": {
+                    "api_key": "env:CUSTOM_API_KEY",
+                    "base_url": "https://gateway.example.com/v1",
+                }
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_model(
+            "gateway/custom-model",
+            config,
+            secret_resolver=lambda key: {"CUSTOM_API_KEY": "resolved-key"}.get(
+                key
+            ),
+        )
+
+        assert provider_config.api_key == "resolved-key"
+        assert provider_config.base_url == "https://gateway.example.com/v1"
+
     def test_for_model_wandb(self) -> None:
         """Test for_model with Weights & Biases model."""
         config: AiConfig = {"wandb": {"api_key": "test-wandb-key"}}
@@ -491,6 +514,26 @@ class TestAnyProviderConfig:
         )
 
         assert provider_config.api_key == "other-key"
+
+    def test_for_model_does_not_hide_missing_environment_reference(
+        self,
+    ) -> None:
+        config: AiConfig = {
+            "open_ai_compatible": {
+                "api_key": "env:MISSING_API_KEY",
+                "base_url": "https://gateway.example.com/v1",
+            },
+            "open_ai": {"api_key": "fallback-key"},
+        }
+
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_model(
+                "provider/unknown-model",
+                config,
+                secret_resolver=lambda _key: None,
+            )
+
+        assert "'MISSING_API_KEY' is not set" in str(exc_info.value.detail)
 
     @patch("marimo._server.ai.config._get_tools")
     def test_tools_included_when_available(self, mock_get_tools: Any) -> None:
@@ -562,6 +605,18 @@ class TestProviderConfigWithFallback:
         provider_config = AnyProviderConfig.for_openai(config)
 
         assert provider_config.api_key == "env-openai-key"
+
+    def test_for_openai_with_injected_fallback_key(self) -> None:
+        config: AiConfig = {"open_ai": {}}
+
+        provider_config = AnyProviderConfig.for_openai(
+            config,
+            secret_resolver=lambda key: {
+                "OPENAI_API_KEY": "dotenv-openai-key"
+            }.get(key),
+        )
+
+        assert provider_config.api_key == "dotenv-openai-key"
 
     @patch.dict(os.environ, {"OPENAI_API_KEY": "env-openai-key"})
     def test_for_openai_empty(self) -> None:
@@ -810,6 +865,38 @@ class TestGetKey:
         result = _get_key(config, "Test Service")
 
         assert result == "test-key"
+
+    def test_get_key_resolves_environment_reference(self) -> None:
+        result = _get_key(
+            {"api_key": "env:CUSTOM_API_KEY"},
+            "Test Service",
+            secret_resolver=lambda key: {"CUSTOM_API_KEY": "resolved-key"}.get(
+                key
+            ),
+        )
+
+        assert result == "resolved-key"
+
+    @pytest.mark.parametrize(
+        ("reference", "expected_detail"),
+        [
+            ("env:", "empty environment variable reference"),
+            ("env:MISSING_API_KEY", "'MISSING_API_KEY' is not set"),
+        ],
+    )
+    def test_get_key_rejects_invalid_environment_reference(
+        self, reference: str, expected_detail: str
+    ) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            _get_key(
+                {"api_key": reference},
+                "Test Service",
+                fallback_key="fallback-key",
+                secret_resolver=lambda _key: None,
+            )
+
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert expected_detail in str(exc_info.value.detail)
 
     def test_get_key_bedrock_profile(self):
         """Test getting Bedrock key with profile name."""
@@ -1277,6 +1364,19 @@ class TestSSLConfiguration:
         assert provider_config.ca_bundle_path == "/env/path/to/ca.pem", (
             f"{provider_name}: should use SSL_CERT_FILE env var as fallback"
         )
+
+    @patch.dict(os.environ, {}, clear=True)
+    def test_secret_resolver_does_not_configure_ssl_cert_file(self) -> None:
+        config: AiConfig = {"open_ai": {"api_key": "test-key"}}
+
+        provider_config = AnyProviderConfig.for_openai(
+            config,
+            secret_resolver=lambda key: {
+                "SSL_CERT_FILE": "/dotenv/ca.pem"
+            }.get(key),
+        )
+
+        assert provider_config.ca_bundle_path is None
 
 
 class TestEdgeCases:

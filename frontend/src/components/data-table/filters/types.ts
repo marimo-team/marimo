@@ -7,8 +7,10 @@ declare module "@tanstack/react-table" {
   //allows us to define custom properties for our columns
   interface ColumnMeta<TData extends RowData, TValue> {
     rowHeader?: boolean;
-    dtype?: string;
+    /** Normalized marimo type used for backend-independent UI behavior. */
     dataType?: DataType;
+    /** Source-library type, such as pandas `timedelta64[ns]`. */
+    dtype?: string;
     filterType?: FilterType;
     minFractionDigits?: number;
     width?: number;

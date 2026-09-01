@@ -1,17 +1,12 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import {
+  MARKDOWN_EXTENSIONS,
+  MARKDOWN_SUFFIXES,
+} from "@/core/network/markdown-export";
 import { Filenames } from "@/utils/filenames";
 import { shellQuote } from "@/utils/shell";
 import type { ExportFormat, ExportOptions, MarkdownFlavor } from "./state";
-
-const MARKDOWN_EXTENSIONS: Record<MarkdownFlavor, string> = {
-  pymdown: "md",
-  qmd: "qmd",
-  mystmd: "myst.md",
-  mdx: "mdx",
-};
-
-const MARKDOWN_SUFFIXES = [".myst.md", ".markdown", ".qmd", ".mdx", ".md"];
 
 function inferMarkdownFlavor(filename: string): MarkdownFlavor {
   if (filename.endsWith(".myst.md")) {

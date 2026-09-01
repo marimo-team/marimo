@@ -14,6 +14,7 @@ from marimo._data.data_source_discovery.helpers import (
     ENVIRONMENT_ORIGIN,
     RESOLVED_CONFIGURATION_ORIGIN,
     environment_variable,
+    hides_when_dialect,
     safe_literal,
 )
 from marimo._data.data_source_discovery.models import (
@@ -281,6 +282,7 @@ def _iceberg_source(
         confidence="high",
         origins=origins,
         configuration=tuple(configuration),
+        hides_when=hides_when_dialect("iceberg"),
         code="\n".join(
             [
                 "from pyiceberg.catalog import load_catalog",
@@ -313,6 +315,7 @@ def _merge_catalogs(
                 dict.fromkeys((*existing.configuration, *source.configuration))
             ),
             code=existing.code,
+            hides_when=existing.hides_when,
         )
 
     return list(by_id.values())

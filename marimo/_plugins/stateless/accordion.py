@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo._output.formatting import as_html
 from marimo._output.hypertext import ContainerHtml, Html
 from marimo._output.md import md
@@ -8,13 +10,16 @@ from marimo._output.rich_help import mddoc
 from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
 
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
 
 @mddoc
 class accordion(ContainerHtml):
     """An `Html` object representing an accordion of one or more items.
 
     Args:
-        items: a dictionary of item names to item content; strings are
+        items: a mapping of item names to item content; strings are
             interpreted as markdown
         multiple: whether to allow multiple items to be open simultaneously
         lazy: a boolean, whether to lazily load the accordion content.
@@ -40,7 +45,7 @@ class accordion(ContainerHtml):
 
     def __init__(
         self,
-        items: dict[str, object],
+        items: Mapping[str, object],
         multiple: bool = False,
         lazy: bool = False,
     ) -> None:

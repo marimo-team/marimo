@@ -2,7 +2,9 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId, requestId, uiElementId } from "@/__tests__/branded";
+import { waitForKernelToBeInstantiated } from "../../kernel/state";
 import type { RuntimeManager } from "../../runtime/runtime";
+import { waitForConnectionOpen } from "../connection";
 import { createLazyRequests } from "../requests-lazy";
 import type {
   EditRequests,
@@ -55,6 +57,10 @@ describe("createLazyRequests", () => {
       sendInterrupt: vi.fn().mockResolvedValue({ interrupted: true }),
       sendPdb: vi.fn().mockResolvedValue({ pdb: true }),
       sendRunScratchpad: vi.fn().mockResolvedValue({ run: true }),
+      installExportRequirements: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [],
+      }),
     } as unknown as EditRequests & RunRequests;
   });
 
@@ -102,6 +108,40 @@ describe("createLazyRequests", () => {
     );
     expect(mockInit).not.toHaveBeenCalled();
     expect(mockDelegate.getExportAvailability).toHaveBeenCalledOnce();
+  });
+
+  it("installs export requirements without waiting for the kernel", async () => {
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+
+    await lazyRequests.installExportRequirements({ format: "pdf" });
+
+    expect(mockInit).toHaveBeenCalledOnce();
+    expect(waitForConnectionOpen).toHaveBeenCalledOnce();
+    expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
+    expect(mockDelegate.installExportRequirements).toHaveBeenCalledWith({
+      format: "pdf",
+    });
+  });
+
+  it("sends instantiate without waiting for the kernel", async () => {
+    const lazyRequests = createLazyRequests(
+      mockDelegate,
+      mockGetRuntimeManager,
+    );
+    const request = {
+      objectIds: [uiElementId("obj1")],
+      values: [],
+    };
+
+    await lazyRequests.sendInstantiate(request);
+
+    expect(mockInit).toHaveBeenCalledOnce();
+    expect(waitForConnectionOpen).toHaveBeenCalledOnce();
+    expect(waitForKernelToBeInstantiated).not.toHaveBeenCalled();
+    expect(mockDelegate.sendInstantiate).toHaveBeenCalledWith(request);
   });
 
   it("should call init once before first request", async () => {

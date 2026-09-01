@@ -56,6 +56,19 @@ describe("CachePopover getCacheInfo throttling", () => {
     return () => act(() => dispose());
   }
 
+  it("renders content synchronously for CodeMirror's initial measurement", async () => {
+    const dom = document.createElement("div");
+
+    // Keep the mount outside `act()`. It would flush an asynchronous render
+    // and make this assertion pass without `flushSync`.
+    const dispose = mountLensPopover(dom, CACHE_SPEC);
+
+    expect(dom.textContent).toContain("my_cache");
+    await act(async () => {
+      dispose();
+    });
+  });
+
   it("does not refetch on every hover, only after the throttle interval elapses", () => {
     const disposeFirst = mount();
     expect(getCacheInfoMock).toHaveBeenCalledTimes(1);

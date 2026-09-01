@@ -16,6 +16,7 @@ from marimo._server.workspace._base import (
     file_not_found,
 )
 from marimo._utils.http import HTTPException, HTTPStatus
+from marimo._utils.paths import normalize_path
 
 if TYPE_CHECKING:
     from marimo._server.models.files import FileInfo
@@ -88,7 +89,7 @@ class DirectoryWorkspace(NotebookWorkspace):
             self._validator.validate_inside_directory(directory, filepath)
 
         if filepath.exists():
-            return str(filepath)
+            return str(normalize_path(filepath))
 
         raise file_not_found(key)
 

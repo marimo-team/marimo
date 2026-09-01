@@ -955,10 +955,7 @@ class TestExportMarkdown:
         _assert_success(p)
         assert "```{marimo .python" not in p.output
         assert "```{marimo} python" not in p.output
-        assert (
-            "```python {.marimo" in p.output
-            or "```{.python.marimo" in p.output
-        )
+        assert "```python {.marimo" in p.output
 
     @staticmethod
     def test_export_markdown_help_documents_stdout_inference() -> None:

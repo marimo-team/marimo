@@ -52,6 +52,7 @@ describe("RequestingTree", () => {
 
   test("initialize should load files and set rootPath", async () => {
     expect(sendListFiles).toHaveBeenCalledWith({ path: "" });
+    expect(requestingTree.getRootPath()).toBe("/root");
     expect(mockOnChange).toHaveBeenCalledWith([
       { id: "1.1", name: "file1", path: "/root/file1" },
       { id: "1.2", name: "folder1", isDirectory: true, path: "/root/folder1" },
@@ -259,6 +260,65 @@ describe("RequestingTree", () => {
         },
       ]
     `);
+  });
+
+  test("refreshPath should refresh an uploaded file's destination", async () => {
+    sendListFiles.mockImplementation(async ({ path }: { path: string }) => {
+      if (path === "/root/folder1") {
+        return {
+          files: [
+            {
+              id: "uploaded",
+              name: "uploaded.csv",
+              path: "/root/folder1/uploaded.csv",
+            },
+          ],
+        };
+      }
+      return {
+        files: [
+          { id: "1.1", name: "file1", path: "/root/file1" },
+          {
+            id: "1.2",
+            name: "folder1",
+            isDirectory: true,
+            path: "/root/folder1",
+          },
+          {
+            id: "1.3",
+            name: "folder2",
+            isDirectory: true,
+            path: "/root/folder2",
+          },
+        ],
+      };
+    });
+
+    await requestingTree.refreshPath("/root/folder1" as FilePath);
+
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
+    expect(mockOnChange.mock.calls.at(-1)?.[0]).toEqual([
+      { id: "1.1", name: "file1", path: "/root/file1" },
+      {
+        id: "1.2",
+        name: "folder1",
+        isDirectory: true,
+        path: "/root/folder1",
+        children: [
+          {
+            id: "uploaded",
+            name: "uploaded.csv",
+            path: "/root/folder1/uploaded.csv",
+          },
+        ],
+      },
+      {
+        id: "1.3",
+        name: "folder2",
+        isDirectory: true,
+        path: "/root/folder2",
+      },
+    ]);
   });
 
   describe("when API fails", () => {

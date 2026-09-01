@@ -1124,6 +1124,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/requirements/install": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["InstallExportRequirementsRequest"];
+        };
+      };
+      responses: {
+        /** @description Updated readiness for server-backed exports */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ExportAvailabilityResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/script": {
     parameters: {
       query?: never;
@@ -3687,6 +3728,7 @@ export interface components {
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+     *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
@@ -3702,6 +3744,7 @@ export interface components {
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
+      allow_provider_config?: boolean;
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
@@ -3776,7 +3819,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Anthropic API key
+     *         - `api_key`: the Anthropic API key or an `env:` reference
      */
     AnthropicConfig: {
       api_key?: string;
@@ -3853,6 +3896,20 @@ export interface components {
       bytes_freed: number;
       /** @enum {unknown} */
       op: "cache-cleared";
+    };
+    /**
+     * CacheConfig
+     * @description Configuration for caching.
+     *
+     *         `verification` is the signature-checking posture; `store` is the backing
+     *         store, or a list of stores composed into a `TieredStore`.
+     */
+    CacheConfig: {
+      store?:
+        | components["schemas"]["StoreConfig"][]
+        | components["schemas"]["StoreConfig"];
+      /** @enum {unknown} */
+      verification?: "off" | "on" | "strict";
     };
     /**
      * CacheInfoNotification
@@ -4034,6 +4091,14 @@ export interface components {
       role: "assistant" | "system" | "user";
     };
     /**
+     * ChatOptions
+     * @description Used to configure capabilities of the AI agent.
+     */
+    ChatOptions: {
+      /** @default false */
+      webSearch?: boolean;
+    };
+    /**
      * ChatRequest
      * @description UIMessages are expected to be AI SDK messages.
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
@@ -4042,6 +4107,7 @@ export interface components {
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
+      options?: components["schemas"]["ChatOptions"];
       /** @default null */
       tools?: components["schemas"]["ToolDefinition"][] | null;
       uiMessages: Record<string, any>[];
@@ -4406,6 +4472,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -4546,6 +4613,9 @@ export interface components {
       confidence: "high" | "medium";
       configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
       displayName: string;
+      hidesWhen:
+        | components["schemas"]["DialectHidesWhen"]
+        | components["schemas"]["StorageHidesWhen"];
       id: string;
       integration: string;
       origins: components["schemas"]["DetectedDataSourceOrigin"][];
@@ -4562,6 +4632,15 @@ export interface components {
       label: string;
       /** @enum {unknown} */
       type: "configuration" | "environment";
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiagnosticsConfig
@@ -4606,12 +4685,15 @@ export interface components {
      *         - `default_table_page_size`: default number of rows to display in tables
      *         - `default_table_max_columns`: default maximum number of columns to display in tables
      *         - `reference_highlighting`: if `True`, highlight reactive variable references
+     *         - `code_lens`: if `True`, show inline icons in cell editors linking
+     *           datasources, storage buckets, and caches to their panels
      *         - `locale`: locale for date formatting and internationalization (e.g., "en-US", "en-GB", "de-DE")
      */
     DisplayConfig: {
       /** @enum {unknown} */
       cell_output: "above" | "below";
       code_editor_font_size: number;
+      code_lens?: boolean;
       custom_css?: string[];
       /** @enum {unknown} */
       dataframes: "plain" | "rich";
@@ -5067,7 +5149,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the GitHub API token
+     *         - `api_key`: the GitHub API token or an `env:` reference
      *         - `base_url`: the base URL for the API
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
@@ -5084,7 +5166,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Google AI API key
+     *         - `api_key`: the Google AI API key or an `env:` reference
      */
     GoogleAiConfig: {
       api_key?: string;
@@ -5147,6 +5229,11 @@ export interface components {
       /** @enum {unknown} */
       type: "import-star";
     };
+    /** InstallExportRequirementsRequest */
+    InstallExportRequirementsRequest: {
+      /** @enum {unknown} */
+      format: "html" | "ipynb" | "markdown" | "pdf" | "script";
+    };
     /**
      * InstallPackagesCommand
      * @description Install Python packages.
@@ -5158,12 +5245,17 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             index_urls: Alternative package index URLs. Primary index first,
+     *                         then extras. Honored by backends that support custom
+     *                         indexes (currently micropip); other backends ignore it.
      *             source: Where to install. "kernel" (default) dispatches to the kernel
      *                     subprocess; "server" installs directly into the server's Python
      *                     environment (sys.executable), used when the server itself needs
      *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5178,6 +5270,8 @@ export interface components {
     };
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5418,6 +5512,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -5737,6 +5832,7 @@ export interface components {
      */
     MarimoConfig: {
       ai?: components["schemas"]["AiConfig"];
+      cache?: components["schemas"]["CacheConfig"];
       completion: components["schemas"]["CompletionConfig"];
       datasources?: components["schemas"]["DatasourcesConfig"];
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
@@ -5752,6 +5848,7 @@ export interface components {
       save: components["schemas"]["SaveConfig"];
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
+      signing?: components["schemas"]["SigningConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
@@ -6061,7 +6158,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the OpenAI API key
+     *         - `api_key`: the OpenAI API key or an `env:` reference
      *         - `base_url`: the base URL for the API
      *         - `project`: the project ID for the OpenAI API
      *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -6760,6 +6857,22 @@ export interface components {
     ShutdownSessionRequest: {
       sessionId: components["schemas"]["SessionId"];
     };
+    /**
+     * SigningConfig
+     * @description Cache-signing trust and identity.
+     *
+     *         `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+     *         advisory label. Trusting a key allows arbitrary code execution from its
+     *         holder on this machine — a cache restore is `pickle.loads` — so there is no
+     *         lesser cache-only grant. `private_key_path` is this machine's signing
+     *         identity; it is never serialized to the frontend.
+     */
+    SigningConfig: {
+      private_key_path?: string;
+      trusted_signers?: {
+        [key: string]: string;
+      };
+    };
     /** Snippet */
     Snippet: {
       sections: components["schemas"]["SnippetSection"][];
@@ -6963,6 +7076,16 @@ export interface components {
       size: number;
     };
     /**
+     * StorageHidesWhen
+     * @description Hide this suggestion when a live storage namespace matches.
+     */
+    StorageHidesWhen: {
+      backendTypes: string[];
+      /** @enum {unknown} */
+      kind: "storage";
+      protocols: string[];
+    };
+    /**
      * StorageListEntriesCommand
      * @description List storage entries at a prefix.
      *
@@ -7032,7 +7155,7 @@ export interface components {
     };
     /**
      * StoreConfig
-     * @description Configuration for cache stores.
+     * @description Configuration for a single cache store.
      */
     StoreConfig: {
       args?: Record<string, any>;

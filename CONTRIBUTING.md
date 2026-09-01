@@ -83,7 +83,7 @@ _Note: We recommend that Windows developers use [WSL](https://learn.microsoft.co
 ### Prerequisites
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) (Python package manager)
-- [Node.js](https://nodejs.org/) 22+
+- [Node.js](https://nodejs.org/) 22.12+
 - [pnpm](https://pnpm.io/installation) 10+
 
 ### Getting started

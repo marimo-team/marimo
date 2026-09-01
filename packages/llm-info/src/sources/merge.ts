@@ -48,6 +48,15 @@ export const MODEL_DENYLIST: Readonly<Record<string, ReadonlySet<string>>> = {
   openai: new Set([
     // Surfaced inside ChatGPT only; not exposed via the OpenAI API.
     "gpt-5.3-codex-spark",
+    // Listed upstream but does not work with marimo's OpenAI integration.
+    "gpt-realtime-2.1",
+  ]),
+  bedrock: new Set([
+    // Provider-specific aliases are redundant with the global catalog entry.
+    "anthropic.claude-opus-5",
+    "au.anthropic.claude-opus-5",
+    "eu.anthropic.claude-opus-5",
+    "jp.anthropic.claude-opus-5",
   ]),
 };
 

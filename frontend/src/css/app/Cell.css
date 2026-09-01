@@ -27,42 +27,19 @@
     outline: none;
   }
 
-  &:has(.mo-ai-generated-cell)::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 10px;
-    pointer-events: none;
-    opacity: 0.5;
-    box-shadow: 0px 0px 10px 0px var(--cyan-9);
-    z-index: 1;
-  }
-
-  &:has(.mo-ai-generated-cell.mo-ai-setup-cell)::before {
-    border-radius: 2px;
+  &:has(.mo-ai-generated-cell) {
+    border-color: var(--blue-7);
   }
 
   /* Styling for cells marked for deletion by AI */
   &:has(.mo-ai-deleted-cell) {
-    opacity: 0.7;
     position: relative;
+    border-color: var(--red-7);
 
     .output-area,
     .cm-gutters,
     .cm {
       background-color: var(--red-2);
-    }
-
-    /* Add a red glow to indicate deletion */
-    &::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      border-radius: 10px;
-      pointer-events: none;
-      opacity: 0.6;
-      box-shadow: 0px 0px 10px 0px var(--red-9);
-      z-index: 1;
     }
 
     /* Add strikethrough effect to the code */
@@ -326,6 +303,20 @@
   @apply bg-background;
 }
 
+.mo-ai-cell-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  background: var(--gray-2);
+}
+
+.dark .mo-ai-cell-footer {
+  background: var(--gray-3);
+}
+
 .dark .marimo-cell {
   @apply border-border;
 
@@ -362,6 +353,14 @@
       box-shadow: none;
     }
   }
+}
+
+.dark .marimo-cell:has(.mo-ai-generated-cell) {
+  border-color: var(--blue-8);
+}
+
+.dark .marimo-cell:has(.mo-ai-deleted-cell) {
+  border-color: var(--red-8);
 }
 
 #cell-setup,

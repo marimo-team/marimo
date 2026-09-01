@@ -190,6 +190,62 @@ describe("isInAxes", () => {
   });
 });
 
+// A 100x100 chart whose axes fill the whole figure.
+function createState(): MatplotlibState {
+  return {
+    ...LINEAR_AXES,
+    axesPixelBounds: [0, 0, 100, 100],
+    yBounds: [0, 10],
+    chartBase64: "first",
+    width: 100,
+    height: 100,
+    selectionColor: "blue",
+    selectionOpacity: 0.15,
+    strokeWidth: 2,
+    debounce: false,
+    value: { has_selection: false },
+    setValue: vi.fn(),
+  };
+}
+
+// jsdom has no matchMedia, no animation frames and no canvas context.
+function stubBrowser(ctx: Partial<CanvasRenderingContext2D> | null = null) {
+  vi.stubGlobal(
+    "matchMedia",
+    vi.fn(() => ({ addEventListener: vi.fn() })),
+  );
+  const requestAnimationFrame = vi.fn(() => 1);
+  vi.stubGlobal("requestAnimationFrame", requestAnimationFrame);
+  vi.stubGlobal("cancelAnimationFrame", vi.fn());
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(
+    ctx as CanvasRenderingContext2D | null,
+  );
+  return { requestAnimationFrame };
+}
+
+// jsdom does not fetch images; resolve them synchronously instead.
+function stubSyncImage() {
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      set src(_value: string) {
+        this.onload?.();
+      }
+    },
+  );
+}
+
+function createRecordingContext() {
+  return {
+    setTransform: vi.fn(),
+    clearRect: vi.fn(),
+    drawImage: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+  };
+}
+
 describe("MatplotlibRenderer", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -197,36 +253,14 @@ describe("MatplotlibRenderer", () => {
   });
 
   it("restores a new selection when the chart changes", () => {
-    vi.stubGlobal(
-      "matchMedia",
-      vi.fn(() => ({ addEventListener: vi.fn() })),
-    );
-    vi.stubGlobal(
-      "requestAnimationFrame",
-      vi.fn(() => 1),
-    );
-    vi.stubGlobal("cancelAnimationFrame", vi.fn());
-    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    stubBrowser();
 
     const value = {
       type: "box",
       has_selection: true,
       data: { x_min: 2, x_max: 4, y_min: 2, y_max: 4 },
     } as const;
-    const state: MatplotlibState = {
-      ...LINEAR_AXES,
-      axesPixelBounds: [0, 0, 100, 100],
-      yBounds: [0, 10],
-      chartBase64: "first",
-      width: 100,
-      height: 100,
-      selectionColor: "blue",
-      selectionOpacity: 0.15,
-      strokeWidth: 2,
-      debounce: false,
-      value: { has_selection: false },
-      setValue: vi.fn(),
-    };
+    const state = createState();
     const container = document.createElement("div");
     const controller = new AbortController();
     const renderer = new MatplotlibRenderer(container, {
@@ -250,6 +284,132 @@ describe("MatplotlibRenderer", () => {
     );
 
     expect(canvas.style.cursor).toBe("move");
+    controller.abort();
+  });
+
+  // Safari only fires resize on zoom, not the resolution query (#10625).
+  it("re-syncs the backing store on resize, without matchMedia firing", () => {
+    stubBrowser();
+    vi.stubGlobal("devicePixelRatio", 2);
+
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    new MatplotlibRenderer(container, {
+      state: createState(),
+      signal: controller.signal,
+    });
+    const canvas = container.querySelector("canvas");
+    expect(canvas?.width).toBe(200);
+
+    vi.stubGlobal("devicePixelRatio", 1);
+    window.dispatchEvent(new Event("resize"));
+
+    expect(canvas?.width).toBe(100);
+    controller.abort();
+  });
+
+  // Re-sizing clears the buffer a frame before the repaint, so an over-eager
+  // guard flickers. 700 * 1.1 is the case a truncating comparison misses.
+  it("leaves the backing store alone when resize fires at an unchanged DPR", () => {
+    const { requestAnimationFrame } = stubBrowser();
+    vi.stubGlobal("devicePixelRatio", 1.1);
+
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    new MatplotlibRenderer(container, {
+      state: { ...createState(), width: 700 },
+      signal: controller.signal,
+    });
+    const canvas = container.querySelector("canvas");
+    expect(canvas?.width).toBe(770);
+
+    requestAnimationFrame.mockClear();
+    window.dispatchEvent(new Event("resize"));
+
+    expect(canvas?.width).toBe(770);
+    expect(requestAnimationFrame).not.toHaveBeenCalled();
+    controller.abort();
+  });
+
+  it("draws with the backing-store scale, not the current devicePixelRatio", () => {
+    const ctx = createRecordingContext();
+    stubBrowser(ctx);
+    stubSyncImage();
+    vi.stubGlobal("devicePixelRatio", 2);
+
+    const state = createState();
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    const renderer = new MatplotlibRenderer(container, {
+      state,
+      signal: controller.signal,
+    });
+    expect(container.querySelector("canvas")?.width).toBe(200);
+
+    // Zoom with nothing re-syncing the buffer: it still holds the old DPR, so
+    // the redraw must too, or the image lands scaled by dpr_new / dpr_old.
+    vi.stubGlobal("devicePixelRatio", 1);
+    ctx.setTransform.mockClear();
+    renderer.update({ ...state, strokeWidth: 4 });
+
+    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
+    expect(ctx.drawImage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      0,
+      0,
+      100,
+      100,
+    );
+    controller.abort();
+  });
+
+  it("clears the whole backing store when a re-run swaps the chart", () => {
+    const ctx = createRecordingContext();
+    stubBrowser(ctx);
+    vi.stubGlobal("devicePixelRatio", 2);
+
+    const state = createState();
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    const renderer = new MatplotlibRenderer(container, {
+      state,
+      signal: controller.signal,
+    });
+
+    vi.stubGlobal("devicePixelRatio", 1);
+    ctx.setTransform.mockClear();
+    ctx.clearRect.mockClear();
+    renderer.update({ ...state, chartBase64: "second" });
+
+    // A stale scale here would leave the outer 3/4 of the buffer unwiped.
+    expect(ctx.setTransform.mock.calls).toEqual([[2, 0, 0, 2, 0, 0]]);
+    expect(ctx.clearRect.mock.calls).toEqual([[0, 0, 100, 100]]);
+    controller.abort();
+  });
+
+  it("scales each axis by its own backing-store ratio", () => {
+    const ctx = createRecordingContext();
+    stubBrowser(ctx);
+    stubSyncImage();
+    // canvas.width/height are integers, so this truncates the two dimensions
+    // by different fractions: 150 * 1.25 -> 187 (0.5 lost), 500 * 1.25 -> 625
+    // (exact). One shared, width-derived scale would under-cover the buffer
+    // vertically and leave its bottom rows unwiped.
+    vi.stubGlobal("devicePixelRatio", 1.25);
+
+    const state = { ...createState(), width: 150, height: 500 };
+    const container = document.createElement("div");
+    const controller = new AbortController();
+    new MatplotlibRenderer(container, { state, signal: controller.signal });
+
+    const canvas = container.querySelector("canvas");
+    expect(canvas?.width).toBe(187);
+    expect(canvas?.height).toBe(625);
+    // The pre-load clear and the draw each set up their own transform.
+    const transform = [187 / 150, 0, 0, 625 / 500, 0, 0];
+    const rect = [0, 0, 150, 500];
+    expect(ctx.setTransform.mock.calls).toEqual([transform, transform]);
+    expect(ctx.clearRect.mock.calls).toEqual([rect, rect]);
     controller.abort();
   });
 });

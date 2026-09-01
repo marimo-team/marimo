@@ -22,10 +22,19 @@ from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
-from marimo._schemas.export_options import PDFExportOptions
+from marimo._schemas.export import (
+    ExportAvailabilityResponse,
+    ExportFormatAvailability,
+    ExportSetupRequirement,
+)
+from marimo._schemas.export_options import (
+    PDFExportOptions,
+    ServerExportFormat,
+)
 from marimo._session.model import SessionMode
 from marimo._session.notebook.file_manager import AppFileManager
 from marimo._types.ids import CellId_t, SessionId
+from marimo._utils.http import HTTPException
 from marimo._utils.platform import is_windows
 from tests._server.mocks import (
     get_session_manager,
@@ -36,6 +45,7 @@ from tests._server.mocks import (
 from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
+    from httpx import Response
     from starlette.testclient import TestClient
 
 snapshot = snapshotter(__file__)
@@ -47,6 +57,37 @@ HEADERS = {
 }
 
 CODE = uri_encode_component("import marimo as mo")
+
+
+def _format_availability(
+    export_format: ServerExportFormat,
+    *,
+    missing_packages: tuple[str, ...] = (),
+    missing_setup: tuple[ExportSetupRequirement, ...] = (),
+) -> ExportFormatAvailability:
+    return ExportFormatAvailability(
+        format=export_format,
+        dependencies_available=not missing_packages and not missing_setup,
+        missing_packages=list(missing_packages),
+        missing_setup=list(missing_setup),
+    )
+
+
+def _availability(
+    *formats: ExportFormatAvailability,
+) -> ExportAvailabilityResponse:
+    return ExportAvailabilityResponse(source="server", formats=list(formats))
+
+
+def _install_export_requirements(
+    client: TestClient,
+    export_format: ServerExportFormat,
+) -> Response:
+    return client.post(
+        "/api/export/requirements/install",
+        headers=HEADERS,
+        json={"format": export_format},
+    )
 
 
 def _ipynb_export_app() -> InternalApp:
@@ -244,6 +285,156 @@ def test_export_availability_handles_pdf_setup_probe_failure(
         "Failed to check whether Playwright Chromium is installed",
         exc_info=error,
     )
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_resolves_server_requirements(
+    client: TestClient,
+) -> None:
+    setup = ExportSetupRequirement(
+        name="playwright-chromium",
+        command="uv run playwright install chromium",
+    )
+    install_packages = AsyncMock()
+
+    async def assert_packages_installed_first(requirement: str) -> None:
+        assert requirement == "playwright-chromium"
+        install_packages.assert_awaited_once_with({"nbconvert[webpdf]": ""})
+
+    install_setup = AsyncMock(side_effect=assert_packages_installed_first)
+    refreshed = _availability(
+        _format_availability("ipynb"),
+        _format_availability("pdf"),
+    )
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(
+                side_effect=[
+                    _format_availability(
+                        "pdf",
+                        missing_packages=("nbconvert[webpdf]",),
+                    ),
+                    _format_availability(
+                        "pdf",
+                        missing_setup=(setup,),
+                    ),
+                ]
+            ),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(return_value=refreshed),
+        ),
+    ):
+        response = _install_export_requirements(client, "pdf")
+
+    assert response.status_code == 200, response.text
+    install_setup.assert_awaited_once_with("playwright-chromium")
+    assert all(
+        item["dependenciesAvailable"] for item in response.json()["formats"]
+    )
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_is_idempotent(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    install_setup = AsyncMock()
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(return_value=_format_availability("markdown")),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(
+                return_value=_availability(_format_availability("markdown"))
+            ),
+        ),
+    ):
+        response = _install_export_requirements(client, "markdown")
+
+    assert response.status_code == 200, response.text
+    install_packages.assert_not_awaited()
+    install_setup.assert_not_awaited()
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_fails_when_unresolved(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    missing = _format_availability("ipynb", missing_packages=("nbformat",))
+    with (
+        patch(
+            "marimo._server.api.endpoints.export._get_export_format_availability",
+            new=AsyncMock(return_value=missing),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export._get_export_availability",
+            new=AsyncMock(return_value=_availability(missing)),
+        ),
+    ):
+        response = _install_export_requirements(client, "ipynb")
+
+    assert response.status_code == 500
+    assert response.json() == {
+        "detail": (
+            "Failed to install requirements for IPYNB export. "
+            "Check the server logs."
+        )
+    }
+    install_packages.assert_awaited_once_with({"nbformat": ""})
+
+
+@with_session(SESSION_ID)
+def test_install_export_requirements_enforces_consumer_capability(
+    client: TestClient,
+) -> None:
+    install_packages = AsyncMock()
+    install_setup = AsyncMock()
+    with (
+        patch(
+            "marimo._server.api.endpoints.export.enforce_consumer_capability",
+            side_effect=HTTPException(status_code=403, detail="read-only"),
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_packages_on_server",
+            new=install_packages,
+        ),
+        patch(
+            "marimo._server.api.endpoints.export.install_export_setup",
+            new=install_setup,
+        ),
+    ):
+        response = _install_export_requirements(client, "pdf")
+
+    assert response.status_code == 403, response.text
+    install_packages.assert_not_awaited()
+    install_setup.assert_not_awaited()
 
 
 @with_session(SESSION_ID)

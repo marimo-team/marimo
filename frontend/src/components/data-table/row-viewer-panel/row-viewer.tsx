@@ -189,7 +189,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {fieldTypes?.map(([columnName, [dataType, _externalType]]) => {
+          {fieldTypes?.map(([columnName, [dataType, externalType]]) => {
             const columnValue = rowValues[columnName];
 
             if (!inSearchQuery({ columnName, columnValue, searchQuery })) {
@@ -201,6 +201,7 @@ export const RowViewerPanel: React.FC<RowViewerPanelProps> = ({
               columnDef: {
                 meta: {
                   dataType,
+                  dtype: externalType,
                 },
               },
               getColumnFormatting: () => undefined,

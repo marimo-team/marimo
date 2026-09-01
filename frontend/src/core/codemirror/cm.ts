@@ -82,7 +82,7 @@ export interface CodeMirrorSetupOpts {
   hotkeys: HotkeyProvider;
   lspConfig: LSPConfig;
   diagnosticsConfig: DiagnosticsConfig;
-  displayConfig: Pick<DisplayConfig, "reference_highlighting">;
+  displayConfig: Pick<DisplayConfig, "reference_highlighting" | "code_lens">;
   inlineAiTooltip: boolean;
   /**
    * CSS selector for the element that CodeMirror tooltips (completions, hover,
@@ -200,7 +200,7 @@ export const setupCodeMirror = (opts: CodeMirrorSetupOpts): Extension[] => {
       displayConfig.reference_highlighting ?? true,
     ),
     // Inline icons linking datasources/buckets/caches to their panels
-    codeLensBundle(cellId),
+    codeLensBundle(cellId, displayConfig.code_lens ?? true),
   ];
 };
 

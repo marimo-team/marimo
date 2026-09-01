@@ -519,6 +519,23 @@ _CSS = """\
   font-size: 0.75rem;
   color: var(--slate-11);
 }
+/* The cell output area is a scroll container, which clips the
+   absolutely-positioned legend when it rises past the container's top
+   edge. Where CSS anchor positioning is available, pin the legend to
+   the info icon with fixed positioning instead: fixed elements escape
+   scroll-container clipping, and the top layer is not needed. */
+@supports (anchor-name: --nn-t-info) {
+  .nn-t-info svg {
+    anchor-name: --nn-t-info;
+  }
+  .nn-t-legend {
+    position: fixed;
+    position-anchor: --nn-t-info;
+    bottom: calc(anchor(top) + 6px);
+    right: anchor(right);
+    position-try-fallbacks: flip-block;
+  }
+}
 .nn-t-legend-title {
   font-size: 0.6875rem;
   text-transform: uppercase;

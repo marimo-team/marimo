@@ -15,13 +15,19 @@ vi.mock("@/plugins/impl/code/LazyAnyLanguageCodeMirror", () => ({
   LazyAnyLanguageCodeMirror: ({
     value,
     onChange,
+    language,
+    readOnly,
   }: {
     value?: string;
     onChange?: (value: string) => void;
+    language?: string;
+    readOnly?: boolean;
   }) => (
     <textarea
       data-testid="code-editor"
+      data-language={language}
       value={value ?? ""}
+      readOnly={readOnly}
       onChange={(evt) => onChange?.(evt.target.value)}
     />
   ),
@@ -104,6 +110,21 @@ describe("FileViewer bounded previews", () => {
       expect(screen.getByTestId("code-editor")).toBeInTheDocument();
     });
     expect(screen.queryByText(/too large to preview/i)).not.toBeInTheDocument();
+  });
+
+  it("renders TOML files as editable TOML", async () => {
+    renderViewer({
+      file: { ...file, name: "pyproject.toml", size: 20 },
+      contents: '[project]\nname = "demo"',
+      mimeType: "application/toml",
+      isBase64: false,
+      isTooLarge: false,
+    });
+
+    const editor =
+      await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+    expect(editor).toHaveAttribute("data-language", "toml");
+    expect(editor).not.toHaveAttribute("readonly");
   });
 
   it("preserves edits to an initially empty text file across remount", async () => {

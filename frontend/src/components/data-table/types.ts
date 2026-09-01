@@ -53,7 +53,12 @@ export type ColumnHeaderStats = Record<
 
 export type FieldTypesWithExternalType = [
   columnName: string,
-  [dataType: DataType, externalType: string],
+  [
+    // Normalized marimo type, such as "string" or "datetime".
+    dataType: DataType,
+    // Source-library type, such as pandas "timedelta64[ns]".
+    externalType: string,
+  ],
 ][];
 // Ordered map of column name -> data type.
 //

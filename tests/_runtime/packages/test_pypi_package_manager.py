@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import subprocess
 import sys
+import threading
 from functools import partial
 from pathlib import Path
 from typing import Any
@@ -40,6 +42,9 @@ def _assert_cmd_called_once_with(
     mock.assert_called_once()
     call_args, call_kwargs = mock.call_args
     assert _normalize_cmd(call_args[0]) == _normalize_cmd(expected_cmd)
+    # Package-manager commands always run in their own session so that
+    # cell interrupts don't abort them
+    assert call_kwargs.pop("start_new_session", None) is True
     assert call_kwargs == expected_kwargs
 
 
@@ -142,6 +147,7 @@ async def test_install(mock_run: MagicMock):
 
     mock_run.assert_called_once_with(
         [PY_EXE, "-m", "pip", "install", "package1", "package2"],
+        start_new_session=True,
     )
     assert result is True
 
@@ -174,6 +180,7 @@ async def test_uninstall(mock_run: MagicMock):
             "package1",
             "package2",
         ],
+        start_new_session=True,
     )
     assert result is True
 
@@ -196,6 +203,7 @@ def test_list_packages(mock_run: MagicMock):
         capture_output=True,
         text=True,
         encoding="utf-8",
+        start_new_session=True,
     )
     assert len(packages) == 2
     assert packages[0] == PackageDescription(name="package1", version="1.0.0")
@@ -237,7 +245,7 @@ def test_poetry_generate_cmd_version_two_prefers_without_dev(
         ["poetry", "show", "--without", "dev"],
         capture_output=True,
         text=True,
-        check=False,
+        start_new_session=True,
     )
 
 
@@ -349,6 +357,20 @@ def test_uv_is_in_uv_project_true(mock_exists: MagicMock):
     assert mgr.is_in_uv_project is True
 
 
+@patch.object(UvPackageManager, "_uv_bin", "uv")
+def test_uv_can_target_python_without_mutating_project() -> None:
+    mgr = UvPackageManager.for_pip_install("/server/python")
+
+    assert mgr.install_command("nbformat", upgrade=False) == [
+        "uv",
+        "pip",
+        "install",
+        "nbformat",
+        "-p",
+        "/server/python",
+    ]
+
+
 @patch.dict(
     "os.environ",
     {"VIRTUAL_ENV": "/path/to/venv", "UV": "/path/to/venv"},
@@ -394,6 +416,32 @@ async def test_uv_install_not_in_project(mock_popen: MagicMock):
     assert call_kwargs["universal_newlines"] is False
     assert call_kwargs["bufsize"] == 0
     assert result is True
+
+
+@patch.object(UvPackageManager, "is_in_uv_project", False)
+async def test_uv_install_does_not_block_event_loop() -> None:
+    process_started = asyncio.Event()
+    release_process = threading.Event()
+    loop = asyncio.get_running_loop()
+
+    def install(*args: Any, **kwargs: Any) -> bool:
+        del args, kwargs
+        loop.call_soon_threadsafe(process_started.set)
+        release_process.wait(timeout=1)
+        return True
+
+    mgr = UvPackageManager()
+    with patch.object(
+        mgr, "_install_with_cache_fallback", side_effect=install
+    ):
+        task = asyncio.create_task(
+            mgr._install("package1", upgrade=False, group=None)
+        )
+        await process_started.wait()
+        assert not task.done()
+
+        release_process.set()
+        assert await task is True
 
 
 @patch("marimo._utils.subprocess.subprocess.Popen")

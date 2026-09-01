@@ -113,16 +113,19 @@ export const SetupMocks = {
       writable: true,
     });
 
-    // Mock ClipboardItem
+    // Mock ClipboardItem. vitest 4 requires a `function` (not an arrow) for
+    // mock implementations invoked with `new`.
     global.ClipboardItem = Object.assign(
-      vi.fn().mockImplementation((data) => Mocks.clipboardItem(data)),
+      vi.fn().mockImplementation(function (data) {
+        return Mocks.clipboardItem(data);
+      }),
       { supports: vi.fn().mockReturnValue(true) },
     ) as unknown as typeof ClipboardItem;
 
     // Mock Blob
-    global.Blob = vi
-      .fn()
-      .mockImplementation((parts, options) => Mocks.blob(parts, options));
+    global.Blob = vi.fn().mockImplementation(function (parts, options) {
+      return Mocks.blob(parts, options);
+    });
 
     return mockClipboard;
   },

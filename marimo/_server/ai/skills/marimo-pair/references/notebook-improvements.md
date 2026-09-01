@@ -25,6 +25,14 @@ it must be self-contained: imports, constants, and definitions that depend only
 on each other. Reading a name defined elsewhere (e.g. `df`, a UI element) fails
 with `The setup cell cannot have references`.
 
+**Keep the setup cell import-only if you can.** marimo skips re-running
+descendants when an edited cell contains only import statements, because
+imports resolve independently of the notebook's reactive dataflow. This
+applies to every import-only cell, not only `setup`. It matters most for
+`setup`, because every other cell depends on it: if the setup cell also defines
+constants or other values, editing it re-runs the entire notebook. Put those
+definitions in a separate cell downstream of `setup`.
+
 First check if the notebook already has a cell named `"setup"`. If not, create
 one and hoist scattered imports into it. `name="setup"` auto-positions the cell
 first — no `before`/`after` needed:

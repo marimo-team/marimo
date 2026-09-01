@@ -832,7 +832,7 @@ def get_chart_builder(
         return WrapperChartBuilder(BooleanChartBuilder())
     if column_type == "integer":
         return WrapperChartBuilder(IntegerChartBuilder())
-    if column_type == "unknown":
+    if column_type == "unknown" or column_type == "geometry":
         return WrapperChartBuilder(UnknownChartBuilder())
 
     assert_never(column_type)

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import mimetypes
 import re
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING, cast
@@ -11,6 +10,7 @@ from marimo import _loggers
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._runtime.virtual_file import read_virtual_file
 from marimo._utils.data_uri import build_data_url
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -256,7 +256,7 @@ def _virtual_file_to_data_uri(virtual_file_url: str) -> str | None:
     byte_length, filename = parsed
     try:
         buffer_contents = read_virtual_file(filename, byte_length)
-        mime_type = mimetypes.guess_type(filename)[0] or "text/plain"
+        mime_type = guess_mime_type(filename) or "text/plain"
         return build_data_url(
             cast(KnownMimeType, mime_type),
             base64.b64encode(buffer_contents),
@@ -453,7 +453,7 @@ def replace_public_files_with_data_uris(
                 "Failed to read public file %s during export: %s", value, e
             )
             return None
-        mime_type = mimetypes.guess_type(resolved.name)[0] or "text/plain"
+        mime_type = guess_mime_type(resolved.name) or "text/plain"
         replaced.add(value)
         return build_data_url(
             cast(KnownMimeType, mime_type),

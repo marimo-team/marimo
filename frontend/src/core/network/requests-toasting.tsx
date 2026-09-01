@@ -65,6 +65,7 @@ export function createErrorToastingRequests(
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
     getExportAvailability: "", // No toast
+    installExportRequirements: "Failed to install export requirements",
     exportAsHTML: "Failed to export HTML",
     exportAsIPYNB: "Failed to export ipynb",
     exportAsMarkdown: "Failed to export Markdown",

@@ -82,7 +82,7 @@ def render_notebook(
     asset_url: str | None = None,
     custom_css: str | None = None,
 ) -> str:
-    """Render a marimo notebook to HTML.
+    r"""Render a marimo notebook to HTML.
 
     Handles all the conversions internally.
 
@@ -107,7 +107,7 @@ def render_notebook(
 
     Example:
         >>> html = render_notebook(
-        ...     code="import marimo as mo\\nmo.md('Hello')",
+        ...     code="import marimo as mo\nmo.md('Hello')",
         ...     filename="notebook.py",
         ...     mode="edit",
         ...     runtime_config=[{"url": "wss://kernel.example.com"}],

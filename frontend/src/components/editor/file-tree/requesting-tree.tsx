@@ -286,6 +286,24 @@ export class RequestingTree {
     this.onChange(this.delegate.data);
   };
 
+  refreshPath = async (path: FilePath): Promise<void> => {
+    const data = await this.callbacks.listFiles({ path }).catch(() => null);
+    if (!data) {
+      return;
+    }
+
+    if (path === this.rootPath) {
+      this.delegate = new SimpleTree(data.files);
+    } else {
+      const item = findFileByPath(this.delegate.data, path);
+      if (!item?.isDirectory) {
+        return;
+      }
+      this.delegate.update({ id: item.id, changes: { children: data.files } });
+    }
+    this.onChange(this.delegate.data);
+  };
+
   public relativeFromRoot = (path: FilePath): FilePath => {
     // Add a trailing delimiter to the root path if it doesn't have one
     const root = this.rootPath.endsWith(this.path.deliminator)
@@ -297,4 +315,23 @@ export class RequestingTree {
     }
     return path;
   };
+
+  public getRootPath = (): FilePath => {
+    return this.rootPath;
+  };
+}
+
+function findFileByPath(list: FileInfo[], path: string): FileInfo | undefined {
+  for (const item of list) {
+    if (item.path === path) {
+      return item;
+    }
+    const child = item.children
+      ? findFileByPath(item.children, path)
+      : undefined;
+    if (child) {
+      return child;
+    }
+  }
+  return undefined;
 }

@@ -149,14 +149,19 @@ def initialize_script_context(
         VirtualFileRegistry,
     )
     from marimo._save.cache import CacheState
-    from marimo._save.stores import get_store
+    from marimo._save.signing_policy import get_signing_policy
+    from marimo._save.stores import cache_store_is_untrusted, get_store
 
     runtime_context = ScriptRuntimeContext(
         _app=app,
         ui_element_registry=UIElementRegistry(),
         state_registry=StateRegistry(),
         function_registry=FunctionRegistry(),
-        cache=CacheState(store=get_store(filename)),
+        cache=CacheState(
+            store=get_store(filename),
+            store_from_untrusted_origin=cache_store_is_untrusted(filename),
+            signing_policy=get_signing_policy(filename),
+        ),
         cell_lifecycle_registry=CellLifecycleRegistry(),
         app_kernel_runner_registry=AppKernelRunnerRegistry(),
         virtual_file_registry=VirtualFileRegistry(storage=InMemoryStorage()),

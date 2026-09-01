@@ -1,11 +1,14 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from types import MappingProxyType
+
 import pytest
 
 from marimo import md
 from marimo._output.hypertext import Html
 from marimo._plugins import ui
+from marimo._plugins.ui._impl.batch import validate_and_clone
 
 
 def test_batch_rejects_non_ui_elements() -> None:
@@ -42,6 +45,19 @@ def test_dictionary_rejects_non_ui_elements() -> None:
         ValueError, match="`.batch` only accepts UIElements as arguments"
     ):
         ui.dictionary({"valid": ui.slider(1, 10), "invalid": "string"})  # type: ignore
+
+
+def test_validate_and_clone_accepts_readonly_mapping() -> None:
+    """`validate_and_clone` accepts any Mapping of UI elements, not just dict."""
+    a = ui.text(value="hello")
+    elements = MappingProxyType({"a": a})
+
+    cloned = validate_and_clone(elements)
+
+    assert isinstance(cloned, dict)
+    assert set(cloned) == {"a"}
+    # returns clones, not the originals
+    assert cloned["a"]._id != a._id
 
 
 def test_update_on_frontend_value_change_only() -> None:

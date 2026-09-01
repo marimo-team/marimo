@@ -1,22 +1,61 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { type DropzoneOptions, useDropzone } from "react-dropzone";
+import {
+  type DropEvent,
+  type DropzoneOptions,
+  useDropzone,
+} from "react-dropzone";
 import { toast } from "@/components/ui/use-toast";
 import { useRequestClient } from "@/core/network/requests";
+import type { FileCreateInput, FileCreateResponse } from "@/core/network/types";
 import { withLoadingToast } from "@/utils/download";
+import { prettyError } from "@/utils/errors";
 import { Logger } from "@/utils/Logger";
-import { type FilePath, PathBuilder } from "@/utils/paths";
+import { type FilePath, PathBuilder, Paths } from "@/utils/paths";
 import { mapWithConcurrency } from "@/utils/semaphore";
-import { refreshRoot } from "./state";
 
 const MAX_SIZE = 1024 * 1024 * 100; // 100MB
 const UPLOAD_CONCURRENCY = 5;
 
-export function useFileExplorerUpload(options: DropzoneOptions = {}) {
+export const FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE =
+  "data-file-explorer-directory-path";
+
+type DestinationPath = FilePath | ((event: DropEvent) => FilePath);
+
+interface FileExplorerUploadOptions extends Omit<
+  DropzoneOptions,
+  "onDrop" | "onDropRejected" | "onError"
+> {
+  destinationPath: DestinationPath;
+  getDestinationLabel?: (path: FilePath) => string;
+  onUploadStart?: (destinationPath: FilePath, files: File[]) => void;
+  refreshDestination: (destinationPath: FilePath) => Promise<void>;
+}
+
+interface UploadFileResult {
+  file: File;
+  response: FileCreateResponse;
+}
+
+export interface UploadFilesResult {
+  successful: UploadFileResult[];
+  failed: UploadFileResult[];
+}
+
+export function useFileExplorerUpload(options: FileExplorerUploadOptions) {
+  const {
+    destinationPath,
+    getDestinationLabel = (path) => path,
+    onUploadStart,
+    refreshDestination,
+    ...dropzoneOptions
+  } = options;
   const { sendCreateFileOrFolder } = useRequestClient();
+
   return useDropzone({
     multiple: true,
     maxSize: MAX_SIZE,
+    ...dropzoneOptions,
     onError: (error) => {
       Logger.error(error);
       toast({
@@ -41,53 +80,189 @@ export function useFileExplorerUpload(options: DropzoneOptions = {}) {
         variant: "danger",
       });
     },
-    onDrop: async (acceptedFiles) => {
+    onDrop: async (acceptedFiles, _rejectedFiles, event) => {
       if (acceptedFiles.length === 0) {
         return;
       }
+
+      const resolvedDestinationPath =
+        typeof destinationPath === "function"
+          ? destinationPath(event)
+          : destinationPath;
+      const destinationLabel = getDestinationLabel(resolvedDestinationPath);
       const isSingle = acceptedFiles.length === 1;
-
       const loadingTitle = isSingle
-        ? "Uploading file..."
-        : "Uploading files...";
-      const onFinish = {
-        title: isSingle
-          ? "File uploaded"
-          : `${acceptedFiles.length} files uploaded`,
-      };
+        ? `Uploading file to ${destinationLabel}...`
+        : `Uploading files to ${destinationLabel}...`;
 
-      await withLoadingToast(
-        loadingTitle,
-        async (progress) => {
+      onUploadStart?.(resolvedDestinationPath, acceptedFiles);
+
+      let result: UploadFilesResult;
+      try {
+        result = await withLoadingToast(loadingTitle, async (progress) => {
           progress.addTotal(acceptedFiles.length);
-          await mapWithConcurrency(
-            acceptedFiles,
-            UPLOAD_CONCURRENCY,
-            async (file) => {
-              // We strip the leading slash since File.path can return
-              // `/path/to/file`.
-              const filePath = stripLeadingSlash(getPath(file));
-              let directoryPath = "" as FilePath;
-              if (filePath) {
-                directoryPath =
-                  PathBuilder.guessDeliminator(filePath).dirname(filePath);
-              }
+          return uploadFilesToDestination({
+            files: acceptedFiles,
+            destinationPath: resolvedDestinationPath,
+            createFile: sendCreateFileOrFolder,
+            onFileProcessed: () => progress.increment(1),
+          });
+        });
+      } catch {
+        await refreshDestination(resolvedDestinationPath);
+        return;
+      }
 
-              await sendCreateFileOrFolder({
-                path: directoryPath,
-                type: "file",
-                name: file.name,
-                file,
-              });
-              progress.increment(1);
-            },
-          );
-          await refreshRoot();
-        },
-        onFinish,
-      );
+      await refreshDestination(resolvedDestinationPath);
+      showUploadResultToast(result, destinationLabel);
     },
-    ...options,
+  });
+}
+
+export async function uploadFilesToDestination({
+  files,
+  destinationPath,
+  createFile,
+  onFileProcessed,
+}: {
+  files: File[];
+  destinationPath: FilePath;
+  createFile: (request: FileCreateInput) => Promise<FileCreateResponse>;
+  onFileProcessed?: () => void;
+}): Promise<UploadFilesResult> {
+  const results = await mapWithConcurrency(
+    files,
+    UPLOAD_CONCURRENCY,
+    async (file): Promise<UploadFileResult> => {
+      try {
+        const filePath = stripLeadingSlash(getPath(file));
+        const directoryPath = resolveUploadDirectoryPath({
+          destinationPath,
+          filePath,
+        });
+        const response = await createFile({
+          path: directoryPath,
+          type: "file",
+          name: file.name,
+          file,
+        });
+        return { file, response };
+      } catch (error) {
+        return {
+          file,
+          response: { success: false, message: prettyError(error) },
+        };
+      } finally {
+        onFileProcessed?.();
+      }
+    },
+  );
+
+  return {
+    successful: results.filter(({ response }) => response.success),
+    failed: results.filter(({ response }) => !response.success),
+  };
+}
+
+export function resolveUploadDirectoryPath({
+  destinationPath,
+  filePath,
+}: {
+  destinationPath: FilePath;
+  filePath: FilePath | undefined;
+}): FilePath {
+  if (!filePath) {
+    return destinationPath;
+  }
+
+  if (Paths.isAbsolute(filePath)) {
+    throw new Error(`Upload path must be relative: ${filePath}`);
+  }
+
+  const pathParts = filePath.split(/[\\/]+/);
+  const relativeDirectoryParts = pathParts.slice(0, -1).filter(Boolean);
+  if (relativeDirectoryParts.includes("..")) {
+    throw new Error(`Upload path cannot contain parent traversal: ${filePath}`);
+  }
+
+  const normalizedDirectoryParts = relativeDirectoryParts.filter(
+    (part) => part !== ".",
+  );
+  if (normalizedDirectoryParts.length === 0) {
+    return destinationPath;
+  }
+
+  const destinationPathBuilder = PathBuilder.guessDeliminator(destinationPath);
+  const normalizedRelativePath = normalizedDirectoryParts.join(
+    destinationPathBuilder.deliminator,
+  );
+  return destinationPathBuilder.join(destinationPath, normalizedRelativePath);
+}
+
+export function getUploadDestinationFromTarget(
+  target: EventTarget | null,
+  rootPath: FilePath,
+): FilePath {
+  if (!(target instanceof Element)) {
+    return rootPath;
+  }
+
+  const directory = target.closest(
+    `[${FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE}]`,
+  );
+  const path = directory?.getAttribute(FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE);
+  return path ? (path as FilePath) : rootPath;
+}
+
+function showUploadResultToast(
+  result: UploadFilesResult,
+  destinationLabel: string,
+) {
+  const total = result.successful.length + result.failed.length;
+  if (result.failed.length > 0) {
+    let title: string;
+    if (result.successful.length === 0) {
+      title = total === 1 ? "File upload failed" : "Files failed to upload";
+    } else {
+      title = `${result.successful.length} of ${total} files uploaded`;
+    }
+    toast({
+      title,
+      description: (
+        <div className="flex flex-col gap-1">
+          <div>Destination: {destinationLabel}.</div>
+          {result.failed.map(({ file, response }, index) => (
+            <div key={`${file.name}-${index}`}>
+              {file.name}:{" "}
+              {response.message || "The server rejected the upload."}
+            </div>
+          ))}
+        </div>
+      ),
+      variant: "danger",
+    });
+    return;
+  }
+
+  const renamedFiles = result.successful.filter(
+    ({ file, response }) =>
+      response.info?.name && response.info.name !== file.name,
+  );
+  toast({
+    title: total === 1 ? "File uploaded" : `${total} files uploaded`,
+    description:
+      renamedFiles.length === 0 ? (
+        `Uploaded to ${destinationLabel}.`
+      ) : (
+        <div className="flex flex-col gap-1">
+          <div>Uploaded to {destinationLabel}.</div>
+          {renamedFiles.map(({ file, response }, index) => (
+            <div key={`${file.name}-${index}`}>
+              {file.name} was saved as {response.info?.name}.
+            </div>
+          ))}
+        </div>
+      ),
   });
 }
 

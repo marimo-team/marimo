@@ -76,7 +76,7 @@ export const ALL_OPERATORS = {
 
 export type OperatorType = keyof typeof ALL_OPERATORS;
 
-function numpyTypeToDataType(type: string): DataType {
+function numpyTypeToDataType(type: string): Exclude<DataType, "geometry"> {
   if (!type) {
     return "unknown";
   }

@@ -5,30 +5,37 @@ packages:
 overrides:
   react: "^19.2.4"
   react-dom: "^19.2.4"
-  vite: "npm:rolldown-vite@7.3.1"
-  form-data: ">=4.0.5"
+  vite: "^8.2.1"
+  form-data: ">=4.0.6"
 patchedDependencies:
   html-to-image@1.11.13: patches/html-to-image@1.11.13.patch
 peerDependencyRules:
   allowedVersions:
-    vite: "7"
+    vite: "8"
 minimumReleaseAge: 20160
 minimumReleaseAgeExclude:
   - "@marimo-team/*"
+  # React Compiler backed by Oxc: @vitejs/plugin-react@6.1.0 requires
+  # oxc-transform-react@^0.145.0 (both published 2026-08-18..20)
+  - "@vitejs/plugin-react@6.1.0"
+  - oxc-transform-react@0.145.0
+  - "@oxc-transform-react/*"
   - yaml@2.8.3
   - path-to-regexp@8.4.0
   - oxlint@1.58.0
   - "@oxlint/*"
   - lodash-es@4.18.1
-  # Renovate security update: dompurify@3.4.12
-  - dompurify@3.4.0 || 3.4.12
-  # Renovate security update: postcss@8.5.12
-  - postcss@8.5.10 || 8.5.12
+  # Renovate security update: dompurify@3.4.12 || 3.4.13
+  - dompurify@3.4.0 || 3.4.12 || 3.4.13
   - pyodide@314.0.0
   # Renovate security update: js-cookie@3.0.7
   - js-cookie@3.0.7
   # Renovate security update: ws@8.21.0
   - ws@8.21.0
+  # Renovate security update: form-data@4.0.6
+  - form-data@4.0.6
+  # Renovate security update: mermaid@11.16.1
+  - mermaid@11.16.1
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
 trustPolicyExclude:

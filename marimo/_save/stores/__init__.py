@@ -2,10 +2,10 @@
 from __future__ import annotations
 
 import copy
-from typing import cast
+from typing import Any, cast
 
 from marimo import _loggers
-from marimo._config.config import CacheConfig, StoreKey
+from marimo._config.config import CacheStoreConfig, StoreKey
 from marimo._entrypoints.registry import EntryPointRegistry
 from marimo._save.stores.file import FileStore
 from marimo._save.stores.redis import RedisStore
@@ -30,21 +30,39 @@ _STORE_REGISTRY = EntryPointRegistry[StoreType](
 )
 
 
+def _store_config(config: Any) -> CacheStoreConfig | None:
+    """Read the store config out of a (possibly partial) marimo config.
+
+    Shared by `get_store` and `cache_store_is_untrusted` so store selection and
+    the provenance check can never disagree about which key they read.
+    """
+    return cast(
+        "CacheStoreConfig | None", config.get("cache", {}).get("store")
+    )
+
+
 def get_store(current_path: str | None = None) -> Store:
     from marimo._config.manager import get_default_config_manager
 
-    cache_config: CacheConfig | None = (
-        get_default_config_manager(current_path=current_path)
-        .get_config()
-        .get("experimental", {})
-        .get("cache", None)
-    )
+    config = get_default_config_manager(current_path=current_path).get_config()
+    return _get_store_from_config(_store_config(config))
 
-    return _get_store_from_config(cache_config)
+
+def cache_store_is_untrusted(current_path: str | None = None) -> bool:
+    """Whether `cache.store` came from a layer that travels with the code."""
+    # NB. only the overrides are inspected, because a store can reach the user
+    # layer solely through a workspace `.marimo.toml`, and that layer has its
+    # store stripped during config load for exactly this reason.
+    from marimo._config.manager import get_default_config_manager
+
+    overrides = get_default_config_manager(
+        current_path=current_path
+    ).get_config_overrides()
+    return _store_config(overrides) is not None
 
 
 def _get_store_from_config(
-    config: CacheConfig | None,
+    config: CacheStoreConfig | None,
     registry: EntryPointRegistry[StoreType] = _STORE_REGISTRY,
 ) -> Store:
     if config is None:
@@ -65,7 +83,7 @@ def _get_store_from_config(
             return sub_stores[0]
         return TieredStore(sub_stores)
     else:
-        store_type = cast(StoreKey, config.get("store", DEFAULT_STORE_KEY))
+        store_type = cast(StoreKey, config.get("type", DEFAULT_STORE_KEY))
         if store_type not in cache_stores:
             LOGGER.error(f"Invalid store type: {store_type}")
             store_type = DEFAULT_STORE_KEY

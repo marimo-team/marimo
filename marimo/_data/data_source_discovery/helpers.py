@@ -6,8 +6,10 @@ from typing import TYPE_CHECKING
 from marimo._data.data_source_discovery.models import (
     DetectedDataSourceConfiguration,
     DetectedDataSourceOrigin,
+    DialectHidesWhen,
     EnvironmentVariableDiscoveryValue,
     SafeLiteralDiscoveryValue,
+    StorageHidesWhen,
 )
 
 if TYPE_CHECKING:
@@ -56,4 +58,19 @@ def safe_literal(field: str, value: str) -> DetectedDataSourceConfiguration:
     return DetectedDataSourceConfiguration(
         field=field,
         value=SafeLiteralDiscoveryValue(value=value),
+    )
+
+
+def hides_when_dialect(*substrings: str) -> DialectHidesWhen:
+    return DialectHidesWhen(substrings=substrings)
+
+
+def hides_when_storage(
+    *,
+    protocols: tuple[str, ...] = (),
+    backend_types: tuple[str, ...] = (),
+) -> StorageHidesWhen:
+    return StorageHidesWhen(
+        protocols=protocols,
+        backend_types=backend_types,
     )

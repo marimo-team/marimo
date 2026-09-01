@@ -236,8 +236,9 @@ def _get_altair_chart(
     (column_type, _external_type) = table.get_field_type(column_name)
 
     # Nested/unknown dtypes (e.g. Polars Struct/List) can't be serialized
-    # through the dataframe interchange path, so skip charting silently
-    if column_type == "unknown":
+    # through the dataframe interchange path, so skip charting silently.
+    # Geometry columns get no chart either.
+    if column_type in ("unknown", "geometry"):
         return None, None, None, None
 
     if stats.total == 0:

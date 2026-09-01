@@ -237,6 +237,7 @@ export const StorageFileViewer: React.FC<Props> = ({
         {renderMetadata({})}
         <FileContentRenderer
           mimeType={mime}
+          filename={name}
           contents={preview.type === "text" ? preview.content : undefined}
           mediaSource={
             preview.type === "media" ? { url: preview.url } : undefined

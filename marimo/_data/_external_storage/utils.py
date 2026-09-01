@@ -1,3 +1,5 @@
+# Copyright 2026 Marimo. All rights reserved.
+
 from marimo import _loggers
 from marimo._data._external_storage.models import (
     StorageEntry,

@@ -209,10 +209,10 @@ class MultipleDefinitionsRule(GraphRule):
                     _ErrorInfo(cell_id=cell_id, line=line, column=column)
                 )
 
-        for name in names:
-            lines = [info.line for info in names[name]]
-            columns = [info.column for info in names[name]]
-            cell_ids = [info.cell_id for info in names[name]]
+        for name, infos in names.items():
+            lines = [info.line for info in infos]
+            columns = [info.column for info in infos]
+            cell_ids = [info.cell_id for info in infos]
 
             diagnostic = Diagnostic(
                 message=f"Variable '{name}' is defined in multiple cells",

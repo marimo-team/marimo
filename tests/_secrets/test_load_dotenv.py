@@ -13,6 +13,7 @@ from marimo._secrets.load_dotenv import (
     load_to_environ,
     parse_dotenv,
     read_dotenv_with_fallback,
+    resolve_dotenv_value,
 )
 
 if TYPE_CHECKING:
@@ -98,6 +99,97 @@ def test_read_dotenv_with_fallback(tmp_path: Path):
 
     env_dict = read_dotenv_with_fallback(str(env_file))
     assert env_dict == {"TEST_KEY": "test_value"}
+
+
+def test_read_dotenv_interpolates_from_environment(tmp_path: Path):
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "FROM_ENV=${BASE}/env\nLOCAL=local\nFROM_FILE=${LOCAL}/file",
+        encoding="utf-8",
+    )
+
+    env_dict = read_dotenv_with_fallback(
+        str(env_file), environment={"BASE": "base"}
+    )
+
+    assert env_dict == {
+        "FROM_ENV": "base/env",
+        "LOCAL": "local",
+        "FROM_FILE": "local/file",
+    }
+
+
+def test_read_dotenv_interpolates_duplicate_assignments_in_order(
+    tmp_path: Path,
+) -> None:
+    env_file = tmp_path / ".env"
+    env_file.write_text(
+        "A=first\nB=${A}\nA=second\nC=${A}",
+        encoding="utf-8",
+    )
+
+    env_dict = read_dotenv_with_fallback(str(env_file), environment={})
+
+    assert env_dict == {
+        "A": "second",
+        "B": "first",
+        "C": "second",
+    }
+
+
+def test_resolve_dotenv_value_preserves_precedence_and_interpolation(
+    tmp_path: Path,
+) -> None:
+    first_env = tmp_path / ".env.first"
+    first_env.write_text(
+        "BASE=first\nENV_WINS=first",
+        encoding="utf-8",
+    )
+    second_env = tmp_path / ".env.second"
+    second_env.write_text(
+        "BASE=second\nDERIVED=${BASE}/second\nENV_WINS=second",
+        encoding="utf-8",
+    )
+
+    resolved = resolve_dotenv_value(
+        "DERIVED",
+        [str(first_env), str(second_env)],
+        {"ENV_WINS": "environment"},
+    )
+
+    assert resolved == "first/second"
+
+
+def test_resolve_dotenv_value_stops_after_environment_value(
+    tmp_path: Path,
+) -> None:
+    unreadable = tmp_path / "not-a-file"
+    unreadable.mkdir()
+
+    resolved = resolve_dotenv_value(
+        "API_KEY",
+        [str(unreadable)],
+        {"API_KEY": "environment"},
+    )
+
+    assert resolved == "environment"
+
+
+def test_resolve_dotenv_value_stops_after_first_dotenv_value(
+    tmp_path: Path,
+) -> None:
+    first_env = tmp_path / ".env.first"
+    first_env.write_text("API_KEY=first", encoding="utf-8")
+    unreadable = tmp_path / "not-a-file"
+    unreadable.mkdir()
+
+    resolved = resolve_dotenv_value(
+        "API_KEY",
+        [str(first_env), str(unreadable)],
+        {},
+    )
+
+    assert resolved == "first"
 
 
 ROUND_TRIP_VALUES = [

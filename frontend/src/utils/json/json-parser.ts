@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { URL_REGEX } from "../url-parser";
 import type { JsonString } from "./base64";
+
+const GLOBAL_URL_REGEX = new RegExp(URL_REGEX.source, "g");
 
 declare global {
   interface BigInt {
@@ -126,9 +129,8 @@ function formatValueForMarkdown(value: unknown): string {
     return placeholder;
   });
 
-  // Convert plain URLs to markdown links
-  const urlRegex = /(https?:\/\/\S+)/g;
-  stringValue = stringValue.replaceAll(urlRegex, "[$1]($1)");
+  // Convert plain URLs to markdown links using the shared URL matcher.
+  stringValue = stringValue.replaceAll(GLOBAL_URL_REGEX, "[$1]($1)");
 
   // Restore markdown links from placeholders
   for (const [placeholder, original] of placeholders) {

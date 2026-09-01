@@ -21,6 +21,7 @@ import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
 import { useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
+import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
 import {
   ENV_RENDERER,
   SECRET_TEXTAREA_RENDERER,
@@ -131,6 +132,16 @@ export function useInsertCode() {
       cellId: lastFocusedCellId ?? "__end__",
       skipIfCodeExists: true,
     });
+  };
+}
+
+/** Insert the configured cell supplied by a detected data source. */
+export function useAddDetectedDataSource(onAdd?: () => void) {
+  const insertCode = useInsertCode();
+
+  return (source: DetectedDataSource) => {
+    insertCode(source.code);
+    onAdd?.();
   };
 }
 

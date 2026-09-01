@@ -284,7 +284,7 @@ class PolarsTableManagerFactory(TableManagerFactory):
 
             # We override the default implementation to use polars's
             # internal fields since they get displayed in the UI.
-            def get_field_type(
+            def _get_field_type_from_dtype(
                 self, column_name: str
             ) -> tuple[FieldType, ExternalDataType]:
                 dtype = self.schema[column_name]

@@ -45,6 +45,7 @@ const appToOptions = {
   "stdin.py": { command: "edit" },
   "layout_grid_with_sidebar.py": { command: "edit" },
   "slides.py": { command: "edit" },
+  "visual_tokens.py": { command: "edit" },
   // Custom server for shutdown
   "shutdown.py": { command: "edit", port: port() },
   // Run
@@ -53,6 +54,7 @@ const appToOptions = {
   "layout_grid.py//run": { port: port(), command: "run" },
   "layout_grid_max_width.py//run": { port: port(), command: "run" },
   "layout_grid_with_sidebar.py//run": { port: port(), command: "run" },
+  "visual_tokens.py//run": { port: port(), command: "run" },
   "output.py//run": {
     port: port(),
     command: "run",
@@ -78,6 +80,9 @@ export function getAppUrl(app: ApplicationNames): string {
     throw new Error(`No server options for app: ${app}`);
   }
   if (options.command === "edit") {
+    if (options.port !== undefined) {
+      return getUrl({ port: options.port });
+    }
     const pathToApp = path.join(pydir, app);
     return getUrl({ port: EDIT_PORT, queryParams: `?file=${pathToApp}` });
   }

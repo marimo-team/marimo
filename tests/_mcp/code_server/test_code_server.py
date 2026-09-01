@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._mcp.code_server.lifespan import code_mcp_server_lifespan
 
 pytest.importorskip("mcp", reason="MCP requires Python 3.10+")
@@ -50,6 +51,46 @@ def test_code_mcp_server_starts_up():
 
     assert hasattr(app.state, "code_mcp")
     assert any("/mcp" in str(route.path) for route in app.routes)
+
+
+def test_code_mcp_server_requires_supported_mcp_version(monkeypatch):
+    from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+    has_required_version = MagicMock(return_value=False)
+    has_mcp = MagicMock(return_value=True)
+    get_version = MagicMock(return_value="1.9.0")
+    monkeypatch.setattr(
+        DependencyManager.mcp,
+        "has_required_version",
+        has_required_version,
+    )
+    monkeypatch.setattr(DependencyManager.mcp, "has", has_mcp)
+    monkeypatch.setattr(DependencyManager.mcp, "get_version", get_version)
+
+    with pytest.raises(
+        MarimoCLIMissingDependencyError,
+        match="MCP SDK 1.9.0 is not supported",
+    ):
+        setup_code_mcp_server(Starlette())
+
+    has_required_version.assert_called_once_with(quiet=True)
+    has_mcp.assert_called_once_with(quiet=True)
+    get_version.assert_called_once_with()
+
+
+async def test_code_mcp_server_supports_modern_protocol():
+    """The v2 code server should expose its tools over the modern protocol."""
+    from mcp import Client
+
+    app = create_test_app()
+    async with Client(app.state.code_mcp) as client:
+        tools = await client.list_tools()
+
+        assert client.protocol_version == "2026-07-28"
+        assert {tool.name for tool in tools.tools} == {
+            "execute_code",
+            "list_sessions",
+        }
 
 
 async def test_code_mcp_server_requires_edit_scope():

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from datetime import date
+from datetime import date, timedelta
 from enum import Enum
 from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
@@ -1403,6 +1403,23 @@ def test_show_column_summaries_disabled():
 
 
 @pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="Polars is required"
+)
+def test_polars_duration_column_summaries_do_not_warn() -> None:
+    import polars as pl
+
+    data = pl.DataFrame(
+        {"duration": [timedelta(days=day) for day in range(1, 13)]}
+    )
+    table = ui.table(data, show_column_summaries=True)
+
+    with patch("marimo._plugins.ui._impl.table.LOGGER") as logger:
+        table._get_column_summaries(ColumnSummariesArgs())
+
+    logger.warning.assert_not_called()
+
+
+@pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="Polars not installed"
 )
 def test_column_summaries_fallback(monkeypatch):
@@ -2043,7 +2060,7 @@ def test_dataframe_with_int_column_names():
         assert "DataFrame has integer column names" in str(w[0].message)
 
     # Check that the table handles integer column names correctly
-    assert table._manager.get_column_names() == [0, 1, 2]
+    assert table._manager.get_column_names() == ["0", "1", "2"]
     assert table._component_args["total-columns"] == 3
     assert table._component_args["max-columns"] == DEFAULT_MAX_COLUMNS
 

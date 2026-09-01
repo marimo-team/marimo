@@ -18,6 +18,7 @@ from marimo._runtime.commands import (
 from marimo._runtime.runtime import Kernel
 from marimo._utils import async_path
 from tests._messaging.mocks import MockStderr, MockStream
+from tests.mocks import normalize_html_entities
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -67,12 +68,10 @@ class TestScriptTrace:
         # Test col_offset
         # Expected output:
         #    y = y / x
-        #        ^
+        #    ^
         # exact line numbers differ by python version
-        if sys.version_info == (3, 11):
-            assert (
-                result.split("y / x")[1].split("\n")[1].startswith("        ^")
-            )
+        if (3, 11) <= sys.version_info < (3, 12):
+            assert result.split("y / x")[1].split("\n")[1].startswith("    ^")
 
     @staticmethod
     def test_script_trace_with_output() -> None:
@@ -483,7 +482,8 @@ class TestEmbedTrace:
         )
 
         assert "ZeroDivisionError: division by zero" in result
-        assert (file_path + "&quot;, line 17") in result
+        normalized = normalize_html_entities(result)
+        assert f'{file_path}", line 17' in normalized
         assert "y / x" in result
 
 

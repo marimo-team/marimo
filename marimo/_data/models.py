@@ -17,6 +17,7 @@ DataType = Literal[
     "date",
     "datetime",
     "time",
+    "geometry",
     "unknown",
 ]
 # This is the data type based on the source library

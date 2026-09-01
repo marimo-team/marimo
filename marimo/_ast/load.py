@@ -123,13 +123,12 @@ def get_notebook_status(filename: str) -> LoadResult:
     if not contents:
         return LoadResult(status="empty", contents=contents)
 
-    notebook: NotebookSerialization | None = None
-    handler = get_notebook_serializer(path)
+    # NB. Slurm executes sbatch scripts from a spooled copy of the submitted
+    # file, which has no extension — fall back to the Python serializer.
+    handler = get_notebook_serializer(path, contents, default=".py")
     notebook = handler.deserialize(contents, filepath=filename)
 
     # NB. A invalid notebook can still be opened.
-    if notebook is None:
-        return LoadResult(status="empty", contents=contents)
     if not notebook.valid:
         if is_non_marimo_python_script(notebook):
             return LoadResult(

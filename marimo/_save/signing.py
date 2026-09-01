@@ -10,7 +10,19 @@ from __future__ import annotations
 
 import base64
 import hashlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
+# Verification posture, shared by the config resolver (`signing_policy`) and
+# the loader (`loaders.lazy`). `off`: no signing or verification (legacy
+# opt-out). `on` (default): sign on write, and on read serve only entries that
+# verify against a trusted key — unverifiable entries miss and recompute
+# (fail-safe). `strict`: like `on`, but an unverifiable entry raises
+# (fail-closed).
+VALID_VERIFICATIONS = ("off", "on", "strict")
+DEFAULT_VERIFICATION = "on"
 
 
 class CacheSignatureError(Exception):
@@ -25,6 +37,33 @@ class CacheSignatureError(Exception):
 def _sha256hex(data: bytes) -> str:
     """Return the hex-encoded SHA-256 digest of *data*."""
     return hashlib.sha256(data).hexdigest()
+
+
+def normalize_verification(raw: Any, *, strict: bool = False) -> str:
+    """Validate a verification posture.
+
+    With `strict=False` (config files) an unrecognized value warns and degrades
+    to the default rather than breaking the session; with `strict=True` (a
+    caller-supplied kwarg) it raises. The default is fail-safe — unverifiable
+    entries recompute — so the degrade path never widens what gets
+    deserialized.
+    """
+    if isinstance(raw, str) and raw in VALID_VERIFICATIONS:
+        return raw
+    expected = ", ".join(VALID_VERIFICATIONS)
+    if strict:
+        raise ValueError(
+            f"Invalid cache verification {raw!r}; expected one of {expected}."
+        )
+    from marimo import _loggers
+
+    _loggers.marimo_logger().warning(
+        "Invalid cache verification %r; expected one of %s. Falling back to %r.",
+        raw,
+        expected,
+        DEFAULT_VERIFICATION,
+    )
+    return DEFAULT_VERIFICATION
 
 
 class CacheSigner:
@@ -46,7 +85,7 @@ class CacheSigner:
         )
 
         # Consumer — verifies signed entries; unverifiable entries miss
-        # (recompute) rather than being served (fail-safe, mode="verify")
+        # (recompute) rather than being served (fail-safe, verification="on")
         reader = LazyLoader.partial(
             signer=CacheSigner.from_public_key_pem(public_pem)
         )
@@ -54,7 +93,7 @@ class CacheSigner:
         # Consumer — strict: raises on any unsigned/unverifiable entry
         reader_strict = LazyLoader.partial(
             signer=CacheSigner.from_public_key_pem(public_pem),
-            mode="strict",
+            verification="strict",
         )
 
     Keys can also be loaded from environment variables::
@@ -279,6 +318,66 @@ def fingerprint(public_key_pem: str) -> str:
     ).decode().rstrip("=")
 
 
+_FP_URLSAFE_TO_STD = str.maketrans("-_", "+/")
+
+
+def normalize_fingerprint(fp: str) -> str:
+    """Validate and canonicalize one `"SHA256:<base64>"` fingerprint.
+
+    Accepts standard or urlsafe base64, padded or unpadded, and returns the
+    canonical form produced by :func:`fingerprint` (standard base64, no
+    padding). Raising on a malformed digest here turns a fat-fingered
+    fingerprint into a configuration-time error rather than a permanent, silent
+    cache miss (the digest would validate on prefix alone but never match a
+    real key).
+    """
+    import binascii
+
+    if not isinstance(fp, str) or not fp.startswith("SHA256:"):
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; expected "
+            "'SHA256:<base64>' as produced by "
+            "marimo._save.signing.fingerprint()."
+        )
+    body = fp[len("SHA256:") :].translate(_FP_URLSAFE_TO_STD).rstrip("=")
+    try:
+        raw = base64.b64decode(body + "=" * (-len(body) % 4), validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; the digest is "
+            "not valid base64."
+        ) from e
+    if len(raw) != 32:
+        raise ValueError(
+            f"Invalid trusted_signers fingerprint {fp!r}; expected a "
+            f"SHA-256 (32-byte) digest, got {len(raw)} byte(s)."
+        )
+    # Re-encode from the decoded bytes rather than returning `body` verbatim.
+    # base64 of 32 bytes has 2 unused ("slack") bits in the final character, so
+    # several distinct final characters decode to the same digest. Returning the
+    # raw text lets such a variant validate here yet never match the canonical
+    # form, which is a permanent silent miss.
+    return "SHA256:" + base64.b64encode(raw).decode("ascii").rstrip("=")
+
+
+def normalize_fingerprints(value: Iterable[str] | None) -> set[str]:
+    """Validate and collect `trusted_signers` fingerprint strings.
+
+    Rejects a bare `str` (which would otherwise iterate into single
+    characters — a silent-miss footgun) and canonicalizes each entry via
+    :func:`normalize_fingerprint` so a padded or urlsafe paste still matches
+    :func:`fingerprint` output.
+    """
+    if value is None:
+        return set()
+    if isinstance(value, str):
+        raise TypeError(
+            "trusted_signers must be an iterable of fingerprint strings, not "
+            "a single str. Wrap it in a set/list: trusted_signers={fp}."
+        )
+    return {normalize_fingerprint(fp) for fp in value}
+
+
 def generate_keypair() -> tuple[str, str]:
     """Generate an Ed25519 key pair for cache signing.
 
@@ -300,7 +399,7 @@ def generate_keypair() -> tuple[str, str]:
 
 
 def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
-    """Resolve the default cache signer for this session.
+    """Resolve the default cache signer for a session with no frozen policy.
 
     Resolution order:
 
@@ -309,16 +408,9 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
     3. `marimo_state_dir() / "cache_signing_key.pem"` → load saved private key
     4. Neither set → generate a fresh Ed25519 key, save it, return signer
 
-    When *auto_generate* is `False`, steps 3 and 4 are skipped — only
-    explicitly configured keys (env vars) are used.  This is the right
-    choice for shared stores where an auto-generated machine-local key
-    would be unverifiable by other machines.
-
-    Returns `None` when the `cryptography` package is not installed so
-    that unsigned caching degrades gracefully.
+    Reads the environment live, so it is only for contexts that have no
+    frozen policy. Returns `None` when `cryptography` is not installed.
     """
-    import logging
-
     from marimo._dependencies.dependencies import DependencyManager
 
     if not DependencyManager.cryptography.has():
@@ -329,23 +421,47 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
     if signer is not None:
         return signer
 
+    return _get_machine_signer(auto_generate=auto_generate)
+
+
+def _get_machine_signer(
+    key_path: str | None = None, auto_generate: bool = True
+) -> CacheSigner | None:
+    """Load (or, if *auto_generate*, mint) the machine-local signing key.
+
+    `key_path` defaults to `marimo_state_dir() / "cache_signing_key.pem"`. A
+    caller passes an explicit path to avoid re-resolving the state directory
+    from a possibly-polluted live environment. Does not read signing env vars.
+    `auto_generate=False` skips minting (shared/remote stores, whose auto key
+    is unverifiable elsewhere). Returns `None` when `cryptography` is
+    unavailable.
+    """
+    import logging
+    import os
+    import stat
+    from pathlib import Path
+
+    from marimo._dependencies.dependencies import DependencyManager
+
+    if not DependencyManager.cryptography.has():
+        return None
+
     if not auto_generate:
         return None
 
-    # 3 & 4: key file in the marimo state directory
-    import os
-    import stat
+    if key_path is None:
+        from marimo._utils.xdg import marimo_state_dir
 
-    from marimo._utils.xdg import marimo_state_dir
-
-    key_path = marimo_state_dir() / "cache_signing_key.pem"
-    if key_path.exists():
+        key_file = marimo_state_dir() / "cache_signing_key.pem"
+    else:
+        key_file = Path(key_path)
+    if key_file.exists():
         try:
-            signer = CacheSigner.from_private_key_pem(key_path.read_text())
+            signer = CacheSigner.from_private_key_pem(key_file.read_text())
             # Best-effort: re-tighten perms in case the key was created before
             # we chmod'd it (or by another tool) — it's a private signing key.
             try:
-                os.chmod(key_path, stat.S_IRUSR | stat.S_IWUSR)
+                os.chmod(key_file, stat.S_IRUSR | stat.S_IWUSR)
             except OSError:
                 pass
             return signer
@@ -353,7 +469,7 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
             logging.getLogger("marimo").warning(
                 "Failed to load cache signing key from %s; "
                 "generating a new one.",
-                key_path,
+                key_file,
             )
 
     # Auto-generate and persist atomically (write to temp, rename).
@@ -365,9 +481,9 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
 
     try:
         private_pem, _ = generate_keypair()
-        key_path.parent.mkdir(parents=True, exist_ok=True)
+        key_file.parent.mkdir(parents=True, exist_ok=True)
         fd, tmp = tempfile.mkstemp(
-            dir=key_path.parent, prefix=".cache_key_", suffix=".tmp"
+            dir=key_file.parent, prefix=".cache_key_", suffix=".tmp"
         )
         closed = False
         try:
@@ -375,7 +491,7 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
             os.close(fd)
             closed = True
             os.chmod(tmp, stat.S_IRUSR | stat.S_IWUSR)
-            os.replace(tmp, str(key_path))
+            os.replace(tmp, str(key_file))
         except BaseException:
             if not closed:
                 os.close(fd)
@@ -385,18 +501,18 @@ def _get_default_signer(auto_generate: bool = True) -> CacheSigner | None:
                 pass
             raise
         logging.getLogger("marimo").info(
-            "Generated cache signing key: %s", key_path
+            "Generated cache signing key: %s", key_file
         )
         # Adopt whatever key won the rename (see note above); fall back to the
         # in-memory key if the file is unreadable for any reason.
         try:
-            return CacheSigner.from_private_key_pem(key_path.read_text())
+            return CacheSigner.from_private_key_pem(key_file.read_text())
         except Exception:
             return CacheSigner.from_private_key_pem(private_pem)
     except Exception:
         logging.getLogger("marimo").warning(
             "Could not persist cache signing key to %s; "
             "cache entries will be unsigned for this session.",
-            key_path,
+            key_file,
         )
         return None
