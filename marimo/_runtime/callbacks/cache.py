@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from marimo import _loggers
 from marimo._messaging.notification import (
     CacheClearedNotification,
     CacheInfoNotification,
@@ -17,6 +18,22 @@ if TYPE_CHECKING:
     from marimo._config.config import MarimoConfig
     from marimo._runtime.callbacks.protocol import GlobalsView
     from marimo._runtime.request_router import RequestRouter
+    from marimo._save.cache import CacheContext
+    from marimo._save.loaders.loader import Loader
+
+LOGGER = _loggers.marimo_logger()
+
+
+def _cache_loader(context: CacheContext) -> Loader | None:
+    """The loader `context` reads and writes through, if one is bound yet.
+
+    A decorator not yet applied to a function is a cache in the notebook's
+    globals with nothing behind it.
+    """
+    try:
+        return context.loader
+    except Exception:
+        return None
 
 
 def cache_cells_enabled(user_config: MarimoConfig) -> bool:
@@ -68,15 +85,47 @@ class CacheCallbacks:
 
         broadcast_notification(CacheClearedNotification(bytes_freed=saved))
 
+    def _disk_usage(self, loaders: list[Loader]) -> tuple[int, int]:
+        """Bytes the caches in scope hold, and bytes a purge frees.
+
+        Every number comes from the loaders themselves rather than from a
+        directory derived from the notebook path, so a cache configured to
+        write somewhere else is measured where it actually writes, and a
+        same-named directory it does not use is left out. The two differ
+        because a cache directory also holds caches this session never
+        loaded, which purging leaves alone. Measuring is best-effort. An
+        unreadable or unwritten cache reports zero rather than failing the
+        request.
+        """
+        try:
+            from marimo._save.cache_dirs import cache_dir_stats
+
+            cache_dirs = {
+                directory
+                for loader in loaders
+                if (directory := loader.storage_dir()) is not None
+            }
+            return (
+                sum(
+                    cache_dir_stats(directory).total_bytes
+                    for directory in cache_dirs
+                ),
+                sum(loader.clearable_bytes() for loader in loaders),
+            )
+        except Exception:
+            LOGGER.debug("Could not measure cache disk usage", exc_info=True)
+            return 0, 0
+
     async def get_cache_info(self, request: GetCacheInfoCommand) -> None:
         del request
         from marimo._save.cache import CacheContext
 
         total_hits = 0
         total_misses = 0
-        total_time = 0
-        disk_to_free = -1  # TODO: sum up disk usage
-        disk_total = -1
+        total_time = 0.0
+        # Keyed by identity. One loader reached through several names is one
+        # cache, and its bytes must not be counted once per name.
+        loaders: dict[int, Loader] = {}
 
         for obj in self._scope.globals.values():
             if isinstance(obj, CacheContext):
@@ -84,7 +133,11 @@ class CacheCallbacks:
                 total_hits += hits
                 total_misses += misses
                 total_time += time
-                # d2f, dt = obj.loader.disk_usage()
+                loader = _cache_loader(obj)
+                if loader is not None:
+                    loaders[id(loader)] = loader
+
+        disk_total, disk_to_free = self._disk_usage(list(loaders.values()))
         broadcast_notification(
             CacheInfoNotification(
                 hits=total_hits,

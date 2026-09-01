@@ -1,8 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from marimo import _loggers
 from marimo._save.stores.store import Store
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 LOGGER = _loggers.marimo_logger()
 
@@ -61,6 +66,14 @@ class TieredStore(Store):
                 LOGGER.error(f"Error checking hit on store {i}: {e}")
 
         return False
+
+    def local_dir(self) -> Path | None:
+        """The first tier that keeps entries on this filesystem."""
+        for store in self.stores:
+            directory = store.local_dir()
+            if directory is not None:
+                return directory
+        return None
 
     def _update_preceding_stores(
         self, key: str, value: bytes, found_index: int
