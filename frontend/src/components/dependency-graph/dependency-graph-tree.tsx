@@ -15,6 +15,7 @@ import ReactFlow, {
   useNodesState,
   useReactFlow,
 } from "reactflow";
+import { edgeTypes } from "@/components/dependency-graph/custom-edge";
 import {
   EdgeMarkerContext,
   nodeTypes,
@@ -25,9 +26,8 @@ import type { CellData } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import type { Variables } from "@/core/variables/types";
 import { Events } from "@/utils/events";
-import { scrollAndHighlightCell } from "../editor/links/cell-link";
 import { Tooltip } from "../ui/tooltip";
-import { type NodeData, TreeElementsBuilder } from "./elements";
+import { type NodeData, nodeDimensions, TreeElementsBuilder } from "./elements";
 import { GraphSelectionPanel } from "./panels";
 import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 import { layoutElements } from "./utils/layout";
@@ -43,6 +43,24 @@ interface Props {
 
 const elementsBuilder = new TreeElementsBuilder();
 
+/**
+ * Apply the current expand/collapse selection to freshly-built nodes, resizing
+ * each so the layout engine and the DOM agree on node dimensions.
+ */
+function withExpansion(
+  nodes: Node<NodeData>[],
+  expandedIds: Set<CellId>,
+): Node<NodeData>[] {
+  return nodes.map((node) => {
+    const data: NodeData = {
+      ...node.data,
+      expanded: expandedIds.has(node.id as CellId),
+    };
+    const { width, height } = nodeDimensions(data);
+    return { ...node, data, width, height };
+  });
+}
+
 export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   cellIds,
   variables,
@@ -51,22 +69,23 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
+  // Cells whose node is expanded to show its full code (toggled by double-click).
+  const [expandedIds, setExpandedIds] = useState<Set<CellId>>(() => new Set());
+
   // oxlint-disable-next-line react/hook-use-state
   const [initial] = useState(() => {
-    let elements = elementsBuilder.createElements(
+    const elements = elementsBuilder.createElements(
       cellIds,
       cellAtoms,
       variables,
       settings.hidePureMarkdown,
       settings.hideReusableFunctions,
     );
-    elements = layoutElements({
-      nodes: elements.nodes,
+    return layoutElements({
+      nodes: withExpansion(elements.nodes, expandedIds),
       edges: elements.edges,
       direction: layoutDirection,
     });
-
-    return elements;
     // Only run once
   });
 
@@ -87,17 +106,19 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     },
   );
 
-  // If the cellIds change, update the nodes.
+  // Rebuild + re-layout when the graph inputs or the expand/collapse set change.
   useEffect(() => {
-    syncChanges(
-      elementsBuilder.createElements(
-        cellIds,
-        cellAtoms,
-        variables,
-        settings.hidePureMarkdown,
-        settings.hideReusableFunctions,
-      ),
+    const elements = elementsBuilder.createElements(
+      cellIds,
+      cellAtoms,
+      variables,
+      settings.hidePureMarkdown,
+      settings.hideReusableFunctions,
     );
+    syncChanges({
+      nodes: withExpansion(elements.nodes, expandedIds),
+      edges: elements.edges,
+    });
   }, [
     cellIds,
     variables,
@@ -105,6 +126,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     syncChanges,
     settings.hidePureMarkdown,
     settings.hideReusableFunctions,
+    expandedIds,
   ]);
 
   const [selection, setSelection] = useState<GraphSelection>();
@@ -120,6 +142,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         minZoom={0.2}
         fitViewOptions={{
           minZoom: 0.5,
@@ -137,7 +160,17 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
           });
         }}
         onNodeDoubleClick={(_event, node) => {
-          scrollAndHighlightCell(node.id as CellId, "focus");
+          // Expand/collapse the node to reveal its full code in place.
+          const id = node.id as CellId;
+          setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+              next.delete(id);
+            } else {
+              next.add(id);
+            }
+            return next;
+          });
         }}
         fitView={true}
         onNodesChange={onNodesChange}

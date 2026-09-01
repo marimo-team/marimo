@@ -4,6 +4,7 @@ import {
   ArrowRightFromLineIcon,
   ArrowRightIcon,
   ArrowRightToLineIcon,
+  ExternalLinkIcon,
   MoreVerticalIcon,
   NetworkIcon,
   SettingsIcon,
@@ -18,12 +19,13 @@ import type { CellId } from "@/core/cells/ids";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
 import type { Variable, Variables } from "@/core/variables/types";
 import { ConnectionCellActionsDropdown } from "../editor/cell/cell-actions";
-import { CellLink } from "../editor/links/cell-link";
+import { CellLink, scrollAndHighlightCell } from "../editor/links/cell-link";
 import { CellLinkList } from "../editor/links/cell-link-list";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { Label } from "../ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Tooltip } from "../ui/tooltip";
 import { VariableName } from "../variables/common";
 import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
 
@@ -194,6 +196,15 @@ export const GraphSelectionPanel: React.FC<{
             <SquareFunction className="w-5 h-5" />
             <CellLink cellId={selection.id} />
             <div className="flex-1" />
+            <Tooltip content="Open cell in editor" delayDuration={200}>
+              <Button
+                variant="text"
+                size="icon"
+                onClick={() => scrollAndHighlightCell(selection.id, "focus")}
+              >
+                <ExternalLinkIcon className="w-4 h-4" />
+              </Button>
+            </Tooltip>
             <ConnectionCellActionsDropdown cellId={selection.id}>
               <Button variant="ghost" size="icon">
                 <MoreVerticalIcon className="w-4 h-4" />
