@@ -690,6 +690,11 @@ export function useCellEditorNavigationProps(
     return parseShortcut(shortcut.key);
   }, [hotkeys]);
 
+  const commandModeShortcut = useMemo(() => {
+    const shortcut = hotkeys.getHotkey("command.enterCommandMode");
+    return parseShortcut(shortcut.key);
+  }, [hotkeys]);
+
   const exitToCommandMode = () => {
     temporarilyShownCodeActions.remove(cellId);
     focusCell(cellId);
@@ -743,11 +748,10 @@ export function useCellEditorNavigationProps(
         if (vimCommandModeShortcut(evt)) {
           handleEscape();
         }
-      } else {
-        // For non-vim mode, regular Escape exits to command mode
-        if (evt.key === "Escape") {
-          handleEscape();
-        }
+      } else if (commandModeShortcut(evt)) {
+        // For non-vim mode, the configurable shortcut (Escape by default)
+        // exits to command mode. An empty override disables it.
+        handleEscape();
       }
       evt.continuePropagation();
     },
