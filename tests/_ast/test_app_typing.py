@@ -268,3 +268,47 @@ class TestDictionaryTyping:
             _cloned = validate_and_clone(checks)
             """
         )
+
+
+class TestContainerTyping:
+    # dict is invariant, so a dict[str, Html] was rejected for the old
+    # dict[str, object] params; widening them to a covariant Mapping accepts
+    # a dict of any value type. Regression guard for #10631.
+    def test_tabs_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    t = mo.ui.tabs(panes)
+    assert_type(t.value, str)
+"""
+        )
+
+    def test_accordion_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    assert_type(mo.accordion(panes), mo.accordion)
+"""
+        )
+
+    def test_deprecated_tabs_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    panes: dict[str, mo.Html] = {"a": mo.md("x")}
+    assert_type(mo.tabs(panes), mo.Html)
+"""
+        )
+
+    def test_routes_accepts_covariant_dict(self) -> None:
+        _check_pyright(
+            _PREAMBLE
+            + """
+    from collections.abc import Callable
+
+    pages: dict[str, Callable[[], mo.Html]] = {"#/": lambda: mo.md("x")}
+    assert_type(mo.routes(pages), mo.routes)
+"""
+        )
