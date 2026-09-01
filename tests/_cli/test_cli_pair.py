@@ -11,13 +11,14 @@ import pytest
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
+from marimo._cli.pair.client import PairError, PairServer
 from marimo._cli.pair.commands import (
     AgentConfig,
     _opencode_skill_dirs,
     _plugin_skill_dirs,
     pair_agents,
 )
-from marimo._cli.pair.discovery import DiscoveryResult, PairError, PairServer
+from marimo._cli.pair.discovery import DiscoveryResult
 
 _runner = CliRunner()
 

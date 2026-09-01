@@ -10,10 +10,9 @@ from pathlib import Path
 
 import pytest
 
+from marimo._cli.pair.client import Origin, PairServer
 from marimo._cli.pair.discovery import (
     DiscoveryResult,
-    Origin,
-    PairServer,
     PlatformName,
     ProcessState,
     RegistryLocation,

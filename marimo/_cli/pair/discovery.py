@@ -19,15 +19,9 @@ from urllib.parse import urlsplit
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
+from marimo._cli.pair.client import Origin, PairServer
+
 PlatformName = Literal["posix", "windows", "wsl"]
-Origin = Literal["local", "windows-host", "direct"]
-
-
-class PairError(Exception):
-    def __init__(self, kind: str, message: str) -> None:
-        super().__init__(message)
-        self.kind = kind
-        self.message = message
 
 
 class ProcessState(Enum):
@@ -40,15 +34,6 @@ class ProcessState(Enum):
 class RegistryLocation:
     path: Path
     origin: Origin
-
-
-@dataclass(frozen=True)
-class PairServer:
-    server_id: str
-    origin: Origin
-    url: str | None
-    started_at: str
-    version: str
 
 
 @dataclass(frozen=True)

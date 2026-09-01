@@ -12,7 +12,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import click
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
-from marimo._cli.pair.discovery import PairError, PairServer, discover_servers
+from marimo._cli.pair.client import PairError, PairServer
+from marimo._cli.pair.discovery import discover_servers
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
