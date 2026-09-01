@@ -2,10 +2,12 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
 
 from marimo._cli.cli import main as cli_main
@@ -15,6 +17,7 @@ from marimo._cli.pair.commands import (
     _plugin_skill_dirs,
     pair_agents,
 )
+from marimo._cli.pair.discovery import DiscoveryResult, PairError, PairServer
 
 _runner = CliRunner()
 
@@ -26,6 +29,7 @@ class TestPairGroup:
         result = _runner.invoke(cli_main, ["pair", "--help"])
         assert result.exit_code == 0
         assert "pair programming" in result.output.lower()
+        assert "discover" in result.output
         assert "prompt" in result.output
 
     def test_prompt_help(self) -> None:
@@ -145,6 +149,154 @@ class TestPairPrompt:
                 )
                 assert result.exit_code == 0, flag
                 assert TEST_URL in result.output, flag
+
+
+class TestPairDiscover:
+    def test_discover_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "discover", "--help"])
+
+        assert result.exit_code == 0
+        assert "--format" in result.output
+        assert "--json-errors" in result.output
+
+    def test_discover_json_matches_frozen_fixture(self) -> None:
+        fixture_path = (
+            Path(__file__).parent
+            / "fixtures"
+            / "marimo_pair_v0_0_19"
+            / "discover-output.json"
+        )
+        expected_text = fixture_path.read_text(encoding="utf-8")
+        expected = json.loads(expected_text)
+        discovery = DiscoveryResult(
+            servers=tuple(PairServer(**entry) for entry in expected),
+            warnings=(),
+        )
+
+        with patch(
+            "marimo._cli.pair.commands.discover_servers",
+            return_value=discovery,
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "discover", "--format", "json"],
+            )
+
+        assert result.exit_code == 0
+        assert result.stdout == expected_text
+        assert result.stderr == ""
+
+    def test_discover_text_uses_stable_tab_separated_fields(self) -> None:
+        discovery = DiscoveryResult(
+            servers=(
+                PairServer(
+                    server_id="127.0.0.1:2718",
+                    origin="local",
+                    url="http://127.0.0.1:2718",
+                    started_at="2026-08-31T00:00:00+00:00",
+                    version="0.24.0",
+                ),
+            ),
+            warnings=(),
+        )
+
+        with patch(
+            "marimo._cli.pair.commands.discover_servers",
+            return_value=discovery,
+        ):
+            result = _runner.invoke(cli_main, ["pair", "discover"])
+
+        assert result.exit_code == 0
+        assert result.stdout == (
+            "127.0.0.1:2718\tlocal\thttp://127.0.0.1:2718\t"
+            "0.24.0\t2026-08-31T00:00:00+00:00\n"
+        )
+        assert result.stderr == ""
+
+    def test_discover_writes_warnings_only_to_stderr(self) -> None:
+        discovery = DiscoveryResult(
+            servers=(),
+            warnings=("The Windows-host server is unreachable.",),
+        )
+
+        with patch(
+            "marimo._cli.pair.commands.discover_servers",
+            return_value=discovery,
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "discover", "--format", "json"],
+            )
+
+        assert result.exit_code == 0
+        assert json.loads(result.stdout) == []
+        assert result.stderr == "The Windows-host server is unreachable.\n"
+
+    @pytest.mark.parametrize("output_format", ["text", "json"])
+    def test_discover_redacts_url_userinfo_and_query_values(
+        self,
+        output_format: str,
+    ) -> None:
+        discovery = DiscoveryResult(
+            servers=(
+                PairServer(
+                    server_id="localhost:2718",
+                    origin="direct",
+                    url=(
+                        "http://user:secret@localhost:2718/base"
+                        "?token=secret&mode=edit"
+                    ),
+                    started_at="2026-08-31T00:00:00+00:00",
+                    version="0.24.0",
+                ),
+            ),
+            warnings=(),
+        )
+
+        with patch(
+            "marimo._cli.pair.commands.discover_servers",
+            return_value=discovery,
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "discover", "--format", output_format],
+            )
+
+        assert result.exit_code == 0
+        assert "user" not in result.stdout
+        assert "secret" not in result.stdout
+        assert "token=REDACTED&mode=REDACTED" in result.stdout
+
+    @pytest.mark.parametrize(
+        ("arguments", "expected_stderr"),
+        [
+            ([], "Error: No marimo server was found.\n"),
+            (
+                ["--json-errors"],
+                '{"kind": "no_server", "message": "No marimo server was found."}\n',
+            ),
+        ],
+    )
+    def test_discover_renders_stable_errors(
+        self,
+        arguments: list[str],
+        expected_stderr: str,
+    ) -> None:
+        with patch(
+            "marimo._cli.pair.commands.discover_servers",
+            side_effect=PairError(
+                kind="no_server",
+                message="No marimo server was found.",
+            ),
+        ):
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "discover", *arguments],
+            )
+
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        assert result.stderr == expected_stderr
 
 
 class TestPairPromptWithToken:

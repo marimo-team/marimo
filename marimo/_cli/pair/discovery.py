@@ -23,6 +23,13 @@ PlatformName = Literal["posix", "windows", "wsl"]
 Origin = Literal["local", "windows-host", "direct"]
 
 
+class PairError(Exception):
+    def __init__(self, kind: str, message: str) -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.message = message
+
+
 class ProcessState(Enum):
     RUNNING = "running"
     NOT_RUNNING = "not_running"
