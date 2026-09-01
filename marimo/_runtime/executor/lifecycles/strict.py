@@ -169,6 +169,6 @@ class StrictLifecycle:
                 del glbls[df]
 
         # Repopulate this cell's private variables.
-        for df in lcls:
+        for df, value in lcls.items():
             if is_mangled_local(df, cell.cell_id):
-                glbls[df] = lcls[df]
+                glbls[df] = value
