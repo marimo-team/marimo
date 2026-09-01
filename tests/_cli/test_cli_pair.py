@@ -94,13 +94,23 @@ class TestPairGroup:
 
 
 class TestPairPrompt:
-    @pytest.fixture(autouse=True)
-    def _guide_client(self, guide_client: FakeGuideClient) -> None:
-        del guide_client
-
     def test_prompt_requires_url(self) -> None:
         result = _runner.invoke(cli_main, ["pair", "prompt"])
         assert result.exit_code != 0
+
+    def test_prompt_does_not_contact_the_server(self) -> None:
+        with patch.object(
+            pair_commands,
+            "PairClient",
+            side_effect=AssertionError("prompt contacted the server"),
+        ):
+            result = _runner.invoke(
+                cli_main, ["pair", "prompt", "--url", TEST_URL]
+            )
+
+        assert result.exit_code == 0
+        assert "Use the /marimo-pair skill" in result.output
+        assert f"--url {TEST_URL}" in result.output
 
     def test_prompt_outputs_url(self) -> None:
         result = _runner.invoke(
@@ -108,7 +118,8 @@ class TestPairPrompt:
         )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "marimo pair execute" in result.output
+        assert f"--url {TEST_URL}" in result.output
+        assert "Use the /marimo-pair skill" in result.output
         assert "execute-code.sh" not in result.output
 
     def test_prompt_with_file(self) -> None:
@@ -126,7 +137,8 @@ class TestPairPrompt:
         assert result.exit_code == 0
         assert TEST_URL in result.output
         assert "notebooks/example.py" in result.output
-        assert "--session resolved-session" in result.output
+        assert "--file notebooks/example.py" in result.output
+        assert "--session" not in result.output
 
     def test_prompt_without_file_omits_flag(self) -> None:
         result = _runner.invoke(
@@ -134,7 +146,7 @@ class TestPairPrompt:
         )
         assert result.exit_code == 0
         assert "--file" not in result.output
-        assert "--session resolved-session" in result.output
+        assert "--session" not in result.output
 
     def test_prompt_rejects_removed_session_option(self) -> None:
         result = _runner.invoke(
@@ -146,13 +158,19 @@ class TestPairPrompt:
 
     def test_prompt_preserves_opaque_file_keys(self) -> None:
         cases = [
-            "relative/path.py",
-            "/tmp/my notebook.py",
-            r"C:\Users\Jane Doe\notebook.py",
-            r"\\server\share\my notebook.py",
-            "notebooks/it's.py",
+            ("relative/path.py", "--file relative/path.py"),
+            ("/tmp/my notebook.py", "--file '/tmp/my notebook.py'"),
+            (
+                r"C:\Users\Jane Doe\notebook.py",
+                r"--file 'C:\Users\Jane Doe\notebook.py'",
+            ),
+            (
+                r"\\server\share\my notebook.py",
+                r"--file '\\server\share\my notebook.py'",
+            ),
+            ("notebooks/it's.py", "--file 'notebooks/it'\"'\"'s.py'"),
         ]
-        for file_path in cases:
+        for file_path, expected_selector in cases:
             result = _runner.invoke(
                 cli_main,
                 [
@@ -165,7 +183,7 @@ class TestPairPrompt:
                 ],
             )
             assert result.exit_code == 0
-            assert f"Notebook key: `{file_path}`" in result.output
+            assert expected_selector in result.output
 
     def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
         # The generated command is meant to be copy-pasted into a shell, so a
@@ -469,10 +487,6 @@ class TestPairGuide:
 
 
 class TestPairPromptWithToken:
-    @pytest.fixture(autouse=True)
-    def _guide_client(self, guide_client: FakeGuideClient) -> None:
-        del guide_client
-
     def test_with_token_writes_file_and_outputs_prompt(
         self, tmp_path: Path
     ) -> None:
@@ -486,7 +500,7 @@ class TestPairPromptWithToken:
             )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "marimo pair execute" in result.output
+        assert "--token-file" in result.output
         assert "execute-code.sh" not in result.output
         assert "my-secret-token" not in result.output
 
@@ -515,8 +529,8 @@ class TestPairPromptWithToken:
                 input="my-secret-token\n",
             )
         assert result.exit_code == 0
-        assert "Notebook key: `notebooks/my notebook.py`" in result.output
-        assert "--session resolved-session" in result.output
+        assert "--file 'notebooks/my notebook.py'" in result.output
+        assert "--session" not in result.output
         assert "--token-file" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
@@ -573,7 +587,6 @@ class TestPairPromptWithToken:
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
-        assert "Token source: `none`" in result.output
         assert "--token-file" not in result.output
 
 

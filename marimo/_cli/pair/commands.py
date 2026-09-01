@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import shlex
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
@@ -243,28 +244,23 @@ def prompt(
         finally:
             os.close(fd)
 
-    try:
-        target, token_from_environment, warnings = _resolve_guide_target(
-            url=url,
-            session_id=None,
-            notebook=file_path,
-            token_file=token_file,
-            allow_insecure_http=False,
-        )
-    except PairError as error:
-        _render_pair_error(error, json_errors=False)
-        raise click.exceptions.Exit(1) from None
+    target_selectors = ["--url", shlex.quote(url)]
+    if file_path is not None:
+        target_selectors.extend(("--file", shlex.quote(file_path)))
+    if token_file is not None:
+        target_selectors.extend(("--token-file", shlex.quote(str(token_file))))
 
+    file_hint = f" (file {file_path})" if file_path else ""
     click.echo(
-        render_cli_guide(
-            target,
-            token_file=token_file,
-            token_from_environment=token_from_environment,
-        ),
-        nl=False,
+        "Use the /marimo-pair skill to pair-program on a running "
+        "marimo notebook.\n\n"
+        f"Connect to the notebook at: {url}{file_hint}\n\n"
+        "Use these target selectors unchanged when following the skill's "
+        f"instructions: `{' '.join(target_selectors)}`.\n\n"
+        "Once you are connected, send a fun toast "
+        "(mo.status.toast(...)) to the user inside marimo letting them know "
+        "you're ready to pair."
     )
-    for warning in warnings:
-        click.echo(warning, err=True)
 
 
 def _redact_url(url: str | None) -> str | None:
