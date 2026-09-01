@@ -360,7 +360,7 @@ class OpenAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the OpenAI API key
+    - `api_key`: the OpenAI API key or an `env:` reference
     - `base_url`: the base URL for the API
     - `project`: the project ID for the OpenAI API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -387,7 +387,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic API key
+    - `api_key`: the Anthropic API key or an `env:` reference
     """
 
     api_key: str
@@ -399,7 +399,7 @@ class GoogleAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Google AI API key
+    - `api_key`: the Google AI API key or an `env:` reference
     """
 
     api_key: str
@@ -429,7 +429,7 @@ class GitHubConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the GitHub API token
+    - `api_key`: the GitHub API token or an `env:` reference
     - `base_url`: the base URL for the API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,

@@ -252,7 +252,7 @@ components:
       type: object
     AnthropicConfig:
       description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key"
+        \ `api_key`: the Anthropic API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -2481,10 +2481,10 @@ components:
       type: object
     GitHubConfig:
       description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API\n    -\
-        \ `copilot_settings`: configuration settings for GitHub Copilot LSP.\n   \
-        \     Supports settings like `http` (proxy configuration), `telemetry`,\n\
-        \        and `github-enterprise` (enterprise URI)."
+        \ the GitHub API token or an `env:` reference\n    - `base_url`: the base\
+        \ URL for the API\n    - `copilot_settings`: configuration settings for GitHub\
+        \ Copilot LSP.\n        Supports settings like `http` (proxy configuration),\
+        \ `telemetry`,\n        and `github-enterprise` (enterprise URI)."
       properties:
         api_key:
           type: string
@@ -2497,7 +2497,7 @@ components:
       type: object
     GoogleAiConfig:
       description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Google AI API key"
+        \ `api_key`: the Google AI API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -4145,15 +4145,15 @@ components:
       type: object
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
-        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `project`: the project ID for the OpenAI\
-        \ API\n    - `ssl_verify` : Boolean argument for httpx passed to open ai client.\
-        \ httpx defaults to true, but some use cases to let users override to False\
-        \ in some testing scenarios\n    - `ca_bundle_path`: custom ca bundle to be\
-        \ used for verifying SSL certificates. Used to create custom SSL context for\
-        \ httpx client\n    - `client_pem` : custom path of a client .pem cert used\
-        \ for verifying identity of client server\n    - `extra_headers`: extra headers\
-        \ to be passed to the OpenAI client"
+        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key or an `env:` reference\n\
+        \    - `base_url`: the base URL for the API\n    - `project`: the project\
+        \ ID for the OpenAI API\n    - `ssl_verify` : Boolean argument for httpx passed\
+        \ to open ai client. httpx defaults to true, but some use cases to let users\
+        \ override to False in some testing scenarios\n    - `ca_bundle_path`: custom\
+        \ ca bundle to be used for verifying SSL certificates. Used to create custom\
+        \ SSL context for httpx client\n    - `client_pem` : custom path of a client\
+        \ .pem cert used for verifying identity of client server\n    - `extra_headers`:\
+        \ extra headers to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -7956,4 +7956,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-
