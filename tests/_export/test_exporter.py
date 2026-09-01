@@ -147,8 +147,8 @@ def _wasm_export_request(
 def _write_layout_notebook(
     tmp_path: Path,
     *,
-    layout_file: str = "layouts/layout.json",
     contents: str | None,
+    layout_file: str = "layouts/layout.json",
 ) -> Path:
     notebook = tmp_path / "test.py"
     source = (
