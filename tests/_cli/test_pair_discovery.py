@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
-from dataclasses import FrozenInstanceError, dataclass, field
-from typing import TYPE_CHECKING
+import os
+import threading
+from dataclasses import FrozenInstanceError, asdict, dataclass, field
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
@@ -14,12 +17,11 @@ from marimo._cli.pair.discovery import (
     PlatformName,
     ProcessState,
     RegistryLocation,
+    SystemDiscoveryEnvironment,
     _candidate_hosts,
+    _detect_platform,
     discover_servers,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @dataclass
@@ -59,6 +61,11 @@ def _write_registry(path: Path, **overrides: object) -> None:
     path.write_text(json.dumps(record))
 
 
+def _write_executable(path: Path, body: str) -> None:
+    path.write_text(f"#!/bin/sh\n{body}\n", encoding="utf-8")
+    path.chmod(0o755)
+
+
 def test_discovery_models_are_immutable(tmp_path: Path) -> None:
     location = RegistryLocation(path=tmp_path, origin="local")
     server = PairServer(
@@ -72,7 +79,6 @@ def test_discovery_models_are_immutable(tmp_path: Path) -> None:
 
     assert location.origin == "local"
     assert result.servers == (server,)
-    assert ProcessState.NOT_RUNNING.value == "not_running"
     with pytest.raises(FrozenInstanceError):
         server.url = None  # type: ignore[misc]
 
@@ -292,3 +298,225 @@ def test_candidates_do_not_use_wsl_loopback_for_a_live_local_port(
             version="0.24.0",
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("sys_platform", "environ", "proc_version", "expected"),
+    [
+        ("darwin", {}, "Darwin", "posix"),
+        ("win32", {}, "", "windows"),
+        ("cygwin", {}, "", "windows"),
+        ("linux", {"WSL_DISTRO_NAME": "Ubuntu"}, "Linux", "wsl"),
+        ("linux", {}, "Linux microsoft-standard-WSL2", "wsl"),
+    ],
+)
+def test_detect_platform(
+    sys_platform: str,
+    environ: dict[str, str],
+    proc_version: str,
+    expected: PlatformName,
+) -> None:
+    assert (
+        _detect_platform(
+            sys_platform=sys_platform,
+            environ=environ,
+            proc_version=proc_version,
+        )
+        == expected
+    )
+
+
+def test_registry_locations_follow_platform_conventions(
+    tmp_path: Path,
+) -> None:
+    home = tmp_path / "home"
+    state = tmp_path / "state"
+
+    posix = SystemDiscoveryEnvironment(
+        platform="posix",
+        home=home,
+        environ={"XDG_STATE_HOME": str(state)},
+    )
+    windows = SystemDiscoveryEnvironment(
+        platform="windows",
+        home=home,
+        environ={},
+    )
+
+    assert posix.registry_locations() == (
+        RegistryLocation(state / "marimo" / "servers", "local"),
+    )
+    assert SystemDiscoveryEnvironment(
+        platform="posix",
+        home=home,
+        environ={},
+    ).registry_locations() == (
+        RegistryLocation(home / ".local/state/marimo/servers", "local"),
+    )
+    assert windows.registry_locations() == (
+        RegistryLocation(home / ".marimo" / "servers", "local"),
+    )
+
+
+def test_wsl_registry_locations_include_windows_profile(
+    tmp_path: Path,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    windows_home = tmp_path / "windows-home"
+    _write_executable(bin_dir / "cmd.exe", "printf 'C:\\\\Users\\\\Ada\\r\\n'")
+    _write_executable(
+        bin_dir / "wslpath",
+        "printf '%s\\n' \"$FAKE_WINDOWS_HOME\"",
+    )
+    environment = SystemDiscoveryEnvironment(
+        platform="wsl",
+        home=tmp_path / "linux-home",
+        environ={
+            "PATH": str(bin_dir),
+            "FAKE_WINDOWS_HOME": str(windows_home),
+        },
+    )
+
+    assert environment.registry_locations() == (
+        RegistryLocation(
+            tmp_path / "linux-home" / ".local/state/marimo/servers",
+            "local",
+        ),
+        RegistryLocation(windows_home / ".marimo/servers", "windows-host"),
+    )
+
+
+def test_process_state_distinguishes_all_three_states(
+    tmp_path: Path,
+) -> None:
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    _write_executable(
+        bin_dir / "tasklist.exe",
+        '[ "$MSYS_NO_PATHCONV" = 1 ] || exit 1\n'
+        "[ \"$MSYS2_ARG_CONV_EXCL\" = '*' ] || exit 1\n"
+        '[ "$1 $2 $3" = "/F${EMPTY:-}O CSV /NH" ] || exit 1\n'
+        'printf \'"python.exe","101","Console","1","10 K"\\n\'',
+    )
+    environment = SystemDiscoveryEnvironment(
+        platform="wsl",
+        home=tmp_path,
+        environ={"PATH": str(bin_dir)},
+    )
+
+    assert (
+        environment.process_state(os.getpid(), "local") is ProcessState.RUNNING
+    )
+    assert (
+        environment.process_state(99_999_999, "local")
+        is ProcessState.NOT_RUNNING
+    )
+    assert (
+        environment.process_state(101, "windows-host") is ProcessState.RUNNING
+    )
+    assert (
+        environment.process_state(202, "windows-host")
+        is ProcessState.NOT_RUNNING
+    )
+    assert environment.process_state(0, "local") is ProcessState.UNKNOWN
+
+    unavailable = SystemDiscoveryEnvironment(
+        platform="wsl",
+        home=tmp_path,
+        environ={"PATH": ""},
+    )
+    assert (
+        unavailable.process_state(101, "windows-host") is ProcessState.UNKNOWN
+    )
+
+
+def test_health_check_requires_a_healthy_marimo_response() -> None:
+    class HealthHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            body = (
+                b'{"status":"healthy"}'
+                if self.path == "/base/health"
+                else b'{"status":"other"}'
+            )
+            self.send_response(200)
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, _format: str, *args: object) -> None:
+            del args
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), HealthHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        environment = SystemDiscoveryEnvironment(platform="posix")
+        base = f"http://127.0.0.1:{server.server_port}"
+        assert environment.answers_marimo(f"{base}/base")
+        assert not environment.answers_marimo(base)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+def test_discovery_matches_fixture_and_removes_only_stale_entries(
+    tmp_path: Path,
+) -> None:
+    fixtures = Path(__file__).parent / "fixtures" / "marimo_pair_v0_0_19"
+    registry_dir = tmp_path / "servers"
+    registry_dir.mkdir()
+    live_path = registry_dir / "a-live.json"
+    live_path.write_text(
+        (fixtures / "registry.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    stale_path = registry_dir / "b-stale.json"
+    _write_registry(stale_path, server_id="stale", pid=2, port=2719)
+    unknown_path = registry_dir / "c-unknown.json"
+    _write_registry(unknown_path, server_id="unknown", pid=3, port=2720)
+    environment = FakeDiscoveryEnvironment(
+        locations=(RegistryLocation(registry_dir, "local"),),
+        states={
+            (4242, "local"): ProcessState.RUNNING,
+            (2, "local"): ProcessState.NOT_RUNNING,
+            (3, "local"): ProcessState.UNKNOWN,
+        },
+        reachable_urls={"http://127.0.0.1:2718"},
+    )
+
+    result = discover_servers(environment)
+
+    expected = json.loads(
+        (fixtures / "discover-output.json").read_text(encoding="utf-8")
+    )
+    assert [asdict(server) for server in result.servers] == expected
+    assert live_path.exists()
+    assert not stale_path.exists()
+    assert unknown_path.exists()
+
+
+def test_unreachable_running_server_produces_actionable_wsl_warning(
+    tmp_path: Path,
+) -> None:
+    _write_registry(
+        tmp_path / "server.json",
+        server_id="windows-server",
+        pid=101,
+        host="0.0.0.0",
+    )
+    environment = FakeDiscoveryEnvironment(
+        platform="wsl",
+        locations=(RegistryLocation(tmp_path, "windows-host"),),
+        states={(101, "windows-host"): ProcessState.RUNNING},
+        gateway_address="172.20.0.1",
+    )
+
+    result = discover_servers(environment)
+
+    assert result.servers[0].url is None
+    warning = "\n".join(result.warnings)
+    assert "Windows host" in warning
+    assert "firewall" in warning
+    assert "2718" in warning
