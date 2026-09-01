@@ -10,7 +10,7 @@ from marimo._plugins.stateless import lazy
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Coroutine
+    from collections.abc import Callable, Coroutine, Mapping
 
 
 @mddoc
@@ -40,8 +40,8 @@ class routes(UIElement[str, str]):
         ```
 
     Args:
-        routes (dict[str, Union[Callable[[], object], Callable[[], Coroutine[None, None, object]], object]]):
-            A dictionary of routes, where the key is the URL path and the value is a function
+        routes (Mapping[str, Union[Callable[[], object], Callable[[], Coroutine[None, None, object]], object]]):
+            A mapping of routes, where the key is the URL path and the value is a function
             that returns the content to display.
 
     Returns:
@@ -55,7 +55,7 @@ class routes(UIElement[str, str]):
 
     def __init__(
         self,
-        routes: dict[
+        routes: Mapping[
             str,
             Callable[[], object]
             | Callable[[], Coroutine[None, None, object]]
