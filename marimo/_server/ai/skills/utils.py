@@ -7,6 +7,8 @@ from typing import Literal
 SkillNameType = Literal["marimo-pair"]
 SKILL_NAMES: list[SkillNameType] = ["marimo-pair"]
 
+AdapterName = Literal["code-mode", "cli"]
+
 ReferenceNameType = Literal[
     "gotchas", "rich-representations", "notebook-improvements"
 ]
@@ -23,6 +25,17 @@ def load_skill(skill_name: SkillNameType) -> str:
     return (Path(__file__).parent / skill_name / "SKILL.md").read_text(
         encoding="utf-8"
     )
+
+
+@functools.lru_cache(maxsize=2)
+def load_adapter(adapter_name: AdapterName) -> str:
+    """Read a bundled marimo-pair execution adapter once."""
+    return (
+        Path(__file__).parent
+        / "marimo-pair"
+        / "adapters"
+        / f"{adapter_name}.md"
+    ).read_text(encoding="utf-8")
 
 
 @functools.lru_cache(maxsize=3)
