@@ -853,14 +853,21 @@ describe("document transaction middleware", () => {
     ]);
   });
 
-  it("restores buffered edits when a full document save fails", async () => {
+  it("restores unsent edits when a full document save fails", async () => {
+    const firstStarted = new Deferred<void>();
+    const firstRelease = new Deferred<void>();
     const failingClient: Pick<
       EditRequests & RunRequests,
       "sendDocumentTransaction"
     > = {
       sendDocumentTransaction: async ({ changes }) => {
         sent.push(changes);
-        throw new Error("connection lost");
+        if (sent.length === 1) {
+          firstStarted.resolve();
+          await firstRelease.promise;
+          throw new Error("connection lost");
+        }
+        return null;
       },
     };
     store.set(
@@ -872,21 +879,30 @@ describe("document transaction middleware", () => {
     const [x] = state.cellIds.inOrderIds;
     middlewareExports.cancelPendingChanges();
     updateCode(x, "x = 2");
-    await vi.advanceTimersByTimeAsync(400);
+    vi.advanceTimersByTime(400);
+    await firstStarted.promise;
 
     updateCode(x, "x = 3");
+    await vi.advanceTimersByTimeAsync(400);
+    firstRelease.resolve();
+    await expect(flushDocumentChanges()).rejects.toThrow("connection lost");
+
+    updateCode(x, "x = 4");
     const firstResync = beginDocumentResync();
     abortDocumentResync(firstResync);
     const secondResync = beginDocumentResync();
+    expect(secondResync?.includedTransactions).toEqual([
+      [{ type: "set-code", cellId: x, code: "x = 3" }],
+    ]);
     expect(secondResync?.includedChanges).toEqual([
-      { type: "set-code", cellId: x, code: "x = 3" },
+      { type: "set-code", cellId: x, code: "x = 4" },
     ]);
     await completeDocumentResync(secondResync);
 
-    updateCode(x, "x = 4");
+    updateCode(x, "x = 5");
     await vi.advanceTimersByTimeAsync(400);
     expect(sent.at(-1)).toEqual([
-      { type: "set-code", cellId: x, code: "x = 4" },
+      { type: "set-code", cellId: x, code: "x = 5" },
     ]);
   });
 

@@ -643,6 +643,7 @@ type TransactionSyncState =
 interface DocumentResync {
   failure: Extract<TransactionSyncState, { status: "failed" }>;
   includedChanges: DocumentChange[];
+  includedTransactions: DocumentChange[][];
 }
 
 let transactionSyncState: TransactionSyncState = { status: "synchronized" };
@@ -679,7 +680,7 @@ async function sendStagedTransactions(generation: number): Promise<void> {
       // transaction before the response was lost. Keep the failure sticky so
       // an export cannot claim synchronization without a fresh document.
       transactionSyncState = { status: "failed", error };
-      stagedTransactions = [];
+      stagedTransactions = stagedTransactions.slice(1);
       throw error;
     }
     if (generation !== transactionGeneration) {
@@ -734,10 +735,13 @@ export function beginDocumentResync(): DocumentResync | null {
   }
   flushChanges.cancel();
   const includedChanges = pendingChanges;
+  const includedTransactions = stagedTransactions;
   pendingChanges = [];
+  stagedTransactions = [];
   return {
     failure: transactionSyncState,
     includedChanges,
+    includedTransactions,
   };
 }
 
@@ -746,6 +750,7 @@ export function abortDocumentResync(resync: DocumentResync | null): void {
     return;
   }
   pendingChanges = [...resync.includedChanges, ...pendingChanges];
+  stagedTransactions = [...resync.includedTransactions, ...stagedTransactions];
 }
 
 export async function completeDocumentResync(
