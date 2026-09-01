@@ -1,0 +1,8 @@
+{
+  "repository": "https://github.com/marimo-team/marimo-pair",
+  "release": "v0.0.19",
+  "commit": "de98ee4e268df1b44fa777f360aa58e241a7a635",
+  "discover_script_sha256": "e0b43ba5effe5f7e66e3c60fda4db7950b76feed8a72c082d5f8ded9769dc090",
+  "execute_script_sha256": "fb7e4d3a0e94af53a065b5fd5f4a7601d19db25a0ddeef74ea8b73ab09274631",
+  "required_first_command": "import marimo._code_mode as cm; help(cm)"
+}
