@@ -4,7 +4,7 @@ import type { Atom } from "jotai";
 import { type Edge, MarkerType, type Node, type NodeProps } from "reactflow";
 import { getNotebook } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
-import type { CellData } from "@/core/cells/types";
+import type { CellData, CellRuntimeState } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
 import { Arrays } from "@/utils/arrays";
@@ -128,6 +128,23 @@ export function nodeDimensions(data: NodeData): {
 // The nodes must have the same handle IDs to ensure edges connect correctly
 export const OUTPUTS_HANDLE_ID = "outputs";
 export const INPUTS_HANDLE_ID = "inputs";
+
+/**
+ * Cells hidden by the reusable-functions filter: those the kernel marked as
+ * valid top-level definitions (serialization hint `Valid`).
+ */
+export function reusableCellIds(
+  cellIds: CellId[],
+  cellRuntime: Record<CellId, CellRuntimeState>,
+): Set<CellId> {
+  const reusable = new Set<CellId>();
+  for (const cellId of cellIds) {
+    if (cellRuntime[cellId]?.serialization?.toLowerCase() === "valid") {
+      reusable.add(cellId);
+    }
+  }
+  return reusable;
+}
 
 /** Map each cell to the names of the variables it declares. */
 export function computeDefsByCell(
@@ -289,6 +306,14 @@ export class TreeElementsBuilder implements ElementsBuilder {
   ) {
     const nodes: Node<NodeData>[] = [];
 
+    const cellRuntime = getNotebook().cellRuntime;
+    // Hidden reusable cells are dropped along with their edges — a reusable
+    // function is nearly always referenced somewhere, so gating on "no edges"
+    // would make the filter a no-op.
+    const hiddenReusable = hideReusableFunctions
+      ? reusableCellIds(cellIds, cellRuntime)
+      : new Set<CellId>();
+
     const nodesWithEdges = new Set<CellId>();
     // Dedupe cell→cell edges, aggregating every variable that crosses them so a
     // single edge can carry multiple refs and flag whether any is a state flow.
@@ -304,6 +329,9 @@ export class TreeElementsBuilder implements ElementsBuilder {
       const { declaredBy, usedBy } = variable;
       for (const fromId of declaredBy) {
         for (const toId of usedBy) {
+          if (hiddenReusable.has(fromId) || hiddenReusable.has(toId)) {
+            continue;
+          }
           const key = `${fromId}-${toId}`;
           const existing = edgesByPair.get(key);
           if (existing) {
@@ -327,21 +355,18 @@ export class TreeElementsBuilder implements ElementsBuilder {
       this.createEdge(edge),
     );
 
-    const cellRuntime = getNotebook().cellRuntime;
     const defsByCell = computeDefsByCell(variables);
 
     for (const [cellId, cellAtom] of Arrays.zip(cellIds, cellAtoms)) {
       const code = store.get(cellAtom).code.trim();
       const hasEdge = nodesWithEdges.has(cellId);
       const isMarkdown = code.startsWith("mo.md");
-      const runtime = cellRuntime[cellId];
-      const isReusable = runtime?.serialization?.toLowerCase() === "valid";
 
       // Apply filters
       if (hidePureMarkdown && isMarkdown && !hasEdge) {
         continue;
       }
-      if (hideReusableFunctions && isReusable && !hasEdge) {
+      if (hiddenReusable.has(cellId)) {
         continue;
       }
 

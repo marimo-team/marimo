@@ -3,10 +3,12 @@
 import { describe, expect, it } from "vitest";
 import type { CellId } from "@/core/cells/ids";
 import type { Variable, VariableName, Variables } from "@/core/variables/types";
+import { createCellRuntimeState } from "@/core/cells/types";
 import {
   collapsedNodeWidth,
   computeDefsByCell,
   isStateFlowVariable,
+  reusableCellIds,
   wrapDefs,
 } from "../elements";
 
@@ -114,5 +116,24 @@ describe("computeDefsByCell", () => {
 
   it("returns an empty map when there are no variables", () => {
     expect(computeDefsByCell({}).size).toBe(0);
+  });
+});
+
+describe("reusableCellIds", () => {
+  const c1 = "c1" as CellId;
+  const c2 = "c2" as CellId;
+  const c3 = "c3" as CellId;
+
+  it("collects cells whose serialization hint is valid, case-insensitively", () => {
+    const runtime = {
+      [c1]: createCellRuntimeState({ serialization: "Valid" }),
+      [c2]: createCellRuntimeState({ serialization: "Unparsable" }),
+      [c3]: createCellRuntimeState(),
+    };
+    expect(reusableCellIds([c1, c2, c3], runtime)).toEqual(new Set([c1]));
+  });
+
+  it("ignores cells with no runtime entry", () => {
+    expect(reusableCellIds([c1], {})).toEqual(new Set());
   });
 });
