@@ -289,7 +289,7 @@ class TestContainerTyping:
             _PREAMBLE
             + """
     panes: dict[str, mo.Html] = {"a": mo.md("x")}
-    _acc = mo.accordion(panes)
+    assert_type(mo.accordion(panes), mo.accordion)
 """
         )
 
@@ -298,7 +298,7 @@ class TestContainerTyping:
             _PREAMBLE
             + """
     panes: dict[str, mo.Html] = {"a": mo.md("x")}
-    _t = mo.tabs(panes)
+    assert_type(mo.tabs(panes), mo.Html)
 """
         )
 
@@ -309,6 +309,6 @@ class TestContainerTyping:
     from collections.abc import Callable
 
     pages: dict[str, Callable[[], mo.Html]] = {"#/": lambda: mo.md("x")}
-    _r = mo.routes(pages)
+    assert_type(mo.routes(pages), mo.routes)
 """
         )
