@@ -17,6 +17,7 @@ from click.core import ParameterSource
 import marimo._cli.cli_validators as validators
 from marimo import _loggers
 from marimo._ast import codegen
+from marimo._cli.cache.commands import cache
 from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
@@ -1603,6 +1604,7 @@ def check(
 
 main.command()(convert)
 main.add_command(export)
+main.add_command(cache)
 main.add_command(config)
 main.add_command(development)
 main.add_command(pair)
