@@ -4,17 +4,22 @@ from __future__ import annotations
 import ipaddress
 import json
 import os
+import subprocess
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 from urllib.parse import parse_qsl, urlsplit, urlunsplit
 
+from marimo._version import __version__
+
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from http.client import HTTPMessage
     from pathlib import Path
     from typing import TextIO
+
+    from packaging.version import Version
 
 ErrorKind = Literal[
     "invalid_target",
@@ -34,6 +39,16 @@ ErrorKind = Literal[
     "version_unavailable",
 ]
 Origin = Literal["local", "windows-host", "direct"]
+
+
+def _parse_version(value: str) -> Version:
+    from packaging.version import Version
+
+    return Version(value)
+
+
+PAIR_PROCESS_INTERFACE_MIN_VERSION = _parse_version("0.24.0")
+PAIR_HANDOFF_ENV = "MARIMO_PAIR_HANDOFF_VERSION"
 
 
 class PairError(Exception):
@@ -131,6 +146,77 @@ def parse_sse(body: bytes) -> tuple[SSEEvent, ...]:
             data.append(value)
     dispatch()
     return tuple(events)
+
+
+def ensure_client_version(
+    server_version: str,
+    *,
+    arguments: Sequence[str],
+    environ: Mapping[str, str] | None = None,
+) -> None:
+    try:
+        target = _parse_version(server_version)
+    except ValueError as error:
+        raise PairError(
+            "invalid_response",
+            "The server returned an invalid version.",
+        ) from error
+
+    if target < PAIR_PROCESS_INTERFACE_MIN_VERSION:
+        return
+    try:
+        current = _parse_version(__version__)
+    except ValueError:
+        current = None
+    if target == current:
+        return
+
+    source_environment = os.environ if environ is None else environ
+    if PAIR_HANDOFF_ENV in source_environment:
+        raise PairError(
+            "version_unavailable",
+            "The version-matched marimo process still reports a mismatch.",
+        )
+
+    target_text = str(target)
+    handoff_environment = {
+        key: value
+        for key, value in source_environment.items()
+        if not _is_package_source_override(key)
+    }
+    handoff_environment[PAIR_HANDOFF_ENV] = target_text
+    prefix = [
+        "uvx",
+        "--no-config",
+        "--no-env-file",
+        "--no-sources",
+        "--default-index",
+        "https://pypi.org/simple",
+        "--from",
+        f"marimo=={target_text}",
+    ]
+    try:
+        preflight = subprocess.run(
+            [*prefix, "marimo", "--version"],
+            check=False,
+            env=handoff_environment,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as error:
+        raise _version_unavailable(target_text) from error
+    if preflight.returncode != 0:
+        raise _version_unavailable(target_text)
+
+    try:
+        os.execvpe(
+            "uvx",
+            [*prefix, "marimo", "pair", "execute", *arguments],
+            handoff_environment,
+        )
+    except OSError as error:
+        raise _version_unavailable(target_text) from error
 
 
 def load_token(
@@ -545,3 +631,24 @@ def _json_object(data: str) -> dict[str, object]:
             "The server returned invalid execution data.",
         )
     return value
+
+
+def _is_package_source_override(name: str) -> bool:
+    normalized = name.upper()
+    return normalized.startswith("PIP_") or normalized in {
+        "UV_CONFIG_FILE",
+        "UV_DEFAULT_INDEX",
+        "UV_EXTRA_INDEX_URL",
+        "UV_FIND_LINKS",
+        "UV_INDEX",
+        "UV_INDEX_URL",
+        "UV_INSECURE_HOST",
+    }
+
+
+def _version_unavailable(version: str) -> PairError:
+    return PairError(
+        "version_unavailable",
+        f"marimo {version} is unavailable from PyPI. Run the marimo "
+        "executable from that server's source checkout.",
+    )

@@ -12,7 +12,14 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import click
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
-from marimo._cli.pair.client import PairError, PairServer
+from marimo._cli.pair.client import (
+    PairClient,
+    PairError,
+    PairServer,
+    ensure_client_version,
+    load_token,
+    resolve_server,
+)
 from marimo._cli.pair.discovery import discover_servers
 
 SKILL_NAME = "marimo-pair"
@@ -346,5 +353,162 @@ def discover(output_format: str, json_errors: bool) -> None:
         click.echo(warning, err=True)
 
 
+def _read_code(
+    *,
+    inline_code: str | None,
+    code_file: Path | None,
+) -> str:
+    if inline_code is not None:
+        return inline_code
+    if code_file is not None:
+        try:
+            return code_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise PairError(
+                "invalid_target",
+                "Could not read the code file as UTF-8.",
+            ) from error
+
+    stdin = click.get_text_stream("stdin")
+    if stdin.isatty():
+        raise click.UsageError("No code was provided.")
+    code = stdin.read()
+    if not code:
+        raise click.UsageError("No code was provided.")
+    return code
+
+
+def _handoff_arguments(
+    *,
+    url: str | None,
+    session_id: str | None,
+    notebook: str | None,
+    token_file: Path | None,
+    allow_insecure_http: bool,
+    inline_code: str | None,
+    code_file: Path | None,
+    json_errors: bool,
+) -> tuple[str, ...]:
+    arguments: list[str] = []
+    for flag, value in (
+        ("--url", url),
+        ("--session", session_id),
+        ("--notebook", notebook),
+        ("--token-file", str(token_file) if token_file is not None else None),
+        ("-c", inline_code),
+        ("--code-file", str(code_file) if code_file is not None else None),
+    ):
+        if value is not None:
+            arguments.extend((flag, value))
+    if allow_insecure_http:
+        arguments.append("--allow-insecure-http")
+    if json_errors:
+        arguments.append("--json-errors")
+    return tuple(arguments)
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Execute code in a running marimo notebook.",
+)
+@click.option("--url", type=str, help="URL of the running marimo server.")
+@click.option("--session", "session_id", type=str, help="Active session ID.")
+@click.option(
+    "--notebook",
+    "--file",
+    "notebook",
+    type=str,
+    help="Exact notebook path or file key.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    help="UTF-8 file that contains the server token.",
+)
+@click.option(
+    "--allow-insecure-http",
+    is_flag=True,
+    default=False,
+    help="Allow plain HTTP for a remote server.",
+)
+@click.option("-c", "inline_code", type=str, help="Inline Python code.")
+@click.option(
+    "--code-file",
+    type=click.Path(
+        path_type=Path,
+        exists=True,
+        dir_okay=False,
+        readable=True,
+    ),
+    help="UTF-8 file that contains Python code.",
+)
+@click.option(
+    "--json-errors",
+    is_flag=True,
+    default=False,
+    help="Write machine-readable errors to stderr.",
+)
+def execute(
+    url: str | None,
+    session_id: str | None,
+    notebook: str | None,
+    token_file: Path | None,
+    allow_insecure_http: bool,
+    inline_code: str | None,
+    code_file: Path | None,
+    json_errors: bool,
+) -> None:
+    if session_id is not None and notebook is not None:
+        raise click.UsageError("Use either --session or --notebook, not both.")
+    if inline_code is not None and code_file is not None:
+        raise click.UsageError("Use either -c or --code-file, not both.")
+
+    try:
+        token = load_token(token_file=token_file)
+        discovered = () if url is not None else discover_servers().servers
+        server = resolve_server(
+            url=url,
+            discovered=discovered,
+            allow_insecure_http=allow_insecure_http,
+        )
+        client = PairClient(server, token=token)
+        version = client.version()
+        ensure_client_version(
+            version,
+            arguments=_handoff_arguments(
+                url=url,
+                session_id=session_id,
+                notebook=notebook,
+                token_file=token_file,
+                allow_insecure_http=allow_insecure_http,
+                inline_code=inline_code,
+                code_file=code_file,
+                json_errors=json_errors,
+            ),
+        )
+        session = client.resolve_session(
+            session_id=session_id,
+            notebook=notebook,
+        )
+        code = _read_code(inline_code=inline_code, code_file=code_file)
+        result = client.execute(
+            session.session_id,
+            code,
+            stdout=click.get_text_stream("stdout"),
+            stderr=click.get_text_stream("stderr"),
+        )
+    except PairError as error:
+        _render_pair_error(error, json_errors=json_errors)
+        raise click.exceptions.Exit(1) from None
+    except KeyboardInterrupt:
+        raise click.exceptions.Exit(130) from None
+    except BrokenPipeError:
+        raise click.exceptions.Exit(1) from None
+
+    if not result.success:
+        raise click.exceptions.Exit(1)
+
+
 pair.add_command(discover)
+pair.add_command(execute)
 pair.add_command(prompt)

@@ -4,14 +4,21 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+from dataclasses import dataclass, field
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from click.testing import CliRunner
 
+import marimo._cli.pair.commands as pair_commands
 from marimo._cli.cli import main as cli_main
-from marimo._cli.pair.client import PairError, PairServer
+from marimo._cli.pair.client import (
+    ExecutionResult,
+    PairError,
+    PairServer,
+    SessionInfo,
+)
 from marimo._cli.pair.commands import (
     AgentConfig,
     _opencode_skill_dirs,
@@ -523,3 +530,481 @@ class TestPluginSkillDirs:
             skill_dirs=_plugin_skill_dirs(tmp_path),
         )
         assert agent.has_skill() is True
+
+
+@dataclass
+class FakeExecutionClient:
+    version_text: str = "0.24.0"
+    result: ExecutionResult = field(
+        default_factory=lambda: ExecutionResult(success=True, output="")
+    )
+    version_error: BaseException | None = None
+    execution_error: BaseException | None = None
+    token: str | None = None
+    session_selector: tuple[str | None, str | None] | None = None
+    executed: tuple[str, str] | None = None
+
+    def version(self) -> str:
+        if self.version_error is not None:
+            raise self.version_error
+        return self.version_text
+
+    def resolve_session(
+        self,
+        *,
+        session_id: str | None,
+        notebook: str | None,
+    ) -> SessionInfo:
+        self.session_selector = (session_id, notebook)
+        return SessionInfo("resolved-session", "notebook.py", "/notebook.py")
+
+    def execute(
+        self,
+        session_id: str,
+        code: str,
+        *,
+        stdout: object,
+        stderr: object,
+    ) -> ExecutionResult:
+        del stdout, stderr
+        self.executed = (session_id, code)
+        if self.execution_error is not None:
+            raise self.execution_error
+        return self.result
+
+
+def _invoke_pair_execute(
+    arguments: list[str],
+    *,
+    client: FakeExecutionClient | None = None,
+    input_text: str | None = None,
+    environment: dict[str, str] | None = None,
+):
+    execution_client = client or FakeExecutionClient()
+
+    def client_factory(
+        server: PairServer,
+        *,
+        token: str | None,
+    ) -> FakeExecutionClient:
+        del server
+        execution_client.token = token
+        return execution_client
+
+    with (
+        patch.object(
+            pair_commands,
+            "PairClient",
+            side_effect=client_factory,
+            create=True,
+        ),
+        patch.object(
+            pair_commands,
+            "ensure_client_version",
+            create=True,
+        ) as ensure_version,
+    ):
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "execute", *arguments],
+            input=input_text,
+            env=environment,
+        )
+    return result, execution_client, ensure_version
+
+
+class TestPairExecute:
+    def test_execute_help_lists_target_and_input_options(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "execute", "--help"])
+
+        assert result.exit_code == 0
+        for option in (
+            "--url",
+            "--session",
+            "--notebook",
+            "--file",
+            "--token-file",
+            "--allow-insecure-http",
+            "--code-file",
+            "-c",
+            "--json-errors",
+        ):
+            assert option in result.output
+
+    def test_execute_resolves_target_before_reading_code(self) -> None:
+        events: list[str] = []
+        server = PairServer("server", "direct", "https://example.com", "", "")
+
+        class OrderedClient(FakeExecutionClient):
+            def version(self) -> str:
+                events.append("read server version")
+                return "0.24.0"
+
+            def resolve_session(
+                self,
+                *,
+                session_id: str | None,
+                notebook: str | None,
+            ) -> SessionInfo:
+                del session_id, notebook
+                events.append("resolve session")
+                return SessionInfo("session", "notebook.py", "/notebook.py")
+
+            def execute(
+                self,
+                session_id: str,
+                code: str,
+                *,
+                stdout: object,
+                stderr: object,
+            ) -> ExecutionResult:
+                del session_id, code, stdout, stderr
+                events.append("submit execution")
+                return ExecutionResult(True, "")
+
+        client = OrderedClient()
+
+        def record_token(**kwargs: object) -> None:
+            del kwargs
+            events.append("resolve token")
+
+        def record_server(**kwargs: object) -> PairServer:
+            del kwargs
+            events.append("resolve server")
+            return server
+
+        def record_version(*args: object, **kwargs: object) -> None:
+            del args, kwargs
+            events.append("select client version")
+
+        def record_code(*args: object, **kwargs: object) -> str:
+            del args, kwargs
+            events.append("read code")
+            return "1 + 1"
+
+        with (
+            patch.object(
+                pair_commands,
+                "load_token",
+                side_effect=record_token,
+                create=True,
+            ),
+            patch.object(
+                pair_commands,
+                "resolve_server",
+                side_effect=record_server,
+                create=True,
+            ),
+            patch.object(
+                pair_commands,
+                "PairClient",
+                return_value=client,
+                create=True,
+            ),
+            patch.object(
+                pair_commands,
+                "ensure_client_version",
+                side_effect=record_version,
+                create=True,
+            ),
+            patch.object(
+                pair_commands,
+                "_read_code",
+                side_effect=record_code,
+                create=True,
+            ),
+        ):
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "execute",
+                    "--url",
+                    "https://example.com",
+                    "--session",
+                    "session",
+                    "-c",
+                    "1 + 1",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert events == [
+            "resolve token",
+            "resolve server",
+            "read server version",
+            "select client version",
+            "resolve session",
+            "read code",
+            "submit execution",
+        ]
+
+    def test_execute_does_not_read_stdin_when_version_selection_fails(
+        self,
+    ) -> None:
+        with (
+            patch.object(
+                pair_commands,
+                "PairClient",
+                create=True,
+            ) as client_type,
+            patch.object(
+                pair_commands,
+                "ensure_client_version",
+                side_effect=PairError(
+                    "version_unavailable",
+                    "The matching version is unavailable.",
+                ),
+                create=True,
+            ),
+            patch.object(
+                pair_commands,
+                "_read_code",
+                side_effect=AssertionError("stdin was read"),
+                create=True,
+            ) as read_code,
+        ):
+            client_type.return_value.version.return_value = "0.25.0"
+            result = _runner.invoke(
+                cli_main,
+                ["pair", "execute", "--url", "https://example.com"],
+                input="must remain unread\n",
+            )
+
+        assert result.exit_code == 1
+        assert "unavailable" in result.stderr
+        read_code.assert_not_called()
+
+    def test_execute_preserves_inline_code(self) -> None:
+        result, client, _ensure = _invoke_pair_execute(
+            ["--url", "https://example.com", "-c", "print(1)\n"]
+        )
+
+        assert result.exit_code == 0
+        assert client.executed == ("resolved-session", "print(1)\n")
+
+    def test_execute_preserves_code_file_final_newline(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_text("print(2)\n", encoding="utf-8")
+
+        result, client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "https://example.com",
+                "--code-file",
+                str(code_file),
+            ]
+        )
+
+        assert result.exit_code == 0
+        assert client.executed == ("resolved-session", "print(2)\n")
+
+    def test_execute_preserves_stdin_final_newline(self) -> None:
+        result, client, _ensure = _invoke_pair_execute(
+            ["--url", "https://example.com"],
+            input_text="print(3)\n",
+        )
+
+        assert result.exit_code == 0
+        assert client.executed == ("resolved-session", "print(3)\n")
+
+    def test_execute_rejects_conflicting_code_sources(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_text("print(2)", encoding="utf-8")
+
+        result, client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "https://example.com",
+                "-c",
+                "print(1)",
+                "--code-file",
+                str(code_file),
+            ]
+        )
+
+        assert result.exit_code == 2
+        assert "use either -c or --code-file" in result.stderr.lower()
+        assert client.executed is None
+
+    def test_execute_rejects_missing_code(self) -> None:
+        result, client, _ensure = _invoke_pair_execute(
+            ["--url", "https://example.com"],
+            input_text="",
+        )
+
+        assert result.exit_code == 2
+        assert "no code was provided" in result.stderr.lower()
+        assert client.executed is None
+
+    @pytest.mark.parametrize(
+        ("selector", "expected"),
+        [
+            (["--session", "session-one"], ("session-one", None)),
+            (["--notebook", "opaque/key.py"], (None, "opaque/key.py")),
+            (
+                ["--file", r"C:\work\notebook.py"],
+                (None, r"C:\work\notebook.py"),
+            ),
+        ],
+    )
+    def test_execute_passes_session_selectors(
+        self,
+        selector: list[str],
+        expected: tuple[str | None, str | None],
+    ) -> None:
+        result, client, _ensure = _invoke_pair_execute(
+            ["--url", "https://example.com", *selector, "-c", "1 + 1"]
+        )
+
+        assert result.exit_code == 0
+        assert client.session_selector == expected
+
+    def test_execute_rejects_conflicting_session_selectors(self) -> None:
+        result, client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "https://example.com",
+                "--session",
+                "session-one",
+                "--notebook",
+                "notebook.py",
+                "-c",
+                "1 + 1",
+            ]
+        )
+
+        assert result.exit_code == 2
+        assert "use either --session or --notebook" in result.stderr.lower()
+        assert client.session_selector is None
+
+    def test_execute_uses_environment_token_without_rendering_it(self) -> None:
+        result, client, ensure = _invoke_pair_execute(
+            ["--url", "https://example.com", "-c", "1 + 1"],
+            environment={"MARIMO_TOKEN": "secret-token"},
+        )
+
+        assert result.exit_code == 0
+        assert client.token == "secret-token"
+        assert "secret-token" not in result.output
+        assert "secret-token" not in repr(ensure.call_args)
+
+    def test_execute_token_file_overrides_environment(
+        self,
+        tmp_path: Path,
+    ) -> None:
+        token_file = tmp_path / "token.txt"
+        token_file.write_text("file-token\n", encoding="utf-8")
+
+        result, client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "https://example.com",
+                "--token-file",
+                str(token_file),
+                "-c",
+                "1 + 1",
+            ],
+            environment={"MARIMO_TOKEN": "environment-token"},
+        )
+
+        assert result.exit_code == 0
+        assert client.token == "file-token"
+        assert "file-token" not in result.output
+        assert "environment-token" not in result.output
+
+    def test_execute_requires_override_for_remote_http(self) -> None:
+        blocked, _client, _ensure = _invoke_pair_execute(
+            ["--url", "http://example.com", "-c", "1 + 1"]
+        )
+        allowed, client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "http://example.com",
+                "--allow-insecure-http",
+                "-c",
+                "1 + 1",
+            ]
+        )
+
+        assert blocked.exit_code == 1
+        assert allowed.exit_code == 0
+        assert client.executed == ("resolved-session", "1 + 1")
+
+    def test_execute_discovers_server_when_url_is_omitted(self) -> None:
+        discovered = PairServer(
+            "server",
+            "local",
+            "http://127.0.0.1:2718",
+            "",
+            "0.24.0",
+        )
+
+        with patch.object(
+            pair_commands,
+            "discover_servers",
+            return_value=DiscoveryResult((discovered,), ()),
+        ):
+            result, client, _ensure = _invoke_pair_execute(["-c", "1 + 1"])
+
+        assert result.exit_code == 0
+        assert client.executed == ("resolved-session", "1 + 1")
+
+    @pytest.mark.parametrize(
+        ("execution_result", "execution_error", "expected_exit"),
+        [
+            (ExecutionResult(True, ""), None, 0),
+            (ExecutionResult(False, ""), None, 1),
+            (ExecutionResult(True, ""), KeyboardInterrupt(), 130),
+            (ExecutionResult(True, ""), BrokenPipeError(), 1),
+            (
+                ExecutionResult(True, ""),
+                PairError("kernel_failure", "Kernel failed."),
+                1,
+            ),
+        ],
+    )
+    def test_execute_maps_exit_statuses(
+        self,
+        execution_result: ExecutionResult,
+        execution_error: BaseException | None,
+        expected_exit: int,
+    ) -> None:
+        client = FakeExecutionClient(
+            result=execution_result,
+            execution_error=execution_error,
+        )
+
+        result, _client, _ensure = _invoke_pair_execute(
+            ["--url", "https://example.com", "-c", "1 + 1"],
+            client=client,
+        )
+
+        assert result.exit_code == expected_exit
+
+    def test_execute_renders_json_errors(self) -> None:
+        client = FakeExecutionClient(
+            version_error=PairError("connection_failed", "No connection."),
+        )
+
+        result, _client, _ensure = _invoke_pair_execute(
+            [
+                "--url",
+                "https://example.com",
+                "--json-errors",
+                "-c",
+                "1 + 1",
+            ],
+            client=client,
+        )
+
+        assert result.exit_code == 1
+        assert result.stderr == (
+            '{"kind": "connection_failed", "message": "No connection."}\n'
+        )

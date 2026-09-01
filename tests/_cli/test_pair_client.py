@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import io
 import json
+import subprocess
 from dataclasses import dataclass, field
 from http.client import HTTPMessage
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 from urllib.request import Request
 
 import pytest
@@ -646,3 +648,140 @@ def test_execute_does_not_retry_after_connection_loss() -> None:
     assert error.value.kind == "indeterminate_result"
     assert response.closed
     assert transport.open_count == 1
+
+
+@pytest.mark.parametrize("server_version", ["0.23.9", "0.24.0"])
+def test_version_selection_keeps_compatible_client(
+    server_version: str,
+) -> None:
+    with (
+        patch.object(pair_client, "__version__", "0.24.0", create=True),
+        patch.object(pair_client, "subprocess", subprocess, create=True),
+        patch.object(subprocess, "run") as run,
+        patch("marimo._cli.pair.client.os.execvpe") as execvpe,
+    ):
+        pair_client.ensure_client_version(
+            server_version,
+            arguments=("--url", "https://example.com"),
+            environ={},
+        )
+
+    run.assert_not_called()
+    execvpe.assert_not_called()
+
+
+def test_version_handoff_uses_an_exact_wheel_and_sanitized_environment() -> (
+    None
+):
+    environment = {
+        "HOME": "/home/ada",
+        "MARIMO_TOKEN": "secret-token",
+        "UV_INDEX": "https://untrusted.example/simple",
+        "UV_INDEX_URL": "https://untrusted.example/simple",
+        "UV_DEFAULT_INDEX": "https://untrusted.example/simple",
+        "UV_EXTRA_INDEX_URL": "https://untrusted.example/extra",
+        "UV_FIND_LINKS": "/tmp/wheels",
+        "UV_CONFIG_FILE": "/tmp/uv.toml",
+        "UV_INSECURE_HOST": "untrusted.example",
+        "PIP_INDEX_URL": "https://untrusted.example/simple",
+        "PIP_TRUSTED_HOST": "untrusted.example",
+    }
+    arguments = (
+        "--url",
+        "https://example.com/base",
+        "--session",
+        "session-one",
+        "-c",
+        "1 + 1",
+    )
+    prefix = [
+        "uvx",
+        "--no-config",
+        "--no-env-file",
+        "--no-sources",
+        "--default-index",
+        "https://pypi.org/simple",
+        "--from",
+        "marimo==0.25.0",
+    ]
+
+    with (
+        patch.object(pair_client, "__version__", "0.24.0", create=True),
+        patch.object(pair_client, "subprocess", subprocess, create=True),
+        patch.object(
+            subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess(prefix, 0),
+        ) as run,
+        patch("marimo._cli.pair.client.os.execvpe") as execvpe,
+    ):
+        pair_client.ensure_client_version(
+            "0.25.0",
+            arguments=arguments,
+            environ=environment,
+        )
+
+    expected_environment = {
+        "HOME": "/home/ada",
+        "MARIMO_TOKEN": "secret-token",
+        pair_client.PAIR_HANDOFF_ENV: "0.25.0",
+    }
+    run.assert_called_once_with(
+        [*prefix, "marimo", "--version"],
+        check=False,
+        env=expected_environment,
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    execvpe.assert_called_once_with(
+        "uvx",
+        [*prefix, "marimo", "pair", "execute", *arguments],
+        expected_environment,
+    )
+    assert "secret-token" not in execvpe.call_args.args[1]
+
+
+def test_version_handoff_reports_an_unavailable_wheel() -> None:
+    with (
+        patch.object(pair_client, "__version__", "0.24.0", create=True),
+        patch.object(pair_client, "subprocess", subprocess, create=True),
+        patch.object(
+            subprocess,
+            "run",
+            return_value=subprocess.CompletedProcess([], 1),
+        ),
+        patch("marimo._cli.pair.client.os.execvpe") as execvpe,
+        pytest.raises(PairError) as error,
+    ):
+        pair_client.ensure_client_version(
+            "0.25.0",
+            arguments=(),
+            environ={},
+        )
+
+    assert error.value.kind == "version_unavailable"
+    assert str(error.value) == (
+        "marimo 0.25.0 is unavailable from PyPI. Run the marimo executable "
+        "from that server's source checkout."
+    )
+    execvpe.assert_not_called()
+
+
+def test_version_handoff_rejects_a_second_mismatch() -> None:
+    with (
+        patch.object(pair_client, "__version__", "0.24.0", create=True),
+        patch.object(pair_client, "subprocess", subprocess, create=True),
+        patch.object(subprocess, "run") as run,
+        patch("marimo._cli.pair.client.os.execvpe") as execvpe,
+        pytest.raises(PairError) as error,
+    ):
+        pair_client.ensure_client_version(
+            "0.25.0",
+            arguments=(),
+            environ={pair_client.PAIR_HANDOFF_ENV: "0.25.0"},
+        )
+
+    assert error.value.kind == "version_unavailable"
+    run.assert_not_called()
+    execvpe.assert_not_called()
