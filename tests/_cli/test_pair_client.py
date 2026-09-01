@@ -1,14 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import io
 import json
 from dataclasses import dataclass, field
 from http.client import HTTPMessage
+from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.request import Request
 
 import pytest
 
+import marimo._cli.pair.client as pair_client
 from marimo._cli.pair.client import (
     PairClient,
     PairError,
@@ -21,7 +24,6 @@ from marimo._cli.pair.client import (
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
-    from pathlib import Path
 
 
 @dataclass
@@ -29,9 +31,12 @@ class MemoryResponse:
     body: bytes
     status: int = 200
     headers: Mapping[str, str] = field(default_factory=dict)
+    read_error: BaseException | None = None
     closed: bool = False
 
     def read(self, size: int = -1) -> bytes:
+        if self.read_error is not None:
+            raise self.read_error
         return self.body if size < 0 else self.body[:size]
 
     def close(self) -> None:
@@ -42,6 +47,7 @@ class MemoryResponse:
 class MemoryTransport:
     responses: dict[str, MemoryResponse]
     request: Request | None = None
+    open_count: int = 0
 
     def open(
         self,
@@ -50,8 +56,22 @@ class MemoryTransport:
         timeout: float | None,
     ) -> MemoryResponse:
         assert timeout == 5.0
+        self.open_count += 1
         self.request = request
         return self.responses[request.full_url]
+
+
+@dataclass
+class RecordingWriter:
+    name: str
+    records: list[tuple[str, str]]
+    error: BaseException | None = None
+
+    def write(self, value: str) -> int:
+        if self.error is not None:
+            raise self.error
+        self.records.append((self.name, value))
+        return len(value)
 
 
 def _server(url: str | None = "https://example.com/base") -> PairServer:
@@ -397,3 +417,232 @@ def test_resolve_session_rejects_missing_ambiguous_or_conflicting_selectors() ->
             notebook="same.py",
         )
     assert conflict_error.value.kind == "invalid_target"
+
+
+@pytest.mark.parametrize(
+    ("filename", "expected"),
+    [
+        (
+            "execute-success.sse",
+            (
+                ("stdout", '{"data":"hello\\n"}'),
+                (
+                    "done",
+                    '{"success":true,"output":{"mimetype":"text/plain","data":"2"}}',
+                ),
+            ),
+        ),
+        (
+            "execute-failure.sse",
+            (
+                ("stderr", '{"data":"ValueError: boom\\n"}'),
+                (
+                    "done",
+                    '{"success":false,"output":{"mimetype":"text/plain","data":""}}',
+                ),
+            ),
+        ),
+    ],
+)
+def test_parse_sse_matches_frozen_responses(
+    filename: str,
+    expected: tuple[tuple[str, str], ...],
+) -> None:
+    fixture = (
+        Path(__file__).parent / "fixtures" / "marimo_pair_v0_0_19" / filename
+    )
+
+    events = pair_client.parse_sse(fixture.read_bytes())
+
+    assert tuple((event.name, event.data) for event in events) == expected
+
+
+def test_parse_sse_handles_crlf_comments_multiline_utf8_and_final_record() -> (
+    None
+):
+    body = (
+        ": keepalive\r\n"
+        "event: stdout\r\n"
+        "data: café\r\n"
+        "data: second line\r\n"
+        "\r\n"
+        "event: done\r\n"
+        'data: {"success":true,"output":{"data":""}}'
+    ).encode()
+
+    events = pair_client.parse_sse(body)
+
+    assert tuple((event.name, event.data) for event in events) == (
+        ("stdout", "café\nsecond line"),
+        ("done", '{"success":true,"output":{"data":""}}'),
+    )
+
+
+def test_parse_sse_rejects_invalid_utf8() -> None:
+    with pytest.raises(PairError) as error:
+        pair_client.parse_sse(b"event: stdout\ndata: \xff\n\n")
+
+    assert error.value.kind == "invalid_response"
+
+
+def _execution_client(
+    body: bytes,
+    *,
+    read_error: BaseException | None = None,
+) -> tuple[PairClient, MemoryResponse, MemoryTransport]:
+    response = MemoryResponse(body, read_error=read_error)
+    transport = MemoryTransport(
+        {"https://example.com/base/api/kernel/execute": response}
+    )
+    return (
+        PairClient(_server(), token="secret-token", transport=transport),
+        response,
+        transport,
+    )
+
+
+def test_execute_routes_output_and_returns_the_terminal_result() -> None:
+    body = (
+        b'event: stdout\ndata: {"data":"hello\\n"}\n\n'
+        b'event: stderr\ndata: {"data":"warning\\n"}\n\n'
+        b"event: done\n"
+        b'data: {"success":true,"output":{"mimetype":"text/plain","data":"2"}}\n\n'
+    )
+    client, response, transport = _execution_client(body)
+    records: list[tuple[str, str]] = []
+
+    result = client.execute(
+        "session-one",
+        "print('hello')",
+        stdout=RecordingWriter("stdout", records),
+        stderr=RecordingWriter("stderr", records),
+    )
+
+    assert result.success is True
+    assert result.output == "2"
+    assert records == [
+        ("stdout", "hello\n"),
+        ("stderr", "warning\n"),
+        ("stdout", "2\n"),
+    ]
+    assert response.closed
+    assert transport.open_count == 1
+    assert transport.request is not None
+    assert transport.request.get_method() == "POST"
+    assert transport.request.data == b'{"code": "print(\'hello\')"}'
+    assert transport.request.get_header("Content-type") == "application/json"
+    assert transport.request.get_header("Marimo-session-id") == "session-one"
+    assert transport.request.get_header("Authorization") == (
+        "Bearer secret-token"
+    )
+
+
+def test_execute_returns_kernel_failure_after_routing_stderr() -> None:
+    body = (
+        b'event: stderr\ndata: {"data":"ValueError: boom\\n"}\n\n'
+        b"event: done\n"
+        b'data: {"success":false,"output":{"mimetype":"text/plain","data":""}}\n\n'
+    )
+    client, response, _transport = _execution_client(body)
+    stdout = io.StringIO()
+    stderr = io.StringIO()
+
+    result = client.execute(
+        "session-one",
+        "raise ValueError",
+        stdout=stdout,
+        stderr=stderr,
+    )
+
+    assert result.success is False
+    assert result.output == ""
+    assert stdout.getvalue() == ""
+    assert stderr.getvalue() == "ValueError: boom\n"
+    assert response.closed
+
+
+@pytest.mark.parametrize(
+    ("body", "expected_kind"),
+    [
+        (
+            b'event: stdout\ndata: {"data":"partial"}\n\n',
+            "incomplete_response",
+        ),
+        (b"event: done\ndata: not-json\n\n", "invalid_response"),
+    ],
+)
+def test_execute_rejects_incomplete_or_malformed_sse(
+    body: bytes,
+    expected_kind: str,
+) -> None:
+    client, response, _transport = _execution_client(body)
+
+    with pytest.raises(PairError) as error:
+        client.execute(
+            "session-one",
+            "1 + 1",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+        )
+
+    assert error.value.kind == expected_kind
+    assert response.closed
+
+
+def test_execute_cancel_closes_the_response() -> None:
+    client, response, transport = _execution_client(
+        b"",
+        read_error=KeyboardInterrupt(),
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        client.execute(
+            "session-one",
+            "while True: pass",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+        )
+
+    assert response.closed
+    assert transport.open_count == 1
+
+
+def test_execute_broken_output_pipe_closes_the_response() -> None:
+    body = (
+        b'event: stdout\ndata: {"data":"hello"}\n\n'
+        b'event: done\ndata: {"success":true,"output":{"data":""}}\n\n'
+    )
+    client, response, _transport = _execution_client(body)
+
+    with pytest.raises(BrokenPipeError):
+        client.execute(
+            "session-one",
+            "print('hello')",
+            stdout=RecordingWriter(
+                "stdout",
+                [],
+                error=BrokenPipeError(),
+            ),
+            stderr=io.StringIO(),
+        )
+
+    assert response.closed
+
+
+def test_execute_does_not_retry_after_connection_loss() -> None:
+    client, response, transport = _execution_client(
+        b"",
+        read_error=ConnectionResetError(),
+    )
+
+    with pytest.raises(PairError) as error:
+        client.execute(
+            "session-one",
+            "mutate_state()",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+        )
+
+    assert error.value.kind == "indeterminate_result"
+    assert response.closed
+    assert transport.open_count == 1

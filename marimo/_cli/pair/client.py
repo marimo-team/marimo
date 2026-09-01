@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
     from http.client import HTTPMessage
     from pathlib import Path
+    from typing import TextIO
 
 ErrorKind = Literal[
     "invalid_target",
@@ -65,6 +66,18 @@ class ResolvedTarget:
     version: str
 
 
+@dataclass(frozen=True)
+class SSEEvent:
+    name: str
+    data: str
+
+
+@dataclass(frozen=True)
+class ExecutionResult:
+    success: bool
+    output: str
+
+
 class HttpResponse(Protocol):
     status: int
     headers: Mapping[str, str]
@@ -81,6 +94,43 @@ class HttpTransport(Protocol):
         *,
         timeout: float | None,
     ) -> HttpResponse: ...
+
+
+def parse_sse(body: bytes) -> tuple[SSEEvent, ...]:
+    try:
+        text = body.decode("utf-8")
+    except UnicodeDecodeError as error:
+        raise PairError(
+            "invalid_response",
+            "The server returned invalid UTF-8.",
+        ) from error
+
+    events: list[SSEEvent] = []
+    name = "message"
+    data: list[str] = []
+
+    def dispatch() -> None:
+        nonlocal name, data
+        if data:
+            events.append(SSEEvent(name=name, data="\n".join(data)))
+        name = "message"
+        data = []
+
+    for line in text.splitlines():
+        if not line:
+            dispatch()
+            continue
+        if line.startswith(":"):
+            continue
+        field, separator, value = line.partition(":")
+        if separator and value.startswith(" "):
+            value = value[1:]
+        if field == "event":
+            name = value
+        elif field == "data":
+            data.append(value)
+    dispatch()
+    return tuple(events)
 
 
 def load_token(
@@ -335,26 +385,111 @@ class PairClient:
             )
         return matches[0]
 
-    def _get(self, endpoint: str) -> bytes:
-        parsed = urlsplit(self._url)
-        path = f"{parsed.path.rstrip('/')}/{endpoint}"
-        url = urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
-        headers = {}
-        if self._token is not None:
-            headers["Authorization"] = f"Bearer {self._token}"
-        request = urllib.request.Request(url, headers=headers)
+    def execute(
+        self,
+        session_id: str,
+        code: str,
+        *,
+        stdout: TextIO,
+        stderr: TextIO,
+    ) -> ExecutionResult:
+        request = self._request(
+            "api/kernel/execute",
+            data=json.dumps({"code": code}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Marimo-Session-Id": session_id,
+            },
+        )
+        response = self._open(request)
+
         try:
-            response = self._transport.open(request, timeout=5.0)
-        except urllib.error.HTTPError as error:
-            if error.code in (401, 403):
+            self._validate_status(response)
+            try:
+                body = response.read()
+            except (OSError, urllib.error.URLError) as error:
                 raise PairError(
-                    "authentication_failed",
-                    "The server rejected authentication.",
+                    "indeterminate_result",
+                    "The connection ended after execution was submitted.",
                 ) from error
-            raise PairError(
-                "connection_failed",
-                "The server request failed.",
-            ) from error
+            return self._execution_result(
+                parse_sse(body),
+                stdout=stdout,
+                stderr=stderr,
+            )
+        finally:
+            response.close()
+
+    def _execution_result(
+        self,
+        events: Sequence[SSEEvent],
+        *,
+        stdout: TextIO,
+        stderr: TextIO,
+    ) -> ExecutionResult:
+        for event in events:
+            if event.name in ("stdout", "stderr"):
+                payload = _json_object(event.data)
+                data = payload.get("data")
+                if not isinstance(data, str):
+                    raise PairError(
+                        "invalid_response",
+                        "The server returned invalid execution output.",
+                    )
+                (stdout if event.name == "stdout" else stderr).write(data)
+                continue
+            if event.name != "done":
+                continue
+
+            payload = _json_object(event.data)
+            success = payload.get("success")
+            output = payload.get("output")
+            if not isinstance(success, bool) or not isinstance(output, dict):
+                raise PairError(
+                    "invalid_response",
+                    "The server returned an invalid execution result.",
+                )
+            output_data = output.get("data")
+            if not isinstance(output_data, str):
+                raise PairError(
+                    "invalid_response",
+                    "The server returned an invalid execution result.",
+                )
+            if output_data:
+                stdout.write(f"{output_data}\n")
+            return ExecutionResult(success=success, output=output_data)
+
+        raise PairError(
+            "incomplete_response",
+            "The execution response did not contain a terminal event.",
+        )
+
+    def _get(self, endpoint: str) -> bytes:
+        request = self._request(endpoint)
+        response = self._open(request)
+
+        try:
+            self._validate_status(response)
+            return response.read()
+        finally:
+            response.close()
+
+    def _open(self, request: urllib.request.Request) -> HttpResponse:
+        try:
+            return self._transport.open(request, timeout=5.0)
+        except urllib.error.HTTPError as error:
+            try:
+                if error.code in (401, 403):
+                    raise PairError(
+                        "authentication_failed",
+                        "The server rejected authentication.",
+                    ) from error
+                raise PairError(
+                    "connection_failed",
+                    "The server request failed.",
+                ) from error
+            finally:
+                error.close()
         except PairError:
             raise
         except (OSError, urllib.error.URLError) as error:
@@ -363,21 +498,50 @@ class PairClient:
                 "Could not connect to the server.",
             ) from error
 
-        try:
-            if response.status in (401, 403):
-                raise PairError(
-                    "authentication_failed",
-                    "The server rejected authentication.",
-                )
-            if not 200 <= response.status < 300:
-                raise PairError(
-                    "connection_failed",
-                    "The server request failed.",
-                )
-            return response.read()
-        finally:
-            response.close()
+    def _request(
+        self,
+        endpoint: str,
+        *,
+        data: bytes | None = None,
+        headers: Mapping[str, str] | None = None,
+    ) -> urllib.request.Request:
+        parsed = urlsplit(self._url)
+        path = f"{parsed.path.rstrip('/')}/{endpoint}"
+        url = urlunsplit((parsed.scheme, parsed.netloc, path, "", ""))
+        request_headers = {} if headers is None else dict(headers)
+        if self._token is not None:
+            request_headers["Authorization"] = f"Bearer {self._token}"
+        return urllib.request.Request(url, data=data, headers=request_headers)
+
+    @staticmethod
+    def _validate_status(response: HttpResponse) -> None:
+        if response.status in (401, 403):
+            raise PairError(
+                "authentication_failed",
+                "The server rejected authentication.",
+            )
+        if not 200 <= response.status < 300:
+            raise PairError(
+                "connection_failed",
+                "The server request failed.",
+            )
 
 
 def _is_optional_string(value: object) -> bool:
     return value is None or isinstance(value, str)
+
+
+def _json_object(data: str) -> dict[str, object]:
+    try:
+        value = json.loads(data)
+    except json.JSONDecodeError as error:
+        raise PairError(
+            "invalid_response",
+            "The server returned invalid execution data.",
+        ) from error
+    if not isinstance(value, dict):
+        raise PairError(
+            "invalid_response",
+            "The server returned invalid execution data.",
+        )
+    return value
