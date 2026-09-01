@@ -4,9 +4,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import shlex
+from collections.abc import Callable
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from typing import Any, TypeVar
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import click
@@ -16,14 +17,18 @@ from marimo._cli.pair.client import (
     PairClient,
     PairError,
     PairServer,
+    ResolvedTarget,
     ensure_client_version,
     load_token,
     resolve_server,
 )
 from marimo._cli.pair.discovery import discover_servers
+from marimo._cli.pair.guide import render_cli_guide
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
+
+CommandFunction = TypeVar("CommandFunction", bound=Callable[..., Any])
 
 
 _cached_token_dir: Path | None = None
@@ -204,12 +209,6 @@ def prompt(
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
-    # Preserve the file key exactly as supplied. Relative keys are resolved by
-    # the server workspace and may refer to a remote or non-POSIX filesystem.
-    # Shell-quote dynamic values because this command is copy-pasted into a
-    # shell and paths may contain spaces or metacharacters.
-    file_flag = f" --file {shlex.quote(file_path)}" if file_path else ""
-    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{file_flag}"
     # Validate that the selected agents have the required skills
     selected_agents = {
         "claude": claude,
@@ -223,16 +222,12 @@ def prompt(
             click.echo(
                 f"The marimo-pair skill for {agent.name} could not be found.\n\n"
                 "Please install it with:\n\n"
-                "  npx skills add marimo-team/marimo-pair\n\n"
-                "or\n\n"
-                "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
-                "More instructions at "
-                "https://github.com/marimo-team/marimo-pair",
+                "  npx skills add marimo-team/marimo --skill marimo-pair",
                 err=True,
             )
 
     # Prompt for token and write it to a temp file if --with-token is set
-    token_hint = ""
+    token_file: Path | None = None
     if with_token:
         token_dir = _token_dir()
         url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
@@ -248,24 +243,28 @@ def prompt(
         finally:
             os.close(fd)
 
-        token_hint = (
-            f"\n\nAn auth token is stored at {token_file}. "
-            f"Pass it via `{execute_cmd} "
-            f"--token \"$(cat '{token_file}')\"`."
+    try:
+        target, token_from_environment, warnings = _resolve_guide_target(
+            url=url,
+            session_id=None,
+            notebook=file_path,
+            token_file=token_file,
+            allow_insecure_http=False,
         )
+    except PairError as error:
+        _render_pair_error(error, json_errors=False)
+        raise click.exceptions.Exit(1) from None
 
-    file_hint = f" (file {file_path})" if file_path else ""
-
-    # Output the prompt to the wrapper agent CLI
     click.echo(
-        "Use the /marimo-pair skill to pair-program on a running "
-        "marimo notebook.\n\n"
-        f"Connect to the notebook at: {url}{file_hint}\n\n"
-        f"Use `{execute_cmd}` from the marimo-pair "
-        "skill to execute code in the notebook."
-        f"{token_hint}\n\n"
-        "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
+        render_cli_guide(
+            target,
+            token_file=token_file,
+            token_from_environment=token_from_environment,
+        ),
+        nl=False,
     )
+    for warning in warnings:
+        click.echo(warning, err=True)
 
 
 def _redact_url(url: str | None) -> str | None:
@@ -318,6 +317,127 @@ def _render_pair_error(error: PairError, *, json_errors: bool) -> None:
         )
     else:
         click.echo(f"Error: {error.message}", err=True)
+
+
+def _target_options(command: CommandFunction) -> CommandFunction:
+    """Apply the target-selection options shared by guide and execute."""
+    decorators = (
+        click.option(
+            "--url", type=str, help="URL of the running marimo server."
+        ),
+        click.option(
+            "--session", "session_id", type=str, help="Active session ID."
+        ),
+        click.option(
+            "--notebook",
+            "--file",
+            "notebook",
+            type=str,
+            help="Exact notebook path or file key.",
+        ),
+        click.option(
+            "--token-file",
+            type=click.Path(path_type=Path, dir_okay=False),
+            help="UTF-8 file that contains the server token.",
+        ),
+        click.option(
+            "--allow-insecure-http",
+            is_flag=True,
+            default=False,
+            help="Allow plain HTTP for a remote server.",
+        ),
+        click.option(
+            "--json-errors",
+            is_flag=True,
+            default=False,
+            help="Write machine-readable errors to stderr.",
+        ),
+    )
+    for decorator in reversed(decorators):
+        command = decorator(command)
+    return command
+
+
+def _resolve_guide_target(
+    *,
+    url: str | None,
+    session_id: str | None,
+    notebook: str | None,
+    token_file: Path | None,
+    allow_insecure_http: bool,
+) -> tuple[ResolvedTarget, bool, tuple[str, ...]]:
+    token = load_token(token_file=token_file)
+    if url is None:
+        discovery = discover_servers()
+        discovered = discovery.servers
+        warnings = discovery.warnings
+    else:
+        discovered = ()
+        warnings = ()
+    try:
+        server = resolve_server(
+            url=url,
+            discovered=discovered,
+            allow_insecure_http=allow_insecure_http,
+        )
+    except PairError as error:
+        if error.kind == "ambiguous_server":
+            raise PairError(
+                error.kind,
+                f"{error.message} Run `marimo pair discover` to list targets.",
+            ) from error
+        raise
+    client = PairClient(server, token=token)
+    version = client.version()
+    session = client.resolve_session(
+        session_id=session_id,
+        notebook=notebook,
+    )
+    return (
+        ResolvedTarget(server=server, session=session, version=version),
+        token_file is None and token is not None,
+        warnings,
+    )
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Print version-matched instructions for a running marimo notebook.",
+)
+@_target_options
+def guide(
+    url: str | None,
+    session_id: str | None,
+    notebook: str | None,
+    token_file: Path | None,
+    allow_insecure_http: bool,
+    json_errors: bool,
+) -> None:
+    if session_id is not None and notebook is not None:
+        raise click.UsageError("Use either --session or --notebook, not both.")
+
+    try:
+        target, token_from_environment, warnings = _resolve_guide_target(
+            url=url,
+            session_id=session_id,
+            notebook=notebook,
+            token_file=token_file,
+            allow_insecure_http=allow_insecure_http,
+        )
+    except PairError as error:
+        _render_pair_error(error, json_errors=json_errors)
+        raise click.exceptions.Exit(1) from None
+
+    click.echo(
+        render_cli_guide(
+            target,
+            token_file=token_file,
+            token_from_environment=token_from_environment,
+        ),
+        nl=False,
+    )
+    for warning in warnings:
+        click.echo(warning, err=True)
 
 
 @click.command(
@@ -411,26 +531,7 @@ def _handoff_arguments(
     cls=ColoredCommand,
     help="Execute code in a running marimo notebook.",
 )
-@click.option("--url", type=str, help="URL of the running marimo server.")
-@click.option("--session", "session_id", type=str, help="Active session ID.")
-@click.option(
-    "--notebook",
-    "--file",
-    "notebook",
-    type=str,
-    help="Exact notebook path or file key.",
-)
-@click.option(
-    "--token-file",
-    type=click.Path(path_type=Path, dir_okay=False),
-    help="UTF-8 file that contains the server token.",
-)
-@click.option(
-    "--allow-insecure-http",
-    is_flag=True,
-    default=False,
-    help="Allow plain HTTP for a remote server.",
-)
+@_target_options
 @click.option("-c", "inline_code", type=str, help="Inline Python code.")
 @click.option(
     "--code-file",
@@ -441,12 +542,6 @@ def _handoff_arguments(
         readable=True,
     ),
     help="UTF-8 file that contains Python code.",
-)
-@click.option(
-    "--json-errors",
-    is_flag=True,
-    default=False,
-    help="Write machine-readable errors to stderr.",
 )
 def execute(
     url: str | None,
@@ -511,4 +606,5 @@ def execute(
 
 pair.add_command(discover)
 pair.add_command(execute)
+pair.add_command(guide)
 pair.add_command(prompt)
