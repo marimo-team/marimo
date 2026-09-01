@@ -30,15 +30,7 @@ def layout_config_to_data_uri(config: LayoutConfig) -> str:
     return f"data:application/json;base64,{encoded}"
 
 
-def _parse_layout_config(
-    contents: str | bytes, *, source: str
-) -> LayoutConfig | None:
-    try:
-        value = json.loads(contents)
-    except (json.JSONDecodeError, UnicodeDecodeError, TypeError) as error:
-        LOGGER.warning("Failed to parse layout config %s: %s", source, error)
-        return None
-
+def parse_layout_config(value: object, *, source: str) -> LayoutConfig | None:
     if not isinstance(value, dict):
         LOGGER.warning("Layout config %s must be an object", source)
         return None
@@ -53,6 +45,17 @@ def _parse_layout_config(
         return None
 
     return LayoutConfig(type=layout_type, data=layout_data)
+
+
+def _parse_layout_config(
+    contents: str | bytes, *, source: str
+) -> LayoutConfig | None:
+    try:
+        value = json.loads(contents)
+    except (json.JSONDecodeError, UnicodeDecodeError, TypeError) as error:
+        LOGGER.warning("Failed to parse layout config %s: %s", source, error)
+        return None
+    return parse_layout_config(value, source=source)
 
 
 def save_layout_config(

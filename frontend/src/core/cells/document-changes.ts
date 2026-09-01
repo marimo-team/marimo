@@ -634,6 +634,7 @@ export function coalesceChanges(changes: DocumentChange[]): DocumentChange[] {
 let pendingChanges: DocumentChange[] = [];
 let stagedTransactions: DocumentChange[][] = [];
 let transactionQueue: Promise<void> = Promise.resolve();
+let transactionGeneration = 0;
 
 type TransactionSyncState =
   | { status: "synchronized" }
@@ -657,7 +658,10 @@ function stagePendingTransaction(): void {
   }
 }
 
-async function sendStagedTransactions(): Promise<void> {
+async function sendStagedTransactions(generation: number): Promise<void> {
+  if (generation !== transactionGeneration) {
+    return;
+  }
   if (transactionSyncState.status === "failed") {
     throw transactionSyncState.error;
   }
@@ -668,6 +672,9 @@ async function sendStagedTransactions(): Promise<void> {
     try {
       await getRequestClient().sendDocumentTransaction({ changes });
     } catch (error) {
+      if (generation !== transactionGeneration) {
+        return;
+      }
       // A transport failure is ambiguous: the server may have applied the
       // transaction before the response was lost. Keep the failure sticky so
       // an export cannot claim synchronization without a fresh document.
@@ -675,14 +682,18 @@ async function sendStagedTransactions(): Promise<void> {
       stagedTransactions = [];
       throw error;
     }
+    if (generation !== transactionGeneration) {
+      return;
+    }
     stagedTransactions.shift();
   }
 }
 
 function queuePendingTransactions(): Promise<void> {
+  const generation = transactionGeneration;
   const queued = transactionQueue
     .catch(() => undefined)
-    .then(sendStagedTransactions);
+    .then(() => sendStagedTransactions(generation));
   transactionQueue = queued;
   return queued;
 }
@@ -860,6 +871,7 @@ export function applyTransactionChanges(
 export const exportedForTesting = {
   cancelPendingChanges: () => {
     flushChanges.cancel();
+    transactionGeneration += 1;
     pendingChanges = [];
     stagedTransactions = [];
     transactionSyncState = { status: "synchronized" };

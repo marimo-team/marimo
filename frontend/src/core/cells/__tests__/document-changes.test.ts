@@ -986,4 +986,49 @@ describe("document transaction middleware", () => {
       [{ type: "set-code", cellId: x, code: "x = 4" }],
     ]);
   });
+
+  it("ignores a failure from a transaction reset while in flight", async () => {
+    const firstStarted = new Deferred<void>();
+    const firstRelease = new Deferred<void>();
+    const firstFinished = new Deferred<void>();
+    const delayedClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        sent.push(changes);
+        if (sent.length === 1) {
+          firstStarted.resolve();
+          try {
+            await firstRelease.promise;
+          } finally {
+            firstFinished.resolve();
+          }
+        }
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      delayedClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    vi.advanceTimersByTime(400);
+    await firstStarted.promise;
+
+    middlewareExports.cancelPendingChanges();
+    firstRelease.reject(new Error("stale connection failure"));
+    await firstFinished.promise;
+    await Promise.resolve();
+
+    updateCode(x, "x = 3");
+    await flushDocumentChanges();
+    expect(sent.at(-1)).toEqual([
+      { type: "set-code", cellId: x, code: "x = 3" },
+    ]);
+  });
 });

@@ -347,6 +347,8 @@ async def auto_export_as_html(
         )
 
         # Save the HTML file to disk, at `.marimo/<filename>.html`
+        if session.app_file_manager.filename != filename:
+            return
         committed = await auto_exporter.save_html(
             filename=filename,
             html=html,
@@ -594,6 +596,8 @@ async def auto_export_as_markdown(
         )
 
         # Save the Markdown file to disk, at `.marimo/<filename>.md`
+        if session.app_file_manager.filename != filename:
+            return
         committed = await auto_exporter.save_md(
             filename=filename,
             markdown=result.text,
@@ -690,6 +694,8 @@ async def auto_export_as_ipynb(
         )
 
         # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
+        if session.app_file_manager.filename != filename:
+            return
         committed = await auto_exporter.save_ipynb(
             filename=filename,
             ipynb=ipynb,

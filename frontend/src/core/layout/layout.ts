@@ -66,7 +66,7 @@ export function resolveLayoutData<S, L>({
   cells: CellData[];
 }): L {
   const materialized = state.layoutData[plugin.type];
-  if (materialized !== undefined) {
+  if (materialized != null) {
     return materialized as L;
   }
   if (state.pendingLayout?.type === plugin.type) {

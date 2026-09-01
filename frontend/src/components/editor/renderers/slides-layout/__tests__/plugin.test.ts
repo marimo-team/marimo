@@ -82,14 +82,17 @@ describe("SlidesLayoutPlugin validator", () => {
     const warning = vi
       .spyOn(Logger, "warn")
       .mockImplementation(() => undefined);
-    expect(
-      deserializeLayout({
-        type: "slides",
-        data: null,
-        cells: [makeCell("a")],
-      }),
-    ).toEqual({ cells: new Map(), deck: {} });
-    warning.mockRestore();
+    try {
+      expect(
+        deserializeLayout({
+          type: "slides",
+          data: null,
+          cells: [makeCell("a")],
+        }),
+      ).toEqual({ cells: new Map(), deck: {} });
+    } finally {
+      warning.mockRestore();
+    }
   });
 });
 

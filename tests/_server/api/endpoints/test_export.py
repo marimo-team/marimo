@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -47,6 +48,8 @@ from tests._server.templates.utils import parse_mount_config
 from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from httpx import Response
     from starlette.testclient import TestClient
 
@@ -1031,6 +1034,50 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     slides = {"type": "slides", "data": {}}
     assert auto_export(layout=slides).status_code == 200
     assert auto_export(layout=slides).status_code == 304
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_skips_a_renamed_notebook(
+    client: TestClient, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager = AppFileManager(temp_marimo_file)
+    session.session_view.add_notification(
+        CellNotification(
+            cell_id=CellId_t("new_cell"),
+            output=CellOutput.stdout("hello"),
+        )
+    )
+
+    tasks: list[Callable[[], Awaitable[None]]] = []
+
+    class DeferredBackgroundTask:
+        def __init__(self, task: Callable[[], Awaitable[None]]) -> None:
+            tasks.append(task)
+
+        async def __call__(self) -> None:
+            return
+
+    with patch(
+        "marimo._server.api.endpoints.export.BackgroundTask",
+        DeferredBackgroundTask,
+    ):
+        response = client.post(
+            "/api/export/auto_export/html",
+            headers=HEADERS,
+            json={"download": False, "files": [], "includeCode": True},
+        )
+    assert response.status_code == 200
+    assert len(tasks) == 1
+
+    old_export = Path(temp_marimo_file).parent / "__marimo__" / "notebook.html"
+    session.app_file_manager.filename = str(
+        Path(temp_marimo_file).with_name("renamed.py")
+    )
+    asyncio.run(tasks[0]())
+
+    assert not old_export.exists()
 
 
 @with_session(SESSION_ID)

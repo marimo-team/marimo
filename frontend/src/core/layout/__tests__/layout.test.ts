@@ -53,6 +53,7 @@ describe("layout state", () => {
 
 describe("getSerializedLayout", () => {
   beforeEach(() => {
+    store.set(layoutStateAtom, initialLayoutState());
     store.set(
       notebookAtom,
       MockNotebook.notebookState({
@@ -78,5 +79,17 @@ describe("getSerializedLayout", () => {
     store.set(layoutStateAtom, initialLayoutState(layout));
 
     expect(getSerializedLayout()).toEqual(layout);
+  });
+
+  it("uses the initial layout when materialized data is null", () => {
+    store.set(layoutStateAtom, {
+      selectedLayout: "slides",
+      layoutData: { slides: null },
+    });
+
+    expect(getSerializedLayout()).toEqual({
+      type: "slides",
+      data: { cells: [{}, {}], deck: {} },
+    });
   });
 });

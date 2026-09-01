@@ -14,7 +14,7 @@ from typing import Any, Literal, cast
 from marimo._ast.app_config import _AppConfig
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.converters import MarimoConvert
-from marimo._runtime.layout.layout import LayoutConfig
+from marimo._runtime.layout.layout import parse_layout_config
 from marimo._schemas.notebook import NotebookV1
 from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
@@ -210,7 +210,11 @@ def render_static_notebook(
     user_config = _parse_config(config)
     config_overrides_obj = _parse_partial_config(config or {})
     app_config_obj = _AppConfig.from_untrusted_dict(app_config)
-    layout_config = LayoutConfig(**layout) if layout is not None else None
+    layout_config = (
+        parse_layout_config(layout, source="render_static_notebook")
+        if layout is not None
+        else None
+    )
 
     # Get HTML template
     html = _get_html_template()

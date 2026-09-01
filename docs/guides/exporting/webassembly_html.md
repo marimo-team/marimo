@@ -19,8 +19,8 @@ settings while Pyodide keeps notebook controls reactive.
 Speaker notes are embedded in the HTML file and readable by anyone who
 receives it.
 
-Use static HTML when the presentation needs reveal.js speaker view. A
-WebAssembly HTML deck keeps one Pyodide runtime in the presentation window.
+Use static HTML when the presentation needs reveal.js speaker view.
+WebAssembly HTML exports keep speaker view disabled.
 
 The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
 
