@@ -7,6 +7,7 @@ Pure and kernel-free so the CLI can import it without starting a runtime.
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -92,6 +93,114 @@ def resolve_cache_dirs(path: Path, recursive: bool = False) -> list[Path]:
         raise NotANotebookError(f"{path} is not a notebook file.")
     _validate_notebook(path)
     return [notebook_cache_dir(path)]
+
+
+@dataclass(frozen=True)
+class CacheDirStats:
+    """Disk usage of a cache directory."""
+
+    total_bytes: int = 0
+    entries: int = 0
+
+    def __add__(self, other: CacheDirStats) -> CacheDirStats:
+        return CacheDirStats(
+            total_bytes=self.total_bytes + other.total_bytes,
+            entries=self.entries + other.entries,
+        )
+
+
+def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
+    """Return the bytes and entry count held by `cache_dir`.
+
+    An entry is one cached value. It is a file in a block directory, together
+    with the directory of blobs that a value too large to inline is split
+    over.
+    Files at the root of the cache directory, such as manifests, hold no
+    cached value and so add bytes without adding entries.
+
+    A directory that does not exist, or that cannot be read, reports zero.
+    """
+    if not cache_dir.is_dir():
+        return CacheDirStats()
+
+    stats = CacheDirStats()
+    for block in _children(cache_dir):
+        if _is_directory(block):
+            stats += _block_stats(block)
+        else:
+            stats += CacheDirStats(total_bytes=_file_bytes(block))
+    return stats
+
+
+def entry_bytes(entry: Path) -> int:
+    """Return the bytes a cache entry occupies.
+
+    An entry is a file, or a directory holding the blobs of one value; either
+    one that cannot be read counts as nothing.
+    """
+    if not _is_directory(entry):
+        return _file_bytes(entry)
+    total = 0
+    for dirpath, _dirnames, filenames in os.walk(
+        entry, onerror=_log_walk_error
+    ):
+        total += sum(_file_bytes(Path(dirpath) / name) for name in filenames)
+    return total
+
+
+def _block_stats(block: Path) -> CacheDirStats:
+    """Return the bytes and entry count of one block directory."""
+    children = _children(block)
+    # A value stored in pieces leaves an entry file next to a directory of
+    # blobs named after the same hash. Counting that pair once keeps an entry
+    # equal to a cached value.
+    hashes = {
+        _entry_hash(child.name)
+        for child in children
+        if not _is_directory(child)
+    }
+    total_bytes = 0
+    entries = 0
+    for child in children:
+        total_bytes += entry_bytes(child)
+        if not (_is_directory(child) and child.name in hashes):
+            entries += 1
+    return CacheDirStats(total_bytes=total_bytes, entries=entries)
+
+
+def _entry_hash(entry_name: str) -> str:
+    """Return the hash an entry file names, without its prefix or suffix."""
+    stem = entry_name.split(".", 1)[0]
+    if len(stem) > 2 and stem[1] == "_":
+        return stem[2:]
+    return stem
+
+
+def _is_directory(path: Path) -> bool:
+    # A symlinked directory is never descended into: it is measured as the
+    # link it is.
+    return path.is_dir() and not path.is_symlink()
+
+
+def _children(directory: Path) -> list[Path]:
+    try:
+        return list(directory.iterdir())
+    except OSError as e:
+        LOGGER.warning("Skipping %s: %s", directory, e)
+        return []
+
+
+def _file_bytes(path: Path) -> int:
+    try:
+        # lstat: a symlink counts as itself, so a link out of the cache is not
+        # reported as space the cache holds.
+        return path.lstat().st_size
+    except FileNotFoundError:
+        # A running kernel writes and replaces entries underneath the walk.
+        return 0
+    except OSError as e:
+        LOGGER.warning("Skipping %s: %s", path, e)
+        return 0
 
 
 def _walk_cache_dirs(root: Path) -> list[Path]:
