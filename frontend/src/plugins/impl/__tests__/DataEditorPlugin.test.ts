@@ -5,8 +5,10 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import type { IPluginProps } from "../../types";
-import type { Edits } from "../data-editor/types";
+import type { EditorRow, Edits } from "../data-editor/types";
 import { DataEditorPlugin } from "../DataEditorPlugin";
+
+type PluginData = z.infer<typeof DataEditorPlugin.validator>;
 
 const mocks = vi.hoisted(() => ({
   loadData: vi.fn(),
@@ -19,7 +21,7 @@ vi.mock("../vega/loader", () => ({
 vi.mock("../data-editor/glide-data-editor", async () => {
   const React = await import("react");
   return {
-    default: (props: { data: Record<string, unknown>[] }) =>
+    default: (props: { data: EditorRow[] }) =>
       React.createElement(
         "pre",
         { "data-testid": "editor-data" },
@@ -27,6 +29,21 @@ vi.mock("../data-editor/glide-data-editor", async () => {
       ),
   };
 });
+
+function renderPlugin(data: PluginData, value: Edits) {
+  const props: IPluginProps<Edits, PluginData> = {
+    host: document.createElement("div"),
+    data,
+    value,
+    setValue: vi.fn(),
+    functions: {},
+  };
+  return React.createElement(
+    Suspense,
+    { fallback: null },
+    DataEditorPlugin.render(props),
+  );
+}
 
 describe("DataEditorPlugin", () => {
   beforeEach(() => {
@@ -58,16 +75,15 @@ describe("DataEditorPlugin", () => {
   });
 
   it("applies the latest edits when an async data load completes", async () => {
-    let resolveLoad: ((data: Record<string, unknown>[]) => void) | undefined;
+    let resolveLoad: ((data: EditorRow[]) => void) | undefined;
     mocks.loadData.mockImplementationOnce(
       () =>
-        new Promise<Record<string, unknown>[]>((resolve) => {
+        new Promise<EditorRow[]>((resolve) => {
           resolveLoad = resolve;
         }),
     );
 
-    const plugin = DataEditorPlugin;
-    const data = plugin.validator.parse({
+    const data = DataEditorPlugin.validator.parse({
       initialValue: { edits: [] },
       label: null,
       data: "data.csv",
@@ -75,25 +91,9 @@ describe("DataEditorPlugin", () => {
       columnNames: ["name"],
       editableColumns: "all",
     });
-    const makeProps = (
-      value: Edits,
-    ): IPluginProps<Edits, z.infer<typeof DataEditorPlugin.validator>> => ({
-      host: document.createElement("div"),
-      data,
-      value,
-      setValue: vi.fn(),
-      functions: {},
-    });
-    const renderPlugin = (value: Edits) =>
-      React.createElement(
-        Suspense,
-        { fallback: null },
-        plugin.render(makeProps(value)),
-      );
-
-    const result = render(renderPlugin({ edits: [] }));
+    const result = render(renderPlugin(data, { edits: [] }));
     result.rerender(
-      renderPlugin({
+      renderPlugin(data, {
         edits: [{ rowIdx: 0, columnId: "name", value: "latest" }],
       }),
     );
@@ -108,8 +108,7 @@ describe("DataEditorPlugin", () => {
   });
 
   it("applies edit updates after data has loaded", async () => {
-    const plugin = DataEditorPlugin;
-    const data = plugin.validator.parse({
+    const data = DataEditorPlugin.validator.parse({
       initialValue: { edits: [] },
       label: null,
       data: [{ name: "original" }],
@@ -117,23 +116,7 @@ describe("DataEditorPlugin", () => {
       columnNames: ["name"],
       editableColumns: "all",
     });
-    const makeProps = (
-      value: Edits,
-    ): IPluginProps<Edits, z.infer<typeof DataEditorPlugin.validator>> => ({
-      host: document.createElement("div"),
-      data,
-      value,
-      setValue: vi.fn(),
-      functions: {},
-    });
-    const renderPlugin = (value: Edits) =>
-      React.createElement(
-        Suspense,
-        { fallback: null },
-        plugin.render(makeProps(value)),
-      );
-
-    const result = render(renderPlugin({ edits: [] }));
+    const result = render(renderPlugin(data, { edits: [] }));
     await waitFor(() => {
       expect(screen.getByTestId("editor-data")).toHaveTextContent(
         JSON.stringify([{ name: "original" }]),
@@ -141,7 +124,7 @@ describe("DataEditorPlugin", () => {
     });
 
     result.rerender(
-      renderPlugin({
+      renderPlugin(data, {
         edits: [{ rowIdx: 0, columnId: "name", value: "updated" }],
       }),
     );
@@ -154,10 +137,10 @@ describe("DataEditorPlugin", () => {
   });
 
   it("ignores a superseded async data load", async () => {
-    let resolveFirst: ((data: Record<string, unknown>[]) => void) | undefined;
-    let resolveSecond: ((data: Record<string, unknown>[]) => void) | undefined;
+    let resolveFirst: ((data: EditorRow[]) => void) | undefined;
+    let resolveSecond: ((data: EditorRow[]) => void) | undefined;
     mocks.loadData.mockImplementation((source: string) => {
-      return new Promise<Record<string, unknown>[]>((resolve) => {
+      return new Promise<EditorRow[]>((resolve) => {
         if (source === "first.csv") {
           resolveFirst = resolve;
         } else {
@@ -166,9 +149,8 @@ describe("DataEditorPlugin", () => {
       });
     });
 
-    const plugin = DataEditorPlugin;
     const makeData = (source: string) =>
-      plugin.validator.parse({
+      DataEditorPlugin.validator.parse({
         initialValue: { edits: [] },
         label: null,
         data: source,
@@ -176,24 +158,8 @@ describe("DataEditorPlugin", () => {
         columnNames: ["source"],
         editableColumns: "all",
       });
-    const makeProps = (
-      data: z.infer<typeof DataEditorPlugin.validator>,
-    ): IPluginProps<Edits, z.infer<typeof DataEditorPlugin.validator>> => ({
-      host: document.createElement("div"),
-      data,
-      value: { edits: [] },
-      setValue: vi.fn(),
-      functions: {},
-    });
-    const renderPlugin = (data: z.infer<typeof DataEditorPlugin.validator>) =>
-      React.createElement(
-        Suspense,
-        { fallback: null },
-        plugin.render(makeProps(data)),
-      );
-
-    const result = render(renderPlugin(makeData("first.csv")));
-    result.rerender(renderPlugin(makeData("second.csv")));
+    const result = render(renderPlugin(makeData("first.csv"), { edits: [] }));
+    result.rerender(renderPlugin(makeData("second.csv"), { edits: [] }));
 
     expect(resolveFirst).toBeDefined();
     expect(resolveSecond).toBeDefined();

@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import type { FieldTypes } from "@/components/data-table/types";
+import { logNever } from "@/utils/assertNever";
 import {
   insertColumn,
   modifyColumnFields,
@@ -98,6 +99,8 @@ export function applyEditorEdits(
           newColumnName: edit.newName,
         });
         break;
+      default:
+        logNever(edit);
     }
   }
 

@@ -10,6 +10,7 @@ import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import type {
   ColumnEdit,
+  EditorRow,
   Edits,
   ModifiedGridColumn,
   PositionalEdit,
@@ -24,7 +25,15 @@ export function getColumnKind(fieldType: DataType): GridCellKind {
       return GridCellKind.Number;
     case "boolean":
       return GridCellKind.Boolean;
+    case "integer":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
+      return GridCellKind.Text;
     default:
+      logNever(fieldType);
       return GridCellKind.Text;
   }
 }
@@ -56,26 +65,35 @@ export function isValidCellValue(
   dataType: DataType | undefined,
   value: unknown,
 ): boolean {
-  if (dataType === "number") {
-    return Number.isFinite(Number(value));
-  }
-  if (dataType === "integer") {
-    if (typeof value === "bigint") {
+  switch (dataType) {
+    case "number":
+      return Number.isFinite(Number(value));
+    case "integer":
+      if (typeof value === "bigint") {
+        return true;
+      }
+      if (typeof value === "number") {
+        return Number.isFinite(value) && Number.isInteger(value);
+      }
+      if (typeof value === "string") {
+        const normalized = value.trim();
+        return /^[+-]?[0-9]+(?:\.0+)?$/u.test(normalized);
+      }
+      return false;
+    case "boolean":
+      return typeof value === "boolean";
+    case undefined:
+    case "string":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
       return true;
-    }
-    if (typeof value === "number") {
-      return Number.isFinite(value) && Number.isInteger(value);
-    }
-    if (typeof value === "string") {
-      const normalized = value.trim();
-      return /^[+-]?[0-9]+(?:\.0+)?$/u.test(normalized);
-    }
-    return false;
+    default:
+      logNever(dataType);
+      return false;
   }
-  if (dataType === "boolean") {
-    return typeof value === "boolean";
-  }
-  return true;
 }
 
 export function isPositionalEdit(
@@ -94,7 +112,7 @@ export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
 
 export function pasteCells(options: {
   selection: GridSelection;
-  data: Record<string, unknown>[];
+  data: EditorRow[];
   columns: ModifiedGridColumn[];
   editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
@@ -150,7 +168,7 @@ export function pasteCells(options: {
           const targetColIdx = startCol + colIndex;
 
           // Check if we've exceeded the column bounds
-          if (!columns || targetColIdx >= columns.length) {
+          if (targetColIdx >= columns.length) {
             break;
           }
 
@@ -190,6 +208,16 @@ export function pasteCells(options: {
               convertedValue = boolValue === "true" || boolValue === "1";
               break;
             }
+            case "string":
+            case "date":
+            case "datetime":
+            case "time":
+            case "geometry":
+            case "unknown":
+              break;
+            default:
+              logNever(columnType);
+              continue;
           }
 
           // Get the column ID from the columns array using the title

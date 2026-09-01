@@ -25,6 +25,7 @@ from marimo._data.models import DataType
 from marimo._output.rich_help import mddoc
 from marimo._plugins.ui._core.ui_element import UIElement
 from marimo._plugins.ui._impl.tables.utils import get_table_manager
+from marimo._utils.assert_never import log_never
 from marimo._utils.deprecated import deprecated
 
 LOGGER = _loggers.marimo_logger()
@@ -253,6 +254,8 @@ class _EditableTable:
                 self._apply_row_edit(edit)
             elif is_column_edit(edit):
                 self._apply_column_edit(edit)
+            else:
+                log_never(edit)
 
     def _materialize_columns(self) -> None:
         if isinstance(self.data, list):

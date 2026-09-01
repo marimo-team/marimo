@@ -16,6 +16,20 @@ import {
 const asFieldTypes = (obj: Record<string, DataType>): FieldTypes =>
   new Map(Object.entries(obj));
 
+const testData = [
+  { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
+  { int: 2, string: "b", bool: "False", datetime: null },
+  { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
+  { int: 0, string: "", bool: "", datetime: "" },
+];
+
+const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
+
+const dataWithNulls = [
+  { a: 1, b: null, c: undefined },
+  { a: null, b: 2, c: 3 },
+];
+
 describe("orderColumnFields", () => {
   it("uses explicit order for numeric-looking column names", () => {
     const inferred = new Map([
@@ -37,13 +51,6 @@ describe("orderColumnFields", () => {
 });
 
 describe("removeColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
-
   it("should remove the first column", () => {
     const result = removeColumn(testData, "int");
 
@@ -101,19 +108,12 @@ describe("removeColumn", () => {
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
     const result = removeColumn(mixedData, "b");
 
     expect(result).toEqual([{ a: 1 }, { a: 3, c: 5 }, { a: 6 }]);
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
     const result = removeColumn(dataWithNulls, "b");
 
     expect(result).toEqual([
@@ -124,13 +124,6 @@ describe("removeColumn", () => {
 });
 
 describe("insertColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
-
   it("should insert column at index 0", () => {
     const result = insertColumn(testData, "newColumn", 0);
 
@@ -303,8 +296,6 @@ describe("insertColumn", () => {
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
     const result = insertColumn(mixedData, "newColumn", 1);
 
     expect(result).toEqual([
@@ -315,11 +306,6 @@ describe("insertColumn", () => {
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
     const result = insertColumn(dataWithNulls, "newColumn", 1);
 
     expect(result).toEqual([
@@ -359,13 +345,6 @@ describe("insertColumn", () => {
 });
 
 describe("renameColumn", () => {
-  const testData = [
-    { int: 1, string: "a", bool: "True", datetime: "2025-07-12 00:07:13" },
-    { int: 2, string: "b", bool: "False", datetime: null },
-    { int: 3, string: "c", bool: null, datetime: "2025-07-12 00:07:13" },
-    { int: 0, string: "", bool: "", datetime: "" },
-  ];
-
   it("should rename a column successfully", () => {
     const result = renameColumn(testData, "int", "number");
 
@@ -444,8 +423,6 @@ describe("renameColumn", () => {
   });
 
   it("should handle objects with different property counts", () => {
-    const mixedData = [{ a: 1, b: 2 }, { a: 3, b: 4, c: 5 }, { a: 6 }];
-
     const result = renameColumn(mixedData, "a", "alpha");
 
     expect(result).toEqual([
@@ -456,11 +433,6 @@ describe("renameColumn", () => {
   });
 
   it("should handle null and undefined values in data", () => {
-    const dataWithNulls = [
-      { a: 1, b: null, c: undefined },
-      { a: null, b: 2, c: 3 },
-    ];
-
     const result = renameColumn(dataWithNulls, "b", "beta");
 
     expect(result).toEqual([

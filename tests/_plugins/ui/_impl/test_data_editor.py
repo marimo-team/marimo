@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import datetime
 from copy import deepcopy
-from typing import Any
+from typing import Any, cast
+from unittest.mock import Mock
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -306,6 +307,17 @@ def test_apply_edits_ignores_negative_row_index():
     edits: DataEdits = {"edits": [{"rowIdx": -1, "columnId": "A", "value": 2}]}
 
     assert apply_edits(data, edits) == [{"A": 1}]
+
+
+def test_apply_edits_logs_unknown_edit(monkeypatch: pytest.MonkeyPatch):
+    edits = cast(DataEdits, {"edits": [{"type": "unknown"}]})
+    log_never = Mock()
+    monkeypatch.setattr(
+        "marimo._plugins.ui._impl.data_editor.log_never", log_never
+    )
+
+    assert apply_edits([], edits) == []
+    log_never.assert_called_once_with({"type": "unknown"})
 
 
 def test_data_editor_replays_add_after_removing_all_rows():

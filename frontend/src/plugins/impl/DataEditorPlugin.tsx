@@ -22,7 +22,7 @@ import { vegaLoadData } from "./vega/loader";
 import { getVegaFieldTypes } from "./vega/utils";
 
 type CsvURL = string;
-type TableData<T> = T[] | CsvURL;
+type TableData = EditorRow[] | CsvURL;
 
 // Lazy load the data editor since it brings in glide-data-grid
 const LazyDataEditor = React.lazy(
@@ -66,7 +66,7 @@ export const DataEditorPlugin = createPlugin<Edits>("marimo-data-editor", {
   });
 
 interface Props {
-  data: TableData<object>;
+  data: TableData;
   fieldTypes: FieldTypesWithExternalType | null | undefined;
   edits: Edits;
   onEdits: Setter<Edits>;
@@ -86,7 +86,7 @@ const LoadingDataEditor = (props: Props) => {
     // plain `Record`; column order doesn't matter for parsing.
     const localData = Array.isArray(props.data)
       ? props.data
-      : await vegaLoadData(
+      : await vegaLoadData<EditorRow>(
           props.data,
           {
             type: "csv",
@@ -96,7 +96,7 @@ const LoadingDataEditor = (props: Props) => {
         );
 
     return {
-      data: localData as EditorRow[],
+      data: localData,
       columnFields: orderColumnFields(
         toFieldTypes(props.fieldTypes ?? inferFieldTypes(localData)),
         props.columnNames,

@@ -223,7 +223,7 @@ export const GlideDataEditor = ({
   );
 
   const onRowAppend = useCallback(() => {
-    const newRow: Record<string, unknown> = Object.fromEntries(
+    const newRow: EditorRow = Object.fromEntries(
       columns.map((column) => {
         const dataType = column.dataType;
         switch (dataType) {
