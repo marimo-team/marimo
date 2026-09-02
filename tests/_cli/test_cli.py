@@ -1353,7 +1353,7 @@ def test_cli_sandbox_edit_new_file() -> None:
         mock_run_in_sandbox.assert_called_once()
         call_kwargs = mock_run_in_sandbox.call_args
         assert call_kwargs.kwargs["name"] == path
-        assert call_kwargs.kwargs["additional_features"] == ["lsp"]
+        assert call_kwargs.kwargs["extras"] == ["lsp"]
 
 
 @pytest.mark.skipif(
@@ -1888,7 +1888,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     mock_run_in_sandbox.assert_called_once()
     call_kwargs = mock_run_in_sandbox.call_args
-    assert call_kwargs.kwargs["additional_features"] == ["lsp"]
+    assert call_kwargs.kwargs["extras"] == ["lsp"]
 
 
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)

@@ -13,9 +13,6 @@ from dataclasses import dataclass
 
 from marimo._environments.environment import (
     ProcessPlan,
-    launch,
-    launch_isolated,
-    sync_notebook,
 )
 from marimo._environments.errors import EnvironmentManagerError
 from marimo._environments.overlay import runtime_overlay
@@ -88,20 +85,21 @@ class AppHostPool:
                 del self._pending[abs_path]
 
     def _sandbox_plan(self, abs_path: str) -> ProcessPlan:
+        from marimo._environments import backends
+
+        backend = backends.current_backend()
         args = ["-m", "marimo._session.app_host.main"]
         overlay = runtime_overlay()
         try:
             try:
-                handle = sync_notebook(abs_path)
+                handle = backends.sync_notebook(abs_path, backend=backend)
             except UvMissingScriptMetadataError:
-                import platform
-
-                plan = launch_isolated(
-                    args, overlay=overlay, python=platform.python_version()
-                )
+                plan = backends.launch_fallback(args)
                 plan.env.pop("MARIMO_SANDBOX_MODE", None)
             else:
-                plan = launch(handle, args, overlay=overlay)
+                plan = backends.launch(
+                    handle, args, backend=backend, overlay=overlay
+                )
                 plan.env["MARIMO_SANDBOX_MODE"] = "multi"
             plan.env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
             return plan

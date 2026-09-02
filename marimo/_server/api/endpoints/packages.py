@@ -197,10 +197,20 @@ def _get_package_manager(request: Request) -> PackageManager:
     # Check if IPC mode - use kernel's venv Python
     python_exe: str | None = None
     script_path: str | None = None
+    sandbox_environment = None
     from marimo._session.managers.ipc import IPCKernelManagerImpl
     from marimo._session.session import SessionImpl
 
     if isinstance(session, SessionImpl):
+        from marimo._environments.sandbox import NotebookSandbox
+        from marimo._runtime.packages.sandbox_package_manager import (
+            SandboxPackageManager,
+        )
+
+        sandbox = session.notebook_sandbox
+        if isinstance(sandbox, NotebookSandbox):
+            return SandboxPackageManager(sandbox)
+
         kernel_manager = session._kernel_manager
         if isinstance(kernel_manager, IPCKernelManagerImpl):
             python_exe = kernel_manager.venv_python
@@ -208,6 +218,7 @@ def _get_package_manager(request: Request) -> PackageManager:
                 # The kernel runs in the notebook's script environment;
                 # package changes edit the manifest and synchronize it.
                 script_path = session.app_file_manager.filename
+                sandbox_environment = kernel_manager.script_environment
         elif GLOBAL_SETTINGS.SANDBOX_MODE == "single":
             script_path = session.app_file_manager.filename
 
@@ -215,6 +226,7 @@ def _get_package_manager(request: Request) -> PackageManager:
         config_manager.package_manager,
         python_exe=python_exe,
         script_path=script_path,
+        sandbox_environment=sandbox_environment,
     )
 
 

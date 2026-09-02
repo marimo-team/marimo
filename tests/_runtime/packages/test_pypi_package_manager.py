@@ -1290,12 +1290,16 @@ async def test_script_uninstall_matches_distribution_name(
     notebook.write_text(
         '# /// script\n# dependencies = ["my-pkg[extra]>=1"]\n# ///\n'
     )
-    manager = UvPackageManager(script_path=str(notebook))
-    with patch.object(
-        manager, "_change_script_environment", return_value=True
-    ) as change:
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = NotebookSandbox(str(notebook), "uv")
+    manager = SandboxPackageManager(sandbox)
+    with patch.object(sandbox, "_sync"):
         assert await manager.uninstall(requirement)
-    change.assert_called_once_with(str(notebook), remove=["my-pkg"])
+    assert "my-pkg" not in notebook.read_text()
 
 
 @pytest.mark.asyncio
@@ -1304,7 +1308,13 @@ async def test_script_uninstall_preserves_transitive_dependency(
 ) -> None:
     notebook = tmp_path / "notebook.py"
     notebook.write_text('# /// script\n# dependencies = ["parent"]\n# ///\n')
-    manager = UvPackageManager(script_path=str(notebook))
-    with patch.object(manager, "_change_script_environment") as change:
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = NotebookSandbox(str(notebook), "uv")
+    manager = SandboxPackageManager(sandbox)
+    with patch.object(sandbox, "_sync") as change:
         assert not await manager.uninstall("transitive")
     change.assert_not_called()
