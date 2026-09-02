@@ -103,11 +103,11 @@ marimo export html-wasm presentation.py -o presentation --mode run
 The WebAssembly export loads its assets over HTTP. Serve the output directory
 locally with `python -m http.server --directory presentation`.
 
-Both exports open in the slides layout and preserve slide types, fragments,
-speaker notes, and deck settings. Static HTML captures the outputs from the
-export run and supports reveal.js speaker view. WebAssembly HTML runs Python in
-the browser, so controls remain reactive. Use static HTML when the presentation
-needs speaker view.
+When a notebook uses the slides layout, both exports open as slides and preserve
+slide types, fragments, speaker notes, and deck settings. Static HTML captures
+the outputs from the export run and supports reveal.js speaker view. WebAssembly
+HTML runs Python in the browser, so controls remain reactive. Use static HTML
+when the presentation needs speaker view.
 
 Speaker notes are embedded in the HTML file and readable by anyone who
 receives it.
