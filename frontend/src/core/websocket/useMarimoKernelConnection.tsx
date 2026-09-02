@@ -61,7 +61,7 @@ import {
 import { queryParamHandlers } from "../kernel/queryParamHandlers";
 import type { SessionId } from "../kernel/session";
 import { initialRunCompletedAtom, kernelStateAtom } from "../kernel/state";
-import { type LayoutState, useLayoutActions } from "../layout/layout";
+import { type LayoutState, useLayoutActions } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import type { RequestId } from "../network/DeferredRequestRegistry";

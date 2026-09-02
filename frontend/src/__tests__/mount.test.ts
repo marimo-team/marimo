@@ -1,11 +1,8 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  getSerializedLayout,
-  initialLayoutState,
-  layoutStateAtom,
-} from "@/core/layout/layout";
+import { getSerializedLayout } from "@/core/layout/layout";
+import { initialLayoutState, layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";

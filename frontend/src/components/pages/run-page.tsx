@@ -5,7 +5,7 @@ import { useAtomValue } from "jotai";
 import { MarimoIcon } from "@/components/icons/marimo-icons";
 import type { AppConfig } from "@/core/config/config-schema";
 import { Constants } from "@/core/constants";
-import { resolveLayoutType, useLayoutState } from "@/core/layout/layout";
+import { resolveLayoutType, useLayoutState } from "@/core/layout/state";
 import { RunApp } from "@/core/run-app";
 import { runtimeAdapterAtom } from "@/core/runtime/adapter";
 import { ContextAwarePanel } from "../editor/chrome/panels/context-aware-panel/context-aware-panel";

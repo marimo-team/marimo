@@ -6,11 +6,8 @@ import type { UIElementId } from "../cells/ids";
 import { type CellData, createCell } from "../cells/types";
 import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import {
-  deserializeLayoutState,
-  type LayoutData,
-  type LayoutState,
-} from "../layout/layout";
+import { deserializeLayoutState } from "../layout/layout";
+import type { LayoutData, LayoutState } from "../layout/state";
 import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {

@@ -5,12 +5,12 @@ import type React from "react";
 import { memo, type PropsWithChildren } from "react";
 import { flattenTopLevelNotebookCells, useNotebook } from "@/core/cells/cells";
 import type { AppConfig } from "@/core/config/config-schema";
+import { resolveLayoutData } from "@/core/layout/layout";
 import {
-  resolveLayoutData,
   resolveLayoutType,
   useLayoutActions,
   useLayoutState,
-} from "@/core/layout/layout";
+} from "@/core/layout/state";
 import { type AppMode, kioskModeAtom } from "@/core/mode";
 import { cellRendererPlugins } from "./plugins";
 import type { ICellRendererPlugin } from "./types";

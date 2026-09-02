@@ -5,13 +5,13 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { cellId } from "@/__tests__/branded";
 import { notebookAtom } from "@/core/cells/cells";
 import { store } from "@/core/state/jotai";
+import { getSerializedLayout } from "../layout";
 import {
-  getSerializedLayout,
   initialLayoutState,
   layoutStateAtom,
   resolveLayoutType,
-} from "../layout";
-import { selectLayout } from "../state";
+  selectLayout,
+} from "../state";
 
 describe("layout state", () => {
   it("falls back to vertical for an unknown layout type", () => {

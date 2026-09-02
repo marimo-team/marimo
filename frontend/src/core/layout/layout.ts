@@ -17,17 +17,6 @@ import {
   type SerializedLayout,
 } from "./state";
 
-export {
-  initialLayoutState,
-  layoutStateAtom,
-  type LayoutData,
-  type LayoutState,
-  resolveLayoutType,
-  type SerializedLayout,
-  useLayoutActions,
-  useLayoutState,
-} from "./state";
-
 export function deserializeLayoutState(
   layout: SerializedLayout | null | undefined,
   cells: CellData[],
