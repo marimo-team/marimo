@@ -536,7 +536,7 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             )
             if marimo_config is None:
                 return {}
-              
+
             marimo_config = ProjectConfigManager(
                 self.filename
             )._resolve_dotenv(marimo_config)
