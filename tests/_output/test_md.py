@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -9,9 +9,6 @@ from inline_snapshot import snapshot
 
 from marimo._output.md import _md, latex
 from tests.mocks import normalize_html_entities
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 def test_md() -> None:
@@ -713,6 +710,11 @@ def test_latex_invalid_filename_raises() -> None:
         ValueError, match=r"Invalid filename: nonexistent\.tex"
     ):
         latex(filename="nonexistent.tex")
+
+    with pytest.raises(
+        ValueError, match=r"Invalid filename: nonexistent\.tex"
+    ):
+        latex(filename=Path("nonexistent.tex"))
 
 
 @patch("marimo._output.md.is_pyodide")

@@ -429,9 +429,7 @@ def latex(
     elif text is not None:
         latex_text = text
     elif filename is not None:
-        if isinstance(filename, Path):
-            latex_text = filename.read_text(encoding="utf-8")
-        elif is_url(filename):
+        if isinstance(filename, str) and is_url(filename):
             with urlopen(filename) as response:
                 latex_text = response.read().decode("utf-8")
         elif (file := Path(filename)).exists():
