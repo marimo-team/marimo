@@ -17,6 +17,7 @@
 import { debounce } from "lodash-es";
 import { assertNever } from "@/utils/assertNever";
 import type { DispatchedActionOf } from "@/utils/createReducer";
+import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
 import type { NotificationMessageData } from "../kernel/messages";
 import { kioskModeAtom } from "../mode";
@@ -635,6 +636,7 @@ let pendingChanges: DocumentChange[] = [];
 let stagedTransactions: DocumentChange[][] = [];
 let transactionQueue: Promise<void> = Promise.resolve();
 let transactionGeneration = 0;
+let activeDocumentSave: Deferred<void> | null = null;
 
 type TransactionSyncState =
   | { status: "synchronized" }
@@ -692,9 +694,11 @@ async function sendStagedTransactions(generation: number): Promise<void> {
 
 function queuePendingTransactions(): Promise<void> {
   const generation = transactionGeneration;
-  const queued = transactionQueue
-    .catch(() => undefined)
-    .then(() => sendStagedTransactions(generation));
+  const saveBarrier = activeDocumentSave?.promise ?? Promise.resolve();
+  const queued = Promise.all([
+    transactionQueue.catch(() => undefined),
+    saveBarrier,
+  ]).then(() => sendStagedTransactions(generation));
   transactionQueue = queued;
   return queued;
 }
@@ -767,6 +771,43 @@ export async function completeDocumentResync(
   transactionQueue = Promise.resolve();
   if (pendingChanges.length > 0) {
     flushChanges();
+  }
+}
+
+function releaseDocumentSave(barrier: Deferred<void>): void {
+  if (activeDocumentSave === barrier) {
+    activeDocumentSave = null;
+  }
+  barrier.resolve();
+}
+
+/**
+ * Runs a full save after earlier document transactions and holds later
+ * transactions until the save settles. A failed transaction makes the save
+ * the authoritative document resync boundary.
+ */
+export async function withDocumentSave<T>(save: () => Promise<T>): Promise<T> {
+  let resync: DocumentResync | null = null;
+  try {
+    await flushDocumentChanges();
+  } catch (error) {
+    resync = beginDocumentResync();
+    if (resync === null) {
+      throw error;
+    }
+  }
+
+  const barrier = new Deferred<void>();
+  activeDocumentSave = barrier;
+  try {
+    const result = await save();
+    releaseDocumentSave(barrier);
+    await completeDocumentResync(resync);
+    return result;
+  } catch (error) {
+    abortDocumentResync(resync);
+    releaseDocumentSave(barrier);
+    throw error;
   }
 }
 
@@ -876,6 +917,8 @@ export function applyTransactionChanges(
 export const exportedForTesting = {
   cancelPendingChanges: () => {
     flushChanges.cancel();
+    activeDocumentSave?.resolve();
+    activeDocumentSave = null;
     transactionGeneration += 1;
     pendingChanges = [];
     stagedTransactions = [];

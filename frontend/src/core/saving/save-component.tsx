@@ -21,16 +21,13 @@ import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
-import {
-  abortDocumentResync,
-  beginDocumentResync,
-  completeDocumentResync,
-} from "../cells/document-changes";
+import { withDocumentSave } from "../cells/document-changes";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
 import { useAutoExport } from "../export/hooks";
-import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
+import { getSerializedLayout } from "../layout/layout";
+import { layoutStateAtom } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
@@ -135,24 +132,21 @@ export function useSaveNotebook() {
         await formatAll();
       }
 
-      // Grab the latest notebook state, after formatting
-      const notebook = getNotebook();
-      const cells = notebookCells(notebook);
-      const cellIds = cells.map((cell) => cell.id);
-      const codes = cells.map((cell) => cell.code);
-      const cellNames = cells.map((cell) => cell.name);
-      const configs = getCellConfigs(notebook);
-      const layout = store.get(layoutStateAtom);
-
-      // Don't save if there are no cells
-      if (codes.length === 0) {
+      if (notebookCells(getNotebook()).length === 0) {
         return;
       }
 
-      // A full save replaces the server document from this client snapshot,
-      // so it is the recovery boundary for an ambiguous transaction failure.
-      const documentResync = beginDocumentResync();
-      try {
+      const savedNotebook = await withDocumentSave(async () => {
+        // Grab the latest notebook state after formatting and after every
+        // earlier document transaction has reached the server.
+        const notebook = getNotebook();
+        const cells = notebookCells(notebook);
+        const cellIds = cells.map((cell) => cell.id);
+        const codes = cells.map((cell) => cell.code);
+        const cellNames = cells.map((cell) => cell.name);
+        const configs = getCellConfigs(notebook);
+        const layout = store.get(layoutStateAtom);
+
         await sendSave({
           cellIds: cellIds,
           codes,
@@ -162,18 +156,9 @@ export function useSaveNotebook() {
           layout: getSerializedLayout(),
           persist: true,
         });
-      } catch (error) {
-        abortDocumentResync(documentResync);
-        throw error;
-      }
-      await completeDocumentResync(documentResync);
-
-      setLastSavedNotebook({
-        names: cellNames,
-        codes,
-        configs,
-        layout,
+        return { names: cellNames, codes, configs, layout };
       });
+      setLastSavedNotebook(savedNotebook);
     }),
   );
 

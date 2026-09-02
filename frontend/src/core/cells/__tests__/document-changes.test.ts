@@ -46,6 +46,7 @@ import {
   flushDocumentChanges,
   exportedForTesting as middlewareExports,
   toDocumentChanges,
+  withDocumentSave,
 } from "../document-changes";
 import { CellId } from "../ids";
 
@@ -842,9 +843,9 @@ describe("document transaction middleware", () => {
     await vi.advanceTimersByTimeAsync(400);
 
     updateCode(x, "x = 3");
-    const resync = beginDocumentResync();
-    updateCode(x, "x = 4");
-    await completeDocumentResync(resync);
+    await withDocumentSave(async () => {
+      updateCode(x, "x = 4");
+    });
 
     await vi.advanceTimersByTimeAsync(400);
     expect(sent).toEqual([
@@ -1001,6 +1002,57 @@ describe("document transaction middleware", () => {
       [{ type: "set-code", cellId: x, code: "x = 3" }],
       [{ type: "set-code", cellId: x, code: "x = 4" }],
     ]);
+  });
+
+  it("orders a full save between earlier and later transactions", async () => {
+    const firstStarted = new Deferred<void>();
+    const firstRelease = new Deferred<void>();
+    const saveStarted = new Deferred<void>();
+    const saveRelease = new Deferred<void>();
+    const events: string[] = [];
+    const delayedClient: Pick<
+      EditRequests & RunRequests,
+      "sendDocumentTransaction"
+    > = {
+      sendDocumentTransaction: async ({ changes }) => {
+        const change = changes[0];
+        events.push("code" in change ? change.code : change.type);
+        if (events.length === 1) {
+          firstStarted.resolve();
+          await firstRelease.promise;
+        }
+        return null;
+      },
+    };
+    store.set(
+      requestClientAtom,
+      delayedClient as unknown as EditRequests & RunRequests,
+    );
+
+    setup("x = 1");
+    const [x] = state.cellIds.inOrderIds;
+    middlewareExports.cancelPendingChanges();
+    updateCode(x, "x = 2");
+    vi.advanceTimersByTime(400);
+    await firstStarted.promise;
+
+    const saving = withDocumentSave(async () => {
+      events.push("save");
+      saveStarted.resolve();
+      await saveRelease.promise;
+    });
+    expect(events).toEqual(["x = 2"]);
+
+    firstRelease.resolve();
+    await saveStarted.promise;
+    updateCode(x, "x = 3");
+    await vi.advanceTimersByTimeAsync(400);
+    expect(events).toEqual(["x = 2", "save"]);
+
+    saveRelease.resolve();
+    await saving;
+    await flushDocumentChanges();
+    expect(events).toEqual(["x = 2", "save", "x = 3"]);
   });
 
   it("ignores a failure from a transaction reset while in flight", async () => {
