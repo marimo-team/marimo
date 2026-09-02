@@ -58,10 +58,7 @@ def video(
     Example:
         ```python3
         # Render a video from a URL
-        mo.video(
-            src="https://docs.marimo.io/_static/readme-ui.mp4",
-            controls=False,
-        )
+        mo.video(src="https://docs.marimo.io/_static/readme-ui.mp4")
 
         # Render a video from a local file
         mo.video(src="path/to/video.mp4")
