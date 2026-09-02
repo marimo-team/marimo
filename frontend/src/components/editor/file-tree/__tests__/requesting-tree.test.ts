@@ -94,6 +94,46 @@ describe("RequestingTree", () => {
     ]);
   });
 
+  test("flattens the primary root when there are no additional roots", async () => {
+    getRoots.mockResolvedValueOnce({
+      roots: [{ path: "/root", name: "workspace", isPrimary: true }],
+    });
+    const singleRootOnChange = vi.fn();
+    const singleRootTree = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
+    });
+
+    await singleRootTree.initialize(singleRootOnChange);
+
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
+    expect(singleRootOnChange).toHaveBeenLastCalledWith([
+      expect.objectContaining({
+        id: PRIMARY_FILE_ID,
+        path: "/root/file1",
+        isRoot: false,
+        isPrimaryRoot: true,
+      }),
+      expect.objectContaining({
+        id: fileTreeNodeId("/root", "/root/folder1"),
+        path: "/root/folder1",
+        isRoot: false,
+        isPrimaryRoot: true,
+      }),
+    ]);
+
+    await singleRootTree.createFile({ name: "new.txt", parentId: null });
+    expect(sendCreateFileOrFolder).toHaveBeenCalledWith({
+      path: "/root",
+      type: "file",
+      name: "new.txt",
+    });
+  });
+
   test("expands each root lazily and annotates its descendants", async () => {
     sendListFiles.mockResolvedValueOnce({
       files: [

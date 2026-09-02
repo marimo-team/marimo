@@ -81,6 +81,17 @@ export class RequestingTree {
         this.roots = roots;
         this.path = PathBuilder.guessDeliminator(primaryRoot.path);
         this.delegate = new SimpleTree(roots.map(toRootNode));
+        if (roots.length === 1) {
+          const data = await this.callbacks.listFiles({
+            path: primaryRoot.path,
+          });
+          this.delegate.update({
+            id: this.getPrimaryRootId(),
+            changes: {
+              children: annotateFiles(data.files, primaryRoot),
+            },
+          });
+        }
       } catch (error) {
         toast({
           title: "Failed",
@@ -367,7 +378,8 @@ export class RequestingTree {
   };
 
   private emitChange(): void {
-    this.onChange(this.delegate.data);
+    const data = this.delegate.data;
+    this.onChange(this.roots.length === 1 ? (data[0]?.children ?? []) : data);
   }
 }
 

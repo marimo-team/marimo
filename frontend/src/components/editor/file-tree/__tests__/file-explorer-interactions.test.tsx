@@ -99,14 +99,6 @@ describe("FileExplorer upload destination", () => {
       }),
     ).toBeVisible();
 
-    fireEvent.click(await screen.findByText("workspace"));
-
-    expect(
-      await screen.findByRole("button", {
-        name: "Upload files to workspace",
-      }),
-    ).toBeVisible();
-
     fireEvent.click(await screen.findByText("data"));
 
     const folderUpload = await screen.findByRole("button", {
@@ -132,7 +124,6 @@ describe("FileExplorer upload destination", () => {
   it("clears a selected hidden folder when hidden files are hidden", async () => {
     render(<FileExplorer height={300} />, { wrapper });
 
-    fireEvent.click(await screen.findByText("workspace"));
     fireEvent.click(await screen.findByText(".hidden"));
     expect(
       await screen.findByRole("button", { name: "Upload files to .hidden" }),
