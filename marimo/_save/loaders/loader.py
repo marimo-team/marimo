@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import re
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -220,6 +219,18 @@ class Loader(ABC):
         return 0
 
 
+def _subdirectories(directory: Path) -> list[Path]:
+    """The directories directly under `directory`, links excluded."""
+    try:
+        return [
+            child
+            for child in directory.iterdir()
+            if child.is_dir() and not child.is_symlink()
+        ]
+    except OSError:
+        return []
+
+
 class BasePersistenceLoader(Loader):
     """Abstract base for cache written to disk."""
 
@@ -239,8 +250,9 @@ class BasePersistenceLoader(Loader):
             except ContextNotInitializedError:
                 self.store = DEFAULT_STORE()
 
-        # Limited character set for path for windows compatibility
-        self.name = re.sub(r"[^a-zA-Z0-9 _-]", "_", self.name)
+        from marimo._save.cache_dirs import block_dir_name
+
+        self.name = block_dir_name(self.name)
         self.suffix = suffix
 
     def build_path(self, key: HashKey) -> Path:
@@ -283,15 +295,11 @@ class BasePersistenceLoader(Loader):
     def _clearable_root(self) -> Path | None:
         """Root directory `clear()` removes this loader's entry files under.
 
-        `None` unless the store itself maps every key to a path below a root
-        it owns; anything else, a wrapper or a remote store included, holds
-        entries that cannot be enumerated as paths.
+        `None` unless the store maps every key to a path below a root it
+        owns. A remote store holds entries that cannot be enumerated as
+        paths.
         """
-        from marimo._save.stores.file import FileStore
-
-        if isinstance(self.store, FileStore):
-            return self.store.local_dir()
-        return None
+        return self.store.clearable_root()
 
     def _clearable_paths(self, root: Path) -> list[Path]:
         """Paths under `root` that `clear()` removes."""
@@ -306,9 +314,16 @@ class BasePersistenceLoader(Loader):
             str(block / f"*.{self.suffix}"),
             str(block / f"*.{self.suffix}{PARTIAL_WRITE_INFIX}*"),
         )
-        return [
+        paths = [
             Path(match) for pattern in patterns for match in glob.glob(pattern)
         ]
+        # A value too large to inline is split over a directory of blobs
+        # beside its entry. Removing the entry alone leaves those bytes
+        # behind with nothing left that can read them.
+        paths.extend(
+            child for child in _subdirectories(block) if child not in paths
+        )
+        return paths
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""

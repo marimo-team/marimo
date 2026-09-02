@@ -142,11 +142,11 @@ async def test_get_cache_info_promises_only_what_purging_frees(
     assert sent[-1].disk_to_free == 0
 
 
-async def test_get_cache_info_promises_nothing_a_lazy_cache_keeps(
+async def test_get_cache_info_promises_the_blobs_of_a_lazy_cache(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # A lazy cache stores through a wrapper its loader cannot clear by path,
-    # so its bytes count as used but none of them as freeable.
+    # A lazy cache stores through a wrapper around a file store, which its
+    # loader still clears by path, blobs and all.
     cache_dir = tmp_path / "__marimo__" / "cache"
     write_entry(cache_dir, "cell_cache", "P_ab12.jsonl", 100)
     write_entry(cache_dir, "cell_cache", "ab12/return.npy", 500)
@@ -166,8 +166,9 @@ async def test_get_cache_info_promises_nothing_a_lazy_cache_keeps(
     await callbacks.get_cache_info(GetCacheInfoCommand())
 
     assert sent[0].disk_total == 600
-    assert sent[0].disk_to_free == 0
-    assert sent[-1].disk_total == 600
+    assert sent[0].disk_to_free == 600
+    assert sent[-1].disk_total == 0
+    assert sent[-1].disk_to_free == 0
 
 
 async def test_get_cache_info_ignores_a_cache_without_a_loader(
