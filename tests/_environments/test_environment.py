@@ -270,25 +270,34 @@ def test_report_actions_map_to_the_handle(
     assert sync("nb.py").action == action
 
 
-def test_launch_without_overlay_is_direct() -> None:
+def test_launch_layers_over_the_activated_environment() -> None:
+    """Every launch goes through the layer, and uv is pointed at the
+    script environment rather than replacing it."""
+    from marimo._environments.overlay import RuntimeOverlay
+
     env = Environment(python="/env/bin/python", root="/env", action="created")
 
-    plan = launch(env, ["-m", "marimo"], base_env={"PATH": "/usr/bin"})
-
-    assert plan.argv == ("/env/bin/python", "-m", "marimo")
-    assert plan.env["VIRTUAL_ENV"] == "/env"
-    assert not plan.start_new_session
-
-
-def test_launcher_plans_start_a_new_session() -> None:
-    env = Environment(python="/env/bin/python", root="/env", action="created")
-
-    overlay = launch(env, ["-m", "marimo"], overlay=["marimo"])
-    isolated = environment.launch_isolated(
-        ["-m", "marimo"], overlay=["marimo"], python="3.13"
+    plan = launch(
+        env,
+        ["-m", "marimo"],
+        overlay=RuntimeOverlay(runtime="marimo==1.0"),
+        base_env={"PATH": "/usr/bin"},
     )
 
-    assert overlay.start_new_session
+    pairs = list(zip(plan.argv, plan.argv[1:], strict=False))
+    assert "--active" in plan.argv
+    assert ("--python", "/env/bin/python") in pairs
+    assert ("--with", "marimo==1.0") in pairs
+    assert plan.argv[-3:] == ("python", "-m", "marimo")
+    assert plan.env["VIRTUAL_ENV"] == "/env"
+    assert plan.start_new_session
+
+
+def test_isolated_launcher_plan_starts_a_new_session() -> None:
+    isolated = environment.launch_isolated(
+        ["-m", "marimo"], requirements=["marimo"], python="3.13"
+    )
+
     assert isolated.start_new_session
 
 
@@ -315,11 +324,13 @@ def test_launch_overlay_chains_without_mutating(
         encoding="utf-8",
     )
 
+    from marimo._environments.overlay import RuntimeOverlay
+
     env = sync(str(script), cwd=str(tmp_path))
     plan = launch(
         env,
         ["-c", "import six, idna, localpkg; print('chained')"],
-        overlay=["idna", f"-e {pkg}"],
+        overlay=RuntimeOverlay(runtime="idna", command=(f"-e {pkg}",)),
     )
 
     result = subprocess.run(

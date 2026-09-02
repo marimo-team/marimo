@@ -35,9 +35,6 @@ class KernelArgs(msgspec.Struct):
     connection_info: ConnectionInfo
     # Whether to use run-mode config (autorun) vs edit-mode config (lazy)
     is_run_mode: bool = False
-    # Runtime behavior flags
-    # virtual_files_supported is ignored, but kept for backward compatibility
-    virtual_files_supported: bool = True
     redirect_console_to_browser: bool = True
     parent_pid: int | None = None
     # None means virtual files are unsupported and content is inlined as

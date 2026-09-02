@@ -66,6 +66,7 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._session.app_host import AppHostContext
     from marimo._session.requests import InstantiateNotebookRequest
@@ -240,8 +241,10 @@ class SessionImpl(Session):
         self.extensions = ExtensionRegistry()
         self.extensions.add(*extensions)
         self.scratchpad_lock = asyncio.Lock()
+        self._notebook_sandbox: NotebookSandbox | None = None
 
         self._kernel_manager.start_kernel()
+        self._bind_notebook_sandbox()
         self._event_bus = SessionEventBus()
 
         self._closed = False
@@ -264,6 +267,31 @@ class SessionImpl(Session):
         belongs to the cell manager.
         """
         return self.app_file_manager.app.cell_manager.document
+
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The retained sandbox binding used by this session, if any."""
+        return self._notebook_sandbox
+
+    def _bind_notebook_sandbox(self) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+        if isinstance(self._kernel_manager, IPCKernelManagerImpl):
+            self._notebook_sandbox = self._kernel_manager.notebook_sandbox
+            return
+
+        filename = self.app_file_manager.filename
+        if GLOBAL_SETTINGS.SANDBOX_MODE != "single" or filename is None:
+            return
+
+        from marimo._environments.backends import current_backend
+        from marimo._environments.sandbox import NotebookSandbox
+
+        backend = current_backend()
+        self._notebook_sandbox = NotebookSandbox.from_running_process(
+            filename, backend
+        )
 
     def _attach_extensions(self) -> None:
         """Attach all extensions to the session."""
@@ -310,6 +338,10 @@ class SessionImpl(Session):
         """Rename the path of the session."""
         old_path = self.app_file_manager.path
         self.app_file_manager.rename(new_path)
+        if self._notebook_sandbox is not None:
+            path = self.app_file_manager.path
+            assert path is not None
+            self._notebook_sandbox.rebind(path)
         await self._event_bus.emit_session_notebook_renamed(self, old_path)
 
     def try_interrupt(self) -> None:
@@ -456,6 +488,8 @@ class SessionImpl(Session):
         # Close the room
         self.room.close()
         self._kernel_manager.close_kernel(graceful=graceful)
+        if self._notebook_sandbox is not None:
+            self._notebook_sandbox.close()
 
     def instantiate(
         self,

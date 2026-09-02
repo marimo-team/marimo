@@ -23,14 +23,8 @@ from marimo import _loggers
 from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._environments.environment import (
-    Environment,
-    launch,
-    launch_isolated,
-    sync_notebook,
-)
+from marimo._environments.environment import Environment
 from marimo._environments.overlay import runtime_overlay
-from marimo._environments.uv import UvError, UvMissingScriptMetadataError
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
 from marimo._session._venv import (
@@ -51,6 +45,7 @@ from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellConfig
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._ipc.queue_manager import QueueManager as IPCQueueManagerType
     from marimo._ipc.types import ConnectionInfo
     from marimo._runtime.commands import AppMetadata
@@ -238,6 +233,7 @@ def construct_kernel_env(
     # kernel inside a sandboxed server must not route package changes
     # through a script environment it does not run in.
     env.pop("MARIMO_SANDBOX_MODE", None)
+    env.pop("MARIMO_SANDBOX_BACKEND", None)
     env.pop("MARIMO_MANAGE_SCRIPT_METADATA", None)
 
     if kernel_pythonpath is not None:
@@ -293,6 +289,7 @@ class IPCKernelManagerImpl(KernelManager):
         self._venv_python: str | None = None
         self._profile_path = _profile_path_for(app_metadata.filename)
         self._script_environment: Environment | None = None
+        self._notebook_sandbox: NotebookSandbox | None = None
         # The kernel's own pid: a launcher such as uv may sit between the
         # manager and the kernel, so _process.pid is not the kernel.
         self._kernel_pid: int | None = None
@@ -300,7 +297,14 @@ class IPCKernelManagerImpl(KernelManager):
     @property
     def script_environment(self) -> Environment | None:
         """The synchronized script environment the kernel runs in, if any."""
+        if self._notebook_sandbox is not None:
+            return self._notebook_sandbox.environment
         return self._script_environment
+
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The session-owned notebook sandbox, if this kernel uses one."""
+        return self._notebook_sandbox
 
     def start_kernel(self) -> None:
         from marimo._cli.print import echo, muted
@@ -387,73 +391,49 @@ class IPCKernelManagerImpl(KernelManager):
             cmd: list[str] = [venv_python, "-m", "marimo._ipc.launch_kernel"]
             plan_launched = False
         else:
-            # Synchronize the notebook's script environment; a notebook
-            # without a metadata block runs ephemerally, and packages
-            # installed during its session die with it.
+            # The session retains this Interface so rename and package API
+            # operations update the same Manifest binding and Environment.
+            from marimo._environments import backends
+            from marimo._environments.errors import EnvironmentManagerError
+            from marimo._environments.sandbox import NotebookSandbox
+
+            backend = backends.current_backend()
             kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
             overlay = runtime_overlay()
-            handle = None
             filename = self.app_metadata.filename
-            if filename is not None:
-                from marimo._environments import script_metadata
-
-                # Best-effort: give metadata-less notebooks a block so
-                # they get a real script environment instead of an
-                # ephemeral one whose installs the server cannot target.
-                try:
-                    script_metadata.ensure_marimo(filename)
-                except Exception as e:
-                    LOGGER.warning(
-                        "Failed to add marimo to script metadata: %s", e
-                    )
-                try:
-                    handle = sync_notebook(
-                        filename, on_output=lambda _line: None
-                    )
-                except UvMissingScriptMetadataError:
-                    handle = None
-                except UvError as e:
-                    raise KernelStartupError(
-                        f"Failed to build sandbox environment.\n\n{e}"
-                    ) from e
-
-            if handle is not None:
-                self._venv_python = handle.python
-                self._script_environment = handle
-                plan = launch(
-                    handle,
+            sandbox = NotebookSandbox(filename, backend)
+            try:
+                plan = sandbox.launch(
                     kernel_args_list,
                     overlay=overlay,
                     base_env=os.environ.copy(),
+                    on_output=lambda _line: None,
                 )
-                echo(
-                    f"Running kernel in script environment: "
-                    f"{muted(handle.root)}",
-                    err=True,
+            except EnvironmentManagerError as e:
+                sandbox.close()
+                raise KernelStartupError(
+                    f"Failed to build sandbox environment.\n\n{e}"
+                ) from e
+            handle = sandbox.environment
+            if handle is None:
+                sandbox.close()
+                raise KernelStartupError(
+                    "Failed to build sandbox environment: no Environment was returned"
                 )
-            else:
-                import platform
 
-                plan = launch_isolated(
-                    kernel_args_list,
-                    overlay=overlay,
-                    python=platform.python_version(),
-                    base_env=os.environ.copy(),
-                )
-                echo("Running kernel in an ephemeral sandbox", err=True)
+            self._notebook_sandbox = sandbox
+            self._venv_python = handle.python
+            self._script_environment = handle
+            echo(
+                f"Running kernel in script environment: {muted(handle.root)}",
+                err=True,
+            )
 
             plan_launched = True
             env = plan.env
-            # Ephemeral sandboxes are always writable; the kernel manages
-            # the notebook's script metadata.
             env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
-            if handle is not None:
-                # Only a kernel that runs in the script environment may
-                # route package changes through it; an isolated kernel
-                # installs into itself imperatively.
-                env["MARIMO_SANDBOX_MODE"] = "multi"
-            else:
-                env.pop("MARIMO_SANDBOX_MODE", None)
+            env["MARIMO_SANDBOX_MODE"] = "multi"
+            env["MARIMO_SANDBOX_BACKEND"] = backend
             cmd = list(plan.argv)
 
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
@@ -673,6 +653,8 @@ class IPCKernelManagerImpl(KernelManager):
                     LOGGER.warning(e)
 
         # Always attempt cleanup, even if _process is None
+        if self._notebook_sandbox is not None:
+            self._notebook_sandbox.close()
 
     @property
     def kernel_connection(self) -> TypedConnection[KernelMessage]:

@@ -3,7 +3,7 @@
 
 Every failure invoking an environment manager -- or the manifest edits
 delegated to one -- derives from this type, so callers of
-backend-agnostic seams catch one error instead of enumerating backends.
+backend-agnostic callers catch one error instead of enumerating backends.
 """
 
 from __future__ import annotations

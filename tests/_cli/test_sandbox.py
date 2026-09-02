@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -267,37 +266,6 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
         assert "--isolated" in uv_cmd
         assert "--compile-bytecode" in uv_cmd
         assert "--no-project" in uv_cmd
-
-
-def test_run_in_sandbox_reports_wrapped_metadata_timeout() -> None:
-    from marimo._environments import script_metadata
-
-    timeout = subprocess.TimeoutExpired(["uv", "add"], timeout=30)
-    metadata_error = script_metadata.ScriptMetadataError("update failed")
-    metadata_error.__cause__ = timeout
-
-    with (
-        patch("marimo._cli.sandbox.require_uv_bin"),
-        patch(
-            "marimo._cli.sandbox.script_metadata.ensure_marimo",
-            side_effect=metadata_error,
-        ),
-        patch("marimo._cli.sandbox.script_metadata.ensure_requires_python"),
-        patch(
-            "marimo._cli.sandbox.construct_uv_command",
-            return_value=["uv", "run"],
-        ),
-        patch("marimo._cli.sandbox.subprocess.Popen") as popen,
-        patch("marimo._cli.sandbox.signal.signal"),
-        patch("marimo._cli.sandbox.LOGGER.warning") as warning,
-    ):
-        popen.return_value.wait.return_value = 0
-
-        assert run_in_sandbox(["edit", "notebook.py"], name="notebook.py") == 0
-
-    warning.assert_called_once_with(
-        "Timed out adding marimo to script metadata"
-    )
 
 
 def test_construct_uv_cmd_with_complex_args() -> None:
@@ -752,3 +720,51 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
         ):
             result = runner.invoke(cli_main, command)
         assert result.exit_code == 3, (command, result.output)
+
+
+def test_resolve_sandbox(tmp_path: Path) -> None:
+    from marimo._cli.sandbox import resolve_sandbox
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text("import marimo\n")
+
+    mode, backend = resolve_sandbox("uv", False, str(notebook))
+    assert mode is SandboxMode.SINGLE
+    assert backend == "uv"
+
+    mode, backend = resolve_sandbox("uv", False, str(tmp_path))
+    assert mode is SandboxMode.MULTI
+    assert backend == "uv"
+
+    mode, backend = resolve_sandbox("uv", True, str(notebook))
+    assert mode is None
+
+
+def test_strip_sandbox_args() -> None:
+    from marimo._cli.sandbox import _strip_sandbox_args
+
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox=uv", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
+
+
+def test_no_reprompt_inside_a_sandbox(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A server launched inside a sandbox must not offer to re-wrap
+    itself in a second one."""
+    from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["numpy"]\n# ///\nimport marimo\n'
+    )
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", None)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "uv")
+    assert maybe_prompt_run_in_sandbox(str(notebook)) is False

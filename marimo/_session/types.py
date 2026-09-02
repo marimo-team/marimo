@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from marimo._config.manager import MarimoConfigManager
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._messaging.notebook.document import NotebookDocument
     from marimo._messaging.notification import NotificationMessage
     from marimo._messaging.types import KernelMessage
@@ -140,6 +141,11 @@ class Session(Protocol):
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
     room: Room
+
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The retained sandbox binding used by this session, if any."""
+        ...
 
     @property
     def document(self) -> NotebookDocument:

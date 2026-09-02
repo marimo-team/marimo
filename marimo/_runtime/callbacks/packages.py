@@ -96,12 +96,14 @@ class PackagesCallbacks:
         broadcast_notification(CompletedRunNotification())
 
     def update_package_manager(self, package_manager: str) -> None:
+        script_path = self._sandbox_script_path()
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(
-                package_manager, script_path=self._sandbox_script_path()
+                package_manager,
+                script_path=script_path,
             )
 
             # All marimo notebooks depend on the marimo package; if the
@@ -236,10 +238,14 @@ class PackagesCallbacks:
         assert self.package_manager is not None, (
             "Cannot install packages without a package manager"
         )
-        if request.manager != self.package_manager.name:
+        script_path = self._sandbox_script_path()
+        if (
+            request.manager != self.package_manager.name
+            and script_path is None
+        ):
             # Swap out the package manager
             self.package_manager = create_package_manager(
-                request.manager, script_path=self._sandbox_script_path()
+                request.manager,
             )
 
         if not self.package_manager.is_manager_installed():

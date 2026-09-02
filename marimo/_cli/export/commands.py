@@ -571,7 +571,7 @@ def ipynb(
                 run_in_sandbox(
                     sys.argv[1:],
                     name=name,
-                    additional_deps=["nbformat"],
+                    command_deps=["nbformat"],
                 )
             )
 
@@ -762,7 +762,7 @@ def pdf(
                 run_in_sandbox(
                     sys.argv[1:],
                     name=name,
-                    additional_deps=export_deps,
+                    command_deps=export_deps,
                 )
             )
 

@@ -22,12 +22,15 @@ from marimo import _loggers
 from marimo._environments.uv import (
     UvError,
     require_uv_bin,
+    script_command_env,
     uv,
     uv_stream,
 )
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
+
+    from marimo._environments.overlay import RuntimeOverlay
 
 LOGGER = _loggers.marimo_logger()
 
@@ -105,21 +108,23 @@ def launch(
     environment: Environment,
     args: Sequence[str],
     *,
-    overlay: Sequence[str] = (),
+    overlay: RuntimeOverlay,
     base_env: Mapping[str, str] | None = None,
 ) -> ProcessPlan:
     """Plans running `python <args...>` inside the environment.
 
-    With no overlay, the plan invokes the environment's interpreter
-    directly. Overlay requirements (PEP 508, or `-e <path>` for an
-    editable install) are layered via `uv run --with` into a cached side
-    environment for this process only; the script environment and the
-    manifest are never modified.
+    uv layers the overlay with `--with`, resolving it into a cached side
+    environment that chains this one, so the process sees the overlay's
+    packages first and the environment's behind them:
+
+        uv run --active --no-project --python <env>/bin/python \
+            --with marimo==<version> -- python <args...>
+
+    Neither the environment nor the manifest is modified. See
+    `RuntimeOverlay` for what the layer carries and why a launch always
+    has one.
     """
     env = environment.process_env(base_env)
-    if not overlay:
-        return ProcessPlan(argv=(environment.python, *args), env=env)
-
     return ProcessPlan(
         argv=(
             require_uv_bin(),
@@ -130,7 +135,7 @@ def launch(
             "--no-project",
             "--python",
             environment.python,
-            *_with_args(overlay),
+            *_with_args(overlay.requirements),
             "--",
             "python",
             *args,
@@ -143,16 +148,20 @@ def launch(
 def launch_isolated(
     args: Sequence[str],
     *,
-    overlay: Sequence[str],
+    requirements: Sequence[str],
     python: str,
     base_env: Mapping[str, str] | None = None,
 ) -> ProcessPlan:
     """Plans `python <args...>` in an ephemeral environment.
 
-    For targets without a manifest, such as a new notebook. uv resolves
-    the overlay into a cached environment and runs the process in an
-    ephemeral copy, so packages installed during the session die with
-    it and nothing persists per invocation.
+    For resolves no existing environment can serve: an overridden
+    interpreter under external constraints (html-wasm pins the Pyodide
+    interpreter and resolution). Nothing is layered here, so unlike
+    `launch` the requirements are the whole environment -- the notebook's
+    dependencies as well as marimo's. uv resolves them into a cached
+    environment and runs the process in an ephemeral copy, so packages
+    installed during the session die with it and nothing persists per
+    invocation.
     """
     env = dict(os.environ if base_env is None else base_env)
     env.pop("VIRTUAL_ENV", None)
@@ -166,7 +175,7 @@ def launch_isolated(
             "--compile-bytecode",
             "--python",
             python,
-            *_with_args(overlay),
+            *_with_args(requirements),
             "--",
             "python",
             *args,
@@ -176,10 +185,10 @@ def launch_isolated(
     )
 
 
-def _with_args(overlay: Sequence[str]) -> list[str]:
-    """`uv run` flags for overlay requirements; `-e <path>` is editable."""
+def _with_args(requirements: Sequence[str]) -> list[str]:
+    """`uv run` flags for layered requirements; `-e <path>` is editable."""
     with_args: list[str] = []
-    for requirement in overlay:
+    for requirement in requirements:
         if requirement.startswith("-e "):
             with_args.extend(["--with-editable", requirement[3:].strip()])
         else:
@@ -193,6 +202,7 @@ def sync(
     cwd: str | None = None,
     python_override: str | None = None,
     on_output: Callable[[str], None] | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> Environment:
     """Makes the script's environment match its metadata.
 
@@ -200,8 +210,8 @@ def sync(
     directory-scoped uv configuration applies. `python_override` wins
     over the script's `requires-python` (html-wasm export pins the
     Pyodide interpreter). With `on_output`, uv's progress streams to the
-    callback line by line. Raises `UvCommandError` on failure and never
-    mutates `script`.
+    callback line by line; `on_command` receives the exact argv about to
+    run. Raises `UvCommandError` on failure and never mutates `script`.
     """
     ensure_supported_uv()
     args = [
@@ -215,35 +225,18 @@ def sync(
     if python_override is not None:
         args.extend(["--python", python_override])
     if on_output is not None:
-        completed = uv_stream(args, on_output, env=_sync_env(), cwd=cwd)
-    else:
-        completed = uv(args, env=_sync_env(), cwd=cwd)
-    return _parse_report(completed.stdout)
-
-
-def sync_notebook(
-    path: str,
-    *,
-    python_override: str | None = None,
-    on_output: Callable[[str], None] | None = None,
-) -> Environment:
-    """Synchronizes a notebook's script environment.
-
-    Materializes the manifest when it lives in frontmatter. Raises
-    `UvMissingScriptMetadataError` when the notebook has no metadata
-    block.
-    """
-    from marimo._environments.script_metadata import (
-        materialized_for_environment,
-    )
-
-    with materialized_for_environment(path) as target:
-        return sync(
-            target.path,
-            cwd=target.directory,
-            python_override=python_override,
-            on_output=on_output,
+        completed = uv_stream(
+            args,
+            on_output,
+            env=script_command_env(),
+            cwd=cwd,
+            on_command=on_command,
         )
+    else:
+        completed = uv(
+            args, env=script_command_env(), cwd=cwd, on_command=on_command
+        )
+    return _parse_report(completed.stdout)
 
 
 def ensure_supported_uv() -> None:
@@ -352,9 +345,3 @@ def _venv_python(root: str) -> str | None:
 
 def _venv_bin_dir(root: str) -> str:
     return os.path.join(root, "Scripts" if os.name == "nt" else "bin")
-
-
-def _sync_env() -> dict[str, str]:
-    from marimo._environments.uv import script_command_env
-
-    return script_command_env()
