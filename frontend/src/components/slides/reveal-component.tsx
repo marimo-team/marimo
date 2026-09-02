@@ -71,6 +71,9 @@ import {
 const ASPECT_RATIO = 16 / 9;
 const CODE_TOGGLE_KEY_CODE = 67;
 
+// Reveal retains custom key bindings after initialization. Replace the `C`
+// binding when code availability or receiver mode changes so it cannot keep a
+// stale handler.
 export function syncCodeToggleKeyBinding({
   deck,
   enabled,
