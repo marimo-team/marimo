@@ -218,8 +218,8 @@ def _set_tracer_provider() -> None:
                             f.write(span.to_json(cast(Any, None)))
                             f.write("\n")
                     return SpanExportResult.SUCCESS
-                except Exception as e:
-                    LOGGER.exception(e)
+                except Exception:
+                    LOGGER.exception("Failed to write trace spans")
                     return SpanExportResult.FAILURE
 
             def shutdown(self) -> None:
