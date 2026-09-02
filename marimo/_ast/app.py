@@ -1025,6 +1025,23 @@ class InternalApp:
         callers from save flows pass the frontend's snapshot, which
         renames/reorders/reconfigures cells but doesn't recompile.
         """
+        self.apply_data(
+            cell_ids=cell_ids,
+            codes=codes,
+            names=names,
+            configs=configs,
+        )
+        return self
+
+    def apply_data(
+        self,
+        *,
+        cell_ids: Iterable[CellId_t],
+        codes: Iterable[str],
+        names: Iterable[str],
+        configs: Iterable[CellConfig],
+    ) -> Transaction:
+        """Rewrite the cell list and return the applied transaction."""
         cm = self._app._cell_manager
         prev_compiled = dict(cm._compiled_cells)
         rebuilt = CellManager(prefix=cm.prefix)
@@ -1039,8 +1056,10 @@ class InternalApp:
                 cell=prev_compiled.get(cell_id),
             )
 
-        cm.apply_diff_from(rebuilt, source="cell-manager")
-        return self
+        transaction, _changed_cell_ids = cm.apply_diff_from(
+            rebuilt, source="cell-manager"
+        )
+        return transaction
 
     async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]
