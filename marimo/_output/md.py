@@ -383,43 +383,67 @@ def md(text: str) -> Html:
     return _md(text)
 
 
-def latex(*, filename: str | Path) -> None:
-    """Load LaTeX from a file or URL.
+@mddoc
+def latex(
+    text: str | None = None,
+    *,
+    filename: str | Path | None = None,
+) -> None:
+    r"""Load LaTeX macros from a string, file, or URL.
 
-    ```python
-    import marimo as mo
+    Loads LaTeX macros into the notebook environment so they can be
+    referenced across cells in math equations.
 
-    mo.latex(filename="macros.tex")
-    ```
+    Examples:
+        Load LaTeX directly from text:
+        ```python
+        import marimo as mo
 
-    or
+        mo.latex(r"\newcommand{\R}{\mathbb{R}}")
+        ```
 
-    ```python
-    import marimo as mo
+        or from a file:
+        ```python
+        import marimo as mo
 
-    mo.latex(filename="https://example.com/macros.tex")
-    ```
+        mo.latex(filename="macros.tex")
+        ```
+
+        or from a URL:
+        ```python
+        import marimo as mo
+
+        mo.latex(filename="https://example.com/macros.tex")
+        ```
 
     Args:
-        filename: Path to a LaTeX file
+        text: LaTeX string to load directly
+        filename: Path or URL to a LaTeX file
 
-    Returns:
-        An `Html` object
+    Raises:
+        ValueError: If neither or both `text` and `filename` are provided,
+            or if `filename` cannot be found.
     """
-
-    if isinstance(filename, Path):
-        text = filename.read_text()
-    elif is_url(filename):
-        with urlopen(filename) as response:
-            text = response.read().decode("utf-8")
-    elif (file := Path(filename)).exists():
-        text = file.read_text(encoding="utf-8")
+    if text is not None and filename is not None:
+        raise ValueError("Cannot provide both 'text' and 'filename'.")
+    elif text is not None:
+        latex_text = text
+    elif filename is not None:
+        if isinstance(filename, Path):
+            latex_text = filename.read_text(encoding="utf-8")
+        elif is_url(filename):
+            with urlopen(filename) as response:
+                latex_text = response.read().decode("utf-8")
+        elif (file := Path(filename)).exists():
+            latex_text = file.read_text(encoding="utf-8")
+        else:
+            raise ValueError(f"Invalid filename: {filename}")
     else:
-        raise ValueError(f"Invalid filename: {filename}")
+        raise ValueError("Must provide either 'text' or 'filename'.")
 
     from marimo._runtime import output
 
     # Append the LaTeX to the output, in case this
     # is not the last expression of the cell
-    output.append(_md(f"$$\n{text.strip()}\n$$"))
+    output.append(_md(f"$$\n{latex_text.strip()}\n$$"))
     return

@@ -669,6 +669,52 @@ def test_latex_via_url(mock_urlopen: MagicMock, output: MagicMock) -> None:
     )
 
 
+@patch("marimo._runtime.output")
+def test_latex_via_text(output: MagicMock) -> None:
+    latex("\\newcommand{\\\\foo}{bar}")
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
+    )
+
+
+@patch("marimo._runtime.output")
+def test_latex_via_text_keyword(output: MagicMock) -> None:
+    latex(text="\\newcommand{\\\\foo}{bar}")
+    assert (
+        output.append.call_args[0][0].text
+        == '<span class="markdown prose dark:prose-invert contents"><marimo-tex class="arithmatex">||[\n\\newcommand{\\\\foo}{bar}\n||]</marimo-tex></span>'
+    )
+
+
+def test_latex_both_args_raises(tmp_path: Path) -> None:
+    filename = tmp_path / "macros.tex"
+    filename.write_text("\\newcommand{\\\\foo}{bar}")
+    with pytest.raises(
+        ValueError, match=r"Cannot provide both 'text' and 'filename'\."
+    ):
+        latex("\\newcommand{\\\\foo}{bar}", filename=filename)
+
+    with pytest.raises(
+        ValueError, match=r"Cannot provide both 'text' and 'filename'\."
+    ):
+        latex(text="\\newcommand{\\\\foo}{bar}", filename=filename)
+
+
+def test_latex_neither_arg_raises() -> None:
+    with pytest.raises(
+        ValueError, match=r"Must provide either 'text' or 'filename'\."
+    ):
+        latex()
+
+
+def test_latex_invalid_filename_raises() -> None:
+    with pytest.raises(
+        ValueError, match=r"Invalid filename: nonexistent\.tex"
+    ):
+        latex(filename="nonexistent.tex")
+
+
 @patch("marimo._output.md.is_pyodide")
 def test_b64_extension_not_in_non_wasm(mock_is_pyodide: MagicMock) -> None:
     # Test that b64 extension is NOT included in non-WASM mode
