@@ -201,6 +201,7 @@ def _split_around_extras(package: str) -> list[str]:
     """Split on whitespace except within package extras."""
     parts: list[str] = []
     current: list[str] = []
+    current_is_package_name = False
     bracket_depth = 0
     quote: str | None = None
 
@@ -214,33 +215,31 @@ def _split_around_extras(package: str) -> list[str]:
             next_index = index + 1
             while next_index < len(package) and package[next_index].isspace():
                 next_index += 1
-            current_name = "".join(current).rstrip()
             if (
                 next_index < len(package)
                 and package[next_index] == "["
-                and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", current_name)
+                and current_is_package_name
             ):
                 current.append(char)
                 continue
             if current:
                 parts.append("".join(current))
                 current = []
+                current_is_package_name = False
             continue
 
         if char in ("'", '"') and bracket_depth == 0:
             quote = None if quote == char else quote or char
 
-        if (
-            char == "["
-            and quote is None
-            and re.fullmatch(
-                r"[A-Za-z0-9][A-Za-z0-9._-]*", "".join(current).rstrip()
-            )
-        ):
+        if char == "[" and quote is None and current_is_package_name:
             bracket_depth += 1
         elif char == "]" and bracket_depth > 0:
             bracket_depth -= 1
 
+        if not current:
+            current_is_package_name = char.isascii() and char.isalnum()
+        elif not (char.isascii() and (char.isalnum() or char in "._-")):
+            current_is_package_name = False
         current.append(char)
 
     if current:
