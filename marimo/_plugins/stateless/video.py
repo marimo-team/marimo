@@ -59,7 +59,7 @@ def video(
         ```python3
         # Render a video from a URL
         mo.video(
-            src="https://v3.cdnpk.net/videvo_files/video/free/2013-08/large_watermarked/hd0992_preview.mp4",
+            src="https://docs.marimo.io/_static/readme-ui.mp4",
             controls=False,
         )
 
