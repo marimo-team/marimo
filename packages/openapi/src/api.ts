@@ -4634,6 +4634,9 @@ export interface components {
     };
     /** DependencyTreeResponse */
     DependencyTreeResponse: {
+      context:
+        | components["schemas"]["SandboxPackageContext"]
+        | components["schemas"]["PackageManagerContext"];
       tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
@@ -6306,6 +6309,12 @@ export interface components {
       /** @enum {unknown} */
       manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
     };
+    /** PackageManagerContext */
+    PackageManagerContext: {
+      /** @enum {unknown} */
+      kind: "package-manager";
+      name: string;
+    };
     /** PackageOperationResponse */
     PackageOperationResponse: {
       /** @default null */
@@ -6724,6 +6733,13 @@ export interface components {
       /** @enum {unknown} */
       kind: "safe-literal";
       value: string;
+    };
+    /** SandboxPackageContext */
+    SandboxPackageContext: {
+      /** @enum {unknown} */
+      backend: "pixi" | "uv";
+      /** @enum {unknown} */
+      kind: "sandbox";
     };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {

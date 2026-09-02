@@ -520,6 +520,13 @@ def test_pixi_package_list_exposes_only_managed_pypi_packages(
         "list_script_packages",
         lambda *_args, **_kwargs: records,
     )
+    monkeypatch.setattr(
+        pixi,
+        "tree_script_packages",
+        lambda *_args, **_kwargs: (
+            "Installed for: osx-arm64\n├── attrs 25.3.0\n└── zlib 1.3.1\n"
+        ),
+    )
     target = MaterializedScript(
         path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
     )
@@ -530,7 +537,7 @@ def test_pixi_package_list_exposes_only_managed_pypi_packages(
         ("attrs", "25.3.0")
     ]
     assert state.tree is not None
-    assert [node.name for node in state.tree.dependencies] == ["zlib", "attrs"]
+    assert [node.name for node in state.tree.dependencies] == ["attrs"]
 
 
 @pytest.mark.skipif(

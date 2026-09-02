@@ -246,7 +246,6 @@ def test_uv_adapter_inspects_the_script_environment(
 
     assert invocation["args"] == [
         "tree",
-        "--no-dedupe",
         "--script",
         str(tmp_path / "nb.py"),
     ]
@@ -255,6 +254,46 @@ def test_uv_adapter_inspects_the_script_environment(
     assert isinstance(env, dict)
     assert "VIRTUAL_ENV" not in env
     assert "UV_PROJECT_ENVIRONMENT" not in env
+
+
+def test_uv_adapter_uses_the_deduplicated_tree(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+    from marimo._utils.uv_tree import DependencyTag
+
+    def fake_uv(
+        command: list[str], *, cwd: str, **_: object
+    ) -> CompletedProcess[str]:
+        assert cwd == str(tmp_path)
+        if "--no-dedupe" in command:
+            stdout = "root v1.0.0\n└── shared v2.0.0\n"
+        else:
+            stdout = (
+                "root v1.0.0\n"
+                "└── shared v2.0.0 (*)\n"
+                "(*) Package tree already displayed\n"
+            )
+        return CompletedProcess(
+            command,
+            0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr(uv_module, "uv", fake_uv)
+    target = MaterializedScript(
+        path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
+    )
+
+    state = UvBackendAdapter().packages(target, environment=None)
+
+    assert state.tree is not None
+    assert state.tree.dependencies[0].dependencies[0].tags == [
+        DependencyTag(kind="dedupe", value="true")
+    ]
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")

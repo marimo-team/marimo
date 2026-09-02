@@ -16,8 +16,11 @@ from marimo._server.models.packages import (
     AddPackageRequest,
     DependencyTreeResponse,
     ListPackagesResponse,
+    PackageInstallationContext,
+    PackageManagerContext,
     PackageOperationResponse,
     RemovePackageRequest,
+    SandboxPackageContext,
 )
 from marimo._server.router import APIRouter
 
@@ -171,6 +174,7 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
                         $ref: "#/components/schemas/DependencyTreeResponse"
     """
     package_manager = _get_package_manager(request)
+    context = _get_package_installation_context(package_manager)
 
     filename = _get_filename(request)
     is_sandbox = (
@@ -182,7 +186,7 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
         )
     else:
         tree = await asyncio.to_thread(package_manager.dependency_tree)
-    return DependencyTreeResponse(tree=tree)
+    return DependencyTreeResponse(tree=tree, context=context)
 
 
 def _get_package_manager(request: Request) -> PackageManager:
@@ -228,6 +232,18 @@ def _get_package_manager(request: Request) -> PackageManager:
         script_path=script_path,
         sandbox_environment=sandbox_environment,
     )
+
+
+def _get_package_installation_context(
+    package_manager: PackageManager,
+) -> PackageInstallationContext:
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    if isinstance(package_manager, SandboxPackageManager):
+        return SandboxPackageContext(backend=package_manager.backend)
+    return PackageManagerContext(name=package_manager.name)
 
 
 def _get_filename(request: Request) -> str | None:

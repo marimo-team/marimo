@@ -262,6 +262,20 @@ def list_script_packages(script: str, *, cwd: str) -> list[dict[str, Any]]:
     return [record for record in records if isinstance(record, dict)]
 
 
+def tree_script_packages(script: str, *, cwd: str) -> str:
+    """Return pixi's resolved dependency tree for a script."""
+    args = [
+        require_pixi_bin(),
+        "tree",
+        "--no-install",
+        "--color",
+        "never",
+        "--script",
+        os.path.abspath(script),
+    ]
+    return _run(args, cwd=cwd).stdout
+
+
 def _run(
     args: Sequence[str],
     *,
