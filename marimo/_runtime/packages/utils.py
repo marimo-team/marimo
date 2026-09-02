@@ -197,13 +197,62 @@ def _is_pep508_requirement(package: str) -> bool:
     return True
 
 
-def split_packages(package: str) -> list[str]:
-    """Split a requirement or compact CLI-style package list.
+def _split_around_extras(package: str) -> list[str]:
+    """Split on whitespace except within package extras."""
+    parts: list[str] = []
+    current: list[str] = []
+    bracket_depth = 0
+    quote: str | None = None
 
-    A valid PEP 508 requirement is always returned unchanged. The fallback
-    supports legacy whitespace-separated input such as `pandas numpy` and
-    editable installs. Requirements containing whitespace must be passed one
-    at a time because whitespace also separates packages in the legacy form.
+    for index, char in enumerate(package):
+        if char.isspace() and bracket_depth == 0 and quote is None:
+            if current and current[-1].isspace():
+                current.append(char)
+                continue
+            if not current:
+                continue
+            next_index = index + 1
+            while next_index < len(package) and package[next_index].isspace():
+                next_index += 1
+            current_name = "".join(current).rstrip()
+            if (
+                next_index < len(package)
+                and package[next_index] == "["
+                and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", current_name)
+            ):
+                current.append(char)
+                continue
+            if current:
+                parts.append("".join(current))
+                current = []
+            continue
+
+        if char in ("'", '"') and bracket_depth == 0:
+            quote = None if quote == char else quote or char
+
+        if (
+            char == "["
+            and quote is None
+            and re.fullmatch(
+                r"[A-Za-z0-9][A-Za-z0-9._-]*", "".join(current).rstrip()
+            )
+        ):
+            bracket_depth += 1
+        elif char == "]" and bracket_depth > 0:
+            bracket_depth -= 1
+
+        current.append(char)
+
+    if current:
+        parts.append("".join(current))
+    return parts
+
+
+def split_packages(package: str) -> list[str]:
+    """Split one or more package specifications.
+
+    PEP 508 requirements are parsed before falling back to handling editable
+    installs, paths, and URLs.
 
     Examples:
     "package1[extra1,extra2]==1.0.0" -> ["package1[extra1,extra2]==1.0.0"]
@@ -224,7 +273,7 @@ def split_packages(package: str) -> list[str]:
     current_package: list[str] = []
     in_environment_marker = False
 
-    for part in package.split():
+    for part in _split_around_extras(package):
         if (
             part in ["-e", "--editable", "@"]
             or current_package

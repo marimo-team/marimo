@@ -150,6 +150,63 @@ def test_split_packages_preserves_valid_requirement(requirement: str) -> None:
     assert split_packages(requirement) == [requirement]
 
 
+@pytest.mark.parametrize(
+    ("package_input", "expected"),
+    [
+        (
+            "pydantic-ai[duckduckgo, web-fetch] matplotlib",
+            ["pydantic-ai[duckduckgo, web-fetch]", "matplotlib"],
+        ),
+        (
+            "matplotlib pydantic-ai[duckduckgo, web-fetch]",
+            ["matplotlib", "pydantic-ai[duckduckgo, web-fetch]"],
+        ),
+        (
+            "foo [bar, baz] matplotlib",
+            ["foo [bar, baz]", "matplotlib"],
+        ),
+        (
+            "matplotlib foo [bar, baz]",
+            ["matplotlib", "foo [bar, baz]"],
+        ),
+        (
+            "numpy pydantic-ai[duckduckgo, web-fetch] matplotlib",
+            [
+                "numpy",
+                "pydantic-ai[duckduckgo, web-fetch]",
+                "matplotlib",
+            ],
+        ),
+        (
+            "https://example.com/foo.whl pydantic-ai[duckduckgo, web-fetch]",
+            [
+                "https://example.com/foo.whl",
+                "pydantic-ai[duckduckgo, web-fetch]",
+            ],
+        ),
+        (
+            "pydantic-ai[duckduckgo, web-fetch] -e /tmp/foo",
+            ["pydantic-ai[duckduckgo, web-fetch] -e /tmp/foo"],
+        ),
+    ],
+)
+def test_split_packages_with_spaced_extras(
+    package_input: str, expected: list[str]
+) -> None:
+    assert split_packages(package_input) == expected
+
+
+def test_split_packages_ignores_brackets_outside_extras() -> None:
+    assert split_packages("foo; os_name == '[abc def' bar") == [
+        "foo; os_name == '[abc def'",
+        "bar",
+    ]
+    assert split_packages("foo @ https://example.com/a[bc matplotlib") == [
+        "foo @ https://example.com/a[bc",
+        "matplotlib",
+    ]
+
+
 def test_strip_requirement_name() -> None:
     assert strip_requirement_name("package==1.0.0") == "package"
     assert strip_requirement_name("package[extra]>=1.0") == "package[extra]"
