@@ -53,7 +53,10 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
-from marimo._output.hypertext import patch_html_for_non_interactive_output
+from marimo._output.hypertext import (
+    patch_html_for_non_interactive_output,
+    patch_lazy_for_static_export,
+)
 from marimo._runtime.commands import AppMetadata
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.export_options import (
@@ -334,12 +337,13 @@ async def export_html(
             session_view.last_executed_code[cell_data.cell_id] = cell_data.code
         did_error = False
     else:
-        session_view, did_error = await run_notebook(
-            RunNotebookRequest(
-                file_manager=file_manager,
-                options=request.execution,
+        with patch_lazy_for_static_export():
+            session_view, did_error = await run_notebook(
+                RunNotebookRequest(
+                    file_manager=file_manager,
+                    options=request.execution,
+                )
             )
-        )
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
