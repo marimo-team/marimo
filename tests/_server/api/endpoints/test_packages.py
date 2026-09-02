@@ -22,9 +22,45 @@ HEADERS = {
 }
 
 
+@pytest.mark.parametrize("operation", ["add", "remove"])
+def test_sandbox_failure_returns_actionable_message(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, operation: str
+) -> None:
+    from marimo._environments.pixi import PixiError
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    message = (
+        "Your dependency changes are saved, but Pixi installed them in a new "
+        "environment. Restart the kernel to use the updated dependencies. "
+        "Restarting clears in-memory variables."
+    )
+    sandbox = MagicMock(spec=NotebookSandbox)
+    sandbox.backend = "pixi"
+    sandbox.environment = None
+    getattr(sandbox, operation).side_effect = PixiError(message)
+    manager = SandboxPackageManager(sandbox)
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages._get_package_manager",
+        lambda _request: manager,
+    )
+
+    response = client.post(
+        f"/api/packages/{operation}",
+        headers=HEADERS,
+        json={"package": "boltons"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"success": False, "error": message}
+
+
 @pytest.fixture
 def mock_package_manager(monkeypatch: pytest.MonkeyPatch) -> PackageManager:
     mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.name = "pip"
     mock_manager.install = AsyncMock(return_value=True)
     mock_manager.uninstall = AsyncMock(return_value=True)
     mock_manager.list_packages = MagicMock(
@@ -101,9 +137,7 @@ def test_list_packages(client: TestClient, mock_package_manager: Mock) -> None:
         headers=HEADERS,
     )
     assert response.status_code == 200
-    assert response.json() == {
-        "packages": ["package1", "package2"],
-    }
+    assert response.json() == {"packages": ["package1", "package2"]}
     mock_package_manager.list_packages.assert_called_once()
 
 
@@ -389,6 +423,7 @@ def mock_package_manager_with_tree(
 ) -> PackageManager:
     """Mock package manager with dependency tree support."""
     mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.name = "uv"
     mock_manager.is_manager_installed.return_value = True
     from marimo._server.models.packages import DependencyTreeNode
 
@@ -426,15 +461,22 @@ def test_dependency_tree(
         headers=HEADERS,
     )
     assert response.status_code == 200
-    result = response.json()
-    assert "tree" in result
-    tree = result["tree"]
-    assert tree is not None
-    assert tree["name"] == "root"
-    assert tree["version"] == "1.0.0"
-    assert len(tree["dependencies"]) == 1
-    assert tree["dependencies"][0]["name"] == "child"
-    assert tree["dependencies"][0]["version"] == "0.1.0"
+    assert response.json() == {
+        "tree": {
+            "name": "root",
+            "version": "1.0.0",
+            "tags": [],
+            "dependencies": [
+                {
+                    "name": "child",
+                    "version": "0.1.0",
+                    "tags": [{"kind": "extra", "value": "dev"}],
+                    "dependencies": [],
+                }
+            ],
+        },
+        "context": {"kind": "package-manager", "name": "uv"},
+    }
     mock_package_manager_with_tree.dependency_tree.assert_called_once()
 
 
@@ -448,9 +490,47 @@ def test_dependency_tree_no_tree(
         headers=HEADERS,
     )
     assert response.status_code == 200
-    result = response.json()
-    assert result["tree"] is None
+    assert response.json() == {
+        "tree": None,
+        "context": {"kind": "package-manager", "name": "pip"},
+    }
     mock_package_manager.dependency_tree.assert_called_once()
+
+
+def test_dependency_tree_uses_sandbox_context(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments.sandbox import PackageState
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+    from marimo._utils.uv_tree import DependencyTreeNode
+
+    tree = DependencyTreeNode(
+        name="<root>", version=None, tags=[], dependencies=[]
+    )
+    sandbox = MagicMock()
+    sandbox.backend = "pixi"
+    sandbox.environment = None
+    sandbox.packages.return_value = PackageState(packages=(), tree=tree)
+    manager = SandboxPackageManager(sandbox)
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages._get_package_manager",
+        lambda _request: manager,
+    )
+
+    response = client.get("/api/packages/tree", headers=HEADERS)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "tree": {
+            "name": "<root>",
+            "version": None,
+            "tags": [],
+            "dependencies": [],
+        },
+        "context": {"kind": "sandbox", "backend": "pixi"},
+    }
 
 
 def test_dependency_tree_without_session(client: TestClient) -> None:
