@@ -1,6 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import Literal
+
+import pytest
+
 from marimo._plugins.stateless.video import video
 from marimo._runtime.context import get_context
 from marimo._runtime.runtime import Kernel
@@ -21,6 +25,46 @@ async def test_video_nonexistent_path_passthrough() -> None:
     result = video(src)
     assert f"src='{src}'" in result.text
     assert "data:" not in result.text
+
+
+@pytest.mark.parametrize(
+    ("floating", "mode"),
+    [(True, "manual"), ("auto", "auto")],
+)
+async def test_video_floating(
+    floating: bool | Literal["auto"],
+    mode: str,
+) -> None:
+    result = video(
+        "https://example.com/test.mp4",
+        controls=False,
+        muted=True,
+        autoplay=True,
+        loop=True,
+        width=320,
+        height="180px",
+        rounded=True,
+        floating=floating,
+    )
+
+    assert result.text.startswith("<marimo-video ")
+    assert "data-src='&quot;https://example.com/test.mp4&quot;'" in result.text
+    assert "data-controls='false'" in result.text
+    assert "data-muted='true'" in result.text
+    assert "data-autoplay='true'" in result.text
+    assert "data-loop='true'" in result.text
+    assert "data-rounded='true'" in result.text
+    assert f"data-floating='&quot;{mode}&quot;'" in result.text
+    assert "data-width='&quot;320px&quot;'" in result.text
+    assert "data-height='&quot;180px&quot;'" in result.text
+
+
+async def test_video_rejects_invalid_floating_mode() -> None:
+    with pytest.raises(ValueError, match="floating must be"):
+        video(
+            "https://example.com/test.mp4",
+            floating="always",  # type: ignore[arg-type]
+        )
 
 
 async def test_video_bytes(k: Kernel, exec_req: ExecReqProvider) -> None:
