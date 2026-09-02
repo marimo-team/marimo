@@ -160,9 +160,11 @@ def _infer_conversion_examples_from_rows(
 ) -> dict[str, Any]:
     values: dict[str, Any] = {}
     for row_idx in _sample_indices(len(data)):
-        for column, value in data[row_idx].items():
-            if value is not None:
-                values[column] = value
+        values.update(
+            (column, value)
+            for column, value in data[row_idx].items()
+            if value is not None
+        )
     return values
 
 
