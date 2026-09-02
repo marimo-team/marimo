@@ -906,9 +906,11 @@ def test_pyodide_bridge_file_roots(
     monkeypatch.setattr(
         pyodide_bridge.file_system, "get_root", lambda: str(primary)
     )
-    pyodide_bridge.session._initial_user_config["file_browser"] = {
-        "folders": [{"path": str(shared), "name": "Shared"}]
-    }
+    monkeypatch.setitem(
+        pyodide_bridge.session._initial_user_config,
+        "file_browser",
+        {"folders": [{"path": str(shared), "name": "Shared"}]},
+    )
 
     response = json.loads(pyodide_bridge.file_roots())
 

@@ -152,7 +152,7 @@ export class RequestingTree {
       return;
     }
 
-    const refreshPaths = new Set<string>([parent.data.path]);
+    const refreshPaths = new Set<string>();
     await mapWithConcurrency(fromIds, FILE_OP_CONCURRENCY, async (id) => {
       const node = this.getMutableNode(id, false);
       if (!node) {
@@ -168,6 +168,7 @@ export class RequestingTree {
         .renameFileOrFolder({ path: originalPath, newPath })
         .then(handleFileResponse);
       if (result) {
+        refreshPaths.add(parent.data.path);
         refreshPaths.add(sourceParentPath);
       }
     });
@@ -232,9 +233,12 @@ export class RequestingTree {
   }
 
   refreshAll = async (ids: string[]): Promise<void> => {
-    const paths = ids
-      .map((id) => this.delegate.find(id)?.data.path)
-      .filter((path): path is string => Boolean(path));
+    const paths = [
+      ...this.roots.map((root) => root.path),
+      ...ids
+        .map((id) => this.delegate.find(id)?.data.path)
+        .filter((path): path is string => Boolean(path)),
+    ];
     await this.refreshPaths(paths);
   };
 
@@ -329,6 +333,9 @@ export class RequestingTree {
 
   private refreshPaths = async (paths: string[]): Promise<void> => {
     const uniquePaths = [...new Set(paths)];
+    if (uniquePaths.length === 0) {
+      return;
+    }
     const results = await mapWithConcurrency(
       uniquePaths,
       FILE_OP_CONCURRENCY,
@@ -397,7 +404,7 @@ export function fileTreeNodeId(rootPath: string, path: string): string {
 function relativePath(path: string, root: string): FilePath | null {
   const windowsPath = /^[A-Za-z]:[/\\]/.test(root);
   const normalizeCase = (value: string) =>
-    windowsPath ? value.toLocaleLowerCase() : value;
+    windowsPath ? value.toLowerCase() : value;
   const comparedPath = normalizeCase(path);
   const comparedRoot = normalizeCase(root);
   if (comparedPath === comparedRoot) {

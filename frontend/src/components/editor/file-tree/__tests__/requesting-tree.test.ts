@@ -175,6 +175,78 @@ describe("RequestingTree", () => {
     });
   });
 
+  describe("failed mutations", () => {
+    beforeEach(async () => {
+      await tree.expand(PRIMARY_ROOT_ID);
+      sendListFiles.mockClear();
+      onChange.mockClear();
+    });
+
+    test("does not update or refresh after a failed copy", async () => {
+      sendCopyFileOrFolder.mockResolvedValueOnce({
+        success: false,
+        message: "Permission denied",
+      });
+
+      await tree.copy(PRIMARY_FILE_ID, "file1_copy");
+
+      expect(sendListFiles).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledWith({
+        title: "Failed",
+        description: "Permission denied",
+      });
+    });
+
+    test("does not update or refresh after a failed rename", async () => {
+      sendRenameFileOrFolder.mockResolvedValueOnce({
+        success: false,
+        message: "Permission denied",
+      });
+
+      await tree.rename(PRIMARY_FILE_ID, "file2");
+
+      expect(sendListFiles).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledWith({
+        title: "Failed",
+        description: "Permission denied",
+      });
+    });
+
+    test("does not update or refresh after a failed delete", async () => {
+      sendDeleteFileOrFolder.mockResolvedValueOnce({
+        success: false,
+        message: "Permission denied",
+      });
+
+      await tree.delete(PRIMARY_FILE_ID);
+
+      expect(sendListFiles).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledWith({
+        title: "Failed",
+        description: "Permission denied",
+      });
+    });
+
+    test("does not update or refresh after a failed move", async () => {
+      sendRenameFileOrFolder.mockResolvedValueOnce({
+        success: false,
+        message: "Permission denied",
+      });
+
+      await tree.move([PRIMARY_FILE_ID], EXTERNAL_ROOT_ID);
+
+      expect(sendListFiles).not.toHaveBeenCalled();
+      expect(onChange).not.toHaveBeenCalled();
+      expect(toast).toHaveBeenCalledWith({
+        title: "Failed",
+        description: "Permission denied",
+      });
+    });
+  });
+
   test("moves files across roots and refreshes both parents", async () => {
     await tree.expand(PRIMARY_ROOT_ID);
     sendListFiles.mockClear();
@@ -189,10 +261,21 @@ describe("RequestingTree", () => {
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
   });
 
-  test("refreshes all supplied open roots and folders", async () => {
-    await tree.refreshAll([PRIMARY_ROOT_ID, EXTERNAL_ROOT_ID]);
+  test("refreshes configured roots when every node is collapsed", async () => {
+    await tree.refreshAll([]);
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
+  });
+
+  test("refreshes supplied open folders in addition to configured roots", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    sendListFiles.mockClear();
+
+    await tree.refreshAll([fileTreeNodeId("/root", "/root/folder1")]);
+
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
+    expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
   });
 
   test("keeps existing children when a refresh fails", async () => {
