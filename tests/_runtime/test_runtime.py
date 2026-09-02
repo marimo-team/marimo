@@ -2730,6 +2730,31 @@ class TestStoredOutput:
         cell = k.graph.cells[er.cell_id]
         assert isinstance(cell.output[0], UIElement)
 
+    async def test_ui_element_in_nested_vstack_output_stored(
+        self, any_kernel: Kernel, exec_req: ExecReqProvider
+    ) -> None:
+        # Regression test: a UIElement nested inside mo.vstack/mo.hstack
+        # (a marimo Html container storing children via `_live_children`,
+        # not a raw list/tuple/dict) must still be kept alive so its RPCs
+        # continue to work, even when only referenced through an
+        # underscore-prefixed ("cell-private") local.
+        k = any_kernel
+
+        await k.run(
+            [
+                er := exec_req.get(
+                    """
+                    import marimo as mo
+
+                    _output = mo.vstack([mo.md("static"), mo.ui.checkbox()])
+                    _output
+                    """
+                )
+            ]
+        )
+        cell = k.graph.cells[er.cell_id]
+        assert isinstance(cell.output._live_children[1], UIElement)
+
     async def test_non_ui_elements_not_stored(
         self, any_kernel: Kernel, exec_req: ExecReqProvider
     ) -> None:
