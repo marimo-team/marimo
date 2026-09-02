@@ -69,10 +69,20 @@ class CacheCallbacks:
 
         # NB. flush unconditionally (durability); joins background blob writes.
         flush_active_caches()
+        self._flush_cache_manifest()
         # NB. manifest only when cell caching is on (html-wasm --execute), else
         # a normal session would litter cache dirs with manifests.
         if self._caching_enabled():
             dump_cache_manifests(export_manifest_name(self._notebook_filename))
+
+    def _flush_cache_manifest(self) -> None:
+        """Persist any cache record that a write during the session missed."""
+        from marimo._runtime.context import safe_get_context
+        from marimo._save.manifest import flush_dirty_manifests
+
+        ctx = safe_get_context()
+        if ctx is not None:
+            flush_dirty_manifests(ctx)
 
     async def clear_cache(self, request: ClearCacheCommand) -> None:
         del request
