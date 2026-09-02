@@ -123,16 +123,20 @@ components:
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
         `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
-        \    - `models`: the models to use for AI completions\n    - `open_ai`: the\
-        \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
-        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
-        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `opencode_go`: the OpenCode Go config\n\
-        \    - `custom_providers`: a dict of custom OpenAI-compatible providers\n\
-        \    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use\
-        \ custom_providers)"
+        \    - `allow_provider_config`: if `False`, lock provider setup in the settings\
+        \ UI, making them read-only. Users cannot bring their own credentials or add\
+        \ custom providers. Default `True`.\n    - `models`: the models to use for\
+        \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
+        \ Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
+        \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
+        \ Ollama config\n    - `github`: the GitHub config\n    - `openrouter`: the\
+        \ OpenRouter config\n    - `wandb`: the Weights & Biases config\n    - `opencode_go`:\
+        \ the OpenCode Go config\n    - `custom_providers`: a dict of custom OpenAI-compatible\
+        \ providers\n    - `open_ai_compatible`: the OpenAI-compatible config (deprecated,\
+        \ use custom_providers)"
       properties:
+        allow_provider_config:
+          type: boolean
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
         azure:
@@ -248,7 +252,7 @@ components:
       type: object
     AnthropicConfig:
       description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key"
+        \ `api_key`: the Anthropic API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -1295,6 +1299,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -1529,6 +1534,15 @@ components:
           type: array
         displayName:
           type: string
+        hidesWhen:
+          anyOf:
+          - $ref: '#/components/schemas/DialectHidesWhen'
+          - $ref: '#/components/schemas/StorageHidesWhen'
+          discriminator:
+            mapping:
+              dialect: '#/components/schemas/DialectHidesWhen'
+              storage: '#/components/schemas/StorageHidesWhen'
+            propertyName: kind
         id:
           type: string
         integration:
@@ -1546,6 +1560,7 @@ components:
       - origins
       - configuration
       - code
+      - hidesWhen
       title: DetectedDataSource
       type: object
     DetectedDataSourceConfiguration:
@@ -1578,6 +1593,22 @@ components:
       - type
       - label
       title: DetectedDataSourceOrigin
+      type: object
+    DialectHidesWhen:
+      description: Hide this suggestion when a live SQL engine dialect contains a
+        substring.
+      properties:
+        kind:
+          enum:
+          - dialect
+        substrings:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - substrings
+      title: DialectHidesWhen
       type: object
     DiagnosticsConfig:
       description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
@@ -2450,10 +2481,10 @@ components:
       type: object
     GitHubConfig:
       description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API\n    -\
-        \ `copilot_settings`: configuration settings for GitHub Copilot LSP.\n   \
-        \     Supports settings like `http` (proxy configuration), `telemetry`,\n\
-        \        and `github-enterprise` (enterprise URI)."
+        \ the GitHub API token or an `env:` reference\n    - `base_url`: the base\
+        \ URL for the API\n    - `copilot_settings`: configuration settings for GitHub\
+        \ Copilot LSP.\n        Supports settings like `http` (proxy configuration),\
+        \ `telemetry`,\n        and `github-enterprise` (enterprise URI)."
       properties:
         api_key:
           type: string
@@ -2466,7 +2497,7 @@ components:
       type: object
     GoogleAiConfig:
       description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Google AI API key"
+        \ `api_key`: the Google AI API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -2578,12 +2609,20 @@ components:
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
         \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        index_urls: Alternative package index URLs. Primary index first,\n\
+        \                    then extras. Honored by backends that support custom\n\
+        \                    indexes (currently micropip); other backends ignore it.\n\
         \        source: Where to install. \"kernel\" (default) dispatches to the\
         \ kernel\n                subprocess; \"server\" installs directly into the\
         \ server's Python\n                environment (sys.executable), used when\
         \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
         \ auto-export in sandbox mode)."
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:
@@ -2606,6 +2645,11 @@ components:
       type: object
     InstallPackagesRequest:
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:
@@ -3001,6 +3045,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -4113,15 +4158,15 @@ components:
       type: object
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
-        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `project`: the project ID for the OpenAI\
-        \ API\n    - `ssl_verify` : Boolean argument for httpx passed to open ai client.\
-        \ httpx defaults to true, but some use cases to let users override to False\
-        \ in some testing scenarios\n    - `ca_bundle_path`: custom ca bundle to be\
-        \ used for verifying SSL certificates. Used to create custom SSL context for\
-        \ httpx client\n    - `client_pem` : custom path of a client .pem cert used\
-        \ for verifying identity of client server\n    - `extra_headers`: extra headers\
-        \ to be passed to the OpenAI client"
+        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key or an `env:` reference\n\
+        \    - `base_url`: the base URL for the API\n    - `project`: the project\
+        \ ID for the OpenAI API\n    - `ssl_verify` : Boolean argument for httpx passed\
+        \ to open ai client. httpx defaults to true, but some use cases to let users\
+        \ override to False in some testing scenarios\n    - `ca_bundle_path`: custom\
+        \ ca bundle to be used for verifying SSL certificates. Used to create custom\
+        \ SSL context for httpx client\n    - `client_pem` : custom path of a client\
+        \ .pem cert used for verifying identity of client server\n    - `extra_headers`:\
+        \ extra headers to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -5507,6 +5552,26 @@ components:
       - size
       - lastModified
       title: StorageEntry
+      type: object
+    StorageHidesWhen:
+      description: Hide this suggestion when a live storage namespace matches.
+      properties:
+        backendTypes:
+          items:
+            type: string
+          type: array
+        kind:
+          enum:
+          - storage
+        protocols:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - protocols
+      - backendTypes
+      title: StorageHidesWhen
       type: object
     StorageListEntriesCommand:
       description: "List storage entries at a prefix.\n\n    Navigates storage like\
@@ -7904,4 +7969,3 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
-

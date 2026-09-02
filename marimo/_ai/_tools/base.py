@@ -44,9 +44,6 @@ LOGGER = _loggers.marimo_logger()
 ArgsT = TypeVar("ArgsT")
 OutT = TypeVar("OutT")
 
-ArgsP = TypeVar("ArgsP", contravariant=True)
-OutC = TypeVar("OutC", covariant=True)
-
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 

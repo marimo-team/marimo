@@ -8,6 +8,9 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/utils/cn";
+import { SparklesIcon } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
+import type { DataSourceDiscoveryGroup } from "@/core/datasets/data-source-discovery";
 
 /**
  * Styled AccordionItem for sidebar panels.
@@ -80,9 +83,41 @@ const PanelBadge = ({
 );
 PanelBadge.displayName = "PanelBadge";
 
+const DiscoveredSourcesBadge = ({
+  count,
+  type,
+}: {
+  count: number;
+  type: DataSourceDiscoveryGroup;
+}) => {
+  if (count === 0) {
+    return null;
+  }
+
+  let noun: string;
+  if (type === "database") {
+    noun = count === 1 ? "database" : "databases";
+  } else {
+    noun = count === 1 ? "remote storage" : "remote storages";
+  }
+  const content = `${count} ${noun} detected in your environment, ready to quick-add`;
+
+  return (
+    <Tooltip content={content}>
+      <span>
+        <PanelBadge className="gap-0.5 border-(--blue-6) bg-(--blue-3) text-(--blue-11) hover:bg-(--blue-4) dark:border-(--blue-8) dark:bg-(--blue-3) dark:hover:bg-(--blue-4)">
+          <SparklesIcon className="h-2.5 w-2.5" />
+          {count}
+        </PanelBadge>
+      </span>
+    </Tooltip>
+  );
+};
+
 export {
   PanelAccordionItem,
   PanelAccordionTrigger,
   PanelAccordionContent,
   PanelBadge,
+  DiscoveredSourcesBadge,
 };

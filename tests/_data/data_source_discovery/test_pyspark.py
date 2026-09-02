@@ -56,6 +56,10 @@ session = SparkSession.builder.remote(
     os.environ["SPARK_REMOTE"]
 ).getOrCreate()
 con = ibis.pyspark.connect(session)""",
+                "hidesWhen": {
+                    "kind": "dialect",
+                    "substrings": ["pyspark", "spark"],
+                },
             }
         ]
     )

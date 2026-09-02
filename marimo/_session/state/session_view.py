@@ -305,10 +305,11 @@ class SessionView:
             }
 
             # Remove any variable values that are no longer in scope.
-            next_values: dict[str, VariableValue] = {}
-            for name, value in self.variable_values.items():
-                if name in variable_names:
-                    next_values[name] = value
+            next_values: dict[str, VariableValue] = {
+                name: value
+                for name, value in self.variable_values.items()
+                if name in variable_names
+            }
             self.variable_values = next_values
 
             # Remove any table values that are no longer in scope.

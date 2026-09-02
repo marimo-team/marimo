@@ -42,6 +42,21 @@ def test_normalize_values_rejects_multiple_values() -> None:
         _normalize_values(["first.txt", "second.txt"], multiple=False)
 
 
+def test_normalize_values_rejects_empty_string() -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        _normalize_values("", multiple=True)
+
+
+def test_normalize_values_rejects_empty_string_in_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        _normalize_values(["first.txt", ""], multiple=True)
+
+
+def test_normalize_values_reports_index_for_single_element_sequence() -> None:
+    with pytest.raises(ValueError, match=r'Invalid value\[0\]=""'):
+        _normalize_values([""], multiple=True)
+
+
 def test_is_path_within_cases(tmp_path: Path) -> None:
     root = tmp_path.resolve()
     jail = root / "jail"
@@ -58,7 +73,9 @@ def test_is_path_within_cases(tmp_path: Path) -> None:
     assert _is_path_within(jail, jail) is True
     assert _is_path_within(outside, jail) is False
     assert _is_path_within(root, jail) is False
-    assert _is_path_within(jail / "nope.txt", jail) is False
+    # Containment does not require existence.
+    assert _is_path_within(jail / "nope.txt", jail) is True
+    assert _is_path_within(root / "nope.txt", jail) is False
 
 
 def test_is_path_within_rejects_symlink_escape(tmp_path: Path) -> None:
@@ -456,6 +473,42 @@ def test_file_browser_rejects_multiple_default_values(
         )
 
 
+def test_file_browser_rejects_empty_string_value(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""') as error:
+        file_browser(initial_path=tmp_path, value="")
+
+    assert str(tmp_path) not in str(error.value)
+
+
+def test_file_browser_rejects_empty_string_value_for_any_selection_mode(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match='Invalid value=""'):
+        file_browser(initial_path=tmp_path, value="", selection_mode="all")
+
+
+def test_file_browser_rejects_empty_string_among_valid_values(
+    tmp_path: Path,
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+
+    with pytest.raises(ValueError, match=r'Invalid value\[1\]=""'):
+        file_browser(initial_path=tmp_path, value=[selected, ""])
+
+
+def test_file_browser_accepts_relative_string_value(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    selected = tmp_path / "selected.txt"
+    selected.touch()
+    monkeypatch.chdir(tmp_path)
+
+    fb = file_browser(value="selected.txt")
+
+    assert fb.path() == normalize_path(Path("selected.txt"))
+
+
 def test_file_browser_rejects_default_value_of_wrong_kind(
     tmp_path: Path,
 ) -> None:
@@ -598,6 +651,37 @@ def test_navigation_restriction_dotdot_escape(tmp_path: Path) -> None:
     traversal = str(restricted / ".." / "sibling")
     with pytest.raises(RuntimeError, match="Navigation is restricted"):
         fb._list_directory(ListDirectoryArgs(path=traversal))
+
+
+def test_missing_path_inside_root_reports_not_found(tmp_path: Path) -> None:
+    """A missing path inside the root reports not-found, not a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = restricted / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_outside_root_reports_restriction(tmp_path: Path) -> None:
+    """A missing path outside the root still reports a restriction."""
+    restricted = tmp_path / "restricted"
+    restricted.mkdir()
+    missing = tmp_path / "outside" / "missing"
+
+    fb = file_browser(initial_path=restricted, restrict_navigation=True)
+    with pytest.raises(RuntimeError, match="Navigation is restricted"):
+        fb._list_directory(ListDirectoryArgs(path=str(missing)))
+
+
+def test_missing_path_without_restriction_reports_not_found(
+    tmp_path: Path,
+) -> None:
+    """Unrestricted navigation to a missing path reports not-found."""
+    fb = file_browser(initial_path=tmp_path, restrict_navigation=False)
+    with pytest.raises(FileNotFoundError, match="does not exist"):
+        fb._list_directory(ListDirectoryArgs(path=str(tmp_path / "missing")))
 
 
 def test_name_method() -> None:

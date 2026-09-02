@@ -836,6 +836,7 @@ export class ColumnChartSpecModel<T> {
           transform: transforms,
         };
       }
+      case "geometry":
       case "unknown":
         return null;
       default:

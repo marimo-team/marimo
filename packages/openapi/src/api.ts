@@ -3728,6 +3728,7 @@ export interface components {
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+     *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
@@ -3743,6 +3744,7 @@ export interface components {
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
+      allow_provider_config?: boolean;
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
@@ -3817,7 +3819,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Anthropic API key
+     *         - `api_key`: the Anthropic API key or an `env:` reference
      */
     AnthropicConfig: {
       api_key?: string;
@@ -4470,6 +4472,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -4610,6 +4613,9 @@ export interface components {
       confidence: "high" | "medium";
       configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
       displayName: string;
+      hidesWhen:
+        | components["schemas"]["DialectHidesWhen"]
+        | components["schemas"]["StorageHidesWhen"];
       id: string;
       integration: string;
       origins: components["schemas"]["DetectedDataSourceOrigin"][];
@@ -4626,6 +4632,15 @@ export interface components {
       label: string;
       /** @enum {unknown} */
       type: "configuration" | "environment";
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiagnosticsConfig
@@ -5134,7 +5149,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the GitHub API token
+     *         - `api_key`: the GitHub API token or an `env:` reference
      *         - `base_url`: the base URL for the API
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
@@ -5151,7 +5166,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Google AI API key
+     *         - `api_key`: the Google AI API key or an `env:` reference
      */
     GoogleAiConfig: {
       api_key?: string;
@@ -5230,12 +5245,17 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             index_urls: Alternative package index URLs. Primary index first,
+     *                         then extras. Honored by backends that support custom
+     *                         indexes (currently micropip); other backends ignore it.
      *             source: Where to install. "kernel" (default) dispatches to the kernel
      *                     subprocess; "server" installs directly into the server's Python
      *                     environment (sys.executable), used when the server itself needs
      *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5250,6 +5270,8 @@ export interface components {
     };
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5490,6 +5512,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -6135,7 +6158,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the OpenAI API key
+     *         - `api_key`: the OpenAI API key or an `env:` reference
      *         - `base_url`: the base URL for the API
      *         - `project`: the project ID for the OpenAI API
      *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -7051,6 +7074,16 @@ export interface components {
       mimeType?: string | null;
       path: string;
       size: number;
+    };
+    /**
+     * StorageHidesWhen
+     * @description Hide this suggestion when a live storage namespace matches.
+     */
+    StorageHidesWhen: {
+      backendTypes: string[];
+      /** @enum {unknown} */
+      kind: "storage";
+      protocols: string[];
     };
     /**
      * StorageListEntriesCommand

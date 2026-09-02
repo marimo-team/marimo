@@ -42,7 +42,7 @@ anthropic:
 
   - name: Claude Opus 4.7
     model: claude-opus-4-7
-    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    description: "Anthropic Opus model built for long-running, asynchronous agents"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -52,7 +52,7 @@ anthropic:
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
-    description: "Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work"
+    description: "Anthropic Sonnet model for coding, agents, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -62,7 +62,7 @@ anthropic:
 
   - name: Claude Opus 4.6
     model: claude-opus-4-6
-    description: "Anthropic's strongest model for coding and long-running professional tasks"
+    description: "Anthropic Opus model for coding and long-running professional tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -72,7 +72,7 @@ anthropic:
 
   - name: Claude Opus 4.5
     model: claude-opus-4-5
-    description: "Anthropic's frontier reasoning model optimized for complex software engineering, agentic workflows, and long-horizon computer use"
+    description: "Anthropic Opus reasoning model for complex software engineering, agentic workflows, and long-horizon computer use"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -92,7 +92,7 @@ anthropic:
 
   - name: Claude Sonnet 4.5
     model: claude-sonnet-4-5
-    description: "Anthropic's most advanced Sonnet model to date, optimized for real-world agents and coding workflows"
+    description: "Anthropic Sonnet model optimized for real-world agents and coding workflows"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -143,7 +143,7 @@ openai:
 
   - name: GPT-5.5
     model: gpt-5.5
-    description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
+    description: "OpenAI model for complex professional workloads, with stronger reasoning, reliability, and token efficiency than GPT-5.4 on hard tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -173,7 +173,7 @@ openai:
 
   - name: GPT-5.4
     model: gpt-5.4
-    description: "OpenAI's latest frontier model, unifying the Codex and GPT lines into a single system"
+    description: "OpenAI model that unified the Codex and GPT lines into a single system"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -193,7 +193,7 @@ openai:
 
   - name: GPT-5.3 Codex
     model: gpt-5.3-codex
-    description: "OpenAI's most advanced agentic coding model, combining the frontier software engineering performance of GPT-5.2-Codex with the broader reasoning and professional knowledge capabilities of GPT-5.2"
+    description: "Agentic coding model that combines GPT-5.2-Codex software engineering performance with GPT-5.2 reasoning and professional knowledge"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -211,6 +211,16 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Gemini Flash Latest
+    model: gemini-flash-latest
+    description: "Alias that points to the latest Gemini Flash release and can change when Google updates the model family"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-13
+    cost: {input: 0.75, output: 3.75}
+
   - name: Gemini 3.7 Flash
     model: gemini-3.7-flash
     description: "High-efficiency Gemini model for agentic workflows, coding, and multimodal reasoning"
@@ -350,6 +360,36 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Grok 4.6
+    model: xai.grok-4.6
+    description: "xAI's frontier model for coding, agentic tasks, knowledge work, and visual reasoning"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-12
+    cost: {input: 2.2, output: 6.6}
+
+  - name: GPT-5.6 Luna (Global)
+    model: global.openai.gpt-5.6-luna
+    description: "Fast, cost-efficient model in OpenAI's GPT-5.6 series, suited for high-volume, latency-sensitive chat and lightweight agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 0.22, output: 1.32}
+
+  - name: GPT-5.6 Sol (Global)
+    model: global.openai.gpt-5.6-sol
+    description: "Flagship model in OpenAI's GPT-5.6 series, suited for complex reasoning, coding, and agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-07-09
+    cost: {input: 5.5, output: 33}
+
   - name: Claude Opus 5 (Global)
     model: global.anthropic.claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
@@ -442,7 +482,7 @@ bedrock:
 
   - name: Claude Opus 4.7
     model: anthropic.claude-opus-4-7
-    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    description: "Anthropic Opus model built for long-running, asynchronous agents"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -452,7 +492,7 @@ bedrock:
 
   - name: Claude Opus 4.7 (Global)
     model: global.anthropic.claude-opus-4-7
-    description: "Next generation of Anthropic's Opus family, built for long-running, asynchronous agents"
+    description: "Anthropic Opus model built for long-running, asynchronous agents"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -462,7 +502,7 @@ bedrock:
 
   - name: MiniMax M2.5
     model: minimax.minimax-m2.5
-    description: "SOTA large language model designed for real-world productivity"
+    description: "Large language model designed for real-world productivity"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -492,7 +532,7 @@ bedrock:
 
   - name: Claude Sonnet 4.6
     model: anthropic.claude-sonnet-4-6
-    description: "Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work"
+    description: "Anthropic Sonnet model for coding, agents, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -573,7 +613,7 @@ azure:
 
   - name: GPT-5.5
     model: gpt-5.5
-    description: "OpenAI's frontier model designed for complex professional workloads, building on GPT-5.4 with stronger reasoning, higher reliability, and improved token efficiency on hard tasks"
+    description: "OpenAI model for complex professional workloads, with stronger reasoning, reliability, and token efficiency than GPT-5.4 on hard tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -583,7 +623,7 @@ azure:
 
   - name: Kimi K2.6
     model: kimi-k2.6
-    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    description: "Moonshot AI multimodal model for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -633,7 +673,7 @@ azure:
 
   - name: GPT-5.4
     model: gpt-5.4
-    description: "OpenAI's latest frontier model, unifying the Codex and GPT lines into a single system"
+    description: "OpenAI model that unified the Codex and GPT lines into a single system"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -653,7 +693,7 @@ azure:
 
   - name: GPT-5.3 Codex
     model: gpt-5.3-codex
-    description: "OpenAI's most advanced agentic coding model, combining the frontier software engineering performance of GPT-5.2-Codex with the broader reasoning and professional knowledge capabilities of GPT-5.2"
+    description: "Agentic coding model that combines GPT-5.2-Codex software engineering performance with GPT-5.2 reasoning and professional knowledge"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -673,7 +713,7 @@ azure:
 
   - name: Claude Sonnet 4.6
     model: claude-sonnet-4-6
-    description: "Anthropic's most capable Sonnet-class model yet, with frontier performance across coding, agents, and professional work"
+    description: "Anthropic Sonnet model for coding, agents, and professional work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -714,7 +754,7 @@ github:
 
   - name: Mistral Medium 3 (25.05)
     model: mistral-ai/mistral-medium-2505
-    description: "High-performance enterprise-grade language model designed to deliver frontier-level capabilities at significantly reduced operational cost"
+    description: "Enterprise language model designed for strong performance at reduced operational cost"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -754,7 +794,7 @@ github:
 
   - name: DeepSeek-V3-0324
     model: deepseek/deepseek-v3-0324
-    description: "Latest model from the DeepSeek team, building upon the instruction following and coding abilities of the previous versions"
+    description: "DeepSeek V3 update with improved instruction following and coding capabilities"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -850,7 +890,7 @@ ollama:
 
   - name: Kimi K2.6
     model: kimi-k2.6
-    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    description: "Moonshot AI multimodal model for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -895,7 +935,7 @@ ollama:
 
   - name: MiniMax M2.7
     model: minimax-m2.7
-    description: "Next-generation large language model designed for autonomous, real-world productivity and continuous improvement"
+    description: "Large language model designed for autonomous, real-world productivity and continuous improvement"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -904,7 +944,7 @@ ollama:
 
   - name: NVIDIA Nemotron 3 Ultra
     model: nemotron-3-ultra
-    description: "Open frontier-reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
+    description: "Open reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -930,6 +970,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Qwen3.8 27B
+    model: Qwen/Qwen3.8-27B
+    description: "Alibaba's 27B dense multimodal model for coding, professional work, research, and long-horizon agentic tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-14
+    cost: {input: 0.4, output: 3}
+
   - name: Nemotron 3.5 Lightning
     model: nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B
     description: "MoE model built for fast, reliable agentic tasks across financial services, cybersecurity, telecom, and retail"
@@ -949,16 +999,6 @@ wandb:
     output_types: [text]
     release_date: 2026-07-31
     cost: {input: 0.13, output: 0.28}
-
-  - name: Kimi K3
-    model: moonshotai/Kimi-K3
-    description: "Moonshot AI's 2.8T-parameter open-weight multimodal reasoning model for complex coding, knowledge work, and long-horizon agentic workflows"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-07-16
-    cost: {input: 3, output: 15}
 
   - name: MiniMax M3
     model: MiniMaxAI/MiniMax-M3
@@ -1022,7 +1062,7 @@ wandb:
 
   - name: Nemotron 3 Ultra
     model: nvidia/NVIDIA-Nemotron-3-Ultra-550B-A55B
-    description: "Open frontier-reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
+    description: "Open reasoning and orchestration model from NVIDIA with 55B active parameters out of 550B total (MoE)"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -1042,7 +1082,7 @@ wandb:
 
   - name: MiniMax M2.5
     model: MiniMaxAI/MiniMax-M2.5
-    description: "SOTA large language model designed for real-world productivity"
+    description: "Large language model designed for real-world productivity"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -1121,6 +1161,36 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: DeepSeek V4 Flash Vision Exp
+    model: deepseek-v4-flash-vision-exp
+    description: "Experimental multimodal variant of DeepSeek V4 Flash that adds image understanding while retaining its text and agent capabilities"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-21
+    cost: {input: 0.22, output: 0.66}
+
+  - name: Ox Alpha Free (Unlimited)
+    model: ox-alpha-free
+    description: "Free, limited-time OpenCode Go model for coding and agentic tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-21
+    cost: {input: 0, output: 0}
+
+  - name: Muse Spark 1.2 Contributor
+    model: muse-spark-1.2-contributor
+    description: "Discounted Meta coding model that permits prompts and completions to train future Meta models"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-05
+    cost: {input: 0.1, output: 0.2}
+
   - name: GLM-5.3
     model: glm-5.3
     description: "Flagship GLM model for long-horizon coding, agents, and complex project delivery"
@@ -1163,7 +1233,7 @@ opencode-go:
 
   - name: Grok 4.5
     model: grok-4.5
-    description: "xAI's smartest model with frontier performance on coding, knowledge work, and STEM"
+    description: "xAI model for coding, knowledge work, and STEM"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1213,7 +1283,7 @@ opencode-go:
 
   - name: Kimi K2.6
     model: kimi-k2.6
-    description: "Moonshot AI's next-generation multimodal model, designed for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
+    description: "Moonshot AI multimodal model for long-horizon coding, coding-driven UI/UX generation, and multi-agent orchestration"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1273,7 +1343,7 @@ opencode-go:
 
   - name: MiniMax M2.7
     model: minimax-m2.7
-    description: "Next-generation large language model designed for autonomous, real-world productivity and continuous improvement"
+    description: "Large language model designed for autonomous, real-world productivity and continuous improvement"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]

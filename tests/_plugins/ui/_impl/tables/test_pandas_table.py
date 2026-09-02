@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import Mock, patch
 
+import msgspec
 import narwhals.stable.v2 as nw
 import pytest
 
@@ -367,7 +368,6 @@ class TestPandasTableManager(unittest.TestCase):
         df = pd.DataFrame(
             {
                 "complex": [1 + 2j, complex(nan, nan)],
-                "timedelta": [pd.Timedelta(days=1), pd.NaT],
                 "date": [datetime.date(2020, 1, 1), None],
                 "bytes": [b"ab", None],
             }
@@ -378,17 +378,31 @@ class TestPandasTableManager(unittest.TestCase):
         assert json_data == [
             {
                 "complex": "(1+2j)",
-                "timedelta": "1 days 00:00:00",
                 "date": "2020-01-01",
                 "bytes": "b'ab'",
             },
             {
                 "complex": None,
-                "timedelta": None,
                 "date": None,
                 "bytes": None,
             },
         ]
+
+    def test_to_json_str_preserves_timedelta_nat_for_frontend(self) -> None:
+        df = pd.DataFrame({"value": [pd.Timedelta(days=1), pd.NaT]})
+        manager = self.factory.create()(df)
+
+        assert manager.to_json_str(strict_json=False) == (
+            '[{"value":"1 days 00:00:00"},{"value":"NaT"}]'
+        )
+
+    def test_to_json_str_converts_timedelta_nat_for_export(self) -> None:
+        df = pd.DataFrame({"value": [pd.Timedelta(days=1), pd.NaT]})
+        manager = self.factory.create()(df)
+
+        assert manager.to_json_str(strict_json=True) == (
+            '[{"value":"1 days 00:00:00"},{"value":null}]'
+        )
 
     @pytest.mark.skipif(
         not DependencyManager.numpy.has(),
@@ -2484,6 +2498,47 @@ class TestPandasTableManager(unittest.TestCase):
         json_data = json.loads(manager.to_json_str())
 
         assert json_data == [{"value": "(1.0,)"}, {"value": None}]
+
+    def test_to_json_str_preserves_all_null_extension_nan_for_frontend(
+        self,
+    ) -> None:
+        series = pd.Series([None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        assert manager.to_json_str(strict_json=False) == '[{"value":NaN}]'
+
+    def test_to_json_str_preserves_mixed_extension_nan_for_frontend(
+        self,
+    ) -> None:
+        series = pd.Series([7, None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        assert manager.to_json_str(strict_json=False) == (
+            '[{"value":7},{"value":NaN}]'
+        )
+
+    def test_to_json_str_converts_extension_nan_for_export(self) -> None:
+        series = pd.Series(["kept", None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        payload = manager.to_json_str(strict_json=True)
+
+        assert payload == '[{"value":"kept"},{"value":null}]'
+        assert msgspec.json.decode(payload) == [
+            {"value": "kept"},
+            {"value": None},
+        ]
+
+    def test_to_json_str_converts_all_null_extension_nan_for_export(
+        self,
+    ) -> None:
+        series = pd.Series([None], dtype="category")
+        manager = self.factory.create()(series.to_frame(name="value"))
+
+        payload = manager.to_json_str(strict_json=True)
+
+        assert payload == '[{"value":null}]'
+        assert msgspec.json.decode(payload) == [{"value": None}]
 
     def test_to_arrow_ipc_fallback_for_unsupported_extension_dtype(
         self,

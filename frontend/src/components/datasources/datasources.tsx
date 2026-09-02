@@ -3,7 +3,7 @@
 import { CommandList } from "cmdk";
 import { atom, useAtom, useAtomValue, useSetAtom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
-import { PlusIcon, PlusSquareIcon, XIcon } from "lucide-react";
+import { PlusSquareIcon, XIcon } from "lucide-react";
 import React from "react";
 import { dbDisplayName } from "@/components/databases/display";
 import { EngineVariable } from "@/components/databases/engine-variable";
@@ -21,15 +21,11 @@ import { cellIdsAtom, useCellActions } from "@/core/cells/cells";
 import { useLastFocusedCellId } from "@/core/cells/focus";
 import { autoInstantiateAtom } from "@/core/config/config";
 import {
-  dataConnectionsMapAtom,
+  connectionsAtom,
   type SQLTableContext,
   useDataSourceActions,
 } from "@/core/datasets/data-source-connections";
-import {
-  DEFAULT_DUCKDB_DATABASE,
-  DUCKDB_ENGINE,
-  INTERNAL_SQL_ENGINES,
-} from "@/core/datasets/engines";
+import { DUCKDB_ENGINE } from "@/core/datasets/engines";
 import {
   PreviewSQLSchemaList,
   PreviewSQLTable,
@@ -68,7 +64,7 @@ import { ErrorBoundary } from "../editor/boundary/ErrorBoundary";
 import { PythonIcon } from "../editor/cell/code/icons";
 import { useAddCodeToNewCell } from "../editor/cell/useAddCell";
 import { PanelEmptyState } from "../editor/chrome/panels/empty-state";
-import { AddConnectionDialog } from "../editor/connections/add-connection-dialog";
+import { AddConnectionButton } from "../editor/connections/add-connection-button";
 import { DatasetColumnPreview } from "./column-preview";
 import {
   ColumnName,
@@ -224,40 +220,6 @@ export function filterEmptyDatabases(databases: Database[]): Database[] {
   return changed ? result : databases;
 }
 
-/**
- * This atom is used to get the data connections that are available to the user.
- * It filters out the internal engines if it has no databases or if it has only the in-memory database and no schemas.
- */
-export const connectionsAtom = atom((get) => {
-  const dataConnections = new Map(get(dataConnectionsMapAtom));
-
-  // Filter out the internal engines if it has no databases
-  // Or if it has only the in-memory database and no schemas
-  for (const engine of INTERNAL_SQL_ENGINES) {
-    const connection = dataConnections.get(engine);
-    if (!connection) {
-      continue;
-    }
-
-    if (connection.databases.length === 0) {
-      dataConnections.delete(engine);
-    }
-
-    if (
-      connection.databases.length === 1 &&
-      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
-      connection.databases[0].schemas.length === 0
-    ) {
-      dataConnections.delete(engine);
-    }
-  }
-
-  // Put internal engines last to prioritize user-defined connections
-  return sortBy([...dataConnections.values()], (connection) =>
-    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
-  );
-});
-
 export const DataSources: React.FC = () => {
   const [searchValue, setSearchValue] = React.useState<string>("");
   const [hideEmpty, setHideEmpty] = useAtom(hideEmptyDatasourcesAtom);
@@ -288,12 +250,12 @@ export const DataSources: React.FC = () => {
         title="No tables found"
         description="Any datasets/dataframes in the global scope will be shown here."
         action={
-          <AddConnectionDialog>
-            <Button variant="outline" size="sm">
-              Add database or catalog
-              <PlusIcon className="h-4 w-4 ml-2" />
-            </Button>
-          </AddConnectionDialog>
+          <AddConnectionButton
+            group="database"
+            label="Add database or catalog"
+            variant="outline"
+            size="sm"
+          />
         }
         icon={<DatabaseIcon />}
       />
@@ -339,15 +301,14 @@ export const DataSources: React.FC = () => {
           className="px-2 rounded-none focus-visible:outline-hidden"
         />
 
-        <AddConnectionDialog>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="px-2 rounded-none focus-visible:outline-hidden"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Button>
-        </AddConnectionDialog>
+        <AddConnectionButton
+          group="database"
+          label="Add database or catalog"
+          compact={true}
+          variant="ghost"
+          size="sm"
+          className="px-2 rounded-none focus-visible:outline-hidden"
+        />
       </div>
 
       <CommandList className="flex flex-col">

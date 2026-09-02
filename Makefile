@@ -98,6 +98,16 @@ fe-test:
 e2e:
 	cd frontend; pnpm playwright install; pnpm playwright test
 
+.PHONY: visual-test
+# 🖼️ Test visual baselines in the pinned Playwright container
+visual-test: fe
+	./scripts/run-visual-regression.sh
+
+.PHONY: visual-update
+# 🖼️ Update visual baselines in the pinned Playwright container
+visual-update: fe
+	./scripts/run-visual-regression.sh --update-snapshots
+
 .PHONY: fe-lint
 # 🧹 Lint frontend
 fe-lint:
@@ -114,6 +124,11 @@ fe-codegen:
 	uv run --isolated --python=3.12 --with-editable . marimo development openapi > packages/openapi/api.yaml
 	pnpm run codegen
 	pnpm format packages/openapi/
+
+.PHONY: fe-plugin-schema
+# 🔄 Generate frontend plugin API schema
+fe-plugin-schema:
+	pnpm --filter @marimo-team/frontend plugins:generate-schema
 
 .PHONY: design-md
 # 🔄 Generate DESIGN.md

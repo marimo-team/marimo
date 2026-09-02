@@ -1,0 +1,51 @@
+/* Copyright 2026 Marimo. All rights reserved. */
+
+:is(.markdown, .mo-markdown-renderer) {
+  :is(h1, h2, h3, h4, h5, h6) {
+    font-family: var(--heading-font);
+    font-weight: inherit;
+    margin-block: 1.5rem 1rem;
+    line-height: 1.25;
+  }
+
+  /* Keep heading sizes relative to the renderer text size. */
+  /* stylelint-disable unit-allowed-list */
+
+  h1 {
+    font-size: 2.25em;
+  }
+
+  h2 {
+    font-size: 1.5em;
+  }
+
+  h3 {
+    font-size: 1.25em;
+  }
+
+  :is(h4, h5, h6) {
+    font-size: 1em;
+  }
+
+  /* stylelint-enable unit-allowed-list */
+
+  :is(ul, ol) > li {
+    margin-block: 0;
+    padding-block: 0;
+  }
+}
+
+:is(.markdown, .mo-markdown-renderer) table {
+  font-variant-numeric: tabular-nums;
+}
+
+:is(.markdown, .mo-markdown-renderer)
+  > :is(h1, h2, h3, h4, h5, h6, p, .paragraph, ul, ol, blockquote) {
+  max-inline-size: var(--markdown-max-width);
+}
+
+@supports (text-wrap: balance) {
+  :is(.markdown, .mo-markdown-renderer) :is(h1, h2, h3, h4, h5, h6) {
+    text-wrap: balance;
+  }
+}

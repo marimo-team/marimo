@@ -14,16 +14,16 @@ from marimo._utils.typed_connection import TypedConnection
 
 LOGGER = _loggers.marimo_logger()
 
-T = TypeVar("T", covariant=True)
+T_co = TypeVar("T_co", covariant=True)
 
 
-Consumer = Callable[[T], None]
+Consumer = Callable[[T_co], None]
 
 
-class Distributor(Protocol, Generic[T]):
+class Distributor(Protocol, Generic[T_co]):
     """Base class for distributors."""
 
-    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
+    def add_consumer(self, consumer: Consumer[T_co]) -> Disposable:
         """Add a consumer to the distributor."""
         ...
 
@@ -36,7 +36,7 @@ class Distributor(Protocol, Generic[T]):
         ...
 
 
-class ConnectionDistributor(Distributor[T]):
+class ConnectionDistributor(Distributor[T_co]):
     """
     Used to distribute the response of a multiprocessing Connection to multiple
     consumers.
@@ -52,14 +52,14 @@ class ConnectionDistributor(Distributor[T]):
     for context.
     """
 
-    def __init__(self, input_connection: TypedConnection[T]) -> None:
-        self.consumers: list[Consumer[T]] = []
+    def __init__(self, input_connection: TypedConnection[T_co]) -> None:
+        self.consumers: list[Consumer[T_co]] = []
         self.input_connection = input_connection
         # Captured on start() so stop() uses the same loop the reader
         # was registered with — even if another loop is running by then.
         self._loop: asyncio.AbstractEventLoop | None = None
 
-    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
+    def add_consumer(self, consumer: Consumer[T_co]) -> Disposable:
         """Add a consumer to the distributor."""
         self.consumers.append(consumer)
 
@@ -109,9 +109,9 @@ class ConnectionDistributor(Distributor[T]):
         self.consumers.clear()
 
 
-class QueueDistributor(Distributor[T]):
-    def __init__(self, queue: QueueType[T | None]) -> None:
-        self.consumers: list[Consumer[T]] = []
+class QueueDistributor(Distributor[T_co]):
+    def __init__(self, queue: QueueType[T_co | None]) -> None:
+        self.consumers: list[Consumer[T_co]] = []
         # distributor uses None as a signal to stop
         self.queue = queue
         self.thread: threading.Thread | None = None
@@ -119,7 +119,7 @@ class QueueDistributor(Distributor[T]):
         # protects the consumers list
         self._lock = threading.Lock()
 
-    def add_consumer(self, consumer: Consumer[T]) -> Disposable:
+    def add_consumer(self, consumer: Consumer[T_co]) -> Disposable:
         """Add a consumer to the distributor."""
         with self._lock:
             self.consumers.append(consumer)

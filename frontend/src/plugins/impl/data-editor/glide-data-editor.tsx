@@ -14,13 +14,7 @@ import DataEditor, {
   type Rectangle,
 } from "@glideapps/glide-data-grid";
 import { CopyIcon, TrashIcon } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
 import type { FieldTypes } from "@/components/data-table/types";
 import {
@@ -34,59 +28,39 @@ import { copyToClipboard } from "@/utils/copy";
 import {
   getColumnHeaderIcon,
   getColumnKind,
-  isColumnEdit,
-  isPositionalEdit,
-  isRowEdit,
+  isValidCellValue,
   pasteCells,
 } from "./glide-utils";
 import { getGlideTheme } from "./themes";
-import { BulkEdit, type Edits, type ModifiedGridColumn } from "./types";
 import "@glideapps/glide-data-grid/dist/index.css"; // TODO: We are reimporting this
 import { ErrorBoundary } from "@/components/editor/boundary/ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/use-toast";
 import type { DataType } from "@/core/kernel/messages";
-import { useNonce } from "@/hooks/useNonce";
 import { logNever } from "@/utils/assertNever";
 import { Events } from "@/utils/events";
 import { AddColumnSub, RenameColumnSub } from "./components";
-import {
-  insertColumn,
-  modifyColumnFields,
-  removeColumn,
-  renameColumn,
-} from "./data-utils";
 import { GlideDataEditorPortal } from "./glide-portal";
+import {
+  BulkEdit,
+  type EditorRow,
+  type Edits,
+  type ModifiedGridColumn,
+} from "./types";
 
-interface GlideDataEditorProps<T> {
-  data: T[];
-  setData: (data: T[] | ((prev: T[]) => T[])) => void;
+interface GlideDataEditorProps {
+  data: EditorRow[];
   columnFields: FieldTypes;
-  setColumnFields: React.Dispatch<React.SetStateAction<FieldTypes>>;
   editableColumns: string[] | "all";
-  edits: Edits["edits"];
   onAddEdits: (edits: Edits["edits"]) => void;
-  onAddRows: (newRows: object[]) => void;
-  onDeleteRows: (rows: number[]) => void;
-  onRenameColumn: (columnIdx: number, newName: string) => void;
-  onDeleteColumn: (columnIdx: number) => void;
-  onAddColumn: (columnIdx: number, newName: string) => void;
 }
 
-export const GlideDataEditor = <T,>({
+export const GlideDataEditor = ({
   data,
-  setData,
   columnFields,
-  setColumnFields,
   editableColumns,
-  edits,
   onAddEdits,
-  onAddRows,
-  onDeleteRows,
-  onRenameColumn,
-  onDeleteColumn,
-  onAddColumn,
-}: GlideDataEditorProps<T>) => {
+}: GlideDataEditorProps) => {
   const { theme } = useTheme();
   const dataEditorRef = useRef<DataEditorRef>(null);
   const portalElementRef = useRef<HTMLDivElement>(null);
@@ -99,8 +73,6 @@ export const GlideDataEditor = <T,>({
   });
 
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
-  const rerender = useNonce();
-  const hasAppliedEdits = useRef(false);
 
   const columns: ModifiedGridColumn[] = useMemo(() => {
     const columns: ModifiedGridColumn[] = [];
@@ -130,114 +102,12 @@ export const GlideDataEditor = <T,>({
     return columns;
   }, [columnFields, columnWidths, editableColumns, theme]);
 
-  // Apply initial edits after data has loaded
-  useEffect(() => {
-    // Don't apply if already applied or data hasn't loaded yet
-    if (hasAppliedEdits.current || data.length === 0) {
-      return;
-    }
-
-    // Mark as applied once data loads - prevents re-applying user edits
-    hasAppliedEdits.current = true;
-
-    // No initial edits to apply
-    if (edits.length === 0) {
-      return;
-    }
-
-    // Group edits by row index to build new rows
-    const newRows = new Map<number, Record<string, unknown>>();
-
-    for (const edit of edits) {
-      if (isPositionalEdit(edit)) {
-        if (edit.rowIdx >= data.length) {
-          // This is a new row
-          if (!newRows.has(edit.rowIdx)) {
-            newRows.set(edit.rowIdx, {});
-          }
-          const row = newRows.get(edit.rowIdx);
-          if (row) {
-            row[edit.columnId] = edit.value;
-          }
-        } else {
-          // This is an existing row, update the data
-          setData((prev) => {
-            const newData = [...prev];
-            newData[edit.rowIdx][edit.columnId as keyof T] =
-              edit.value as T[keyof T];
-            return newData;
-          });
-        }
-      } else if (isRowEdit(edit) && edit.type === BulkEdit.Remove) {
-        // Add rows is currently handled under positional edits, so we only cover deletes here
-        setData((prev) => prev.filter((_, i) => i !== edit.rowIdx));
-      } else if (isColumnEdit(edit)) {
-        switch (edit.type) {
-          case BulkEdit.Remove:
-            // Remove the column from the data
-            setData((prev) => removeColumn(prev, edit.columnIdx));
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "remove",
-              }),
-            );
-            break;
-          case BulkEdit.Insert:
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "insert",
-                newColumnName: edit.newName,
-              }),
-            );
-            setData((prev) => insertColumn(prev, edit.newName));
-            break;
-          case BulkEdit.Rename: {
-            const oldName = columns[edit.columnIdx].title;
-            const newName = edit.newName;
-            if (!oldName || !newName) {
-              return;
-            }
-
-            setColumnFields((prev) =>
-              modifyColumnFields({
-                columnFields: prev,
-                columnIdx: edit.columnIdx,
-                type: "rename",
-                newColumnName: newName,
-              }),
-            );
-
-            setData((prev) => renameColumn(prev, oldName, newName));
-            break;
-          }
-        }
-      }
-    }
-
-    // Add new rows in order
-    const sortedNewRows = [...newRows.entries()]
-      .toSorted(([a], [b]) => a - b)
-      .map(([, row]) => row);
-
-    if (sortedNewRows.length > 0) {
-      setData((prev) => [...prev, ...(sortedNewRows as T[])]);
-    }
-
-    // Force re-render to update the total rows
-    rerender();
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.length]);
-
   const getCellContent = useCallback(
     (cell: Item): GridCell => {
       const [col, row] = cell;
       const dataRow = data[row];
 
-      const dataItem = dataRow[columns[col].title as keyof T];
+      const dataItem = dataRow[columns[col].title];
       const columnKind = columns[col].kind;
       const editable =
         editableColumns === "all" ||
@@ -289,15 +159,9 @@ export const GlideDataEditor = <T,>({
         newData = null;
       }
 
-      setData((prev) => {
-        const data = [...prev];
-        data[row][key as keyof T] = newData as T[keyof T];
-        return data;
-      });
-
       onAddEdits([{ rowIdx: row, columnId: key, value: newData }]);
     },
-    [columns, onAddEdits, setData],
+    [columns, onAddEdits],
   );
 
   const onColumnResize = useCallback((column: GridColumn, newSize: number) => {
@@ -314,22 +178,7 @@ export const GlideDataEditor = <T,>({
       const key = columns[col].title;
 
       const columnType = columnFields.get(key);
-      // Verify the new value is of the correct type
-      switch (columnType) {
-        case "number":
-        case "integer":
-          if (Number.isNaN(Number(newValue.data))) {
-            return false;
-          }
-          break;
-        case "boolean":
-          if (typeof newValue.data !== "boolean") {
-            return false;
-          }
-          break;
-      }
-
-      return true;
+      return isValidCellValue(columnType, newValue.data);
     },
     [columnFields, columns],
   );
@@ -351,7 +200,6 @@ export const GlideDataEditor = <T,>({
         pasteCells({
           selection,
           data,
-          setData,
           columns,
           editableColumns,
           onAddEdits,
@@ -371,11 +219,11 @@ export const GlideDataEditor = <T,>({
         return;
       }
     },
-    [columns, data, editableColumns, onAddEdits, selection, setData],
+    [columns, data, editableColumns, onAddEdits, selection],
   );
 
   const onRowAppend = useCallback(() => {
-    const newRow: Record<string, unknown> = Object.fromEntries(
+    const newRow: EditorRow = Object.fromEntries(
       columns.map((column) => {
         const dataType = column.dataType;
         switch (dataType) {
@@ -390,6 +238,7 @@ export const GlideDataEditor = <T,>({
             // TODO: Handle specific types
             return [column.title, new Date()];
           case "string":
+          case "geometry":
           case "unknown":
             return [column.title, ""];
           default:
@@ -398,22 +247,23 @@ export const GlideDataEditor = <T,>({
         }
       }),
     );
-    onAddRows([newRow]);
-
-    // Update data
-    setData((prev) => [...prev, newRow as T]);
-  }, [columns, onAddRows, setData]);
+    onAddEdits(
+      Object.entries(newRow).map(([columnId, value]) => ({
+        rowIdx: data.length,
+        columnId,
+        value,
+      })),
+    );
+  }, [columns, data.length, onAddEdits]);
 
   const handleDeleteRows = () => {
     const rows = selection.rows.toArray();
-    onDeleteRows(rows);
-
-    let index = 0;
-    for (const row of rows) {
-      const adjustedRow = row - index; // Adjust for previously deleted rows
-      setData((prev) => prev.filter((_, i) => i !== adjustedRow));
-      index++;
-    }
+    onAddEdits(
+      rows.map((rowIdx, index) => ({
+        rowIdx: rowIdx - index,
+        type: BulkEdit.Remove,
+      })),
+    );
 
     // Clear selection
     setSelection({
@@ -444,45 +294,20 @@ export const GlideDataEditor = <T,>({
 
   const handleRenameColumn = (newName: string) => {
     if (menu) {
-      const oldColumnName = columns[menu.col].title;
-
       // Validate the new column name
       if (columnFields.has(newName)) {
         toastColumnExists(newName);
         return;
       }
 
-      const dataType = columns[menu.col].dataType;
-
-      onRenameColumn(menu.col, newName);
-      setColumnFields((prev) =>
-        modifyColumnFields({
-          columnFields: prev,
-          columnIdx: menu.col,
-          type: "rename",
-          dataType,
-          newColumnName: newName,
-        }),
-      );
-
-      // Update the data
-      setData((prev) => renameColumn(prev, oldColumnName, newName));
+      onAddEdits([{ columnIdx: menu.col, newName, type: BulkEdit.Rename }]);
       setMenu(undefined);
     }
   };
 
   const handleDeleteColumn = () => {
     if (menu) {
-      onDeleteColumn(menu.col);
-      setColumnFields((prev) =>
-        modifyColumnFields({
-          columnFields: prev,
-          columnIdx: menu.col,
-          type: "remove",
-        }),
-      );
-
-      setData((prev) => removeColumn(prev, menu.col));
+      onAddEdits([{ columnIdx: menu.col, type: BulkEdit.Remove }]);
       setMenu(undefined);
     }
   };
@@ -505,21 +330,14 @@ export const GlideDataEditor = <T,>({
         return;
       }
 
-      onAddColumn(clampedColumnIdx, columnName);
-
-      setColumnFields((prev) =>
-        modifyColumnFields({
-          columnFields: prev,
+      onAddEdits([
+        {
           columnIdx: clampedColumnIdx,
-          type: "insert",
+          newName: columnName,
           dataType,
-          newColumnName: columnName,
-        }),
-      );
-
-      // Update the data - add the new column to all rows,
-      // ordering does not matter as we call getCellContent based on columnTitle
-      setData((prev) => insertColumn(prev, columnName));
+          type: BulkEdit.Insert,
+        },
+      ]);
       setMenu(undefined);
     }
   };

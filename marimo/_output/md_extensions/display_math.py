@@ -64,13 +64,13 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         )
 
     def _normalize_math_syntax(self, text: str) -> str:
-        """Convert supported math delimiters in non-inline-code regions.
+        r"""Convert supported math delimiters in non-inline-code regions.
 
         Supported conversions:
         - `:math:` inline roles and `:math:<code>` HTML variants -> `$...$`
         - `.. math::` blocks -> `$$...$$`
-        - `\\(...\\)` -> `$...$`
-        - `\\[...\\]` -> `$$...$$`
+        - `\(...\)` -> `$...$`
+        - `\[...\]` -> `$$...$$`
         """
         converted_segments: list[str] = []
         for segment, is_inline_code in self._split_by_inline_code(text):

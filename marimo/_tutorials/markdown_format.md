@@ -9,7 +9,7 @@ pyproject: |-
   dependencies = [
       "marimo",
       "duckdb==1.2.2",
-      "matplotlib==3.10.1",
+      "matplotlib==3.10.9",
       "sqlglot==26.16.2",
       "pandas==2.3.3",
       "pyarrow==23.0.0",

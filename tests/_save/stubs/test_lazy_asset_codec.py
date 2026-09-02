@@ -40,7 +40,7 @@ def test_blob_asset_codec_round_trip() -> None:
 
 def test_lazy_loader_round_trips_blob_asset() -> None:
     store = MockStore()
-    loader = LazyLoader("asset-test", store=store, mode="off")
+    loader = LazyLoader("asset-test", store=store, verification="off")
     asset = BlobAsset(
         data=b"\x89PNG\r\n\x1a\n",
         media_type="image/png",

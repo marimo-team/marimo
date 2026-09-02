@@ -47,7 +47,7 @@ class Response:
         return json.loads(self.text())
 
     def text(self) -> str:
-        """Get response content as text.
+        r"""Get response content as text.
 
         This assumes the response is UTF-8 encoded.
         In future, we can infer the encoding from the headers.

@@ -18,7 +18,7 @@ describe("columnToFieldTypesSchema", () => {
 
   it("normalizes an unrecognized field type without discarding other fields", () => {
     const result = columnToFieldTypesSchema.parse([
-      ["geom", ["geometry", "geometry"]],
+      ["geom", ["bogus_type", "geometry"]],
       ["label", ["string", "object"]],
     ]);
 
@@ -26,5 +26,13 @@ describe("columnToFieldTypesSchema", () => {
       ["geom", ["unknown", "geometry"]],
       ["label", ["string", "object"]],
     ]);
+  });
+
+  it("keeps the geometry field type", () => {
+    const result = columnToFieldTypesSchema.parse([
+      ["geom", ["geometry", "geometry"]],
+    ]);
+
+    expect(result).toEqual([["geom", ["geometry", "geometry"]]]);
   });
 });

@@ -13,6 +13,7 @@ from marimo._config.manager import (
     EnvConfigManager,
     MarimoConfigManager,
     MarimoConfigReaderWithOverrides,
+    ProjectConfigManager,
     ScriptConfigManager,
     SecurityConfigManager,
     UserConfigManager,
@@ -1160,3 +1161,166 @@ def test_restrict_sharing_disabled_keeps_user_config(
     assert manager.get_config_overrides(hide_secrets=False)["sharing"] == {
         "wasm": True
     }
+
+
+# A syntactically valid fingerprint; never used to verify anything.
+_FAKE_FP = "SHA256:kV9x2cAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+
+
+def test_script_config_manager_strips_signing_and_verification(
+    tmp_path: Path,
+) -> None:
+    """A notebook header cannot anchor trust or turn verification off."""
+    notebook_path = tmp_path / "notebook.py"
+    notebook_content = f"""
+    # /// script
+    # [tool.marimo.signing]
+    # private_key_path = "/tmp/evil.pem"
+    # [tool.marimo.signing.trusted_signers]
+    # "{_FAKE_FP}" = "attacker"
+    # [tool.marimo.cache]
+    # verification = "off"
+    # ///
+    import marimo as mo
+    """
+    notebook_path.write_text(textwrap.dedent(notebook_content))
+
+    config = ScriptConfigManager(str(notebook_path)).get_config()
+
+    assert "signing" not in config
+    # NB. the script allowlist (ALLOWED_SCRIPT_CONFIG_TOP_KEYS) drops the whole
+    # `cache` section from script metadata, so a notebook header cannot set a
+    # store either — stricter than the project layer below.
+    assert "cache" not in config
+
+
+def test_project_config_manager_strips_signing_and_verification(
+    tmp_path: Path,
+) -> None:
+    """A cloned repo's pyproject.toml is untrusted origin for signing config."""
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = f"""
+    [tool.marimo.signing]
+    private_key_path = "/tmp/evil.pem"
+
+    [tool.marimo.signing.trusted_signers]
+    "{_FAKE_FP}" = "attacker"
+
+    [tool.marimo.cache]
+    verification = "off"
+
+    [tool.marimo.cache.store]
+    type = "file"
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    config = ProjectConfigManager(str(pyproject_path)).get_config()
+
+    assert "signing" not in config
+    # `cache.store` is not a trust anchor, so a project may still choose one;
+    # the verifying loaders check its bytes before unpickling.
+    assert config.get("cache") == {"store": {"type": "file"}}
+
+
+def test_effective_config_anchors_trust_in_user_layer_only(
+    tmp_path: Path,
+) -> None:
+    """Regression: project trust never reaches the merged effective config."""
+    pyproject_path = tmp_path / "pyproject.toml"
+    project_fp = "SHA256:PROJECTPROJECTPROJECTPROJECTPROJECTPROJECT0"
+    user_fp = "SHA256:USERUSERUSERUSERUSERUSERUSERUSERUSERUSERUS0"
+    pyproject_path.write_text(
+        textwrap.dedent(
+            f"""
+            [tool.marimo.signing.trusted_signers]
+            "{project_fp}" = "attacker"
+            """
+        )
+    )
+
+    manager = MarimoConfigManager(
+        UserConfigManager(),
+        ProjectConfigManager(str(pyproject_path)),
+    ).with_overrides({"signing": {"trusted_signers": {user_fp: "me"}}})
+
+    signing = manager.get_config(hide_secrets=False).get("signing", {})
+    trusted = signing.get("trusted_signers", {})
+    assert project_fp not in trusted
+    assert user_fp in trusted
+
+
+def test_workspace_marimo_toml_strips_signing_and_verification(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A `.marimo.toml` found by walking up from the cwd is project-origin.
+
+    It loads as the user layer, so it is the one untrusted layer that reaches
+    `UserConfigManager`; it must still not anchor trust.
+    """
+    cfg = tmp_path / ".marimo.toml"
+    cfg.write_text(
+        textwrap.dedent(
+            f"""
+            [signing]
+            private_key_path = "/tmp/evil.pem"
+
+            [signing.trusted_signers]
+            "{_FAKE_FP}" = "attacker"
+
+            [cache]
+            verification = "off"
+
+            [cache.store]
+            type = "file"
+            """
+        )
+    )
+    monkeypatch.setattr(
+        "marimo._config.manager.get_or_create_user_config_path",
+        lambda: str(cfg),
+    )
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path",
+        lambda _path: False,
+    )
+
+    config = UserConfigManager().get_config(hide_secrets=False)
+
+    assert "signing" not in config
+    assert config.get("cache", {}).get("verification") is None
+    # The store goes too, unlike the project and script layers. A store set
+    # here would load as the user layer, so `cache_store_is_untrusted` could
+    # not tell it apart from one the operator chose, and the unsigned pickle
+    # loader would deserialize its bytes.
+    assert config.get("cache", {}).get("store") is None
+
+
+def test_trusted_user_config_location_anchors_trust(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The genuinely user-owned config (XDG / ~/.marimo.toml) may set trust."""
+    cfg = tmp_path / "marimo.toml"
+    cfg.write_text(
+        textwrap.dedent(
+            f"""
+            [signing.trusted_signers]
+            "{_FAKE_FP}" = "me"
+
+            [cache]
+            verification = "strict"
+            """
+        )
+    )
+    monkeypatch.setattr(
+        "marimo._config.manager.get_or_create_user_config_path",
+        lambda: str(cfg),
+    )
+    monkeypatch.setattr(
+        "marimo._config.manager.is_trusted_user_config_path",
+        lambda _path: True,
+    )
+
+    config = UserConfigManager().get_config(hide_secrets=False)
+
+    assert config["signing"]["trusted_signers"] == {_FAKE_FP: "me"}
+    assert config["cache"]["verification"] == "strict"

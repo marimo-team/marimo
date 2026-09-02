@@ -103,3 +103,38 @@ class TestGetStore:
     def test_no_cache_config_uses_default(self, monkeypatch) -> None:
         store = self._store_for(monkeypatch, {})
         assert isinstance(store, DEFAULT_STORE)
+
+
+class TestCacheStoreProvenance:
+    """cache_store_is_untrusted flags a store set by a project/script layer."""
+
+    def _untrusted_for(self, monkeypatch, overrides) -> bool:
+        from marimo._save import stores as stores_mod
+
+        class _Mgr:
+            def get_config_overrides(self):
+                # project + script + env, merged (env never sets a store).
+                return overrides
+
+        monkeypatch.setattr(
+            "marimo._config.manager.get_default_config_manager",
+            lambda **_kwargs: _Mgr(),
+        )
+        return stores_mod.cache_store_is_untrusted()
+
+    def test_project_store_is_untrusted(self, monkeypatch) -> None:
+        assert self._untrusted_for(
+            monkeypatch, {"cache": {"store": {"type": "rest"}}}
+        )
+
+    def test_script_store_is_untrusted(self, monkeypatch) -> None:
+        assert self._untrusted_for(
+            monkeypatch, {"cache": {"store": [{"type": "file"}]}}
+        )
+
+    def test_no_override_store_is_trusted(self, monkeypatch) -> None:
+        # Store set only in the (trusted) user layer never appears in overrides.
+        assert not self._untrusted_for(monkeypatch, {})
+        assert not self._untrusted_for(
+            monkeypatch, {"cache": {"verification": "on"}}
+        )

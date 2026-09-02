@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import (
     TYPE_CHECKING,
@@ -316,6 +316,7 @@ class AiConfig(TypedDict, total=False):
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+    - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -336,6 +337,7 @@ class AiConfig(TypedDict, total=False):
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
+    allow_provider_config: NotRequired[bool]
     models: AiModelConfig
     # providers
     open_ai: OpenAiConfig
@@ -359,7 +361,7 @@ class OpenAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the OpenAI API key
+    - `api_key`: the OpenAI API key or an `env:` reference
     - `base_url`: the base URL for the API
     - `project`: the project ID for the OpenAI API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -386,7 +388,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic API key
+    - `api_key`: the Anthropic API key or an `env:` reference
     """
 
     api_key: str
@@ -398,7 +400,7 @@ class GoogleAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Google AI API key
+    - `api_key`: the Google AI API key or an `env:` reference
     """
 
     api_key: str
@@ -428,7 +430,7 @@ class GitHubConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the GitHub API token
+    - `api_key`: the GitHub API token or an `env:` reference
     - `base_url`: the base URL for the API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
@@ -777,10 +779,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
         ),
         "std_stream_max_bytes": int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
@@ -809,6 +811,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "enabled": True,
+        "allow_provider_config": True,
         "models": {
             "displayed_models": [],
             "custom_models": [],

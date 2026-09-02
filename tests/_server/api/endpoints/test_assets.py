@@ -26,6 +26,7 @@ from marimo._server.workspace import (
 from marimo._session.model import SessionMode
 from marimo._utils.http import HTTPException
 from marimo._utils.marimo_path import MarimoPath
+from tests._server.conftest import get_user_config_manager
 from tests._server.mocks import (
     token_header,
     with_workspace,
@@ -212,6 +213,55 @@ def test_index_response_has_security_headers(client: TestClient) -> None:
     assert response.status_code == 200, response.text
     assert response.headers.get("referrer-policy") == "same-origin"
     assert response.headers.get("x-content-type-options") == "nosniff"
+
+
+def test_index_response_revalidates_with_etag(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "private, no-cache"
+    etag = response.headers["etag"]
+
+    response = client.get(
+        "/",
+        headers={**token_header(), "If-None-Match": etag},
+    )
+    assert response.status_code == 304
+    assert response.content == b""
+    assert response.headers["cache-control"] == "private, no-cache"
+    assert response.headers["etag"] == etag
+
+
+def test_index_response_accepts_weak_etag(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    etag = response.headers["etag"]
+
+    response = client.get(
+        "/",
+        headers={
+            **token_header(),
+            "If-None-Match": f'"other", W/{etag}',
+        },
+    )
+    assert response.status_code == 304
+
+
+def test_index_etag_changes_with_config(client: TestClient) -> None:
+    response = client.get("/", headers=token_header())
+    etag = response.headers["etag"]
+
+    config_manager = get_user_config_manager(client)
+    config = config_manager.get_config()
+    config["display"]["theme"] = (
+        "dark" if config["display"]["theme"] != "dark" else "light"
+    )
+    config_manager.save_config(config)
+
+    response = client.get(
+        "/",
+        headers={**token_header(), "If-None-Match": etag},
+    )
+    assert response.status_code == 200
+    assert response.headers["etag"] != etag
 
 
 def test_index_with_directory(client: TestClient, tmp_path: Path) -> None:

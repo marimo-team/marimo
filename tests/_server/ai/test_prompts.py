@@ -423,6 +423,9 @@ def test_chat_system_prompt_code_mode():
     assert "load_capability" in prompt
     assert "`gotchas`" in prompt
     assert "references/gotchas.md" not in prompt
+    assert "## Required First Kernel Command" in prompt
+    assert "Run only the inspection command above" in prompt
+    assert "before the inspection succeeds" in prompt
 
 
 def test_chat_system_prompt_code_mode_includes_extras():

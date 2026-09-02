@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -23,6 +24,9 @@ from marimo._utils.http import HTTPStatus
 
 # https://github.com/pydantic/pydantic-ai/blob/8b9ac2bde2355b0d431abea6cf210a36fffe0c43/pydantic_ai_slim/pydantic_ai/providers/github.py#L41C17-L41C51
 GITHUB_COPILOT_BASE_URL = "https://models.github.ai/inference"
+ENV_SECRET_PREFIX = "env:"
+
+SecretResolver = Callable[[str], str | None]
 
 
 @dataclass
@@ -46,36 +50,60 @@ class AnyProviderConfig:
             self.tools = None
 
     @classmethod
-    def for_openai(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("OPENAI_API_KEY")
+    def for_openai(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret("OPENAI_API_KEY", secret_resolver)
         return cls._for_openai_like(
             config,
             "open_ai",
             "OpenAI",
             fallback_key=fallback_key,
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_azure(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("AZURE_API_KEY")
+    def for_azure(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret("AZURE_API_KEY", secret_resolver)
         return cls._for_openai_like(
             config,
             "azure",
             "Azure OpenAI",
             fallback_key=fallback_key,
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_openai_compatible(cls, config: AiConfig) -> AnyProviderConfig:
+    def for_openai_compatible(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
         return cls._for_openai_like(
-            config, "open_ai_compatible", "OpenAI Compatible"
+            config,
+            "open_ai_compatible",
+            "OpenAI Compatible",
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
     def for_custom_provider(
-        cls, config: AiConfig, provider_name: str
+        cls,
+        config: AiConfig,
+        provider_name: str,
+        *,
+        secret_resolver: SecretResolver | None = None,
     ) -> AnyProviderConfig:
         """Get config for a custom provider by name."""
         custom_providers = cast(
@@ -95,10 +123,16 @@ class AnyProviderConfig:
             name=provider_name.replace("_", " ").title(),
             require_key=False,
             ai_config=provider_config,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_ollama(cls, config: AiConfig) -> AnyProviderConfig:
+    def for_ollama(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
         default_base_url = "http://127.0.0.1:11434/v1"
         return cls._for_openai_like(
             config,
@@ -106,11 +140,17 @@ class AnyProviderConfig:
             "Ollama",
             fallback_key="ollama-placeholder",
             fallback_base_url=default_base_url,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_github(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("GITHUB_TOKEN")
+    def for_github(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret("GITHUB_TOKEN", secret_resolver)
         result = cls._for_openai_like(
             config,
             "github",
@@ -119,6 +159,7 @@ class AnyProviderConfig:
             # Default base URL for GitHub Copilot, taken from
             fallback_base_url=GITHUB_COPILOT_BASE_URL,
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
         # Add default extra headers for GitHub, but allow user to override
@@ -137,8 +178,15 @@ class AnyProviderConfig:
         return result
 
     @classmethod
-    def for_openrouter(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("OPENROUTER_API_KEY")
+    def for_openrouter(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret(
+            "OPENROUTER_API_KEY", secret_resolver
+        )
         return cls._for_openai_like(
             config,
             "openrouter",
@@ -147,11 +195,17 @@ class AnyProviderConfig:
             # Default base URL for OpenRouter
             fallback_base_url="https://openrouter.ai/api/v1/",
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_wandb(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("WANDB_API_KEY")
+    def for_wandb(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret("WANDB_API_KEY", secret_resolver)
         return cls._for_openai_like(
             config,
             "wandb",
@@ -160,11 +214,17 @@ class AnyProviderConfig:
             # Default base URL for Weights & Biases
             fallback_base_url="https://api.inference.wandb.ai/v1/",
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
-    def for_opencode_go(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("OPENCODE_API_KEY")
+    def for_opencode_go(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret("OPENCODE_API_KEY", secret_resolver)
         return cls._for_openai_like(
             config,
             "opencode_go",
@@ -173,6 +233,7 @@ class AnyProviderConfig:
             # Default base URL for OpenCode Go
             fallback_base_url="https://opencode.ai/zen/go/v1/",
             require_key=True,
+            secret_resolver=secret_resolver,
         )
 
     @classmethod
@@ -186,10 +247,15 @@ class AnyProviderConfig:
         fallback_base_url: str | None = None,
         require_key: bool = False,
         ai_config: dict[str, Any] | None = None,
+        secret_resolver: SecretResolver | None = None,
     ) -> AnyProviderConfig:
         ai_config = ai_config or _get_ai_config(config, key)
         key = _get_key(
-            ai_config, name, fallback_key=fallback_key, require_key=require_key
+            ai_config,
+            name,
+            fallback_key=fallback_key,
+            require_key=require_key,
+            secret_resolver=secret_resolver,
         )
 
         # Use SSL_CERT_FILE environment variable as fallback for ca_bundle_path
@@ -211,14 +277,22 @@ class AnyProviderConfig:
         return AnyProviderConfig(**kwargs)
 
     @classmethod
-    def for_anthropic(cls, config: AiConfig) -> AnyProviderConfig:
+    def for_anthropic(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
         ai_config = _get_ai_config(config, "anthropic")
-        fallback_key = cls.os_key("ANTHROPIC_API_KEY")
+        fallback_key = cls._resolve_secret(
+            "ANTHROPIC_API_KEY", secret_resolver
+        )
         key = _get_key(
             ai_config,
             "Anthropic",
             fallback_key=fallback_key,
             require_key=True,
+            secret_resolver=secret_resolver,
         )
         return cls(
             base_url=_get_base_url(ai_config),
@@ -227,16 +301,22 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_google(cls, config: AiConfig) -> AnyProviderConfig:
-        fallback_key = cls.os_key("GEMINI_API_KEY") or cls.os_key(
-            "GOOGLE_API_KEY"
-        )
+    def for_google(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = cls._resolve_secret(
+            "GEMINI_API_KEY", secret_resolver
+        ) or cls._resolve_secret("GOOGLE_API_KEY", secret_resolver)
         ai_config = _get_ai_config(config, "google")
         key = _get_key(
             ai_config,
             "Google AI",
             fallback_key=fallback_key,
             require_key=False,
+            secret_resolver=secret_resolver,
         )
         return cls(
             base_url=_get_base_url(ai_config),
@@ -256,44 +336,63 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_model(cls, model: str, config: AiConfig) -> AnyProviderConfig:
+    def for_model(
+        cls,
+        model: str,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
         model_id = AiModelId.from_model(model)
         if model_id.provider == "anthropic":
-            return cls.for_anthropic(config)
+            return cls.for_anthropic(config, secret_resolver=secret_resolver)
         elif model_id.provider == "google":
-            return cls.for_google(config)
+            return cls.for_google(config, secret_resolver=secret_resolver)
         elif model_id.provider == "bedrock":
             return cls.for_bedrock(config)
         elif model_id.provider == "ollama":
-            return cls.for_ollama(config)
+            return cls.for_ollama(config, secret_resolver=secret_resolver)
         elif model_id.provider == "openai":
-            return cls.for_openai(config)
+            return cls.for_openai(config, secret_resolver=secret_resolver)
         elif model_id.provider == "azure":
-            return cls.for_azure(config)
+            return cls.for_azure(config, secret_resolver=secret_resolver)
         elif model_id.provider == "github":
-            return cls.for_github(config)
+            return cls.for_github(config, secret_resolver=secret_resolver)
         elif model_id.provider == "openrouter":
-            return cls.for_openrouter(config)
+            return cls.for_openrouter(config, secret_resolver=secret_resolver)
         elif model_id.provider == "wandb":
-            return cls.for_wandb(config)
+            return cls.for_wandb(config, secret_resolver=secret_resolver)
         elif model_id.provider == "opencode-go":
-            return cls.for_opencode_go(config)
+            return cls.for_opencode_go(config, secret_resolver=secret_resolver)
         elif model_id.provider == "openai_compatible":
-            return cls.for_openai_compatible(config)
+            return cls.for_openai_compatible(
+                config, secret_resolver=secret_resolver
+            )
         else:
             custom_providers = cast(
                 dict[str, Any], config.get("custom_providers", {})
             )
             if model_id.provider in custom_providers:
-                return cls.for_custom_provider(config, model_id.provider)
+                return cls.for_custom_provider(
+                    config,
+                    model_id.provider,
+                    secret_resolver=secret_resolver,
+                )
 
-            # Catch-all: try OpenAI compatible first, then OpenAI.
-            try:
-                if "open_ai_compatible" in config:
-                    return cls.for_openai_compatible(config)
-                return cls.for_openai(config)
-            except HTTPException:
-                return cls.for_openai(config)
+            # Catch-all: use OpenAI compatible when it is configured.
+            if "open_ai_compatible" in config:
+                return cls.for_openai_compatible(
+                    config, secret_resolver=secret_resolver
+                )
+            return cls.for_openai(config, secret_resolver=secret_resolver)
+
+    @classmethod
+    def _resolve_secret(
+        cls, key: str, secret_resolver: SecretResolver | None
+    ) -> str | None:
+        if secret_resolver is not None:
+            return secret_resolver(key)
+        return cls.os_key(key)
 
     @classmethod
     def os_key(cls, key: str) -> str | None:
@@ -358,6 +457,7 @@ def _get_key(
     *,
     fallback_key: str | None = None,
     require_key: bool = False,
+    secret_resolver: SecretResolver | None = None,
 ) -> str:
     """Get the API key for a given provider."""
     if not isinstance(config, dict):
@@ -382,6 +482,26 @@ def _get_key(
     if "api_key" in config:
         key = config["api_key"]
         if key:
+            if isinstance(key, str) and key.startswith(ENV_SECRET_PREFIX):
+                secret_name = key.removeprefix(ENV_SECRET_PREFIX)
+                if not secret_name:
+                    raise HTTPException(
+                        status_code=HTTPStatus.BAD_REQUEST,
+                        detail=f"{name} API key has an empty environment variable reference.",
+                    )
+
+                resolved_key = AnyProviderConfig._resolve_secret(
+                    secret_name, secret_resolver
+                )
+                if not resolved_key:
+                    raise HTTPException(
+                        status_code=HTTPStatus.BAD_REQUEST,
+                        detail=(
+                            f"{name} API key environment variable "
+                            f"'{secret_name}' is not set."
+                        ),
+                    )
+                return resolved_key
             return cast(str, key)
 
     if "http://127.0.0.1:11434/" in config.get("base_url", ""):

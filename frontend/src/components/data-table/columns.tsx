@@ -7,12 +7,14 @@ const PopoverClose = PopoverPrimitive.Close;
 
 import type { Column, ColumnDef } from "@tanstack/react-table";
 import { formatDate, isValid } from "date-fns";
+import { useRef } from "react";
 import { useLocale, useNumberFormatter } from "react-aria";
 import { WithLocale } from "@/core/i18n/with-locale";
 import type { DataType } from "@/core/kernel/messages";
 import type { CalculateTopKRows } from "@/plugins/impl/DataTablePlugin";
 import { cn } from "@/utils/cn";
 import { type DateFormat, exactDateTime, getDateFormat } from "@/utils/dates";
+import { Events } from "@/utils/events";
 import { Logger } from "@/utils/Logger";
 import { Maps } from "@/utils/maps";
 import { maxFractionalDigits } from "@/utils/numbers";
@@ -194,151 +196,148 @@ export function generateColumns<T>({
     columnKeys.splice(indexColumnIdx, 1);
   }
 
-  const columns = columnKeys.map(
-    (key, idx): ColumnDef<T> => ({
-      id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
-      // Use an accessorFn instead of an accessorKey because column names
-      // may have periods in them ...
-      // https://github.com/TanStack/table/issues/1671
-      accessorFn: (row) => {
-        return row[key as keyof T];
-      },
-      enableHiding: !rowHeadersSet.has(key) && key !== "",
-      header: ({ column, table }) => {
-        const stats = chartSpecModel?.getColumnStats(key);
-        const dtype = column.columnDef.meta?.dtype;
-        const headerTitle = headerTooltip?.[key];
-        const headerJustify = textJustifyColumns?.[key];
+  const columns = columnKeys.map((key, idx): ColumnDef<T> => ({
+    id: key || `${NAMELESS_COLUMN_PREFIX}${idx}`,
+    // Use an accessorFn instead of an accessorKey because column names
+    // may have periods in them ...
+    // https://github.com/TanStack/table/issues/1671
+    accessorFn: (row) => {
+      return row[key as keyof T];
+    },
+    enableHiding: !rowHeadersSet.has(key) && key !== "",
+    header: ({ column, table }) => {
+      const stats = chartSpecModel?.getColumnStats(key);
+      const dtype = column.columnDef.meta?.dtype;
+      const headerTitle = headerTooltip?.[key];
+      const headerJustify = textJustifyColumns?.[key];
 
-        const dtypeHeader =
-          showDataTypes && dtype ? (
-            <div
-              className={cn(
-                "flex flex-row gap-1",
-                headerJustify === "center" && "justify-center",
-                headerJustify === "right" && "justify-end",
-              )}
-            >
-              <span className="text-xs text-muted-foreground">{dtype}</span>
-              {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  (nulls: {stats.nulls})
-                </span>
-              )}
-            </div>
-          ) : null;
-
-        const headerName = (
-          <span
-            className={cn(
-              "font-bold",
-              headerTitle && "underline decoration-dotted",
-            )}
-          >
-            {key === "" ? " " : key}
-          </span>
-        );
-
-        const headerWithTooltip = headerTitle ? (
-          <Tooltip content={headerTitle} delayDuration={300}>
-            {headerName}
-          </Tooltip>
-        ) : (
-          headerName
-        );
-
-        const dataTableColumnHeader = (
-          <DataTableColumnHeader
-            header={headerWithTooltip}
-            subheader={dtypeHeader}
-            column={column}
-            justify={headerJustify}
-            calculateTopKRows={calculateTopKRows}
-            table={table}
-          />
-        );
-
-        // Row headers have no summaries
-        if (rowHeadersSet.has(key)) {
-          return dataTableColumnHeader;
-        }
-
-        return (
+      const dtypeHeader =
+        showDataTypes && dtype ? (
           <div
             className={cn(
-              "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
-              headerJustify === "center" && "items-center",
-              headerJustify === "right" && "items-end",
+              "flex flex-row gap-1",
+              headerJustify === "center" && "justify-center",
+              headerJustify === "right" && "justify-end",
             )}
           >
-            {dataTableColumnHeader}
-            <TableColumnSummary columnId={key} />
+            <span className="text-xs text-muted-foreground">{dtype}</span>
+            {stats && typeof stats.nulls === "number" && stats.nulls > 0 && (
+              <span className="text-xs text-muted-foreground">
+                (nulls: {stats.nulls})
+              </span>
+            )}
           </div>
-        );
-      },
+        ) : null;
 
-      cell: ({ column, renderValue, getValue, cell }) => {
-        function selectCell() {
-          if (selection !== "single-cell" && selection !== "multi-cell") {
-            return;
-          }
+      const headerName = (
+        <span
+          className={cn(
+            "font-bold",
+            headerTitle && "underline decoration-dotted",
+          )}
+        >
+          {key === "" ? " " : key}
+        </span>
+      );
 
-          cell.toggleSelected?.();
+      const headerWithTooltip = headerTitle ? (
+        <Tooltip content={headerTitle} delayDuration={300}>
+          {headerName}
+        </Tooltip>
+      ) : (
+        headerName
+      );
+
+      const dataTableColumnHeader = (
+        <DataTableColumnHeader
+          header={headerWithTooltip}
+          subheader={dtypeHeader}
+          column={column}
+          justify={headerJustify}
+          calculateTopKRows={calculateTopKRows}
+          table={table}
+        />
+      );
+
+      // Row headers have no summaries
+      if (rowHeadersSet.has(key)) {
+        return dataTableColumnHeader;
+      }
+
+      return (
+        <div
+          className={cn(
+            "flex flex-col h-full pt-0.5 pb-3 justify-between items-start",
+            headerJustify === "center" && "items-center",
+            headerJustify === "right" && "items-end",
+          )}
+        >
+          {dataTableColumnHeader}
+          <TableColumnSummary columnId={key} />
+        </div>
+      );
+    },
+
+    cell: ({ column, renderValue, getValue, cell }) => {
+      function selectCell() {
+        if (selection !== "single-cell" && selection !== "multi-cell") {
+          return;
         }
 
-        const justify = getJustify(key);
-        const wrapped = wrappedColumns?.includes(key);
-        const isCellSelected = cell?.getIsSelected?.() || false;
-        const canSelectCell =
-          (selection === "single-cell" || selection === "multi-cell") &&
-          !isCellSelected;
+        cell.toggleSelected?.();
+      }
 
-        const dataType = column.columnDef.meta?.dataType;
-        const isNumeric = isNumericType(dataType);
-        const cellStyles = getCellStyleClass({
-          justify,
-          wrapped,
-          canSelectCell,
-          isSelected: isCellSelected,
-          isNumeric,
-        });
+      const justify = getJustify(key);
+      const wrapped = wrappedColumns?.includes(key);
+      const isCellSelected = cell?.getIsSelected?.() || false;
+      const canSelectCell =
+        (selection === "single-cell" || selection === "multi-cell") &&
+        !isCellSelected;
 
-        const renderedCell = renderCellValue({
-          column,
-          renderValue,
-          getValue,
-          selectCell,
-          cellStyles,
-        });
+      const dataType = column.columnDef.meta?.dataType;
+      const isNumeric = isNumericType(dataType);
+      const cellStyles = getCellStyleClass({
+        justify,
+        wrapped,
+        canSelectCell,
+        isSelected: isCellSelected,
+        isNumeric,
+      });
 
-        // Row headers are bold
-        if (rowHeadersSet.has(key)) {
-          return <b>{renderedCell}</b>;
+      const renderedCell = renderCellValue({
+        column,
+        renderValue,
+        getValue,
+        selectCell,
+        cellStyles,
+      });
+
+      // Row headers are bold
+      if (rowHeadersSet.has(key)) {
+        return <b>{renderedCell}</b>;
+      }
+
+      return renderedCell;
+    },
+    // Remove any default filtering
+    filterFn: undefined,
+    // Unnamed index columns and geometry columns are not sortable
+    enableSorting: !!key && getMeta(key).dataType !== "geometry",
+    meta: {
+      ...getMeta(key),
+      width: columnWidths?.[key],
+    },
+    // size seeds the width before measurement; minSize/maxSize pin
+    // getSize() to the fixed width so the per-paint measurement writeback
+    // cannot drift the header width or sticky-pin offsets.
+    ...(columnWidths?.[key] !== undefined
+      ? {
+          size: columnWidths[key],
+          minSize: columnWidths[key],
+          maxSize: columnWidths[key],
         }
-
-        return renderedCell;
-      },
-      // Remove any default filtering
-      filterFn: undefined,
-      // Can only sort if key is defined
-      // For example, unnamed index columns, won't be sortable
-      enableSorting: !!key,
-      meta: {
-        ...getMeta(key),
-        width: columnWidths?.[key],
-      },
-      // size seeds the width before measurement; minSize/maxSize pin
-      // getSize() to the fixed width so the per-paint measurement writeback
-      // cannot drift the header width or sticky-pin offsets.
-      ...(columnWidths?.[key] !== undefined
-        ? {
-            size: columnWidths[key],
-            minSize: columnWidths[key],
-            maxSize: columnWidths[key],
-          }
-        : {}),
-    }),
-  );
+      : {}),
+  }));
 
   if (selection === "single" || selection === "multi") {
     columns.unshift({
@@ -383,9 +382,10 @@ const PopoutColumn = ({
   rawStringValue,
   edges,
   contentClassName,
-  buttonText,
+  scrollable = false,
   wrapped,
   children,
+  buttonText,
 }: {
   cellStyles?: string;
   selectCell?: () => void;
@@ -394,10 +394,12 @@ const PopoutColumn = ({
   // still use `rawStringValue`. Middle is sliced from `rawStringValue`.
   edges?: { leading: string; trailing: string };
   contentClassName?: string;
-  buttonText?: string;
+  scrollable?: boolean;
   wrapped?: boolean;
+  buttonText?: string;
   children: React.ReactNode;
 }) => {
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const hasEdgeWhitespace =
     edges !== undefined &&
     (edges.leading.length > 0 || edges.trailing.length > 0);
@@ -413,6 +415,7 @@ const PopoutColumn = ({
     <EmotionCacheProvider container={null}>
       <Popover>
         <PopoverTrigger
+          ref={triggerRef}
           className={cn(cellStyles, "max-w-fit outline-hidden")}
           onClick={selectCell}
           onMouseDown={(e) => {
@@ -433,28 +436,76 @@ const PopoutColumn = ({
           </span>
         </PopoverTrigger>
         <PopoverContent
-          className={contentClassName}
+          className={cn(
+            contentClassName,
+            scrollable && "flex flex-col overflow-hidden",
+          )}
           align="start"
           alignOffset={10}
+          onInteractOutside={(event) => {
+            // Radix sees the shadow host as the target. Resolve the original
+            // target so pointer-down does not dismiss before click toggles.
+            const target = Events.composedTarget(event.detail.originalEvent);
+            if (triggerRef.current?.contains(target)) {
+              event.preventDefault();
+            }
+          }}
         >
-          <div className="absolute top-2 right-2">
+          <div
+            className={cn(
+              "flex -mt-3 -mr-2",
+              scrollable ? "shrink-0 justify-end" : "float-right",
+            )}
+          >
             <CopyClipboardIcon
               value={rawStringValue}
-              className="w-2.5 h-2.5"
+              className="size-3 hover:text-link"
+              buttonClassName="flex size-5 items-center justify-center"
               tooltip={false}
             />
-            <PopoverClose>
-              <Button variant="link" size="xs">
+            <PopoverClose asChild={true}>
+              <Button
+                variant="link"
+                size="xs"
+                className={cn("size-5 p-0", !buttonText && "ml-1.5 mr-1")}
+                aria-label="Close"
+              >
                 {buttonText ?? "Close"}
               </Button>
             </PopoverClose>
           </div>
-          {children}
+          {scrollable ? (
+            <div className="min-h-0 overflow-auto">{children}</div>
+          ) : (
+            children
+          )}
         </PopoverContent>
       </Popover>
     </EmotionCacheProvider>
   );
 };
+
+/**
+ * Parse a string that holds a JSON object or array document.
+ * Returns `undefined` for everything else, including JSON scalars,
+ * so ordinary text keeps its plain rendering.
+ */
+function parseJsonDocument(text: string): unknown {
+  const trimmedText = text.trim();
+
+  const first = trimmedText[0];
+  const last = trimmedText[trimmedText.length - 1];
+  const isBracketPair =
+    (first === "{" && last === "}") || (first === "[" && last === "]");
+  if (!isBracketPair) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(trimmedText) as unknown;
+  } catch {
+    return undefined;
+  }
+}
 
 function isPrimitiveOrNullish(value: unknown): boolean {
   if (value == null) {
@@ -485,6 +536,8 @@ function getFilterTypeForFieldType(
       return "time";
     case "boolean":
       return "boolean";
+    case "geometry":
+      return undefined;
     default:
       return undefined;
   }
@@ -579,7 +632,7 @@ export function renderCellValue<TData, TValue>({
 
   // Sentinel values (null, whitespace, NaN, Infinity, NaT) rendered specially.
   // Empty strings are left as-is
-  const sentinel = detectSentinel(value, dataType);
+  const sentinel = detectSentinel(value, dataType, dtype);
   if (sentinel && sentinel.type !== "empty-string") {
     return (
       <div onClick={selectCell} className={cellStyles}>
@@ -638,6 +691,28 @@ export function renderCellValue<TData, TValue>({
       splitLeadingTrailingWhitespace(stringValue);
     const hasEdgeWhitespace = leading.length > 0 || trailing.length > 0;
 
+    // A str cell that holds a JSON document opens the same JSON viewer as
+    // native list/struct cells.
+    const jsonDocument = parseJsonDocument(middle);
+    if (jsonDocument !== undefined) {
+      return (
+        <PopoutColumn
+          cellStyles={cellStyles}
+          selectCell={selectCell}
+          rawStringValue={stringValue}
+          edges={{ leading, trailing }}
+          wrapped={isWrapped}
+        >
+          <JsonOutput
+            data={jsonDocument}
+            format="tree"
+            valueTypes="json"
+            className="max-h-64"
+          />
+        </PopoutColumn>
+      );
+    }
+
     // Parse only the inner content for URL detection so URLDetector doesn't
     // split on the whitespace padding.
     const parts = parseContent(hasEdgeWhitespace ? middle : stringValue);
@@ -661,9 +736,10 @@ export function renderCellValue<TData, TValue>({
         selectCell={selectCell}
         rawStringValue={stringValue}
         edges={{ leading, trailing }}
-        contentClassName="max-h-64 overflow-auto whitespace-pre-wrap wrap-break-word text-sm w-96"
-        buttonText="X"
+        contentClassName="max-h-64 whitespace-pre-wrap wrap-break-word text-sm w-96"
+        scrollable={true}
         wrapped={isWrapped}
+        buttonText="X"
       >
         <MarkdownUrlDetector
           content={stringValue}

@@ -1,5 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from marimo._data.data_source_discovery.plugins.aws import AWS_PLUGIN
+from marimo._data.data_source_discovery.plugins.databricks import (
+    DATABRICKS_PLUGIN,
+)
 from marimo._data.data_source_discovery.plugins.huggingface import (
     HUGGINGFACE_PLUGIN,
 )
@@ -17,6 +20,7 @@ DEFAULT_DISCOVERY_PLUGINS: tuple[DiscoveryPlugin, ...] = (
     MYSQL_PLUGIN,
     AWS_PLUGIN,
     TRINO_PLUGIN,
+    DATABRICKS_PLUGIN,
     PYSPARK_PLUGIN,
     PYICEBERG_PLUGIN,
     HUGGINGFACE_PLUGIN,
