@@ -68,8 +68,21 @@ def manifest_name(notebook_path: str | Path) -> str:
     """
     path = normalize_path(Path(notebook_path))
     slug = re.sub(r"[^0-9A-Za-z._-]+", "-", path.stem).strip("-") or "notebook"
-    digest = hashlib.sha256(str(path).encode("utf-8")).hexdigest()[:16]
-    return f"{MANIFEST_PREFIX}{slug}.{digest}{MANIFEST_SUFFIX}"
+    # Encoded as the filesystem hands it over: a path that is not valid UTF-8
+    # arrives carrying surrogate escapes, which strict encoding rejects.
+    digest = hashlib.sha256(
+        str(path).encode("utf-8", "surrogateescape")
+    ).hexdigest()[:16]
+    return f"{slug}-{digest}{MANIFEST_SUFFIX}"
+
+
+def is_manifest_name(name: str) -> bool:
+    """Whether `name` is the reserved key of a cache manifest.
+
+    A cache directory holds other files that describe rather than hold a
+    cached value, so recognizing a manifest takes more than the suffix.
+    """
+    return _MANIFEST_NAME.fullmatch(name) is not None
 
 
 @dataclass
