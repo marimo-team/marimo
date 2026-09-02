@@ -99,7 +99,7 @@ class _Progress(Html):
             self._text = self._get_text()
         self.debounced_flush()
 
-    @debounce(0.15)
+    @debounce(0.15, trailing=True)
     def debounced_flush(self) -> None:
         """Flush the output to the UI."""
         output.flush()
@@ -110,9 +110,13 @@ class _Progress(Html):
                 "Progress indicators cannot be updated after exiting "
                 "the context manager that created them. "
             )
+        if hasattr(self.debounced_flush, "cancel"):
+            self.debounced_flush.cancel()
         output.remove(self)
 
     def close(self) -> None:
+        if hasattr(self.debounced_flush, "cancel"):
+            self.debounced_flush.cancel()
         output.flush()  # Flush one last time before closing
         self.closed = True
 
