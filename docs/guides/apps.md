@@ -93,21 +93,20 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 
 #### Export slides
 
-Export a configured deck as static HTML or as an interactive WebAssembly app:
+Export a notebook that uses the slides layout as static HTML or WebAssembly HTML:
 
 ```bash
 marimo export html presentation.py -o presentation.html
 marimo export html-wasm presentation.py -o presentation --mode run
 ```
 
-The WebAssembly export loads its assets over HTTP. Serve the output directory
+WebAssembly exports (html-wasm) require an HTTP server. Serve the output directory
 locally with `python -m http.server --directory presentation`.
 
-When a notebook uses the slides layout, both exports open as slides and preserve
-slide types, fragments, speaker notes, and deck settings. Static HTML captures
-the outputs from the export run and supports reveal.js speaker view. WebAssembly
-HTML runs Python in the browser, so controls remain reactive. Use static HTML
-when the presentation needs speaker view.
+Both formats preserve slide types, fragments, speaker notes, and deck settings.
+Static HTML includes the outputs generated during export and supports speaker
+view. WebAssembly HTML runs Python in the browser, so notebook controls remain
+interactive. Speaker view is not available in WebAssembly HTML exports.
 
 Speaker notes are embedded in the HTML file and readable by anyone who
 receives it.
