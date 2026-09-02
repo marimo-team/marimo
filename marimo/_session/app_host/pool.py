@@ -11,6 +11,7 @@ import threading
 from concurrent.futures import Future
 from dataclasses import dataclass
 
+from marimo import _loggers
 from marimo._environments.environment import (
     ProcessPlan,
 )
@@ -19,6 +20,9 @@ from marimo._environments.overlay import runtime_overlay
 from marimo._environments.uv import UvMissingScriptMetadataError
 from marimo._session.app_host.host import AppHost
 from marimo._session.managers.ipc import KernelStartupError
+
+
+LOGGER = _loggers.marimo_logger()
 
 
 class AppHostPool:
@@ -86,6 +90,7 @@ class AppHostPool:
 
     def _sandbox_plan(self, abs_path: str) -> ProcessPlan:
         from marimo._environments import backends
+        from marimo._environments.pixi import PixiError
 
         backend = backends.current_backend()
         args = ["-m", "marimo._session.app_host.main"]
@@ -93,7 +98,9 @@ class AppHostPool:
         try:
             try:
                 handle = backends.sync_notebook(abs_path, backend=backend)
-            except UvMissingScriptMetadataError:
+            except (UvMissingScriptMetadataError, PixiError) as error:
+                if not isinstance(error, UvMissingScriptMetadataError):
+                    LOGGER.warning("Failed to build script environment: %s", error)
                 plan = backends.launch_fallback(args)
                 plan.env.pop("MARIMO_SANDBOX_MODE", None)
             else:
