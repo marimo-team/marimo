@@ -53,6 +53,7 @@ import { ProgressPlugin } from "./layout/ProgressPlugin";
 import { RoutesPlugin } from "./layout/RoutesPlugin";
 import { StatPlugin } from "./layout/StatPlugin";
 import { TexPlugin } from "./layout/TexPlugin";
+import { VideoPlugin } from "./layout/VideoPlugin";
 import type { IStatelessPlugin } from "./stateless-plugin";
 import type { IPlugin } from "./types";
 
@@ -111,6 +112,7 @@ export const LAYOUT_PLUGINS: IStatelessPlugin<unknown>[] = [
   new RoutesPlugin(),
   new StatPlugin(),
   new TexPlugin(),
+  new VideoPlugin(),
 ];
 
 export function initializePlugins() {

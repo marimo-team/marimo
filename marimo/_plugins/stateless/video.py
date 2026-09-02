@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import io
 import os
+from typing import Literal
 
 import marimo._output.data.data as mo_data
 from marimo._output.builder import h
@@ -10,6 +11,10 @@ from marimo._output.hypertext import Html
 from marimo._output.rich_help import mddoc
 from marimo._output.utils import create_style, normalize_dimension
 from marimo._plugins.core.media import io_to_data_url
+from marimo._plugins.core.web_component import (
+    JSONType,
+    build_stateless_plugin,
+)
 
 
 def _get_resolved_src(
@@ -52,8 +57,9 @@ def video(
     width: int | str | None = None,
     height: int | str | None = None,
     rounded: bool = False,
+    floating: bool | Literal["auto"] = False,
 ) -> Html:
-    """Render an video as HTML.
+    """Render a video as HTML.
 
     Example:
         ```python3
@@ -65,6 +71,9 @@ def video(
 
         # Render a video from a local file
         mo.video(src="path/to/video.mp4")
+
+        # Let the video follow the reader as they scroll
+        mo.video(src="path/to/video.mp4", floating="auto")
         ```
 
     Args:
@@ -78,25 +87,62 @@ def video(
         width: the width of the video in pixels or a string with units
         height: the height of the video in pixels or a string with units
         rounded: whether to round the corners of the video
+        floating: whether the video can float above the notebook. `True` adds
+            a button for moving the video between its inline and floating
+            positions. `"auto"` also floats the video after it has been visible
+            and is then scrolled out of view. Floating uses an in-page panel,
+            not the browser's Picture-in-Picture API.
 
     Returns:
         `Html` object
     """
     resolved_src = _get_resolved_src(src)
-    styles = create_style(
-        {
-            "width": normalize_dimension(width),
-            "height": normalize_dimension(height),
-            "border-radius": "4px" if rounded else None,
-        }
-    )
+    if floating is False:
+        styles = create_style(
+            {
+                "width": normalize_dimension(width),
+                "height": normalize_dimension(height),
+                "border-radius": "4px" if rounded else None,
+            }
+        )
+        return Html(
+            h.video(
+                src=resolved_src,
+                controls=controls,
+                style=styles,
+                muted=muted,
+                autoplay=autoplay,
+                loop=loop,
+            )
+        )
+
+    if floating is True:
+        floating_mode = "manual"
+    elif floating == "auto":
+        floating_mode = "auto"
+    else:
+        raise ValueError(
+            "floating must be False, True, or 'auto', "
+            f"but received {floating!r}"
+        )
+
+    args: dict[str, JSONType] = {
+        "src": resolved_src,
+        "controls": controls,
+        "muted": muted,
+        "autoplay": autoplay,
+        "loop": loop,
+        "rounded": rounded,
+        "floating": floating_mode,
+    }
+    if width is not None:
+        args["width"] = normalize_dimension(width)
+    if height is not None:
+        args["height"] = normalize_dimension(height)
+
     return Html(
-        h.video(
-            src=resolved_src,
-            controls=controls,
-            style=styles,
-            muted=muted,
-            autoplay=autoplay,
-            loop=loop,
+        build_stateless_plugin(
+            component_name="marimo-video",
+            args=args,
         )
     )
