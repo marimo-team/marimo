@@ -147,7 +147,7 @@ def test_manifestless_host_clears_inherited_sandbox_identity(
     pool = AppHostPool(sandbox=True)
     with (
         patch(
-            "marimo._session.app_host.pool.sync_notebook",
+            "marimo._environments.backends.sync_notebook",
             side_effect=UvMissingScriptMetadataError(["uv"], 1, "", "missing"),
         ),
         patch(
@@ -170,10 +170,10 @@ def test_environment_failure_is_reported_without_fallback() -> None:
     pool = AppHostPool(sandbox=True)
     with (
         patch(
-            "marimo._session.app_host.pool.sync_notebook",
+            "marimo._environments.backends.sync_notebook",
             side_effect=UvError("solver diagnostic"),
         ),
-        patch("marimo._session.app_host.pool.launch_isolated") as fallback,
+        patch("marimo._environments.backends.launch_fallback") as fallback,
     ):
         with pytest.raises(KernelStartupError, match="solver diagnostic"):
             pool.get_or_create("nb.py")
