@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+import stat
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -445,3 +447,85 @@ def test_package_view_hides_runtime_dependency(tmp_path: Path) -> None:
     assert [package.name for package in state.packages] == ["obstore"]
     assert state.tree is not None
     assert [node.name for node in state.tree.dependencies] == []
+
+
+def test_pixi_launch_layers_the_runtime_overlay_through_uv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._environments import pixi
+    from marimo._environments.backends import PixiBackendAdapter
+
+    monkeypatch.setattr(pixi, "find_pixi_bin", lambda: "/stub/pixi")
+
+    root = tmp_path / "environment"
+    environment = Environment(
+        python=str(root / "bin" / "python"),
+        root=str(root),
+        action="unchanged",
+    )
+    checkout = tmp_path / "marimo-checkout"
+
+    plan = PixiBackendAdapter().launch(
+        environment,
+        ["-m", "marimo"],
+        overlay=RuntimeOverlay(
+            runtime=f"-e {checkout}", command=("nbformat",)
+        ),
+        base_env={"PATH": "/bin"},
+    )
+
+    pairs = list(zip(plan.argv, plan.argv[1:], strict=False))
+    assert plan.argv[:5] == (
+        "/stub/pixi",
+        "exec",
+        "--spec",
+        pixi.UV_OVERLAY_SPEC,
+        "uv",
+    )
+    assert ("--python", environment.python) in pairs
+    # A local runtime becomes --with-editable; other entries --with.
+    assert ("--with-editable", str(checkout)) in pairs
+    assert ("--with", "nbformat") in pairs
+    assert plan.argv[-3:] == ("python", "-m", "marimo")
+    assert plan.env["CONDA_PREFIX"] == str(root)
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="stub executable is a POSIX shell"
+)
+def test_pixi_launch_does_not_require_uv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments import pixi, uv
+
+    root = tmp_path / "pixi-environment"
+    (root / "bin").mkdir(parents=True)
+    (root / "bin" / "python").touch()
+    executable = tmp_path / "pixi"
+    executable.write_text(
+        "#!/bin/sh\n"
+        'if [ "$2" = "--help" ]; then echo "--script"; exit 0; fi\n'
+        f"echo \"The script environment has been installed at '{root}'.\" >&2\n"
+    )
+    executable.chmod(executable.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(pixi, "find_pixi_bin", lambda: str(executable))
+
+    def fail_uv() -> str:
+        raise AssertionError("pixi selected the uv executable")
+
+    monkeypatch.setattr(uv, "require_uv_bin", fail_uv)
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["marimo"]\n# ///\n')
+
+    sandbox = NotebookSandbox(str(notebook), "pixi")
+    plan = sandbox.launch(
+        ["-m", "example"], overlay=RuntimeOverlay(runtime="marimo")
+    )
+
+    # The overlay rides uv, but uv arrives through `pixi exec` -- never
+    # from the PATH (fail_uv above proves it was not consulted).
+    assert plan.argv[0] == str(executable)
+    assert plan.argv[1:5] == ("exec", "--spec", pixi.UV_OVERLAY_SPEC, "uv")
+    assert plan.env["CONDA_PREFIX"] == str(root)
+    assert plan.env["CONDA_DEFAULT_ENV"] == root.name

@@ -21,7 +21,7 @@ class GlobalSettings:
     # "single" or "multi" when this process belongs to a sandbox whose
     # dependencies live in script environments; None otherwise.
     SANDBOX_MODE: str | None = os.environ.get("MARIMO_SANDBOX_MODE") or None
-    # The environment manager behind SANDBOX_MODE.
+    # The environment manager behind SANDBOX_MODE: "uv" or "pixi".
     SANDBOX_BACKEND: str | None = (
         os.environ.get("MARIMO_SANDBOX_BACKEND") or None
     )

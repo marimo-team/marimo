@@ -66,6 +66,7 @@ class AppHostPool:
         # many seconds); a notebook without a metadata block runs
         # ephemerally.
         from marimo._environments import backends
+        from marimo._environments.pixi import PixiError
 
         backend = backends.current_backend()
         args = ["-m", "marimo._session.app_host.main"]
@@ -75,7 +76,9 @@ class AppHostPool:
             plan = backends.launch(
                 handle, args, backend=backend, overlay=overlay
             )
-        except UvMissingScriptMetadataError:
+        except (UvMissingScriptMetadataError, PixiError) as e:
+            if not isinstance(e, UvMissingScriptMetadataError):
+                LOGGER.warning("Failed to build script environment: %s", e)
             plan = backends.launch_fallback(args)
 
         with self._lock:

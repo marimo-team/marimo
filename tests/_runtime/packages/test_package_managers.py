@@ -71,11 +71,11 @@ def test_sandbox_backend_overrides_configured_package_manager() -> None:
     manager = create_package_manager(
         "pip",
         script_path="nb.py",
-        sandbox_backend="uv",
+        sandbox_backend="pixi",
     )
 
     assert isinstance(manager, SandboxPackageManager)
-    assert manager.name == "uv"
+    assert manager.name == "pixi"
 
 
 async def test_sandbox_package_manager_splits_package_operations() -> None:

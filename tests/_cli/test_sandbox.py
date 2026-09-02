@@ -649,6 +649,7 @@ def test_run_in_sandbox_from_script_environment(
 ) -> None:
     """The provisioned path: a markdown notebook's manifest is
     synchronized and marimo launches from the script environment."""
+    from marimo._cli.sandbox import run_in_sandbox
 
     monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
 
@@ -679,6 +680,7 @@ pyproject: |
 @pytest.mark.usefixtures("_restore_signal_handlers")
 def test_run_in_sandbox_without_a_manifest() -> None:
     """No target means no manifest: marimo runs ephemerally."""
+    from marimo._cli.sandbox import run_in_sandbox
 
     code = run_in_sandbox(["--version"], name=None)
 
@@ -701,7 +703,7 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
 
     for command, target in (
         (
-            ["edit", "--sandbox", str(notebook), "--headless", "--no-token"],
+            ["edit", str(notebook), "--sandbox", "--headless", "--no-token"],
             "marimo._cli.sandbox.run_in_sandbox",
         ),
         (
@@ -720,6 +722,28 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
         assert result.exit_code == 3, (command, result.output)
 
 
+def test_resolve_sandbox_backends(tmp_path: Path) -> None:
+    from marimo._cli.sandbox import resolve_sandbox
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text("import marimo\n")
+
+    mode, backend = resolve_sandbox("pixi", False, str(notebook))
+    assert mode is SandboxMode.SINGLE
+    assert backend == "pixi"
+
+    mode, backend = resolve_sandbox("uv", False, str(notebook))
+    assert mode is SandboxMode.SINGLE
+    assert backend == "uv"
+
+    mode, backend = resolve_sandbox("pixi", False, str(tmp_path))
+    assert mode is SandboxMode.MULTI
+    assert backend == "pixi"
+
+    mode, backend = resolve_sandbox("pixi", True, str(notebook))
+    assert mode is None
+
+
 def test_strip_sandbox_args() -> None:
     from marimo._cli.sandbox import _strip_sandbox_args
 
@@ -727,7 +751,7 @@ def test_strip_sandbox_args() -> None:
         ["-m", "marimo", "edit", "--sandbox", "nb.py"]
     ) == ["-m", "marimo", "edit", "nb.py"]
     assert _strip_sandbox_args(
-        ["-m", "marimo", "edit", "--sandbox=uv", "nb.py"]
+        ["-m", "marimo", "edit", "--sandbox=pixi", "nb.py"]
     ) == ["-m", "marimo", "edit", "nb.py"]
 
 
@@ -746,5 +770,5 @@ def test_no_reprompt_inside_a_sandbox(
 
     monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
     monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", None)
-    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "uv")
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "pixi")
     assert maybe_prompt_run_in_sandbox(str(notebook)) is False

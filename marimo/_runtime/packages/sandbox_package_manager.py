@@ -32,7 +32,11 @@ class SandboxPackageManager(PypiPackageManager):
     def __init__(self, sandbox: NotebookSandbox) -> None:
         self._sandbox = sandbox
         self.name = sandbox.backend
-        self.docs_url = "https://docs.astral.sh/uv/"
+        self.docs_url = (
+            "https://pixi.sh"
+            if self.name == "pixi"
+            else "https://docs.astral.sh/uv/"
+        )
         python = (
             sandbox.environment.python
             if sandbox.environment is not None

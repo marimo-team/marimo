@@ -141,6 +141,33 @@ def resolve_sandbox_mode(
     return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
 
 
+def resolve_sandbox(
+    sandbox: str | None,
+    no_sandbox: bool,
+    name: str | None,
+) -> tuple[SandboxMode | None, SandboxBackend]:
+    """Resolve the sandbox mode and backend from the CLI flags.
+
+    `sandbox` is None (unset; the user may be prompted), "uv" (a bare
+    `--sandbox`), or a named backend (`--sandbox=pixi`). `no_sandbox`
+    disables sandboxing and the prompt.
+    """
+    enabled: bool | None
+    if no_sandbox:
+        enabled = False
+    elif sandbox is None:
+        enabled = None
+    else:
+        enabled = True
+    mode = resolve_sandbox_mode(sandbox=enabled, name=name)
+    return mode, backend_from_flag(sandbox)
+
+
+def backend_from_flag(sandbox: str | None) -> SandboxBackend:
+    """The backend named by a `--sandbox[=<backend>]` flag value."""
+    return "pixi" if sandbox == "pixi" else "uv"
+
+
 def _is_versioned(dependency: str) -> bool:
     return any(c in dependency for c in ("==", ">=", "<=", ">", "<", "~"))
 
@@ -400,6 +427,7 @@ def run_in_sandbox(
     """
     from marimo._environments import backends
     from marimo._environments.errors import EnvironmentManagerError
+    from marimo._environments.pixi import PixiNotFoundError
     from marimo._environments.sandbox import NotebookSandbox
 
     try:
@@ -409,6 +437,12 @@ def run_in_sandbox(
             "uv must be installed to use --sandbox.",
             "uv",
             additional_tip="Install uv from https://github.com/astral-sh/uv",
+        ) from e
+    except PixiNotFoundError as e:
+        raise MarimoCLIMissingDependencyError(
+            "pixi must be installed to use --sandbox=pixi.",
+            "pixi",
+            additional_tip="Install pixi from https://pixi.sh",
         ) from e
     except EnvironmentManagerError as e:
         # e.g. an environment manager too old for script environments.
@@ -500,6 +534,12 @@ def run_in_sandbox(
             return getattr(e, "returncode", None) or 1
 
     if plan is None:
+        if backend == "pixi":
+            echo(
+                "pixi sandboxes do not support interpreter overrides",
+                err=True,
+            )
+            return 1
         requirements = list(overlay.requirements)
         if overridden and name is not None and os.path.isfile(name):
             requirements = [

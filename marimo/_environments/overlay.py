@@ -81,8 +81,11 @@ class RuntimeOverlay:
     # Warning
 
     A backend resolves the overlay against PyPI without seeing what the
-    script environment already contains. This is acceptable for marimo's own
-    dependency tree, which is small and pure-Python.
+    script environment already contains. For a pixi environment that means
+    the overlay's transitive dependencies arrive as PyPI wheels and shadow
+    any conda-forge build of the same package. This is acceptable for
+    marimo's own dependency tree, which is small and pure-Python; an overlay
+    is not a general bridge between conda and PyPI packaging.
     """
 
     runtime: str
@@ -92,8 +95,9 @@ class RuntimeOverlay:
     def requirements(self) -> tuple[str, ...]:
         """The overlay as requirement strings, runtime first.
 
-        Backends translate these into their own layering flags; uv passes
-        each as `--with` (or `--with-editable` for a local path).
+        Backends translate these into their own layering flags: uv passes
+        each as `--with` (or `--with-editable` for a local path), and pixi
+        borrows the same uv verb through `pixi exec`.
         """
         return (self.runtime, *self.command)
 
