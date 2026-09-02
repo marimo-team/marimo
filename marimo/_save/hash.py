@@ -18,7 +18,11 @@ from marimo._ast.variables import (
 )
 from marimo._ast.visitor import ImportData, Name, ScopedVisitor
 from marimo._plugins.ui._core.ui_element import UIElement
-from marimo._runtime.context import ContextNotInitializedError, get_context
+from marimo._runtime.context import (
+    ContextNotInitializedError,
+    get_context,
+    safe_get_context,
+)
 from marimo._runtime.dataflow import induced_subgraph
 from marimo._runtime.dataflow.topology import GraphTopology
 from marimo._runtime.primitives import (
@@ -165,6 +169,39 @@ def hash_cell_execution(
 ) -> bytes:
     ancestors = graph.ancestors(cell_id)
     return hash_cell_group(ancestors, graph, hash_type)
+
+
+def hash_cell_closure(
+    cell_id: CellId_t, graph: GraphTopology, hash_type: str = DEFAULT_HASH
+) -> bytes:
+    """Hash a cell together with every cell it depends on.
+
+    Unlike an execution hash, an edit to the cell itself changes the digest.
+    Compiling a notebook is enough to compute it. Nothing here reads a value.
+    """
+    return hash_cell_group(
+        graph.ancestors(cell_id) | {cell_id}, graph, hash_type
+    )
+
+
+def cell_path_hash(cell_id: CellId_t, graph: GraphTopology) -> str:
+    """Hex closure digest of `cell_id`, memoized for the session.
+
+    Always the default hash, never the hash type a cache block chose. The
+    digest is recorded so that a later process can recompute it from source
+    alone. No block is in reach there to supply a hash type.
+    """
+    ctx = safe_get_context()
+    if ctx is not None and cell_id in ctx.cache.node_memo:
+        return ctx.cache.node_memo[cell_id]
+
+    digest = hash_cell_closure(cell_id, graph).hex()
+    if ctx is not None:
+        ctx.cache.node_memo[cell_id] = digest
+        # An edit to an ancestor reruns this cell as well, and disposal empties
+        # the whole memo, so the hook on this cell covers its closure.
+        ctx.cell_lifecycle_registry.inject(cell_id, HashMemoCleanup())
+    return digest
 
 
 def get_and_update_context_from_scope(
@@ -413,6 +450,17 @@ class BlockHasher:
                 .strip("=")
             )
         return self._hash
+
+    @property
+    def path_hash(self) -> str:
+        """Static digest of the closure of the cell this block sits in.
+
+        A third digest, independent of `hash` and `exe_hash`. Those fold in
+        serialized values and side effects that only a running kernel holds,
+        while this one is recomputable from the notebook source alone. It
+        covers the whole cell, so every block in a cell shares it.
+        """
+        return cell_path_hash(self.cell_id, self.graph)
 
     @property
     def exe_hash(self) -> str:

@@ -496,6 +496,9 @@ class LazyStore(Store):
     def local_dir(self) -> Path | None:
         return self._inner.local_dir()
 
+    def local_dirs(self) -> list[Path]:
+        return self._inner.local_dirs()
+
 
 class WasmLazyStore(LazyStore):
     """WASM store: writes to a shared in-session `DictStore`; reads fall

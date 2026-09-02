@@ -44,6 +44,7 @@ if TYPE_CHECKING:
     from marimo._save.loaders.lazy import LazyLoader
     from marimo._save.signing_policy import SigningPolicy
     from marimo._save.stores import Store
+    from marimo._types.ids import CellId_t
 
 # NB. Increment on cache breaking changes.
 MARIMO_CACHE_VERSION: int = 5
@@ -86,6 +87,16 @@ class CacheState:
     # config (user/env only; project/script trust is stripped upstream). A
     # `LazyLoader` reads it as the default trust/identity source.
     signing_policy: SigningPolicy | None = None
+    # Cache keys this session recorded, grouped by the store they were
+    # written through, then by path hash and block. A manifest lists only
+    # the entries stored beside it.
+    manifest_records: dict[Store, dict[str, dict[str, set[str]]]] = field(
+        default_factory=dict
+    )
+    # The stores with a record not yet written to a manifest.
+    manifest_dirty: set[Store] = field(default_factory=set)
+    # Path hash per cell, cleared with `hash_memo` when a cell re-executes.
+    node_memo: dict[CellId_t, str] = field(default_factory=dict)
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)
@@ -122,6 +133,8 @@ class HashMemoCleanup(CellLifecycleItem):
 
     def dispose(self, context: RuntimeContext, deletion: bool) -> bool:  # noqa: ARG002
         context.cache.hash_memo.clear()
+        # An edit anywhere in a cell's closure changes its path hash.
+        context.cache.node_memo.clear()
         return True
 
 

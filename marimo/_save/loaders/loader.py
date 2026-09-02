@@ -297,8 +297,18 @@ class BasePersistenceLoader(Loader):
         """Paths under `root` that `clear()` removes."""
         import glob
 
-        pattern = str(root / self.name / f"*.{self.suffix}")
-        return [Path(match) for match in glob.glob(pattern)]
+        from marimo._save.cache_dirs import PARTIAL_WRITE_INFIX
+
+        block = root / self.name
+        # The leftovers of an interrupted write hold no value anyone can read,
+        # so clearing the block is the last chance to reclaim their bytes.
+        patterns = (
+            str(block / f"*.{self.suffix}"),
+            str(block / f"*.{self.suffix}{PARTIAL_WRITE_INFIX}*"),
+        )
+        return [
+            Path(match) for pattern in patterns for match in glob.glob(pattern)
+        ]
 
     def clear(self) -> None:
         """Clear all cached items for this loader."""

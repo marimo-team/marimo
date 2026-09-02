@@ -75,6 +75,14 @@ class TieredStore(Store):
                 return directory
         return None
 
+    def local_dirs(self) -> list[Path]:
+        """Every tier that keeps entries on this filesystem."""
+        return [
+            directory
+            for store in self.stores
+            for directory in store.local_dirs()
+        ]
+
     def _update_preceding_stores(
         self, key: str, value: bytes, found_index: int
     ) -> None:
