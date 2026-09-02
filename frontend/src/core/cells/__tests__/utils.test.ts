@@ -233,6 +233,34 @@ describe("staleCellIds", () => {
     expect(result).toEqual(["cell1"]);
   });
 
+  it("should preserve edited cells in the schedule while they are running", () => {
+    const state: NotebookState = {
+      cellIds: MultiColumn.from([["cell1"]]),
+      cellData: {
+        cell1: {
+          lastExecutionTime: 123,
+          edited: true,
+          config: { disabled: false },
+        },
+      },
+      cellRuntime: {
+        cell1: {
+          runElapsedTimeMs: 456,
+          status: "running",
+          output: null,
+          runStartTimestamp: null,
+          lastRunStartTimestamp: null,
+          errored: false,
+          interrupted: false,
+          stopped: false,
+          staleInputs: false,
+        },
+      },
+    } as any;
+
+    expect(staleCellIds(state)).toEqual(["cell1"]);
+  });
+
   it("should return cell IDs that are interrupted", () => {
     const state: NotebookState = {
       cellIds: MultiColumn.from([["cell1", "cell2"]]),

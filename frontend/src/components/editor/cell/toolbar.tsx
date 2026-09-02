@@ -13,11 +13,13 @@ const toolbarItemVariants = cva(
     variants: {
       variant: {
         default: "hover:bg-accent hover:text-accent-foreground",
-        stale: "bg-(--yellow-3) hover:bg-(--yellow-4) text-(--yellow-11)",
+        active:
+          "bg-(--blue-3) hover:bg-(--blue-4) text-(--blue-11) border-[var(--blue-6)]",
         green:
           "hover:bg-(--grass-2) hover:text-(--grass-11) hover:border-[var(--grass-7)],",
         disabled: "opacity-50 cursor-not-allowed",
         danger: "hover:bg-(--red-3) hover:text-(--red-11)",
+        stop: "bg-(--red-3) hover:bg-(--red-4) text-(--red-11)",
       },
     },
     defaultVariants: {
@@ -43,6 +45,7 @@ export const ToolbarItem: React.FC<ToolbarItemProps> = ({
 }) => {
   const content = (
     <button
+      type="button"
       disabled={disabled}
       {...rest}
       onClick={(evt) => {

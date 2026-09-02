@@ -13,7 +13,6 @@ import { downloadBlob } from "@/utils/download";
 import { Paths } from "@/utils/paths";
 import { useHotkey } from "../../hooks/useHotkey";
 import { useImperativeModal } from "../modal/ImperativeModal";
-import { renderShortcut } from "../shortcuts/renderShortcut";
 import {
   DialogContent,
   DialogDescription,
@@ -146,13 +145,22 @@ export const RecoveryButton = (props: {
   useHotkey("global.save", openRecoveryModal);
 
   return (
-    <Tooltip content={renderShortcut("global.save")}>
+    <Tooltip
+      content={
+        needsSave ? "Download unsaved changes" : "No unsaved changes to recover"
+      }
+    >
       <EditorButton
         onClick={openRecoveryModal}
         id="save-button"
-        aria-label="Save"
+        aria-label={
+          needsSave
+            ? "Download unsaved changes"
+            : "No unsaved changes to recover"
+        }
         className="rectangle"
-        color={needsSave ? "yellow" : "gray"}
+        color={needsSave ? "yellow" : "disabled"}
+        disabled={!needsSave}
       >
         <SaveIcon strokeWidth={1.5} size={18} />
       </EditorButton>

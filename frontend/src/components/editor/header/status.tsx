@@ -1,11 +1,14 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue } from "jotai";
-import { HourglassIcon, UnlinkIcon } from "lucide-react";
+import { Loader2Icon, UnlinkIcon } from "lucide-react";
 import React from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { notebookScrollToRunning } from "@/core/cells/actions";
-import { onlyScratchpadIsRunningAtom } from "@/core/cells/cells";
+import {
+  notebookQueuedOrRunningCountAtom,
+  onlyScratchpadIsRunningAtom,
+} from "@/core/cells/cells";
 import { viewStateAtom } from "@/core/mode";
 import {
   type ConnectionStatus,
@@ -79,19 +82,47 @@ const DisconnectedIcon: React.FC<{ onReconnect?: () => void }> = ({
 
 const RunningIcon = () => {
   const scratchpadOnly = useAtomValue(onlyScratchpadIsRunningAtom);
+  const activeCellCount = useAtomValue(notebookQueuedOrRunningCountAtom);
   const tooltip = scratchpadOnly
     ? "Scratchpad is running"
     : "Jump to running cell";
+  const label =
+    activeCellCount > 1 ? `${activeCellCount} cells active` : "Running";
+  const statusClasses =
+    "flex items-center gap-1.5 rounded-full border border-[var(--blue-6)] bg-[var(--blue-3)] px-2.5 py-1.5 text-xs font-medium text-[var(--blue-11)] shadow-sm";
+  const content = (
+    <>
+      <Loader2Icon className="size-4 animate-spin" aria-hidden={true} />
+      <span>{label}</span>
+    </>
+  );
+
+  if (scratchpadOnly) {
+    return (
+      <Tooltip content={tooltip} side="right">
+        <div
+          role="status"
+          className={cn("print:hidden pointer-events-auto", statusClasses)}
+          data-testid="loading-indicator"
+          aria-label={`${label}. ${tooltip}`}
+        >
+          {content}
+        </div>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip content={tooltip} side="right">
-      <div
-        className={topLeftStatus}
+      <button
+        type="button"
+        className={cn(topLeftStatus, statusClasses)}
         data-testid="loading-indicator"
-        onClick={scratchpadOnly ? undefined : notebookScrollToRunning}
+        onClick={notebookScrollToRunning}
+        aria-label={`${label}. ${tooltip}`}
       >
-        <HourglassIcon className="running-app-icon" size={30} strokeWidth={1} />
-      </div>
+        {content}
+      </button>
     </Tooltip>
   );
 };

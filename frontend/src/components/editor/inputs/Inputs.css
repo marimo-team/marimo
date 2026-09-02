@@ -49,6 +49,22 @@
   border-color: var(--slate-6);
 }
 
+.mo-button.blue {
+  background-color: var(--blue-3);
+  color: var(--blue-11);
+  border-color: var(--blue-6);
+}
+
+.mo-button.blue:hover {
+  background-color: var(--blue-4);
+  border-color: var(--blue-8);
+}
+
+.mo-button.blue.selected .mo-button.blue:active {
+  background-color: var(--blue-5);
+  border-color: var(--blue-7);
+}
+
 .mo-button.green {
   background-color: var(--grass-3);
   color: var(--grass-11);

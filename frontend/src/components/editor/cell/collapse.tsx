@@ -2,11 +2,14 @@
 
 import {
   AlertOctagonIcon,
+  ClockIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ChevronsUpDownIcon,
   Loader2Icon,
+  Link2OffIcon,
   RefreshCcw,
+  CircleStopIcon,
 } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
@@ -84,19 +87,34 @@ export const CollapsedCellBanner: React.FC<{
         }
         right={
           <>
-            {states.errored && (
+            {states.failed && (
               <Tooltip content="Has errors" delayDuration={100}>
                 <AlertOctagonIcon className="w-4 h-4 shrink-0 text-destructive" />
               </Tooltip>
             )}
-            {states.stale && (
-              <Tooltip content="Has stale cells" delayDuration={100}>
-                <RefreshCcw className="w-4 h-4 shrink-0 text-(--yellow-11)" />
+            {states.outdated && (
+              <Tooltip content="Has cells to run" delayDuration={100}>
+                <RefreshCcw className="w-4 h-4 shrink-0 text-(--slate-11)" />
               </Tooltip>
             )}
-            {states.runningOrQueued && (
+            {states.blocked && (
+              <Tooltip content="Has blocked cells" delayDuration={100}>
+                <Link2OffIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
+              </Tooltip>
+            )}
+            {states.stopped && (
+              <Tooltip content="Has cells stopped upstream" delayDuration={100}>
+                <CircleStopIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
+              </Tooltip>
+            )}
+            {states.queued && (
+              <Tooltip content="Queued" delayDuration={100}>
+                <ClockIcon className="w-4 h-4 shrink-0 text-muted-foreground" />
+              </Tooltip>
+            )}
+            {states.running && (
               <Tooltip content="Running" delayDuration={100}>
-                <Loader2Icon className="w-4 h-4 shrink-0 animate-spin" />
+                <Loader2Icon className="w-4 h-4 shrink-0 animate-spin text-(--blue-11)" />
               </Tooltip>
             )}
           </>

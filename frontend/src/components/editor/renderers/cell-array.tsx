@@ -35,6 +35,7 @@ import {
   columnIdsAtom,
   useCellActions,
   useCellIds,
+  useColumnStateSummary,
   useScrollKey,
 } from "../../../core/cells/cells";
 import { formatAll } from "../../../core/codemirror/format";
@@ -194,6 +195,7 @@ const CellColumn: React.FC<{
   const cellIds = useCellIds();
   const column = cellIds.get(columnId);
   invariant(column, `Expected column for: ${columnId}`);
+  const statusSummary = useColumnStateSummary(columnId);
 
   const hasOnlyOneCell = cellIds.hasOnlyOneId();
   const hasSetupCell = cellIds.inOrderIds.includes(SETUP_CELL_ID);
@@ -208,6 +210,7 @@ const CellColumn: React.FC<{
       width={appConfig.width}
       canDelete={columnsLength > 1}
       presenting={isPresenting}
+      statusSummary={statusSummary}
       footer={
         hideControls || isPresenting ? null : (
           <AddCellButtons
@@ -238,6 +241,7 @@ const CellColumn: React.FC<{
             isCollapsed={false}
             collapseCount={0}
             canMoveX={false}
+            statusDisplay={appConfig.width === "columns" ? "compact" : "full"}
           />
         )}
 
@@ -259,6 +263,7 @@ const CellColumn: React.FC<{
               isCollapsed={column.isCollapsed(cellId)}
               collapseCount={column.getCount(cellId)}
               canMoveX={appConfig.width === "columns"}
+              statusDisplay={appConfig.width === "columns" ? "compact" : "full"}
             />
           );
         })}

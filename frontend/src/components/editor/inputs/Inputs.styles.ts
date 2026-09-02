@@ -11,6 +11,8 @@ export const button = cva(
         gray: "mo-button gray",
         // neutral, relying on border and shadow to stand out
         white: "mo-button white",
+        // for primary, non-destructive actions
+        blue: "mo-button blue",
         green: "mo-button green",
         // for destructive actions
         red: "mo-button red",

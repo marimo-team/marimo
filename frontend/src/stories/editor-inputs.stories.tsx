@@ -20,7 +20,7 @@ ButtonStory.argTypes = {
   color: {
     type: {
       name: "enum",
-      value: ["gray", "green", "red", "yellow", "hint-green"],
+      value: ["gray", "blue", "green", "red", "yellow", "hint-green"],
     },
   },
   size: {

@@ -4,7 +4,7 @@ import { historyField } from "@codemirror/commands";
 import { dequal as isEqual } from "dequal";
 import { type Atom, atom, useAtom, useAtomValue } from "jotai";
 import { atomFamily, selectAtom, splitAtom } from "jotai/utils";
-import { createRef, type ReducerWithoutAction } from "react";
+import { createRef, type ReducerWithoutAction, useMemo } from "react";
 import type { CellHandle } from "@/components/editor/notebook-cell";
 import type { CollapsibleTree } from "@/utils/id-tree";
 import {
@@ -34,6 +34,7 @@ import { createDeepEqualAtom, store } from "../state/jotai";
 import { isWasm } from "../wasm/utils";
 import { prepareCellForExecution, transitionCell } from "./cell";
 import { documentTransactionMiddleware } from "./document-changes";
+import { deriveCellSemanticState, summarizeCellStates } from "./semantic-state";
 import { CellId, SCRATCH_CELL_ID, SETUP_CELL_ID } from "./ids";
 import { type CellLog, getCellLogsForMessage } from "./logs";
 import {
@@ -1869,6 +1870,34 @@ export const hasCellsAtom = atom(
 export const columnIdsAtom = atom((get) =>
   get(notebookAtom).cellIds.getColumnIds(),
 );
+
+export const useColumnStateSummary = (columnId: CellColumnId) => {
+  const summaryAtom = useMemo(
+    () =>
+      selectAtom(
+        notebookAtom,
+        (notebook) => {
+          const column = notebook.cellIds.get(columnId);
+          if (!column) {
+            return summarizeCellStates([]);
+          }
+
+          return summarizeCellStates(
+            column.inOrderIds.flatMap((cellId) => {
+              const cellData = notebook.cellData[cellId];
+              const cellRuntime = notebook.cellRuntime[cellId];
+              return cellData && cellRuntime
+                ? [deriveCellSemanticState(cellData, cellRuntime)]
+                : [];
+            }),
+          );
+        },
+        isEqual,
+      ),
+    [columnId],
+  );
+  return useAtomValue(summaryAtom);
+};
 
 export const cellDataAtom = atomFamily((cellId: CellId) =>
   atom((get) => get(notebookAtom).cellData[cellId]),

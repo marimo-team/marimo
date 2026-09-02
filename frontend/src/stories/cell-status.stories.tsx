@@ -5,141 +5,88 @@ import {
   type CellStatusComponentProps,
 } from "@/components/editor/cell/CellStatus";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { deriveCellSemanticState } from "@/core/cells/semantic-state";
+import {
+  createCell,
+  createCellRuntimeState,
+  type CellData,
+  type CellRuntimeState,
+} from "@/core/cells/types";
+import { CellId } from "@/core/cells/ids";
+import { Time, type Milliseconds } from "@/utils/time";
+
+const cellId = CellId.create();
+const state = (
+  data: Partial<CellData> = {},
+  runtime: Partial<CellRuntimeState> = {},
+) =>
+  deriveCellSemanticState(
+    createCell({ id: cellId, ...data }),
+    createCellRuntimeState(runtime),
+  );
 
 const meta: Meta<typeof CellStatusComponent> = {
   title: "CellStatusComponent",
   component: CellStatusComponent,
-  args: {},
+  args: { editing: true, state: state() },
 };
 
 export default meta;
 
 const Template: StoryFn<CellStatusComponentProps> = (args) => (
   <TooltipProvider>
-    <div className="bg-background">
+    <div className="bg-background p-4">
       <CellStatusComponent {...args} />
     </div>
   </TooltipProvider>
 );
 
-export const Idle = Template.bind({});
-Idle.args = {
-  editing: true,
-  status: "idle",
-  edited: false,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: null,
-};
+export const NotRun = Template.bind({});
+NotRun.args = { state: state() };
 
-export const Edited = Template.bind({});
-Edited.args = {
-  editing: true,
-  status: "idle",
-  edited: true,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: 100,
+export const Outdated = Template.bind({});
+Outdated.args = {
+  state: state(
+    { edited: true, lastExecutionTime: 100 },
+    { runElapsedTimeMs: 100 as Milliseconds },
+  ),
 };
 
 export const Interrupted = Template.bind({});
 Interrupted.args = {
-  editing: true,
-  status: "idle",
-  edited: false,
-  interrupted: true,
-  disabled: false,
-  elapsedTime: 50,
+  state: state({}, { interrupted: true, runElapsedTimeMs: 50 as Milliseconds }),
+};
+
+export const Stopped = Template.bind({});
+Stopped.args = {
+  state: state({}, { stopped: true }),
+};
+
+export const Failed = Template.bind({});
+Failed.args = {
+  state: state({}, { errored: true, runElapsedTimeMs: 50 as Milliseconds }),
 };
 
 export const Running = Template.bind({});
 Running.args = {
-  editing: true,
-  status: "running",
-  edited: false,
-  interrupted: true,
-  disabled: false,
-  elapsedTime: 50,
+  state: state(
+    {},
+    { status: "running", runStartTimestamp: Time.now().toSeconds() },
+  ),
 };
 
 export const Queued = Template.bind({});
-Queued.args = {
-  editing: true,
-  status: "queued",
-  edited: false,
-  interrupted: true,
-  disabled: false,
-  elapsedTime: 50,
+Queued.args = { state: state({}, { status: "queued" }) };
+
+export const Paused = Template.bind({});
+Paused.args = {
+  state: state({ config: { disabled: true, hide_code: false, column: null } }),
 };
 
-export const Disabled = Template.bind({});
-Disabled.args = {
-  editing: true,
-  status: "idle",
-  edited: false,
-  interrupted: false,
-  disabled: true,
-  elapsedTime: null,
-};
+export const Blocked = Template.bind({});
+Blocked.args = { state: state({}, { status: "disabled-transitively" }) };
 
-export const DisabledTransitively = Template.bind({});
-DisabledTransitively.args = {
-  editing: true,
-  status: "disabled-transitively",
-  edited: false,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: null,
-};
-
-export const DisabledTransitivelyAndEdited = Template.bind({});
-DisabledTransitivelyAndEdited.args = {
-  editing: true,
-  status: "disabled-transitively",
-  edited: true,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: null,
-};
-
-export const Stale = Template.bind({});
-Stale.args = {
-  editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
-  edited: false,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: null,
-};
-
-export const StaleAndDisabled = Template.bind({});
-StaleAndDisabled.args = {
-  editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
-  edited: false,
-  interrupted: false,
-  disabled: true,
-  elapsedTime: null,
-};
-
-export const EditedStaleAndDisabled = Template.bind({});
-EditedStaleAndDisabled.args = {
-  editing: true,
-  status: "disabled-transitively",
-  staleInputs: true,
-  interrupted: false,
-  disabled: true,
-  elapsedTime: null,
-};
-
-export const EditedAndStale = Template.bind({});
-EditedAndStale.args = {
-  editing: true,
-  status: "disabled-transitively",
-  edited: true,
-  interrupted: false,
-  disabled: false,
-  elapsedTime: null,
+export const Successful = Template.bind({});
+Successful.args = {
+  state: state({}, { runElapsedTimeMs: 1500 as Milliseconds }),
 };
