@@ -199,6 +199,36 @@ const keyImagesBySrc: TransformFn = (
   return cloneElement(reactNode, { key: `${src}-${index}` });
 };
 
+// Remount <video> elements when playback-defining attributes change. React
+// otherwise reuses an already-ended media element, so enabling `loop` after an
+// autoplayed video has finished does not restart playback. Keep cosmetic
+// attributes out of the key so changing dimensions or styles does not reset a
+// video that is currently playing.
+const keyVideosByPlaybackConfig: TransformFn = (
+  reactNode: ReactNode,
+  domNode: DOMNode,
+  index: number,
+): JSX.Element | undefined => {
+  if (!(domNode instanceof Element) || domNode.name !== "video") {
+    return undefined;
+  }
+  if (!isValidElement(reactNode)) {
+    return undefined;
+  }
+
+  const attrs = domNode.attribs ?? {};
+  const src = attrs.src ?? "";
+  // Avoid putting a potentially large inline video in the React key. Updating
+  // `src` still reloads data URLs; the key is needed for playback attributes.
+  const sourceKey = /^data:/i.test(src) ? "data-url" : src;
+  const autoplay = "autoplay" in attrs;
+  const muted = "muted" in attrs;
+  const loop = "loop" in attrs;
+  return cloneElement(reactNode, {
+    key: `video-${sourceKey}-${autoplay}-${muted}-${loop}-${index}`,
+  });
+};
+
 // Decorator: applies a checked-state-based key to task-list checkbox
 // <input> elements (e.g. GFM `- [ ]` / `- [x]` rendered by
 // pymdownx.tasklist) so they remount when their checked-ness changes.
@@ -359,6 +389,7 @@ function parseHtml({
   // ran above.
   const decoratorFunctions: TransformFn[] = [
     keyImagesBySrc,
+    keyVideosByPlaybackConfig,
     keyTaskListCheckboxesByChecked,
   ];
 

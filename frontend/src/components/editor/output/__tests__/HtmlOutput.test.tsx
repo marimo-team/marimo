@@ -131,4 +131,53 @@ describe("HtmlOutput", () => {
       </div>
     `);
   });
+
+  test.each(["autoplay", "muted", "loop"])(
+    "remounts a video when %s changes",
+    (attribute) => {
+      const { container, rerender } = render(
+        <HtmlOutput
+          html='<video src="video.mp4"></video>'
+          alwaysSanitizeHtml={false}
+        />,
+      );
+      const initialVideo = container.querySelector("video");
+
+      rerender(
+        <HtmlOutput
+          html={`<video src="video.mp4" ${attribute}></video>`}
+          alwaysSanitizeHtml={false}
+        />,
+      );
+
+      const updatedVideo = container.querySelector("video");
+      expect(updatedVideo).not.toBe(initialVideo);
+      if (attribute === "muted") {
+        expect(updatedVideo).toHaveProperty("muted", true);
+      } else {
+        expect(updatedVideo).toHaveAttribute(attribute);
+      }
+    },
+  );
+
+  test("does not remount a video for cosmetic changes", () => {
+    const { container, rerender } = render(
+      <HtmlOutput
+        html='<video src="video.mp4" style="width: 100px"></video>'
+        alwaysSanitizeHtml={false}
+      />,
+    );
+    const initialVideo = container.querySelector("video");
+
+    rerender(
+      <HtmlOutput
+        html='<video src="video.mp4" style="width: 200px"></video>'
+        alwaysSanitizeHtml={false}
+      />,
+    );
+
+    const updatedVideo = container.querySelector("video");
+    expect(updatedVideo).toBe(initialVideo);
+    expect(updatedVideo).toHaveStyle({ width: "200px" });
+  });
 });
