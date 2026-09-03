@@ -589,7 +589,7 @@ class Cache:
         cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
     ) -> Cache:
         return Cache(
-            defs={d: None for d in defs},
+            defs=dict.fromkeys(defs),
             hash=key.hash,
             cache_type=key.cache_type,
             stateful_refs=stateful_refs,
