@@ -373,7 +373,6 @@ ignore = [
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
     "DTZ007", # `datetime.strptime()` called without zone
     "DTZ011", # `date.today()` used
-    "TRY401", # Verbose log message
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
@@ -382,6 +381,29 @@ ignore = [
     "DTZ002", # `datetime.today()` called without tz
     "PLE0704", # Misplaced bare `raise`
     "D421", # Property docstring should not start with a verb (preview rule)
+
+    # Restored to Ruff's default rule set in 0.16.6; enable incrementally
+    "RUF069", # Float equality comparison
+    "PLW0108", # Unnecessary lambda
+    "RUF043", # Ambiguous pattern in `pytest.raises`
+    "RUF065", # Eager conversion in logging calls
+    "PLC2801", # Unnecessary dunder call
+    "FURB189", # Subclassing built-in collections
+    "FURB152", # Replace literal with a math constant
+    "FURB110", # Replace ternary with an `or` expression
+    "RUF036", # `None` is not last in a union
+    "FURB113", # Repeated `append` calls
+    "C420", # Unnecessary dictionary comprehension
+    "PLC0207", # Missing `maxsplit` argument
+    "RUF075", # Fallible context manager
+    "FURB171", # Single-item membership test
+    "FURB142", # Set mutation in a loop
+    "NPY002", # Legacy NumPy random API
+    "RUF027", # Possible missing f-string prefix
+    "SIM110", # Reimplemented built-in
+    "FURB145", # Slice used to copy a collection
+    "RUF055", # Unnecessary regular expression
+    "RUF100", # Unused `noqa` directive
 ]
 
 extend-select = [
