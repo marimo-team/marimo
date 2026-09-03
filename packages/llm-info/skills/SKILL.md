@@ -24,8 +24,8 @@ Keep descriptions in `packages/llm-info/data/models.yml` concise and accurate. F
 1. **Read** `packages/llm-info/data/models.yml`. Parse it with the `yaml` library's `parseDocument` (NOT `parse`) so formatting and comments are preserved on write-back.
 
 2. **Collect and review** descriptions:
-   - Track every entry where `description` is the empty string as a `{ provider, model }` pair.
-   - Review related existing entries in the same model families for claims made obsolete by the new entries. Also review descriptions affected by a factual change found in authoritative documentation.
+   - Build one worklist of `{ provider, model }` pairs containing every entry where `description` is empty.
+   - Review related existing entries in the same model families for claims made obsolete by the new entries. Also review descriptions affected by a factual change found in authoritative documentation, and add every obsolete entry to the same worklist.
 
 3. **Source descriptions** in this priority order:
 
@@ -83,8 +83,8 @@ OpenRouter id vendor prefixes for each marimo provider:
 ## Examples
 
 **Good** (matches the tone of existing hand-curated entries):
-- `Latest Opus model, strongest for coding and long-running professional tasks`
-- `Most capable Sonnet-class model, with frontier performance across coding, agents, and professional work`
+- `Opus model optimized for coding and long-running professional tasks`
+- `Sonnet-class model with strong performance across coding, agents, and professional work`
 - `Lightweight Gemma model trained by Google, designed to run on a single GPU`
 - `Multimodal Mixture-of-Experts model optimized for complex tool use and reasoning`
 
