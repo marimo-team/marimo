@@ -1594,6 +1594,18 @@ components:
       - label
       title: DetectedDataSourceOrigin
       type: object
+    DiagnosticsConfig:
+      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
+        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
+      properties:
+        enabled:
+          type: boolean
+        sql_linter:
+          type: boolean
+      required: []
+      title: DiagnosticsConfig
+      type: object
     DialectHidesWhen:
       description: Hide this suggestion when a live SQL engine dialect contains a
         substring.
@@ -1609,18 +1621,6 @@ components:
       - kind
       - substrings
       title: DialectHidesWhen
-      type: object
-    DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
-        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
-      properties:
-        enabled:
-          type: boolean
-        sql_linter:
-          type: boolean
-      required: []
-      title: DiagnosticsConfig
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
@@ -1917,6 +1917,10 @@ components:
       title: ExecuteStaleCellsCommand
       type: object
     ExportAsHTMLRequest:
+      description: "Request a static HTML export.\n\n    `layout` carries the current\
+        \ client layout. An omitted field reads the\n    saved layout file, `null`\
+        \ selects the vertical layout, and an object uses\n    that serialized layout\
+        \ for this export."
       properties:
         assetUrl:
           anyOf:
@@ -1931,6 +1935,10 @@ components:
           type: array
         includeCode:
           type: boolean
+        layout:
+          anyOf:
+          - $ref: '#/components/schemas/LayoutConfig'
+          - type: 'null'
       required:
       - download
       - files

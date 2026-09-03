@@ -44,6 +44,7 @@ from marimo._schemas.export import (
     ExportAsMarkdownRequest,
     ExportAsScriptRequest,
     ExportedFile,
+    to_html_export_layout,
     to_html_export_options,
     to_markdown_export_options,
 )
@@ -417,6 +418,12 @@ class PyodideBridge:
                 ),
                 display_config=self.session._initial_user_config["display"],
                 options=to_html_export_options(parsed),
+                layout=(
+                    to_html_export_layout(
+                        parsed,
+                        fallback=self.session.app_manager.read_layout_config,
+                    )
+                ),
             )
         )
         return self._dump(

@@ -1,12 +1,13 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import msgspec
 
 from marimo._convert.markdown.flavor.base import MarkdownFlavorName
 from marimo._messaging.mimetypes import MimeBundleTuple
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._schemas.export_options import (
     ExportPDFPreset,
     ExportSetupRequirementName,
@@ -19,12 +20,23 @@ from marimo._schemas.export_options import (
 )
 from marimo._types.ids import CellId_t
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 class ExportAsHTMLRequest(msgspec.Struct, rename="camel"):
+    """Request a static HTML export.
+
+    `layout` carries the current client layout. An omitted field reads the
+    saved layout file, `null` selects the vertical layout, and an object uses
+    that serialized layout for this export.
+    """
+
     download: bool
     files: list[str]
     include_code: bool
     asset_url: str | None = None
+    layout: LayoutConfig | None | msgspec.UnsetType = msgspec.UNSET
 
 
 def to_html_export_options(
@@ -35,6 +47,16 @@ def to_html_export_options(
         include_code=request.include_code,
         asset_url=request.asset_url,
     )
+
+
+def to_html_export_layout(
+    request: ExportAsHTMLRequest,
+    *,
+    fallback: Callable[[], LayoutConfig | None],
+) -> LayoutConfig | None:
+    if request.layout is msgspec.UNSET:
+        return fallback()
+    return request.layout
 
 
 class ExportAsScriptRequest(msgspec.Struct, rename="camel"):

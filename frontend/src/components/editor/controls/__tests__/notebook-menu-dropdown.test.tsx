@@ -18,7 +18,7 @@ import {
   invalidateDataSourceDiscovery,
 } from "@/core/datasets/data-source-discovery";
 import { DiscoverDataSources } from "@/core/datasets/request-registry";
-import { layoutStateAtom } from "@/core/layout/layout";
+import { layoutStateAtom } from "@/core/layout/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";

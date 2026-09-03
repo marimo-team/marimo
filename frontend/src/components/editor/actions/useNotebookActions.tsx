@@ -66,7 +66,7 @@ import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";

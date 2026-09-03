@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import copy
 import time
 from dataclasses import dataclass
 from typing import Any, Literal, cast
@@ -45,6 +46,7 @@ from marimo._runtime.commands import (
     SyncGraphCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._sql.connection_utils import (
     update_schema_list_in_connection,
     update_table_in_connection,
@@ -128,8 +130,10 @@ class AutoExportState:
     md: bool = False
     ipynb: bool = False
     session: bool = False
+    generation: int = 0
 
     def mark_all_stale(self) -> None:
+        self.generation += 1
         self.html = False
         self.md = False
         self.ipynb = False
@@ -138,8 +142,13 @@ class AutoExportState:
     def is_stale(self, export_type: ExportType) -> bool:
         return not getattr(self, export_type)
 
-    def mark_exported(self, export_type: ExportType) -> None:
+    def mark_exported(
+        self, export_type: ExportType, *, generation: int | None = None
+    ) -> bool:
+        if generation is not None and generation != self.generation:
+            return False
         setattr(self, export_type, True)
+        return True
 
 
 class SessionView:
@@ -202,6 +211,7 @@ class SessionView:
 
         # Auto-saving
         self.auto_export_state = AutoExportState()
+        self._auto_export_html_layout: LayoutConfig | None = None
 
     def _add_ui_value(self, name: str, value: Any) -> None:
         self.ui_values[name] = value
@@ -210,7 +220,6 @@ class SessionView:
         self.last_executed_code[req.cell_id] = req.code
 
     def add_raw_notification(self, raw_notification: KernelMessage) -> None:
-        self._touch()
         # Type ignore because NotificationMessage is a Union, not a class
         self.add_notification(deserialize_kernel_message(raw_notification))  # type: ignore[arg-type]
 
@@ -279,7 +288,6 @@ class SessionView:
     def add_notification(self, notification: NotificationMessage) -> None:
         """Add a notification to the session view."""
         self._touch()
-        self.auto_export_state.mark_all_stale()
 
         if isinstance(notification, CellNotification):
             previous = self.cell_notifications.get(notification.cell_id)
@@ -622,20 +630,43 @@ class SessionView:
             for notif in self.cell_notifications.values()
         )
 
-    def mark_auto_export_html(self) -> None:
-        self.auto_export_state.mark_exported("html")
+    def mark_auto_export_html(
+        self,
+        layout: LayoutConfig | None = None,
+        *,
+        generation: int | None = None,
+    ) -> bool:
+        if not self.auto_export_state.mark_exported(
+            "html", generation=generation
+        ):
+            return False
+        self._auto_export_html_layout = copy.deepcopy(layout)
+        return True
 
-    def mark_auto_export_md(self) -> None:
-        self.auto_export_state.mark_exported("md")
+    def needs_auto_export_html(self, layout: LayoutConfig | None) -> bool:
+        return self.needs_export("html") or (
+            layout != self._auto_export_html_layout
+        )
 
-    def mark_auto_export_ipynb(self) -> None:
-        self.auto_export_state.mark_exported("ipynb")
+    def mark_auto_export_md(self, *, generation: int | None = None) -> bool:
+        return self.auto_export_state.mark_exported(
+            "md", generation=generation
+        )
+
+    def mark_auto_export_ipynb(self, *, generation: int | None = None) -> bool:
+        return self.auto_export_state.mark_exported(
+            "ipynb", generation=generation
+        )
 
     def mark_auto_export_session(self) -> None:
         self.auto_export_state.mark_exported("session")
 
     def needs_export(self, export_type: ExportType) -> bool:
         return self.auto_export_state.is_stale(export_type)
+
+    @property
+    def auto_export_generation(self) -> int:
+        return self.auto_export_state.generation
 
     def _touch(self) -> None:
         self.auto_export_state.mark_all_stale()

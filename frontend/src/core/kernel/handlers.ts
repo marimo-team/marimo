@@ -1,5 +1,4 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { deserializeLayout } from "@/components/editor/renderers/plugins";
 import type { LayoutType } from "@/components/editor/renderers/types";
 import { Logger } from "@/utils/Logger";
 import { Objects } from "@/utils/objects";
@@ -7,11 +6,8 @@ import type { UIElementId } from "../cells/ids";
 import { type CellData, createCell } from "../cells/types";
 import { type AppConfig, AppConfigSchema } from "../config/config-schema";
 import { UI_ELEMENT_REGISTRY } from "../dom/uiregistry";
-import {
-  initialLayoutState,
-  type LayoutData,
-  type LayoutState,
-} from "../layout/layout";
+import { deserializeLayoutState } from "../layout/layout";
+import type { LayoutData, LayoutState } from "../layout/state";
 import { getRequestClient } from "../network/requests";
 import { VirtualFileTracker } from "../static/virtual-file-tracker";
 import type {
@@ -69,19 +65,14 @@ export function buildLayoutState(
     data: LayoutData;
   }) => void,
 ): LayoutState {
-  const layoutState = initialLayoutState();
   const { layout } = data;
+  const layoutState = deserializeLayoutState(layout, cells);
 
-  if (layout) {
-    const layoutType = layout.type as LayoutType;
-    const layoutData = deserializeLayout({
-      type: layoutType,
-      data: layout.data,
-      cells,
+  if (layout && layout.type === layoutState.selectedLayout) {
+    setLayoutData({
+      layoutView: layoutState.selectedLayout,
+      data: layoutState.layoutData[layoutState.selectedLayout],
     });
-    layoutState.selectedLayout = layoutType;
-    layoutState.layoutData[layoutType] = layoutData;
-    setLayoutData({ layoutView: layoutType, data: layoutData });
   }
 
   return layoutState;
