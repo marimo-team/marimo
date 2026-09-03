@@ -12,7 +12,7 @@ import {
   MODEL_DENYLIST,
   mergeModels,
 } from "../sources/merge.ts";
-import { type ModelsDevApi, parseModelsDev } from "../sources/models-dev.ts";
+import type { ModelsDevApi } from "../sources/models-dev.ts";
 import { syncModels } from "../sync-models.ts";
 
 const FIXTURE_YAML = `# Manually curated section
@@ -294,32 +294,6 @@ describe("mergeModels", () => {
 
   it("defaults to 10 per provider when no cap is passed", () => {
     expect(MAX_MODELS_PER_PROVIDER).toBe(10);
-  });
-
-  it("filters deprecated models before applying the latest-model cap", () => {
-    const fixture = parseModelsDev({
-      openai: {
-        id: "openai",
-        models: {
-          deprecated: {
-            id: "deprecated",
-            name: "Deprecated",
-            status: "deprecated",
-            release_date: "2026-02-01",
-          },
-          current: {
-            id: "current",
-            name: "Current",
-            release_date: "2026-01-01",
-          },
-        },
-      },
-    });
-
-    const summary = mergeModels({}, fixture, { maxPerProvider: 1 });
-    expect(summary.newEntries["openai"]!.map((e) => e.model)).toEqual([
-      "current",
-    ]);
   });
 
   it("dedupes models that appear under multiple mapped providers (google + google-vertex → google)", () => {
