@@ -10,9 +10,11 @@ import {
 } from "../utils";
 
 const originalHref = window.location.href;
+let originalStaticState: typeof window.__MARIMO_STATIC__;
 
 describe("show code", () => {
   beforeEach(() => {
+    originalStaticState = window.__MARIMO_STATIC__;
     window.history.replaceState(null, "", "/?existing=value#section");
     window.__MARIMO_STATIC__ = {
       files: {},
@@ -22,7 +24,7 @@ describe("show code", () => {
 
   afterEach(() => {
     window.history.replaceState(null, "", originalHref);
-    delete window.__MARIMO_STATIC__;
+    window.__MARIMO_STATIC__ = originalStaticState;
   });
 
   it("does not add a query parameter when reading the initial value", () => {

@@ -84,9 +84,11 @@ const VerticalLayoutRenderer: React.FC<VerticalLayoutProps> = ({
   const canShowCode = useNotebookCodeAvailable(cells);
 
   const handleToggleShowCode = () => {
-    const nextShowCode = !showCode;
-    setShowCode(nextShowCode);
-    updateShowCodeQueryParam(nextShowCode);
+    setShowCode((currentShowCode) => {
+      const nextShowCode = !currentShowCode;
+      updateShowCodeQueryParam(nextShowCode);
+      return nextShowCode;
+    });
   };
 
   const renderCell = (cell: CellRuntimeState & CellData) => {
