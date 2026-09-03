@@ -199,17 +199,5 @@ def _explicitly_set_option_names(ctx: click.Context) -> list[str]:
         value = ctx.params.get(param.name)
         if isinstance(value, bool) and not value:
             continue
-        if isinstance(value, bool) and _is_negation(param):
-            # A negation turns a feature off, whether it is spelled as the
-            # off switch of a boolean pair (`--sandbox/--no-sandbox`) or as
-            # its own flag (`--no-sandbox`).
-            continue
         options.append(param.name)
     return options
-
-
-def _is_negation(param: click.Option) -> bool:
-    """Whether every spelling of this option turns something off."""
-    return bool(param.opts) and all(
-        opt.lstrip("-").startswith("no-") for opt in param.opts
-    )

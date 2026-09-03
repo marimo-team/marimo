@@ -723,6 +723,7 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
 
     mock_session = MagicMock()
     mock_session._kernel_manager = mock_kernel_manager
+    mock_session.notebook_sandbox = None
 
     # Mock app state
     mock_app_state = MagicMock()

@@ -78,6 +78,33 @@ def test_sandbox_backend_overrides_configured_package_manager() -> None:
     assert manager.name == "uv"
 
 
+async def test_sandbox_package_manager_splits_package_operations() -> None:
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = MagicMock()
+    sandbox.backend = "uv"
+    sandbox.environment = None
+    manager = SandboxPackageManager(sandbox)
+
+    assert await manager._install(
+        "foo==1.0 bar[extra]",
+        upgrade=True,
+        log_callback=None,
+    )
+    assert await manager.uninstall("foo bar")
+
+    assert [call.args[0] for call in sandbox.add.call_args_list] == [
+        "foo==1.0",
+        "bar[extra]",
+    ]
+    assert [call.args[0] for call in sandbox.remove.call_args_list] == [
+        "foo",
+        "bar",
+    ]
+
+
 @pytest.fixture
 def uv_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     """Capture uv invocations made through the script_metadata verbs."""

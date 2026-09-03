@@ -69,12 +69,6 @@ class Environment:
     root: str
     action: Action
 
-    def requires_restart(self, previous: Environment | None) -> bool:
-        """Whether a process launched from `previous` must be relaunched."""
-        if previous is None:
-            return False
-        return self.action == "replaced" or self.python != previous.python
-
     def process_env(
         self, base: Mapping[str, str] | None = None
     ) -> dict[str, str]:

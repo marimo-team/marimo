@@ -225,9 +225,7 @@ def test_uv_adapter_inspects_the_script_environment(
 
     invocation: dict[str, object] = {}
 
-    def fake_uv(
-        args: list[str], **kwargs: object
-    ) -> CompletedProcess[str]:
+    def fake_uv(args: list[str], **kwargs: object) -> CompletedProcess[str]:
         invocation["args"] = args
         invocation.update(kwargs)
         return CompletedProcess(

@@ -10,6 +10,8 @@ operation and are cleaned by `script_metadata`.
 from __future__ import annotations
 
 import re
+import shlex
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal, Protocol
@@ -29,14 +31,6 @@ SandboxOperation = Literal["prepare", "add", "upgrade", "remove", "sync"]
 LogCallback = Callable[[str], None]
 ENVIRONMENT_PYTHON = "MARIMO_SANDBOX_ENVIRONMENT_PYTHON"
 ENVIRONMENT_ROOT = "MARIMO_SANDBOX_ENVIRONMENT_ROOT"
-
-
-@dataclass(frozen=True)
-class EnvironmentChange:
-    """The Environment produced by a Manifest change."""
-
-    environment: Environment
-    requires_restart: bool
 
 
 @dataclass(frozen=True)
@@ -81,8 +75,6 @@ class TerminalSandboxReporter:
     """Render sandbox operations to the terminal."""
 
     def report(self, command: SandboxCommand) -> None:
-        import shlex
-
         from marimo._cli.print import echo, muted
 
         labels: dict[SandboxOperation, str] = {
@@ -93,7 +85,8 @@ class TerminalSandboxReporter:
             "sync": "Synchronizing sandbox",
         }
         echo(
-            f"{labels[command.operation]}: {muted(shlex.join(command.argv))}",
+            f"{labels[command.operation]}: "
+            f"{muted(shlex.join(_redact_command(command.argv)))}",
             err=True,
         )
 
@@ -166,7 +159,9 @@ class NotebookSandbox:
         adapter: BackendAdapter | None = None,
         reporter: SandboxReporter | None = None,
     ) -> None:
-        self._temporary_directory = None
+        self._temporary_directory: tempfile.TemporaryDirectory[str] | None = (
+            None
+        )
         self._source = self._bind_source(source)
         self._reporter = reporter or TerminalSandboxReporter()
         if adapter is None:
@@ -248,7 +243,6 @@ class NotebookSandbox:
 
     def _bind_source(self, source: str | None) -> str:
         import os
-        import tempfile
 
         if source is not None:
             return os.path.abspath(source)
@@ -279,7 +273,7 @@ class NotebookSandbox:
         self._adapter.prepare_source(self._source)
         environment = self._sync(
             python_override=python_override, on_output=on_output
-        ).environment
+        )
         plan = self._adapter.launch(
             environment,
             args,
@@ -296,7 +290,7 @@ class NotebookSandbox:
         *,
         upgrade: bool = False,
         on_output: LogCallback | None = None,
-    ) -> EnvironmentChange:
+    ) -> None:
         """Add or refresh a direct Manifest dependency and synchronize.
 
         A bare requirement (`polars`, `duckdb[spatial]`) is pinned to the
@@ -309,6 +303,11 @@ class NotebookSandbox:
         """
         self._adapter.ensure_available()
         bare = _bare_requirement(package)
+        if bare is not None and not bare.extras:
+            # Re-adding a package without extras must not silently remove
+            # extras already declared by the notebook when the resolved
+            # version is pinned below.
+            bare = self._declared_bare(bare) or bare
         request = package
         if bare is not None and upgrade:
             # Both managers leave an existing Manifest entry alone when a
@@ -325,17 +324,16 @@ class NotebookSandbox:
                 upgrade=upgrade,
                 on_output=on_output,
             )
-        change = self._sync(on_output=on_output)
+        self._sync(on_output=on_output)
         if bare is not None:
             self._pin(bare)
-        return change
 
     def remove(
         self,
         package: str,
         *,
         on_output: LogCallback | None = None,
-    ) -> EnvironmentChange:
+    ) -> None:
         """Remove a direct Manifest dependency and synchronize."""
         if _normalize_dependency_name(package) == "marimo":
             raise script_metadata.ScriptMetadataError(
@@ -344,7 +342,7 @@ class NotebookSandbox:
         self._adapter.ensure_available()
         with script_metadata.materialized_for_edit(self._source) as target:
             self._adapter.remove(target, package, on_output=on_output)
-        return self._sync(on_output=on_output)
+        self._sync(on_output=on_output)
 
     def packages(
         self, *, on_output: LogCallback | None = None
@@ -390,23 +388,30 @@ class NotebookSandbox:
             return bare, f"{bare.text}>={_floor(resolved)}"
         return None
 
+    def _declared_bare(
+        self, bare: _BareRequirement
+    ) -> _BareRequirement | None:
+        """The Manifest's spelling of a package name and extras, if any."""
+        for dependency in self._declared_dependencies():
+            match = _NAMED_REQUIREMENT.match(dependency)
+            if match is None:
+                continue
+            if _normalize_dependency_name(match.group("name")) != bare.name:
+                continue
+            extras = match.group("extras") or ""
+            return _BareRequirement(
+                text=f"{match.group('name')}{extras}",
+                name=bare.name,
+                extras=extras,
+            )
+        return None
+
     def _declared_pin(
         self, bare: _BareRequirement
     ) -> tuple[_BareRequirement, str] | None:
         """The Manifest's exact pin for a package, if it declares one."""
-        with script_metadata.materialized_for_environment(
-            self._source
-        ) as target:
-            try:
-                with open(target.path, encoding="utf-8") as file:
-                    project = script_metadata.loads(file.read()) or {}
-            except (OSError, ValueError):
-                return None
-        dependencies = project.get("dependencies", [])
-        if not isinstance(dependencies, list):
-            return None
-        for dependency in dependencies:
-            match = _EXACT_PIN.match(str(dependency))
+        for dependency in self._declared_dependencies():
+            match = _EXACT_PIN.match(dependency)
             if match is None:
                 continue
             if _normalize_dependency_name(match.group("name")) != bare.name:
@@ -423,6 +428,21 @@ class NotebookSandbox:
                 match.group("version"),
             )
         return None
+
+    def _declared_dependencies(self) -> list[str]:
+        """The Manifest's direct dependency strings."""
+        with script_metadata.materialized_for_environment(
+            self._source
+        ) as target:
+            try:
+                with open(target.path, encoding="utf-8") as file:
+                    project = script_metadata.loads(file.read()) or {}
+            except (OSError, ValueError):
+                return []
+        dependencies = project.get("dependencies", [])
+        if not isinstance(dependencies, list):
+            return []
+        return [str(dependency) for dependency in dependencies]
 
     def _pin(self, bare: _BareRequirement) -> None:
         """Record the synchronized version as the Manifest constraint."""
@@ -455,8 +475,7 @@ class NotebookSandbox:
         *,
         python_override: str | None = None,
         on_output: LogCallback | None = None,
-    ) -> EnvironmentChange:
-        previous = self._environment
+    ) -> Environment:
         with script_metadata.materialized_for_environment(
             self._source
         ) as target:
@@ -467,10 +486,7 @@ class NotebookSandbox:
             )
         self._environment = environment
         self._environment_source = self._source
-        return EnvironmentChange(
-            environment=environment,
-            requires_restart=environment.requires_restart(previous),
-        )
+        return environment
 
 
 def _normalize_dependency_name(requirement: str) -> str:
@@ -493,6 +509,10 @@ class _BareRequirement:
 
 _BARE_REQUIREMENT = re.compile(
     r"^\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?P<extras>\[[^\]]*\])?\s*$"
+)
+
+_NAMED_REQUIREMENT = re.compile(
+    r"^\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?P<extras>\[[^\]]*\])?"
 )
 
 # An exact pin holds one release: `name==1.2.3`, optionally with extras,
@@ -529,3 +549,18 @@ def _floor(version: str) -> str:
     so the floor is the public part.
     """
     return version.split("+", 1)[0]
+
+
+_URL_CREDENTIALS = re.compile(
+    r"(?P<scheme>[A-Za-z][A-Za-z0-9+.-]*://)[^/@\s]+@"
+)
+
+
+def _redact_command(command: Sequence[str]) -> list[str]:
+    """Redact URL userinfo before rendering a command."""
+    return [_redact_url_credentials(argument) for argument in command]
+
+
+def _redact_url_credentials(value: str) -> str:
+    """Replace URL userinfo embedded in text with a placeholder."""
+    return _URL_CREDENTIALS.sub(r"\g<scheme>***@", value)

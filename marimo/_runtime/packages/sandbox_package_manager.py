@@ -13,8 +13,10 @@ from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.sandbox import _redact_url_credentials
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.packages.pypi_package_manager import PypiPackageManager
+from marimo._runtime.packages.utils import split_packages
 
 if TYPE_CHECKING:
     from marimo._environments.sandbox import NotebookSandbox
@@ -53,12 +55,13 @@ class SandboxPackageManager(PypiPackageManager):
     ) -> bool:
         del group
         try:
-            await asyncio.to_thread(
-                self._sandbox.add,
-                package,
-                upgrade=upgrade,
-                on_output=log_callback,
-            )
+            for requirement in split_packages(package):
+                await asyncio.to_thread(
+                    self._sandbox.add,
+                    requirement,
+                    upgrade=upgrade,
+                    on_output=log_callback,
+                )
             return True
         except EnvironmentManagerError as error:
             self._report(error, log_callback)
@@ -67,7 +70,8 @@ class SandboxPackageManager(PypiPackageManager):
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         del group
         try:
-            await asyncio.to_thread(self._sandbox.remove, package)
+            for requirement in split_packages(package):
+                await asyncio.to_thread(self._sandbox.remove, requirement)
             return True
         except EnvironmentManagerError as error:
             self._report(error, None)
@@ -118,7 +122,7 @@ class SandboxPackageManager(PypiPackageManager):
 
     @staticmethod
     def _report(error: Exception, log_callback: LogCallback | None) -> None:
-        message = str(error.__cause__ or error)
+        message = _redact_url_credentials(str(error.__cause__ or error))
         LOGGER.error("Failed to update notebook sandbox: %s", message)
         if log_callback is not None:
             log_callback(message + "\n")
