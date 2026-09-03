@@ -489,6 +489,48 @@ def test_pixi_launch_layers_the_runtime_overlay_through_uv(
     assert ("--with", "nbformat") in pairs
     assert plan.argv[-3:] == ("python", "-m", "marimo")
     assert plan.env["CONDA_PREFIX"] == str(root)
+    assert plan.start_new_session
+
+
+def test_pixi_package_list_exposes_only_managed_pypi_packages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments import pixi
+    from marimo._environments.backends import PixiBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+
+    records = [
+        {
+            "name": "zlib",
+            "version": "1.3.1",
+            "kind": "conda",
+            "is_explicit": True,
+            "depends": [],
+        },
+        {
+            "name": "attrs",
+            "version": "25.3.0",
+            "kind": "pypi",
+            "is_explicit": True,
+            "depends": [],
+        },
+    ]
+    monkeypatch.setattr(
+        pixi,
+        "list_script_packages",
+        lambda *_args, **_kwargs: records,
+    )
+    target = MaterializedScript(
+        path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
+    )
+
+    state = PixiBackendAdapter().packages(target, environment=None)
+
+    assert [(package.name, package.version) for package in state.packages] == [
+        ("attrs", "25.3.0")
+    ]
+    assert state.tree is not None
+    assert [node.name for node in state.tree.dependencies] == ["zlib", "attrs"]
 
 
 @pytest.mark.skipif(

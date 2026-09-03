@@ -566,12 +566,25 @@ def run_in_sandbox(
 
 
 def _strip_sandbox_args(cmd: list[str]) -> list[str]:
-    """Drop `--sandbox` and `--sandbox=<backend>` from a command line."""
-    return [
-        token
-        for token in cmd
-        if token != "--sandbox" and not token.startswith("--sandbox=")
-    ]
+    """Drop the outer sandbox option without touching notebook arguments."""
+    stripped: list[str] = []
+    index = 0
+    while index < len(cmd):
+        token = cmd[index]
+        if token == "--":
+            stripped.extend(cmd[index:])
+            break
+        if token.startswith("--sandbox="):
+            index += 1
+            continue
+        if token == "--sandbox":
+            index += 1
+            if index < len(cmd) and cmd[index] in ("uv", "pixi"):
+                index += 1
+            continue
+        stripped.append(token)
+        index += 1
+    return stripped
 
 
 def _wait_on_plan(plan: environment.ProcessPlan) -> int:

@@ -320,12 +320,21 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
         pixi.ensure_supported_pixi()
 
     def prepare_source(self, source: str) -> None:
+        import subprocess
+
         from marimo._environments import pixi
 
-        pixi.ensure_marimo(
-            source,
-            on_command=lambda command: self._report("prepare", command),
-        )
+        try:
+            pixi.ensure_marimo(
+                source,
+                on_command=lambda command: self._report("prepare", command),
+            )
+        except subprocess.TimeoutExpired:
+            LOGGER.warning("Timed out adding marimo to script metadata")
+        except Exception as error:
+            LOGGER.warning(
+                "Failed to add marimo to script metadata: %s", error
+            )
 
     def add(
         self,
@@ -400,10 +409,14 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
                 (
                     ResolvedPackage(
                         name=str(record.get("name", "")),
-                        version=str(record.get("version", "")),
+                        version=(
+                            str(record["version"])
+                            if record.get("version") is not None
+                            else ""
+                        ),
                     )
                     for record in records
-                    if record.get("name")
+                    if record.get("name") and record.get("kind") == "pypi"
                 ),
                 key=lambda package: package.name,
             )
@@ -465,6 +478,8 @@ def _pixi_tree(records: list[dict[str, object]]) -> DependencyTreeNode:
     def node_for(name: str, stack: frozenset[str]) -> DependencyTreeNode:
         normalized = _normalize_package_name(name)
         record = by_name.get(normalized, {"name": name})
+        raw_version = record.get("version")
+        version = str(raw_version) if raw_version is not None else None
         tags = []
         kind = record.get("kind")
         if kind:
@@ -473,13 +488,16 @@ def _pixi_tree(records: list[dict[str, object]]) -> DependencyTreeNode:
             tags.append(DependencyTag(kind="cycle", value="true"))
             return DependencyTreeNode(
                 name=str(record.get("name", name)),
-                version=str(record.get("version", "")) or None,
+                version=version,
                 tags=tags,
                 dependencies=[],
             )
 
         dependencies = []
-        for dependency in record.get("depends", []) or []:
+        raw_dependencies = record.get("depends", [])
+        if not isinstance(raw_dependencies, list):
+            raw_dependencies = []
+        for dependency in raw_dependencies:
             match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(dependency))
             if (
                 match is not None
@@ -490,7 +508,7 @@ def _pixi_tree(records: list[dict[str, object]]) -> DependencyTreeNode:
                 )
         return DependencyTreeNode(
             name=str(record.get("name", name)),
-            version=str(record.get("version", "")) or None,
+            version=version,
             tags=tags,
             dependencies=dependencies,
         )

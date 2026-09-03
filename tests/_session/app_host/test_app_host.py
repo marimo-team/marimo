@@ -344,6 +344,59 @@ class TestAppHostSandbox:
             plan = mock_host_cls.call_args[1]["plan"]
             assert plan.argv[0] == sys.executable
 
+    def test_pool_missing_pixi_metadata_runs_from_this_interpreter(
+        self,
+    ) -> None:
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        from marimo._environments.pixi import PixiMissingScriptMetadataError
+        from marimo._session.app_host.pool import AppHostPool
+
+        pool = AppHostPool(sandbox=True)
+        mock_host = MagicMock()
+        mock_host.is_alive.return_value = True
+
+        with (
+            patch(
+                "marimo._environments.backends.sync_notebook",
+                side_effect=PixiMissingScriptMetadataError(
+                    ["pixi"], 1, "no PEP 723 metadata block"
+                ),
+            ),
+            patch(
+                "marimo._session.app_host.pool.AppHost",
+                return_value=mock_host,
+            ) as mock_host_cls,
+        ):
+            pool.get_or_create("/tmp/test_app.py")
+
+        plan = mock_host_cls.call_args[1]["plan"]
+        assert plan.argv[0] == sys.executable
+
+    def test_pool_does_not_fall_back_after_other_pixi_failures(self) -> None:
+        from unittest.mock import patch
+
+        import pytest
+
+        from marimo._environments.pixi import PixiCommandError
+        from marimo._session.app_host.pool import AppHostPool
+
+        pool = AppHostPool(sandbox=True)
+        error = PixiCommandError(["pixi"], 1, "solver failed")
+
+        with (
+            patch(
+                "marimo._environments.backends.sync_notebook",
+                side_effect=error,
+            ),
+            patch("marimo._session.app_host.pool.AppHost") as mock_host_cls,
+            pytest.raises(PixiCommandError),
+        ):
+            pool.get_or_create("/tmp/test_app.py")
+
+        mock_host_cls.assert_not_called()
+
     def test_pool_sandbox_race_returns_existing_host(self) -> None:
         """If another thread creates the host during synchronization, the
         existing host wins."""

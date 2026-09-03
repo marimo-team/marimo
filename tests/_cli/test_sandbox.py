@@ -649,7 +649,6 @@ def test_run_in_sandbox_from_script_environment(
 ) -> None:
     """The provisioned path: a markdown notebook's manifest is
     synchronized and marimo launches from the script environment."""
-    from marimo._cli.sandbox import run_in_sandbox
 
     monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
 
@@ -680,7 +679,6 @@ pyproject: |
 @pytest.mark.usefixtures("_restore_signal_handlers")
 def test_run_in_sandbox_without_a_manifest() -> None:
     """No target means no manifest: marimo runs ephemerally."""
-    from marimo._cli.sandbox import run_in_sandbox
 
     code = run_in_sandbox(["--version"], name=None)
 
@@ -753,6 +751,12 @@ def test_strip_sandbox_args() -> None:
     assert _strip_sandbox_args(
         ["-m", "marimo", "edit", "--sandbox=pixi", "nb.py"]
     ) == ["-m", "marimo", "edit", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "pixi", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "run", "--sandbox", "nb.py", "--", "--sandbox"]
+    ) == ["-m", "marimo", "run", "nb.py", "--", "--sandbox"]
 
 
 def test_no_reprompt_inside_a_sandbox(
