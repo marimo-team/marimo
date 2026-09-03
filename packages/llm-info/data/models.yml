@@ -390,16 +390,6 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
-  - name: Claude Fable 5.1
-    model: anthropic.claude-fable-5-1
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-01
-    cost: {input: 10, output: 50}
-
   - name: Claude Fable 5.1 (Global)
     model: global.anthropic.claude-fable-5-1
     description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
@@ -409,16 +399,6 @@ bedrock:
     output_types: [text]
     release_date: 2026-09-01
     cost: {input: 10, output: 50}
-
-  - name: Claude Fable 5.1 (US)
-    model: us.anthropic.claude-fable-5-1
-    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-01
-    cost: {input: 11, output: 55}
 
   - name: Grok 4.6
     model: xai.grok-4.6
