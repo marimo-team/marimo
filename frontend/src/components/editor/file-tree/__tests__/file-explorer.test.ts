@@ -1,29 +1,35 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import type { FileInfo } from "@/core/network/types";
+import type { FileTreeNode } from "../requesting-tree";
 import { filterHiddenTree, isDirectoryOrFileHidden } from "../file-explorer";
 
 // Helpers to build FileInfo objects for tests
-const file = (name: string, path: string): FileInfo => ({
+const file = (name: string, path: string): FileTreeNode => ({
   id: path,
   name,
   path,
   isDirectory: false,
   isMarimoFile: false,
   children: [],
+  isRoot: false,
+  rootPath: "/",
+  isPrimaryRoot: true,
 });
 
 const dir = (
   name: string,
   path: string,
-  children: FileInfo[] = [],
-): FileInfo => ({
+  children: FileTreeNode[] = [],
+): FileTreeNode => ({
   id: path,
   name,
   path,
   isDirectory: true,
   isMarimoFile: false,
   children,
+  isRoot: false,
+  rootPath: "/",
+  isPrimaryRoot: true,
 });
 
 describe("isDirectoryOrFileHidden", () => {
@@ -47,7 +53,7 @@ describe("isDirectoryOrFileHidden", () => {
 
 describe("filterHiddenTree", () => {
   it("should return all items when showHidden is true", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir(".git", "/.git", []),
       file("README.md", "/README.md"),
       file(".env", "/.env"),
@@ -60,7 +66,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should filter out hidden files when showHidden is false", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir(".git", "/.git"),
       file("README.md", "/README.md"),
       file(".env", "/.env"),
@@ -75,7 +81,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should filter hidden directories recursively", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir("src", "/src", [
         file("index.ts", "/src/index.ts"),
         file(".DS_Store", "/src/.DS_Store"),
@@ -94,7 +100,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should handle nested hidden files", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir("project", "/project", [
         dir("src", "/project/src", [
           file("index.ts", "/project/src/index.ts"),
@@ -114,7 +120,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should preserve directory structure when no children are filtered", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir("src", "/src", [
         file("index.ts", "/src/index.ts"),
         file("utils.ts", "/src/utils.ts"),
@@ -128,7 +134,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should create new object only when children are filtered", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir("src", "/src", [
         file("index.ts", "/src/index.ts"),
         file(".hidden", "/src/.hidden"),
@@ -148,7 +154,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should handle empty children arrays", () => {
-    const list: FileInfo[] = [dir("empty-dir", "/empty-dir", [])];
+    const list: FileTreeNode[] = [dir("empty-dir", "/empty-dir", [])];
 
     const result = filterHiddenTree(list, false);
 
@@ -157,7 +163,7 @@ describe("filterHiddenTree", () => {
   });
 
   it("should handle deeply nested structures", () => {
-    const list: FileInfo[] = [
+    const list: FileTreeNode[] = [
       dir("level1", "/level1", [
         dir("level2", "/level1/level2", [
           dir("level3", "/level1/level2/level3", [

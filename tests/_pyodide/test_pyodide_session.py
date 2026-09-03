@@ -894,6 +894,43 @@ def test_pyodide_bridge_list_files(
     assert response["root"] == str(tmp_path)
 
 
+def test_pyodide_bridge_file_roots(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test listing configured file-browser roots through the bridge."""
+    primary = tmp_path / "project"
+    shared = tmp_path / "shared"
+    primary.mkdir()
+    shared.mkdir()
+    monkeypatch.setattr(
+        pyodide_bridge.file_system, "get_root", lambda: str(primary)
+    )
+    monkeypatch.setitem(
+        pyodide_bridge.session._initial_user_config,
+        "file_browser",
+        {"folders": [{"path": str(shared), "name": "Shared"}]},
+    )
+
+    response = json.loads(pyodide_bridge.file_roots())
+
+    assert response == {
+        "roots": [
+            {
+                "path": str(primary.resolve()),
+                "name": "project",
+                "isPrimary": True,
+            },
+            {
+                "path": str(shared.resolve()),
+                "name": "Shared",
+                "isPrimary": False,
+            },
+        ]
+    }
+
+
 def test_pyodide_bridge_file_details(
     pyodide_bridge: PyodideBridge,
     tmp_path: Path,

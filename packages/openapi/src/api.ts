@@ -1593,6 +1593,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/files/roots": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List roots shown in the file browser */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FileRootsResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/files/search": {
     parameters: {
       query?: never;
@@ -4921,6 +4956,17 @@ export interface components {
       /** @enum {unknown} */
       name: "playwright-chromium";
     };
+    /**
+     * FileBrowserConfig
+     * @description Configuration for the file browser panel.
+     *
+     *         **Keys.**
+     *
+     *         - `folders`: additional absolute folders to show in the file browser
+     */
+    FileBrowserConfig: {
+      folders?: components["schemas"]["FolderConfig"][];
+    };
     /** FileCopyRequest */
     FileCopyRequest: {
       newPath: string;
@@ -5044,6 +5090,16 @@ export interface components {
       lineNumber?: number | null;
       path: string;
     };
+    /** FileRoot */
+    FileRoot: {
+      isPrimary: boolean;
+      name: string;
+      path: string;
+    };
+    /** FileRootsResponse */
+    FileRootsResponse: {
+      roots: components["schemas"]["FileRoot"][];
+    };
     /** FileSearchRequest */
     FileSearchRequest: {
       /** @default 3 */
@@ -5092,6 +5148,19 @@ export interface components {
     /** FocusCellRequest */
     FocusCellRequest: {
       cellId: components["schemas"]["CellId"];
+    };
+    /**
+     * FolderConfig
+     * @description Configuration for an additional file browser root.
+     *
+     *         **Keys.**
+     *
+     *         - `path`: the absolute path to the folder
+     *         - `name`: an optional display name for the folder
+     */
+    FolderConfig: {
+      name?: string;
+      path: string;
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -5846,6 +5915,7 @@ export interface components {
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
       display: components["schemas"]["DisplayConfig"];
       experimental?: Record<string, any>;
+      file_browser?: components["schemas"]["FileBrowserConfig"];
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];

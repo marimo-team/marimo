@@ -11,6 +11,7 @@ export const treeAtom = atom<RequestingTree>((get) => {
   const client = get(requestClientAtom);
   invariant(client, "no requestClientAtom set");
   return new RequestingTree({
+    getRoots: client.getFileRoots,
     listFiles: client.sendListFiles,
     createFileOrFolder: client.sendCreateFileOrFolder,
     deleteFileOrFolder: client.sendDeleteFileOrFolder,

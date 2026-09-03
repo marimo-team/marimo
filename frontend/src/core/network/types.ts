@@ -50,6 +50,8 @@ export type FileDetailsResponse = schemas["FileDetailsResponse"];
 export type FileInfo = schemas["FileInfo"];
 export type FileListRequest = schemas["FileListRequest"];
 export type FileListResponse = schemas["FileListResponse"];
+export type FileRoot = schemas["FileRoot"];
+export type FileRootsResponse = schemas["FileRootsResponse"];
 export type FileSearchRequest = schemas["FileSearchRequest"];
 export type FileSearchResponse = schemas["FileSearchResponse"];
 export type FileMoveRequest = schemas["FileMoveRequest"];
@@ -197,6 +199,7 @@ export interface EditRequests {
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests
+  getFileRoots: () => Promise<FileRootsResponse>;
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;
   sendCreateFileOrFolder: (

@@ -32,6 +32,19 @@ def test_configure_partial_keymap() -> None:
     )
 
 
+def test_configure_file_browser_folders() -> None:
+    assert_config(
+        PartialMarimoConfig(
+            file_browser={
+                "folders": [
+                    {"path": "/data", "name": "Data"},
+                    {"path": "/shared"},
+                ]
+            }
+        )
+    )
+
+
 def test_configure_full() -> None:
     assert_config(
         PartialMarimoConfig(

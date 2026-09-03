@@ -23,6 +23,7 @@ import type {
   FileDetailsResponse,
   FileListRequest,
   FileListResponse,
+  FileRootsResponse,
   FileMoveRequest,
   FileMoveResponse,
   FileSearchRequest,
@@ -84,6 +85,7 @@ export interface RawBridge {
   save_user_config(request: SaveUserConfigurationRequest): Promise<null>;
   rename_file(request: string): Promise<string>;
   list_files(request: FileListRequest): Promise<FileListResponse>;
+  file_roots(): Promise<FileRootsResponse>;
   search_files(request: FileSearchRequest): Promise<FileSearchResponse>;
   file_details(request: { path: string }): Promise<FileDetailsResponse>;
   create_file_or_directory(
