@@ -725,7 +725,7 @@ def _extract_package_name(pkg: str) -> str:
     """
     # Handle PEP 508 URL format: "name @ git+..."
     if " @ " in pkg:
-        name = pkg.split(" @ ")[0].strip()
+        name = pkg.split(" @ ", maxsplit=1)[0].strip()
         return _normalize_package_name(name)
 
     # Strip version specifiers and extras
