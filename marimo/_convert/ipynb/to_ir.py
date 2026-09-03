@@ -16,7 +16,7 @@ from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
+from marimo._ast.transformers import RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.common.format import (
@@ -152,9 +152,8 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
         return any(name in scope for scope in self._shadowed_stack)
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
-        if (
-            node.id in self._name_substitutions
-            and not self._is_shadowed(node.id)
+        if node.id in self._name_substitutions and not self._is_shadowed(
+            node.id
         ):
             self.made_changes = True
             return ast.Name(
@@ -163,9 +162,8 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
         return node
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        if (
-            node.name in self._name_substitutions
-            and not self._is_shadowed(node.name)
+        if node.name in self._name_substitutions and not self._is_shadowed(
+            node.name
         ):
             self.made_changes = True
             node.name = self._name_substitutions[node.name]
@@ -179,9 +177,7 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
 
         param_names: set[str] = set()
         for arg in (
-            node.args.posonlyargs
-            + node.args.args
-            + node.args.kwonlyargs
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
         ):
             param_names.add(arg.arg)
         if node.args.vararg is not None:
@@ -197,9 +193,8 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
     def visit_AsyncFunctionDef(
         self, node: ast.AsyncFunctionDef
     ) -> ast.AsyncFunctionDef:
-        if (
-            node.name in self._name_substitutions
-            and not self._is_shadowed(node.name)
+        if node.name in self._name_substitutions and not self._is_shadowed(
+            node.name
         ):
             self.made_changes = True
             node.name = self._name_substitutions[node.name]
@@ -213,9 +208,7 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
 
         param_names: set[str] = set()
         for arg in (
-            node.args.posonlyargs
-            + node.args.args
-            + node.args.kwonlyargs
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
         ):
             param_names.add(arg.arg)
         if node.args.vararg is not None:
@@ -237,9 +230,7 @@ class ScopeAwareNameTransformer(ast.NodeTransformer):
 
         param_names: set[str] = set()
         for arg in (
-            node.args.posonlyargs
-            + node.args.args
-            + node.args.kwonlyargs
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
         ):
             param_names.add(arg.arg)
         if node.args.vararg is not None:
