@@ -170,14 +170,14 @@ export function getStaticNotebookRunTarget(
   }
 
   const isHtmlFile = url.pathname.endsWith(".html") && url.search === "";
-  const isMarimoHost =
+  const matchesSupportedUrlPattern =
     url.protocol === "https:" &&
     (url.hostname === "marimo.app" ||
       url.hostname === "links.marimo.app" ||
       (url.hostname === "static.marimo.app" &&
         url.pathname.startsWith("/static")) ||
       url.pathname.includes("/notebooks/nb"));
-  if (!isHtmlFile && !isMarimoHost) {
+  if (!isHtmlFile && !matchesSupportedUrlPattern) {
     return filename;
   }
 
