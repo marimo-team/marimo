@@ -567,9 +567,7 @@ class UvPackageManager(PypiPackageManager):
             )
             script_metadata.remove_dependencies(filepath, packages_to_remove)
         except script_metadata.ScriptMetadataError as e:
-            LOGGER.warning(
-                f"Failed to update script metadata for {filepath}: {e}"
-            )
+            LOGGER.warning("%s", e)
             return False
         return True
 

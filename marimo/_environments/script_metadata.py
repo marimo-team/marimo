@@ -200,7 +200,7 @@ def _edit(path: str, edit: Callable[[str, str], None]) -> None:
             edit(absolute, os.path.dirname(absolute))
     except (UvError, subprocess.TimeoutExpired, OSError) as error:
         raise ScriptMetadataError(
-            f"Failed to update script metadata for {path}"
+            f"Failed to update script metadata for {path}: {error}"
         ) from error
 
 

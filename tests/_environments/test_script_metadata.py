@@ -83,6 +83,37 @@ def test_edit_normalizes_invocation_failures(
         script_metadata.add_dependencies("notebook.py", ["idna"])
 
     assert exc_info.value.__cause__ is error
+    assert str(error) in str(exc_info.value)
+
+
+def test_failed_frontmatter_edit_preserves_notebook_and_removes_carrier(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    original = """---
+title: Test
+pyproject: |
+  dependencies = []
+---
+
+# Hello
+"""
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(original)
+    error = UvNotFoundError("uv disappeared")
+
+    def fail(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise error
+
+    monkeypatch.setattr(script_metadata, "uv", fail)
+
+    with pytest.raises(script_metadata.ScriptMetadataError) as exc_info:
+        script_metadata.add_dependencies(str(notebook), ["idna"])
+
+    assert exc_info.value.__cause__ is error
+    assert str(error) in str(exc_info.value)
+    assert notebook.read_text() == original
+    assert [path.name for path in tmp_path.iterdir()] == ["notebook.md"]
 
 
 @pytest.mark.network
