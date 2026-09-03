@@ -1531,3 +1531,140 @@ def test_remove_input_alongside_other_tags_only_consumes_remove_input():
     assert cell.options.get("hide_code") is True
     assert "# Cell tags: extra-tag" in cell.code
     assert "remove-input" not in cell.code
+
+
+@pytest.mark.parametrize(
+    ("source", "expected"),
+    [
+        pytest.param(
+            """
+            def double(n):
+                return n * 2
+            n = 5
+            print(double(3))
+            """,
+            """
+            def double(n):
+                return n * 2
+            _n = 5
+            print(double(3))
+            """,
+            id="function-parameter",
+        ),
+        pytest.param(
+            """
+            n = 5
+            f = lambda n: n + 1
+            print(f(n))
+            """,
+            """
+            _n = 5
+            f = lambda n: n + 1
+            print(f(_n))
+            """,
+            id="lambda-parameter",
+        ),
+        pytest.param(
+            """
+            n = 5
+            xs = [n for n in range(3)]
+            print(n, xs)
+            """,
+            """
+            _n = 5
+            xs = [n for n in range(3)]
+            print(_n, xs)
+            """,
+            id="comprehension-target",
+        ),
+        pytest.param(
+            """
+            n = 5
+            def g(path):
+                for n in range(2):
+                    pass
+                with open(path) as n:
+                    return n
+            """,
+            """
+            _n = 5
+            def g(path):
+                for n in range(2):
+                    pass
+                with open(path) as n:
+                    return n
+            """,
+            id="for-and-with-targets-in-function",
+        ),
+        pytest.param(
+            """
+            n = 5
+            def h(m):
+                return n + m
+            """,
+            """
+            _n = 5
+            def h(m):
+                return _n + m
+            """,
+            id="closure-read-is-still-renamed",
+        ),
+        pytest.param(
+            """
+            n = 5
+            def f(n=n):
+                return n
+            """,
+            """
+            _n = 5
+            def f(n=_n):
+                return n
+            """,
+            id="kwarg-default",
+        ),
+    ],
+)
+def test_transform_fixup_multiple_definitions_respects_inner_scopes(
+    source: str, expected: str
+):
+    # Issue #10736: a parameter (or any inner-scope binding) that shares a
+    # name with a privatized cell-level variable shadows it, so occurrences
+    # inside that scope must not be rewritten.
+    sources = dd([source, "n = 999"])
+    result = transform_fixup_multiple_definitions(sources)
+    assert_sources_equal(result, [expected, "_n = 999"])
+
+
+def test_convert_privatization_keeps_parameter_and_body_consistent():
+    # End-to-end shape of issue #10736: the converted `double` must still
+    # return 6 for `double(3)`, not read the cell-level value.
+    notebook = {
+        "cells": [
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "source": "def double(n):\n    return n * 2\n\nn = 5\nprint(double(3))",
+                "outputs": [],
+                "execution_count": None,
+            },
+            {
+                "cell_type": "code",
+                "metadata": {},
+                "source": "n = 999\nprint(n)",
+                "outputs": [],
+                "execution_count": None,
+            },
+        ],
+        "metadata": {},
+        "nbformat": 4,
+        "nbformat_minor": 5,
+    }
+    result = convert_from_ipynb_to_notebook_ir(json.dumps(notebook))
+    first = result.cells[0].code
+    assert "def double(n):" in first
+    assert "return n * 2" in first
+    assert "_n = 5" in first
+
+    namespace: dict[str, object] = {}
+    exec(first, namespace)  # noqa: S102
+    assert namespace["double"](3) == 6  # type: ignore[operator]
