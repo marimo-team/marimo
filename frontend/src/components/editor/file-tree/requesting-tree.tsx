@@ -14,6 +14,8 @@ import { type FilePath, PathBuilder } from "@/utils/paths";
 import { mapWithConcurrency } from "@/utils/semaphore";
 
 const FILE_OP_CONCURRENCY = 5;
+const WINDOWS_DRIVE_PATH = /^[A-Za-z]:[/\\]/;
+const WINDOWS_UNC_PATH = /^\\\\/;
 
 export type FileTreeNode = Omit<FileInfo, "children"> & {
   children: FileTreeNode[];
@@ -414,7 +416,7 @@ export function fileTreeNodeId(rootPath: string, path: string): string {
 }
 
 function relativePath(path: string, root: string): FilePath | null {
-  const windowsPath = /^[A-Za-z]:[/\\]/.test(root);
+  const windowsPath = isWindowsPath(root);
   const normalizeCase = (value: string) =>
     windowsPath ? value.toLowerCase() : value;
   const comparedPath = normalizeCase(path);
@@ -423,7 +425,7 @@ function relativePath(path: string, root: string): FilePath | null {
     return "" as FilePath;
   }
 
-  const delimiter = root.includes("\\") ? "\\" : "/";
+  const delimiter = pathDelimiter(root);
   const rootWithDelimiter = root.endsWith(delimiter)
     ? root
     : `${root}${delimiter}`;
@@ -439,6 +441,17 @@ function pathsEqual(left: string, right: string): boolean {
 }
 
 function joinPath(parent: string, name: string): FilePath {
-  const delimiter = parent.includes("\\") ? "\\" : "/";
+  const delimiter = pathDelimiter(parent);
   return `${parent}${parent.endsWith(delimiter) ? "" : delimiter}${name}` as FilePath;
+}
+
+function isWindowsPath(path: string): boolean {
+  return WINDOWS_DRIVE_PATH.test(path) || WINDOWS_UNC_PATH.test(path);
+}
+
+function pathDelimiter(path: string): "/" | "\\" {
+  if (WINDOWS_UNC_PATH.test(path) || /^[A-Za-z]:\\/.test(path)) {
+    return "\\";
+  }
+  return "/";
 }

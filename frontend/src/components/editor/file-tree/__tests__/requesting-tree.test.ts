@@ -436,6 +436,45 @@ describe("RequestingTree", () => {
       ).toBeNull();
     });
 
+    test("treats backslashes in POSIX paths as filename characters", async () => {
+      const rootPath = "/root/data\\archive";
+      const filePath = `${rootPath}/file.txt`;
+      getRoots.mockResolvedValueOnce({
+        roots: [{ path: rootPath, name: "archive", isPrimary: true }],
+      });
+      sendListFiles.mockResolvedValueOnce({
+        root: rootPath,
+        files: [
+          {
+            id: filePath,
+            path: filePath,
+            name: "file.txt",
+            isDirectory: false,
+            isMarimoFile: false,
+            children: [],
+          },
+        ],
+      });
+      const posixTree = new RequestingTree({
+        getRoots,
+        listFiles: sendListFiles,
+        createFileOrFolder: sendCreateFileOrFolder,
+        deleteFileOrFolder: sendDeleteFileOrFolder,
+        copyFileOrFolder: sendCopyFileOrFolder,
+        renameFileOrFolder: sendRenameFileOrFolder,
+      });
+      await posixTree.initialize(vi.fn());
+
+      expect(posixTree.getPrimaryRelativePath(filePath as FilePath)).toBe(
+        "file.txt",
+      );
+      await posixTree.copy(fileTreeNodeId(rootPath, filePath), "copy.txt");
+      expect(sendCopyFileOrFolder).toHaveBeenCalledWith({
+        path: filePath,
+        newPath: `${rootPath}/copy.txt`,
+      });
+    });
+
     test("uses configured names in root-qualified display paths", () => {
       expect(tree.getDisplayPath("/root/data.csv" as FilePath)).toBe(
         "data.csv",

@@ -100,6 +100,29 @@ def test_resolve_file_roots_uses_basename_for_blank_name(
     assert roots[1].name == "shared"
 
 
+def test_resolve_file_roots_warns_when_folder_does_not_exist(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    primary = tmp_path / "project"
+    missing = tmp_path / "missing"
+    primary.mkdir()
+    warning = Mock()
+    monkeypatch.setattr("marimo._server.files.roots.LOGGER.warning", warning)
+
+    roots = resolve_file_roots(
+        str(primary),
+        {"folders": [{"path": str(missing)}]},
+    )
+
+    assert len(roots) == 1
+    warning.assert_called_once_with(
+        "Ignoring file browser root %r: %s",
+        str(missing),
+        "path does not exist",
+    )
+
+
 @pytest.mark.parametrize(
     "config",
     [

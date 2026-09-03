@@ -50,6 +50,9 @@ def resolve_file_roots(
 
         try:
             normalized = str(candidate.resolve(strict=True))
+        except FileNotFoundError:
+            _warn_invalid_root(path, "path does not exist")
+            continue
         except (OSError, RuntimeError) as error:
             _warn_invalid_root(path, str(error))
             continue
