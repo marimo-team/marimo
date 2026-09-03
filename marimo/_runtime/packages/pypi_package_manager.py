@@ -53,6 +53,13 @@ PY_EXE = sys.executable
 LOGGER = _loggers.marimo_logger()
 
 
+def _normalized_requirement_name(requirement: str) -> str | None:
+    match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", requirement.strip())
+    if match is None:
+        return None
+    return _normalize_package_name(match.group(0))
+
+
 class VersionMap:
     """
     A map of package names to versions, with some extra
@@ -373,17 +380,19 @@ class UvPackageManager(PypiPackageManager):
 
     def _declared_dependencies(self, script_path: str) -> set[str]:
         """Normalized names declared in the notebook's script metadata."""
+        from marimo._utils.inline_script_metadata import PyProjectReader
+
         try:
-            with open(script_path, encoding="utf-8") as f:
-                project = script_metadata.loads(f.read()) or {}
+            dependencies = PyProjectReader.from_filename(
+                script_path
+            ).dependencies
         except (OSError, ValueError):
             return set()
-        names: set[str] = set()
-        for dep in project.get("dependencies", []):
-            match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(dep).strip())
-            if match is not None:
-                names.add(_normalize_package_name(match.group(0)))
-        return names
+        return {
+            name
+            for dep in dependencies
+            if (name := _normalized_requirement_name(str(dep))) is not None
+        }
 
     def _change_script_environment(
         self,
@@ -608,6 +617,14 @@ class UvPackageManager(PypiPackageManager):
             self.module_to_package(im) for im in import_namespaces_to_remove
         ]
 
+        if self._script_path is not None and packages_to_add:
+            declared = self._declared_dependencies(filepath)
+            packages_to_add = [
+                package
+                for package in packages_to_add
+                if _normalized_requirement_name(package) not in declared
+            ]
+
         if not packages_to_add and not packages_to_remove:
             return True
 
@@ -808,12 +825,22 @@ class UvPackageManager(PypiPackageManager):
         if filename is None and not self.is_in_uv_project:
             return None
 
-        tree_cmd = ["tree", "--no-dedupe"]
-        if filename:
-            tree_cmd += ["--script", filename]
-
         try:
-            result = uv(tree_cmd)
+            tree_cmd = ["tree", "--no-dedupe"]
+            if filename is not None:
+                from marimo._environments.script_metadata import (
+                    materialized_for_environment,
+                )
+                from marimo._environments.uv import script_command_env
+
+                with materialized_for_environment(filename) as target:
+                    result = uv(
+                        [*tree_cmd, "--script", target.path],
+                        env=script_command_env(),
+                        cwd=target.directory,
+                    )
+            else:
+                result = uv(tree_cmd)
             tree = parse_uv_tree(result.stdout)
 
             # If in a uv project and the only top-level item is the project itself,

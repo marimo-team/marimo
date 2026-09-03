@@ -366,6 +366,54 @@ pyproject: |
         assert second.path == first.path
 
 
+def test_stable_carrier_lifetime_is_serialized(tmp_path: Path) -> None:
+    import threading
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
+    )
+    first_entered = threading.Event()
+    release_first = threading.Event()
+    second_attempting = threading.Event()
+    second_entered = threading.Event()
+    errors: list[BaseException] = []
+
+    def first_materialization() -> None:
+        try:
+            with script_metadata.materialized_for_environment(str(notebook)):
+                first_entered.set()
+                release_first.wait()
+        except BaseException as error:
+            errors.append(error)
+
+    def second_materialization() -> None:
+        try:
+            second_attempting.set()
+            with script_metadata.materialized_for_environment(str(notebook)):
+                second_entered.set()
+        except BaseException as error:
+            errors.append(error)
+
+    first = threading.Thread(target=first_materialization)
+    second = threading.Thread(target=second_materialization)
+    first.start()
+    try:
+        assert first_entered.wait(timeout=1)
+        second.start()
+        assert second_attempting.wait(timeout=1)
+        assert not second_entered.wait(timeout=0.1)
+    finally:
+        release_first.set()
+    first.join(timeout=1)
+    second.join(timeout=1)
+
+    assert second_entered.is_set()
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert not errors
+
+
 def test_stranded_carriers_are_swept(tmp_path: Path) -> None:
     """A stray from a killed process is removed on the next operation;
     a fresh carrier (a concurrent process's) is spared."""

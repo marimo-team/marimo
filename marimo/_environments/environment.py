@@ -95,6 +95,10 @@ class ProcessPlan:
 
     argv: tuple[str, ...]
     env: dict[str, str]
+    # A launcher such as uv sits between marimo and the process it starts.
+    # Put that launcher in its own session so startup failure can terminate
+    # the whole pre-handshake process tree without signaling the server.
+    start_new_session: bool = False
 
 
 def launch(
@@ -132,6 +136,7 @@ def launch(
             *args,
         ),
         env=env,
+        start_new_session=True,
     )
 
 
@@ -167,6 +172,7 @@ def launch_isolated(
             *args,
         ),
         env=env,
+        start_new_session=True,
     )
 
 

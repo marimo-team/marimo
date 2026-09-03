@@ -839,6 +839,28 @@ class TestUvScriptMode:
         assert mock_rm.call_args.args == (str(script), ["foo"])
         mock_sync.assert_called_once()
 
+    def test_uninstall_reads_markdown_frontmatter(self, tmp_path: Any) -> None:
+        from unittest.mock import patch
+
+        notebook = tmp_path / "nb.md"
+        notebook.write_text(
+            '---\npyproject: |\n  dependencies = ["foo"]\n---\n\n# Notebook\n',
+            encoding="utf-8",
+        )
+        pm = UvPackageManager(script_path=str(notebook))
+
+        with (
+            patch.object(script_metadata, "remove_dependencies") as mock_rm,
+            patch(
+                "marimo._environments.environment.sync_notebook"
+            ) as mock_sync,
+        ):
+            success = asyncio.run(pm.uninstall("foo"))
+
+        assert success
+        assert mock_rm.call_args.args == (str(notebook), ["foo"])
+        mock_sync.assert_called_once()
+
     def test_uninstall_rejects_undeclared_packages(
         self, tmp_path: Any
     ) -> None:
@@ -880,3 +902,25 @@ class TestUvScriptMode:
         assert uv_calls == [
             ["uv", "--quiet", "add", "--script", NB_ABSPATH, "pyyaml==1.0"],
         ]
+
+    def test_metadata_update_does_not_pin_declared_dependency(
+        self, tmp_path: Any, uv_calls: list[list[str]]
+    ) -> None:
+        notebook = tmp_path / "nb.py"
+        notebook.write_text(
+            '# /// script\n# dependencies = ["pyyaml"]\n# ///\n',
+            encoding="utf-8",
+        )
+
+        class MockUvPackageManager(UvPackageManager):
+            def _get_version_map(self) -> VersionMap:
+                raise AssertionError("declared dependencies need no lookup")
+
+        pm = MockUvPackageManager(script_path=str(notebook))
+
+        assert pm.update_notebook_script_metadata(
+            filepath=str(notebook),
+            import_namespaces_to_add=["yaml"],
+            upgrade=False,
+        )
+        assert uv_calls == []

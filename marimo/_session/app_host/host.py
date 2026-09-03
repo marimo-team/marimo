@@ -179,6 +179,11 @@ class AppHost:
             cmd,
             stdin=subprocess.PIPE,
             env=env,
+            start_new_session=(
+                self._plan.start_new_session
+                if self._plan is not None
+                else False
+            ),
         )
 
         proc_stdin = self._process.stdin

@@ -465,6 +465,9 @@ class IPCKernelManagerImpl(KernelManager):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 env=env,
+                start_new_session=(
+                    plan.start_new_session if plan_launched else False
+                ),
             )
 
             # Drain the kernel's stderr from the very start: uv resolves

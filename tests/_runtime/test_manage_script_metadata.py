@@ -849,6 +849,7 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
         return True
 
     fake.install = install
+    fake.stream_install = _make_stream_install(fake)
     k.packages_callbacks.package_manager = fake
 
     await k.packages_callbacks.install_missing_packages(
