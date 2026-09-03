@@ -569,11 +569,16 @@ describe("mergeModels", () => {
       expect(MODEL_DENYLIST["openai"]?.has("gpt-realtime-2.1")).toBe(true);
       expect(MODEL_DENYLIST["bedrock"]).toEqual(
         new Set([
+          "anthropic.claude-fable-5-1",
+          "us.anthropic.claude-fable-5-1",
           "anthropic.claude-opus-5",
           "au.anthropic.claude-opus-5",
           "eu.anthropic.claude-opus-5",
           "jp.anthropic.claude-opus-5",
         ]),
+      );
+      expect(MODEL_DENYLIST["opencode-go"]).toEqual(
+        new Set(["glm-5.1", "hy3", "minimax-m2.7"]),
       );
     });
 
