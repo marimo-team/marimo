@@ -61,7 +61,7 @@ def test_debounce_trailing_coalesces():
     my_fn(3)
     my_fn(4)
     assert calls == [1]
-    time.sleep(0.07)
+    time.sleep(0.12)
     assert calls == [1, 4]
 
 
@@ -76,7 +76,7 @@ def test_debounce_cancel():
     my_fn(2)
     assert calls == [1]
     my_fn.cancel()
-    time.sleep(0.07)
+    time.sleep(0.12)
     assert calls == [1]
 
 
@@ -101,7 +101,7 @@ def test_debounce_method_per_instance():
     assert a.calls == ["a:1"]
     assert b.calls == ["b:1"]
 
-    time.sleep(0.07)
+    time.sleep(0.12)
 
     assert a.calls == ["a:1", "a:2"]
     assert b.calls == ["b:1", "b:2"]

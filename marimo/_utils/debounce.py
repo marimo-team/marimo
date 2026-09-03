@@ -40,14 +40,16 @@ class Debounce(Generic[F]):
                 trailing_args = None
                 trailing_kwargs = None
                 timer = None
+                if args is None and kwargs is None:
+                    return
                 last_called = time.time()
-            if args is not None or kwargs is not None:
-                ctx.run(target_func, *args, **kwargs)
+            ctx.run(target_func, *(args or ()), **(kwargs or {}))
 
         @wraps(target_func)
         def wrapped(*args: Any, **kwargs: Any) -> None:
             nonlocal last_called, timer, trailing_args, trailing_kwargs
             current_time = time.time()
+            execute_now = False
             with lock:
                 elapsed = current_time - last_called
                 if self.leading and elapsed >= self.wait_time:
@@ -57,7 +59,7 @@ class Debounce(Generic[F]):
                     last_called = current_time
                     trailing_args = None
                     trailing_kwargs = None
-                    target_func(*args, **kwargs)
+                    execute_now = True
                 elif self.trailing:
                     trailing_args = args
                     trailing_kwargs = kwargs
@@ -71,6 +73,8 @@ class Debounce(Generic[F]):
                         timer = threading.Timer(remaining, _fire, args=(ctx,))
                         timer.daemon = True
                         timer.start()
+            if execute_now:
+                target_func(*args, **kwargs)
 
         def cancel() -> None:
             nonlocal timer, trailing_args, trailing_kwargs
