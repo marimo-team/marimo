@@ -30,11 +30,15 @@ import { buildMediaSource, FileContentRenderer } from "./renderers";
 
 export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
+export type OpenNotebookEvent = Pick<
+  Event,
+  "stopPropagation" | "preventDefault"
+>;
+export type OpenNotebookHandler = (event: OpenNotebookEvent) => void;
+
 interface Props {
   file: FileInfo;
-  onOpenNotebook?: (
-    evt: Pick<Event, "stopPropagation" | "preventDefault">,
-  ) => void;
+  onOpenNotebook?: OpenNotebookHandler;
 }
 
 const unsavedContentsForFile = new Map<string, string>();

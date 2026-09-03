@@ -6,6 +6,7 @@ export type FilePath = TypedString<"FilePath">;
 
 // Windows drive-letter prefix like `C:\`, `d:/`, `Z:\`.
 const WINDOWS_DRIVE_PREFIX = /^[A-Za-z]:[/\\]/;
+const WINDOWS_UNC_PREFIX = /^(?:\\\\|\/\/)[^/\\]+[/\\][^/\\]+/;
 // URI scheme prefix like `s3://`, `gs://`, `http://`, `file://`.
 const URI_SCHEME_PREFIX = /^[A-Za-z][\dA-Za-z+.-]*:\/\//;
 
@@ -39,6 +40,49 @@ export const Paths = {
   },
 };
 
+/**
+ * Return `path` relative to `root`, or `null` when it is outside the root.
+ * Paths come from the server, so Windows semantics cannot depend on the
+ * browser's operating system.
+ */
+export function relativeFilePath(
+  path: FilePath,
+  root: FilePath,
+): FilePath | null {
+  const isWindows =
+    WINDOWS_DRIVE_PREFIX.test(root) || WINDOWS_UNC_PREFIX.test(root);
+  const delimiter = isWindows ? "\\" : "/";
+  const normalize = (value: FilePath): string =>
+    isWindows ? value.replaceAll("/", "\\") : value;
+  const forComparison = (value: string): string =>
+    isWindows ? value.toLowerCase() : value;
+  const normalizedPath = normalize(path);
+  const normalizedRoot = trimTrailingSeparators(normalize(root), delimiter);
+  const comparedPath = forComparison(normalizedPath);
+  const comparedRoot = forComparison(normalizedRoot);
+  if (comparedPath === comparedRoot) {
+    return "" as FilePath;
+  }
+
+  const rootPrefix = normalizedRoot.endsWith(delimiter)
+    ? normalizedRoot
+    : `${normalizedRoot}${delimiter}`;
+  if (!comparedPath.startsWith(forComparison(rootPrefix))) {
+    return null;
+  }
+  return normalizedPath.slice(rootPrefix.length) as FilePath;
+}
+
+function trimTrailingSeparators(path: string, delimiter: "/" | "\\"): string {
+  if (path === delimiter || /^[A-Za-z]:\\$/.test(path)) {
+    return path;
+  }
+  while (path.endsWith(delimiter)) {
+    path = path.slice(0, -1);
+  }
+  return path;
+}
+
 export class PathBuilder {
   public readonly deliminator: string;
   constructor(deliminator: "/" | "\\") {
@@ -50,7 +94,26 @@ export class PathBuilder {
   }
 
   join(...paths: string[]): FilePath {
-    return paths.filter(Boolean).join(this.deliminator) as FilePath;
+    let joined = "";
+    for (const part of paths) {
+      if (!part) {
+        continue;
+      }
+      if (!joined) {
+        joined = part;
+        continue;
+      }
+      const joinedHasDelimiter = joined.endsWith(this.deliminator);
+      const partHasDelimiter = part.startsWith(this.deliminator);
+      if (joinedHasDelimiter && partHasDelimiter) {
+        joined += part.slice(1);
+      } else if (joinedHasDelimiter || partHasDelimiter) {
+        joined += part;
+      } else {
+        joined += `${this.deliminator}${part}`;
+      }
+    }
+    return joined as FilePath;
   }
 
   basename(path: FilePath): FilePath {

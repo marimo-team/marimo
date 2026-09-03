@@ -70,12 +70,17 @@ import { makeDuplicateName } from "@/utils/pathUtils";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { useTreeDndManager } from "./dnd-wrapper";
 import { downloadFile } from "./download";
-import { FileViewer } from "./file-viewer";
+import {
+  FileViewer,
+  type OpenNotebookEvent,
+  type OpenNotebookHandler,
+} from "./file-viewer";
 import type { FileTreeNode, RequestingTree } from "./requesting-tree";
 import { openStateAtom, treeAtom } from "./state";
 import { PYTHON_CODE_FOR_FILE_TYPE } from "./types";
 import {
   FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE,
+  FILE_EXPLORER_ROOT_ID_ATTRIBUTE,
   useFileExplorerUpload,
 } from "./upload";
 
@@ -90,8 +95,13 @@ const hiddenFilesState = atomWithStorage(
 
 interface FileExplorerContextValue {
   tree: RequestingTree;
-  uploadFiles: (destinationPath: FilePath) => void;
+  uploadFiles: (destination: FileTreeDestination) => void;
   externalDropDestinationPath: FilePath | null;
+}
+
+interface FileTreeDestination {
+  path: FilePath;
+  rootId: string;
 }
 
 const RequestingTreeContext =
@@ -109,6 +119,7 @@ export const FileExplorer: React.FC<{
   const [selectedFolder, setSelectedFolder] = useState<{
     id: string;
     path: FilePath;
+    rootId: string;
   } | null>(null);
   const [showHiddenFiles, setShowHiddenFiles] =
     useAtom<boolean>(hiddenFilesState);
@@ -120,23 +131,38 @@ export const FileExplorer: React.FC<{
     return tree.refreshPath(destinationPath);
   });
 
-  const uploadDestinationRef = useRef<FilePath>("" as FilePath);
+  const uploadDestinationRef = useRef<FileTreeDestination | null>(null);
   const { getInputProps: getUploadInputProps, open: openUploadPicker } =
     useFileExplorerUpload({
       noClick: true,
       noDrag: true,
       noKeyboard: true,
-      destinationPath: () => uploadDestinationRef.current,
-      getDestinationLabel: (path) => getUploadDestinationLabel(tree, path),
+      destinationPath: () =>
+        uploadDestinationRef.current?.path ?? tree.getPrimaryRootPath(),
+      getDestinationLabel: (path) =>
+        getUploadDestinationLabel(
+          tree,
+          path,
+          uploadDestinationRef.current?.rootId,
+        ),
       refreshDestination: refreshUploadDestination,
     });
-  const handleUploadFiles = useEvent((destinationPath: FilePath) => {
-    uploadDestinationRef.current = destinationPath;
+  const handleUploadFiles = useEvent((destination: FileTreeDestination) => {
+    uploadDestinationRef.current = destination;
     openUploadPicker();
   });
 
   const { openPrompt } = useImperativeModal();
-  const { isPending, error } = useAsyncData(() => tree.initialize(setData), []);
+  const { isPending, error, refetch } = useAsyncData(
+    () => tree.initialize(setData),
+    [],
+  );
+  const handleInitializationRetry = useEvent(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.stopPropagation();
+      refetch();
+    },
+  );
 
   const handleRefresh = useEvent(() => {
     // Return the promise so callers can await refresh completion
@@ -209,10 +235,31 @@ export const FileExplorer: React.FC<{
   }
 
   if (error) {
-    return <ErrorBanner error={error} />;
+    return (
+      <ErrorBanner
+        error={error}
+        action={
+          <Button
+            variant="outline"
+            size="xs"
+            onClick={handleInitializationRetry}
+          >
+            Retry
+          </Button>
+        }
+      />
+    );
   }
 
   if (openFile) {
+    const openNotebookPath = tree.getPrimaryRelativePath(openFile.path);
+    const handleOpenNotebook: OpenNotebookHandler = (event) => {
+      if (openNotebookPath === null) {
+        return;
+      }
+      openMarimoNotebook(event, openNotebookPath);
+    };
+
     return (
       <>
         <div className="flex items-center pl-1 pr-3 shrink-0 border-b justify-between">
@@ -230,16 +277,7 @@ export const FileExplorer: React.FC<{
         <Suspense>
           <FileViewer
             onOpenNotebook={
-              tree.isPrimaryNode(openFile)
-                ? (evt) => {
-                    const path = tree.getPrimaryRelativePath(
-                      openFile.path as FilePath,
-                    );
-                    if (path !== null) {
-                      openMarimoNotebook(evt, path);
-                    }
-                  }
-                : undefined
+              openNotebookPath === null ? undefined : handleOpenNotebook
             }
             file={openFile}
           />
@@ -268,8 +306,14 @@ export const FileExplorer: React.FC<{
         uploadDestinationLabel={getUploadDestinationLabel(
           tree,
           selectedFolder?.path ?? tree.getPrimaryRootPath(),
+          selectedFolder?.rootId,
         )}
-        onUpload={handleUploadFiles}
+        onUpload={(path) =>
+          handleUploadFiles({
+            path,
+            rootId: selectedFolder?.rootId ?? tree.getPrimaryRootId(),
+          })
+        }
       />
       <RequestingTreeContext value={contextValue}>
         <Tree<FileTreeNode>
@@ -285,10 +329,11 @@ export const FileExplorer: React.FC<{
           // Hide the drop cursor
           renderCursor={() => null}
           // Disable dropping files into files
-          disableDrag={(node) => node.isRoot}
+          disableDrag={(node) => tree.isProtectedFromMutation(node.path)}
           disableDrop={({ parentNode, dragNodes }) =>
-            dragNodes.some((node) => node.data.isRoot) ||
-            (parentNode ? !parentNode.data.isDirectory : false)
+            dragNodes.some((node) =>
+              tree.isProtectedFromMutation(node.data.path),
+            ) || (parentNode ? !parentNode.data.isDirectory : false)
           }
           onDelete={async ({ ids }) => {
             for (const id of ids) {
@@ -310,7 +355,8 @@ export const FileExplorer: React.FC<{
             if (first.data.isDirectory) {
               setSelectedFolder({
                 id: first.id,
-                path: first.data.path as FilePath,
+                path: first.data.path,
+                rootId: first.data.rootId,
               });
               return;
             }
@@ -438,11 +484,11 @@ const Toolbar = ({
 const Show = ({
   node,
   onOpenMarimoFile,
+  canOpenMarimoFile,
 }: {
   node: NodeApi<FileTreeNode>;
-  onOpenMarimoFile: (
-    evt: Pick<Event, "stopPropagation" | "preventDefault">,
-  ) => void;
+  onOpenMarimoFile: OpenNotebookHandler;
+  canOpenMarimoFile: boolean;
 }) => {
   const label = (
     <span
@@ -456,7 +502,7 @@ const Show = ({
       }}
     >
       {node.data.name}
-      {node.data.isMarimoFile && node.data.isPrimaryRoot && !isWasm() && (
+      {canOpenMarimoFile && (
         <span
           data-testid="file-explorer-open-marimo-button"
           className="shrink-0 ml-2 text-sm hidden group-hover:inline hover:underline"
@@ -498,16 +544,19 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
 
   const fileExplorer = use(RequestingTreeContext);
   const tree = fileExplorer?.tree;
+  const nodePath = node.data.path;
+  const isProtectedFromMutation =
+    tree?.isProtectedFromMutation(nodePath) ?? node.data.isRoot;
+  const primaryRelativePath = tree?.getPrimaryRelativePath(nodePath) ?? null;
+  const canOpenMarimoFile =
+    node.data.isMarimoFile && primaryRelativePath !== null && !isWasm();
   const isExternalDropTarget =
     node.data.isDirectory &&
     fileExplorer?.externalDropDestinationPath === node.data.path;
 
-  const handleOpenMarimoFile = async (
-    evt: Pick<Event, "stopPropagation" | "preventDefault">,
-  ) => {
-    const path = tree?.getPrimaryRelativePath(node.data.path as FilePath);
-    if (path !== null && path !== undefined) {
-      openMarimoNotebook(evt, path);
+  const handleOpenMarimoFile: OpenNotebookHandler = (evt) => {
+    if (primaryRelativePath !== null) {
+      openMarimoNotebook(evt, primaryRelativePath);
     }
   };
 
@@ -573,12 +622,15 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
       style={style}
       ref={dragHandle}
       {...(node.data.isDirectory
-        ? { [FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE]: node.data.path }
+        ? {
+            [FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE]: node.data.path,
+            [FILE_EXPLORER_ROOT_ID_ATTRIBUTE]: node.data.rootId,
+          }
         : {})}
       className={cn(
         "flex items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group",
       )}
-      draggable={!node.data.isRoot}
+      draggable={!isProtectedFromMutation}
       onClick={(evt) => {
         evt.stopPropagation();
         if (node.data.isDirectory) {
@@ -616,7 +668,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
         {node.isEditing ? (
           <FileNameInput node={node} />
         ) : (
-          <Show node={node} onOpenMarimoFile={handleOpenMarimoFile} />
+          <Show
+            node={node}
+            onOpenMarimoFile={handleOpenMarimoFile}
+            canOpenMarimoFile={canOpenMarimoFile}
+          />
         )}
         <FileActionsDropdown
           testId="file-explorer-more-button"
@@ -667,7 +723,10 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() =>
-                  fileExplorer?.uploadFiles(node.data.path as FilePath)
+                  fileExplorer?.uploadFiles({
+                    path: node.data.path,
+                    rootId: node.data.rootId,
+                  })
                 }
                 data-testid="file-explorer-upload-files-menu-item"
               >
@@ -677,7 +736,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
               <DropdownMenuSeparator />
             </>
           )}
-          {!node.data.isRoot && (
+          {!isProtectedFromMutation && (
             <>
               <RenameMenuItem
                 onSelect={() => node.edit()}
@@ -699,16 +758,11 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
             <ListTreeIcon className={MENU_ITEM_ICON_CLASS} />
             Copy path
           </DropdownMenuItem>
-          {tree && node.data.isPrimaryRoot && !node.data.isRoot && (
+          {tree && primaryRelativePath !== null && !node.data.isRoot && (
             <DropdownMenuItem
               onSelect={async () => {
-                const path = tree.getPrimaryRelativePath(
-                  node.data.path as FilePath,
-                );
-                if (path !== null) {
-                  await copyToClipboard(path);
-                  toast({ title: "Copied to clipboard" });
-                }
+                await copyToClipboard(primaryRelativePath);
+                toast({ title: "Copied to clipboard" });
               }}
               data-testid="file-explorer-copy-relative-path-menu-item"
             >
@@ -748,7 +802,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
               </DropdownMenuItem>
             </>
           )}
-          {node.data.isMarimoFile && node.data.isPrimaryRoot && !isWasm() && (
+          {canOpenMarimoFile && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem
@@ -774,7 +828,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
               </DropdownMenuItem>
             </>
           )}
-          {!node.data.isRoot && (
+          {!isProtectedFromMutation && (
             <>
               <DropdownMenuSeparator />
               <DeleteMenuItem
@@ -797,10 +851,7 @@ const FolderArrow = ({ node }: { node: NodeApi<FileTreeNode> }) => {
   return <TreeChevron isExpanded={node.isOpen} className="w-4 h-4" />;
 };
 
-function openMarimoNotebook(
-  event: Pick<Event, "stopPropagation" | "preventDefault">,
-  path: string,
-) {
+function openMarimoNotebook(event: OpenNotebookEvent, path: string) {
   event.stopPropagation();
   event.preventDefault();
   openNotebook(path);
@@ -809,8 +860,9 @@ function openMarimoNotebook(
 export function getUploadDestinationLabel(
   tree: RequestingTree,
   destinationPath: FilePath,
+  rootId?: string,
 ): string {
-  return tree.getDisplayPath(destinationPath);
+  return tree.getDisplayPath(destinationPath, rootId);
 }
 
 export function filterHiddenTree(

@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
 import { EDGE_CASE_FILENAMES } from "../../__tests__/mocks";
-import { type FilePath, PathBuilder, Paths } from "../paths";
+import { type FilePath, PathBuilder, Paths, relativeFilePath } from "../paths";
 
 describe("Paths", () => {
   it("isAbsolute", () => {
@@ -143,6 +143,11 @@ describe("PathBuilder", () => {
         "path/to/file",
       );
     });
+
+    it("does not duplicate filesystem root separators", () => {
+      expect(new PathBuilder("/").join("/", "file.py")).toBe("/file.py");
+      expect(new PathBuilder("\\").join("C:\\", "file.py")).toBe("C:\\file.py");
+    });
   });
 
   describe("basename", () => {
@@ -224,5 +229,50 @@ describe("PathBuilder", () => {
         }
       },
     );
+  });
+});
+
+describe("relativeFilePath", () => {
+  it("resolves POSIX paths at directory boundaries", () => {
+    expect(
+      relativeFilePath("/repo/data/file.csv" as FilePath, "/repo" as FilePath),
+    ).toBe("data/file.csv");
+    expect(
+      relativeFilePath("/repo-old/file.csv" as FilePath, "/repo" as FilePath),
+    ).toBeNull();
+    expect(
+      relativeFilePath("/data/file.csv" as FilePath, "/" as FilePath),
+    ).toBe("data/file.csv");
+    expect(relativeFilePath("/repo" as FilePath, "/repo/" as FilePath)).toBe(
+      "",
+    );
+  });
+
+  it("normalizes Windows separators and case", () => {
+    expect(
+      relativeFilePath(
+        "c:/users/test/project/src/file.py" as FilePath,
+        "C:\\Users\\Test\\Project\\" as FilePath,
+      ),
+    ).toBe("src\\file.py");
+    expect(
+      relativeFilePath(
+        "C:\\Users\\Test\\Project-old\\file.py" as FilePath,
+        "C:\\Users\\Test\\Project" as FilePath,
+      ),
+    ).toBeNull();
+
+    expect(
+      relativeFilePath("c:/Users/Test/file.py" as FilePath, "C:\\" as FilePath),
+    ).toBe("Users\\Test\\file.py");
+  });
+
+  it("supports case-insensitive UNC paths", () => {
+    expect(
+      relativeFilePath(
+        "//server/share/project/data/file.csv" as FilePath,
+        "\\\\Server\\Share\\Project" as FilePath,
+      ),
+    ).toBe("data\\file.csv");
   });
 });

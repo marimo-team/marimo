@@ -19,6 +19,7 @@ const UPLOAD_CONCURRENCY = 5;
 
 export const FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE =
   "data-file-explorer-directory-path";
+export const FILE_EXPLORER_ROOT_ID_ATTRIBUTE = "data-file-explorer-root-id";
 
 type DestinationPath = FilePath | ((event: DropEvent) => FilePath);
 
@@ -27,7 +28,7 @@ interface FileExplorerUploadOptions extends Omit<
   "onDrop" | "onDropRejected" | "onError"
 > {
   destinationPath: DestinationPath;
-  getDestinationLabel?: (path: FilePath) => string;
+  getDestinationLabel?: (path: FilePath, event: DropEvent) => string;
   onUploadStart?: (destinationPath: FilePath, files: File[]) => void;
   refreshDestination: (destinationPath: FilePath) => Promise<void>;
 }
@@ -89,7 +90,10 @@ export function useFileExplorerUpload(options: FileExplorerUploadOptions) {
         typeof destinationPath === "function"
           ? destinationPath(event)
           : destinationPath;
-      const destinationLabel = getDestinationLabel(resolvedDestinationPath);
+      const destinationLabel = getDestinationLabel(
+        resolvedDestinationPath,
+        event,
+      );
       const isSingle = acceptedFiles.length === 1;
       const loadingTitle = isSingle
         ? `Uploading file to ${destinationLabel}...`
@@ -212,6 +216,17 @@ export function getUploadDestinationFromTarget(
   );
   const path = directory?.getAttribute(FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE);
   return path ? (path as FilePath) : rootPath;
+}
+
+export function getUploadRootIdFromTarget(
+  target: EventTarget | null,
+): string | null {
+  if (!(target instanceof Element)) {
+    return null;
+  }
+
+  const directory = target.closest(`[${FILE_EXPLORER_ROOT_ID_ATTRIBUTE}]`);
+  return directory?.getAttribute(FILE_EXPLORER_ROOT_ID_ATTRIBUTE) ?? null;
 }
 
 function showUploadResultToast(

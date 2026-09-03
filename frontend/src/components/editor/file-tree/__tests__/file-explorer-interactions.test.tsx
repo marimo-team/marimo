@@ -138,4 +138,21 @@ describe("FileExplorer upload destination", () => {
     ).toBeVisible();
     expect(screen.queryByText(".hidden")).not.toBeInTheDocument();
   });
+
+  it("uses the selected root occurrence in upload labels", async () => {
+    vi.mocked(client.getFileRoots).mockResolvedValueOnce({
+      roots: [
+        { path: "/workspace", name: "workspace", isPrimary: true },
+        { path: "/workspace/data", name: "Data", isPrimary: false },
+      ],
+    });
+
+    render(<FileExplorer height={300} />, { wrapper });
+
+    fireEvent.click(await screen.findByText("Data"));
+
+    expect(
+      await screen.findByRole("button", { name: "Upload files to Data" }),
+    ).toBeVisible();
+  });
 });

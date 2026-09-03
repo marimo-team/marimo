@@ -19,6 +19,7 @@ import {
 import { treeAtom } from "../../file-tree/state";
 import {
   getUploadDestinationFromTarget,
+  getUploadRootIdFromTarget,
   useFileExplorerUpload,
 } from "../../file-tree/upload";
 import {
@@ -35,8 +36,10 @@ import {
 
 const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
   const tree = useAtomValue(treeAtom);
-  const [dropDestinationPath, setDropDestinationPath] =
-    useState<FilePath | null>(null);
+  const [dropDestination, setDropDestination] = useState<{
+    path: FilePath;
+    rootId: string;
+  } | null>(null);
 
   const getDropDestinationPath = useCallback(
     (event: DropEvent) =>
@@ -51,20 +54,32 @@ const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
     noClick: true,
     noKeyboard: true,
     destinationPath: getDropDestinationPath,
-    getDestinationLabel: (path) => getUploadDestinationLabel(tree, path),
+    getDestinationLabel: (path, event) =>
+      getUploadDestinationLabel(
+        tree,
+        path,
+        getUploadRootIdFromEvent(event) ?? tree.getPrimaryRootId(),
+      ),
     refreshDestination: refreshUploadDestination,
     onDragEnter: (event) =>
-      setDropDestinationPath(getDropDestinationPath(event)),
+      setDropDestination({
+        path: getDropDestinationPath(event),
+        rootId: getUploadRootIdFromEvent(event) ?? tree.getPrimaryRootId(),
+      }),
     onDragOver: (event) =>
-      setDropDestinationPath(getDropDestinationPath(event)),
-    onDragLeave: () => setDropDestinationPath(null),
-    onUploadStart: () => setDropDestinationPath(null),
+      setDropDestination({
+        path: getDropDestinationPath(event),
+        rootId: getUploadRootIdFromEvent(event) ?? tree.getPrimaryRootId(),
+      }),
+    onDragLeave: () => setDropDestination(null),
+    onUploadStart: () => setDropDestination(null),
   });
   const displayedDestinationPath =
-    dropDestinationPath ?? tree.getPrimaryRootPath();
+    dropDestination?.path ?? tree.getPrimaryRootPath();
   const displayedDestinationLabel = getUploadDestinationLabel(
     tree,
     displayedDestinationPath,
+    dropDestination?.rootId,
   );
 
   return (
@@ -102,6 +117,13 @@ export function getUploadDestinationForEvent(
     return rootPath;
   }
   return getUploadDestinationFromTarget(event.target, rootPath);
+}
+
+function getUploadRootIdFromEvent(event: DropEvent): string | null {
+  if (Array.isArray(event)) {
+    return null;
+  }
+  return getUploadRootIdFromTarget(event.target);
 }
 
 // Height of each accordion trigger (px-3 py-2 text-xs = ~33px)

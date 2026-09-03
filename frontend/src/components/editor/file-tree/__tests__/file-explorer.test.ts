@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
+import type { FilePath } from "@/utils/paths";
 import type { FileTreeNode } from "../requesting-tree";
 import { filterHiddenTree, isDirectoryOrFileHidden } from "../file-explorer";
 
@@ -7,13 +8,12 @@ import { filterHiddenTree, isDirectoryOrFileHidden } from "../file-explorer";
 const file = (name: string, path: string): FileTreeNode => ({
   id: path,
   name,
-  path,
+  path: path as FilePath,
   isDirectory: false,
   isMarimoFile: false,
   children: [],
   isRoot: false,
-  rootPath: "/",
-  isPrimaryRoot: true,
+  rootId: "/",
 });
 
 const dir = (
@@ -23,13 +23,12 @@ const dir = (
 ): FileTreeNode => ({
   id: path,
   name,
-  path,
+  path: path as FilePath,
   isDirectory: true,
   isMarimoFile: false,
   children,
   isRoot: false,
-  rootPath: "/",
-  isPrimaryRoot: true,
+  rootId: "/",
 });
 
 describe("isDirectoryOrFileHidden", () => {

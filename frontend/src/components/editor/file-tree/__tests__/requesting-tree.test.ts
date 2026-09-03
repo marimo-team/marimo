@@ -81,14 +81,14 @@ describe("RequestingTree", () => {
         id: PRIMARY_ROOT_ID,
         name: "workspace",
         isRoot: true,
-        isPrimaryRoot: true,
+        rootId: PRIMARY_ROOT_ID,
         children: [],
       }),
       expect.objectContaining({
         id: EXTERNAL_ROOT_ID,
         name: "Shared",
         isRoot: true,
-        isPrimaryRoot: false,
+        rootId: EXTERNAL_ROOT_ID,
         children: [],
       }),
     ]);
@@ -116,13 +116,13 @@ describe("RequestingTree", () => {
         id: PRIMARY_FILE_ID,
         path: "/root/file1",
         isRoot: false,
-        isPrimaryRoot: true,
+        rootId: PRIMARY_ROOT_ID,
       }),
       expect.objectContaining({
         id: fileTreeNodeId("/root", "/root/folder1"),
         path: "/root/folder1",
         isRoot: false,
-        isPrimaryRoot: true,
+        rootId: PRIMARY_ROOT_ID,
       }),
     ]);
 
@@ -132,6 +132,36 @@ describe("RequestingTree", () => {
       type: "file",
       name: "new.txt",
     });
+  });
+
+  test("retries initialization without retaining partial state", async () => {
+    getRoots.mockResolvedValue({
+      roots: [{ path: "/root", name: "workspace", isPrimary: true }],
+    });
+    sendListFiles.mockRejectedValueOnce(new Error("Network error"));
+    const retryOnChange = vi.fn();
+    const retryTree = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
+    });
+
+    await expect(retryTree.initialize(retryOnChange)).rejects.toThrow(
+      "Network error",
+    );
+    expect(retryOnChange).not.toHaveBeenCalled();
+
+    await retryTree.initialize(retryOnChange);
+
+    expect(getRoots).toHaveBeenCalledTimes(3);
+    expect(retryOnChange).toHaveBeenLastCalledWith(
+      expect.arrayContaining([
+        expect.objectContaining({ path: "/root/file1" }),
+      ]),
+    );
   });
 
   test("expands each root lazily and annotates its descendants", async () => {
@@ -154,8 +184,7 @@ describe("RequestingTree", () => {
     expect(onChange.mock.calls.at(-1)?.[0][1].children[0]).toEqual(
       expect.objectContaining({
         path: "/external/data.csv",
-        rootPath: "/external",
-        isPrimaryRoot: false,
+        rootId: EXTERNAL_ROOT_ID,
         isRoot: false,
       }),
     );
@@ -189,9 +218,62 @@ describe("RequestingTree", () => {
     expect(sendDeleteFileOrFolder).not.toHaveBeenCalled();
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({
-        description: "File browser roots cannot be modified",
+        description:
+          "File browser roots and their parent folders cannot be modified",
       }),
     );
+  });
+
+  test("prevents mutations of configured-root ancestors", async () => {
+    getRoots.mockResolvedValueOnce({
+      roots: [
+        { path: "/repo", name: "repo", isPrimary: true },
+        {
+          path: "/repo/projects/shared",
+          name: "Shared",
+          isPrimary: false,
+        },
+        { path: "/target", name: "Target", isPrimary: false },
+      ],
+    });
+    sendListFiles.mockImplementation(async ({ path }: { path: string }) => ({
+      root: path,
+      files:
+        path === "/repo"
+          ? [
+              {
+                id: "/repo/projects",
+                name: "projects",
+                path: "/repo/projects",
+                isDirectory: true,
+                isMarimoFile: false,
+                children: [],
+              },
+            ]
+          : [],
+    }));
+    const protectedTree = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
+    });
+    const primaryRootId = fileTreeNodeId("/repo", "/repo");
+    const projectsId = fileTreeNodeId("/repo", "/repo/projects");
+    const targetRootId = fileTreeNodeId("/target", "/target");
+    await protectedTree.initialize(vi.fn());
+    await protectedTree.expand(primaryRootId);
+
+    await protectedTree.rename(projectsId, "renamed");
+    await protectedTree.copy(projectsId, "projects-copy");
+    await protectedTree.delete(projectsId);
+    await protectedTree.move([projectsId], targetRootId);
+
+    expect(sendRenameFileOrFolder).not.toHaveBeenCalled();
+    expect(sendCopyFileOrFolder).not.toHaveBeenCalled();
+    expect(sendDeleteFileOrFolder).not.toHaveBeenCalled();
   });
 
   test("supports copying, renaming, and deleting files by absolute path", async () => {
@@ -389,6 +471,31 @@ describe("RequestingTree", () => {
     expect(roots[1].children[0].id).toBe(
       fileTreeNodeId("/repo/data", "/repo/data/file.csv"),
     );
+    expect(
+      overlapTree.getPrimaryRelativePath("/repo/data/file.csv" as FilePath),
+    ).toBe("data/file.csv");
+    expect(
+      overlapTree.getDisplayPath(
+        "/repo/data/file.csv" as FilePath,
+        primaryRootId,
+      ),
+    ).toBe("data/file.csv");
+    expect(
+      overlapTree.getDisplayPath(
+        "/repo/data/file.csv" as FilePath,
+        additionalRootId,
+      ),
+    ).toBe("Data/file.csv");
+
+    sendDeleteFileOrFolder.mockClear();
+    await overlapTree.delete(nestedDirectoryId);
+    expect(sendDeleteFileOrFolder).not.toHaveBeenCalled();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description:
+          "File browser roots and their parent folders cannot be modified",
+      }),
+    );
   });
 
   describe("primary-root paths", () => {
@@ -412,6 +519,11 @@ describe("RequestingTree", () => {
             name: "Project",
             isPrimary: true,
           },
+          {
+            path: "D:\\Shared",
+            name: "Shared",
+            isPrimary: false,
+          },
         ],
       });
       const windowsTree = new RequestingTree({
@@ -434,6 +546,21 @@ describe("RequestingTree", () => {
           "C:\\Users\\Test\\Project-old\\file.py" as FilePath,
         ),
       ).toBeNull();
+      expect(
+        windowsTree.getDisplayPath(
+          "C:\\Users\\Test\\Project\\src\\file.py" as FilePath,
+          fileTreeNodeId(
+            "C:\\Users\\Test\\Project",
+            "C:\\Users\\Test\\Project",
+          ),
+        ),
+      ).toBe("src/file.py");
+      expect(
+        windowsTree.getDisplayPath(
+          "D:\\Shared\\data\\file.csv" as FilePath,
+          fileTreeNodeId("D:\\Shared", "D:\\Shared"),
+        ),
+      ).toBe("Shared/data/file.csv");
     });
 
     test("uses configured names in root-qualified display paths", () => {
@@ -441,9 +568,14 @@ describe("RequestingTree", () => {
         "data.csv",
       );
       expect(tree.getDisplayPath("/external/data.csv" as FilePath)).toBe(
-        "Shared/data.csv",
+        "/external/data.csv",
       );
-      expect(tree.getDisplayPath("/external" as FilePath)).toBe("Shared");
+      expect(
+        tree.getDisplayPath("/external/data.csv" as FilePath, EXTERNAL_ROOT_ID),
+      ).toBe("Shared/data.csv");
+      expect(
+        tree.getDisplayPath("/external" as FilePath, EXTERNAL_ROOT_ID),
+      ).toBe("Shared");
     });
   });
 });

@@ -8,18 +8,22 @@ import type {
   FileRoot,
   FileUpdateResponse,
 } from "@/core/network/types";
-import { prettyError } from "@/utils/errors";
 import { Functions } from "@/utils/functions";
-import { type FilePath, PathBuilder } from "@/utils/paths";
+import { invariant } from "@/utils/invariant";
+import { type FilePath, PathBuilder, relativeFilePath } from "@/utils/paths";
 import { mapWithConcurrency } from "@/utils/semaphore";
 
 const FILE_OP_CONCURRENCY = 5;
 
-export type FileTreeNode = Omit<FileInfo, "children"> & {
+type FileTreeRoot = Omit<FileRoot, "path"> & {
+  path: FilePath;
+};
+
+export type FileTreeNode = Omit<FileInfo, "children" | "path"> & {
+  path: FilePath;
   children: FileTreeNode[];
   isRoot: boolean;
-  rootPath: string;
-  isPrimaryRoot: boolean;
+  rootId: string;
 };
 
 /**
@@ -63,7 +67,10 @@ export class RequestingTree {
     this.callbacks = callbacks;
   }
 
-  private roots: FileRoot[] = [];
+  private roots: FileTreeRoot[] = [];
+  private rootsById = new Map<string, FileTreeRoot>();
+  private initialization: Promise<void> | null = null;
+  private initialized = false;
   private onChange: (data: FileTreeNode[]) => void = Functions.NOOP;
   private path = new PathBuilder("/");
 
@@ -71,37 +78,43 @@ export class RequestingTree {
     onChange: (data: FileTreeNode[]) => void,
   ): Promise<void> => {
     this.onChange = onChange;
-    if (this.delegate.data.length === 0) {
-      try {
-        const { roots } = await this.callbacks.getRoots();
-        const primaryRoot = roots.find((root) => root.isPrimary);
-        if (!primaryRoot) {
-          throw new Error("File browser response is missing a primary root");
-        }
-        this.roots = roots;
-        this.path = PathBuilder.guessDeliminator(primaryRoot.path);
-        this.delegate = new SimpleTree(roots.map(toRootNode));
-        if (roots.length === 1) {
-          const data = await this.callbacks.listFiles({
-            path: primaryRoot.path,
-          });
-          this.delegate.update({
-            id: this.getPrimaryRootId(),
-            changes: {
-              children: annotateFiles(data.files, primaryRoot),
-            },
-          });
-        }
-      } catch (error) {
-        toast({
-          title: "Failed",
-          description: prettyError(error),
-        });
-      }
+    if (this.initialized) {
+      this.emitChange();
+      return;
     }
 
+    this.initialization ??= this.loadInitialData();
+    try {
+      await this.initialization;
+      this.initialized = true;
+    } finally {
+      this.initialization = null;
+    }
     this.emitChange();
   };
+
+  private async loadInitialData(): Promise<void> {
+    const response = await this.callbacks.getRoots();
+    const roots = response.roots.map(toFileTreeRoot);
+    const primaryRoot = roots.find((root) => root.isPrimary);
+    if (!primaryRoot) {
+      throw new Error("File browser response is missing a primary root");
+    }
+
+    const delegate = new SimpleTree(roots.map(toRootNode));
+    if (roots.length === 1) {
+      const data = await this.callbacks.listFiles({ path: primaryRoot.path });
+      delegate.update({
+        id: fileTreeNodeId(primaryRoot.path, primaryRoot.path),
+        changes: { children: annotateFiles(data.files, primaryRoot) },
+      });
+    }
+
+    this.roots = roots;
+    this.rootsById = new Map(roots.map((root) => [rootId(root), root]));
+    this.path = PathBuilder.guessDeliminator(primaryRoot.path);
+    this.delegate = delegate;
+  }
 
   async expand(id: string): Promise<boolean> {
     const node = this.delegate.find(id);
@@ -129,9 +142,9 @@ export class RequestingTree {
     if (!node) {
       return;
     }
-    const path = node.data.path as FilePath;
+    const path = node.data.path;
     const parentPath = this.getParentPath(node.data);
-    const newPath = joinPath(parentPath, newName);
+    const newPath = this.path.join(parentPath, newName);
     const result = await this.callbacks
       .copyFileOrFolder({ path, newPath })
       .then(handleFileResponse);
@@ -145,9 +158,9 @@ export class RequestingTree {
     if (!node) {
       return;
     }
-    const path = node.data.path as FilePath;
+    const path = node.data.path;
     const parentPath = this.getParentPath(node.data);
-    const newPath = joinPath(parentPath, name);
+    const newPath = this.path.join(parentPath, name);
     const result = await this.callbacks
       .renameFileOrFolder({ path, newPath })
       .then(handleFileResponse);
@@ -163,7 +176,7 @@ export class RequestingTree {
       return;
     }
 
-    const refreshPaths = new Set<string>();
+    const refreshPaths = new Set<FilePath>();
     await mapWithConcurrency(fromIds, FILE_OP_CONCURRENCY, async (id) => {
       const node = this.getMutableNode(id, false);
       if (!node) {
@@ -171,9 +184,9 @@ export class RequestingTree {
       }
       const originalPath = node.data.path;
       const sourceParentPath = this.getParentPath(node.data);
-      const newPath = joinPath(
+      const newPath = this.path.join(
         parent.data.path,
-        this.path.basename(originalPath as FilePath),
+        this.path.basename(originalPath),
       );
       const result = await this.callbacks
         .renameFileOrFolder({ path: originalPath, newPath })
@@ -208,7 +221,7 @@ export class RequestingTree {
       })
       .then(handleFileResponse);
     if (result) {
-      await this.refreshPath(parent.data.path as FilePath);
+      await this.refreshPath(parent.data.path);
     }
   }
 
@@ -225,7 +238,7 @@ export class RequestingTree {
       })
       .then(handleFileResponse);
     if (result) {
-      await this.refreshPath(parent.data.path as FilePath);
+      await this.refreshPath(parent.data.path);
     }
   }
 
@@ -248,7 +261,7 @@ export class RequestingTree {
       ...this.roots.map((root) => root.path),
       ...ids
         .map((id) => this.delegate.find(id)?.data.path)
-        .filter((path): path is string => Boolean(path)),
+        .filter((path): path is FilePath => Boolean(path)),
     ];
     await this.refreshPaths(paths);
   };
@@ -262,11 +275,11 @@ export class RequestingTree {
     if (!primaryRoot) {
       return null;
     }
-    return relativePath(path, primaryRoot.path);
+    return relativeFilePath(path, primaryRoot.path);
   };
 
   public getPrimaryRootPath = (): FilePath => {
-    return (this.getPrimaryRoot()?.path ?? "") as FilePath;
+    return this.getPrimaryRoot()?.path ?? ("" as FilePath);
   };
 
   public getPrimaryRootId = (): string => {
@@ -274,45 +287,39 @@ export class RequestingTree {
     return fileTreeNodeId(path, path);
   };
 
-  public isPrimaryNode = (node: FileTreeNode): boolean => {
-    return node.isPrimaryRoot;
-  };
-
-  public getDisplayPath = (path: FilePath): string => {
-    const root = this.getRootForPath(path);
+  public getDisplayPath = (
+    path: FilePath,
+    rootId = this.getPrimaryRootId(),
+  ): string => {
+    const root = this.rootsById.get(rootId);
     if (!root) {
       return path;
     }
-    const relative = relativePath(path, root.path);
+    const relative = relativeFilePath(path, root.path);
+    if (relative === null) {
+      return path;
+    }
     if (!relative) {
       return root.name;
     }
-    return root.isPrimary ? relative : `${root.name}/${relative}`;
+    const displayPath = relative.replaceAll("\\", "/");
+    return root.isPrimary ? displayPath : `${root.name}/${displayPath}`;
   };
 
-  public isRootPath = (path: FilePath): boolean => {
-    return this.roots.some((root) => pathsEqual(path, root.path));
+  public isProtectedFromMutation = (path: FilePath): boolean => {
+    return this.roots.some(
+      (root) => relativeFilePath(root.path, path) !== null,
+    );
   };
 
-  private getPrimaryRoot(): FileRoot | undefined {
+  private getPrimaryRoot(): FileTreeRoot | undefined {
     return this.roots.find((root) => root.isPrimary);
   }
 
-  private getRootForNode(node: FileTreeNode): FileRoot {
-    return (
-      this.roots.find((root) => pathsEqual(root.path, node.rootPath)) ??
-      this.getPrimaryRoot() ?? {
-        path: node.rootPath,
-        name: node.rootPath,
-        isPrimary: node.isPrimaryRoot,
-      }
-    );
-  }
-
-  private getRootForPath(path: FilePath): FileRoot | undefined {
-    return this.roots
-      .filter((root) => relativePath(path, root.path) !== null)
-      .toSorted((left, right) => right.path.length - left.path.length)[0];
+  private getRootForNode(node: FileTreeNode): FileTreeRoot {
+    const root = this.rootsById.get(node.rootId);
+    invariant(root, `No file browser root found for node ${node.id}`);
+    return root;
   }
 
   private getParentNode(parentId: string | null) {
@@ -323,17 +330,22 @@ export class RequestingTree {
 
   private getParentPath(node: FileTreeNode): FilePath {
     const parent = this.delegate.find(node.id)?.parent;
-    return (parent?.data.path ?? node.rootPath) as FilePath;
+    return parent?.data.path ?? this.getRootForNode(node).path;
   }
 
   private getMutableNode(id: string, showError = true) {
     const node = this.delegate.find(id);
-    if (!node || node.data.isRoot) {
+    // Mutating a configured root or one of its ancestors would invalidate the
+    // browser configuration, including through an overlapping occurrence.
+    const isProtected = node
+      ? this.isProtectedFromMutation(node.data.path)
+      : false;
+    if (!node || node.data.isRoot || isProtected) {
       if (showError) {
         toast({
           title: "Failed",
           description: node
-            ? "File browser roots cannot be modified"
+            ? "File browser roots and their parent folders cannot be modified"
             : `Node with id ${id} not found in the tree`,
         });
       }
@@ -342,7 +354,7 @@ export class RequestingTree {
     return node;
   }
 
-  private refreshPaths = async (paths: string[]): Promise<void> => {
+  private refreshPaths = async (paths: FilePath[]): Promise<void> => {
     const uniquePaths = [...new Set(paths)];
     if (uniquePaths.length === 0) {
       return;
@@ -383,7 +395,14 @@ export class RequestingTree {
   }
 }
 
-function toRootNode(root: FileRoot): FileTreeNode {
+function toFileTreeRoot(root: FileRoot): FileTreeRoot {
+  return {
+    ...root,
+    path: root.path as FilePath,
+  };
+}
+
+function toRootNode(root: FileTreeRoot): FileTreeNode {
   return {
     id: fileTreeNodeId(root.path, root.path),
     path: root.path,
@@ -392,19 +411,18 @@ function toRootNode(root: FileRoot): FileTreeNode {
     isMarimoFile: false,
     children: [],
     isRoot: true,
-    rootPath: root.path,
-    isPrimaryRoot: root.isPrimary,
+    rootId: rootId(root),
   };
 }
 
-function annotateFiles(files: FileInfo[], root: FileRoot): FileTreeNode[] {
+function annotateFiles(files: FileInfo[], root: FileTreeRoot): FileTreeNode[] {
   return files.map((file) => ({
     ...file,
+    path: file.path as FilePath,
     id: fileTreeNodeId(root.path, file.path),
     children: annotateFiles(file.children ?? [], root),
     isRoot: false,
-    rootPath: root.path,
-    isPrimaryRoot: root.isPrimary,
+    rootId: rootId(root),
   }));
 }
 
@@ -413,32 +431,6 @@ export function fileTreeNodeId(rootPath: string, path: string): string {
   return `${encodeURIComponent(rootPath)}:${encodeURIComponent(path)}`;
 }
 
-function relativePath(path: string, root: string): FilePath | null {
-  const windowsPath = /^[A-Za-z]:[/\\]/.test(root);
-  const normalizeCase = (value: string) =>
-    windowsPath ? value.toLowerCase() : value;
-  const comparedPath = normalizeCase(path);
-  const comparedRoot = normalizeCase(root);
-  if (comparedPath === comparedRoot) {
-    return "" as FilePath;
-  }
-
-  const delimiter = root.includes("\\") ? "\\" : "/";
-  const rootWithDelimiter = root.endsWith(delimiter)
-    ? root
-    : `${root}${delimiter}`;
-  const comparedPrefix = normalizeCase(rootWithDelimiter);
-  if (!comparedPath.startsWith(comparedPrefix)) {
-    return null;
-  }
-  return path.slice(rootWithDelimiter.length) as FilePath;
-}
-
-function pathsEqual(left: string, right: string): boolean {
-  return relativePath(left, right) === ("" as FilePath);
-}
-
-function joinPath(parent: string, name: string): FilePath {
-  const delimiter = parent.includes("\\") ? "\\" : "/";
-  return `${parent}${parent.endsWith(delimiter) ? "" : delimiter}${name}` as FilePath;
+function rootId(root: FileTreeRoot): string {
+  return fileTreeNodeId(root.path, root.path);
 }

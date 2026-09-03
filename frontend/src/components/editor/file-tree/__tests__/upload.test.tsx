@@ -5,7 +5,9 @@ import type { FileCreateInput, FileCreateResponse } from "@/core/network/types";
 import type { FilePath } from "@/utils/paths";
 import {
   FILE_EXPLORER_DIRECTORY_PATH_ATTRIBUTE,
+  FILE_EXPLORER_ROOT_ID_ATTRIBUTE,
   getUploadDestinationFromTarget,
+  getUploadRootIdFromTarget,
   resolveUploadDirectoryPath,
   uploadFilesToDestination,
 } from "../upload";
@@ -98,6 +100,16 @@ describe("getUploadDestinationFromTarget", () => {
     expect(getUploadDestinationFromTarget(child, filePath("/workspace"))).toBe(
       "/workspace/data",
     );
+  });
+
+  it("preserves the selected root occurrence", () => {
+    const folder = document.createElement("div");
+    folder.setAttribute(FILE_EXPLORER_ROOT_ID_ATTRIBUTE, "external-root");
+    const child = document.createElement("span");
+    folder.append(child);
+
+    expect(getUploadRootIdFromTarget(child)).toBe("external-root");
+    expect(getUploadRootIdFromTarget(document.createElement("div"))).toBeNull();
   });
 
   it("uses the workspace root outside a folder", () => {
