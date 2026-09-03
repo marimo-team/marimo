@@ -209,7 +209,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/timestring": "^6.0.5",
     "@vitejs/plugin-react": "^6.1.0",
-    "@vitest/coverage-v8": "4.1.10",
+    "@vitest/coverage-v8": "4.1.11",
     "blob-polyfill": "^7.0.20220408",
     "cross-env": "^7.0.3",
     "jsdom": "^24.1.3",
@@ -218,7 +218,7 @@
     "oxfmt": "^0.42.0",
     "oxlint": "^1.58.0",
     "oxc-transform-react": "0.145.0",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.26",
     "postcss-prefix-selector": "^2.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -227,9 +227,9 @@
     "stylelint-config-standard": "^36.0.1",
     "tailwindcss": "^4.3.3",
     "vega-typings": "^2.1.0",
-    "vite": "^8.2.1",
+    "vite": "^8.2.2",
     "vite-plugin-wasm": "^3.6.0",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "yaml": "^2.8.3"
   }
 }
