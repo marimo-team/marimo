@@ -1,8 +1,68 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 /* oxlint-disable typescript/no-explicit-any */
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { OutputMessage } from "@/core/kernel/messages";
-import { groupCellsByColumn, shouldHideCode } from "../vertical-layout";
+import {
+  getInitialShowCode,
+  groupCellsByColumn,
+  shouldHideCode,
+  updateShowCodeQueryParam,
+} from "../utils";
+
+const originalHref = window.location.href;
+
+describe("show code", () => {
+  beforeEach(() => {
+    window.history.replaceState(null, "", "/?existing=value#section");
+    window.__MARIMO_STATIC__ = {
+      files: {},
+      modelNotifications: [],
+    };
+  });
+
+  afterEach(() => {
+    window.history.replaceState(null, "", originalHref);
+    delete window.__MARIMO_STATIC__;
+  });
+
+  it("does not add a query parameter when reading the initial value", () => {
+    expect(
+      getInitialShowCode({
+        showCodeInRunModePreference: true,
+        kioskMode: false,
+      }),
+    ).toBe(true);
+    expect(window.location.search).toBe("?existing=value");
+  });
+
+  it("reflects static notebook toggles in the URL", () => {
+    updateShowCodeQueryParam(false);
+    expect(window.location.search).toBe("?existing=value&show-code=false");
+    expect(window.location.hash).toBe("#section");
+    expect(
+      getInitialShowCode({
+        showCodeInRunModePreference: true,
+        kioskMode: false,
+      }),
+    ).toBe(false);
+
+    updateShowCodeQueryParam(true);
+    expect(window.location.search).toBe("?existing=value&show-code=true");
+    expect(
+      getInitialShowCode({
+        showCodeInRunModePreference: true,
+        kioskMode: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("does not reflect non-static notebook toggles in the URL", () => {
+    delete window.__MARIMO_STATIC__;
+
+    updateShowCodeQueryParam(false);
+    expect(window.location.search).toBe("?existing=value");
+  });
+});
 
 describe("groupCellsByColumn", () => {
   it("should group cells by column and maintain order", () => {
