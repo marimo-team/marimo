@@ -9,7 +9,9 @@ import pytest
 from marimo._convert.ipynb.to_ir import (
     CellsTransform,
     CodeCell,
+    PrivateRenamer,
     Transform,
+    _rename_in_scope,
     convert_from_ipynb_to_notebook_ir,
     transform_add_marimo_import,
     transform_add_subprocess_import,
@@ -97,14 +99,13 @@ for i_1 in range(X_1.shape[0]):
 
 
 def test_transform_fixup_multiple_definitions_scope():
-    # Makes everything private to avoid conflicts.
-    # Comments are removed, unfortunately.
+    # NB. `K` inside `foo` is a local, so only the cell-level `K` is renamed.
     sources = dd(
         [
             """K = 2\n
 def foo():
-    K
     K = 1
+    return K
 """,
             "K = 1",
         ]
@@ -113,8 +114,8 @@ def foo():
     expected = [
         """_K = 2\n
 def foo():
-    _K
-    _K = 1
+    K = 1
+    return K
 """,
         "_K = 1",
     ]
@@ -1627,17 +1628,16 @@ def test_remove_input_alongside_other_tags_only_consumes_remove_input():
 def test_transform_fixup_multiple_definitions_respects_inner_scopes(
     source: str, expected: str
 ):
-    # Issue #10736: a parameter (or any inner-scope binding) that shares a
-    # name with a privatized cell-level variable shadows it, so occurrences
-    # inside that scope must not be rewritten.
+    # NB. an inner-scope binding shadows the cell-level name. The rename must
+    # not enter that scope.
     sources = dd([source, "n = 999"])
     result = transform_fixup_multiple_definitions(sources)
     assert_sources_equal(result, [expected, "_n = 999"])
 
 
 def test_convert_privatization_keeps_parameter_and_body_consistent():
-    # End-to-end shape of issue #10736: the converted `double` must still
-    # return 6 for `double(3)`, not read the cell-level value.
+    # NB. the converted function must read its argument, not the privatized
+    # cell-level value.
     notebook = {
         "cells": [
             {
@@ -1668,3 +1668,93 @@ def test_convert_privatization_keeps_parameter_and_body_consistent():
     namespace: dict[str, object] = {}
     exec(first, namespace)  # noqa: S102
     assert namespace["double"](3) == 6  # type: ignore[operator]
+
+
+@pytest.mark.parametrize(
+    ("source", "mapping", "expected"),
+    [
+        pytest.param(
+            """
+            old_global = 'world'
+            old_global, other = 1, 2
+            print(old_global.real)
+            """,
+            {"old_global": "new_global"},
+            """
+            new_global = 'world'
+            new_global, other = 1, 2
+            print(new_global.real)
+            """,
+            id="variable-and-tuple-targets",
+        ),
+        pytest.param(
+            """
+            def old_func():
+                pass
+
+            async def old_async_func():
+                pass
+            old_func()
+            """,
+            {"old_func": "new_func", "old_async_func": "new_async_func"},
+            """
+            def new_func():
+                pass
+
+            async def new_async_func():
+                pass
+            new_func()
+            """,
+            id="function-defs",
+        ),
+        pytest.param(
+            """
+            class OldClass:
+                def __init__(self):
+                    self.old_attribute = 'hello'
+            OldClass()
+            """,
+            {"OldClass": "NewClass", "old_attribute": "new_attribute"},
+            """
+            class NewClass:
+                def __init__(self):
+                    self.old_attribute = 'hello'
+            NewClass()
+            """,
+            id="class-def-and-attribute-untouched",
+        ),
+        pytest.param(
+            """
+            def old_function():
+                old_variable = 42
+                return old_variable
+            """,
+            {"old_function": "new_function", "old_variable": "new_variable"},
+            """
+            def new_function():
+                old_variable = 42
+                return old_variable
+            """,
+            id="function-local-untouched",
+        ),
+    ],
+)
+def test_rename_in_scope(
+    source: str, mapping: dict[str, str], expected: str
+) -> None:
+    renamer = PrivateRenamer(mapping)
+    result = _rename_in_scope(dedent(source), 0, renamer)
+    assert renamer.made_changes
+    assert_sources_equal([result], [expected])
+
+
+@pytest.mark.parametrize(
+    "mapping", [{}, {"y": "z"}], ids=["empty-mapping", "no-match"]
+)
+def test_rename_in_scope_returns_source_verbatim_when_unchanged(
+    mapping: dict[str, str],
+) -> None:
+    source = "x = 1  # keep this comment\n\n\ndef func():\n    return x\n"
+    renamer = PrivateRenamer(mapping)
+    assert _rename_in_scope(source, 0, renamer) is source
+    assert not renamer.made_changes

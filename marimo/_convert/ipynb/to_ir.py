@@ -16,7 +16,7 @@ from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
+from marimo._ast.transformers import RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.common.format import (
@@ -172,20 +172,10 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
                 "_" + name if not name.startswith("_") else name
             )
 
-    def transform(source: str) -> str:
-        try:
-            tree = ast.parse(source)
-            visitor = NameTransformer(name_transformations)
-            transformed_tree = visitor.visit(tree)
-            # Don't unparse if no changes were made
-            # otherwise we lose comments and formatting
-            if visitor.made_changes:
-                return ast.unparse(transformed_tree)
-            return source
-        except SyntaxError:
-            return source
-
-    return [transform(source) for source in sources]
+    return [
+        _rename_in_scope(source, i, PrivateRenamer(name_transformations))
+        for i, source in enumerate(sources)
+    ]
 
 
 def transform_add_marimo_import(sources: list[CodeCell]) -> list[CodeCell]:
@@ -1058,6 +1048,56 @@ class Renamer:
             self.made_changes = name != new_name
 
 
+class PrivateRenamer(Renamer):
+    """Apply one flat name mapping to definitions and references alike."""
+
+    def __init__(self, mapping: dict[str, str]) -> None:
+        super().__init__({})
+        self._mapping = mapping
+
+    def _maybe_rename(self, cell: int, name: str, is_reference: bool) -> str:
+        del cell, is_reference
+        return self._mapping.get(name, name)
+
+
+def _rename_in_scope(source: str, cell_idx: int, renamer: Renamer) -> str:
+    """Rename top-level names in `source`. Inner scopes that rebind a name
+    are left alone.
+
+    Returns `source` unchanged when nothing was renamed, so comments and
+    formatting survive.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return source
+
+    def on_def(node: NamedNode, name: str, block_stack: list[Block]) -> None:
+        # NB. a load that resolves to a definition also arrives here. Rename
+        # it only when the top-level block defines the name and no inner
+        # block, such as a parameter or comprehension target, rebinds it.
+        if name in block_stack[-1].global_names or (
+            block_stack[0].is_defined(name)
+            and not any(block.is_defined(name) for block in block_stack[1:])
+        ):
+            renamer.rename_named_node(cell_idx, node, is_reference=False)
+
+    def on_ref(node: NamedNode) -> None:
+        renamer.rename_named_node(cell_idx, node, is_reference=True)
+
+    visitor = ScopedVisitor(ignore_local=True, on_def=on_def, on_ref=on_ref)
+    try:
+        new_tree = visitor.visit(tree)
+    except SyntaxError:
+        # NB. the visitor raises on constructs marimo rejects, such as
+        # `import *`. Keep the cell as-is.
+        return source
+
+    if not renamer.made_changes:
+        return source
+    return ast.unparse(new_tree)
+
+
 def _transform_aug_assign(sources: list[str]) -> list[str]:
     new_sources = sources.copy()
     for i, source in enumerate(sources):
@@ -1192,68 +1232,11 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
 
     sources = _transform_aug_assign(sources)
 
-    new_sources: list[str] = sources.copy()
     name_mappings = create_name_mappings(duplicates, set(definitions.keys()))
-
-    for cell_idx, source in enumerate(sources):
-        renamer = Renamer(name_mappings)
-        try:
-            tree = ast.parse(source)
-        except SyntaxError:
-            continue
-
-        def on_def(
-            node: NamedNode,
-            name: str,
-            block_stack: list[Block],
-            cell_idx: int = cell_idx,
-            renamer: Renamer = renamer,
-        ) -> None:
-            block_idx = 0 if name in block_stack[-1].global_names else -1
-            if block_idx == 0:
-                # all top-level definitions are renamed
-                renamer.rename_named_node(cell_idx, node, is_reference=False)
-            elif block_stack[0].is_defined(name) and not any(
-                block.is_defined(name) for block in block_stack[1:]
-            ):
-                # all ast.LOADs of top-level definitions are defined
-                renamer.rename_named_node(cell_idx, node, is_reference=False)
-
-        def on_ref(
-            node: NamedNode,
-            cell_idx: int = cell_idx,
-            renamer: Renamer = renamer,
-        ) -> None:
-            renamer.rename_named_node(cell_idx, node, is_reference=True)
-
-        visitor = ScopedVisitor(
-            ignore_local=True, on_def=on_def, on_ref=on_ref
-        )
-        try:
-            new_tree = visitor.visit(tree)
-        except SyntaxError:
-            # Cell contains constructs like `import *` that marimo
-            # doesn't support — skip renaming but keep the cell as-is
-            new_sources[cell_idx] = source
-            continue
-
-        # Don't unparse if no changes were made
-        if not renamer.made_changes:
-            new_sources[cell_idx] = source
-            continue
-
-        new_source_lines: list[str] = []
-
-        # TODO
-        # Add assignments for dependencies
-        # for definition, dep in visitor.dependencies.items():
-        #    new_source_lines.append(f"{definition} = {dep}")
-
-        # Add the modified source
-        new_source_lines.append(ast.unparse(new_tree))
-        new_sources[cell_idx] = "\n".join(new_source_lines)
-
-    return new_sources
+    return [
+        _rename_in_scope(source, cell_idx, Renamer(name_mappings))
+        for cell_idx, source in enumerate(sources)
+    ]
 
 
 def bind_cell_metadata(
