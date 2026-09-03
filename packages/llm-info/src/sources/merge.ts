@@ -51,6 +51,10 @@ export const MODEL_DENYLIST: Readonly<Record<string, ReadonlySet<string>>> = {
     // Listed upstream but does not work with marimo's OpenAI integration.
     "gpt-realtime-2.1",
   ]),
+  azure: new Set([
+    // This ChatGPT alias is not exposed in Azure's current model catalog.
+    "gpt-5.3-chat",
+  ]),
   bedrock: new Set([
     // Provider-specific aliases are redundant with the global catalog entry.
     "anthropic.claude-fable-5-1",
