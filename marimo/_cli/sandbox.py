@@ -398,8 +398,11 @@ def run_in_sandbox(
     if name is not None and name.endswith(".py"):
         try:
             script_metadata.ensure_marimo(name)
-        except subprocess.TimeoutExpired:
-            LOGGER.warning("Timed out adding marimo to script metadata")
+        except script_metadata.ScriptMetadataError as e:
+            if isinstance(e.__cause__, subprocess.TimeoutExpired):
+                LOGGER.warning("Timed out adding marimo to script metadata")
+            else:
+                LOGGER.warning("%s", e)
         except Exception as e:
             LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
         script_metadata.ensure_requires_python(name)
