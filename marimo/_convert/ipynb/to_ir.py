@@ -986,6 +986,14 @@ def transform_exclamation_mark(sources: list[str]) -> ExclamationMarkResult:
 
 
 class Renamer:
+    """Rename nodes in place from per-cell name mappings.
+
+    `cell_remappings` maps each cell index to the names redefined there.
+    A definition uses the latest mapping up to and including its own cell.
+    A reference uses the latest mapping from earlier cells only, because
+    the notebook is assumed to run top-to-bottom.
+    """
+
     def __init__(self, cell_remappings: dict[int, dict[str, str]]) -> None:
         self.cell_remappings = cell_remappings
         self.made_changes = False
@@ -1133,12 +1141,10 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     Rename variables with duplicate definitions across multiple cells,
     even when the variables are declared in one cell and used in another.
 
-    We assume the notebook was meant to be run top-to-bottom,
-    so references to the name will be renamed to the last definition.
-
-    If a new definition is derived from a previous definition,
-    then at the top of the cell, we add a new line that assigns
-    the new definition to the previous definition.
+    We assume top-to-bottom execution. Each redefinition gets a numbered
+    name. A reference uses the latest definition from an earlier cell. An
+    augmented assignment is expanded first, so `a += 2` reads the previous
+    cell's `a`.
 
     ```
     # Cell 1
@@ -1148,7 +1154,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     print(a)
 
     # Cell 3
-    a = 2
+    a += 2
 
     # Cell 4
     a = 3
@@ -1165,8 +1171,7 @@ def transform_duplicate_definitions(sources: list[str]) -> list[str]:
     print(a)
 
     # Cell 3
-    a_1 = a
-    a_1 = a_1 + 2
+    a_1 = a + 2
 
     # Cell 4
     a_2 = 3
