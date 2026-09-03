@@ -13,6 +13,15 @@ marimo export html-wasm notebook.py -o output_dir --mode run
 marimo export html-wasm notebook.py -o output_dir --mode edit
 ```
 
+With `--mode run`, a notebook that uses the slides layout opens as a reveal.js
+deck. The export preserves slide types, fragments, speaker notes, and deck
+settings. Python runs in the browser, so notebook controls remain interactive.
+
+`--mode edit` opens the notebook editor instead of the slides layout. Speaker
+view is not available in WebAssembly HTML exports.
+
+Speaker notes are embedded in the HTML file and readable by anyone who receives it.
+
 The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
 
 Options:

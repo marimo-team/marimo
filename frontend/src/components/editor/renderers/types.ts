@@ -37,11 +37,11 @@ export interface ICellRendererProps<L> {
   setLayout: (layout: L) => void;
 }
 
-export type LayoutType = "vertical" | "grid" | "slides";
-/**
- * List of supported layout types, in the order to be displayed.
- */
-export const LAYOUT_TYPES: LayoutType[] = ["vertical", "grid", "slides"];
+export const LAYOUT_TYPES = ["vertical", "grid", "slides"] as const;
+export type LayoutType = (typeof LAYOUT_TYPES)[number];
+export function isLayoutType(value: string): value is LayoutType {
+  return (LAYOUT_TYPES as readonly string[]).includes(value);
+}
 /**
  * Overridable layout types.
  * These types can override the current layout via a URL parameter.

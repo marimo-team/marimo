@@ -25,16 +25,11 @@ export class TerminalBuffer {
 
   /** Move cursor by relative offsets. */
   private moveCursor(rowDelta: number, colDelta: number) {
-    const oldRow = this.cursor.row;
     this.cursor.row = Math.max(0, this.cursor.row + rowDelta);
     this.cursor.col = Math.max(0, this.cursor.col + colDelta);
     this.ensureLine(this.cursor.row);
-
-    // When moving up, discard lines below the new cursor position
-    // This simulates a fixed terminal window where tqdm overwrites content
-    if (rowDelta < 0 && this.cursor.row < oldRow) {
-      this.lines.splice(this.cursor.row + 1);
-    }
+    // Cursor movement does not erase content. This matters for multi-line
+    // progress renderers, which move up before rewriting a preserved row.
   }
 
   /** Move cursor to a specific absolute position. */

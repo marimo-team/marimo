@@ -7,8 +7,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { requestClientAtom } from "@/core/network/requests";
-import type { FileInfo } from "@/core/network/types";
 import { FileExplorer } from "../file-explorer";
+import type { FileTreeNode } from "../requesting-tree";
 
 vi.mock("react-arborist", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-arborist")>();
@@ -17,20 +17,29 @@ vi.mock("react-arborist", async (importOriginal) => {
     Tree: ({
       data,
       onSelect,
+      onToggle,
     }: {
-      data: FileInfo[];
-      onSelect: (nodes: Array<{ data: FileInfo }>) => void;
+      data: FileTreeNode[];
+      onSelect: (nodes: Array<{ id: string; data: FileTreeNode }>) => void;
+      onToggle: (id: string) => void;
     }) => (
       <div>
-        {data.map((item) => (
-          <button
-            type="button"
-            key={item.id}
-            onClick={() => onSelect([{ data: item }])}
-          >
-            {item.name}
-          </button>
-        ))}
+        {data
+          .flatMap((item) => [item, ...item.children])
+          .map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              onClick={() => {
+                onSelect([{ id: item.id, data: item }]);
+                if (item.isDirectory) {
+                  void onToggle(item.id);
+                }
+              }}
+            >
+              {item.name}
+            </button>
+          ))}
       </div>
     ),
   };
@@ -51,8 +60,11 @@ describe("FileExplorer upload destination", () => {
     localStorage.removeItem("marimo:showHiddenFiles");
     testStore = createStore();
     client = MockRequestClient.create({
+      getFileRoots: vi.fn().mockResolvedValue({
+        roots: [{ path: "/workspace", name: "workspace", isPrimary: true }],
+      }),
       sendListFiles: vi.fn().mockImplementation(async ({ path }) => {
-        if (path) {
+        if (path !== "/workspace") {
           return { files: [] };
         }
         return {
@@ -81,10 +93,11 @@ describe("FileExplorer upload destination", () => {
   it("uses the selected folder for toolbar uploads", async () => {
     render(<FileExplorer height={300} />, { wrapper });
 
-    const rootUpload = await screen.findByRole("button", {
-      name: "Upload files to workspace root",
-    });
-    expect(rootUpload).toBeVisible();
+    expect(
+      await screen.findByRole("button", {
+        name: "Upload files to workspace",
+      }),
+    ).toBeVisible();
 
     fireEvent.click(await screen.findByText("data"));
 
@@ -120,7 +133,7 @@ describe("FileExplorer upload destination", () => {
 
     expect(
       await screen.findByRole("button", {
-        name: "Upload files to workspace root",
+        name: "Upload files to workspace",
       }),
     ).toBeVisible();
     expect(screen.queryByText(".hidden")).not.toBeInTheDocument();

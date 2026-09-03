@@ -101,7 +101,10 @@ describe("TerminalBuffer", () => {
     buffer.writeChar("b");
     buffer.handleEscape("\u001B[1A"); // Move up 1
     buffer.writeChar("X");
-    expect(buffer.render()).toMatchInlineSnapshot(`"aX"`);
+    expect(buffer.render()).toMatchInlineSnapshot(`
+      "aX
+      b"
+    `);
   });
 
   test("handleEscape cursor down", () => {
@@ -328,6 +331,24 @@ describe("AnsiReducer", () => {
     expect(result).toMatchInlineSnapshot(`"axy"`);
   });
 
+  test("cursor up preserves lines below the cursor", () => {
+    const reducer = new AnsiReducer();
+    reducer.append("outer: 0%");
+    reducer.append("\n");
+    reducer.append("inner: 0%");
+    reducer.append("\u001B[A");
+
+    expect(reducer.render()).toBe("outer: 0%\ninner: 0%");
+
+    // tqdm writes nested progress updates as separate, flushed chunks. The
+    // newline moves back to the preserved inner line before it is rewritten.
+    reducer.append("\n");
+    reducer.append("\rinner: 1%");
+    reducer.append("\u001B[A");
+
+    expect(reducer.render()).toBe("outer: 0%\ninner: 1%");
+  });
+
   test("reduce ignores control characters below space", () => {
     const reducer = new AnsiReducer();
     const result = reducer.reduce("hello\u0000\u0001\u0007world");
@@ -361,7 +382,11 @@ describe("ansiReduce", () => {
 
   test("multi-line with cursor movement", () => {
     const result = ansiReduce("Line 1\nLine 2\nLine 3\u001B[2AModified");
-    expect(result).toMatchInlineSnapshot(`"Line 1Modified"`);
+    expect(result).toMatchInlineSnapshot(`
+      "Line 1Modified
+      Line 2
+      Line 3"
+    `);
   });
 
   test("erase and rewrite", () => {
@@ -434,7 +459,8 @@ describe("ansiReduce", () => {
       Running chain 0: 100%|█████████████████████████████| 101000/101000 [00:07<00:00, 12749.04it/s]
       Running chain 1: 100%|█████████████████████████████| 101000/101000 [00:08<00:00, 12442.67it/s]
       Running chain 2: 100%|█████████████████████████████| 101000/101000 [00:08<00:00, 12373.90it/s]
-      "
+      Running chain 2:  95%|████████████████████████████▌ | 95950/101000 [00:07<00:00, 12922.54it/s]
+      Running chain 2: 100%|█████████████████████████████| 101000/101000 [00:08<00:00, 14869.01it/s]"
     `);
   });
 });
@@ -475,7 +501,8 @@ describe("AnsiReducer streaming with append()", () => {
     reducer.append("XYZ");
     expect(reducer.render()).toMatchInlineSnapshot(`
       "abc
-      XYZ"
+      XYZ
+      "
     `);
   });
 
@@ -552,14 +579,12 @@ describe("AnsiReducer color preservation", () => {
   test("preserves color codes with cursor movements", () => {
     const reducer = new AnsiReducer();
     // Test that color codes work alongside cursor movements
-    // Note: when cursor moves up, lines below are discarded (tqdm behavior)
     const result = reducer.reduce(
       "Line1\n\u001B[31mRed\u001B[0m\u001B[1A\u001B[32mGreen\u001B[0m",
     );
-    // After moving up from row 1 to row 0, row 1 is discarded
-    // Green is written at the end of row 0
-    expect(result).toMatchInlineSnapshot(
-      `"Line1       \u001B[32mGreen\u001B[0m"`,
+    // Green is written at the end of row 0; row 1 remains intact.
+    expect(result).toBe(
+      "Line1       \u001B[32mGreen\u001B[0m\n\u001B[31mRed\u001B[0m",
     );
   });
 });
@@ -623,7 +648,8 @@ describe("StatefulOutputMessage", () => {
 
     expect(stateful.data).toMatchInlineSnapshot(`
       "Line 1
-      Xine 2"
+      Xine 2
+      "
     `);
   });
 });

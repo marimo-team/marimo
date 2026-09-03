@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getFeatureFlag } from "@/core/config/feature-flag";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { isWasm } from "@/core/wasm/utils";
 import { logNever } from "@/utils/assertNever";
 import { Strings } from "@/utils/strings";

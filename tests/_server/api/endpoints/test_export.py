@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -22,6 +23,7 @@ from marimo._export.requests import PDFExportRequest
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.notification import CellNotification
 from marimo._output.utils import uri_encode_component
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._schemas.export import (
     ExportAvailabilityResponse,
     ExportFormatAvailability,
@@ -42,9 +44,12 @@ from tests._server.mocks import (
     with_read_session,
     with_session,
 )
+from tests._server.templates.utils import parse_mount_config
 from tests.mocks import EDGE_CASE_FILENAMES, snapshotter
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
+
     from httpx import Response
     from starlette.testclient import TestClient
 
@@ -442,15 +447,31 @@ def test_export_html(client: TestClient) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     session.app_file_manager.filename = "test.py"
-    response = client.post(
-        "/api/export/html",
-        headers={**HEADERS, "Origin": "localhost"},
-        json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
-        },
-    )
+    with patch.object(
+        session.app_file_manager,
+        "read_layout_config",
+        return_value=LayoutConfig(type="slides", data={"deck": {}}),
+    ):
+        response = client.post(
+            "/api/export/html",
+            headers={**HEADERS, "Origin": "localhost"},
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+            },
+        )
+        current_layout_response = client.post(
+            "/api/export/html",
+            headers=HEADERS,
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+                "layout": None,
+            },
+        )
+
     body = response.text
     assert '<marimo-code hidden=""></marimo-code>' not in body
     assert CODE in body
@@ -461,6 +482,12 @@ def test_export_html(client: TestClient) -> None:
     assert response.headers["content-type"] == "text/html; charset=utf-8"
     exposed_headers = response.headers["access-control-expose-headers"].lower()
     assert "content-disposition" in exposed_headers
+    assert parse_mount_config(response.text)["layout"] == {
+        "type": "slides",
+        "data": {"deck": {}},
+    }
+    assert current_layout_response.status_code == 200
+    assert parse_mount_config(current_layout_response.text)["layout"] is None
 
 
 @with_session(SESSION_ID)
@@ -955,7 +982,7 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
     session = get_session_manager(client).get_session(SESSION_ID)
     assert session
     assert temp_marimo_file is not None
-    session.app_file_manager.filename = temp_marimo_file
+    session.app_file_manager = AppFileManager(temp_marimo_file)
     session.session_view.add_notification(
         CellNotification(
             cell_id=CellId_t("new_cell"),
@@ -966,35 +993,91 @@ def test_auto_export_html(client: TestClient, temp_marimo_file: str) -> None:
             ),
         )
     )
-
+    cell_id = session.document.cell_ids[0]
     response = client.post(
-        "/api/export/auto_export/html",
+        "/api/document/transaction",
         headers=HEADERS,
         json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
+            "changes": [
+                {
+                    "type": "set-code",
+                    "cellId": cell_id,
+                    "code": 'live_value = "export-current-session"',
+                }
+            ]
         },
     )
     assert response.status_code == 200
+
+    def auto_export(**overrides: object) -> Response:
+        return client.post(
+            "/api/export/auto_export/html",
+            headers=HEADERS,
+            json={
+                "download": False,
+                "files": [],
+                "includeCode": True,
+                **overrides,
+            },
+        )
+
+    response = auto_export()
+    assert response.status_code == 200
     assert response.json() == {"success": True}
+    exported_html = (
+        Path(temp_marimo_file).parent / "__marimo__" / "notebook.html"
+    ).read_text(encoding="utf-8")
+    assert "export-current-session" in exported_html
 
-    response = client.post(
-        "/api/export/auto_export/html",
-        headers=HEADERS,
-        json={
-            "download": False,
-            "files": [],
-            "includeCode": True,
-        },
-    )
-    # Not modified response
-    assert response.status_code == 304
+    assert auto_export().status_code == 304
 
-    # Assert __marimo__ directory is created
-    assert os.path.exists(
-        os.path.join(os.path.dirname(temp_marimo_file), "__marimo__")
+    slides = {"type": "slides", "data": {}}
+    assert auto_export(layout=slides).status_code == 200
+    assert auto_export(layout=slides).status_code == 304
+
+
+@with_session(SESSION_ID)
+def test_auto_export_html_skips_a_renamed_notebook(
+    client: TestClient, temp_marimo_file: str
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session
+    session.app_file_manager = AppFileManager(temp_marimo_file)
+    session.session_view.add_notification(
+        CellNotification(
+            cell_id=CellId_t("new_cell"),
+            output=CellOutput.stdout("hello"),
+        )
     )
+
+    tasks: list[Callable[[], Awaitable[None]]] = []
+
+    class DeferredBackgroundTask:
+        def __init__(self, task: Callable[[], Awaitable[None]]) -> None:
+            tasks.append(task)
+
+        async def __call__(self) -> None:
+            return
+
+    with patch(
+        "marimo._server.api.endpoints.export.BackgroundTask",
+        DeferredBackgroundTask,
+    ):
+        response = client.post(
+            "/api/export/auto_export/html",
+            headers=HEADERS,
+            json={"download": False, "files": [], "includeCode": True},
+        )
+    assert response.status_code == 200
+    assert len(tasks) == 1
+
+    old_export = Path(temp_marimo_file).parent / "__marimo__" / "notebook.html"
+    session.app_file_manager.filename = str(
+        Path(temp_marimo_file).with_name("renamed.py")
+    )
+    asyncio.run(tasks[0]())
+
+    assert not old_export.exists()
 
 
 @with_session(SESSION_ID)

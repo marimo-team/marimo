@@ -67,6 +67,7 @@ export function createStaticRequests(): EditRequests & RunRequests {
     openFile: throwNotInEditMode,
     getUsageStats: throwNotInEditMode,
     getEnvironmentInfo: throwNotInEditMode,
+    getFileRoots: throwNotInEditMode,
     sendListFiles: throwNotInEditMode,
     sendSearchFiles: throwNotInEditMode,
     sendPdb: throwNotInEditMode,

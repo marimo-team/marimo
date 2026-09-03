@@ -44,10 +44,12 @@ from marimo._schemas.export import (
     ExportAsMarkdownRequest,
     ExportAsScriptRequest,
     ExportedFile,
+    to_html_export_layout,
     to_html_export_options,
     to_markdown_export_options,
 )
 from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.files.roots import resolve_file_roots
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -60,6 +62,7 @@ from marimo._server.models.files import (
     FileListResponse,
     FileMoveRequest,
     FileMoveResponse,
+    FileRootsResponse,
     FileSearchRequest,
     FileSearchResponse,
     FileUpdateRequest,
@@ -301,6 +304,13 @@ class PyodideBridge:
         response = FileListResponse(files=files, root=root)
         return self._dump(response)
 
+    def file_roots(self) -> str:
+        roots = resolve_file_roots(
+            self.file_system.get_root(),
+            self.session._initial_user_config.get("file_browser"),
+        )
+        return self._dump(FileRootsResponse(roots=roots))
+
     def search_files(
         self,
         request: str,
@@ -417,6 +427,12 @@ class PyodideBridge:
                 ),
                 display_config=self.session._initial_user_config["display"],
                 options=to_html_export_options(parsed),
+                layout=(
+                    to_html_export_layout(
+                        parsed,
+                        fallback=self.session.app_manager.read_layout_config,
+                    )
+                ),
             )
         )
         return self._dump(

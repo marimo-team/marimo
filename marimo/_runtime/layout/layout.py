@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import base64
 import json
 import os
 from dataclasses import dataclass
@@ -21,6 +22,40 @@ class LayoutConfig:
     type: str
     # data for layout
     data: dict[str, Any]
+
+
+def layout_config_to_data_uri(config: LayoutConfig) -> str:
+    contents = json.dumps({"type": config.type, "data": config.data})
+    encoded = base64.b64encode(contents.encode("utf-8")).decode("ascii")
+    return f"data:application/json;base64,{encoded}"
+
+
+def parse_layout_config(value: object, *, source: str) -> LayoutConfig | None:
+    if not isinstance(value, dict):
+        LOGGER.warning("Layout config %s must be an object", source)
+        return None
+
+    layout_type = value.get("type")
+    layout_data = value.get("data")
+    if not isinstance(layout_type, str) or not isinstance(layout_data, dict):
+        LOGGER.warning(
+            "Layout config %s must contain string `type` and object `data` fields",
+            source,
+        )
+        return None
+
+    return LayoutConfig(type=layout_type, data=layout_data)
+
+
+def _parse_layout_config(
+    contents: str | bytes, *, source: str
+) -> LayoutConfig | None:
+    try:
+        value = json.loads(contents)
+    except (json.JSONDecodeError, UnicodeDecodeError, TypeError) as error:
+        LOGGER.warning("Failed to parse layout config %s: %s", source, error)
+        return None
+    return parse_layout_config(value, source=source)
 
 
 def save_layout_config(
@@ -63,14 +98,11 @@ def read_layout_config(
     # Handle data URI
     if filename.startswith("data:"):
         try:
-            # Decode base64
             _mime, data = from_data_uri(filename)
-            # Parse as JSON
-            data_json = json.loads(data)
-            return LayoutConfig(type=data_json["type"], data=data_json["data"])
         except Exception as e:
             LOGGER.warning("Failed to decode data URI: %s", e)
             return None
+        return _parse_layout_config(data, source="data URI")
 
     filepath = os.path.join(directory, filename)
     if not os.path.exists(filepath):
@@ -79,6 +111,10 @@ def read_layout_config(
     if not filepath.endswith(".json"):
         LOGGER.warning("Layout file %s is not a JSON file", filepath)
         return None
-    with open(filepath, encoding="utf-8") as f:
-        data = json.load(f)
-    return LayoutConfig(type=data["type"], data=data["data"])  # type: ignore[call-overload]
+    try:
+        with open(filepath, encoding="utf-8") as f:
+            contents = f.read()
+    except (OSError, UnicodeError) as error:
+        LOGGER.warning("Failed to read layout config %s: %s", filepath, error)
+        return None
+    return _parse_layout_config(contents, source=filepath)

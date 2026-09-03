@@ -112,6 +112,13 @@ def test_split_packages() -> None:
         "bar @ https://example.com/bar.whl",
     ]
     assert split_packages(
+        "git+https://example.com/foo.git https://example.com/bar.whl /tmp/baz.whl"
+    ) == [
+        "git+https://example.com/foo.git",
+        "https://example.com/bar.whl",
+        "/tmp/baz.whl",
+    ]
+    assert split_packages(
         "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'"
     ) == [
         "foo==1.0; python_version>'3.6'",
@@ -122,6 +129,81 @@ def test_split_packages() -> None:
     ) == [
         "foo==1.0; python_version=='3.7.*'",
         "bar==2.0; implementation_name=='cpython'",
+    ]
+
+
+@pytest.mark.parametrize(
+    "requirement",
+    [
+        "pydantic-ai[duckduckgo, web-fetch]",
+        "foo [extra1, extra2] == 1.2.3",
+        "foo >= 1.0, < 2.0",
+        "bar ( >= 3.0 )",
+        "foo ; python_version >= '3.10' and sys_platform == 'darwin'",
+        "foo; python_version < '3.10' or implementation_name == 'pypy'",
+        "foo; python_version>'3' and(sys_platform=='win32')",
+        "foo; python_version in'3.8 3.9'",
+        "foo; python_version>='3'and sys_platform=='darwin'",
+    ],
+)
+def test_split_packages_preserves_valid_requirement(requirement: str) -> None:
+    assert split_packages(requirement) == [requirement]
+
+
+@pytest.mark.parametrize(
+    ("package_input", "expected"),
+    [
+        (
+            "pydantic-ai[duckduckgo, web-fetch] matplotlib",
+            ["pydantic-ai[duckduckgo, web-fetch]", "matplotlib"],
+        ),
+        (
+            "matplotlib pydantic-ai[duckduckgo, web-fetch]",
+            ["matplotlib", "pydantic-ai[duckduckgo, web-fetch]"],
+        ),
+        (
+            "foo [bar, baz] matplotlib",
+            ["foo [bar, baz]", "matplotlib"],
+        ),
+        (
+            "matplotlib foo [bar, baz]",
+            ["matplotlib", "foo [bar, baz]"],
+        ),
+        (
+            "numpy pydantic-ai[duckduckgo, web-fetch] matplotlib",
+            [
+                "numpy",
+                "pydantic-ai[duckduckgo, web-fetch]",
+                "matplotlib",
+            ],
+        ),
+        (
+            "https://example.com/foo.whl pydantic-ai[duckduckgo, web-fetch]",
+            [
+                "https://example.com/foo.whl",
+                "pydantic-ai[duckduckgo, web-fetch]",
+            ],
+        ),
+        (
+            "pydantic-ai[duckduckgo, web-fetch] -e /tmp/foo",
+            ["pydantic-ai[duckduckgo, web-fetch] -e /tmp/foo"],
+        ),
+    ],
+)
+def test_split_packages_with_spaced_extras(
+    package_input: str, expected: list[str]
+) -> None:
+    assert split_packages(package_input) == expected
+
+
+def test_split_packages_ignores_brackets_outside_extras() -> None:
+    assert split_packages("foo; os_name == '[abc def' bar") == [
+        "foo; os_name == '[abc def'",
+        "bar",
+    ]
+    assert split_packages("foo @ https://example.com/a[bc matplotlib") == [
+        "foo @ https://example.com/a[bc",
+        "matplotlib",
     ]
 
 

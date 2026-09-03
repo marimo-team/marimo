@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import base64
 import inspect
 import os
 import sys
@@ -14,7 +13,6 @@ from collections.abc import (
     Sequence,
 )
 from dataclasses import dataclass
-from pathlib import Path
 from textwrap import dedent
 from typing import (
     TYPE_CHECKING,
@@ -1008,19 +1006,6 @@ class InternalApp:
     def update_config(self, updates: dict[str, Any]) -> _AppConfig:
         return self.config.update(updates)
 
-    def inline_layout_file(self) -> InternalApp:
-        if self.config.layout_file:
-            layout_path = Path(self.config.layout_file)
-            if self._app._filename:
-                # Resolve relative to the current working directory
-                layout_path = Path(self._app._filename).parent / layout_path
-            layout_file = layout_path.read_bytes()
-            data_uri = base64.b64encode(layout_file).decode()
-            self.update_config(
-                {"layout_file": f"data:application/json;base64,{data_uri}"}
-            )
-        return self
-
     def with_data(
         self,
         *,
@@ -1040,6 +1025,23 @@ class InternalApp:
         callers from save flows pass the frontend's snapshot, which
         renames/reorders/reconfigures cells but doesn't recompile.
         """
+        self.apply_data(
+            cell_ids=cell_ids,
+            codes=codes,
+            names=names,
+            configs=configs,
+        )
+        return self
+
+    def apply_data(
+        self,
+        *,
+        cell_ids: Iterable[CellId_t],
+        codes: Iterable[str],
+        names: Iterable[str],
+        configs: Iterable[CellConfig],
+    ) -> Transaction:
+        """Rewrite the cell list and return the applied transaction."""
         cm = self._app._cell_manager
         prev_compiled = dict(cm._compiled_cells)
         rebuilt = CellManager(prefix=cm.prefix)
@@ -1054,8 +1056,10 @@ class InternalApp:
                 cell=prev_compiled.get(cell_id),
             )
 
-        cm.apply_diff_from(rebuilt, source="cell-manager")
-        return self
+        transaction, _changed_cell_ids = cm.apply_diff_from(
+            rebuilt, source="cell-manager"
+        )
+        return transaction
 
     async def run_cell_async(
         self, cell: Cell, kwargs: dict[str, Any]

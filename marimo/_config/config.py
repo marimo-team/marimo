@@ -574,6 +574,32 @@ class DatasourcesConfig(TypedDict):
     auto_discover_columns: NotRequired[bool | Literal["auto"]]
 
 
+@dataclass
+class FolderConfig(TypedDict):
+    """Configuration for an additional file browser root.
+
+    **Keys.**
+
+    - `path`: the absolute path to the folder
+    - `name`: an optional display name for the folder
+    """
+
+    path: str
+    name: NotRequired[str]
+
+
+@dataclass
+class FileBrowserConfig(TypedDict):
+    """Configuration for the file browser panel.
+
+    **Keys.**
+
+    - `folders`: additional absolute folders to show in the file browser
+    """
+
+    folders: NotRequired[list[FolderConfig]]
+
+
 @mddoc
 @dataclass
 class SharingConfig(TypedDict):
@@ -673,6 +699,7 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    file_browser: NotRequired[FileBrowserConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
     venv: NotRequired[VenvConfig]
@@ -743,6 +770,7 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    file_browser: NotRequired[FileBrowserConfig]
     sharing: NotRequired[SharingConfig]
     venv: NotRequired[VenvConfig]
     cache: NotRequired[CacheConfig]

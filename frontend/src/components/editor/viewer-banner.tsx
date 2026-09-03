@@ -3,7 +3,7 @@
 import { useAtomValue } from "jotai/react";
 import { ArrowRightSquareIcon, EyeIcon } from "lucide-react";
 import { KnownQueryParams } from "@/core/constants";
-import { useLayoutState } from "@/core/layout/layout";
+import { useLayoutState } from "@/core/layout/state";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { API } from "@/core/network/api";
 import { Banner } from "@/plugins/impl/common/error-banner";

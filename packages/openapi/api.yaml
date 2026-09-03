@@ -1594,6 +1594,18 @@ components:
       - label
       title: DetectedDataSourceOrigin
       type: object
+    DiagnosticsConfig:
+      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
+        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
+        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
+      properties:
+        enabled:
+          type: boolean
+        sql_linter:
+          type: boolean
+      required: []
+      title: DiagnosticsConfig
+      type: object
     DialectHidesWhen:
       description: Hide this suggestion when a live SQL engine dialect contains a
         substring.
@@ -1609,18 +1621,6 @@ components:
       - kind
       - substrings
       title: DialectHidesWhen
-      type: object
-    DiagnosticsConfig:
-      description: "Configuration options for diagnostics.\n\n    **Keys.**\n\n  \
-        \  - `enabled`: if `True`, diagnostics will be shown in the editor\n    -\
-        \ `sql_linter`: if `True`, SQL cells will have linting enabled"
-      properties:
-        enabled:
-          type: boolean
-        sql_linter:
-          type: boolean
-      required: []
-      title: DiagnosticsConfig
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
@@ -1917,6 +1917,10 @@ components:
       title: ExecuteStaleCellsCommand
       type: object
     ExportAsHTMLRequest:
+      description: "Request a static HTML export.\n\n    `layout` carries the current\
+        \ client layout. An omitted field reads the\n    saved layout file, `null`\
+        \ selects the vertical layout, and an object uses\n    that serialized layout\
+        \ for this export."
       properties:
         assetUrl:
           anyOf:
@@ -1931,6 +1935,10 @@ components:
           type: array
         includeCode:
           type: boolean
+        layout:
+          anyOf:
+          - $ref: '#/components/schemas/LayoutConfig'
+          - type: 'null'
       required:
       - download
       - files
@@ -2048,6 +2056,17 @@ components:
       - name
       - command
       title: ExportSetupRequirement
+      type: object
+    FileBrowserConfig:
+      description: "Configuration for the file browser panel.\n\n    **Keys.**\n\n\
+        \    - `folders`: additional absolute folders to show in the file browser"
+      properties:
+        folders:
+          items:
+            $ref: '#/components/schemas/FolderConfig'
+          type: array
+      required: []
+      title: FileBrowserConfig
       type: object
     FileCopyRequest:
       properties:
@@ -2309,6 +2328,30 @@ components:
       - path
       title: FileOpenRequest
       type: object
+    FileRoot:
+      properties:
+        isPrimary:
+          type: boolean
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - name
+      - isPrimary
+      title: FileRoot
+      type: object
+    FileRootsResponse:
+      properties:
+        roots:
+          items:
+            $ref: '#/components/schemas/FileRoot'
+          type: array
+      required:
+      - roots
+      title: FileRootsResponse
+      type: object
     FileSearchRequest:
       properties:
         depth:
@@ -2400,6 +2443,19 @@ components:
       required:
       - cellId
       title: FocusCellRequest
+      type: object
+    FolderConfig:
+      description: "Configuration for an additional file browser root.\n\n    **Keys.**\n\
+        \n    - `path`: the absolute path to the folder\n    - `name`: an optional\
+        \ display name for the folder"
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      title: FolderConfig
       type: object
     FormatCellsRequest:
       properties:
@@ -3598,6 +3654,8 @@ components:
           $ref: '#/components/schemas/DisplayConfig'
         experimental:
           type: object
+        file_browser:
+          $ref: '#/components/schemas/FileBrowserConfig'
         formatting:
           $ref: '#/components/schemas/FormattingConfig'
         keymap:
@@ -7027,6 +7085,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseResponse'
           description: Open a file in the system editor
+  /api/files/roots:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRootsResponse'
+          description: List roots shown in the file browser
   /api/files/search:
     post:
       requestBody:

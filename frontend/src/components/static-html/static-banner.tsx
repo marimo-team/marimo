@@ -13,6 +13,9 @@ import { isStaticNotebook } from "@/core/static/static-state";
 import { createShareableLink } from "@/core/wasm/share";
 import { copyToClipboard } from "@/utils/copy";
 import { downloadBlob } from "@/utils/download";
+import { Paths } from "@/utils/paths";
+import { shellQuote } from "@/utils/shell";
+import { MarimoPlusIcon } from "../icons/marimo-icons";
 import { Button } from "../ui/button";
 import {
   Dialog,
@@ -22,8 +25,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { toast } from "../ui/use-toast";
-import { MarimoPlusIcon } from "../icons/marimo-icons";
 
 export const StaticBanner: React.FC = () => {
   const code = useAtomValue(codeAtom);
@@ -60,21 +63,14 @@ export const StaticBanner: React.FC = () => {
 };
 
 const StaticBannerDialog = ({ code }: { code: string }) => {
-  let filename = useFilename() || "notebook.py";
-  // Trim the path
-  const lastSlash = filename.lastIndexOf("/");
-  if (lastSlash !== -1) {
-    filename = filename.slice(lastSlash + 1);
-  }
+  const filename = Paths.basename(useFilename() || "notebook.py");
 
   const [resolvedConfig] = useResolvedMarimoConfig();
-  const molabEnabled = resolvedConfig.sharing?.molab !== false;
+  const molabEnabled = resolvedConfig.sharing?.molab ?? true;
 
-  const href = window.location.href;
-  const molabLink = createShareableLink({
-    code,
-    baseUrl: `${Constants.molab}/new`,
-  });
+  const runTarget = getStaticNotebookRunTarget(window.location.href, filename);
+  const runsFromUrl = runTarget !== filename;
+  const quotedRunTarget = shellQuote(runTarget);
 
   return (
     <Dialog>
@@ -90,62 +86,46 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{filename}</DialogTitle>
-          <DialogDescription className="pt-3 text-left space-y-3">
-            <p>
-              This is a static{" "}
-              <a
-                href={Constants.githubPage}
-                target="_blank"
-                className="text-(--sky-11) hover:underline font-medium"
-              >
-                marimo
-              </a>{" "}
-              notebook. To run interactively:
-            </p>
-
-            <div className="rounded-lg p-3 border bg-(--sky-2) border-(--sky-7)">
-              <div className="font-mono text-(--sky-11) leading-relaxed">
-                pip install marimo
-                <br />
-                marimo edit {filename}
-              </div>
-            </div>
-
-            {!href.endsWith(".html") && (
-              <div className="rounded-lg p-3 border bg-(--sky-2) border-(--sky-7)">
-                <div className="text-sm text-(--sky-12) mb-1">
-                  Or run directly from URL:
-                </div>
-                <div className="font-mono text-(--sky-11) break-all">
-                  marimo edit {window.location.href}
-                </div>
-              </div>
-            )}
-
-            {molabEnabled && (
-              <div className="pt-3 border-t flex gap-2 items-center">
-                <Button
-                  asChild={true}
-                  variant="outline"
-                  size="xs"
-                  className="shrink-0"
+          <DialogDescription asChild={true}>
+            <div className="pt-3 text-left space-y-3">
+              <p>
+                This is a static{" "}
+                <a
+                  href={Constants.githubPage}
+                  target="_blank"
+                  className="text-(--sky-11) hover:underline font-medium"
                 >
-                  <a href={molabLink} target="_blank" rel="noopener noreferrer">
-                    <MarimoPlusIcon
-                      size={12}
-                      strokeWidth={1.5}
-                      className="mr-1.5 mt-px text-(--grass-11)"
-                    />
-                    Open in molab
-                  </a>
-                </Button>
-                <p className="text-sm text-(--sky-12)">
-                  Run this notebook in{" "}
-                  <span className="font-semibold">molab</span>, marimo's
-                  cloud-hosted notebook platform.
-                </p>
-              </div>
-            )}
+                  marimo
+                </a>{" "}
+                notebook. {runsFromUrl ? "Run it" : "Download it, then run it"}{" "}
+                locally for full interactivity.
+              </p>
+
+              <Tabs defaultValue="uv">
+                <TabsList aria-label="Package manager">
+                  <TabsTrigger value="uv">uv</TabsTrigger>
+                  <TabsTrigger value="pip">pip</TabsTrigger>
+                  <TabsTrigger value="conda">conda</TabsTrigger>
+                </TabsList>
+                <TabsContent value="uv">
+                  <CommandBlock
+                    command={`uvx marimo edit --sandbox ${quotedRunTarget}`}
+                  />
+                </TabsContent>
+                <TabsContent value="pip">
+                  <CommandBlock
+                    command={`pip install marimo\nmarimo edit ${quotedRunTarget}`}
+                  />
+                </TabsContent>
+                <TabsContent value="conda">
+                  <CommandBlock
+                    command={`conda install -c conda-forge marimo\nmarimo edit ${quotedRunTarget}`}
+                  />
+                </TabsContent>
+              </Tabs>
+
+              {molabEnabled && <MolabCallout code={code} />}
+            </div>
           </DialogDescription>
         </DialogHeader>
         <div className="flex gap-3 pt-2">
@@ -175,5 +155,78 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
         </div>
       </DialogContent>
     </Dialog>
+  );
+};
+
+/** Keep this in sync with StaticNotebookReader in marimo/_cli/files/file_path.py. */
+export function getStaticNotebookRunTarget(
+  href: string,
+  filename: string,
+): string {
+  const url = new URL(href);
+  const isHttp = url.protocol === "http:" || url.protocol === "https:";
+  if (!isHttp) {
+    return filename;
+  }
+
+  const isHtmlFile = url.pathname.endsWith(".html") && url.search === "";
+  const matchesSupportedUrlPattern =
+    url.protocol === "https:" &&
+    (url.hostname === "marimo.app" ||
+      url.hostname === "links.marimo.app" ||
+      (url.hostname === "static.marimo.app" &&
+        url.pathname.startsWith("/static")) ||
+      url.pathname.includes("/notebooks/nb"));
+  if (!isHtmlFile && !matchesSupportedUrlPattern) {
+    return filename;
+  }
+
+  url.hash = "";
+  return url.href;
+}
+
+const CommandBlock = ({ command }: { command: string }) => (
+  <div className="relative rounded-lg border bg-(--sky-2) border-(--sky-7)">
+    <pre className="p-3 pr-10 font-mono text-(--sky-11) leading-relaxed whitespace-pre-wrap break-all">
+      {command}
+    </pre>
+    <Button
+      aria-label="Copy command"
+      className="absolute right-2 top-2"
+      variant="ghost"
+      size="icon"
+      onClick={async () => {
+        await copyToClipboard(command);
+        toast({ title: "Command copied to clipboard" });
+      }}
+    >
+      <CopyIcon className="w-3.5 h-3.5" />
+    </Button>
+  </div>
+);
+
+const MolabCallout = ({ code }: { code: string }) => {
+  const molabLink = createShareableLink({
+    code,
+    baseUrl: `${Constants.molab}/new`,
+  });
+
+  return (
+    <div className="pt-3 border-t flex gap-2 items-center">
+      <Button asChild={true} variant="outline" size="xs" className="shrink-0">
+        <a href={molabLink} target="_blank" rel="noopener noreferrer">
+          <MarimoPlusIcon
+            size={12}
+            strokeWidth={1.5}
+            className="mr-1.5 mt-px text-(--grass-11)"
+          />
+          Open in molab
+        </a>
+      </Button>
+      <p className="text-sm text-(--sky-12)">
+        Run this notebook in <span className="font-semibold">molab</span>,
+        marimo's cloud-hosted notebook platform.
+      </p>
+    </div>
   );
 };

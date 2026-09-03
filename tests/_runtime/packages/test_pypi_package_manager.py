@@ -371,6 +371,24 @@ def test_uv_can_target_python_without_mutating_project() -> None:
     ]
 
 
+@patch.object(UvPackageManager, "_uv_bin", "uv")
+def test_uv_install_command_preserves_spaced_extras() -> None:
+    mgr = UvPackageManager.for_pip_install("/server/python")
+
+    assert mgr.install_command(
+        "matplotlib pydantic-ai[duckduckgo, web-fetch]", upgrade=True
+    ) == [
+        "uv",
+        "pip",
+        "install",
+        "--upgrade",
+        "matplotlib",
+        "pydantic-ai[duckduckgo, web-fetch]",
+        "-p",
+        "/server/python",
+    ]
+
+
 @patch.dict(
     "os.environ",
     {"VIRTUAL_ENV": "/path/to/venv", "UV": "/path/to/venv"},

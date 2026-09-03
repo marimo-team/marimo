@@ -28,7 +28,10 @@ from marimo._utils import async_path
 from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
 from marimo._utils.scripts import read_pyproject_from_script
-from tests._server.templates.utils import normalize_index_html
+from tests._server.templates.utils import (
+    normalize_index_html,
+    parse_mount_config,
+)
 from tests.mocks import (
     _sanitize_version,
     delete_lines_with_files,
@@ -153,11 +156,14 @@ async def _wait_for_file(file: str, timeout: float = 10.0) -> None:
 
 
 def _write_minimal_wasm_notebook(
-    file: Path, cell: str, metadata: str = ""
+    file: Path,
+    cell: str,
+    metadata: str = "",
+    app_args: str = "",
 ) -> None:
     file.write_text(
         f"{metadata}import marimo\n\n"
-        "app = marimo.App()\n\n"
+        f"app = marimo.App({app_args})\n\n"
         "@app.cell\n"
         "def __():\n"
         f"{cell}\n\n"
@@ -221,11 +227,20 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' in html
 
     @staticmethod
-    def test_cli_export_html_wasm(temp_marimo_file: str) -> None:
-        out_dir = Path(temp_marimo_file).parent / "out"
+    def test_cli_export_html_wasm(tmp_path: Path) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook,
+            '    "hello"\n    return\n',
+            app_args='layout_file="layouts/notebook.slides.json"',
+        )
+        layout_file = tmp_path / "layouts" / "notebook.slides.json"
+        layout_file.parent.mkdir()
+        layout_file.write_text('{"type": "slides", "data": {}}')
+        out_dir = tmp_path / "out"
         p = _run_export(
             "html-wasm",
-            temp_marimo_file,
+            str(notebook),
             "--mode",
             "edit",
             "--output",
@@ -239,6 +254,9 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
         assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
+        mount_config = parse_mount_config((out_dir / "index.html").read_text())
+        assert mount_config["mode"] == "edit"
+        assert mount_config["layout"] == {"type": "slides", "data": {}}
 
     @staticmethod
     def test_cli_export_html_wasm_packages_local_modules(

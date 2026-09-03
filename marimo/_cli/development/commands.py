@@ -339,6 +339,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         home.MarimoFile,
         opengraph.OpenGraphMetadata,
         files.FileInfo,
+        files.FileRoot,
         commands.ExecuteCellCommand,
         snippets.SnippetSection,
         snippets.Snippet,
@@ -371,6 +372,7 @@ def _generate_server_api_schema() -> dict[str, Any]:
         files.FileDetailsResponse,
         files.FileListRequest,
         files.FileListResponse,
+        files.FileRootsResponse,
         files.FileSearchRequest,
         files.FileSearchResponse,
         files.FileMoveRequest,
@@ -757,7 +759,6 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
     from starlette.routing import Route
     from starlette.staticfiles import StaticFiles
 
-    from marimo._ast.app_config import _AppConfig
     from marimo._config.config import DEFAULT_CONFIG
     from marimo._server.tokens import SkewProtectionToken
     from marimo._templates import static_notebook_template
@@ -834,13 +835,14 @@ def preview(file_path: Path, port: int, host: str, headless: bool) -> None:
             user_config=DEFAULT_CONFIG,
             config_overrides={},
             server_token=SkewProtectionToken("preview"),
-            app_config=_AppConfig(),
+            app_config=file_manager.app.config,
             filepath=str(file_path),
             code=code,
             session_snapshot=session_snapshot,
             code_hash=hash_code(code),
             notebook_snapshot=notebook_snapshot,
             files={},
+            layout=file_manager.read_layout_config(),
             model_notifications=session_view.get_model_notifications(),
             asset_url=asset_url,
         )

@@ -37,7 +37,7 @@ from marimo._utils.scripts import with_python_version_requirement
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
@@ -415,11 +415,18 @@ class AppFileManager:
                 )
             return ""
 
-    def save(self, request: SaveNotebookRequest) -> str:
+    def save(
+        self,
+        request: SaveNotebookRequest,
+        *,
+        on_document_transaction: Callable[[Transaction], None] | None = None,
+    ) -> str:
         """Save the notebook.
 
         Args:
             request: Save request with cell data and options
+            on_document_transaction: Called with the applied in-memory
+                document transaction before the file is persisted.
 
         Returns:
             Serialized notebook content
@@ -439,14 +446,6 @@ class AppFileManager:
         filename_path = Path(canonicalize_filename(filename))
 
         with self._save_lock:
-            # Update app with new cell data
-            self.app.with_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
-            )
-
             if self.is_notebook_named and not self._is_same_path(
                 filename_path
             ):
@@ -454,6 +453,15 @@ class AppFileManager:
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Save handler cannot rename files.",
                 )
+
+            transaction = self.app.apply_data(
+                cell_ids=cell_ids,
+                codes=codes,
+                names=names,
+                configs=configs,
+            )
+            if on_document_transaction is not None and transaction.changes:
+                on_document_transaction(transaction)
 
             # Save layout if provided
             if layout is not None:
