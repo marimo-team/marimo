@@ -215,8 +215,7 @@ class TestCellManager:
     def test_create_cell_id_1000(self) -> None:
         manager = CellManager()
         ids: set[CellId_t] = set()
-        for _ in range(1000):
-            ids.add(manager.create_cell_id())
+        ids.update(manager.create_cell_id() for _ in range(1000))
         assert len(ids) == 1000
 
 
