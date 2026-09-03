@@ -730,7 +730,7 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
 
     for command, target in (
         (
-            ["edit", str(notebook), "--sandbox", "--headless", "--no-token"],
+            ["edit", "--sandbox", str(notebook), "--headless", "--no-token"],
             "marimo._cli.sandbox.run_in_sandbox",
         ),
         (
@@ -747,24 +747,6 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
         ):
             result = runner.invoke(cli_main, command)
         assert result.exit_code == 3, (command, result.output)
-
-
-def test_resolve_sandbox(tmp_path: Path) -> None:
-    from marimo._cli.sandbox import resolve_sandbox
-
-    notebook = tmp_path / "nb.py"
-    notebook.write_text("import marimo\n")
-
-    mode, backend = resolve_sandbox("uv", False, str(notebook))
-    assert mode is SandboxMode.SINGLE
-    assert backend == "uv"
-
-    mode, backend = resolve_sandbox("uv", False, str(tmp_path))
-    assert mode is SandboxMode.MULTI
-    assert backend == "uv"
-
-    mode, backend = resolve_sandbox("uv", True, str(notebook))
-    assert mode is None
 
 
 def test_strip_sandbox_args() -> None:

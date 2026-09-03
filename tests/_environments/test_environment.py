@@ -51,30 +51,6 @@ EMPTY_SCRIPT = f"""\
 """
 
 
-def test_requires_restart() -> None:
-    first = Environment(
-        python="/env/bin/python", root="/env", action="created"
-    )
-    unchanged = Environment(
-        python="/env/bin/python", root="/env", action="unchanged"
-    )
-    updated = Environment(
-        python="/env/bin/python", root="/env", action="updated"
-    )
-    replaced = Environment(
-        python="/env/bin/python", root="/env", action="replaced"
-    )
-    moved = Environment(
-        python="/other/bin/python", root="/other", action="unchanged"
-    )
-
-    assert not first.requires_restart(None)
-    assert not unchanged.requires_restart(first)
-    assert not updated.requires_restart(first)
-    assert replaced.requires_restart(first)
-    assert moved.requires_restart(first)
-
-
 def test_process_env_targets_the_environment() -> None:
     env = Environment(python="/env/bin/python", root="/env", action="created")
     base = {"UV_PROJECT_ENVIRONMENT": "/project", "PATH": "/usr/bin"}
@@ -123,7 +99,6 @@ def test_sync_creates_and_reuses_the_environment(
     again = sync(str(script), cwd=str(tmp_path))
     assert again.action == "unchanged"
     assert again.python == first.python
-    assert not again.requires_restart(first)
 
 
 @pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")

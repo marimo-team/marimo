@@ -141,34 +141,6 @@ def resolve_sandbox_mode(
     return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
 
 
-def resolve_sandbox(
-    sandbox: str | None,
-    no_sandbox: bool,
-    name: str | None,
-) -> tuple[SandboxMode | None, SandboxBackend]:
-    """Resolve the sandbox mode and backend from the CLI flags.
-
-    `sandbox` is None (unset; the user may be prompted), "uv" (a bare
-    `--sandbox`). `no_sandbox`
-    disables sandboxing and the prompt.
-    """
-    enabled: bool | None
-    if no_sandbox:
-        enabled = False
-    elif sandbox is None:
-        enabled = None
-    else:
-        enabled = True
-    mode = resolve_sandbox_mode(sandbox=enabled, name=name)
-    return mode, backend_from_flag(sandbox)
-
-
-def backend_from_flag(sandbox: str | None) -> SandboxBackend:
-    """The backend named by a `--sandbox[=<backend>]` flag value."""
-    del sandbox
-    return "uv"
-
-
 def _is_versioned(dependency: str) -> bool:
     return any(c in dependency for c in ("==", ">=", "<=", ">", "<", "~"))
 

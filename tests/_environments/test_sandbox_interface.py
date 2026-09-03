@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
@@ -14,6 +15,8 @@ from marimo._environments.sandbox import (
     NotebookSandbox,
     PackageState,
     ResolvedPackage,
+    SandboxCommand,
+    TerminalSandboxReporter,
 )
 from marimo._utils.uv_tree import DependencyTreeNode
 
@@ -151,9 +154,9 @@ def test_add_edits_manifest_syncs_and_cleans_carrier(tmp_path: Path) -> None:
     adapter = FakeBackend(tmp_path / "environment")
     sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
 
-    result = sandbox.add("obstore")
+    sandbox.add("obstore")
 
-    assert result.environment == sandbox.environment
+    assert sandbox.environment is not None
     assert "obstore==0.8.2" in notebook.read_text()
     assert len(adapter.sync_targets) == 1
     assert not list(tmp_path.glob(".marimo-*.py"))
@@ -173,6 +176,43 @@ def test_add_pins_a_bare_requirement_to_the_resolved_version(
     assert '"obstore==0.8.2"' in notebook.read_text()
     # The pin records the synchronized environment; it does not resync.
     assert len(adapter.sync_targets) == 1
+
+
+@pytest.mark.parametrize(
+    "dependency",
+    ["obstore[async]", "obstore[async]>=0.7.0", "obstore[async]==0.7.0"],
+)
+def test_add_keeps_declared_extras(tmp_path: Path, dependency: str) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        f'# /// script\n# dependencies = ["{dependency}"]\n# ///\n'
+    )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    sandbox.add("obstore")
+
+    assert adapter.add_requests == ["obstore", "obstore[async]==0.8.2"]
+    assert '"obstore[async]==0.8.2"' in notebook.read_text()
+
+
+def test_terminal_reporter_redacts_url_credentials() -> None:
+    command = SandboxCommand(
+        backend="uv",
+        operation="add",
+        argv=(
+            "uv",
+            "add",
+            "pkg @ https://user:secret@example.com/pkg.whl",
+        ),
+    )
+
+    with patch("marimo._cli.print.echo") as echo:
+        TerminalSandboxReporter().report(command)
+
+    rendered = echo.call_args.args[0]
+    assert "user:secret" not in rendered
+    assert "https://***@example.com/pkg.whl" in rendered
 
 
 @pytest.mark.parametrize(
