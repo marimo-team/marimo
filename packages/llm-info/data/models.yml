@@ -1438,16 +1438,6 @@ opencode-go:
     release_date: 2026-06-13
     cost: {input: 1.4, output: 4.4}
 
-  - name: GLM-5.1
-    model: glm-5.1
-    description: "GLM-5.1 delivers a major leap in coding capability, with particularly significant gains in handling long-horizon tasks"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-04-07
-    cost: {input: 1.4, output: 4.4}
-
   - name: Qwen3.7 Plus
     model: qwen3.7-plus
     description: "Cost-effective model in Alibaba's Qwen3.7 series supporting text and image input with upgraded text capabilities"
@@ -1477,16 +1467,6 @@ opencode-go:
     output_types: [text]
     release_date: 2026-05-31
     cost: {input: 0.1, output: 0.4}
-
-  - name: MiniMax M2.7
-    model: minimax-m2.7
-    description: "Large language model designed for autonomous, real-world productivity and continuous improvement"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-03-18
-    cost: {input: 0.3, output: 1.2}
 
   - name: MiMo V2.5
     model: mimo-v2.5
