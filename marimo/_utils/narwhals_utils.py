@@ -11,6 +11,11 @@ import narwhals.stable.v1 as nw1
 import narwhals.stable.v2 as nw
 
 from marimo import _loggers
+from marimo._utils.delimited import (
+    DelimitedDialect,
+    format_delimited_number,
+    is_delimited_number,
+)
 
 LOGGER = _loggers.marimo_logger()
 
@@ -90,28 +95,46 @@ def assert_can_narwhalify(obj: Any) -> TypeGuard[IntoFrame]:
     return True
 
 
-def dataframe_to_csv(df: IntoFrame, separator: str | None = None) -> str:
+def dataframe_to_csv(
+    df: IntoFrame,
+    dialect: DelimitedDialect | None = None,
+) -> str:
     """
     Convert a dataframe to a CSV string.
+
+    `dialect` controls the field and decimal separators.
     """
     assert_can_narwhalify(df)
     df = nw.from_native(df, pass_through=False)
     df = upgrade_narwhals_df(df)
-    resolved_separator = separator if separator is not None else ","
+    dialect = dialect or DelimitedDialect(",", ".")
 
     frame = df.collect() if is_narwhals_lazyframe(df) else df
-    if resolved_separator == ",":
+    if dialect.field_separator == "," and dialect.decimal_separator == ".":
         return frame.write_csv()
 
     # Narwhals inputs can map to different backends, and
     # write_csv(separator=...) is not consistently reliable across them.
-    # For non-comma separators, use Python's csv writer for stable behavior.
+    # For non-default dialects, use Python's csv writer for stable behavior.
     buffer = io.StringIO()
     writer = csv.writer(
-        buffer, delimiter=resolved_separator, lineterminator="\n"
+        buffer, delimiter=dialect.field_separator, lineterminator="\n"
     )
     writer.writerow(frame.columns)
-    writer.writerows(frame.iter_rows())
+    rows = frame.iter_rows()
+    if dialect.decimal_separator == ".":
+        writer.writerows(rows)
+        return buffer.getvalue()
+
+    writer.writerows(
+        tuple(
+            format_delimited_number(value, dialect.decimal_separator)
+            if is_delimited_number(value)
+            else value
+            for value in row
+        )
+        for row in rows
+    )
     return buffer.getvalue()
 
 
