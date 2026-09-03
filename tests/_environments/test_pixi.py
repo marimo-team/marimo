@@ -63,6 +63,22 @@ def test_sync_surfaces_command_failures(
 
 
 @posix_only
+def test_sync_refines_missing_script_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stub = _stub_pixi(
+        tmp_path,
+        "echo 'The script does not contain a' >&2\n"
+        "echo 'PEP 723 metadata block' >&2\n"
+        "exit 1\n",
+    )
+    monkeypatch.setattr(pixi, "find_pixi_bin", lambda: stub)
+
+    with pytest.raises(pixi.PixiMissingScriptMetadataError):
+        pixi.sync(str(tmp_path / "nb.py"))
+
+
+@posix_only
 def test_add_reports_command_separately_from_backend_output(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -227,12 +243,27 @@ def test_launch_activates_the_conda_prefix(
         overlay=RuntimeOverlay(runtime="marimo==1.0"),
         base_env={"PATH": "/usr/bin", "VIRTUAL_ENV": "/elsewhere"},
     )
-    # The prefix is activated the way `pixi run` would, and the process
-    # itself runs under uv's layer.
+    # The conventional prefix paths are exposed, and the process itself
+    # runs under uv's layer.
     assert plan.argv[-3:] == ("python", "-m", "marimo")
     assert plan.env["CONDA_PREFIX"] == root
     assert "VIRTUAL_ENV" not in plan.env
     assert plan.env["PATH"].startswith(os.path.join(root, "bin") + os.pathsep)
+    assert plan.start_new_session
+
+
+def test_windows_conda_prefix_paths() -> None:
+    import ntpath
+
+    root = "C:\\pixi\\env"
+    assert pixi._activation_path_entries(root, platform="nt") == (
+        root,
+        ntpath.join(root, "Library", "mingw-w64", "bin"),
+        ntpath.join(root, "Library", "usr", "bin"),
+        ntpath.join(root, "Library", "bin"),
+        ntpath.join(root, "Scripts"),
+        ntpath.join(root, "bin"),
+    )
 
 
 def test_fallback_plan_reflects_this_interpreter() -> None:
@@ -281,9 +312,9 @@ def test_ensure_metadata_block_respects_shebangs(tmp_path: Path) -> None:
 def test_ensure_marimo_adds_a_loose_requirement(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The manifest carries loose `marimo` for standalone `pixi run`;
-    the launch overlay owns the version, so no pin and never a local
-    path -- even from a development checkout."""
+    """The manifest carries loose `marimo` for standalone
+    `pixi run --script`; the launch overlay owns the version, so no pin and
+    never a local path -- even from a development checkout."""
     stub = _stub_pixi(tmp_path, 'echo "$@" > "$0.args"\n')
     monkeypatch.setattr(pixi, "find_pixi_bin", lambda: stub)
 

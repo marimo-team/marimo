@@ -1383,7 +1383,7 @@ def test_cli_sandbox_edit_new_file() -> None:
             mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
-                ["edit", path, "--headless", "--no-token", "--sandbox"],
+                ["edit", "--sandbox", path, "--headless", "--no-token"],
             )
         assert result.exit_code == 0, result.output
         mock_run_in_sandbox.assert_called_once()

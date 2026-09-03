@@ -26,7 +26,7 @@ from marimo._cli.errors import (
 )
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
-from marimo._cli.help_formatter import ColoredGroup, RunCommand
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup, RunCommand
 from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
@@ -283,7 +283,37 @@ class _OptionalValueOption(click.Option):
             self.flag_value = opt_flag_value
 
 
-@main.command(help=edit_help_msg)
+def _normalize_sandbox_args(args: list[str]) -> list[str]:
+    """Give a bare `--sandbox` its backwards-compatible uv value.
+
+    Click options cannot reliably accept both an optional value and a
+    following positional argument. Normalize the bare spelling before Click
+    parses it, while preserving `--sandbox pixi` and arguments after `--`.
+    """
+    normalized = list(args)
+    try:
+        limit = normalized.index("--")
+    except ValueError:
+        limit = len(normalized)
+    for index, token in enumerate(normalized[:limit]):
+        if token == "--sandbox" and (
+            index + 1 >= limit or normalized[index + 1] not in ("uv", "pixi")
+        ):
+            normalized[index] = "--sandbox=uv"
+    return normalized
+
+
+class _SandboxCommand(ColoredCommand):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        return super().parse_args(ctx, _normalize_sandbox_args(args))
+
+
+class _SandboxRunCommand(RunCommand):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        return super().parse_args(ctx, _normalize_sandbox_args(args))
+
+
+@main.command(cls=_SandboxCommand, help=edit_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -350,8 +380,6 @@ class _OptionalValueOption(click.Option):
 )
 @click.option(
     "--sandbox",
-    is_flag=False,
-    flag_value="uv",
     default=None,
     type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
@@ -666,7 +694,7 @@ new_help_msg = "\n".join(
 )
 
 
-@main.command(help=new_help_msg)
+@main.command(cls=_SandboxCommand, help=new_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -720,8 +748,6 @@ new_help_msg = "\n".join(
 )
 @click.option(
     "--sandbox",
-    is_flag=False,
-    flag_value="uv",
     default=None,
     type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
@@ -983,7 +1009,7 @@ def _create_run_workspace(
 
 
 @main.command(
-    cls=RunCommand,
+    cls=_SandboxRunCommand,
     help="""Run a notebook as an app in read-only mode.
 
 If NAME is a url, the notebook will be downloaded to a temporary file.
@@ -1095,8 +1121,6 @@ Example:
 )
 @click.option(
     "--sandbox",
-    is_flag=False,
-    flag_value="uv",
     default=None,
     type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,

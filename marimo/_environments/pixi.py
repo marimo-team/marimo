@@ -68,6 +68,21 @@ class PixiCommandError(PixiError):
         )
 
 
+class PixiMissingScriptMetadataError(PixiCommandError):
+    """The target script has no PEP 723 inline metadata block."""
+
+
+def _command_error(
+    completed: subprocess.CompletedProcess[str],
+) -> PixiCommandError:
+    output = completed.stderr or completed.stdout
+    normalized = " ".join(output.lower().split())
+    error_type: type[PixiCommandError] = PixiCommandError
+    if "does not contain a pep 723 metadata block" in normalized:
+        error_type = PixiMissingScriptMetadataError
+    return error_type(completed.args, completed.returncode, output)
+
+
 def find_pixi_bin() -> str | None:
     """Path to the pixi executable, or None if not found."""
     return shutil.which("pixi")
@@ -88,9 +103,7 @@ def require_pixi_bin() -> str:
 def ensure_supported_pixi() -> None:
     """Raise unless the invoked pixi understands `install --script`.
 
-    Probes `pixi install --help` rather than a version floor: the verb
-    is not in a released pixi yet, so no floor exists to compare
-    against.
+    Probe the capability rather than coupling marimo to a Pixi version.
     """
     completed = subprocess.run(
         [require_pixi_bin(), "install", "--help"],
@@ -148,9 +161,7 @@ def sync(
         for line in (completed.stdout + completed.stderr).splitlines(True):
             on_output(line)
     if completed.returncode != 0:
-        raise PixiCommandError(
-            args, completed.returncode, completed.stderr or completed.stdout
-        )
+        raise _command_error(completed)
     report = _ANSI.sub("", completed.stderr)
     match = _INSTALLED_AT.search(report)
     if match is None:
@@ -274,9 +285,7 @@ def _run(
         for line in (completed.stdout + completed.stderr).splitlines(True):
             on_output(line)
     if completed.returncode != 0:
-        raise PixiCommandError(
-            args, completed.returncode, completed.stderr or completed.stdout
-        )
+        raise _command_error(completed)
     return completed
 
 
@@ -287,12 +296,12 @@ def ensure_marimo(
 ) -> None:
     """Add marimo to the script metadata if not already a dependency.
 
-    The manifest carries a loose requirement so `pixi run notebook.py`
-    works standalone; the launch overlay supplies the running version
-    (or the development checkout), never the manifest. Creates the
-    metadata block if the file has none. No-op for non-`.py` targets
-    and for missing or empty files, whose block is the notebook
-    serializer's to create.
+    The manifest carries a loose requirement so
+    `pixi run --script notebook.py` works standalone; the launch overlay
+    supplies the running version (or the development checkout), never the
+    manifest. Creates the metadata block if the file has none. No-op for
+    non-`.py` targets and for missing or empty files, whose block is the
+    notebook serializer's to create.
     """
     from marimo._environments.script_metadata import (
         ensure_metadata_block,
@@ -326,9 +335,7 @@ def ensure_marimo(
         start_new_session=os.name != "nt",
     )
     if completed.returncode != 0:
-        raise PixiCommandError(
-            args, completed.returncode, completed.stderr or completed.stdout
-        )
+        raise _command_error(completed)
 
 
 # The uv that applies launch overlays, fetched through `pixi exec` so
@@ -347,10 +354,10 @@ def launch(
 ) -> ProcessPlan:
     """Plans running `python <args...>` inside the environment.
 
-    A pixi script environment is a conda environment, so the plan
-    activates it the way `pixi run` would: `CONDA_PREFIX` and the
-    environment's bin directory first on `PATH`. `VIRTUAL_ENV` is
-    dropped; a conda prefix is not a virtualenv.
+    A pixi script environment is a conda environment, so the plan supplies
+    its conventional prefix variables and executable paths. `VIRTUAL_ENV`
+    is dropped; a conda prefix is not a virtualenv. Pixi activation scripts
+    are not evaluated by this launch path.
 
     The overlay is layered by uv, which pixi supplies through
     `pixi exec` so that pixi stays the only tool a pixi sandbox needs:
@@ -372,9 +379,11 @@ def launch(
     env.pop("UV_PROJECT_ENVIRONMENT", None)
     env["CONDA_PREFIX"] = environment.root
     env["CONDA_DEFAULT_ENV"] = os.path.basename(environment.root)
-    bin_dir = os.path.join(environment.root, "bin")
+    path_entries = _activation_path_entries(environment.root)
     path = env.get("PATH")
-    env["PATH"] = bin_dir if not path else bin_dir + os.pathsep + path
+    if path:
+        path_entries = (*path_entries, path)
+    env["PATH"] = os.pathsep.join(path_entries)
     return ProcessPlan(
         argv=(
             require_pixi_bin(),
@@ -392,7 +401,27 @@ def launch(
             *args,
         ),
         env=env,
+        start_new_session=True,
     )
+
+
+def _activation_path_entries(
+    root: str, *, platform: str | None = None
+) -> tuple[str, ...]:
+    """Executable paths exposed by a conventional conda prefix."""
+    platform = os.name if platform is None else platform
+    if platform == "nt":
+        import ntpath
+
+        return (
+            root,
+            ntpath.join(root, "Library", "mingw-w64", "bin"),
+            ntpath.join(root, "Library", "usr", "bin"),
+            ntpath.join(root, "Library", "bin"),
+            ntpath.join(root, "Scripts"),
+            ntpath.join(root, "bin"),
+        )
+    return (os.path.join(root, "bin"),)
 
 
 def command_env() -> dict[str, str]:

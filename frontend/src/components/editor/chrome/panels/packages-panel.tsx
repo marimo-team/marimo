@@ -515,6 +515,9 @@ const DependencyTreeNode: React.FC<{
 }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
+  const isCondaPackage = node.tags.some(
+    (tag) => tag.kind === "kind" && tag.value === "conda",
+  );
   const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -608,12 +611,23 @@ const DependencyTreeNode: React.FC<{
                 </div>
               );
             }
+            if (tag.kind === "kind" && tag.value === "conda") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-muted-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+                  title="conda package"
+                >
+                  conda
+                </div>
+              );
+            }
             return null;
           })}
         </div>
 
         {/* Actions for top-level packages */}
-        {isTopLevel && (
+        {isTopLevel && !isCondaPackage && (
           <div className="flex gap-1 invisible group-hover:visible">
             <UpgradeButton
               packageName={node.name}
