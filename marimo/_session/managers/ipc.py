@@ -525,12 +525,27 @@ class IPCKernelManagerImpl(KernelManager):
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
         except KernelStartupError:
+            self._cleanup_failed_start()
             raise
         except Exception as e:
+            self._cleanup_failed_start()
             # Wrap other exceptions as KernelStartupError
             raise KernelStartupError(
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
+
+    def _cleanup_failed_start(self) -> None:
+        """Release resources retained before the startup handshake."""
+        if self._process is not None and self._process.poll() is None:
+            try:
+                try_kill_process_and_group(_SubprocessWrapper(self._process))
+            except (ProcessLookupError, PermissionError):
+                pass
+            except Exception as error:
+                LOGGER.warning(error)
+        if self._notebook_sandbox is not None:
+            self._notebook_sandbox.close()
+            self._notebook_sandbox = None
 
     def _await_handshake_line(
         self,
