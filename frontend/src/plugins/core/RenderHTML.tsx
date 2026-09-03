@@ -20,6 +20,7 @@ import { DocHoverTarget } from "@/core/documentation/DocHoverTarget";
 import { hasTrustedNotebookContext } from "@/core/static/export-context";
 import { Logger } from "@/utils/Logger";
 import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
+import { createVideoPlaybackKey } from "./video";
 
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
@@ -217,15 +218,16 @@ const keyVideosByPlaybackConfig: TransformFn = (
   }
 
   const attrs = domNode.attribs ?? {};
-  const src = attrs.src ?? "";
-  // Avoid putting a potentially large inline video in the React key. Updating
-  // `src` still reloads data URLs; the key is needed for playback attributes.
-  const sourceKey = /^data:/i.test(src) ? "data-url" : src;
-  const autoplay = "autoplay" in attrs;
-  const muted = "muted" in attrs;
-  const loop = "loop" in attrs;
   return cloneElement(reactNode, {
-    key: `video-${sourceKey}-${autoplay}-${muted}-${loop}-${index}`,
+    key: createVideoPlaybackKey(
+      {
+        src: attrs.src,
+        autoplay: "autoplay" in attrs,
+        muted: "muted" in attrs,
+        loop: "loop" in attrs,
+      },
+      index,
+    ),
   });
 };
 

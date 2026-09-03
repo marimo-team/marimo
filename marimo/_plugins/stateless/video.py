@@ -90,8 +90,10 @@ def video(
         floating: whether the video can float above the notebook. `True` adds
             a button for moving the video between its inline and floating
             positions. `"auto"` also floats the video after it has been visible
-            and is then scrolled out of view. Floating uses an in-page panel,
-            not the browser's Picture-in-Picture API.
+            and is then scrolled out of view. Drag the floating video to move
+            it between corners, or drag its inward corner to resize it.
+            Floating uses an in-page panel, not the browser's Picture-in-Picture
+            API.
 
     Returns:
         `Html` object

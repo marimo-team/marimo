@@ -2689,6 +2689,34 @@ paths:
       responses:
         "204":
           description: Accepted.
+  /plugins/marimo-video/data:
+    summary: marimo-video data
+    get:
+      operationId: read_marimo_video_data
+      summary: Read marimo-video data
+      tags:
+        - plugin-data
+      responses:
+        "200":
+          description: marimo-video data accepted by a plugin consumer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/marimo-video.data"
+    put:
+      operationId: write_marimo_video_data
+      summary: Write marimo-video data
+      tags:
+        - plugin-data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/marimo-video.data"
+      responses:
+        "204":
+          description: Accepted.
 components:
   schemas:
     marimo-accordion.data:
@@ -5241,3 +5269,36 @@ components:
           additionalProperties: {}
       required:
         - spec
+    marimo-video.data:
+      type: object
+      properties:
+        src:
+          anyOf:
+            - type: string
+            - type: "null"
+        controls:
+          default: true
+          type: boolean
+        muted:
+          default: false
+          type: boolean
+        autoplay:
+          default: false
+          type: boolean
+        loop:
+          default: false
+          type: boolean
+        rounded:
+          default: false
+          type: boolean
+        floating:
+          type: string
+          enum:
+            - manual
+            - auto
+        width:
+          type: string
+        height:
+          type: string
+      required:
+        - floating
