@@ -1,5 +1,15 @@
 anthropic:
 
+  - name: Claude Fable 5.1
+    model: claude-fable-5-1
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 10, output: 50}
+
   - name: Claude Opus 5
     model: claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
@@ -12,7 +22,7 @@ anthropic:
 
   - name: Claude Fable 5
     model: claude-fable-5
-    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -211,6 +221,26 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Gemini 3.8 Flash
+    model: gemini-3.8-flash
+    description: "Google's most intelligent Flash model, with gains in software engineering, agentic tasks, and multi-step reasoning"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-02
+    cost: {input: 0.75, output: 3.75}
+
+  - name: Claude Fable 5.1
+    model: claude-fable-5-1@default
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows, available through Vertex AI only"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 10, output: 50}
+
   - name: Gemini Flash Latest
     model: gemini-flash-latest
     description: "Alias that points to the latest Gemini Flash release and can change when Google updates the model family"
@@ -360,6 +390,36 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: Claude Fable 5.1
+    model: anthropic.claude-fable-5-1
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 10, output: 50}
+
+  - name: Claude Fable 5.1 (Global)
+    model: global.anthropic.claude-fable-5-1
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 10, output: 50}
+
+  - name: Claude Fable 5.1 (US)
+    model: us.anthropic.claude-fable-5-1
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 11, output: 55}
+
   - name: Grok 4.6
     model: xai.grok-4.6
     description: "xAI's frontier model for coding, agentic tasks, knowledge work, and visual reasoning"
@@ -432,7 +492,7 @@ bedrock:
 
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
-    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -452,7 +512,7 @@ bedrock:
 
   - name: Claude Fable 5 (Global)
     model: global.anthropic.claude-fable-5
-    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -541,6 +601,25 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: Claude Fable 5.1
+    model: claude-fable-5-1
+    description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-01
+    cost: {input: 10, output: 50}
+
+  - name: Grok 4.6
+    model: grok-4.6
+    description: "xAI frontier model for coding, knowledge work, and STEM"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-12
+
   - name: Claude Opus 5
     model: claude-opus-5
     description: "Anthropic's flagship model for demanding reasoning, coding, and long-horizon agentic work"
@@ -593,7 +672,7 @@ azure:
 
   - name: Claude Fable 5
     model: claude-fable-5
-    description: "Anthropic's most capable widely released Mythos-class model, built for the most demanding reasoning and long-horizon agentic work"
+    description: "Anthropic's Mythos-class model built for demanding reasoning, coding, and long-horizon agentic work"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -843,6 +922,24 @@ github:
     cost: {input: 0, output: 0}
 
 ollama:
+  - name: GLM-5.3-Flash
+    model: glm-5.3-flash
+    description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-26
+
+  - name: GLM-5.3
+    model: glm-5.3
+    description: "Large-scale reasoning model from Z.ai built for complex software engineering and long-horizon agent tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-14
+
   - name: DeepSeek V4 Flash 0731
     model: deepseek-v4-flash:0731
     description: "DeepSeek V4 Flash 0731 is a sparse mixture-of-experts model from DeepSeek, with 13B active parameters out of 284B total"
@@ -970,6 +1067,26 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: Granite 4.2 8B
+    model: ibm-granite/granite-4.2-8b
+    description: "Dense reasoning model from IBM for mathematics, code generation, multilingual dialogue, and multi-step agentic workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-24
+    cost: {input: 0.1, output: 0.15}
+
+  - name: DeepSeek V4 Pro 0813
+    model: deepseek-ai/DeepSeek-V4-Pro-0813
+    description: "Large-scale Mixture-of-Experts model and generally available release of DeepSeek V4 Pro"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-13
+    cost: {input: 1.31, output: 3.96}
+
   - name: Qwen3.8 27B
     model: Qwen/Qwen3.8-27B
     description: "Alibaba's 27B dense multimodal model for coding, professional work, research, and long-horizon agentic tasks"
@@ -1161,6 +1278,46 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: Muse Spark 1.3 Contributor
+    model: muse-spark-1.3-contributor
+    description: "Cost-efficient contributor tier of Meta's multimodal reasoning model for experimentation, learning, and early-stage agentic, multi-agent, and coding workflows"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-02
+    cost: {input: 0.1, output: 0.2}
+
+  - name: Hy4 preview
+    model: hy4-preview
+    description: "Mixture-of-Experts model from Tencent designed for coding agents, complex tool use, and productivity tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-28
+    cost: {input: 0.834, output: 2.501}
+
+  - name: GLM-5.3-Flash (2x usage)
+    model: glm-5.3-flash
+    description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-08-26
+    cost: {input: 0.075, output: 0.25}
+
+  - name: Qwen3.8 Flash
+    model: qwen3.8-flash
+    description: "Multimodal reasoning model from Alibaba for coding, agentic workflows, visual understanding, document and codebase analysis, and desktop interaction"
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-26
+    cost: {input: 0.15, output: 0.47}
+
   - name: DeepSeek V4 Flash Vision Exp
     model: deepseek-v4-flash-vision-exp
     description: "Experimental multimodal variant of DeepSeek V4 Flash that adds image understanding while retaining its text and agent capabilities"

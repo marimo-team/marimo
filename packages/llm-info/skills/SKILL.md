@@ -1,6 +1,6 @@
 ---
 name: fill-model-descriptions
-description: Fill empty `description: ""` fields in `packages/llm-info/data/models.yml` by querying OpenRouter and provider documentation. Use when the user asks to populate model descriptions, enrich the model catalog, or backfill descriptions after running `pnpm sync-models`.
+description: Fill missing and refresh obsolete model descriptions in `packages/llm-info/data/models.yml` by querying OpenRouter and provider documentation. Use when the user asks to populate model descriptions, enrich the model catalog, or curate descriptions after running `pnpm sync-models`.
 disable-model-invocation: true
 ---
 
@@ -8,11 +8,13 @@ disable-model-invocation: true
 
 ## Goal
 
-Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` with concise, accurate one-sentence summaries sourced from OpenRouter first, then provider documentation as a fallback.
+Keep descriptions in `packages/llm-info/data/models.yml` concise and accurate. Fill empty descriptions and refresh existing descriptions when newly added models or authoritative documentation make them obsolete. Source descriptions from OpenRouter first, then provider documentation as a fallback.
 
 ## Scope and Contract
 
-- **Only modify entries where `description` is the empty string.** Existing non-empty descriptions are human-curated; never overwrite them.
+- Fill every empty `description` for which a confident source is available.
+- Preserve human-curated, non-empty descriptions unless a newly added model or authoritative source makes a concrete claim obsolete. Typical obsolete claims include "latest," "most capable," availability, or capabilities that have demonstrably changed.
+- Do not rewrite existing descriptions only for style, tone, or consistency. When an existing description must change, make the smallest factual correction and record it in the final summary.
 - The file is a top-level YAML map keyed by provider id (`anthropic:`, `openai:`, …). Each provider's value is an array of model entries.
 - Do not modify any other field, reorder entries, or change formatting (flow-style arrays like `roles: [chat, edit]`, blank lines between entries, blank line between provider sections).
 - This skill requires network access.
@@ -21,7 +23,9 @@ Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` w
 
 1. **Read** `packages/llm-info/data/models.yml`. Parse it with the `yaml` library's `parseDocument` (NOT `parse`) so formatting and comments are preserved on write-back.
 
-2. **Collect** every entry where `description` is the empty string. Track them as `{ provider, model }` pairs.
+2. **Collect and review** descriptions:
+   - Track every entry where `description` is the empty string as a `{ provider, model }` pair.
+   - Review related existing entries in the same model families for claims made obsolete by the new entries. Also review descriptions affected by a factual change found in authoritative documentation.
 
 3. **Source descriptions** in this priority order:
 
@@ -46,7 +50,8 @@ Replace empty `description: ""` strings in `packages/llm-info/data/models.yml` w
    The `schema.test.ts` test will catch any structural drift.
 
 7. **Report** to the user:
-   - How many entries got descriptions.
+   - How many empty descriptions were filled.
+   - How many obsolete descriptions were updated, with the provider/model list and the factual reason.
    - How many were skipped (with the provider/model list).
 
 ## Vendor Map
