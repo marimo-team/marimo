@@ -253,7 +253,7 @@ class ChatMessage(msgspec.Struct, dict=True):
                     return parse_raw(
                         part, cls=PartType, allow_unknown_keys=True
                     )
-                except Exception:  # noqa: S112
+                except Exception:
                     continue
             return cast(ChatPart, part)
 

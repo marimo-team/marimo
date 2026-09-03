@@ -227,7 +227,7 @@ def _param_types_from_signatures(
     for param in params:
         try:
             type_hint = cast(str, param.get_type_hint())
-        except Exception:  # noqa: S112
+        except Exception:
             continue
         if type_hint:
             param_types[param.name] = type_hint

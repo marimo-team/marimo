@@ -158,7 +158,7 @@ def _enrich_branded_types(
 
         try:
             hints = typing.get_type_hints(struct_cls)
-        except Exception:  # noqa: S112
+        except Exception:
             continue
 
         field_to_schema_key: dict[str, str] = {}
