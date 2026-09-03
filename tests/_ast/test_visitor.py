@@ -2082,6 +2082,8 @@ def test_async_function_name_resolution_in_class_scope() -> None:
 
     assert v.refs == {"method"}
     assert v.variable_data["C"][0].required_refs == {"method"}
+
+
 def test_class_with_forward_reference_to_method() -> None:
     """Test that class variables can reference methods defined earlier (valid)."""
     code = cleandoc(
