@@ -65,6 +65,7 @@ describe("StaticBanner", () => {
     renderBanner({ molab: false });
     await openDialog();
 
+    expect(screen.getByRole("tab", { name: "uv" })).toBeVisible();
     expect(
       screen.getByText("uvx marimo edit --sandbox 'my notebook.py'"),
     ).toBeVisible();

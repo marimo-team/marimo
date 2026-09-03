@@ -103,7 +103,7 @@ const StaticBannerDialog = ({ code }: { code: string }) => {
 
               <Tabs defaultValue="uv">
                 <TabsList aria-label="Package manager">
-                  <TabsTrigger value="uv">uv (recommended)</TabsTrigger>
+                  <TabsTrigger value="uv">uv</TabsTrigger>
                   <TabsTrigger value="pip">pip</TabsTrigger>
                   <TabsTrigger value="conda">conda</TabsTrigger>
                 </TabsList>
