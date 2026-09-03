@@ -9,7 +9,7 @@
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
     "oxfmt": "^0.42.0",
     "turbo": "^2.8.0",
