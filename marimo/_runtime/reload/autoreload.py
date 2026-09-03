@@ -207,12 +207,12 @@ class ModuleReloader:
         # module shadowing an installed package).
         self._skip: dict[str, str | None] = {}
 
-        # module-name -> mtime(module modification timestamps) tracked independently of `modules_mtimes`.
-        # Used only by `check_for_watcher` to avoid race conditions between the watcher and the AutoreloadManager
+        # module-name -> mtime observed by the module watcher. The watcher
+        # needs an independent baseline because a cell reload can advance
+        # `modules_mtimes` between watcher polls.
         self.watcher_modules_mtimes: dict[str, float] = {}
 
         # Timestamp existing modules
-        self.check(modules=sys.modules, reload=False)
         self.check_for_watcher(modules=sys.modules)
 
     def _is_user_module(self, module: types.ModuleType) -> bool:
@@ -288,6 +288,21 @@ class ModuleReloader:
 
         Returns a set of modules that were found to have been modified.
         """
+        return self._check(
+            modules,
+            reload=reload,
+            skip_non_user_modules=skip_non_user_modules,
+            for_watcher=False,
+        )
+
+    def _check(
+        self,
+        modules: dict[str, types.ModuleType],
+        *,
+        reload: bool,
+        skip_non_user_modules: bool,
+        for_watcher: bool,
+    ) -> set[types.ModuleType]:
 
         # module watcher thread and kernel thread might try to use the
         # reloader at the same time, but reloader mutates state
@@ -334,18 +349,34 @@ class ModuleReloader:
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
                 existing_mtime = self.modules_mtimes.get(modname)
-                if existing_mtime is None:
+                reloader_detected_change = (
+                    existing_mtime is not None
+                    and pymtime > existing_mtime
+                    and self.failed.get(py_filename) != pymtime
+                )
+                if existing_mtime is None or pymtime > existing_mtime:
                     self.modules_mtimes[modname] = pymtime
-                    continue
-                if pymtime <= existing_mtime:
-                    continue
-                if self.failed.get(py_filename, None) == pymtime:
-                    continue
 
-                self.modules_mtimes[modname] = pymtime
-                modified_modules.add(m)
-                self.stale_modules.add(modname)
-                self._module_dependency_finder.evict_from_cache(m)
+                watcher_detected_change = False
+                if for_watcher:
+                    watcher_mtime = self.watcher_modules_mtimes.get(modname)
+                    watcher_detected_change = (
+                        watcher_mtime is not None and pymtime > watcher_mtime
+                    )
+                    if watcher_mtime is None or pymtime > watcher_mtime:
+                        self.watcher_modules_mtimes[modname] = pymtime
+
+                if reloader_detected_change:
+                    self.stale_modules.add(modname)
+                    self._module_dependency_finder.evict_from_cache(m)
+
+                detected_change = (
+                    watcher_detected_change
+                    if for_watcher
+                    else reloader_detected_change
+                )
+                if detected_change:
+                    modified_modules.add(m)
 
             if not reload:
                 return modified_modules
@@ -390,38 +421,19 @@ class ModuleReloader:
     def check_for_watcher(
         self, modules: dict[str, types.ModuleType]
     ) -> set[types.ModuleType]:
-        """Like `check(..., reload=False)`, but tracks mtimes in
-        `watcher_modules_mtimes` instead of `modules_mtimes`.
+        """Check modules against the watcher's independent mtime baseline.
 
-        `ModuleWatcher`'s background thread calls this to find modules that
-        changed since the last watcher poll, so it can compute *transitive*
-        staleness via `_depends_on` in `module_watcher.py`.
-
-        This method exists to avoid races where `AutoreloadManager.cell_scope()`
-        advances `modules_mtimes` between watcher polls.
+        A single scan updates the normal reload state and returns modules that
+        changed since the previous watcher poll. This prevents cell reloads
+        from consuming changes before the watcher can compute transitive
+        staleness.
         """
-        with self.lock:
-            modified_modules: set[types.ModuleType] = set()
-            for modname in list(modules.keys()):
-                m = modules.get(modname, None)
-                if m is None:
-                    continue
-
-                module_mtime = self.filename_and_mtime(m)
-                if module_mtime is None:
-                    continue
-                pymtime = module_mtime.mtime
-
-                existing_mtime = self.watcher_modules_mtimes.get(modname)
-                if existing_mtime is None:
-                    self.watcher_modules_mtimes[modname] = pymtime
-                    continue
-                if pymtime <= existing_mtime:
-                    continue
-
-                self.watcher_modules_mtimes[modname] = pymtime
-                modified_modules.add(m)
-            return modified_modules
+        return self._check(
+            modules,
+            reload=False,
+            skip_non_user_modules=False,
+            for_watcher=True,
+        )
 
 
 def update_function(old: object, new: object) -> None:

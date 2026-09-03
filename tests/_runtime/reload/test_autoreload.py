@@ -593,6 +593,28 @@ class TestSkipCache:
             m is user_mod for m in reloader.check_for_watcher(sys.modules)
         )
 
+    def test_watcher_stats_each_module_once(
+        self, tmp_path: pathlib.Path, py_modname: str, monkeypatch
+    ):
+        sys.path.append(str(tmp_path))
+        user_file = tmp_path / pathlib.Path(py_modname + ".py")
+        user_file.write_text("x = 1")
+        user_mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+
+        calls: list[types.ModuleType] = []
+        original = reloader.filename_and_mtime
+
+        def spy(module: types.ModuleType):
+            calls.append(module)
+            return original(module)
+
+        monkeypatch.setattr(reloader, "filename_and_mtime", spy)
+
+        reloader.check_for_watcher({py_modname: user_mod})
+
+        assert calls == [user_mod]
+
     def test_normalized_path_cached_across_checks(self):
         # Regression guard: os.path.realpath is expensive (filesystem syscalls
         # per path component). _normalized_path caches it so repeated check()
