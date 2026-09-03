@@ -277,6 +277,19 @@ def test_launch_without_overlay_is_direct() -> None:
 
     assert plan.argv == ("/env/bin/python", "-m", "marimo")
     assert plan.env["VIRTUAL_ENV"] == "/env"
+    assert not plan.start_new_session
+
+
+def test_launcher_plans_start_a_new_session() -> None:
+    env = Environment(python="/env/bin/python", root="/env", action="created")
+
+    overlay = launch(env, ["-m", "marimo"], overlay=["marimo"])
+    isolated = environment.launch_isolated(
+        ["-m", "marimo"], overlay=["marimo"], python="3.13"
+    )
+
+    assert overlay.start_new_session
+    assert isolated.start_new_session
 
 
 @pytest.mark.network

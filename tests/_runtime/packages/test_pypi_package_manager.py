@@ -845,6 +845,40 @@ def test_uv_dependency_tree_uses_utf8_encoding(mock_run: MagicMock):
 
 
 @patch("subprocess.run")
+def test_uv_dependency_tree_materializes_markdown(
+    mock_run: MagicMock, tmp_path: Path
+) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        "---\n"
+        "pyproject: |\n"
+        '  dependencies = ["test-package"]\n'
+        "---\n\n"
+        "# Notebook\n",
+        encoding="utf-8",
+    )
+
+    def run(command: list[str], **kwargs: Any) -> MagicMock:
+        carrier = Path(command[-1])
+        assert carrier.name == ".marimo-v1-notebook.md.py"
+        assert 'dependencies = ["test-package"]' in carrier.read_text()
+        assert kwargs["cwd"] == str(tmp_path)
+        return MagicMock(
+            args=command,
+            returncode=0,
+            stdout="test-package v1.0.0\n",
+            stderr="",
+        )
+
+    mock_run.side_effect = run
+
+    tree = UvPackageManager().dependency_tree(filename=str(notebook))
+
+    assert tree is not None
+    assert not (tmp_path / ".marimo-v1-notebook.md.py").exists()
+
+
+@patch("subprocess.run")
 def test_uv_pip_list_uses_utf8_encoding(mock_run: MagicMock):
     """Test that uv pip list uses UTF-8 encoding"""
     mock_output = json.dumps([{"name": "test-pkg", "version": "1.0.0"}])
