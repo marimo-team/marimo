@@ -191,16 +191,6 @@ openai:
     release_date: 2026-03-05
     cost: {input: 2.5, output: 15}
 
-  - name: GPT-5.3 Chat
-    model: gpt-5.3-chat-latest
-    description: "Update to ChatGPT's most-used model that makes everyday conversations smoother, more useful, and more directly helpful"
-    roles: [chat, edit]
-    capabilities: [tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-03-03
-    cost: {input: 1.75, output: 14}
-
   - name: GPT-5.3 Codex
     model: gpt-5.3-codex
     description: "Agentic coding model that combines GPT-5.2-Codex software engineering performance with GPT-5.2 reasoning and professional knowledge"
@@ -1308,16 +1298,6 @@ opencode-go:
     release_date: 2026-08-21
     cost: {input: 0.22, output: 0.66}
 
-  - name: Ox Alpha Free (Unlimited)
-    model: ox-alpha-free
-    description: "Free, limited-time OpenCode Go model for coding and agentic tasks"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-08-21
-    cost: {input: 0, output: 0}
-
   - name: Muse Spark 1.2 Contributor
     model: muse-spark-1.2-contributor
     description: "Discounted Meta coding model that permits prompts and completions to train future Meta models"
@@ -1367,26 +1347,6 @@ opencode-go:
     output_types: [text]
     release_date: 2026-07-16
     cost: {input: 3, output: 15}
-
-  - name: Grok 4.5
-    model: grok-4.5
-    description: "xAI model for coding, knowledge work, and STEM"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image]
-    output_types: [text]
-    release_date: 2026-07-08
-    cost: {input: 2, output: 6}
-
-  - name: Hy3
-    model: hy3
-    description: "Tencent's 295B-parameter Mixture-of-Experts model (21B active) built for reasoning, agentic workflows, and production use"
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text]
-    output_types: [text]
-    release_date: 2026-07-06
-    cost: {input: 0.14, output: 0.58}
 
   - name: DeepSeek V4 Flash
     model: deepseek-v4-flash

@@ -12,7 +12,7 @@ import {
   MODEL_DENYLIST,
   mergeModels,
 } from "../sources/merge.ts";
-import type { ModelsDevApi } from "../sources/models-dev.ts";
+import { type ModelsDevApi, parseModelsDev } from "../sources/models-dev.ts";
 import { syncModels } from "../sync-models.ts";
 
 const FIXTURE_YAML = `# Manually curated section
@@ -296,6 +296,32 @@ describe("mergeModels", () => {
     expect(MAX_MODELS_PER_PROVIDER).toBe(10);
   });
 
+  it("filters deprecated models before applying the latest-model cap", () => {
+    const fixture = parseModelsDev({
+      openai: {
+        id: "openai",
+        models: {
+          deprecated: {
+            id: "deprecated",
+            name: "Deprecated",
+            status: "deprecated",
+            release_date: "2026-02-01",
+          },
+          current: {
+            id: "current",
+            name: "Current",
+            release_date: "2026-01-01",
+          },
+        },
+      },
+    });
+
+    const summary = mergeModels({}, fixture, { maxPerProvider: 1 });
+    expect(summary.newEntries["openai"]!.map((e) => e.model)).toEqual([
+      "current",
+    ]);
+  });
+
   it("dedupes models that appear under multiple mapped providers (google + google-vertex → google)", () => {
     const fixture: ModelsDevApi = {
       google: {
@@ -569,11 +595,16 @@ describe("mergeModels", () => {
       expect(MODEL_DENYLIST["openai"]?.has("gpt-realtime-2.1")).toBe(true);
       expect(MODEL_DENYLIST["bedrock"]).toEqual(
         new Set([
+          "anthropic.claude-fable-5-1",
+          "us.anthropic.claude-fable-5-1",
           "anthropic.claude-opus-5",
           "au.anthropic.claude-opus-5",
           "eu.anthropic.claude-opus-5",
           "jp.anthropic.claude-opus-5",
         ]),
+      );
+      expect(MODEL_DENYLIST["opencode-go"]).toEqual(
+        new Set(["glm-5.1", "hy3", "minimax-m2.7"]),
       );
     });
 
