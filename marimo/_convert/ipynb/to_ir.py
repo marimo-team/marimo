@@ -16,7 +16,7 @@ from pymdownx.superfences import RE_NESTED_FENCE_START  # type: ignore
 from marimo._ast.cell import CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.names import DEFAULT_CELL_NAME
-from marimo._ast.transformers import NameTransformer, RemoveImportTransformer
+from marimo._ast.transformers import RemoveImportTransformer
 from marimo._ast.variables import is_local
 from marimo._ast.visitor import Block, NamedNode, ScopedVisitor
 from marimo._convert.common.format import (
@@ -141,6 +141,109 @@ def _strip_paragraph_tags(source: str) -> str:
 CellsTransform = Callable[[list[CodeCell]], list[CodeCell]]
 
 
+class ScopeAwareNameTransformer(ast.NodeTransformer):
+    def __init__(self, name_substitutions: dict[str, str]) -> None:
+        super().__init__()
+        self._name_substitutions = name_substitutions
+        self.made_changes = False
+        self._shadowed_stack: list[set[str]] = []
+
+    def _is_shadowed(self, name: str) -> bool:
+        return any(name in scope for scope in self._shadowed_stack)
+
+    def visit_Name(self, node: ast.Name) -> ast.Name:
+        if node.id in self._name_substitutions and not self._is_shadowed(
+            node.id
+        ):
+            self.made_changes = True
+            return ast.Name(
+                **{**node.__dict__, "id": self._name_substitutions[node.id]}
+            )
+        return node
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        if node.name in self._name_substitutions and not self._is_shadowed(
+            node.name
+        ):
+            self.made_changes = True
+            node.name = self._name_substitutions[node.name]
+
+        node.decorator_list = [self.visit(d) for d in node.decorator_list]
+        node.args.defaults = [self.visit(d) for d in node.args.defaults]
+        node.args.kw_defaults = [
+            self.visit(d) if d is not None else None
+            for d in node.args.kw_defaults
+        ]
+
+        param_names: set[str] = set()
+        for arg in (
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+        ):
+            param_names.add(arg.arg)
+        if node.args.vararg is not None:
+            param_names.add(node.args.vararg.arg)
+        if node.args.kwarg is not None:
+            param_names.add(node.args.kwarg.arg)
+
+        self._shadowed_stack.append(param_names)
+        node.body = [self.visit(stmt) for stmt in node.body]
+        self._shadowed_stack.pop()
+        return node
+
+    def visit_AsyncFunctionDef(
+        self, node: ast.AsyncFunctionDef
+    ) -> ast.AsyncFunctionDef:
+        if node.name in self._name_substitutions and not self._is_shadowed(
+            node.name
+        ):
+            self.made_changes = True
+            node.name = self._name_substitutions[node.name]
+
+        node.decorator_list = [self.visit(d) for d in node.decorator_list]
+        node.args.defaults = [self.visit(d) for d in node.args.defaults]
+        node.args.kw_defaults = [
+            self.visit(d) if d is not None else None
+            for d in node.args.kw_defaults
+        ]
+
+        param_names: set[str] = set()
+        for arg in (
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+        ):
+            param_names.add(arg.arg)
+        if node.args.vararg is not None:
+            param_names.add(node.args.vararg.arg)
+        if node.args.kwarg is not None:
+            param_names.add(node.args.kwarg.arg)
+
+        self._shadowed_stack.append(param_names)
+        node.body = [self.visit(stmt) for stmt in node.body]
+        self._shadowed_stack.pop()
+        return node
+
+    def visit_Lambda(self, node: ast.Lambda) -> ast.Lambda:
+        node.args.defaults = [self.visit(d) for d in node.args.defaults]
+        node.args.kw_defaults = [
+            self.visit(d) if d is not None else None
+            for d in node.args.kw_defaults
+        ]
+
+        param_names: set[str] = set()
+        for arg in (
+            node.args.posonlyargs + node.args.args + node.args.kwonlyargs
+        ):
+            param_names.add(arg.arg)
+        if node.args.vararg is not None:
+            param_names.add(node.args.vararg.arg)
+        if node.args.kwarg is not None:
+            param_names.add(node.args.kwarg.arg)
+
+        self._shadowed_stack.append(param_names)
+        node.body = self.visit(node.body)
+        self._shadowed_stack.pop()
+        return node
+
+
 def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
     """
     Fixup multiple definitions of the same name in different cells,
@@ -175,7 +278,7 @@ def transform_fixup_multiple_definitions(sources: list[str]) -> list[str]:
     def transform(source: str) -> str:
         try:
             tree = ast.parse(source)
-            visitor = NameTransformer(name_transformations)
+            visitor = ScopeAwareNameTransformer(name_transformations)
             transformed_tree = visitor.visit(tree)
             # Don't unparse if no changes were made
             # otherwise we lose comments and formatting

@@ -268,3 +268,20 @@ async def test_progress_async_for_loop_without_collection_error():
     ):
         async for _ in progress_bar(total=1):
             pass
+
+
+@patch("marimo._runtime.output._output.flush")
+def test_update_progress_fast_updates_trailing_flush(mock_flush: Any) -> None:
+    progress = _Progress(
+        title="Test",
+        subtitle="Initial",
+        total=5,
+        show_rate=False,
+        show_eta=False,
+    )
+    progress.update_progress(increment=1, subtitle="Step 1")
+    progress.update_progress(increment=1, subtitle="Step 2")
+    assert mock_flush.call_count == 1
+    time.sleep(0.2)
+    assert mock_flush.call_count == 2
+    progress.close()

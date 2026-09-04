@@ -135,6 +135,69 @@ def test_transform_fixup_multiple_definitions_when_not_encapsulated():
     assert result == sources
 
 
+def test_transform_fixup_multiple_definitions_parameter_shadowing():
+    # Variables with the same name as function/lambda parameters must NOT be
+    # renamed inside the function/lambda body (fixes issue #10736).
+    sources = dd(
+        [
+            """
+def double(n):
+    return n * 2
+
+n = 5
+print('double(3) =', double(3))
+""",
+            """
+n = 999
+print('n =', n)
+""",
+        ]
+    )
+    result = transform_fixup_multiple_definitions(sources)
+    expected = [
+        """
+def double(n):
+    return n * 2
+_n = 5
+print('double(3) =', double(3))
+""",
+        """
+_n = 999
+print('n =', _n)
+""",
+    ]
+    assert_sources_equal(result, expected)
+
+
+def test_transform_fixup_multiple_definitions_lambda_shadowing():
+    sources = dd(
+        [
+            """
+fn = lambda x: x * 10
+x = 5
+print(fn(x))
+""",
+            """
+x = 999
+print(x)
+""",
+        ]
+    )
+    result = transform_fixup_multiple_definitions(sources)
+    expected = [
+        """
+fn = lambda x: x * 10
+_x = 5
+print(fn(_x))
+""",
+        """
+_x = 999
+print(_x)
+""",
+    ]
+    assert_sources_equal(result, expected)
+
+
 def test_transform_add_marimo_import():
     # mo.md
     sources = [
