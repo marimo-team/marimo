@@ -11,7 +11,7 @@
   "devDependencies": {
     "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
-    "oxfmt": "^0.42.0",
+    "oxfmt": "^0.64.0",
     "turbo": "^2.8.0",
     "vitest": "^4.1.10"
   },
