@@ -12,9 +12,8 @@ from marimo._config.config import (
     AiConfig,
     MarimoConfig,
 )
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.ai.config import (
-    GITHUB_COPILOT_BASE_URL,
+    GITHUB_MODELS_RETIRED_MESSAGE,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -141,117 +140,6 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "ollama-placeholder"
         assert provider_config.base_url == "http://127.0.0.1:11434/v1"
-
-    def test_for_github(self):
-        """Test GitHub configuration."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "base_url": "https://some-base-url",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://some-base-url"
-
-    def test_for_github_with_fallback_base_url(self):
-        """Test GitHub configuration uses fallback base URL when not specified."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://models.github.ai/inference"
-
-    @pytest.mark.skipif(
-        not DependencyManager.pydantic_ai.has(),
-        reason="pydantic-ai is not installed",
-    )
-    def test_github_default_base_url_matches_pydantic_ai(self):
-        """Test GitHub configuration base URL matches pydantic-ai."""
-        from pydantic_ai.providers.github import GitHubProvider
-
-        assert (
-            GitHubProvider(api_key="dummy").base_url == GITHUB_COPILOT_BASE_URL
-        )
-
-    def test_for_github_default_extra_headers(self):
-        """Test GitHub configuration includes default extra headers."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.extra_headers is not None
-        assert (
-            provider_config.extra_headers["editor-version"] == "vscode/1.95.0"
-        )
-        assert (
-            provider_config.extra_headers["Copilot-Integration-Id"]
-            == "vscode-chat"
-        )
-
-    def test_for_github_user_headers_override_defaults(self):
-        """Test GitHub configuration allows user headers to override defaults."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "extra_headers": {
-                    "editor-version": "custom-editor/2.0.0",
-                    "X-Custom-Header": "custom-value",
-                },
-            }
-        }
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.extra_headers is not None
-        # User header should override default
-        assert (
-            provider_config.extra_headers["editor-version"]
-            == "custom-editor/2.0.0"
-        )
-        # Default header not overridden should remain
-        assert (
-            provider_config.extra_headers["Copilot-Integration-Id"]
-            == "vscode-chat"
-        )
-        # Custom user header should be preserved
-        assert (
-            provider_config.extra_headers["X-Custom-Header"] == "custom-value"
-        )
-
-    def test_for_github_with_copilot_settings(self):
-        """Test GitHub configuration with copilot_settings is accepted."""
-        config: AiConfig = {
-            "github": {
-                "api_key": "test-github-key",
-                "copilot_settings": {
-                    "http": {
-                        "proxy": "http://proxy.example.com:8888",
-                        "proxyStrictSSL": True,
-                    },
-                    "telemetry": {"telemetryLevel": "off"},
-                },
-            }
-        }
-
-        # Should not raise an error - copilot_settings is a valid field
-        provider_config = AnyProviderConfig.for_github(config)
-
-        # Note: copilot_settings is stored in config but not used by AnyProviderConfig
-        # It's used by the frontend LSP client
-        assert provider_config.api_key == "test-github-key"
-        assert provider_config.base_url == "https://models.github.ai/inference"
 
     def test_for_openrouter(self):
         """Test OpenRouter configuration."""
@@ -431,12 +319,12 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-anthropic-key"
 
     def test_for_model_github(self) -> None:
-        """Test for_model with GitHub model."""
-        config: AiConfig = {"github": {"api_key": "test-github-key"}}
+        """An old GitHub Models ID returns a migration error."""
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_model("github/gpt-4o", {})
 
-        provider_config = AnyProviderConfig.for_model("github/gpt-4o", config)
-
-        assert provider_config.api_key == "test-github-key"
+        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
+        assert exc_info.value.detail == GITHUB_MODELS_RETIRED_MESSAGE
 
     def test_for_model_openrouter(self) -> None:
         """Test for_model with OpenRouter model."""
@@ -742,35 +630,6 @@ class TestProviderConfigWithFallback:
             api_key="",
             ssl_verify=True,
         )
-
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
-    def test_for_github_with_fallback_key(self) -> None:
-        """Test GitHub config uses fallback key when config is missing api_key."""
-        config: AiConfig = {"github": {}}
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "env-github-token"
-
-    @patch.dict(os.environ, {"GITHUB_TOKEN": "env-github-token"})
-    def test_for_github_config_key_takes_precedence(self) -> None:
-        """Test GitHub config key takes precedence over environment variable."""
-        config: AiConfig = {"github": {"api_key": "config-github-token"}}
-
-        provider_config = AnyProviderConfig.for_github(config)
-
-        assert provider_config.api_key == "config-github-token"
-
-    @patch.dict(os.environ, {}, clear=True)
-    def test_for_github_no_fallback_available(self) -> None:
-        """Test GitHub config fails when no config key and no env var."""
-        config: AiConfig = {"github": {}}
-
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_github(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "GitHub API key not configured" in str(exc_info.value.detail)
 
     @patch.dict(os.environ, {"OPENROUTER_API_KEY": "env-openrouter-token"})
     def test_for_openrouter_with_fallback_key(self) -> None:
@@ -1293,7 +1152,6 @@ class TestSSLConfiguration:
         ("provider_name", "provider_method", "api_key_config"),
         [
             ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
-            ("github", "for_github", {"github": {"api_key": "test-key"}}),
             ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
         ],
     )
@@ -1327,24 +1185,14 @@ class TestSSLConfiguration:
         assert provider_config.client_pem == "/custom/path/to/client.pem", (
             f"{provider_name}: client_pem should match"
         )
-        # GitHub includes default headers that are merged with user headers
-        if provider_name == "github":
-            assert provider_config.extra_headers is not None
-            assert "X-Custom" in provider_config.extra_headers
-            assert provider_config.extra_headers["X-Custom"] == "header"
-            # GitHub should also include default headers
-            assert "editor-version" in provider_config.extra_headers
-            assert "Copilot-Integration-Id" in provider_config.extra_headers
-        else:
-            assert provider_config.extra_headers == {"X-Custom": "header"}, (
-                f"{provider_name}: extra_headers should match"
-            )
+        assert provider_config.extra_headers == {"X-Custom": "header"}, (
+            f"{provider_name}: extra_headers should match"
+        )
 
     @pytest.mark.parametrize(
         ("provider_name", "provider_method", "api_key_config"),
         [
             ("openai", "for_openai", {"open_ai": {"api_key": "test-key"}}),
-            ("github", "for_github", {"github": {"api_key": "test-key"}}),
             ("ollama", "for_ollama", {"ollama": {"api_key": "test-key"}}),
         ],
     )
@@ -1453,16 +1301,6 @@ class TestEdgeCases:
         assert AnyProviderConfig.for_openai_compatible(
             config
         ) == AnyProviderConfig(base_url=None, api_key="", ssl_verify=True)
-
-    def test_github_config_missing(self):
-        """Test error when GitHub config is missing."""
-        config: AiConfig = {}
-
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_github(config)
-
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert "GitHub API key not configured" in str(exc_info.value.detail)
 
     def test_tools_empty_list(self):
         """Test that tools are not included when empty list."""

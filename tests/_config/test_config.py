@@ -1,8 +1,12 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from unittest.mock import patch
+
+from marimo._config import config as config_module
 from marimo._config.config import (
     DEFAULT_CONFIG,
+    GITHUB_MODELS_RETIRED_MESSAGE,
     MarimoConfig,
     PartialMarimoConfig,
     merge_config,
@@ -113,7 +117,6 @@ def test_configure_github_with_copilot_settings() -> None:
         PartialMarimoConfig(
             ai={
                 "github": {
-                    "api_key": "test-github-key",
                     "copilot_settings": {
                         "http": {
                             "proxy": "http://proxy.example.com:8888",
@@ -130,7 +133,6 @@ def test_configure_github_with_copilot_settings() -> None:
     )
 
     github_config = config.get("ai", {}).get("github", {})
-    assert github_config.get("api_key") == "test-github-key"
     assert github_config.get("copilot_settings") is not None
     copilot_settings = github_config.get("copilot_settings", {})
     assert (
@@ -143,6 +145,57 @@ def test_configure_github_with_copilot_settings() -> None:
         copilot_settings.get("github-enterprise", {}).get("uri")
         == "https://github.enterprise.com"
     )
+
+
+def test_retired_github_models_config_logs_warning() -> None:
+    config = PartialMarimoConfig(
+        ai={
+            "github": {
+                "api_key": "legacy-token",
+                "base_url": "https://models.github.ai/inference",
+            },
+            "models": {
+                "chat_model": "github/openai/gpt-4o",
+                "edit_model": "github/openai/gpt-4o-mini",
+                "autocomplete_model": "github/openai/gpt-4o-mini",
+                "displayed_models": [
+                    "github/openai/gpt-4o",
+                    "openai/gpt-4o",
+                ],
+                "custom_models": ["github/openai/gpt-4o"],
+            },
+        }
+    )
+
+    config_module._warn_once_about_retired_github_models_config.cache_clear()
+    try:
+        with patch("marimo._config.config.LOGGER.warning") as warning:
+            merged = merge_default_config(config)
+            merge_default_config(config)
+    finally:
+        config_module._warn_once_about_retired_github_models_config.cache_clear()
+
+    assert merged["ai"]["models"] == config["ai"]["models"]
+    assert merged["ai"]["github"] == {
+        "api_key": "legacy-token",
+        "base_url": "https://models.github.ai/inference",
+    }
+    warning.assert_called_once_with(GITHUB_MODELS_RETIRED_MESSAGE)
+
+
+def test_github_copilot_config_does_not_log_retirement_warning() -> None:
+    config = PartialMarimoConfig(
+        ai={
+            "github": {
+                "copilot_settings": {"telemetry": {"telemetryLevel": "off"}}
+            }
+        }
+    )
+
+    with patch("marimo._config.config.LOGGER.warning") as warning:
+        merge_default_config(config)
+
+    warning.assert_not_called()
 
 
 def test_merge_config_with_keymap_overrides() -> None:

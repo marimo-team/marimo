@@ -156,7 +156,6 @@ You can configure the following providers:
 * Anthropic
 * AWS Bedrock
 * Google AI
-* GitHub
 * Ollama
 * and any OpenAI-compatible provider
 

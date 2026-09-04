@@ -1,6 +1,23 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { NotificationDataOf, SessionNotificationEventData } from "./types";
 
+export async function withTimeout<T>(
+  operation: Promise<T>,
+  timeoutMs: number,
+  message: string,
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export function isToolCalls(
   group: SessionNotificationEventData[],
 ): group is NotificationDataOf<"tool_call" | "tool_call_update">[] {

@@ -4,7 +4,9 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
+from functools import lru_cache
 
+from marimo import _loggers
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
@@ -23,6 +25,15 @@ from typing import (
 
 from marimo._output.rich_help import mddoc
 from marimo._utils.deep_merge import deep_merge
+
+LOGGER = _loggers.marimo_logger()
+
+GITHUB_MODELS_RETIRED_MESSAGE = (
+    "GitHub Models retired on July 30, 2026. "
+    "For model inference in marimo, migrate to Microsoft Foundry or another "
+    "AI provider. For agentic coding with a Copilot subscription, use GitHub "
+    "Copilot in the Agents panel."
+)
 
 
 @mddoc
@@ -323,7 +334,7 @@ class AiConfig(TypedDict, total=False):
     - `bedrock`: the Bedrock config
     - `azure`: the Azure config
     - `ollama`: the Ollama config
-    - `github`: the GitHub config
+    - `github`: the GitHub Copilot language-server config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
@@ -425,17 +436,18 @@ class BedrockConfig(TypedDict, total=False):
 
 @dataclass
 class GitHubConfig(TypedDict, total=False):
-    """Configuration options for GitHub.
+    """Configuration options for the GitHub Copilot language server.
 
     **Keys.**
 
-    - `api_key`: the GitHub API token or an `env:` reference
-    - `base_url`: the base URL for the API
+    - `api_key`: deprecated GitHub Models token
+    - `base_url`: deprecated GitHub Models URL
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
         and `github-enterprise` (enterprise URI).
     """
 
+    # Deprecated fields remain here so old configuration files load cleanly.
     api_key: str
     base_url: NotRequired[str]
     copilot_settings: NotRequired[dict[str, Any]]
@@ -891,4 +903,47 @@ def merge_config(
         ):
             merged["runtime"]["auto_reload"] = "lazy"
 
+    _warn_about_retired_github_models_config(merged)
+
     return merged
+
+
+def _warn_about_retired_github_models_config(config: MarimoConfig) -> None:
+    ai_config = config.get("ai", {})
+    github_config = cast(dict[str, Any], ai_config.get("github", {}))
+    models = cast(dict[str, Any], ai_config.get("models", {}))
+
+    configured_model_keys = (
+        "chat_model",
+        "edit_model",
+        "autocomplete_model",
+    )
+    has_retired_model = any(
+        isinstance(models.get(key), str) and models[key].startswith("github/")
+        for key in configured_model_keys
+    )
+    retired_model_lists = ("displayed_models", "custom_models")
+    contains_retired_models = any(
+        any(
+            isinstance(model, str) and model.startswith("github/")
+            for model in models.get(key, [])
+        )
+        for key in retired_model_lists
+    )
+    contains_retired_provider_config = bool(
+        github_config.get("api_key") or github_config.get("base_url")
+    )
+
+    if not (
+        has_retired_model
+        or contains_retired_models
+        or contains_retired_provider_config
+    ):
+        return
+
+    _warn_once_about_retired_github_models_config()
+
+
+@lru_cache(maxsize=1)
+def _warn_once_about_retired_github_models_config() -> None:
+    LOGGER.warning(GITHUB_MODELS_RETIRED_MESSAGE)

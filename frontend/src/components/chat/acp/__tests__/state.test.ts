@@ -7,6 +7,7 @@ import {
   type AgentSessionState,
   addSession,
   type ExternalAgentId,
+  getAllAgentIds,
   getAgentConnectionCommand,
   getAgentDisplayName,
   getAgentWebSocketUrl,
@@ -659,13 +660,21 @@ describe("state utility functions", () => {
     it("should capitalize agent names", () => {
       expect({
         claude: getAgentDisplayName("claude"),
+        copilot: getAgentDisplayName("copilot"),
         gemini: getAgentDisplayName("gemini"),
       }).toMatchInlineSnapshot(`
         {
           "claude": "Claude",
+          "copilot": "GitHub Copilot",
           "gemini": "Gemini",
         }
       `);
+    });
+  });
+
+  describe("getAllAgentIds", () => {
+    it("should include GitHub Copilot", () => {
+      expect(getAllAgentIds()).toContain("copilot");
     });
   });
 
@@ -695,6 +704,20 @@ describe("state utility functions", () => {
       vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
       expect(getAgentConnectionCommand("gemini")).toMatchInlineSnapshot(`
         "npx stdio-to-ws "cmd /c npx @google/gemini-cli --experimental-acp" --port 3019"
+      `);
+    });
+
+    it("should return the GitHub Copilot ACP command", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(false);
+      expect(getAgentConnectionCommand("copilot")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "npx --yes @github/copilot --acp --stdio" --port 3027"
+      `);
+    });
+
+    it("should return the GitHub Copilot ACP command on Windows", () => {
+      vi.spyOn(shortcuts, "isPlatformWindows").mockReturnValue(true);
+      expect(getAgentConnectionCommand("copilot")).toMatchInlineSnapshot(`
+        "npx stdio-to-ws "cmd /c npx --yes @github/copilot --acp --stdio" --port 3027"
       `);
     });
   });

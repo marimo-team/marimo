@@ -3736,7 +3736,7 @@ export interface components {
      *         - `bedrock`: the Bedrock config
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
-     *         - `github`: the GitHub config
+     *         - `github`: the GitHub Copilot language-server config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
      *         - `opencode_go`: the OpenCode Go config
@@ -4634,15 +4634,6 @@ export interface components {
       type: "configuration" | "environment";
     };
     /**
-     * DialectHidesWhen
-     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
-     */
-    DialectHidesWhen: {
-      /** @enum {unknown} */
-      kind: "dialect";
-      substrings: string[];
-    };
-    /**
      * DiagnosticsConfig
      * @description Configuration options for diagnostics.
      *
@@ -4654,6 +4645,15 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiscoverDataSourcesCommand
@@ -5145,12 +5145,12 @@ export interface components {
     GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
-     * @description Configuration options for GitHub.
+     * @description Configuration options for the GitHub Copilot language server.
      *
      *         **Keys.**
      *
-     *         - `api_key`: the GitHub API token or an `env:` reference
-     *         - `base_url`: the base URL for the API
+     *         - `api_key`: deprecated GitHub Models token
+     *         - `base_url`: deprecated GitHub Models URL
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
      *             and `github-enterprise` (enterprise URI).

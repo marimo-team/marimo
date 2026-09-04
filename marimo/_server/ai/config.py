@@ -11,6 +11,7 @@ from typing import (
 from starlette.exceptions import HTTPException
 
 from marimo._config.config import (
+    GITHUB_MODELS_RETIRED_MESSAGE,
     AiConfig,
     CopilotMode,
     MarimoConfig,
@@ -22,8 +23,6 @@ from marimo._server.ai.tools.tool_manager import get_tool_manager
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._utils.http import HTTPStatus
 
-# https://github.com/pydantic/pydantic-ai/blob/8b9ac2bde2355b0d431abea6cf210a36fffe0c43/pydantic_ai_slim/pydantic_ai/providers/github.py#L41C17-L41C51
-GITHUB_COPILOT_BASE_URL = "https://models.github.ai/inference"
 ENV_SECRET_PREFIX = "env:"
 
 SecretResolver = Callable[[str], str | None]
@@ -142,40 +141,6 @@ class AnyProviderConfig:
             fallback_base_url=default_base_url,
             secret_resolver=secret_resolver,
         )
-
-    @classmethod
-    def for_github(
-        cls,
-        config: AiConfig,
-        *,
-        secret_resolver: SecretResolver | None = None,
-    ) -> AnyProviderConfig:
-        fallback_key = cls._resolve_secret("GITHUB_TOKEN", secret_resolver)
-        result = cls._for_openai_like(
-            config,
-            "github",
-            "GitHub",
-            fallback_key=fallback_key,
-            # Default base URL for GitHub Copilot, taken from
-            fallback_base_url=GITHUB_COPILOT_BASE_URL,
-            require_key=True,
-            secret_resolver=secret_resolver,
-        )
-
-        # Add default extra headers for GitHub, but allow user to override
-        default_headers = {
-            "editor-version": "vscode/1.95.0",
-            "Copilot-Integration-Id": "vscode-chat",
-        }
-
-        # Merge: user headers override defaults
-        if result.extra_headers:
-            merged_headers = {**default_headers, **result.extra_headers}
-        else:
-            merged_headers = default_headers
-
-        result.extra_headers = merged_headers
-        return result
 
     @classmethod
     def for_openrouter(
@@ -357,7 +322,10 @@ class AnyProviderConfig:
         elif model_id.provider == "azure":
             return cls.for_azure(config, secret_resolver=secret_resolver)
         elif model_id.provider == "github":
-            return cls.for_github(config, secret_resolver=secret_resolver)
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=GITHUB_MODELS_RETIRED_MESSAGE,
+            )
         elif model_id.provider == "openrouter":
             return cls.for_openrouter(config, secret_resolver=secret_resolver)
         elif model_id.provider == "wandb":

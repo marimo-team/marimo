@@ -4,19 +4,21 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { isPlatformWindows } from "@/core/hotkeys/shortcuts";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
-import { capitalize } from "@/utils/strings";
 import type { TypedString } from "@/utils/typed";
 import { generateUUID } from "@/utils/uuid";
 import type { ExternalAgentSessionId, SessionSupportType } from "./types";
 
 // Types
 export type TabId = TypedString<"TabId">;
-export type ExternalAgentId =
-  | "claude"
-  | "gemini"
-  | "codex"
-  | "opencode"
-  | "cursor";
+const AGENT_IDS = [
+  "claude",
+  "copilot",
+  "gemini",
+  "codex",
+  "opencode",
+  "cursor",
+] as const;
+export type ExternalAgentId = (typeof AGENT_IDS)[number];
 
 // No agents support loading sessions, so we limit to 1, otherwise
 // this is confusing to the user when switching between sessions
@@ -230,11 +232,11 @@ export function getSessionsByAgent(
 }
 
 export function getAllAgentIds(): ExternalAgentId[] {
-  return ["claude", "gemini", "codex", "opencode", "cursor"];
+  return [...AGENT_IDS];
 }
 
 export function getAgentDisplayName(agentId: ExternalAgentId): string {
-  return capitalize(agentId);
+  return AGENT_CONFIG[agentId].displayName;
 }
 
 export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
@@ -247,6 +249,7 @@ export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
 }
 
 interface AgentConfig {
+  displayName: string;
   port: number;
   command: string;
   sessionSupport: SessionSupportType;
@@ -256,26 +259,37 @@ interface AgentConfig {
 
 const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
   claude: {
+    displayName: "Claude",
     port: 3017,
     command: "npx @zed-industries/claude-code-acp",
     sessionSupport: "single",
   },
+  copilot: {
+    displayName: "GitHub Copilot",
+    port: 3027,
+    command: "npx --yes @github/copilot --acp --stdio",
+    sessionSupport: "single",
+  },
   gemini: {
+    displayName: "Gemini",
     port: 3019,
     command: "npx @google/gemini-cli --experimental-acp",
     sessionSupport: "single",
   },
   codex: {
+    displayName: "Codex",
     port: 3021,
     command: "npx @zed-industries/codex-acp",
     sessionSupport: "single",
   },
   opencode: {
+    displayName: "OpenCode",
     port: 3023,
     command: "npx opencode-ai acp",
     sessionSupport: "single",
   },
   cursor: {
+    displayName: "Cursor",
     port: 3025,
     command: "agent acp",
     sessionSupport: "single",
