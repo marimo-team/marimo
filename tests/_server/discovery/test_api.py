@@ -58,7 +58,9 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
     assert response.json() == snapshot(
         {
             "instance_id": IsUUID(),
-            "operations": [],
+            "operations": [
+                "catalog.watch",
+            ],
             "projects": [
                 {
                     "id": IsUUID(),
