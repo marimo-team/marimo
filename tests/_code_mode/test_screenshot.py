@@ -4,6 +4,7 @@ from __future__ import annotations
 import base64
 from types import SimpleNamespace
 from typing import TYPE_CHECKING
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -51,29 +52,36 @@ class TestScreenshotSessionAuthUrl:
         )
         assert session._screenshot_auth_token == "tok123"
 
-    def test_page_url_includes_screenshot_auth_token(self) -> None:
-        """The kiosk page URL must include the access_token query param."""
-        session = _ScreenshotSession(
-            "http://localhost:9999", screenshot_auth_token="secret"
+    @pytest.mark.parametrize(
+        ("server_url", "token", "expected_url"),
+        [
+            (
+                "http://localhost:9999",
+                None,
+                "http://localhost:9999?kiosk=true",
+            ),
+            (
+                "http://localhost:9999",
+                "secret",
+                "http://localhost:9999?kiosk=true&access_token=secret",
+            ),
+            (
+                "http://localhost:9999/notebooks/?file=caf%C3%A9+%26+tea.py",
+                "secret",
+                "http://localhost:9999/notebooks/?file=caf%C3%A9+%26+tea.py&kiosk=true&access_token=secret",
+            ),
+        ],
+    )
+    async def test_navigate_preserves_notebook_target(
+        self, server_url: str, token: str | None, expected_url: str
+    ) -> None:
+        session = _ScreenshotSession(server_url, screenshot_auth_token=token)
+        page = AsyncMock()
+        session._page = page
+        await session._navigate(initial=True)
+        page.goto.assert_awaited_once_with(
+            expected_url, wait_until="domcontentloaded"
         )
-        # Replicate the URL-building logic from _ensure_ready.
-        params = "kiosk=true"
-        if session._screenshot_auth_token:
-            params += f"&access_token={session._screenshot_auth_token}"
-        page_url = f"{session._server_url}?{params}"
-
-        assert "access_token=secret" in page_url
-        assert "kiosk=true" in page_url
-
-    def test_page_url_omits_token_when_none(self) -> None:
-        session = _ScreenshotSession("http://localhost:9999")
-        params = "kiosk=true"
-        if session._screenshot_auth_token:
-            params += f"&access_token={session._screenshot_auth_token}"
-        page_url = f"{session._server_url}?{params}"
-
-        assert "access_token" not in page_url
-        assert page_url == "http://localhost:9999?kiosk=true"
 
 
 class _FakeCells:

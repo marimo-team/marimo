@@ -8,6 +8,7 @@ import hashlib
 import hmac
 import os
 import secrets
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -32,7 +33,7 @@ from marimo._session.types import KernelState
 from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Sequence
+    from collections.abc import AsyncGenerator, Iterator, Sequence
 
     from marimo._server.models.files import FileInfo
     from marimo._server.session_manager import SessionManager
@@ -42,6 +43,7 @@ DISCOVERY_API_PATH = "/api/marimo/v1"
 DISCOVERY_OPERATIONS = [
     "catalog.watch",
     "notebook.open",
+    "session.execute",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
@@ -60,7 +62,7 @@ class _NotebookTarget:
 @dataclass(frozen=True)
 class _BrowserToken:
     file_key: str
-    expires_at: datetime
+    expires_at: datetime | None
 
 
 class DiscoveryManager:
@@ -237,11 +239,18 @@ class DiscoveryManager:
         )
 
     def issue_browser_token(self, file_key: str) -> str:
+        return self._issue_browser_token(
+            file_key, datetime.now(timezone.utc) + _BROWSER_TOKEN_TTL
+        )
+
+    def _issue_browser_token(
+        self, file_key: str, expires_at: datetime | None
+    ) -> str:
         self._purge_browser_tokens()
         token = secrets.token_urlsafe(32)
         self._browser_tokens[token] = _BrowserToken(
             file_key=file_key,
-            expires_at=datetime.now(timezone.utc) + _BROWSER_TOKEN_TTL,
+            expires_at=expires_at,
         )
         return token
 
@@ -256,6 +265,30 @@ class DiscoveryManager:
             return None
         del self._browser_tokens[token]
         return entry.file_key
+
+    @contextmanager
+    def execution_credentials(
+        self, session: Session
+    ) -> Iterator[tuple[str, str]]:
+        """Keep screenshot bootstrap credentials valid until execution ends."""
+        path = session.app_file_manager.path
+        file_key = (
+            session.initialization_id
+            if path is None
+            else self._file_key(
+                path, self._relative_path(path, self._project_root())
+            )
+        )
+        server_url = f"{self.browser_url}/?{urlencode({'file': file_key})}"
+        auth_token = ""
+        if str(self.session_manager.auth_token):
+            # Queueing or running code may take arbitrarily long. The response
+            # owns this token's lifetime; browser login still consumes it once.
+            auth_token = self._issue_browser_token(file_key, expires_at=None)
+        try:
+            yield server_url, auth_token
+        finally:
+            self._browser_tokens.pop(auth_token, None)
 
     async def watch(self) -> AsyncGenerator[str, None]:
         from marimo._server.sse import format_sse_event
@@ -396,7 +429,7 @@ class DiscoveryManager:
         self._browser_tokens = {
             token: entry
             for token, entry in self._browser_tokens.items()
-            if entry.expires_at > now
+            if entry.expires_at is None or entry.expires_at > now
         }
 
 
