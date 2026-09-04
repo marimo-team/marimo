@@ -46,3 +46,18 @@ async def watch_catalog(*, request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers=SSE_HEADERS,
     )
+
+
+@router.post("/notebooks/{notebook_id}/open")
+async def open_notebook(*, request: Request) -> object:
+    """Return a publisher-defined launch URI for a notebook."""
+    notebook_id = request.path_params["notebook_id"]
+    try:
+        return await _manager(request).open_notebook(notebook_id)
+    except KeyError:
+        return _error(404, "Notebook not found")
+    except RuntimeError as e:
+        return _error(409, str(e))
+    except Exception:
+        LOGGER.exception("Failed to open a locally discovered notebook")
+        return _error(500, "Failed to open notebook")

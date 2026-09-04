@@ -171,20 +171,24 @@ def _html_response(request: Request, html: str) -> Response:
 def _strip_access_token_redirect(request: Request) -> RedirectResponse:
     """Build a redirect to the current URL with access_token removed.
 
-    By the time this runs, `validate_auth` has already matched the query
-    param against the server's auth token and promoted it to a session
-    cookie. Redirecting before any JavaScript runs prevents a
-    pre-execution XSS, a third-party subresource, or browser history from
-    capturing the plaintext token.
+    Authentication has already exchanged the token for a session cookie.
+    Redirect before rendering so page JavaScript and subresources do not
+    receive the token in the document URL.
     """
     stripped = request.url.remove_query_params(TOKEN_QUERY_PARAM)
+    if FILE_QUERY_PARAM_KEY not in request.query_params:
+        discovery_file_key = request.scope.get("marimo_discovery_file_key")
+        if isinstance(discovery_file_key, str):
+            stripped = stripped.include_query_params(
+                **{FILE_QUERY_PARAM_KEY: discovery_file_key}
+            )
     target = stripped.path
     if stripped.query:
         target = f"{target}?{stripped.query}"
     return RedirectResponse(
         url=target,
         status_code=303,
-        headers=_HTML_SECURITY_HEADERS,
+        headers={**_HTML_SECURITY_HEADERS, "Cache-Control": "no-store"},
     )
 
 
