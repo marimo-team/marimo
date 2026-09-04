@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     import asyncio
     import threading
     from collections.abc import Iterator
+    from datetime import datetime
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -135,6 +136,7 @@ class Session(Protocol):
     """Protocol for session management."""
 
     initialization_id: str
+    started_at: datetime
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
     session_view: SessionView

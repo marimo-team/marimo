@@ -25,6 +25,7 @@ from marimo._server.api.middleware import (
     TimeoutMiddleware,
 )
 from marimo._server.api.router import build_routes
+from marimo._server.discovery.middleware import DiscoverySecurityMiddleware
 from marimo._server.errors import handle_error
 from marimo._server.lsp import LspServer
 from marimo._server.registry import MIDDLEWARE_REGISTRY
@@ -60,6 +61,12 @@ def create_starlette_app(
     timeout: float | None = None,
 ) -> Starlette:
     final_middlewares: list[Middleware] = []
+
+    # This must remain outside auth, session cookies, and CORS. Discovery has
+    # a separate bearer token and accepts literal-loopback peers only.
+    final_middlewares.append(
+        Middleware(DiscoverySecurityMiddleware, base_url=base_url)
+    )
 
     if allow_origins is None:
         allow_origins = ("localhost", "127.0.0.1") + (

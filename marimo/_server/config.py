@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
     from marimo._cli.tips import CliTip
     from marimo._config.manager import MarimoConfigManager
+    from marimo._server.discovery.manager import DiscoveryManager
     from marimo._server.session_manager import SessionManager
 
 
@@ -33,6 +34,7 @@ class StarletteServerStateInit:
     skew_protection: bool
     enable_auth: bool
     startup_tip: CliTip | None = None
+    discovery_manager: DiscoveryManager | None = None
 
     def apply(self, state: State) -> None:
         for field, value in self.__dict__.items():
