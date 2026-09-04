@@ -23,9 +23,10 @@ from marimo._messaging.notification import (
 from marimo._messaging.serde import deserialize_kernel_message
 from marimo._runtime.commands import ExecuteScratchpadCommand, HTTPRequest
 from marimo._runtime.scratch import SCRATCH_CELL_ID
-from marimo._server.sse import format_sse_event
+from marimo._server.sse import format_sse_event, wait_for_http_disconnect
 from marimo._session.extensions.types import EventAwareExtension
 from marimo._session.requests import InstantiateNotebookRequest
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -276,6 +277,70 @@ def build_done_event(
         output_data = _EMPTY_OUTPUT
 
     return _format_sse("done", Done(success=success, output=output_data))
+
+
+def stream_scratchpad_code(
+    session: Session,
+    request: Request,
+    *,
+    code: str,
+    http_request: HTTPRequest,
+    server_url: str,
+    auth_token: str,
+) -> AsyncGenerator[str, None]:
+    """Run scratchpad code and stream its existing SSE protocol.
+
+    Both the legacy kernel endpoint and local discovery call this function so
+    locking, event correlation, disconnect cancellation, and terminal output
+    remain one implementation.
+    """
+    http_request.meta[SCREENSHOT_SERVER_URL_KEY] = server_url
+    http_request.meta[SCREENSHOT_AUTH_TOKEN_KEY] = auth_token
+
+    # Register cells into the graph without executing them so that code_mode's
+    # run_cell can resolve dependencies. The kernel no-ops if instantiated.
+    session.instantiate(
+        InstantiateNotebookRequest(object_ids=[], values=[], auto_run=False),
+        http_request=http_request,
+    )
+
+    async def _watch_disconnect() -> None:
+        await wait_for_http_disconnect(request)
+        session.try_interrupt()
+
+    async def _stream() -> AsyncGenerator[str, None]:
+        disconnect_task = asyncio.create_task(_watch_disconnect())
+        run_id = str(uuid4())
+        try:
+            listener = ScratchCellListener(run_id=run_id)
+            async with session.scratchpad_lock:
+                with session.scoped(listener):
+                    notebook_cells, cell_outputs = snapshot_for_scratchpad(
+                        session
+                    )
+                    session.put_control_request(
+                        ExecuteScratchpadCommand(
+                            code=code,
+                            request=http_request,
+                            notebook_cells=notebook_cells,
+                            cell_outputs=cell_outputs,
+                            run_id=run_id,
+                        ),
+                        from_consumer_id=None,
+                    )
+                    async for event in listener.stream():
+                        yield event
+
+                yield build_done_event(session, listener)
+        except asyncio.CancelledError:
+            # On older ASGI specs Starlette may consume the disconnect and
+            # cancel this generator before our watcher sees it.
+            session.try_interrupt()
+            raise
+        finally:
+            await cancel_and_wait(disconnect_task)
+
+    return _stream()
 
 
 def extract_result(
