@@ -668,7 +668,7 @@ describe("state utility functions", () => {
   });
 
   describe("getAgentDisplayName", () => {
-    it("should capitalize agent names", () => {
+    it("should return configured agent display names", () => {
       expect({
         claude: getAgentDisplayName("claude"),
         copilot: getAgentDisplayName("copilot"),
