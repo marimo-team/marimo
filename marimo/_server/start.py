@@ -354,6 +354,7 @@ def start(
         lsp_servers=list(lsp_composite_server.servers.values())
         if lsp_composite_server is not None
         else None,
+        enable_acp_proxy=mode == SessionMode.EDIT,
         skew_protection=skew_protection,
         timeout=timeout,
     )
