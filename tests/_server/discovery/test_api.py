@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 from urllib.parse import parse_qs, urlencode, urlsplit
 
 import pytest
@@ -10,13 +11,18 @@ from dirty_equals import IsStr, IsUUID
 from inline_snapshot import snapshot
 from starlette.testclient import TestClient
 
+from marimo._runtime.commands import ExecuteScratchpadCommand
+from marimo._server import scratchpad as scratchpad_mod
 from marimo._server.discovery.manager import DiscoveryManager
 from marimo._server.main import create_starlette_app
 from marimo._server.workspace import DirectoryWorkspace, SingleFileWorkspace
+from marimo._session.types import KernelState
 from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import (
     get_mock_session_manager,
+    get_session_manager,
     get_starlette_server_state_init,
+    with_session,
 )
 
 if TYPE_CHECKING:
@@ -67,6 +73,7 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
             "operations": [
                 "catalog.watch",
                 "notebook.open",
+                "session.execute",
             ],
             "projects": [
                 {
@@ -179,3 +186,95 @@ def test_discovery_is_404_when_not_published() -> None:
 
     assert response.status_code == 404
     assert response.json() == {"message": "Not found"}
+
+
+@with_session("discovery-session")
+def test_execute_reuses_scratchpad_sse(client: TestClient) -> None:
+    session_manager = get_session_manager(client)
+    manager = DiscoveryManager(
+        session_manager=session_manager,
+        browser_url="http://127.0.0.1:2718",
+        kind="marimo",
+        name="marimo CLI",
+    )
+    client.app.state.discovery_manager = manager
+    local = TestClient(client.app, client=("127.0.0.1", 50000))
+    session = session_manager.sessions[next(iter(session_manager.sessions))]
+    headers = {"Authorization": f"Bearer {manager.token}"}
+    snapshot = local.get("/api/marimo/v1/catalog", headers=headers).json()
+    discovered_session = snapshot["projects"][0]["notebooks"][0]["sessions"][0]
+    assert discovered_session["session_id"] == "discovery-session"
+    assert discovered_session["status"] == "running"
+    assert discovered_session["mode"] == "edit"
+    captured: list[object] = []
+
+    def capture(command: object, from_consumer_id: object) -> None:
+        del from_consumer_id
+        captured.append(command)
+
+    async def empty_stream(self: object):
+        del self
+        if False:
+            yield ""
+
+    with (
+        patch.object(session, "put_control_request", side_effect=capture),
+        patch.object(
+            scratchpad_mod.ScratchCellListener, "stream", empty_stream
+        ),
+    ):
+        response = local.post(
+            "/api/marimo/v1/sessions/discovery-session/execute",
+            headers=headers,
+            json={"code": "print('hello from discovery')"},
+        )
+
+    assert response.status_code == 200, response.text
+    assert "event: done" in response.text
+    assert '"success": true' in response.text
+    commands = [
+        command
+        for command in captured
+        if isinstance(command, ExecuteScratchpadCommand)
+    ]
+    assert len(commands) == 1
+    http_request = commands[0].request
+    assert http_request is not None
+    assert "authorization" not in http_request.headers
+    assert http_request.cookies == {}
+    assert http_request.user == {}
+    assert http_request.meta["screenshot_auth_token"] != manager.token
+
+    invalid = local.post(
+        "/api/marimo/v1/sessions/discovery-session/execute",
+        headers=headers,
+        json={},
+    )
+    assert invalid.status_code == 400
+    assert set(invalid.json()) == {"message"}
+
+    with patch.object(
+        session, "kernel_state", return_value=KernelState.STOPPED
+    ):
+        stopped = local.post(
+            "/api/marimo/v1/sessions/discovery-session/execute",
+            headers=headers,
+            json={"code": "1 + 1"},
+        )
+    assert stopped.status_code == 409
+    assert stopped.json() == {"message": "Session is not running"}
+
+
+def test_execute_errors_use_protocol_shape() -> None:
+    app, manager = _app()
+    client = TestClient(app, client=("127.0.0.1", 50000))
+    headers = {"Authorization": f"Bearer {manager.token}"}
+
+    response = client.post(
+        "/api/marimo/v1/sessions/missing/execute",
+        headers=headers,
+        json={"code": "1 + 1"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"message": "Session not found"}

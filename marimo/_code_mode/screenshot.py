@@ -11,6 +11,7 @@ import asyncio
 import base64
 import time
 from typing import TYPE_CHECKING, Any
+from urllib.parse import parse_qsl, urlencode, urlsplit
 
 from marimo import _loggers
 from marimo._export._pdf_raster import (
@@ -171,10 +172,12 @@ class _ScreenshotSession:
         """Navigate (initial=True) or reload (initial=False) the kiosk page."""
         assert self._page is not None
 
-        params = "kiosk=true"
+        url = urlsplit(self._server_url)
+        params = dict(parse_qsl(url.query, keep_blank_values=True))
+        params["kiosk"] = "true"
         if self._screenshot_auth_token:
-            params += f"&access_token={self._screenshot_auth_token}"
-        page_url = f"{self._server_url}?{params}"
+            params["access_token"] = self._screenshot_auth_token
+        page_url = url._replace(query=urlencode(params)).geturl()
         if initial:
             LOGGER.debug(
                 "Screenshot session: navigating to %s", self._server_url
