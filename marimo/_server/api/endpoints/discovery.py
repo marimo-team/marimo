@@ -5,11 +5,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, StreamingResponse
 
 from marimo import _loggers
 from marimo._server.discovery.manager import DiscoveryManager
 from marimo._server.router import APIRouter
+from marimo._server.sse import SSE_HEADERS
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -35,3 +36,13 @@ async def catalog(*, request: Request) -> object:
     except Exception:
         LOGGER.exception("Failed to build local discovery catalog")
         return _error(500, "Failed to build catalog")
+
+
+@router.get("/catalog/watch")
+async def watch_catalog(*, request: Request) -> StreamingResponse:
+    """Notify subscribers when they should refetch the complete catalog."""
+    return StreamingResponse(
+        _manager(request).watch(),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
