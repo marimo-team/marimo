@@ -74,8 +74,9 @@ def _count_execute_interrupts(
             yield ""
 
     with (
-        patch(
-            "marimo._server.api.endpoints.execution.wait_for_http_disconnect",
+        patch.object(
+            scratchpad_mod,
+            "wait_for_http_disconnect",
             wait_for_disconnect,
         ),
         patch.object(scratchpad_mod.ScratchCellListener, "stream", stream),
