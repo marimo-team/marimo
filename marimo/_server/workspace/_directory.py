@@ -107,3 +107,14 @@ class DirectoryWorkspace(NotebookWorkspace):
                 else:
                     raise
         return self._lazy_files
+
+    @property
+    def is_truncated(self) -> bool:
+        """Whether the scan hit a depth, file count, or time limit.
+
+        Notebooks nested deeper than the scanner's depth limit are dropped
+        along with their folders, which otherwise looks identical to an empty
+        directory; this lets the client say so instead of silently omitting
+        them.
+        """
+        return self._scanner.truncated
