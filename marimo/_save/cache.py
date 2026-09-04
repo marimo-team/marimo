@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from marimo._save.stores import Store
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 5
+MARIMO_CACHE_VERSION: int = 6
 
 CacheType = Literal[
     "ContextExecutionPath",
