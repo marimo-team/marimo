@@ -1,0 +1,6 @@
+event: stderr
+data: {"data":"ValueError: boom\n"}
+
+event: done
+data: {"success":false,"output":{"mimetype":"text/plain","data":""}}
+
