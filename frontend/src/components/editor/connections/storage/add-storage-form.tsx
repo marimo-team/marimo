@@ -101,6 +101,12 @@ const STORAGE_PROVIDERS = [
   },
 ] satisfies StorageProviderSchema[];
 
+export const STORAGE_CONNECTION_KEYWORDS = [
+  ...new Set(
+    STORAGE_PROVIDERS.flatMap(({ name, protocol }) => [name, protocol]),
+  ),
+];
+
 const StorageProviderSelector: React.FC<{
   onSelect: (schema: z.ZodType<StorageConnection, FieldValues>) => void;
 }> = ({ onSelect }) => {

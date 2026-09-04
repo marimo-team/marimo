@@ -83,6 +83,8 @@ import { useChromeActions, useChromeState } from "../chrome/state";
 import { isPanelHidden, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
 import { useAddDetectedDataSource } from "../connections/components";
+import { DATABASE_CONNECTION_KEYWORDS } from "../connections/database/add-database-form";
+import { STORAGE_CONNECTION_KEYWORDS } from "../connections/storage/add-storage-form";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
@@ -458,6 +460,7 @@ export function useNotebookActions({
     {
       icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
       label: "Add database connection",
+      additionalKeywords: ["db", "sql", ...DATABASE_CONNECTION_KEYWORDS],
       handle: () => {
         openModal(<AddConnectionDialogContent onClose={closeModal} />);
       },
@@ -486,6 +489,11 @@ export function useNotebookActions({
     {
       icon: <HardDrive size={14} strokeWidth={1.5} />,
       label: "Add remote storage",
+      additionalKeywords: [
+        "bucket",
+        "object storage",
+        ...STORAGE_CONNECTION_KEYWORDS,
+      ],
       handle: () => {
         openModal(
           <AddConnectionDialogContent
