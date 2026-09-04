@@ -297,6 +297,7 @@ async def discovery(app: Starlette) -> AsyncIterator[None]:
         # never degrade to a less private registration mechanism.
         cast(Any, state.state).discovery_manager = None
         LOGGER.warning("Local discovery is unavailable: %s", e)
+        await manager.close()
         writer.deregister()
         yield
         return
@@ -304,6 +305,7 @@ async def discovery(app: Starlette) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        await manager.close()
         writer.deregister()
 
 

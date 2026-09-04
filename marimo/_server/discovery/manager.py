@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import hmac
 import os
 import secrets
@@ -14,6 +15,7 @@ from typing import TYPE_CHECKING
 from uuid import uuid4, uuid5
 
 from marimo import _loggers
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._server.discovery.models import (
     Catalog,
     InstanceRecord,
@@ -25,19 +27,23 @@ from marimo._server.discovery.models import (
 from marimo._server.workspace import NEW_FILE, flatten_files
 from marimo._session.model import SessionMode
 from marimo._session.types import KernelState
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import AsyncGenerator, Sequence
 
     from marimo._server.models.files import FileInfo
     from marimo._server.session_manager import SessionManager
     from marimo._session.types import Session
 
 DISCOVERY_API_PATH = "/api/marimo/v1"
-DISCOVERY_OPERATIONS: list[str] = []
+DISCOVERY_OPERATIONS = [
+    "catalog.watch",
+]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
 DISCOVERY_NAME_ENV = "MARIMO_DISCOVERY_NAME"
+_POLL_INTERVAL_SECONDS = 1.0
 LOGGER = _loggers.marimo_logger()
 
 
@@ -73,6 +79,15 @@ class DiscoveryManager:
             token=self.token,
         )
         self._catalog_lock = asyncio.Lock()
+        self._subscribers: set[asyncio.Queue[None]] = set()
+        self._watch_task: asyncio.Task[None] | None = None
+
+    async def close(self) -> None:
+        if self._watch_task is not None:
+            task = self._watch_task
+            self._watch_task = None
+            await cancel_and_wait(task)
+        self._subscribers.clear()
 
     def is_authorized(self, token: str) -> bool:
         return hmac.compare_digest(token, self.token)
@@ -192,6 +207,48 @@ class DiscoveryManager:
                 )
             ],
         ), targets
+
+    async def watch(self) -> AsyncGenerator[str, None]:
+        from marimo._server.sse import format_sse_event
+
+        queue: asyncio.Queue[None] = asyncio.Queue(maxsize=1)
+        self._subscribers.add(queue)
+        if self._watch_task is None:
+            self._watch_task = asyncio.create_task(
+                self._watch_loop(), name="discovery.catalog.watch"
+            )
+        queue.put_nowait(None)
+        try:
+            while True:
+                await queue.get()
+                yield format_sse_event("{}", event="catalog.changed")
+        finally:
+            self._subscribers.discard(queue)
+            if not self._subscribers and self._watch_task is not None:
+                task = self._watch_task
+                self._watch_task = None
+                await cancel_and_wait(task)
+
+    async def _watch_loop(self) -> None:
+        last_fingerprint: bytes | None = None
+        while self._subscribers:
+            await asyncio.sleep(_POLL_INTERVAL_SECONDS)
+            try:
+                fingerprint = await self._fingerprint()
+            except Exception as e:
+                LOGGER.warning(
+                    "Failed to refresh the local discovery catalog: %s", e
+                )
+                continue
+            if fingerprint == last_fingerprint:
+                continue
+            last_fingerprint = fingerprint
+            for queue in tuple(self._subscribers):
+                if queue.empty():
+                    queue.put_nowait(None)
+
+    async def _fingerprint(self) -> bytes:
+        return hashlib.sha256(encode_json_bytes(await self.catalog())).digest()
 
     def _project_root(self) -> str | None:
         workspace = self.session_manager.workspace
