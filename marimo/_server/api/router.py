@@ -10,6 +10,7 @@ from marimo._server.api.endpoints.config import router as config_router
 from marimo._server.api.endpoints.datasources import (
     router as datasources_router,
 )
+from marimo._server.api.endpoints.discovery import router as discovery_router
 from marimo._server.api.endpoints.document import router as document_router
 from marimo._server.api.endpoints.documentation import (
     router as documentation_router,
@@ -42,6 +43,9 @@ def build_routes(base_url: str = "") -> list[BaseRoute]:
     app_router = APIRouter(prefix=base_url)
     app_router.include_router(
         execution_router, prefix="/api/kernel", name="execution"
+    )
+    app_router.include_router(
+        discovery_router, prefix="/api/marimo/v1", name="discovery"
     )
     app_router.include_router(
         config_router, prefix="/api/kernel", name="config"
