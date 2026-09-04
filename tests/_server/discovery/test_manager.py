@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
@@ -26,6 +27,84 @@ if TYPE_CHECKING:
     from _pytest.monkeypatch import MonkeyPatch
 
 MARIMO_APP = "import marimo\napp = marimo.App()\n"
+
+
+async def test_watch_retries_failed_initial_scan(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    manager = DiscoveryManager(
+        session_manager=get_mock_session_manager(),
+        browser_url="http://127.0.0.1:2718",
+        kind="marimo",
+        name="marimo",
+    )
+    catalog = manager.catalog
+    attempts = 0
+
+    async def flaky_catalog():
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise OSError("temporarily unavailable")
+        return await catalog()
+
+    monkeypatch.setattr(manager, "catalog", flaky_catalog)
+    events = manager.watch()
+    try:
+        assert await asyncio.wait_for(anext(events), 0.5) == (
+            "event: catalog.changed\ndata: {}\n\n"
+        )
+        assert await asyncio.wait_for(anext(events), 3.5) == (
+            "event: catalog.changed\ndata: {}\n\n"
+        )
+    finally:
+        await events.aclose()
+        await manager.close()
+
+
+async def test_watch_reconnect_during_cleanup(
+    monkeypatch: MonkeyPatch,
+) -> None:
+    manager = DiscoveryManager(
+        session_manager=get_mock_session_manager(),
+        browser_url="http://127.0.0.1:2718",
+        kind="marimo",
+        name="marimo",
+    )
+    scanning = asyncio.Queue[None]()
+    cancelling = asyncio.Queue[None]()
+    finish_cleanup = asyncio.Event()
+
+    async def blocked_catalog():
+        scanning.put_nowait(None)
+        try:
+            await asyncio.Future()
+        finally:
+            cancelling.put_nowait(None)
+            await finish_cleanup.wait()
+
+    monkeypatch.setattr(manager, "catalog", blocked_catalog)
+    first = manager.watch()
+    second = manager.watch()
+    closing = None
+    try:
+        await anext(first)
+        await asyncio.wait_for(scanning.get(), 2.5)
+        closing = asyncio.create_task(first.aclose())
+        await asyncio.wait_for(cancelling.get(), 0.5)
+        await asyncio.wait_for(anext(second), 0.5)
+        finish_cleanup.set()
+        await asyncio.wait_for(closing, 0.5)
+        await asyncio.wait_for(scanning.get(), 2.5)
+        await second.aclose()
+        await asyncio.wait_for(cancelling.get(), 0.5)
+    finally:
+        finish_cleanup.set()
+        if closing is not None:
+            await closing
+        await first.aclose()
+        await second.aclose()
+        await manager.close()
 
 
 @pytest.mark.parametrize("session_count", [0, 1, 2])
@@ -59,7 +138,7 @@ async def test_untitled_catalog(
     assert notebook.openable == (session_count <= 1)
 
 
-async def test_catalog_detects_external_notebook_changes(
+async def test_catalog_and_watch_detect_external_notebook_changes(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "one.py").write_text(MARIMO_APP)
@@ -82,6 +161,32 @@ async def test_catalog_detects_external_notebook_changes(
         "one.py",
         "two.py",
     ]
+
+    events = manager.watch()
+    try:
+        await anext(events)
+        (tmp_path / "three.py").write_text(MARIMO_APP)
+        assert await asyncio.wait_for(anext(events), timeout=2.5) == (
+            "event: catalog.changed\ndata: {}\n\n"
+        )
+        catalog = await manager.catalog()
+        assert [item.path for item in catalog.projects[0].notebooks] == [
+            "one.py",
+            "three.py",
+            "two.py",
+        ]
+        # An initial scan could explain the first notification, but not this one.
+        (tmp_path / "three.py").unlink()
+        assert await asyncio.wait_for(anext(events), timeout=2.5) == (
+            "event: catalog.changed\ndata: {}\n\n"
+        )
+        catalog = await manager.catalog()
+        assert [item.path for item in catalog.projects[0].notebooks] == [
+            "one.py",
+            "two.py",
+        ]
+    finally:
+        await events.aclose()
 
 
 @pytest.mark.parametrize(
