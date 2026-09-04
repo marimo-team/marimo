@@ -65,7 +65,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
-import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
@@ -1026,42 +1025,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             name="ai.ollama.base_url"
             placeholder="http://localhost:11434/v1"
             testId="ollama-base-url-input"
-          />
-        </AccordionFormItem>
-
-        <AccordionFormItem
-          title="GitHub"
-          provider="github"
-          isConfigured={hasValue("ai.github.api_key")}
-        >
-          <Alert variant="warning" className="py-1.5 px-3 text-xs">
-            <AlertDescription>
-              Free tier models have low token limits which can cause errors with
-              larger prompts.{" "}
-              <ExternalLink href="https://docs.github.com/en/github-models/prototyping-with-ai-models#rate-limits">
-                Learn more
-              </ExternalLink>
-            </AlertDescription>
-          </Alert>
-          <ApiKey
-            form={form}
-            config={config}
-            name="ai.github.api_key"
-            placeholder="gho_..."
-            testId="ai-github-api-key-input"
-            description={
-              <>
-                Your GitHub API token from{" "}
-                <Kbd className="inline">gh auth token</Kbd>.
-              </>
-            }
-          />
-          <BaseUrl
-            form={form}
-            config={config}
-            name="ai.github.base_url"
-            placeholder="https://models.github.ai/inference"
-            testId="ai-github-base-url-input"
           />
         </AccordionFormItem>
 

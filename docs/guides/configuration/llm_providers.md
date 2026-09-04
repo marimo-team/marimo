@@ -62,7 +62,6 @@ Some providers use a default environment variable when `api_key` is not set.
 | Anthropic | `ANTHROPIC_API_KEY` |
 | Google AI | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
 | Azure OpenAI | `AZURE_API_KEY` |
-| GitHub | `GITHUB_TOKEN` |
 | OpenRouter | `OPENROUTER_API_KEY` |
 | Weights & Biases | `WANDB_API_KEY` |
 | OpenCode Go | `OPENCODE_API_KEY` |
@@ -111,7 +110,6 @@ You can configure the following providers:
 
 * Anthropic
 * AWS Bedrock
-* GitHub
 * Google AI
 * DeepSeek
 * xAI
@@ -243,7 +241,7 @@ For details and advanced configuration, see the `google-genai` Python client doc
 
 There are two offerings for serving LLMs on Azure
 
-**Azure OpenAI**
+#### Azure OpenAI
 
 ```toml title="marimo.toml"
 [ai.models]
@@ -256,9 +254,9 @@ base_url = "https://<your-resource-name>.openai.azure.com/openai/deployments/<de
 
 The deployment name is typically the model name.
 
-**Azure AI Foundry**
+#### Microsoft Foundry
 
-AI Foundry uses OpenAI-compatible models. You can configure it as a custom provider:
+Microsoft Foundry uses OpenAI-compatible models. You can configure it as a custom provider:
 
 ```toml title="marimo.toml"
 [ai.models]
@@ -270,35 +268,17 @@ api_key = "sk-proj-..."
 base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 ```
 
+### GitHub Models
+
+[GitHub Models retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/).
+For model inference, migrate to [Microsoft Foundry](#microsoft-foundry) or another AI provider.
+The [Microsoft migration guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/quickstart-github-models) explains the endpoint and credential changes.
+
 ### GitHub Copilot
 
-Use Copilot for code refactoring or the chat panel (Copilot subscription required).
+GitHub Copilot is separate from GitHub Models. It is available as an external agent, not an AI assistant provider.
 
-**Requirements**
-
-* Install the [gh CLI](https://cli.github.com/)
-* Get a token: `gh auth token`
-
-**Configuration**
-
-```toml title="marimo.toml"
-[ai.models]
-chat_model = "github/gpt-4o-mini"
-
-[ai.github]
-api_key = "gho_..."
-```
-
-??? question "My token starts with `ghp_` instead of `gho_`?"
-
-    This usually happens when you previously authenticated `gh` by pasting a _personal_ access token (`ghp_...`). However, GitHub Copilot is not available through `ghp_...`, and you will encounter errors such as:
-
-    > bad request: Personal Access Tokens are not supported for this endpoint
-
-    To resolve this issue, you could switch to an _OAuth_ access token (`gho_...`):
-
-    1. Re-authenticate by running `gh auth login`.
-    2. Choose _Login with a web browser_ (instead of _Paste an authentication token_) this time.
+See the [external agents guide](../editor_features/agents.md#github-copilot) for installation and login instructions.
 
 ### OpenRouter
 

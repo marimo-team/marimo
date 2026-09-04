@@ -12,6 +12,7 @@ with code and data.
 | [Understanding dataflow](dataflow.md)       | Visualize and navigate cell dependencies         |
 | [Package Management](package_management.md) | Using package managers in marimo                 |
 | [AI Completion](ai_completion.md)           | Code with the help of a language model           |
+| [External agents](agents.md)                 | Use coding agents in the chat panel               |
 | [Language Server](language_server.md)       | Code intelligence via LSP                        |
 | [Hotkeys](hotkeys.md)                       | Our hotkeys                                      |
 

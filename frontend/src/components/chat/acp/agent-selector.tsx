@@ -39,6 +39,11 @@ const AVAILABLE_AGENTS = [
     iconId: "anthropic",
   },
   {
+    id: "copilot",
+    displayName: "GitHub Copilot",
+    iconId: "copilot",
+  },
+  {
     id: "gemini",
     displayName: "Gemini",
     iconId: "google",

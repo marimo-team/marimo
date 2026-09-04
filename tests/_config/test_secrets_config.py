@@ -14,7 +14,7 @@ def test_mask_secrets() -> None:
             "open_ai": {"api_key": "super_secret"},
             "anthropic": {"api_key": "anthropic_secret"},
             "google": {"api_key": "google_secret"},
-            "github": {"api_key": "github_secret"},
+            "github": {"api_key": "legacy_github_secret"},
             "openrouter": {"api_key": "openrouter_secret"},
             "bedrock": {
                 "aws_access_key_id": "bedrock_access_key_id",
@@ -28,7 +28,7 @@ def test_mask_secrets() -> None:
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
     assert config["ai"]["google"]["api_key"] == "google_secret"
-    assert config["ai"]["github"]["api_key"] == "github_secret"
+    assert config["ai"]["github"]["api_key"] == "legacy_github_secret"
     assert config["ai"]["openrouter"]["api_key"] == "openrouter_secret"
     assert (
         config["ai"]["bedrock"]["aws_access_key_id"] == "bedrock_access_key_id"
@@ -56,7 +56,7 @@ def test_mask_secrets() -> None:
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
     assert config["ai"]["google"]["api_key"] == "google_secret"
-    assert config["ai"]["github"]["api_key"] == "github_secret"
+    assert config["ai"]["github"]["api_key"] == "legacy_github_secret"
     assert config["ai"]["openrouter"]["api_key"] == "openrouter_secret"
     assert (
         config["ai"]["bedrock"]["aws_access_key_id"] == "bedrock_access_key_id"

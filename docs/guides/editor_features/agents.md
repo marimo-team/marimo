@@ -19,6 +19,34 @@ marimo supports external AI agents that can interact with your codebase through 
 
 marimo currently supports the following agents:
 
+### GitHub Copilot
+
+GitHub Copilot CLI connects to marimo through its ACP server.
+
+**Login:**
+
+```bash
+npx --yes @github/copilot login
+```
+
+**Connection command:**
+
+=== "macOS/Linux"
+
+    ```bash
+    npx stdio-to-ws "npx --yes @github/copilot --acp --stdio" --port 3027
+    ```
+
+=== "Windows"
+
+    ```bash
+    npx stdio-to-ws "cmd /c npx --yes @github/copilot --acp --stdio" --port 3027
+    ```
+
+The connection command downloads the CLI with `npx`.
+GitHub Copilot CLI requires Node.js 22 or later for npm installation.
+The [GitHub Copilot CLI installation guide](https://docs.github.com/en/copilot/how-tos/copilot-cli/set-up-copilot-cli/install-copilot-cli) lists other installation methods.
+
 ### Claude Code Agent
 
 Claude Code Agent that uses your [Claude Code CLI subscription](https://docs.claude.com/en/docs/claude-code/overview) to help you with coding tasks.

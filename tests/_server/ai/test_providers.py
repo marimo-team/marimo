@@ -958,8 +958,8 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
             id="path_before_v1",
         ),
         pytest.param(
-            "https://models.github.ai/inference",
-            "models.github.ai/inference",
+            "https://inference.example.com/custom-path",
+            "inference.example.com/custom-path",
             id="path_without_v1",
         ),
         pytest.param(
