@@ -99,7 +99,7 @@ export function addSession(
   const now = Date.now();
   const title = session.firstMessage
     ? truncateTitle(session.firstMessage.trim())
-    : `New ${session.agentId} session`;
+    : `New ${getAgentDisplayName(session.agentId)} session`;
   const tabId = generateTabId();
 
   if (sessionSupport === "single") {

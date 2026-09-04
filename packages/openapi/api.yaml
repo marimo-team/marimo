@@ -2488,8 +2488,10 @@ components:
         \ URI)."
       properties:
         api_key:
+          deprecated: true
           type: string
         base_url:
+          deprecated: true
           type: string
         copilot_settings:
           type: object

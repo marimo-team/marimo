@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from typing import cast
 from unittest.mock import patch
 
 from marimo._config import config as config_module
@@ -194,6 +195,25 @@ def test_github_copilot_config_does_not_log_retirement_warning() -> None:
 
     with patch("marimo._config.config.LOGGER.warning") as warning:
         merge_default_config(config)
+
+    warning.assert_not_called()
+
+
+def test_retired_github_models_warning_handles_none_values() -> None:
+    configs = [
+        {"ai": None},
+        {"ai": {"github": None, "models": None}},
+        {
+            "ai": {
+                "github": None,
+                "models": {"displayed_models": None, "custom_models": None},
+            }
+        },
+    ]
+
+    with patch("marimo._config.config.LOGGER.warning") as warning:
+        for config in configs:
+            merge_config(DEFAULT_CONFIG, cast(PartialMarimoConfig, config))
 
     warning.assert_not_called()
 

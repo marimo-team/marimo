@@ -90,7 +90,7 @@ describe("state utility functions", () => {
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
               "selectedModel": null,
-              "title": "New claude session",
+              "title": "New Claude session",
             },
           ],
         }
@@ -132,7 +132,7 @@ describe("state utility functions", () => {
               "externalAgentSessionId": null,
               "lastUsedAt": 1735689600000,
               "selectedModel": null,
-              "title": "New claude session",
+              "title": "New Claude session",
             },
           ],
         }
@@ -176,6 +176,17 @@ describe("state utility functions", () => {
           ],
         }
       `);
+    });
+
+    it("should use the agent display name in the default title", () => {
+      const initialState: AgentSessionState = {
+        sessions: [],
+        activeTabId: null,
+      };
+
+      const newState = addSession(initialState, { agentId: "copilot" });
+
+      expect(newState.sessions[0].title).toBe("New GitHub Copilot session");
     });
 
     it("should clear externalAgentSessionId when switching between different agents", () => {

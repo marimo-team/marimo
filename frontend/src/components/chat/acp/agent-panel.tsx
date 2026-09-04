@@ -23,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
-import { capitalize } from "@/utils/strings";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
 import { ModelSelector } from "./model-selector";
@@ -32,6 +31,7 @@ import { SessionTabs } from "./session-tabs";
 import {
   agentSessionStateAtom,
   type ExternalAgentId,
+  getAgentDisplayName,
   getAgentWebSocketUrl,
   selectedTabAtom,
   updateSessionExternalAgentSessionId,
@@ -100,7 +100,7 @@ interface AgentTitleProps {
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
   <span className="text-sm font-medium">
-    {capitalize(currentAgentId ?? "")}
+    {currentAgentId ? getAgentDisplayName(currentAgentId) : ""}
   </span>
 ));
 AgentTitle.displayName = "AgentTitle";
@@ -740,6 +740,10 @@ const AgentPanel: React.FC = () => {
         },
       });
 
+      if (cancelled) {
+        return;
+      }
+
       // We try to authenticate with the agent if it supports it.
       // The user must then restart the session
       const authMethods = response?.authMethods;
@@ -764,6 +768,7 @@ const AgentPanel: React.FC = () => {
         if (cancelled) {
           return;
         }
+        cancelled = true;
         logger.error("Failed to initialize/authenticate agent", { error });
         setError(error instanceof Error ? error : String(error));
         disconnect();

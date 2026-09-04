@@ -5156,7 +5156,9 @@ export interface components {
      *             and `github-enterprise` (enterprise URI).
      */
     GitHubConfig: {
+      /** @deprecated */
       api_key?: string;
+      /** @deprecated */
       base_url?: string;
       copilot_settings?: Record<string, any>;
     };

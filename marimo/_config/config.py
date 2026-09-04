@@ -6,6 +6,8 @@ import sys
 from dataclasses import dataclass
 from functools import lru_cache
 
+import msgspec
+
 from marimo import _loggers
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
@@ -17,6 +19,7 @@ else:
 
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Literal,
     TypedDict,
@@ -448,8 +451,12 @@ class GitHubConfig(TypedDict, total=False):
     """
 
     # Deprecated fields remain here so old configuration files load cleanly.
-    api_key: str
-    base_url: NotRequired[str]
+    api_key: Annotated[
+        str, msgspec.Meta(extra_json_schema={"deprecated": True})
+    ]
+    base_url: NotRequired[
+        Annotated[str, msgspec.Meta(extra_json_schema={"deprecated": True})]
+    ]
     copilot_settings: NotRequired[dict[str, Any]]
 
 
@@ -909,9 +916,9 @@ def merge_config(
 
 
 def _warn_about_retired_github_models_config(config: MarimoConfig) -> None:
-    ai_config = config.get("ai", {})
-    github_config = cast(dict[str, Any], ai_config.get("github", {}))
-    models = cast(dict[str, Any], ai_config.get("models", {}))
+    ai_config = cast(dict[str, Any], config.get("ai") or {})
+    github_config = cast(dict[str, Any], ai_config.get("github") or {})
+    models = cast(dict[str, Any], ai_config.get("models") or {})
 
     configured_model_keys = (
         "chat_model",
@@ -926,7 +933,7 @@ def _warn_about_retired_github_models_config(config: MarimoConfig) -> None:
     contains_retired_models = any(
         any(
             isinstance(model, str) and model.startswith("github/")
-            for model in models.get(key, [])
+            for model in (models.get(key) or [])
         )
         for key in retired_model_lists
     )
