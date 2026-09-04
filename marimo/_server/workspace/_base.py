@@ -45,6 +45,11 @@ class NotebookWorkspace(abc.ABC):
     def files(self) -> list[FileInfo]:
         """All files in this workspace as a recursive tree."""
 
+    @property
+    def truncated(self) -> bool:
+        """Whether the current file listing did not exhaust the workspace."""
+        return False
+
     @abc.abstractmethod
     def single_file(self) -> MarimoFile | None:
         """If this workspace represents a single notebook, return it."""

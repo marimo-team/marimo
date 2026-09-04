@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -245,6 +246,7 @@ class SessionImpl(Session):
         # in edit mode. We don't use the session_id because this can change if
         # the session is resumed
         self.initialization_id = initialization_id
+        self.started_at = datetime.now(timezone.utc)
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager

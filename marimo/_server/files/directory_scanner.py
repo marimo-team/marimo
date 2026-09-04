@@ -138,6 +138,7 @@ class DirectoryScanner:
         )
         # Stores partial results in case of timeout
         self.partial_results: list[FileInfo] = []
+        self.truncated = False
 
     @property
     def allowed_extensions(self) -> tuple[str, ...]:
@@ -159,19 +160,23 @@ class DirectoryScanner:
         start_time = time.time()
         file_count = [0]  # Use list for closure mutability
         self.partial_results = []  # Reset partial results
+        self.truncated = False
 
         def recurse(directory: str, depth: int = 0) -> list[FileInfo] | None:
             if depth > self.max_depth:
+                self.truncated = True
                 return None
 
             # Check file limit
             if file_count[0] >= self.max_files:
+                self.truncated = True
                 LOGGER.warning(
                     f"Reached maximum file limit ({self.max_files})"
                 )
                 return None
 
             if time.time() - start_time > self.max_execution_time:
+                self.truncated = True
                 # Store accumulated results before raising timeout
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_TIMEOUT,
@@ -191,6 +196,7 @@ class DirectoryScanner:
                 # Check the limit here, not just after adding a file: a
                 # sibling directory's recursion may have reached it.
                 if file_count[0] >= self.max_files:
+                    self.truncated = True
                     break
 
                 # Skip hidden files and directories
@@ -208,6 +214,12 @@ class DirectoryScanner:
                             or entry.name.lower() in self.SKIP_DIRS
                             or depth == self.max_depth
                         ):
+                            if (
+                                depth == self.max_depth
+                                and entry.name not in self.SKIP_DIRS
+                                and entry.name.lower() not in self.SKIP_DIRS
+                            ):
+                                self.truncated = True
                             continue
                         children = recurse(entry.path, depth + 1)
                         if children:

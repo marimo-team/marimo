@@ -115,8 +115,10 @@ class TestDirectoryScanner:
     def test_max_files_limit(self, test_dir: Path):
         for i in range(10):
             _write(test_dir / f"app{i + 3}.py", MARIMO_APP)
-        files = DirectoryScanner(str(test_dir), max_files=5).scan()
+        scanner = DirectoryScanner(str(test_dir), max_files=5)
+        files = scanner.scan()
         assert _count_files(files) == 5
+        assert scanner.truncated is True
 
     def test_max_files_limit_recursion_at_boundary(
         self, test_dir: Path, monkeypatch: pytest.MonkeyPatch

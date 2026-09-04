@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from marimo import _loggers
 from marimo._server.ai.mcp.config import is_mcp_config_empty
@@ -263,6 +263,35 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
         writer.register()
     except Exception as e:
         LOGGER.warning("Failed to register server: %s", e)
+
+    try:
+        yield
+    finally:
+        writer.deregister()
+
+
+@contextlib.asynccontextmanager
+async def discovery(app: Starlette) -> AsyncIterator[None]:
+    """Publish an authenticated local discovery record for edit mode."""
+    from marimo._server.discovery.registry import DiscoveryRegistryWriter
+
+    state = AppState.from_app(app)
+    manager = state.discovery_manager
+    if manager is None:
+        yield
+        return
+
+    writer = DiscoveryRegistryWriter(manager.record)
+    try:
+        writer.register()
+    except Exception as e:
+        # An unsafe pre-existing directory (or an older Windows Python) must
+        # never degrade to a less private registration mechanism.
+        cast(Any, state.state).discovery_manager = None
+        LOGGER.warning("Local discovery is unavailable: %s", e)
+        writer.deregister()
+        yield
+        return
 
     try:
         yield

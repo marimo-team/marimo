@@ -50,6 +50,10 @@ class DirectoryWorkspace(NotebookWorkspace):
     def include_markdown(self) -> bool:
         return self._include_markdown
 
+    @property
+    def truncated(self) -> bool:
+        return self._scanner.truncated
+
     def set_include_markdown(self, include_markdown: bool) -> None:
         """Toggle markdown inclusion in place; rescans on next access."""
         if include_markdown == self._include_markdown:

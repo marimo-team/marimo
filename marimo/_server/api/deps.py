@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from starlette.websockets import WebSocket
     from uvicorn import Server
 
+    from marimo._server.discovery.manager import DiscoveryManager
     from marimo._session import Session
 
 LOGGER = loggers.marimo_logger()
@@ -116,6 +117,13 @@ class AppStateBase:
     def startup_tip(self) -> CliTip | None:
         startup_tip = getattr(self.state, "startup_tip", None)
         return cast(CliTip | None, startup_tip)
+
+    @property
+    def discovery_manager(self) -> DiscoveryManager | None:
+        return cast(
+            "DiscoveryManager | None",
+            getattr(self.state, "discovery_manager", None),
+        )
 
     @property
     def html_head(self) -> str | None:

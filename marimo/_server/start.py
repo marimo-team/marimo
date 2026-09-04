@@ -22,6 +22,10 @@ from marimo._server.api import lifespans
 from marimo._server.config import (
     StarletteServerStateInit,
 )
+from marimo._server.discovery.manager import (
+    DISCOVERY_ENABLED_ENV,
+    build_discovery_manager,
+)
 from marimo._server.lsp import CompositeLspServer, NoopLspServer
 from marimo._server.main import create_starlette_app
 from marimo._server.registry import LIFESPAN_REGISTRY
@@ -326,6 +330,23 @@ def start(
         execute_opengraph_generators=execute_opengraph_generators,
     )
 
+    discovery_manager = None
+    if mode == SessionMode.EDIT:
+        discovery_manager = build_discovery_manager(
+            session_manager=session_manager,
+            host=host,
+            port=port,
+            base_url=base_url,
+        )
+        if (
+            discovery_manager is None
+            and os.environ.get(DISCOVERY_ENABLED_ENV) != "0"
+        ):
+            LOGGER.warning(
+                "Local discovery is unavailable for bind %r",
+                host,
+            )
+
     log_level = "info" if development_mode else "error"
 
     lifespans_list = [
@@ -334,6 +355,7 @@ def start(
         lifespans.etc,
         lifespans.signal_handler,
         lifespans.logging,
+        lifespans.discovery,
         lifespans.open_browser,
         lifespans.tool_manager,
         lifespans.server_registry,
@@ -380,6 +402,7 @@ def start(
         skew_protection=skew_protection,
         enable_auth=enable_auth,
         startup_tip=startup_tip,
+        discovery_manager=discovery_manager,
     )
     init_state.apply(app.state)
 
