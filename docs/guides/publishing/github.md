@@ -96,6 +96,14 @@ code to molab to run and share there.
 You can publish executable notebooks to [GitHub Pages](https://pages.github.com/)
 for free, after exporting your notebook to a WebAssembly notebook.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/m8bdgBidefA"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ### Export to WASM-powered HTML
 
 Export your notebook to a self-contained HTML file that runs using [WebAssembly](../wasm.md):
