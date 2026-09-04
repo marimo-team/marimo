@@ -135,6 +135,9 @@ class SkewProtectionMiddleware:
         # If /api/kernel/execute, skip (agent-only endpoint)
         if request.url.path.rstrip("/").endswith("/api/kernel/execute"):
             return await self.app(scope, receive, send)
+        # The versioned discovery API has its own bearer-token middleware.
+        if "/api/marimo/v1/" in request.url.path:
+            return await self.app(scope, receive, send)
         # If ws, skip
         if request.url.path.startswith("/ws") or request.url.path.endswith(
             "/ws"

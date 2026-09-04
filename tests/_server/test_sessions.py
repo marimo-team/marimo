@@ -387,6 +387,26 @@ async def test_session() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
+def test_sessions_for_same_file_have_distinct_stable_ids() -> None:
+    sessions = [
+        SessionImpl(
+            initialization_id="notebook.py",
+            session_consumer=MagicMock(),
+            kernel_manager=MagicMock(spec=KernelManagerImpl),
+            app_file_manager=AppFileManager.from_app(InternalApp(App())),
+            config_manager=get_default_config_manager(current_path=None),
+            ttl_seconds=None,
+            extensions=[],
+        )
+        for _ in range(2)
+    ]
+    try:
+        assert sessions[0].stable_id != sessions[1].stable_id
+    finally:
+        for session in sessions:
+            session.close()
+
+
 async def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN

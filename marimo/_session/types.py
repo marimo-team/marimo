@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     import asyncio
     import threading
     from collections.abc import Iterator
+    from datetime import datetime
 
     from marimo._config.manager import MarimoConfigManager
     from marimo._environments.sandbox import NotebookSandbox
@@ -135,12 +136,18 @@ class Session(Protocol):
     """Protocol for session management."""
 
     initialization_id: str
+    started_at: datetime
     app_file_manager: AppFileManager
     config_manager: MarimoConfigManager
     session_view: SessionView
     ttl_seconds: int
     scratchpad_lock: asyncio.Lock
     room: Room
+
+    @property
+    def stable_id(self) -> str:
+        """Server-generated identity for the lifetime of this session."""
+        ...
 
     @property
     def notebook_sandbox(self) -> NotebookSandbox | None:

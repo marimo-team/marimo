@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -243,6 +244,8 @@ class SessionImpl(Session):
         # in edit mode. We don't use the session_id because this can change if
         # the session is resumed
         self.initialization_id = initialization_id
+        self._stable_id = str(uuid4())
+        self.started_at = datetime.now(timezone.utc)
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
@@ -266,6 +269,11 @@ class SessionImpl(Session):
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
         self.connect_consumer(session_consumer, main=True)
+
+    @property
+    def stable_id(self) -> str:
+        """Server-generated identity, unchanged when browser connections resume."""
+        return self._stable_id
 
     @property
     def document(self) -> NotebookDocument:
