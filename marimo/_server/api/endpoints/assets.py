@@ -179,6 +179,12 @@ def _strip_access_token_redirect(request: Request) -> RedirectResponse:
     capturing the plaintext token.
     """
     stripped = request.url.remove_query_params(TOKEN_QUERY_PARAM)
+    if FILE_QUERY_PARAM_KEY not in request.query_params:
+        discovery_file_key = request.scope.get("marimo_discovery_file_key")
+        if isinstance(discovery_file_key, str):
+            stripped = stripped.include_query_params(
+                **{FILE_QUERY_PARAM_KEY: discovery_file_key}
+            )
     target = stripped.path
     if stripped.query:
         target = f"{target}?{stripped.query}"

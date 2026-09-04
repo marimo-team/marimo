@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 
@@ -109,7 +110,7 @@ async def test_watch_reconnect_during_cleanup(
 
 @pytest.mark.parametrize("session_count", [0, 1, 2])
 @pytest.mark.parametrize("directory", [False, True])
-async def test_untitled_catalog(
+async def test_untitled_catalog_and_open_agree(
     session_count: int, directory: bool, tmp_path: Path
 ) -> None:
     session_manager = get_mock_session_manager()
@@ -136,6 +137,50 @@ async def test_untitled_catalog(
         return
     (notebook,) = notebooks
     assert notebook.openable == (session_count <= 1)
+    if session_count > 1:
+        with pytest.raises(RuntimeError, match="not openable"):
+            await manager.open_notebook(notebook.id)
+    else:
+        response = await manager.open_notebook(notebook.id)
+        query = parse_qs(urlparse(response.uri).query)
+        assert query["file"] == [f"{NEW_FILE}0" if session_count else NEW_FILE]
+
+
+@pytest.mark.parametrize("with_session", [False, True])
+async def test_open_refreshes_deleted_notebook(
+    tmp_path: Path, with_session: bool
+) -> None:
+    path = tmp_path / "one.py"
+    path.write_text(MARIMO_APP)
+    session_manager = get_mock_session_manager()
+    session_manager.workspace = DirectoryWorkspace(
+        str(tmp_path), include_markdown=False
+    )
+    if with_session:
+        session = Mock(spec=Session)
+        session.app_file_manager = Mock(path=str(path))
+        session.initialization_id = str(path)
+        session.kernel_state.return_value = KernelState.NOT_STARTED
+        session_manager._repository.add_sync(SessionId("session"), session)
+    manager = DiscoveryManager(
+        session_manager=session_manager,
+        browser_url="http://127.0.0.1:2718",
+        kind="marimo",
+        name="marimo",
+    )
+    (notebook,) = (await manager.catalog()).projects[0].notebooks
+    assert parse_qs(
+        urlparse((await manager.open_notebook(notebook.id)).uri).query
+    )["file"] == ["one.py"]
+    path.unlink()
+    if with_session:
+        (remaining,) = (await manager.catalog()).projects[0].notebooks
+        assert (remaining.id, remaining.openable) == (notebook.id, False)
+        with pytest.raises(RuntimeError, match="not openable"):
+            await manager.open_notebook(notebook.id)
+    else:
+        with pytest.raises(KeyError, match="Notebook not found"):
+            await manager.open_notebook(notebook.id)
 
 
 async def test_catalog_and_watch_detect_external_notebook_changes(

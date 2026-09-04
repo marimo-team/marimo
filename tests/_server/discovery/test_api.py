@@ -3,19 +3,25 @@ from __future__ import annotations
 
 from dataclasses import replace
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs, urlencode, urlsplit
 
+import pytest
 from dirty_equals import IsStr, IsUUID
 from inline_snapshot import snapshot
 from starlette.testclient import TestClient
 
 from marimo._server.discovery.manager import DiscoveryManager
 from marimo._server.main import create_starlette_app
+from marimo._server.workspace import DirectoryWorkspace, SingleFileWorkspace
+from marimo._utils.marimo_path import MarimoPath
 from tests._server.mocks import (
     get_mock_session_manager,
     get_starlette_server_state_init,
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from starlette.applications import Starlette
 
 
@@ -60,6 +66,7 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
             "instance_id": IsUUID(),
             "operations": [
                 "catalog.watch",
+                "notebook.open",
             ],
             "projects": [
                 {
@@ -91,6 +98,76 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
     )
     assert response.status_code == 403
     assert response.json() == {"message": "Loopback connection required"}
+
+
+@pytest.mark.parametrize("directory_workspace", [False, True])
+@pytest.mark.parametrize(
+    ("folder", "filename"),
+    [
+        ("plain", "notebook.py"),
+        ("plain", "café.py"),
+        ("données", "notebook.py"),
+    ],
+)
+def test_open_returns_absolute_one_time_uri(
+    tmp_path: Path, directory_workspace: bool, folder: str, filename: str
+) -> None:
+    app, manager = _app()
+    directory = tmp_path / folder
+    directory.mkdir()
+    path = directory / filename
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager.session_manager.workspace = (
+        DirectoryWorkspace(str(directory), include_markdown=False)
+        if directory_workspace
+        else SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    )
+    client = TestClient(app, client=("::1", 50000))
+    headers = {"Authorization": f"Bearer {manager.token}"}
+    catalog = client.get("/api/marimo/v1/catalog", headers=headers).json()
+    notebook_id = catalog["projects"][0]["notebooks"][0]["id"]
+
+    response = client.post(
+        f"/api/marimo/v1/notebooks/{notebook_id}/open", headers=headers
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["uri"].startswith("http://127.0.0.1:2718/")
+    assert response.headers["cache-control"] == "no-store"
+
+    opened = urlsplit(response.json()["uri"])
+    target = f"{opened.path}?{opened.query}"
+    browser = TestClient(
+        app,
+        client=("::1", 50001),
+        follow_redirects=False,
+    )
+    bootstrap = parse_qs(opened.query)["access_token"][0]
+    expected_key = filename if directory_workspace else str(path)
+    assert parse_qs(opened.query)["file"] == [expected_key]
+
+    misuse = browser.get(f"/api/status?access_token={bootstrap}")
+    assert misuse.status_code == 401
+    wrong_query = urlencode({"file": "other.py", "access_token": bootstrap})
+    wrong_target = f"{opened.path}?{wrong_query}"
+    misbound = browser.get(wrong_target)
+    assert misbound.status_code == 303
+    assert "/auth/login" in misbound.headers["location"]
+
+    exchange = browser.get(target)
+    assert exchange.status_code == 303
+    assert "access_token" not in exchange.headers["location"]
+    assert "file=" in exchange.headers["location"]
+    assert "set-cookie" in exchange.headers
+    assert browser.get(exchange.headers["location"]).status_code == 200
+
+    replay = TestClient(
+        app,
+        client=("127.0.0.1", 50002),
+        follow_redirects=False,
+    ).get(target)
+    assert replay.status_code == 303
+    assert "/auth/login" in replay.headers["location"]
 
 
 def test_discovery_is_404_when_not_published() -> None:
