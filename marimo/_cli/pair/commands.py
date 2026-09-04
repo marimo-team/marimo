@@ -2,14 +2,17 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import shlex
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import click
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
+from marimo._cli.pair.discovery import PairError, PairServer, discover_servers
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
@@ -257,4 +260,90 @@ def prompt(
     )
 
 
+def _redact_url(url: str | None) -> str | None:
+    if url is None:
+        return None
+    parsed = urlsplit(url)
+    host = parsed.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"
+    netloc = f"{host}:{parsed.port}" if parsed.port is not None else host
+    query = urlencode(
+        tuple(
+            (key, "REDACTED")
+            for key, _value in parse_qsl(parsed.query, keep_blank_values=True)
+        )
+    )
+    return urlunsplit(
+        (parsed.scheme, netloc, parsed.path, query, parsed.fragment)
+    )
+
+
+def _redact_server(server: PairServer) -> PairServer:
+    return replace(server, url=_redact_url(server.url))
+
+
+def _render_discovery_json(servers: tuple[PairServer, ...]) -> None:
+    click.echo(json.dumps([asdict(server) for server in servers], indent=2))
+
+
+def _render_discovery_text(servers: tuple[PairServer, ...]) -> None:
+    for server in servers:
+        click.echo(
+            "\t".join(
+                (
+                    server.server_id,
+                    server.origin,
+                    server.url or "",
+                    server.version,
+                    server.started_at,
+                )
+            )
+        )
+
+
+def _render_pair_error(error: PairError, *, json_errors: bool) -> None:
+    if json_errors:
+        click.echo(
+            json.dumps({"kind": error.kind, "message": error.message}),
+            err=True,
+        )
+    else:
+        click.echo(f"Error: {error.message}", err=True)
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="Discover running marimo servers.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    default="text",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    show_default=True,
+    help="Output format.",
+)
+@click.option(
+    "--json-errors",
+    is_flag=True,
+    default=False,
+    help="Write machine-readable errors to stderr.",
+)
+def discover(output_format: str, json_errors: bool) -> None:
+    try:
+        result = discover_servers()
+    except PairError as error:
+        _render_pair_error(error, json_errors=json_errors)
+        raise click.exceptions.Exit(1) from None
+    servers = tuple(_redact_server(server) for server in result.servers)
+    if output_format == "json":
+        _render_discovery_json(servers)
+    else:
+        _render_discovery_text(servers)
+    for warning in result.warnings:
+        click.echo(warning, err=True)
+
+
+pair.add_command(discover)
 pair.add_command(prompt)
