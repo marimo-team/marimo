@@ -77,6 +77,13 @@ incompatibilities early:
 
 ## Exporting with cached execution { #exporting-with-cached-execution }
 
+Cached exports require `cryptography` and a trusted signer in the browser to
+restore signed entries. If either is unavailable, marimo recomputes the cells
+instead of accepting unsigned or unverifiable data. A cell that requires a
+native-only package cannot recompute in the browser. The previous automatic
+same-origin verification bypass no longer applies.
+
+
 With caching, you can publish WebAssembly notebooks whose cells are expensive
 or cannot run in the browser (a small `torch` training run, for example). If your
 notebook has [automatic cell

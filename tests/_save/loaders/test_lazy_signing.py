@@ -698,13 +698,8 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
                     verification="strict",
                 )
 
-    def test_no_cryptography_local_store_degrades_to_off(self) -> None:
-        """Without cryptography, a local file store degrades to `off`.
-
-        Nothing in the install can verify, so keeping `on` turns the cache off
-        for every plain `pip install marimo`. A local cache directory is already
-        gated on filesystem access to the notebook, so it is served.
-        """
+    def test_no_cryptography_local_store_misses(self) -> None:
+        """Missing cryptography must not permit unsigned local entries."""
         from unittest import mock
 
         # Write an unsigned entry (off mode).
@@ -721,10 +716,9 @@ class TestVerificationAndCapabilityValidation(_FileStoreLoaderTest):
             return_value=False,
         ):
             reader = LazyLoader("test", store=self.store, signer=signer)
-            assert reader._effective_verification() == "off"
-            cache = reader.load_cache(key("nocrypto"))
-            assert cache is not None
-            assert cache.defs["z"] == 8
+            assert reader._effective_verification() == "on"
+            assert reader.load_cache(key("nocrypto")) is None
+            assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
 
 # ---------------------------------------------------------------------------
@@ -992,11 +986,8 @@ class TestReviewFixes(_FileStoreLoaderTest):
             # Still unresolved, so a later reconfigure to verify can resolve.
             assert isinstance(loader._signer, _Unset)
 
-    def test_wasm_store_on_degrades_to_off(self) -> None:
-        """The WASM HTTP store is same-origin as the notebook code, so a verify
-        loader with no key/anchor degrades to off (serves) rather than missing
-        every read — otherwise the bundled-cache restore feature this stack
-        ships is silently disabled in the browser."""
+    def test_wasm_store_without_trust_misses(self) -> None:
+        """Same-origin storage does not establish signer trust."""
         from marimo._save.loaders.lazy import WasmLazyStore
         from marimo._save.stores.dict_store import DictStore
 
@@ -1006,14 +997,12 @@ class TestReviewFixes(_FileStoreLoaderTest):
         w.flush()
 
         reader = LazyLoader("ns", store=store, signer=None, verification="on")
-        assert reader._effective_verification() == "off"
-        loaded = reader.load_cache(key("wasm_unsigned"))
-        assert loaded is not None
-        assert loaded.defs["z"] == 7
+        assert reader._effective_verification() == "on"
+        assert reader.load_cache(key("wasm_unsigned")) is None
+        assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
-    def test_wasm_store_no_crypto_degrades_to_off(self) -> None:
-        """Same same-origin rationale under the no-cryptography branch: the
-        WASM store degrades to off rather than missing every read."""
+    def test_wasm_store_without_crypto_misses(self) -> None:
+        """Missing cryptography must not permit unsigned WASM entries."""
         from unittest import mock
 
         from marimo._save.loaders.lazy import WasmLazyStore
@@ -1032,10 +1021,9 @@ class TestReviewFixes(_FileStoreLoaderTest):
             reader = LazyLoader(
                 "ns", store=store, signer=None, verification="on"
             )
-            assert reader._effective_verification() == "off"
-            loaded = reader.load_cache(key("wasm_nocrypto"))
-            assert loaded is not None
-            assert loaded.defs["z"] == 8
+            assert reader._effective_verification() == "on"
+            assert reader.load_cache(key("wasm_nocrypto")) is None
+            assert not reader.save_cache(_simple_cache(hash_val="new", z=9))
 
     def test_strict_raises_on_undecodable_manifest(self) -> None:
         """A manifest that fails to decode (malformed JSON, or a tampered

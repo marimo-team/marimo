@@ -1194,7 +1194,7 @@ def lru_cache(  # type: ignore[misc]
 def persistent_cache(
     fn: Callable[P, Coroutine[Any, Any, R]],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey = "lazy",
     pin_modules: bool = False,
 ) -> _cache_call_async[P, R]: ...
 
@@ -1203,7 +1203,7 @@ def persistent_cache(
 def persistent_cache(
     fn: Callable[P, R],
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey = "lazy",
     pin_modules: bool = False,
 ) -> _cache_call[P, R]: ...
 
@@ -1212,7 +1212,7 @@ def persistent_cache(
 def persistent_cache(
     fn: None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey = "lazy",
     pin_modules: bool = False,
 ) -> _cache_call[Any, Any]: ...
 
@@ -1221,7 +1221,7 @@ def persistent_cache(
 def persistent_cache(
     name: str,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey = "lazy",
     pin_modules: bool = False,
 ) -> _cache_context: ...
 
@@ -1229,7 +1229,7 @@ def persistent_cache(
 def persistent_cache(  # type: ignore[misc]
     name: str | Callable[..., Any] | None = None,
     save_path: str | None = None,
-    method: LoaderKey = "pickle",
+    method: LoaderKey = "lazy",
     store: Store | None = None,
     fn: Callable[..., Any] | None = None,
     *args: Any,
@@ -1299,8 +1299,10 @@ def persistent_cache(  # type: ignore[misc]
             invalidate the cache, change the name.
         save_path: the folder in which to save the cache, defaults to
             `__marimo__/cache` in the directory of the notebook file
-        method: the serialization method to use, current options are "json",
-            and "pickle" (default).
+        method: the serialization method: "lazy" (default), "json", or "pickle".
+            The lazy method signs cache manifests and verifies entries before
+            restoring values. Unverifiable entries are recomputed. Explicit
+            "json" and "pickle" methods do not verify signatures.
         store: optional store.
         fn: the wrapped function if no settings are passed.
         *args: positional arguments passed to `cache()`
