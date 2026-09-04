@@ -5,7 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from marimo import _loggers
 from marimo._cli.files.file_path import FileContentReader
@@ -18,6 +18,24 @@ if TYPE_CHECKING:
     from marimo._utils.marimo_path import MarimoPath
 
 LOGGER = _loggers.marimo_logger()
+
+
+class IndexConfig(TypedDict, total=False):
+    """One `[[tool.uv.index]]` entry from PEP 723 inline script metadata.
+
+    Contains the keys of uv's index schema that marimo reads
+    (https://docs.astral.sh/uv/reference/settings/#index). uv permits
+    more keys; marimo ignores them.
+
+    This type is a goal, not a guarantee: the entries come from
+    unvalidated user TOML. An entry can be a non-table value, and `url`
+    can be missing. Consumers must accept both.
+    """
+
+    url: str
+    name: str
+    default: bool
+    explicit: bool
 
 
 class PyProjectReader:
@@ -49,6 +67,16 @@ class PyProjectReader:
         )
 
     @property
+    def has_script_metadata(self) -> bool:
+        """True if the source declares inline metadata.
+
+        `project` holds the parsed PEP 723 block (or the pyproject
+        header of a markdown notebook). It is empty when the file has
+        no metadata.
+        """
+        return bool(self.project)
+
+    @property
     def extra_index_urls(self) -> list[str]:
         # See https://docs.astral.sh/uv/reference/settings/#pip_extra-index-url
         return (  # type: ignore[no-any-return]
@@ -58,7 +86,7 @@ class PyProjectReader:
         )
 
     @property
-    def index_configs(self) -> list[dict[str, str]]:
+    def index_configs(self) -> list[IndexConfig]:
         # See https://docs.astral.sh/uv/reference/settings/#index
         return self.project.get("tool", {}).get("uv", {}).get("index", [])  # type: ignore[no-any-return]
 
