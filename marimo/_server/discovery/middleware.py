@@ -37,7 +37,7 @@ class DiscoverySecurityMiddleware:
         if manager is None:
             await self._error(scope, receive, send, 404, "Not found")
             return
-        if not _is_loopback_peer(scope.get("client")):
+        if not is_loopback_peer(scope.get("client")):
             await self._error(
                 scope, receive, send, 403, "Loopback connection required"
             )
@@ -102,7 +102,7 @@ def _header(scope: Scope, name: bytes) -> str:
     return ""
 
 
-def _is_loopback_peer(client: Any) -> bool:
+def is_loopback_peer(client: Any) -> bool:
     if not isinstance(client, (tuple, list)) or not client:
         return False
     host = str(client[0]).strip("[]").split("%", 1)[0]

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
 
 from marimo._server.api.deps import AppState
+from marimo._server.discovery.middleware import is_loopback_peer
 
 LOGGER = _loggers.marimo_logger()
 TOKEN_QUERY_PARAM = "access_token"
@@ -43,6 +44,30 @@ def validate_auth(
     # Check for session cookie
     cookie_session = CookieSession(conn.session)
 
+    # A discovery operation never receives the editor's long-lived token.
+    # Instead it mints a one-time, notebook-bound browser bootstrap token.
+    # Consume it before checking an existing cookie so it cannot remain valid
+    # merely because the browser was already signed in.
+    query_token = conn.query_params.get(TOKEN_QUERY_PARAM)
+    if query_token is not None and not hmac.compare_digest(
+        query_token, auth_token
+    ):
+        manager = state.discovery_manager
+        editor_root = f"{state.base_url.rstrip('/')}/"
+        if (
+            manager is not None
+            and is_loopback_peer(conn.scope.get("client"))
+            and conn.scope.get("method") == "GET"
+            and conn.url.path == editor_root
+        ):
+            file_key = manager.consume_browser_token(
+                query_token, conn.query_params.get("file")
+            )
+            if file_key is not None:
+                conn.scope["marimo_discovery_file_key"] = file_key
+                cookie_session.set_access_token(auth_token)
+                return True
+
     # Validate the cookie. The cookie stores a keyed hash of the token,
     # never the token itself.
     if hmac.compare_digest(
@@ -51,11 +76,9 @@ def validate_auth(
         return True  # Success
 
     # Check for access_token
-    if TOKEN_QUERY_PARAM in conn.query_params:
+    if query_token is not None:
         # Validate the access_token
-        if hmac.compare_digest(
-            conn.query_params[TOKEN_QUERY_PARAM], auth_token
-        ):
+        if hmac.compare_digest(query_token, auth_token):
             LOGGER.debug("Validated access_token from query param")
             # Set the cookie
             cookie_session.set_access_token(auth_token)

@@ -9,9 +9,10 @@ import hmac
 import os
 import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import urlencode
 from uuid import uuid4, uuid5
 
 from marimo import _loggers
@@ -20,6 +21,7 @@ from marimo._server.discovery.models import (
     Catalog,
     InstanceRecord,
     NotebookSummary,
+    OpenNotebookResponse,
     ProjectSummary,
     SessionStatus,
     SessionSummary,
@@ -39,10 +41,12 @@ if TYPE_CHECKING:
 DISCOVERY_API_PATH = "/api/marimo/v1"
 DISCOVERY_OPERATIONS = [
     "catalog.watch",
+    "notebook.open",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
 DISCOVERY_NAME_ENV = "MARIMO_DISCOVERY_NAME"
+_BROWSER_TOKEN_TTL = timedelta(seconds=60)
 _POLL_INTERVAL_SECONDS = 1.0
 LOGGER = _loggers.marimo_logger()
 
@@ -53,8 +57,14 @@ class _NotebookTarget:
     openable: bool
 
 
+@dataclass(frozen=True)
+class _BrowserToken:
+    file_key: str
+    expires_at: datetime
+
+
 class DiscoveryManager:
-    """Owns one publisher's record and notebook catalog."""
+    """Owns one publisher's record, catalog, and transient browser tokens."""
 
     def __init__(
         self,
@@ -79,6 +89,7 @@ class DiscoveryManager:
             token=self.token,
         )
         self._catalog_lock = asyncio.Lock()
+        self._browser_tokens: dict[str, _BrowserToken] = {}
         self._subscribers: set[asyncio.Queue[None]] = set()
         self._watch_task: asyncio.Task[None] | None = None
 
@@ -88,6 +99,7 @@ class DiscoveryManager:
             self._watch_task = None
             await cancel_and_wait(task)
         self._subscribers.clear()
+        self._browser_tokens.clear()
 
     def is_authorized(self, token: str) -> bool:
         return hmac.compare_digest(token, self.token)
@@ -207,6 +219,43 @@ class DiscoveryManager:
                 )
             ],
         ), targets
+
+    async def open_notebook(self, notebook_id: str) -> OpenNotebookResponse:
+        # Refresh first so IDs for files added since the previous request work.
+        _, targets = await self._snapshot()
+        target = targets.get(notebook_id)
+        if target is None:
+            raise KeyError("Notebook not found")
+        if not target.openable:
+            raise RuntimeError("Notebook is not openable")
+
+        query: dict[str, str] = {"file": target.file_key}
+        if str(self.session_manager.auth_token):
+            query["access_token"] = self.issue_browser_token(target.file_key)
+        return OpenNotebookResponse(
+            uri=f"{self.browser_url}/?{urlencode(query)}"
+        )
+
+    def issue_browser_token(self, file_key: str) -> str:
+        self._purge_browser_tokens()
+        token = secrets.token_urlsafe(32)
+        self._browser_tokens[token] = _BrowserToken(
+            file_key=file_key,
+            expires_at=datetime.now(timezone.utc) + _BROWSER_TOKEN_TTL,
+        )
+        return token
+
+    def consume_browser_token(
+        self, token: str, file_key: str | None
+    ) -> str | None:
+        self._purge_browser_tokens()
+        entry = self._browser_tokens.get(token)
+        if entry is None:
+            return None
+        if file_key is not None and entry.file_key != file_key:
+            return None
+        del self._browser_tokens[token]
+        return entry.file_key
 
     async def watch(self) -> AsyncGenerator[str, None]:
         from marimo._server.sse import format_sse_event
@@ -341,6 +390,14 @@ class DiscoveryManager:
             return cls._datetime_from_timestamp(os.path.getmtime(path))
         except OSError:
             return None
+
+    def _purge_browser_tokens(self) -> None:
+        now = datetime.now(timezone.utc)
+        self._browser_tokens = {
+            token: entry
+            for token, entry in self._browser_tokens.items()
+            if entry.expires_at > now
+        }
 
 
 def build_discovery_manager(
