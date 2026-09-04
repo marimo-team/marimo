@@ -33,9 +33,15 @@ class AgentConfig:
     skill_dirs: list[Path] = field(default_factory=list)
 
     def has_skill(self) -> bool:
-        return any(
-            (d / SKILL_NAME / SKILL_FILE).exists() for d in self.skill_dirs
-        )
+        for directory in self.skill_dirs:
+            try:
+                if (directory / SKILL_NAME / SKILL_FILE).exists():
+                    return True
+            except OSError:
+                # Skill detection is advisory. An inaccessible directory must
+                # not prevent marimo from generating the pairing prompt.
+                continue
+        return False
 
 
 def _claude_skill_dirs() -> list[Path]:
@@ -66,9 +72,21 @@ def _plugin_skill_dirs(root: Path) -> list[Path]:
 
 
 def _codex_skill_dirs() -> list[Path]:
-    """Return directories where a Codex skill may be installed."""
-    roots = [Path.home() / ".codex", Path.cwd() / ".codex"]
+    """Return directories where a Codex skill may be installed.
+
+    Codex loads repository skills from `.agents/skills` directories between
+    the current directory and repository root. It also loads user and admin
+    skills from `~/.agents/skills` and `/etc/codex/skills`, respectively.
+
+    Keep checking `.codex` for existing direct and plugin installations.
+    """
+    cwd = Path.cwd()
+    home = Path.home()
+    roots = [home / ".codex", cwd / ".codex"]
     return [
+        *_codex_repository_skill_dirs(cwd),
+        home / ".agents" / "skills",
+        Path("/etc/codex/skills"),
         *[root / "skills" for root in roots],
         *[
             skill_dir
@@ -76,6 +94,24 @@ def _codex_skill_dirs() -> list[Path]:
             for skill_dir in _plugin_skill_dirs(root)
         ],
     ]
+
+
+def _codex_repository_skill_dirs(cwd: Path) -> list[Path]:
+    """Return Codex skill directories from `cwd` through the repository root."""
+    skill_dirs: list[Path] = []
+    for directory in (cwd, *cwd.parents):
+        skill_dirs.append(directory / ".agents" / "skills")
+        try:
+            is_repository_root = (directory / ".git").exists()
+        except OSError:
+            # Do not search above an ancestor whose repository status cannot
+            # be determined. The global user and admin paths remain available.
+            return skill_dirs
+        if is_repository_root:
+            return skill_dirs
+
+    # Outside a Git repository, Codex still checks the current directory.
+    return skill_dirs[:1]
 
 
 def _opencode_skill_dirs() -> list[Path]:
