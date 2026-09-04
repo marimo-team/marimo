@@ -6,10 +6,11 @@ import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from unittest.mock import patch
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock, patch
 
 import pytest
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 
 import marimo._cli.pair.commands as pair_commands
 from marimo._cli.cli import main as cli_main
@@ -27,9 +28,49 @@ from marimo._cli.pair.commands import (
 )
 from marimo._cli.pair.discovery import DiscoveryResult
 
+if TYPE_CHECKING:
+    from collections.abc import Generator
+
 _runner = CliRunner()
 
-TEST_URL = "https://localhost:8000?auth=tok123"
+TEST_URL = "https://localhost:8000"
+
+
+@dataclass
+class FakeGuideClient:
+    token: str | None = None
+
+    def version(self) -> str:
+        return "0.24.1"
+
+    def resolve_session(
+        self,
+        *,
+        session_id: str | None,
+        notebook: str | None,
+    ) -> SessionInfo:
+        return SessionInfo(
+            session_id or "resolved-session",
+            notebook or "notebook.py",
+            notebook,
+        )
+
+
+@pytest.fixture
+def guide_client() -> Generator[FakeGuideClient, None, None]:
+    client = FakeGuideClient()
+
+    def factory(
+        server: PairServer,
+        *,
+        token: str | None,
+    ) -> FakeGuideClient:
+        del server
+        client.token = token
+        return client
+
+    with patch.object(pair_commands, "PairClient", side_effect=factory):
+        yield client
 
 
 class TestPairGroup:
@@ -38,6 +79,7 @@ class TestPairGroup:
         assert result.exit_code == 0
         assert "pair programming" in result.output.lower()
         assert "discover" in result.output
+        assert "guide" in result.output
         assert "prompt" in result.output
 
     def test_prompt_help(self) -> None:
@@ -56,14 +98,29 @@ class TestPairPrompt:
         result = _runner.invoke(cli_main, ["pair", "prompt"])
         assert result.exit_code != 0
 
+    def test_prompt_does_not_contact_the_server(self) -> None:
+        with patch.object(
+            pair_commands,
+            "PairClient",
+            side_effect=AssertionError("prompt contacted the server"),
+        ):
+            result = _runner.invoke(
+                cli_main, ["pair", "prompt", "--url", TEST_URL]
+            )
+
+        assert result.exit_code == 0
+        assert "Use the /marimo-pair skill" in result.output
+        assert f"--url {TEST_URL}" in result.output
+
     def test_prompt_outputs_url(self) -> None:
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "marimo-pair" in result.output
+        assert f"--url {TEST_URL}" in result.output
+        assert "Use the /marimo-pair skill" in result.output
+        assert "execute-code.sh" not in result.output
 
     def test_prompt_with_file(self) -> None:
         result = _runner.invoke(
@@ -81,6 +138,7 @@ class TestPairPrompt:
         assert TEST_URL in result.output
         assert "notebooks/example.py" in result.output
         assert "--file notebooks/example.py" in result.output
+        assert "--session" not in result.output
 
     def test_prompt_without_file_omits_flag(self) -> None:
         result = _runner.invoke(
@@ -98,7 +156,7 @@ class TestPairPrompt:
         assert result.exit_code != 0
         assert "--session" in result.output
 
-    def test_prompt_shell_quotes_file_paths(self) -> None:
+    def test_prompt_preserves_opaque_file_keys(self) -> None:
         cases = [
             ("relative/path.py", "--file relative/path.py"),
             ("/tmp/my notebook.py", "--file '/tmp/my notebook.py'"),
@@ -110,12 +168,9 @@ class TestPairPrompt:
                 r"\\server\share\my notebook.py",
                 r"--file '\\server\share\my notebook.py'",
             ),
-            (
-                "notebooks/it's.py",
-                """--file 'notebooks/it'"'"'s.py'""",
-            ),
+            ("notebooks/it's.py", "--file 'notebooks/it'\"'\"'s.py'"),
         ]
-        for file_path, expected in cases:
+        for file_path, expected_selector in cases:
             result = _runner.invoke(
                 cli_main,
                 [
@@ -128,15 +183,15 @@ class TestPairPrompt:
                 ],
             )
             assert result.exit_code == 0
-            assert expected in result.output
+            assert expected_selector in result.output
 
     def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
-        # The execute-code.sh command is meant to be copy-pasted into a shell,
-        # so a url with metacharacters (`&`) must be quoted so it isn't split.
+        # The generated command is meant to be copy-pasted into a shell, so a
+        # URL with metacharacters (`&`) must be quoted so it is not split.
         url = "http://localhost:8000?file=a&b"
         result = _runner.invoke(cli_main, ["pair", "prompt", "--url", url])
         assert result.exit_code == 0
-        assert f"execute-code.sh --url '{url}'" in result.output
+        assert f"--url '{url}'" in result.output
 
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
@@ -147,6 +202,10 @@ class TestPairPrompt:
                 )
                 assert result.exit_code == 0, flag
                 assert "could not be found" in result.output, flag
+                assert (
+                    "npx skills add marimo-team/marimo --skill marimo-pair"
+                    in result.stderr
+                ), flag
 
     def test_prompt_skill_installed(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=True):
@@ -307,6 +366,126 @@ class TestPairDiscover:
         assert result.stderr == expected_stderr
 
 
+class TestPairGuide:
+    def test_guide_help_matches_execute_target_options(self) -> None:
+        guide_help = _runner.invoke(cli_main, ["pair", "guide", "--help"])
+        execute_help = _runner.invoke(cli_main, ["pair", "execute", "--help"])
+
+        assert guide_help.exit_code == 0
+        for option in (
+            "--url",
+            "--session",
+            "--notebook",
+            "--file",
+            "--token-file",
+            "--allow-insecure-http",
+            "--json-errors",
+        ):
+            assert option in guide_help.output
+            assert option in execute_help.output
+
+    def test_guide_writes_only_guide_to_stdout(
+        self, guide_client: FakeGuideClient
+    ) -> None:
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "guide", "--url", "https://example.com"],
+        )
+
+        assert result.exit_code == 0
+        assert "Server: `https://example.com`" in result.stdout
+        assert "Session: `resolved-session`" in result.stdout
+        assert "marimo pair execute" in result.stdout
+        assert result.stderr == ""
+        assert guide_client.token is None
+
+    def test_guide_writes_discovery_warnings_to_stderr(
+        self, guide_client: FakeGuideClient
+    ) -> None:
+        server = PairServer(
+            "local",
+            "local",
+            "http://127.0.0.1:2718",
+            "",
+            "0.24.1",
+        )
+        with patch.object(
+            pair_commands,
+            "discover_servers",
+            return_value=DiscoveryResult(
+                (server,), ("Ignored one stale server record.",)
+            ),
+        ):
+            result = _runner.invoke(cli_main, ["pair", "guide"])
+
+        assert result.exit_code == 0
+        assert "Server: `http://127.0.0.1:2718`" in result.stdout
+        assert "Ignored one stale server record." not in result.stdout
+        assert result.stderr == "Ignored one stale server record.\n"
+        assert guide_client.token is None
+
+    @pytest.mark.parametrize(
+        ("arguments", "expected_stderr"),
+        [
+            (
+                [],
+                (
+                    "Error: More than one reachable marimo server was found. "
+                    "Run `marimo pair discover` to list targets.\n"
+                ),
+            ),
+            (
+                ["--json-errors"],
+                (
+                    '{"kind": "ambiguous_server", "message": "More than one '
+                    "reachable marimo server was found. Run `marimo pair "
+                    'discover` to list targets."}\n'
+                ),
+            ),
+        ],
+    )
+    def test_guide_ambiguity_has_exact_recovery_command(
+        self,
+        guide_client: FakeGuideClient,
+        arguments: list[str],
+        expected_stderr: str,
+    ) -> None:
+        del guide_client
+        servers = (
+            PairServer("one", "local", "http://127.0.0.1:2718", "", ""),
+            PairServer("two", "local", "http://127.0.0.1:2719", "", ""),
+        )
+        with patch.object(
+            pair_commands,
+            "discover_servers",
+            return_value=DiscoveryResult(servers, ()),
+        ):
+            result = _runner.invoke(cli_main, ["pair", "guide", *arguments])
+
+        assert result.exit_code == 1
+        assert result.stdout == ""
+        assert result.stderr == expected_stderr
+
+    def test_guide_file_alias_selects_notebook(
+        self, guide_client: FakeGuideClient
+    ) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "guide",
+                "--url",
+                "https://example.com",
+                "--file",
+                "opaque/notebook.py",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Notebook key: `opaque/notebook.py`" in result.stdout
+        assert guide_client.token is None
+
+
 class TestPairPromptWithToken:
     def test_with_token_writes_file_and_outputs_prompt(
         self, tmp_path: Path
@@ -321,9 +500,9 @@ class TestPairPromptWithToken:
             )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "token" in result.output.lower()
-        assert "cat" in result.output
+        assert "--token-file" in result.output
+        assert "execute-code.sh" not in result.output
+        assert "my-secret-token" not in result.output
 
         url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
         token_file = tmp_path / f"{url_hash}-token.txt"
@@ -351,8 +530,8 @@ class TestPairPromptWithToken:
             )
         assert result.exit_code == 0
         assert "--file 'notebooks/my notebook.py'" in result.output
-        # The token hint should target the same file.
-        assert "--file 'notebooks/my notebook.py' --token" in result.output
+        assert "--session" not in result.output
+        assert "--token-file" in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
@@ -408,7 +587,7 @@ class TestPairPromptWithToken:
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
         assert result.exit_code == 0
-        assert "cat" not in result.output
+        assert "--token-file" not in result.output
 
 
 class TestOpencodeSkillDirs:
@@ -579,7 +758,7 @@ def _invoke_pair_execute(
     client: FakeExecutionClient | None = None,
     input_text: str | None = None,
     environment: dict[str, str] | None = None,
-):
+) -> tuple[Result, FakeExecutionClient, MagicMock]:
     execution_client = client or FakeExecutionClient()
 
     def client_factory(

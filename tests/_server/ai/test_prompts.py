@@ -18,7 +18,7 @@ from marimo._server.ai.prompts import (
     get_inline_system_prompt,
     get_refactor_or_insert_notebook_cell_system_prompt,
 )
-from marimo._server.ai.skills.utils import load_skill
+from marimo._server.ai.skills.utils import load_adapter, load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
     SchemaColumn,
@@ -416,10 +416,14 @@ def test_chat_system_prompt_code_mode():
         mode="code_mode",
         session_id=SessionId("s_test"),
     )
-    # Code mode uses its own intro and embeds the marimo-pair skill.
+    # Code mode prepends its bridge adapter to the canonical workflow.
     assert _get_mode_intro_message("code_mode") in prompt
     assert "how to work with marimo" in prompt
+    assert load_adapter("code-mode") in prompt
     assert load_skill("marimo-pair") in prompt
+    assert prompt.index(load_adapter("code-mode")) < prompt.index(
+        load_skill("marimo-pair")
+    )
     assert "load_capability" in prompt
     assert "`gotchas`" in prompt
     assert "references/gotchas.md" not in prompt

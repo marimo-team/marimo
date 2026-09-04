@@ -26,24 +26,21 @@ Reading disk is fine, but prefer `ctx.cells[...].code` for current cell code.
 
 **WARNING. Every notebook edit goes through code mode — no exceptions.** When
 the user asks you to change the notebook (add, edit, delete, or run a cell;
-rename; change a value or a package), you MUST make that change through
-`marimo._code_mode` (`cm`) by running it with the `execute_code` tool. There is
-no separate file-editing path — `execute_code` + `cm` is the only way to reach
-the user's running session. Running ad-hoc Python with `execute_code` to
-explore or test is fine; _persisting any change to the notebook_ is only ever
-done via `cm`.
+rename; change a value or a package), make that change through
+`marimo._code_mode` (`cm`) and the execution bridge. There is no separate
+file-editing path. The execution bridge and `cm` are the only path to the live
+session. You can run temporary Python through the bridge. Persist notebook
+changes only through `cm`.
 
 ## Running Code in the Kernel
 
-You are already attached to the user's running notebook — there is nothing to
-connect to or start. Use the `execute_code` tool to run Python in that kernel,
-passing your Python as the `code` argument. Everything you do — inspecting
-state, testing transformations, and persisting changes via `cm` — runs through
-`execute_code` in the scratchpad (see below).
+The execution adapter identifies the active notebook and the execution bridge.
+Use that bridge to run Python in the kernel. All inspection, temporary work,
+and `cm` changes run through the scratchpad.
 
 ## Required First Kernel Command
 
-Start every code-mode session with this dedicated `execute_code` call:
+Start every code-mode session with this dedicated execution-bridge call:
 
 ```python
 import marimo._code_mode as cm
@@ -54,7 +51,7 @@ Follow this order for every live kernel, including read-only tasks:
 
 1. Run only the inspection command above.
 2. Wait for successful `help(cm)` output.
-3. Use `cm.get_context()` or another `cm` API in a later `execute_code` call.
+3. Use `cm.get_context()` or another `cm` API in a later bridge call.
 
 Do not combine the inspection with task-specific code, and do not use another
 `cm` API before the inspection succeeds. This verifies the private, unstable
@@ -62,11 +59,11 @@ API exposed by the marimo version in the user's active kernel.
 
 ## Scratchpad Scope
 
-`execute_code` evaluates Python in marimo's scratchpad: a temporary namespace
-with a shallow copy of the kernel globals. Notebook variables are available by
-name, but new top-level bindings and rebindings are discarded after each call.
-In-place mutations to notebook-owned objects can persist because those names
-still reference live objects.
+The execution bridge evaluates Python in marimo's scratchpad. This temporary
+namespace contains a shallow copy of the kernel globals. Notebook variables
+are available by name. New top-level bindings and rebindings are discarded
+after each call. In-place mutations to notebook-owned objects can persist
+because those names still reference live objects.
 
 Each call reports stdout and stderr from the scratchpad, plus console output
 from notebook cells it causes to run, including reactive descendants.
@@ -204,8 +201,8 @@ ctx.graph.descendants(cid)   # cells that re-run when this one changes
 ctx.graph.ancestors(cid)     # cells this one depends on
 ```
 
-In marimo, deletes are _destructive_ so it can be useful to query the
-descendants prior to deleting to understand it's impact.
+In marimo, deletes are _destructive_. Query the descendants before deletion
+to understand the impact.
 
 ## Writing Notebook Changes
 
@@ -243,8 +240,8 @@ Submit the code that belongs in the cell.
 Use `cm` APIs when they exist. Avoid direct file edits, shell package commands,
 and scratchpad-only state for changes that should persist.
 
-- **Persist only through `cm`** - never try to change the notebook by writing
-  the `.py` file; `execute_code` + `cm` is the only path that reaches the live
+- **Persist only through `cm`** - never change the notebook by writing the
+  `.py` file. The execution bridge and `cm` are the only path to the live
   session. Use `ctx.edit_cell(...)` even for small changes.
 - **Manage packages through `cm`** - use `ctx.packages.add()` or
   `ctx.packages.remove()` instead of direct `uv` or `pip`; confirm

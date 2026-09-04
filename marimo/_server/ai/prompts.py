@@ -1,8 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from marimo._cli.pair.guide import render_code_mode_guide
 from marimo._config.config import CopilotMode
-from marimo._server.ai.skills.utils import load_skill
 from marimo._server.models.completion import (
     AiCompletionContext,
     Language,
@@ -438,7 +438,7 @@ def get_chat_system_prompt(
     # Code mode runs against the live kernel, so it leans on the marimo-pair
     # skill instead of the static notebook guide.
     if mode == "code_mode":
-        skill_md = load_skill("marimo-pair")
+        skill_md = render_code_mode_guide()
         intro = _get_mode_intro_message(mode)
         skill_section = (
             "The following information explains how to work with marimo "
