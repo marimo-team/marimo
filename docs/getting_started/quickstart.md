@@ -154,9 +154,7 @@ _Note_: Copilot is not yet available in our conda distribution; please install
 marimo from `PyPI` if you need Copilot.
 
 marimo also comes with support for [other copilots](../guides/editor_features/ai_completion.md#custom-copilots),
-a built-in [AI assistant](../guides/editor_features/ai_completion.md), and
-[external agents](../guides/editor_features/agents.md). The agents panel can
-connect to GitHub Copilot CLI, Claude Code, Codex, Gemini CLI, and other agents.
+and a built-in [AI assistant](../guides/editor_features/ai_completion.md) that helps you write code.
 
 ## Share links to cloud notebooks
 
@@ -183,3 +181,4 @@ JetBrains Marketplace, brings the full marimo editor inside PyCharm, letting you
 run notebooks without leaving your IDE.
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/J4yD_W8xAL0" title="PyCharm plugin demo video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
