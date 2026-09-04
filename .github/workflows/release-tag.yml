@@ -48,7 +48,7 @@ jobs:
           private-key: ${{ steps.secrets.outputs.RELEASE_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
           token: ${{ steps.app-token.outputs.token }}
