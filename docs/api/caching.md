@@ -91,6 +91,34 @@ letting you pick up where you left off.
     If a cell defining a cached function is re-run, the cache will be preserved unless
     its source code (or the source code of the cell's ancestors) has changed.
 
+### Persistent cache format and trust
+
+`mo.persistent_cache` uses `method="lazy"` by default. This format stores a
+signed manifest and separate value blobs. marimo verifies the manifest and
+blob hashes before restoring cached values. Ordinary values are loaded during
+lookup, despite the format's name.
+
+Native installations include `cryptography`. For local caches, marimo creates
+a private signing key in its user state directory, outside the notebook.
+Unsigned, modified, or untrusted entries miss and recompute. If verification
+is unavailable, reads miss and writes are skipped, including in WebAssembly.
+Missing signing capability does not prevent the computation from running.
+
+To share caches, configure the writer's public fingerprint as a trusted signer
+in your user configuration. Keep the writer's private key private. Trust a
+signer only if you trust the code in its cached payloads: signatures do not
+make pickle safe, encrypt cached data, or establish that a result is correct.
+
+Explicit `method="pickle"` and `method="json"` retain the legacy unsigned
+formats. For the lazy format, `[cache] verification = "off"` in user
+configuration explicitly disables signing and verification. Use `"strict"`
+to raise on unverifiable entries instead of recomputing them.
+
+The new cache-key format invalidates previous entries, which recompute on
+first use. If a local signing key is damaged, restore it from backup or remove
+it to create a new identity. Creating a new identity also makes old signatures
+untrusted unless their public fingerprints are configured explicitly.
+
 ### Persistent cache context manager
 
 You can also use marimo's [`mo.persistent_cache`][marimo.persistent_cache] as a context manager:
