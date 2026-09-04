@@ -43,30 +43,18 @@ export function isParentAction(
 export function flattenActions(
   actions: ActionButton[],
   prevLabel = "",
-  inheritedKeywords: string[] = [],
 ): ActionButton[] {
   return actions.flatMap((action) => {
     if (!action.label || action.hidden) {
       return [];
     }
-    const additionalKeywords = [
-      ...inheritedKeywords,
-      ...(action.additionalKeywords ?? []),
-    ];
     if (isParentAction(action)) {
-      return flattenActions(
-        action.dropdown,
-        `${prevLabel + action.label} > `,
-        additionalKeywords,
-      );
+      return flattenActions(action.dropdown, `${prevLabel + action.label} > `);
     }
     return {
       ...action,
       label: prevLabel + action.label,
-      additionalKeywords:
-        additionalKeywords.length > 0
-          ? [...new Set(additionalKeywords)]
-          : undefined,
+      additionalKeywords: action.additionalKeywords,
     };
   });
 }

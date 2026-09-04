@@ -154,6 +154,16 @@ export function useNotebookActions({
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
   const sharingMolabEnabled = resolvedConfig.sharing?.molab ?? true;
   const isSlidesLayout = selectedLayout === "slides";
+  const databaseConnectionKeywords = [
+    "db",
+    "sql",
+    ...DATABASE_CONNECTION_KEYWORDS,
+  ];
+  const storageConnectionKeywords = [
+    "bucket",
+    "object storage",
+    ...STORAGE_CONNECTION_KEYWORDS,
+  ];
 
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
@@ -460,7 +470,7 @@ export function useNotebookActions({
     {
       icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
       label: "Add database connection",
-      additionalKeywords: ["db", "sql", ...DATABASE_CONNECTION_KEYWORDS],
+      additionalKeywords: databaseConnectionKeywords,
       handle: () => {
         openModal(<AddConnectionDialogContent onClose={closeModal} />);
       },
@@ -478,6 +488,7 @@ export function useNotebookActions({
                 divider: true,
                 icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
                 label: "Browse all connections",
+                additionalKeywords: databaseConnectionKeywords,
                 handle: () => {
                   openModal(
                     <AddConnectionDialogContent onClose={closeModal} />,
@@ -489,11 +500,7 @@ export function useNotebookActions({
     {
       icon: <HardDrive size={14} strokeWidth={1.5} />,
       label: "Add remote storage",
-      additionalKeywords: [
-        "bucket",
-        "object storage",
-        ...STORAGE_CONNECTION_KEYWORDS,
-      ],
+      additionalKeywords: storageConnectionKeywords,
       handle: () => {
         openModal(
           <AddConnectionDialogContent
@@ -516,6 +523,7 @@ export function useNotebookActions({
                 divider: true,
                 icon: <HardDrive size={14} strokeWidth={1.5} />,
                 label: "Browse all connections",
+                additionalKeywords: storageConnectionKeywords,
                 handle: () => {
                   openModal(
                     <AddConnectionDialogContent

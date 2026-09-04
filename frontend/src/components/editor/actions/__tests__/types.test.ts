@@ -7,7 +7,7 @@ import { flattenActions } from "../types";
 const handle = vi.fn();
 
 describe("flattenActions", () => {
-  it("inherits and deduplicates parent search keywords", () => {
+  it("does not apply parent search keywords to child actions", () => {
     const actions: ActionButton[] = [
       {
         label: "Add remote storage",
@@ -26,7 +26,7 @@ describe("flattenActions", () => {
     expect(flattenActions(actions)).toEqual([
       expect.objectContaining({
         label: "Add remote storage > Browse all connections",
-        additionalKeywords: ["s3", "gcs", "drive"],
+        additionalKeywords: ["gcs", "drive"],
       }),
     ]);
   });
