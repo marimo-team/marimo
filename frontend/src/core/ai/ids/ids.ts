@@ -10,7 +10,6 @@ export const KNOWN_PROVIDERS = [
   "bedrock",
   "deepseek",
   "azure",
-  "github",
   "openrouter",
   "wandb",
   "opencode-go",

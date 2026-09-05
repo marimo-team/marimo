@@ -28,11 +28,6 @@
   description: Ollama is a lightweight, open-source model server for running and sharing LLMs.
   url: https://ollama.ai/
 
-- name: GitHub
-  id: github
-  description: GitHub's API for GPT models with GitHub-hosted models.
-  url: https://github.com/features/copilot
-
 - name: marimo
   id: marimo
   description: marimo's hosted models.
