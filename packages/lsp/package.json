@@ -11,11 +11,11 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@github/copilot-language-server": "^1.418.0"
+    "@github/copilot-language-server": "^1.534.0"
   },
   "devDependencies": {
     "@types/minimist": "^1.2.5",
-    "@types/node": "^24.10.9",
+    "@types/node": "^24.13.3",
     "@types/ws": "^8.18.1",
     "jsonrpc-ws-proxy": "^0.0.5",
     "minimist": "^1.2.8",
@@ -23,7 +23,7 @@
     "typescript": "^5.9.3",
     "vitest": "^4.1.10",
     "vscode-ws-jsonrpc": "^3.5.0",
-    "ws": "^8.19.0"
+    "ws": "^8.21.3"
   },
-  "packageManager": "pnpm@10.28.2"
+  "packageManager": "pnpm@10.34.5"
 }
