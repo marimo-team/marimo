@@ -136,8 +136,13 @@ export const MockRequestClient = {
       updateCellOutputs: vi.fn().mockResolvedValue({}),
       addPackage: vi.fn().mockResolvedValue({}),
       removePackage: vi.fn().mockResolvedValue({}),
-      getPackageList: vi.fn().mockResolvedValue({ packages: [] }),
-      getDependencyTree: vi.fn().mockResolvedValue({}),
+      getPackageList: vi.fn().mockResolvedValue({
+        packages: [],
+      }),
+      getDependencyTree: vi.fn().mockResolvedValue({
+        tree: null,
+        context: { kind: "package-manager", name: "pip" },
+      }),
       listSecretKeys: vi.fn().mockResolvedValue({ keys: [] }),
       writeSecret: vi.fn().mockResolvedValue({}),
       invokeAiTool: vi.fn().mockResolvedValue({}),

@@ -224,6 +224,105 @@ def test_pixi_adapter_reports_without_polluting_progress(
     ]
 
 
+def test_pixi_adapter_uses_native_pypi_tree(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments.backends import PixiBackendAdapter
+    from marimo._environments.sandbox import PackageState, ResolvedPackage
+    from marimo._environments.script_metadata import MaterializedScript
+    from marimo._utils.uv_tree import DependencyTag, DependencyTreeNode
+
+    records = [
+        {
+            "name": "polars",
+            "version": "1.44.1",
+            "kind": "pypi",
+        },
+        {
+            "name": "polars_runtime_32",
+            "version": "1.44.1",
+            "kind": "pypi",
+        },
+        {
+            "name": "python",
+            "version": "3.14.7",
+            "kind": "conda",
+        },
+        {
+            "name": "libzlib",
+            "version": "1.3.2",
+            "kind": "conda",
+        },
+        {
+            "name": "xarray",
+            "version": "2026.7.0",
+            "kind": "pypi",
+        },
+    ]
+    monkeypatch.setattr(
+        pixi, "list_script_packages", lambda *_args, **_kwargs: records
+    )
+    monkeypatch.setattr(
+        pixi,
+        "tree_script_packages",
+        lambda *_args, **_kwargs: (
+            "Installed for: osx-arm64\n"
+            "├── polars 1.44.1\n"
+            "│   └── polars_runtime_32 1.44.1\n"
+            "├── xarray 2026.7.0\n"
+            "│   └── polars_runtime_32 1.44.1  (*)\n"
+            "└── python 3.14.7\n"
+            "    └── libzlib 1.3.2\n"
+        ),
+    )
+    target = MaterializedScript(
+        path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
+    )
+
+    state = PixiBackendAdapter().packages(target, environment=None)
+
+    assert state == PackageState(
+        packages=(
+            ResolvedPackage(name="polars", version="1.44.1"),
+            ResolvedPackage(name="polars_runtime_32", version="1.44.1"),
+            ResolvedPackage(name="xarray", version="2026.7.0"),
+        ),
+        tree=DependencyTreeNode(
+            name="<root>",
+            version=None,
+            tags=[],
+            dependencies=[
+                DependencyTreeNode(
+                    name="polars",
+                    version="1.44.1",
+                    tags=[],
+                    dependencies=[
+                        DependencyTreeNode(
+                            name="polars_runtime_32",
+                            version="1.44.1",
+                            tags=[],
+                            dependencies=[],
+                        )
+                    ],
+                ),
+                DependencyTreeNode(
+                    name="xarray",
+                    version="2026.7.0",
+                    tags=[],
+                    dependencies=[
+                        DependencyTreeNode(
+                            name="polars_runtime_32",
+                            version="1.44.1",
+                            tags=[DependencyTag(kind="dedupe", value="true")],
+                            dependencies=[],
+                        )
+                    ],
+                ),
+            ],
+        ),
+    )
+
+
 def test_launch_activates_the_conda_prefix(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

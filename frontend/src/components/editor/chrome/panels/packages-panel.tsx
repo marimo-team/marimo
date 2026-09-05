@@ -22,7 +22,10 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import { useRequestClient } from "@/core/network/requests";
-import type { DependencyTreeNode } from "@/core/network/types";
+import type {
+  DependencyTreeNode,
+  DependencyTreeResponse,
+} from "@/core/network/types";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import {
   showRemovePackageToast,
@@ -39,6 +42,7 @@ import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
 type ViewMode = "tree" | "list";
+type PackageInstallationContext = DependencyTreeResponse["context"];
 
 const PackageActionButton: React.FC<{
   onClick: () => void;
@@ -77,12 +81,22 @@ const PackagesPanel: React.FC = () => {
     refetch,
     isPending,
   } = useAsyncData(async () => {
-    const [listPackagesResponse, dependencyTreeResponse] = await Promise.all([
-      getPackageList(),
-      getDependencyTree(),
-    ]);
+    // A sandbox's list and tree both inspect the same environment. Wait for
+    // the context before issuing the list request so sandboxes do that work
+    // only once; non-sandbox managers still need both views.
+    const dependencyTreeResponse = await getDependencyTree();
+    if (dependencyTreeResponse.context.kind === "sandbox") {
+      return {
+        list: [],
+        context: dependencyTreeResponse.context,
+        tree: dependencyTreeResponse.tree,
+      };
+    }
+
+    const listPackagesResponse = await getPackageList();
     return {
       list: listPackagesResponse.packages,
+      context: dependencyTreeResponse.context,
       tree: dependencyTreeResponse.tree,
     };
   }, [packageManager]);
@@ -97,48 +111,66 @@ const PackagesPanel: React.FC = () => {
   }
 
   const isTreeSupported = dependencies.tree != null;
-  const viewMode = resolveViewMode(userViewMode, isTreeSupported);
   const name = dependencies.tree?.name;
   const version = dependencies?.tree?.version;
-  const isSandbox = name === "<root>"; // name is the project name otherwise
+  const sandboxBackend =
+    dependencies.context.kind === "sandbox"
+      ? dependencies.context.backend
+      : null;
+  const isSandbox = sandboxBackend !== null;
+  const viewMode = isSandbox
+    ? "tree"
+    : resolveViewMode(userViewMode, isTreeSupported);
+  const scopeLabel = sandboxBackend
+    ? `${sandboxBackend} sandbox`
+    : name && name !== "<root>"
+      ? "project"
+      : "environment";
+  const scopeTitle = sandboxBackend
+    ? `Dependencies are managed by the ${sandboxBackend} sandbox selected when marimo started.`
+    : scopeLabel;
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <InstallPackageForm packageManager={packageManager} onSuccess={refetch} />
-      {isTreeSupported && (
+      <InstallPackageForm context={dependencies.context} onSuccess={refetch} />
+      {(isTreeSupported || isSandbox) && (
         <div className="flex items-center justify-between px-2 py-1 border-b">
-          <div className="flex gap-1">
-            <button
-              type="button"
-              className={cn(
-                "px-2 py-1 text-xs rounded",
-                viewMode === "list"
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setUserViewMode("list")}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              className={cn(
-                "px-2 py-1 text-xs rounded",
-                viewMode === "tree"
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-              onClick={() => setUserViewMode("tree")}
-            >
-              Tree
-            </button>
-          </div>
+          {isTreeSupported && !isSandbox ? (
+            <div className="flex gap-1">
+              <button
+                type="button"
+                className={cn(
+                  "px-2 py-1 text-xs rounded",
+                  viewMode === "list"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setUserViewMode("list")}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                className={cn(
+                  "px-2 py-1 text-xs rounded",
+                  viewMode === "tree"
+                    ? "bg-accent text-accent-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+                onClick={() => setUserViewMode("tree")}
+              >
+                Tree
+              </button>
+            </div>
+          ) : (
+            <div />
+          )}
           <div className="flex items-center gap-2">
             <div
               className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
-              title={isSandbox ? "sandbox" : "project"}
+              title={scopeTitle}
             >
-              {isSandbox ? "sandbox" : "project"}
+              {scopeLabel}
             </div>
             {name && !isSandbox && (
               <span className="text-xs text-muted-foreground">
@@ -155,6 +187,7 @@ const PackagesPanel: React.FC = () => {
         <DependencyTree
           tree={dependencies.tree}
           error={error}
+          sandboxBackend={sandboxBackend}
           onSuccess={refetch}
         />
       )}
@@ -165,11 +198,13 @@ const PackagesPanel: React.FC = () => {
 export default PackagesPanel;
 
 const InstallPackageForm: React.FC<{
-  packageManager: string;
+  context: PackageInstallationContext;
   onSuccess: () => void;
-}> = ({ onSuccess, packageManager }) => {
+}> = ({ onSuccess, context }) => {
   const [input, setInput] = React.useState("");
   const { handleClick: openSettings } = useOpenSettingsToTab();
+  const isSandbox = context.kind === "sandbox";
+  const packageManager = isSandbox ? context.backend : context.name;
 
   // Get the packages to install from the atom
   const packagesToInstall = useAtomValue(packagesToInstallAtom);
@@ -201,7 +236,11 @@ const InstallPackageForm: React.FC<{
   return (
     <div className="flex items-center w-full border-b">
       <SearchInput
-        placeholder={`Install packages with ${packageManager}...`}
+        placeholder={
+          isSandbox
+            ? `Add packages to ${packageManager} sandbox...`
+            : `Install packages with ${packageManager}...`
+        }
         id={PACKAGES_INPUT_ID}
         icon={
           loading ? (
@@ -209,12 +248,23 @@ const InstallPackageForm: React.FC<{
               size="small"
               className="mr-2 h-4 w-4 shrink-0 opacity-50"
             />
+          ) : isSandbox ? (
+            <BoxIcon
+              aria-hidden="true"
+              className="mr-2 h-4 w-4 shrink-0 opacity-50"
+            />
           ) : (
-            <Tooltip content="Change package manager">
-              <BoxIcon
+            <Tooltip
+              content={`Change package manager (currently ${packageManager})`}
+            >
+              <button
+                type="button"
+                aria-label="Change package manager"
                 onClick={() => openSettings("packageManagementAndData")}
-                className="mr-2 h-4 w-4 shrink-0 opacity-50 hover:opacity-80 cursor-pointer"
-              />
+                className="pointer-events-auto mr-2 rounded-sm opacity-50 hover:opacity-80 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <BoxIcon aria-hidden="true" className="h-4 w-4 shrink-0" />
+              </button>
             </Tooltip>
           )
         }
@@ -234,9 +284,21 @@ const InstallPackageForm: React.FC<{
         align="start"
         content={
           <div className="text-sm flex flex-col w-full max-w-[360px]">
-            Packages are installed using the package manager specified in your
-            user configuration. Depending on your package manager, you can
-            install packages with various formats:
+            {isSandbox ? (
+              <span>
+                Packages are recorded in this notebook&apos;s inline metadata
+                and synchronized with its {packageManager} sandbox. To switch
+                backends, restart marimo with a different --sandbox option.
+              </span>
+            ) : (
+              <span>
+                Packages are installed using {packageManager}, selected in your
+                user configuration.
+              </span>
+            )}
+            <span className="mt-2">
+              You can install packages with various formats:
+            </span>
             <div className="flex flex-col gap-2 mt-2">
               <div>
                 <span className="font-bold tracking-wide">Package name:</span> A
@@ -434,8 +496,9 @@ const RemoveButton: React.FC<{
 const DependencyTree: React.FC<{
   tree: DependencyTreeNode | null;
   error?: Error | null;
+  sandboxBackend: "uv" | "pixi" | null;
   onSuccess: () => void;
-}> = ({ tree, error, onSuccess }) => {
+}> = ({ tree, error, sandboxBackend, onSuccess }) => {
   const [expandedNodes, setExpandedNodes] = React.useState<Set<string>>(
     new Set(),
   );
@@ -450,10 +513,25 @@ const DependencyTree: React.FC<{
   }
 
   if (!tree) {
-    return <Spinner size="medium" centered={true} />;
+    return (
+      <PanelEmptyState
+        title="Dependency tree unavailable"
+        description="The sandbox did not return a dependency tree."
+        icon={<BoxIcon />}
+      />
+    );
   }
 
   if (tree.dependencies.length === 0) {
+    if (sandboxBackend === "pixi") {
+      return (
+        <PanelEmptyState
+          title="No PyPI dependencies"
+          description="Conda dependencies are not shown in this panel."
+          icon={<BoxIcon />}
+        />
+      );
+    }
     return (
       <PanelEmptyState
         title="No dependencies"
@@ -515,9 +593,6 @@ const DependencyTreeNode: React.FC<{
 }) => {
   const hasChildren = node.dependencies.length > 0;
   const isExpanded = expandedNodes.has(nodeId);
-  const isCondaPackage = node.tags.some(
-    (tag) => tag.kind === "kind" && tag.value === "conda",
-  );
   const indent = isTopLevel ? 0 : 16 + level * 16; // Top-level uses CSS padding, children use calculated indent
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -578,6 +653,17 @@ const DependencyTreeNode: React.FC<{
         {/* Tags */}
         <div className="flex items-center gap-1 ml-2">
           {node.tags.map((tag, index) => {
+            if (tag.kind === "dedupe") {
+              return (
+                <div
+                  key={index}
+                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-muted-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
+                  title="Package tree already displayed"
+                >
+                  already in tree
+                </div>
+              );
+            }
             if (tag.kind === "cycle") {
               return (
                 <div
@@ -611,23 +697,12 @@ const DependencyTreeNode: React.FC<{
                 </div>
               );
             }
-            if (tag.kind === "kind" && tag.value === "conda") {
-              return (
-                <div
-                  key={index}
-                  className="items-center border px-2 py-0.5 text-xs transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 text-muted-foreground rounded-sm text-ellipsis block overflow-hidden max-w-fit font-medium"
-                  title="conda package"
-                >
-                  conda
-                </div>
-              );
-            }
             return null;
           })}
         </div>
 
         {/* Actions for top-level packages */}
-        {isTopLevel && !isCondaPackage && (
+        {isTopLevel && (
           <div className="flex gap-1 invisible group-hover:visible">
             <UpgradeButton
               packageName={node.name}
