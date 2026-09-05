@@ -79,82 +79,100 @@ def pop_local(available: list[tuple[int, CellId_t]], idx: int) -> CellId_t:
     return available.pop(best_idx)[1]
 
 
-def _hungarian_algorithm(scores: list[list[float]]) -> list[int]:
-    """Implements the Hungarian algorithm to find the best matching.
+# Above this size the exact O(n^3) solver gets slow on dense, tie-heavy cost
+# matrices -- in particular the zero-padded matrices produced when many more
+# cells are added than removed (~0.5s at n=500 for a realistic matrix, several
+# seconds for the padded worst case). Such large simultaneous edits are rare and
+# a slightly sub-optimal match there is harmless, so fall back to a fast O(n^2)
+# greedy assignment above the cutoff.
+_MAX_OPTIMAL_ASSIGNMENT_SIZE = 100
 
-    In general this class of problem is known as the assignment problem and is
-    pretty well studied. This is a textbook implementation to avoid additional
-    dependencies. Links:
-    - https://en.wikipedia.org/wiki/Hungarian_algorithm
-    """
-    score_matrix = [row[:] for row in scores]
-    n = len(score_matrix)
 
-    # Step 1: Subtract row minima
-    for i in range(n):
-        min_value = min(score_matrix[i])
-        for j in range(n):
-            score_matrix[i][j] -= min_value
-
-    # Step 2: Subtract column minima
-    for j in range(n):
-        min_value = min(score_matrix[i][j] for i in range(n))
-        for i in range(n):
-            score_matrix[i][j] -= min_value
-
-    # Step 3: Find initial assignment
-    row_assignment = [-1] * n
-    col_assignment = [-1] * n
-
-    # Find independent zeros
-    for i in range(n):
-        for j in range(n):
-            if (
-                score_matrix[i][j] == 0
-                and row_assignment[i] == -1
-                and col_assignment[j] == -1
-            ):
-                row_assignment[i] = j
-                col_assignment[j] = i
-
-    # Step 4: Improve assignment iteratively
-    while True:
-        assigned_count = sum(1 for x in row_assignment if x != -1)
-        if assigned_count == n:
-            break
-
-        # Find minimum uncovered value
-        min_uncovered = float("inf")
-        for i in range(n):
-            for j in range(n):
-                if row_assignment[i] == -1 and col_assignment[j] == -1:
-                    min_uncovered = min(min_uncovered, score_matrix[i][j])
-
-        if min_uncovered == float("inf"):
-            break
-
-        # Update matrix
-        for i in range(n):
-            for j in range(n):
-                if row_assignment[i] == -1 and col_assignment[j] == -1:
-                    score_matrix[i][j] -= min_uncovered
-                elif row_assignment[i] != -1 and col_assignment[j] != -1:
-                    score_matrix[i][j] += min_uncovered
-
-        # Try to find new assignments
-        for i in range(n):
-            if row_assignment[i] == -1:
-                for j in range(n):
-                    if score_matrix[i][j] == 0 and col_assignment[j] == -1:
-                        row_assignment[i] = j
-                        col_assignment[j] = i
-                        break
-
-    # Convert to result format
+def _greedy_assignment(scores: list[list[float]]) -> list[int]:
+    """Fast approximate assignment; `result[column] = row`, same convention as
+    `_hungarian_algorithm`."""
+    n = len(scores)
     result = [-1] * n
-    for i in range(n):
-        if row_assignment[i] != -1:
-            result[row_assignment[i]] = i
+    used_row = [False] * n
+    # Assign the most decisive columns (smallest best cost) first.
+    for j in sorted(
+        range(n), key=lambda c: min(scores[r][c] for r in range(n))
+    ):
+        best_row, best_cost = -1, float("inf")
+        for i in range(n):
+            if not used_row[i] and scores[i][j] < best_cost:
+                best_cost, best_row = scores[i][j], i
+        if best_row != -1:
+            used_row[best_row] = True
+            result[j] = best_row
+    return result
+
+
+def _hungarian_algorithm(scores: list[list[float]]) -> list[int]:
+    """Solve the assignment problem, returning a minimum-cost matching.
+
+    Uses the O(n^3) shortest-augmenting-path method (Jonker-Volgenant /
+    Kuhn-Munkres), which is guaranteed to find an optimal assignment without
+    additional dependencies. Links:
+    - https://en.wikipedia.org/wiki/Hungarian_algorithm
+
+    Returns a list `result` where `result[column] = row` for the row matched to
+    each column (or -1 if unmatched, which only happens for an empty input).
+    """
+    n = len(scores)
+    if n == 0:
+        return []
+
+    inf = float("inf")
+    # Potentials (u for rows, v for columns) and the current column -> row
+    # matching. Index 0 is a sentinel used while growing the augmenting path,
+    # so everything is 1-indexed.
+    u = [0.0] * (n + 1)
+    v = [0.0] * (n + 1)
+    match_col_to_row = [0] * (n + 1)
+    way = [0] * (n + 1)
+
+    for i in range(1, n + 1):
+        match_col_to_row[0] = i
+        j0 = 0
+        min_val = [inf] * (n + 1)
+        used = [False] * (n + 1)
+        # Grow an alternating tree until we reach an unmatched column.
+        while True:
+            used[j0] = True
+            i0 = match_col_to_row[j0]
+            delta = inf
+            j1 = -1
+            for j in range(1, n + 1):
+                if not used[j]:
+                    cur = scores[i0 - 1][j - 1] - u[i0] - v[j]
+                    if cur < min_val[j]:
+                        min_val[j] = cur
+                        way[j] = j0
+                    if min_val[j] < delta:
+                        delta = min_val[j]
+                        j1 = j
+            # Update potentials so the reduced costs stay non-negative.
+            for j in range(n + 1):
+                if used[j]:
+                    u[match_col_to_row[j]] += delta
+                    v[j] -= delta
+                else:
+                    min_val[j] -= delta
+            j0 = j1
+            if match_col_to_row[j0] == 0:
+                break
+        # Augment along the path recorded in `way`.
+        while j0:
+            j1 = way[j0]
+            match_col_to_row[j0] = match_col_to_row[j1]
+            j0 = j1
+
+    # Convert to result format: result[column] = row (0-indexed).
+    result = [-1] * n
+    for j in range(1, n + 1):
+        if match_col_to_row[j] != 0:
+            result[j - 1] = match_col_to_row[j] - 1
 
     return result
 
@@ -251,8 +269,13 @@ def _match_cell_ids_by_similarity(
                     # NB. transposed indices for Hungarian
                     scores[y][x] = score
 
-    # Use Hungarian algorithm to find the best matching
-    matches = _hungarian_algorithm(scores)
+    # Use the exact assignment for small problems, and a fast greedy fallback
+    # for large ones where the exact O(n^3) solver would be too slow.
+    matches = (
+        _greedy_assignment(scores)
+        if n > _MAX_OPTIMAL_ASSIGNMENT_SIZE
+        else _hungarian_algorithm(scores)
+    )
     for idx, code in enumerate(next_codes):
         if result[idx] is None:
             match_idx = next_order[next_inverse[code]].pop(0)
