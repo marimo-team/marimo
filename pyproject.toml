@@ -555,6 +555,7 @@ markers = [
     "unit: marks tests as unit tests",
     "flaky: marks tests that are known to be flaky",
     "requires(dep1, dep2, ...): requires one or more dependencies to be installed",
+    "network: requires internet access to package indexes (deselect with '-m \"not network\"')",
 ]
 
 [tool.coverage.run]

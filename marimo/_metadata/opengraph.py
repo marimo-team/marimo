@@ -15,8 +15,8 @@ from urllib.parse import urlparse
 import msgspec
 
 from marimo import _loggers
+from marimo._environments import script_metadata
 from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
-from marimo._utils.scripts import read_pyproject_from_script
 
 LOGGER = _loggers.marimo_logger()
 
@@ -140,7 +140,7 @@ def read_opengraph_from_file(filepath: str) -> OpenGraphConfig | None:
     """Read OpenGraph metadata from a notebook's PEP 723 header."""
     try:
         script = Path(filepath).read_text(encoding="utf-8")
-        project = read_pyproject_from_script(script) or {}
+        project = script_metadata.loads(script) or {}
     except Exception:
         # Parsing errors are treated as "no metadata" so that listing and thumbnail generation don't spam warnings on malformed headers.
         return None

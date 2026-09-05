@@ -11,6 +11,9 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
+from marimo._environments.script_metadata import (
+    with_python_version_requirement,
+)
 from marimo._messaging.notebook.changes import (
     Transaction,
 )
@@ -32,7 +35,6 @@ from marimo._utils.generated_with import (
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.scripts import with_python_version_requirement
 
 LOGGER = _loggers.marimo_logger()
 
@@ -232,11 +234,9 @@ class AppFileManager:
                 from marimo._config.settings import GLOBAL_SETTINGS
 
                 if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-                    from marimo._utils.scripts import (
-                        write_pyproject_to_script,
-                    )
+                    from marimo._environments import script_metadata
 
-                    header = write_pyproject_to_script(
+                    header = script_metadata.dumps(
                         with_python_version_requirement(
                             {
                                 "dependencies": ["marimo"],

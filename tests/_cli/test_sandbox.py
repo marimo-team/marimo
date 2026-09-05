@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -9,13 +10,12 @@ import pytest
 
 from marimo._cli.sandbox import (
     SandboxMode,
-    _ensure_marimo_in_script_metadata,
-    _ensure_python_version_in_script_metadata,
     _normalize_sandbox_dependencies,
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
     resolve_sandbox_mode,
+    run_in_sandbox,
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.inline_script_metadata import PyProjectReader
@@ -271,6 +271,37 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
         assert "--no-project" in uv_cmd
 
 
+def test_run_in_sandbox_reports_wrapped_metadata_timeout() -> None:
+    from marimo._environments import script_metadata
+
+    timeout = subprocess.TimeoutExpired(["uv", "add"], timeout=30)
+    metadata_error = script_metadata.ScriptMetadataError("update failed")
+    metadata_error.__cause__ = timeout
+
+    with (
+        patch("marimo._cli.sandbox.require_uv_bin"),
+        patch(
+            "marimo._cli.sandbox.script_metadata.ensure_marimo",
+            side_effect=metadata_error,
+        ),
+        patch("marimo._cli.sandbox.script_metadata.ensure_requires_python"),
+        patch(
+            "marimo._cli.sandbox.construct_uv_command",
+            return_value=["uv", "run"],
+        ),
+        patch("marimo._cli.sandbox.subprocess.Popen") as popen,
+        patch("marimo._cli.sandbox.signal.signal"),
+        patch("marimo._cli.sandbox.LOGGER.warning") as warning,
+    ):
+        popen.return_value.wait.return_value = 0
+
+        assert run_in_sandbox(["edit", "notebook.py"], name="notebook.py") == 0
+
+    warning.assert_called_once_with(
+        "Timed out adding marimo to script metadata"
+    )
+
+
 def test_construct_uv_cmd_with_complex_args() -> None:
     # Test complex command arguments are preserved
     args = [
@@ -434,8 +465,8 @@ import marimo
     # Mock the prompt to return True (simulating user typing 'y')
     with patch("marimo._cli.sandbox.click.confirm", return_value=True):
         with patch(
-            "marimo._cli.sandbox.DependencyManager.which",
-            return_value="/usr/bin/uv",
+            "marimo._cli.sandbox.is_uv_available",
+            return_value=True,
         ):
             with patch(
                 "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
@@ -529,198 +560,6 @@ import marimo
     assert "--python" in uv_cmd
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == platform.python_version()
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_ensure_marimo_in_script_metadata_adds_marimo(tmp_path: Path) -> None:
-    """Test that marimo is added to script metadata when missing."""
-    script_path = tmp_path / "test.py"
-    script_path.write_text(
-        """# /// script
-# dependencies = ["numpy"]
-# ///
-import marimo
-"""
-    )
-
-    _ensure_marimo_in_script_metadata(str(script_path))
-
-    content = script_path.read_text()
-    assert "marimo" in content
-    assert "numpy" in content
-
-
-def test_ensure_marimo_in_script_metadata_noop_when_present(
-    tmp_path: Path,
-) -> None:
-    """Test that file is unchanged when marimo and requires-python already present."""
-    original = """# /// script
-# requires-python = ">=3.10"
-# dependencies = ["marimo", "numpy"]
-# ///
-import marimo
-"""
-    script_path = tmp_path / "test.py"
-    script_path.write_text(original)
-
-    _ensure_marimo_in_script_metadata(str(script_path))
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    assert script_path.read_text() == original
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_ensure_marimo_in_script_metadata_adds_when_no_metadata(
-    tmp_path: Path,
-) -> None:
-    """Test that script metadata is added when it doesn't exist."""
-    original = """import marimo
-app = marimo.App()
-"""
-    script_path = tmp_path / "test.py"
-    script_path.write_text(original)
-
-    _ensure_marimo_in_script_metadata(str(script_path))
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    content = script_path.read_text()
-    assert "# /// script" in content
-    assert "marimo" in content
-    assert "requires-python" in content
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_ensure_marimo_in_script_metadata_adds_python_version(
-    tmp_path: Path,
-) -> None:
-    """Test that requires-python is added to script metadata."""
-    import platform
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text("""# /// script
-# dependencies = ["numpy"]
-# ///
-import marimo
-""")
-
-    _ensure_marimo_in_script_metadata(str(script_path))
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    content = script_path.read_text()
-    assert "requires-python" in content
-    major, minor = platform.python_version_tuple()[:2]
-    assert f">={major}.{minor}" in content
-
-
-def test_ensure_python_version_in_script_metadata(tmp_path: Path) -> None:
-    """Test that requires-python is added when missing."""
-    import platform
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text("""# /// script
-# dependencies = ["marimo", "numpy"]
-# ///
-import marimo
-""")
-
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    content = script_path.read_text()
-    assert "requires-python" in content
-    major, minor = platform.python_version_tuple()[:2]
-    assert f">={major}.{minor}" in content
-
-
-def test_ensure_python_version_preserves_formatting(tmp_path: Path) -> None:
-    """Test that adding requires-python preserves formatting and only modifies the header.
-
-    Regression test for #8054. Also verifies that similar patterns in file (e.g., docstrings) are not affected.
-    """
-    import platform
-
-    # Multi-line deps list that would be reformatted by re-serialization,
-    # plus a docstring with similar-looking text that should not be modified
-    original = '''# /// script
-# dependencies = [
-#     "polars",
-#     "marimo>=0.8.0",
-# ]
-# ///
-import marimo
-
-app = marimo.App()
-
-@app.cell
-def __():
-    """
-    Example of PEP 723 metadata:
-
-    # /// script
-    # requires-python = ">=3.11"
-    # ///
-    """
-    return ()
-'''
-    script_path = tmp_path / "test.py"
-    script_path.write_text(original)
-
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    content = script_path.read_text()
-    major, minor = platform.python_version_tuple()[:2]
-    expected = f'''# /// script
-# requires-python = ">={major}.{minor}"
-# dependencies = [
-#     "polars",
-#     "marimo>=0.8.0",
-# ]
-# ///
-import marimo
-
-app = marimo.App()
-
-@app.cell
-def __():
-    """
-    Example of PEP 723 metadata:
-
-    # /// script
-    # requires-python = ">=3.11"
-    # ///
-    """
-    return ()
-'''
-    assert content == expected
-
-
-def test_ensure_python_version_in_script_metadata_noop_when_present(
-    tmp_path: Path,
-) -> None:
-    """Test that file is unchanged when requires-python already present."""
-    original = """# /// script
-# requires-python = ">=3.10"
-# dependencies = ["marimo", "numpy"]
-# ///
-import marimo
-"""
-    script_path = tmp_path / "test.py"
-    script_path.write_text(original)
-
-    _ensure_python_version_in_script_metadata(str(script_path))
-
-    assert script_path.read_text() == original
-
-
-def test_ensure_marimo_in_script_metadata_noop_when_file_missing(
-    tmp_path: Path,
-) -> None:
-    """Test that file is not created when it doesn't exist."""
-    script_path = tmp_path / "nonexistent.py"
-
-    _ensure_marimo_in_script_metadata(str(script_path))
-
-    # File should still not exist
-    assert not script_path.exists()
 
 
 def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:

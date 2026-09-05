@@ -19,13 +19,20 @@ from marimo import _loggers
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._dependencies.dependencies import DependencyManager
+from marimo._environments import script_metadata
+from marimo._environments.uv import (
+    UvCommandError,
+    UvMissingScriptMetadataError,
+    UvNotFoundError,
+    find_uv_bin,
+    is_uv_available,
+    require_uv_bin,
+    uv,
+)
 from marimo._utils.inline_script_metadata import (
     PyProjectReader,
-    has_marimo_in_script_metadata,
     is_marimo_dependency,
 )
-from marimo._utils.uv import find_uv_bin
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -62,7 +69,7 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
         return False
 
     # Notebook has inlined dependencies.
-    if DependencyManager.which("uv"):
+    if is_uv_available():
         if GLOBAL_SETTINGS.YES:
             return True
 
@@ -206,19 +213,15 @@ def _uv_export_script_requirements_txt(
     if not name:
         return []
 
-    result = subprocess.run(
+    result = uv(
         [
-            find_uv_bin(),
             "export",
             "--no-hashes",
             "--no-annotate",
             "--no-header",
             "--script",
             name,
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
+        ]
     )
     script_dir = Path(name).resolve().parent
     return [
@@ -231,8 +234,16 @@ def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
     if pyproject.name and pyproject.name.endswith(".py"):
         try:
             return _uv_export_script_requirements_txt(pyproject.name)
-        except subprocess.CalledProcessError:
-            pass  # Fall back if uv fails
+        except UvMissingScriptMetadataError:
+            # No PEP 723 block yet; marimo's own reader handles that fine.
+            pass
+        except UvCommandError as e:
+            LOGGER.warning(
+                "`uv export` failed for %s; falling back to marimo's own "
+                "dependency resolution: %s",
+                pyproject.name,
+                e.stderr.strip(),
+            )
     return pyproject.requirements_txt_lines
 
 
@@ -353,91 +364,6 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
-def _ensure_python_version_in_script_metadata(name: str) -> None:
-    """Add requires-python to script metadata if not present.
-
-    Inserts a requires-python line directly into the existing PEP 723
-    metadata block without re-serializing, to avoid reformatting diffs.
-    """
-    import re
-
-    from marimo._utils.scripts import read_pyproject_from_script
-
-    with open(name, encoding="utf-8") as f:
-        content = f.read()
-
-    project = read_pyproject_from_script(content)
-    if project is None:
-        # No script metadata exists
-        return
-
-    if "requires-python" in project:
-        return
-
-    version_tuple = platform.python_version_tuple()
-    requires_line = (
-        f'# requires-python = ">={version_tuple[0]}.{version_tuple[1]}"\n'
-    )
-
-    # Insert directly after the opening "# /// script" marker to avoid
-    # re-serializing the entire block and causing formatting churn.
-    new_content = re.sub(
-        r"^# /// script$",
-        "# /// script\n" + requires_line.rstrip(),
-        content,
-        count=1,
-        flags=re.MULTILINE,
-    )
-
-    if new_content != content:
-        with open(name, "w", encoding="utf-8") as f:
-            f.write(new_content)
-
-
-def _ensure_marimo_in_script_metadata(name: str | None) -> None:
-    """Ensure marimo is in the script metadata.
-
-    If the file has no PEP 723 script metadata or marimo is not listed
-    as a dependency, add marimo using uv.
-    """
-    # Only applicable to `.py` files.
-    if name is None or not name.endswith(".py"):
-        return
-
-    # If the file doesn't exist or is empty, don't create it here - let marimo
-    # create the notebook normally with proper structure
-    if not os.path.exists(name) or os.path.getsize(name) == 0:
-        return
-
-    # Check if script metadata exists and whether marimo is present
-    # Returns: True (has marimo), False (no marimo), None (no metadata)
-    has_marimo = has_marimo_in_script_metadata(name)
-    if has_marimo is True:
-        # marimo is already present
-        return
-
-    # Add marimo to script metadata using uv
-    # This will create the script metadata block if it doesn't exist
-    try:
-        result = subprocess.run(
-            [find_uv_bin(), "add", "--script", name, "marimo"],
-            check=True,
-            capture_output=True,
-            text=True,
-            # stdin=DEVNULL prevents hanging on Windows when uv might
-            # wait for input
-            stdin=subprocess.DEVNULL,
-            timeout=30,
-        )
-        LOGGER.info(f"Added marimo to script metadata: {result.stdout}")
-    except subprocess.CalledProcessError as e:
-        LOGGER.warning(f"Failed to add marimo to script metadata: {e.stderr}")
-    except subprocess.TimeoutExpired:
-        LOGGER.warning("Timed out adding marimo to script metadata")
-    except Exception as e:
-        LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
-
-
 def run_in_sandbox(
     args: list[str],
     *,
@@ -457,18 +383,29 @@ def run_in_sandbox(
     For "multi" sandbox mode (directory), see IPCKernelManagerImpl which
     creates per-notebook sandboxed kernels.
     """
-    # If we fall back to the plain "uv" path, ensure it's actually on the system
-    if find_uv_bin() == "uv" and not DependencyManager.which("uv"):
+    try:
+        require_uv_bin()
+    except UvNotFoundError as e:
         raise MarimoCLIMissingDependencyError(
             "uv must be installed to use --sandbox.",
             "uv",
             additional_tip="Install uv from https://github.com/astral-sh/uv",
-        )
+        ) from e
 
-    # Ensure marimo and python version are in the script metadata before running
-    _ensure_marimo_in_script_metadata(name)
+    # Ensure marimo and the python version are in the script metadata before
+    # running. Adding marimo is best-effort: the sandbox still runs without
+    # it, since the requirements normalization injects marimo.
     if name is not None and name.endswith(".py"):
-        _ensure_python_version_in_script_metadata(name)
+        try:
+            script_metadata.ensure_marimo(name)
+        except script_metadata.ScriptMetadataError as e:
+            if isinstance(e.__cause__, subprocess.TimeoutExpired):
+                LOGGER.warning("Timed out adding marimo to script metadata")
+            else:
+                LOGGER.warning("%s", e)
+        except Exception as e:
+            LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
+        script_metadata.ensure_requires_python(name)
 
     uv_cmd = construct_uv_command(
         args,
@@ -603,19 +540,13 @@ def build_sandbox_venv(
     Raises:
         RuntimeError: If dependency installation fails.
     """
-    uv_bin = find_uv_bin()
-
     # Create temp directory for sandbox venv
     sandbox_dir = tempfile.mkdtemp(prefix="marimo-sandbox-")
     venv_path = os.path.join(sandbox_dir, "venv")
 
     # Phase 1: Create venv
     echo(f"Creating sandbox environment: {muted(venv_path)}", err=True)
-    subprocess.run(
-        [uv_bin, "venv", "--seed", venv_path],
-        check=True,
-        capture_output=True,
-    )
+    uv(["venv", "--seed", venv_path])
 
     # Get venv Python path
     if sys.platform == "win32":
@@ -636,22 +567,20 @@ def build_sandbox_venv(
     for editable in editable_reqs:
         # Extract path from "-e /path/to/package"
         editable_path = editable[3:].strip()
-        result = subprocess.run(
-            [
-                uv_bin,
-                "pip",
-                "install",
-                "--python",
-                venv_python,
-                "-e",
-                editable_path,
-            ],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
+        try:
+            uv(
+                [
+                    "pip",
+                    "install",
+                    "--python",
+                    venv_python,
+                    "-e",
+                    editable_path,
+                ]
+            )
+        except UvCommandError as e:
             echo(
-                f"Warning: Editable install failed: {result.stderr}",
+                f"Warning: Editable install failed: {e.stderr}",
                 err=True,
             )
 
@@ -661,25 +590,14 @@ def build_sandbox_venv(
         with open(req_file, "w", encoding="utf-8") as f:
             f.write("\n".join(regular_reqs))
 
-        result = subprocess.run(
-            [
-                uv_bin,
-                "pip",
-                "install",
-                "--python",
-                venv_python,
-                "-r",
-                req_file,
-            ],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
+        try:
+            uv(["pip", "install", "--python", venv_python, "-r", req_file])
+        except UvCommandError as e:
             # Clean up on failure
             cleanup_sandbox_dir(sandbox_dir)
             raise RuntimeError(
-                f"Failed to install sandbox dependencies: {result.stderr}"
-            )
+                f"Failed to install sandbox dependencies: {e.stderr}"
+            ) from e
 
     return sandbox_dir, venv_python
 
