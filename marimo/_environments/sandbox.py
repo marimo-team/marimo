@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from marimo._environments.script_metadata import MaterializedScript
     from marimo._utils.uv_tree import DependencyTreeNode
 
-Backend = Literal["uv"]
+Backend = Literal["uv", "pixi"]
 SandboxOperation = Literal["prepare", "add", "upgrade", "remove", "sync"]
 LogCallback = Callable[[str], None]
 ENVIRONMENT_PYTHON = "MARIMO_SANDBOX_ENVIRONMENT_PYTHON"

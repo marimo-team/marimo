@@ -15,6 +15,7 @@ from marimo._environments.environment import (
     ProcessPlan,
 )
 from marimo._environments.overlay import runtime_overlay
+from marimo._environments.pixi import PixiMissingScriptMetadataError
 from marimo._environments.uv import UvMissingScriptMetadataError
 from marimo._session.app_host.host import AppHost
 
@@ -75,7 +76,10 @@ class AppHostPool:
             plan = backends.launch(
                 handle, args, backend=backend, overlay=overlay
             )
-        except UvMissingScriptMetadataError:
+        except (
+            UvMissingScriptMetadataError,
+            PixiMissingScriptMetadataError,
+        ):
             plan = backends.launch_fallback(args)
 
         with self._lock:

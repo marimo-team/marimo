@@ -1,12 +1,17 @@
 # Copyright 2026 Marimo. All rights reserved.
-"""The uv environment-manager adapter.
+"""The uv and pixi environment-manager adapters.
 
-`UvBackendAdapter` implements the notebook sandbox's backend operations. The
-module-level verbs plan launches for callers that must not edit a manifest
-(an app host serving notebooks), so backend policy lives in one place.
+`UvBackendAdapter` and `PixiBackendAdapter` supply the notebook sandbox's
+backend operations; `adapter_for` selects one. The module-level
+verbs plan launches for callers that must not edit a manifest (an app
+host serving notebooks); they dispatch through the same adapters, so
+backend policy lives in one place.
 
-uv honors the runtime overlay via `uv run --with`. The manifest carries only
-a loose `marimo` (for standalone runs) and the overlay supplies the running
+Both managers honor the runtime overlay: uv layers it directly via
+`uv run --with`, while pixi routes the same layering through
+`pixi exec uv run`, whose ephemeral environment chains the conda
+prefix's site-packages. Either way the manifest carries only a loose
+`marimo` (for standalone runs) and the overlay supplies the running
 version.
 
 SINGLE and MULTI sandbox modes are topologies, not engines: they differ
@@ -36,13 +41,16 @@ if TYPE_CHECKING:
         SandboxReporter,
     )
     from marimo._environments.script_metadata import MaterializedScript
+    from marimo._utils.uv_tree import DependencyTreeNode
 
 LOGGER = _loggers.marimo_logger()
 
 
 def current_backend() -> Backend:
     """The backend this process was sandboxed with; uv when unset."""
-    return "uv"
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    return "pixi" if GLOBAL_SETTINGS.SANDBOX_BACKEND == "pixi" else "uv"
 
 
 def adapter_for(
@@ -50,17 +58,19 @@ def adapter_for(
 ) -> BackendAdapter:
     """The adapter managing `backend`'s environments.
 
-    The interface is ready for additional adapters; this layer provides uv.
+    Constructing an adapter is backend-pure: selecting pixi does not
+    import or probe the uv implementation, and vice versa.
     """
-    if backend != "uv":
-        raise ValueError(f"Unsupported sandbox backend: {backend}")
+    if backend == "pixi":
+        return PixiBackendAdapter(reporter)
     return UvBackendAdapter(reporter)
 
 
 def ensure_available(backend: Backend) -> None:
     """Raise unless the backend's executable is usable and supported.
 
-    uv raises `UvNotFoundError` or `UvUnsupportedVersionError`.
+    uv raises `UvNotFoundError` or `UvUnsupportedVersionError`; pixi
+    raises `PixiNotFoundError` or `PixiUnsupportedVersionError`.
     """
     adapter_for(backend).ensure_available()
 
@@ -74,7 +84,8 @@ def sync_notebook(
 ) -> Environment:
     """Synchronizes a notebook's script environment.
 
-    Raises the backend's error type on failure.
+    Raises the backend's error type on failure; both derive from the
+    backend's base error (`UvError`, `PixiError`).
     """
     from marimo._environments import script_metadata
 
@@ -297,6 +308,139 @@ class UvBackendAdapter(_ReportingBackendAdapter):
         )
 
 
+class PixiBackendAdapter(_ReportingBackendAdapter):
+    """pixi implementation of the notebook sandbox backend."""
+
+    name: Backend = "pixi"
+
+    def ensure_available(self) -> None:
+        from marimo._environments import pixi
+
+        pixi.require_pixi_bin()
+        pixi.ensure_supported_pixi()
+
+    def prepare_source(self, source: str) -> None:
+        import subprocess
+
+        from marimo._environments import pixi
+
+        try:
+            pixi.ensure_marimo(
+                source,
+                on_command=lambda command: self._report("prepare", command),
+            )
+        except subprocess.TimeoutExpired:
+            LOGGER.warning("Timed out adding marimo to script metadata")
+        except Exception as error:
+            LOGGER.warning(
+                "Failed to add marimo to script metadata: %s", error
+            )
+
+    def add(
+        self,
+        target: MaterializedScript,
+        package: str,
+        *,
+        upgrade: bool,
+        on_output: LogCallback | None,
+    ) -> None:
+        from marimo._environments import pixi
+
+        pixi.add(
+            target.path,
+            package,
+            cwd=target.directory,
+            upgrade=upgrade,
+            on_output=on_output,
+            on_command=lambda command: self._report(
+                "upgrade" if upgrade else "add", command
+            ),
+        )
+
+    def remove(
+        self,
+        target: MaterializedScript,
+        package: str,
+        *,
+        on_output: LogCallback | None,
+    ) -> None:
+        from marimo._environments import pixi
+
+        pixi.remove(
+            target.path,
+            package,
+            cwd=target.directory,
+            on_output=on_output,
+            on_command=lambda command: self._report("remove", command),
+        )
+
+    def sync(
+        self,
+        target: MaterializedScript,
+        *,
+        python_override: str | None,
+        on_output: LogCallback | None,
+    ) -> Environment:
+        from marimo._environments import pixi
+
+        if python_override is not None:
+            raise pixi.PixiError(
+                "pixi sandboxes do not support a Python version override"
+            )
+        return pixi.sync(
+            target.path,
+            cwd=target.directory,
+            on_output=on_output,
+            on_command=lambda command: self._report("sync", command),
+        )
+
+    def packages(
+        self,
+        target: MaterializedScript,
+        environment: Environment | None,
+    ) -> PackageState:
+        del environment
+        from marimo._environments import pixi
+        from marimo._environments.sandbox import PackageState, ResolvedPackage
+
+        records = pixi.list_script_packages(target.path, cwd=target.directory)
+        packages = tuple(
+            sorted(
+                (
+                    ResolvedPackage(
+                        name=str(record.get("name", "")),
+                        version=(
+                            str(record["version"])
+                            if record.get("version") is not None
+                            else ""
+                        ),
+                    )
+                    for record in records
+                    if record.get("name") and record.get("kind") == "pypi"
+                ),
+                key=lambda package: package.name,
+            )
+        )
+        return PackageState(
+            packages=packages,
+            tree=_pixi_tree(records),
+        )
+
+    def launch(
+        self,
+        environment: Environment,
+        args: Sequence[str],
+        *,
+        overlay: RuntimeOverlay,
+        base_env: Mapping[str, str] | None,
+    ) -> ProcessPlan:
+        from marimo._environments import pixi
+
+        return pixi.launch(
+            environment, args, overlay=overlay, base_env=base_env
+        )
+
+
 def _flatten_tree(tree: object) -> tuple[ResolvedPackage, ...]:
     from marimo._environments.sandbox import ResolvedPackage
     from marimo._utils.uv_tree import DependencyTreeNode
@@ -315,3 +459,71 @@ def _flatten_tree(tree: object) -> tuple[ResolvedPackage, ...]:
             )
         stack.extend(node.dependencies)
     return tuple(sorted(packages, key=lambda package: package.name))
+
+
+def _pixi_tree(records: list[dict[str, object]]) -> DependencyTreeNode:
+    import re
+
+    from marimo._utils.uv_tree import (
+        DependencyTag,
+        DependencyTreeNode,
+    )
+
+    by_name = {
+        _normalize_package_name(str(record["name"])): record
+        for record in records
+        if record.get("name")
+    }
+
+    def node_for(name: str, stack: frozenset[str]) -> DependencyTreeNode:
+        normalized = _normalize_package_name(name)
+        record = by_name.get(normalized, {"name": name})
+        raw_version = record.get("version")
+        version = str(raw_version) if raw_version is not None else None
+        tags = []
+        kind = record.get("kind")
+        if kind:
+            tags.append(DependencyTag(kind="kind", value=str(kind)))
+        if normalized in stack:
+            tags.append(DependencyTag(kind="cycle", value="true"))
+            return DependencyTreeNode(
+                name=str(record.get("name", name)),
+                version=version,
+                tags=tags,
+                dependencies=[],
+            )
+
+        dependencies = []
+        raw_dependencies = record.get("depends", [])
+        if not isinstance(raw_dependencies, list):
+            raw_dependencies = []
+        for dependency in raw_dependencies:
+            match = re.match(r"[A-Za-z0-9][A-Za-z0-9._-]*", str(dependency))
+            if (
+                match is not None
+                and _normalize_package_name(match.group(0)) in by_name
+            ):
+                dependencies.append(
+                    node_for(match.group(0), stack | {normalized})
+                )
+        return DependencyTreeNode(
+            name=str(record.get("name", name)),
+            version=version,
+            tags=tags,
+            dependencies=dependencies,
+        )
+
+    roots = [
+        node_for(str(record["name"]), frozenset())
+        for record in records
+        if record.get("name") and record.get("is_explicit") is True
+    ]
+    return DependencyTreeNode(
+        name="<root>", version=None, tags=[], dependencies=roots
+    )
+
+
+def _normalize_package_name(name: str) -> str:
+    import re
+
+    return re.sub(r"[-_.]+", "-", name).lower()

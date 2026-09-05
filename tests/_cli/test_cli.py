@@ -1336,6 +1336,42 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
     _check_contents(p, b"edit", contents)
 
 
+def test_cli_run_sandbox_records_backend(tmp_path: Path) -> None:
+    """Kernel launches read the backend from GLOBAL_SETTINGS; `run` must
+    record it or `run --sandbox=pixi` launches uv kernels."""
+    from marimo._cli.sandbox import SandboxMode
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    (tmp_path / "nb.py").write_text(
+        codegen.generate_filecontents(
+            codes=["import marimo as mo"],
+            names=["one"],
+            cell_configs=[CellConfig()],
+        ),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+    captured: dict[str, object] = {}
+
+    def _capture_start(**kwargs: object) -> None:
+        captured["backend"] = GLOBAL_SETTINGS.SANDBOX_BACKEND
+        captured["sandbox_mode"] = kwargs["sandbox_mode"]
+
+    with (
+        patch.dict(os.environ),
+        patch.object(GLOBAL_SETTINGS, "SANDBOX_BACKEND", None),
+        patch("marimo._cli.cli.start", side_effect=_capture_start),
+    ):
+        result = runner.invoke(
+            cli_main,
+            ["run", str(tmp_path), "--sandbox=pixi", "--headless"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert captured["sandbox_mode"] is SandboxMode.MULTI
+    assert captured["backend"] == "pixi"
+
+
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_new_file() -> None:
     with tempfile.TemporaryDirectory() as d:
@@ -1347,7 +1383,7 @@ def test_cli_sandbox_edit_new_file() -> None:
             mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
-                ["edit", path, "--headless", "--no-token", "--sandbox"],
+                ["edit", "--sandbox", path, "--headless", "--no-token"],
             )
         assert result.exit_code == 0, result.output
         mock_run_in_sandbox.assert_called_once()
