@@ -12,12 +12,12 @@
     "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
     "oxfmt": "^0.42.0",
-    "turbo": "^2.8.0",
+    "turbo": "^2.10.11",
     "vitest": "^4.1.10"
   },
   "engines": {
     "node": ">=22.12.0",
-    "pnpm": ">=10.0.0"
+    "pnpm": ">=10.34.5"
   },
-  "packageManager": "pnpm@10.28.2"
+  "packageManager": "pnpm@10.34.5"
 }
