@@ -719,6 +719,8 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     mock_kernel_manager = MagicMock()
     mock_kernel_manager.venv_python = "/custom/venv/python"
 
+    mock_kernel_manager.script_environment = None
+
     mock_session = MagicMock()
     mock_session._kernel_manager = mock_kernel_manager
 
@@ -755,7 +757,46 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
 
     # Verify create_package_manager was called with python_exe
     mock_create_pm.assert_called_once_with(
-        "pip", python_exe="/custom/venv/python"
+        "pip", python_exe="/custom/venv/python", script_path=None
+    )
+
+
+def test_get_package_manager_with_script_environment() -> None:
+    """A kernel synchronized into a script environment routes package
+    changes through it."""
+    from marimo._server.api.endpoints.packages import _get_package_manager
+
+    mock_kernel_manager = MagicMock()
+    mock_kernel_manager.venv_python = "/env/bin/python"
+    mock_kernel_manager.script_environment = object()
+
+    mock_session = MagicMock()
+    mock_session._kernel_manager = mock_kernel_manager
+    mock_session.app_file_manager.filename = "/nb/notebook.py"
+
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = mock_session
+    mock_app_state.app_config_manager.package_manager = "uv"
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=mock_app_state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as mock_create_pm,
+        patch(
+            "marimo._server.api.endpoints.packages.isinstance",
+            side_effect=lambda _obj, _cls: True,
+        ),
+    ):
+        _get_package_manager(MagicMock())
+
+    mock_create_pm.assert_called_once_with(
+        "uv",
+        python_exe="/env/bin/python",
+        script_path="/nb/notebook.py",
     )
 
 
@@ -788,7 +829,9 @@ def test_get_package_manager_without_ipc_session() -> None:
         _get_package_manager(mock_request)
 
     # Verify create_package_manager was called with python_exe=None
-    mock_create_pm.assert_called_once_with("uv", python_exe=None)
+    mock_create_pm.assert_called_once_with(
+        "uv", python_exe=None, script_path=None
+    )
 
 
 def test_get_package_manager_no_session() -> None:

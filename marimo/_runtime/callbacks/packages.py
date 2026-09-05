@@ -15,6 +15,10 @@ from marimo._messaging.notification import (
 )
 from marimo._messaging.notification_utils import broadcast_notification
 from marimo._runtime.commands import InstallPackagesCommand
+from marimo._runtime.context.types import (
+    ContextNotInitializedError,
+    get_context,
+)
 from marimo._runtime.packages.import_error_extractors import (
     extract_missing_module_from_cause_chain,
     try_extract_packages_from_import_error_message,
@@ -96,7 +100,9 @@ class PackagesCallbacks:
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
-            self.package_manager = create_package_manager(package_manager)
+            self.package_manager = create_package_manager(
+                package_manager, script_path=self._sandbox_script_path()
+            )
 
             # All marimo notebooks depend on the marimo package; if the
             # notebook already has marimo as a dependency, or an optional
@@ -232,7 +238,9 @@ class PackagesCallbacks:
         )
         if request.manager != self.package_manager.name:
             # Swap out the package manager
-            self.package_manager = create_package_manager(request.manager)
+            self.package_manager = create_package_manager(
+                request.manager, script_path=self._sandbox_script_path()
+            )
 
         if not self.package_manager.is_manager_installed():
             self.package_manager.alert_not_installed()
@@ -270,6 +278,14 @@ class PackagesCallbacks:
         )
 
         def create_log_callback(pkg: str) -> LogCallback:
+            # Bind the stream now, on the kernel thread: the callback
+            # fires from worker threads, which do not carry the kernel's
+            # thread-local context, so a bare broadcast would be dropped.
+            try:
+                stream = get_context().stream
+            except ContextNotInitializedError:
+                stream = None
+
             def log_callback(log_line: str) -> None:
                 broadcast_notification(
                     InstallingPackageAlertNotification(
@@ -278,6 +294,7 @@ class PackagesCallbacks:
                         log_status="append",
                         source=request.source,
                     ),
+                    stream=stream,
                 )
 
             return log_callback
@@ -372,6 +389,13 @@ class PackagesCallbacks:
 
         if cells_to_run:
             await self._kernel.maybe_autorun_cells(cells_to_run)
+
+    def _sandbox_script_path(self) -> str | None:
+        """The notebook path when its dependencies live in a script
+        environment; None otherwise."""
+        if GLOBAL_SETTINGS.SANDBOX_MODE is None:
+            return None
+        return self._kernel.app_metadata.filename
 
     def _maybe_add_marimo_to_script_metadata(self) -> None:
         if self.should_update_script_metadata():

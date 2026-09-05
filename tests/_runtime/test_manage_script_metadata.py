@@ -812,3 +812,49 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
         # Should have at least installing and installed statuses
         assert "installed" in package_statuses
         # Note: The exact sequence might vary, but we should have final success
+
+
+async def test_install_logs_reach_the_stream_from_worker_threads(
+    mocked_kernel: MockedKernel,
+) -> None:
+    """Per-line install logs bind the kernel's stream when the callback
+    is created: the callback fires from worker threads, which do not
+    carry the kernel's thread-local context, so a bare broadcast there
+    is silently dropped."""
+    import threading
+
+    k = mocked_kernel.k
+    current = k.packages_callbacks.package_manager
+    assert current is not None
+
+    fake = Mock()
+    fake.name = current.name
+    fake.is_manager_installed.return_value = True
+    fake.attempted_to_install.return_value = False
+    fake.module_to_package.side_effect = lambda module: module
+    fake.package_to_module.side_effect = lambda package: package
+
+    async def install(
+        package: str,
+        version: str | None = None,
+        log_callback: Any = None,
+        **kwargs: Any,
+    ) -> bool:
+        del package, version, kwargs
+        worker = threading.Thread(
+            target=log_callback, args=("streamed-from-a-bare-thread\n",)
+        )
+        worker.start()
+        worker.join()
+        return True
+
+    fake.install = install
+    fake.stream_install = _make_stream_install(fake)
+    k.packages_callbacks.package_manager = fake
+
+    await k.packages_callbacks.install_missing_packages(
+        InstallPackagesCommand(manager=fake.name, versions={"foobar": ""})
+    )
+
+    joined = "".join(str(message) for message in mocked_kernel.stream.messages)
+    assert "streamed-from-a-bare-thread" in joined

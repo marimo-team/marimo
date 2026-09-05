@@ -11,8 +11,14 @@ import threading
 from dataclasses import dataclass
 
 from marimo import _loggers
-from marimo._cli.sandbox import build_sandbox_venv, cleanup_sandbox_dir
-from marimo._session._venv import get_ipc_kernel_deps
+from marimo._environments.environment import (
+    ProcessPlan,
+    launch,
+    launch_isolated,
+    sync_notebook,
+)
+from marimo._environments.overlay import runtime_overlay
+from marimo._environments.uv import UvMissingScriptMetadataError
 from marimo._session.app_host.host import AppHost
 
 LOGGER = _loggers.marimo_logger()
@@ -59,28 +65,34 @@ class AppHostPool:
             if worker is not None and worker.is_alive():
                 return worker
 
-        # Build sandbox venv outside lock (can take many seconds)
-        sandbox_dir, python = build_sandbox_venv(
-            abs_path, additional_deps=get_ipc_kernel_deps()
-        )
+        # Synchronize the script environment outside the lock (can take
+        # many seconds); a notebook without a metadata block runs
+        # ephemerally.
+        args = ["-m", "marimo._session.app_host.main"]
+        overlay = runtime_overlay()
+        try:
+            handle = sync_notebook(abs_path)
+            plan = launch(handle, args, overlay=overlay)
+        except UvMissingScriptMetadataError:
+            import platform
+
+            plan = launch_isolated(
+                args, overlay=overlay, python=platform.python_version()
+            )
 
         with self._lock:
             # Re-check. Another thread may have created it while we were
-            # building the venv
+            # synchronizing.
             worker = self._workers.get(abs_path)
             if worker is not None and worker.is_alive():
-                cleanup_sandbox_dir(sandbox_dir)
                 return worker
 
-            return self._create_locked(
-                abs_path, python=python, sandbox_dir=sandbox_dir
-            )
+            return self._create_locked(abs_path, plan=plan)
 
     def _create_locked(
         self,
         abs_path: str,
-        python: str | None = None,
-        sandbox_dir: str | None = None,
+        plan: ProcessPlan | None = None,
     ) -> AppHost:
         """Create a new AppHost, replacing a dead one if present.
 
@@ -99,8 +111,7 @@ class AppHostPool:
 
         worker = AppHost(
             abs_path,
-            python=python,
-            sandbox_dir=sandbox_dir,
+            plan=plan,
             on_empty=_on_empty,
         )
         worker.start()

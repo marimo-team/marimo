@@ -22,13 +22,19 @@ import platform
 import re
 import subprocess
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._environments.errors import EnvironmentManagerError
-from marimo._environments.uv import UvError, uv
+from marimo._environments.uv import (
+    UvError,
+    script_command_env,
+    uv,
+    uv_stream,
+)
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
@@ -98,32 +104,48 @@ def with_python_version_requirement(project: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_dependencies(
-    path: str, packages: Sequence[str], *, upgrade: bool = False
+    path: str,
+    packages: Sequence[str],
+    *,
+    upgrade: bool = False,
+    on_output: Callable[[str], None] | None = None,
 ) -> None:
     """Add packages to the script's metadata via `uv add --script`."""
     if not packages:
         return
-    args = ["--quiet", "add", "--script"]
+    args = ["add", "--script"]
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            [*args, target, *(["--upgrade"] if upgrade else []), *packages],
-            cwd=cwd,
-        )
+        command = [
+            *args,
+            target,
+            *(["--upgrade"] if upgrade else []),
+            *packages,
+        ]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
 
-def remove_dependencies(path: str, packages: Sequence[str]) -> None:
+def remove_dependencies(
+    path: str,
+    packages: Sequence[str],
+    *,
+    on_output: Callable[[str], None] | None = None,
+) -> None:
     """Remove packages from the script's metadata via `uv remove --script`."""
     if not packages:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            ["--quiet", "remove", "--script", target, *packages],
-            cwd=cwd,
-        )
+        command = ["remove", "--script", target, *packages]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
@@ -148,7 +170,12 @@ def ensure_marimo(path: str) -> None:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(["add", "--script", target, "marimo"], timeout=30, cwd=cwd)
+        uv(
+            ["add", "--script", target, "marimo"],
+            env=script_command_env(),
+            timeout=30,
+            cwd=cwd,
+        )
 
     _edit(path, edit)
 
@@ -256,6 +283,18 @@ def _carrier_prefix(path: str) -> str:
 # A carrier lives for one uv command; a stray this old is stranded.
 _SWEEP_AGE_SECONDS = 15 * 60
 
+# A stable carrier is shared by every synchronization of one Markdown
+# notebook. Serialize its lifetime within this process so one caller cannot
+# truncate or unlink it while another uv process is still reading it. Locks
+# are per notebook: unrelated environments can still synchronize in parallel.
+_STABLE_CARRIER_LOCKS: dict[str, threading.Lock] = {}
+_STABLE_CARRIER_LOCKS_GUARD = threading.Lock()
+
+
+def _stable_carrier_lock(path: str) -> threading.Lock:
+    with _STABLE_CARRIER_LOCKS_GUARD:
+        return _STABLE_CARRIER_LOCKS.setdefault(path, threading.Lock())
+
 
 def _sweep_carriers(directory: str, path: str) -> None:
     """Removes stranded carriers for the notebook, best effort.
@@ -277,23 +316,52 @@ def _sweep_carriers(directory: str, path: str) -> None:
 
 
 @contextlib.contextmanager
-def _carrier(notebook: str, content: str) -> Iterator[str]:
+def _carrier(
+    notebook: str, content: str, *, stable: bool = False
+) -> Iterator[str]:
     """A sidecar script uv can operate on, next to the notebook.
 
     uv anchors relative paths in script metadata to the script's own
-    directory, so a manifest that lives in frontmatter must be
-    materialized beside its notebook before uv can act on it. The
-    versioned, deterministic name (`.marimo-v<N>-<name>.<rand>.py`)
-    marks the file as marimo's: safe to overwrite, sweep, and ignore.
-    Entry sweeps carriers stranded by killed processes; exit always
-    removes the carrier, best effort.
+    directory and keys a script environment on the script's absolute
+    path, so a manifest that lives in frontmatter must be materialized
+    beside its notebook before uv can act on it. The versioned,
+    deterministic name (`.marimo-v<N>-<name>[.<rand>].py`) marks the
+    file as marimo's: safe to overwrite, sweep, and ignore. A stable
+    carrier maps one notebook to one environment across sessions; a
+    unique one keeps concurrent edits apart. Entry sweeps carriers
+    stranded by killed processes; exit always removes the carrier, best
+    effort.
     """
     absolute = os.path.abspath(notebook)
     directory = os.path.dirname(absolute)
     _sweep_carriers(directory, absolute)
-    descriptor, target = tempfile.mkstemp(
-        dir=directory, prefix=f"{_carrier_prefix(absolute)}.", suffix=".py"
-    )
+    try:
+        if stable:
+            target = os.path.join(directory, f"{_carrier_prefix(absolute)}.py")
+            descriptor = os.open(
+                target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+            )
+        else:
+            descriptor, target = tempfile.mkstemp(
+                dir=directory,
+                prefix=f"{_carrier_prefix(absolute)}.",
+                suffix=".py",
+            )
+    except OSError:
+        # A read-only notebook directory cannot hold the carrier. Fall
+        # back to a deterministic path in the temp directory; the
+        # environment stays stable, but relative paths in the metadata
+        # and directory-scoped uv configuration no longer resolve
+        # against the notebook's directory.
+        target = _fallback_carrier_path(absolute)
+        LOGGER.warning(
+            "Notebook directory is not writable; materializing the "
+            "manifest at %s",
+            target,
+        )
+        descriptor = os.open(
+            target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+        )
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             f.write(content)
@@ -303,6 +371,21 @@ def _carrier(notebook: str, content: str) -> Iterator[str]:
             os.unlink(target)
         except OSError:
             LOGGER.debug("Could not remove carrier %s", target)
+
+
+def _fallback_carrier_path(absolute: str) -> str:
+    """A deterministic carrier path outside the notebook's directory.
+
+    uv keys a script environment on the script's absolute path, so the
+    fallback must be a pure function of the notebook's path.
+    """
+    import hashlib
+
+    digest = hashlib.sha256(absolute.encode("utf-8")).hexdigest()[:16]
+    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(absolute).stem)[:64]
+    return os.path.join(
+        tempfile.gettempdir(), f".marimo-v1-{stem}-{digest}.py"
+    )
 
 
 def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
@@ -338,3 +421,38 @@ def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
     document = ["---", header.strip(), "---", front.body]
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(document))
+
+
+@dataclass(frozen=True)
+class MaterializedScript:
+    """A script uv can operate on and the directory to run uv from."""
+
+    path: str
+    directory: str
+
+
+@contextlib.contextmanager
+def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
+    """Materializes a notebook's manifest for environment operations.
+
+    A Python notebook is its own script, so its environment is the one
+    `uv run notebook.py` uses and nothing is created. A markdown or
+    Quarto notebook writes its header verbatim to the stable carrier
+    `.marimo-v<N>-<name>.py` next to the notebook, deleted on exit. uv
+    keys a script environment on the script's absolute path, so the
+    stable name maps one notebook to one environment, reconciled in
+    place across sessions. Concurrent writers produce identical content.
+    """
+    absolute = os.path.abspath(path)
+    directory = os.path.dirname(absolute)
+    if not path.endswith((".md", ".qmd")):
+        yield MaterializedScript(path=absolute, directory=directory)
+        return
+
+    with _stable_carrier_lock(absolute):
+        content = (
+            "# Generated by marimo; safe to delete.\n"
+            + _read_frontmatter(absolute).header
+        )
+        with _carrier(absolute, content, stable=True) as target:
+            yield MaterializedScript(path=target, directory=directory)

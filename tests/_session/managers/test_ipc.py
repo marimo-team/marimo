@@ -198,6 +198,22 @@ class TestConstructKernelEnv:
         # Ephemeral sandboxes are always writable.
         assert env["MARIMO_MANAGE_SCRIPT_METADATA"] == "true"
 
+    def test_inherited_sandbox_identity_is_stripped(self) -> None:
+        """A configured-venv kernel inside a sandboxed server must not
+        inherit script routing from the server's environment."""
+        env = construct_kernel_env(
+            base_env={
+                **self.BASE_ENV,
+                "MARIMO_SANDBOX_MODE": "multi",
+                "MARIMO_MANAGE_SCRIPT_METADATA": "true",
+            },
+            venv_python=self.CONFIGURED_PYTHON,
+            is_ephemeral_sandbox=False,
+            writable=False,
+        )
+        assert "MARIMO_SANDBOX_MODE" not in env
+        assert "MARIMO_MANAGE_SCRIPT_METADATA" not in env
+
     # -- configured venvs --------------------------------------------------
 
     def test_configured_readonly_venv_with_pythonpath(self) -> None:
@@ -244,3 +260,293 @@ class TestConstructKernelEnv:
         )
         assert "UV_PROJECT_ENVIRONMENT" in base
         assert "VIRTUAL_ENV" not in base
+
+
+class TestVirtualFileStorage:
+    @staticmethod
+    def _kernel_args(**overrides: object) -> object:
+        from marimo._ast.app_config import _AppConfig
+        from marimo._config.config import DEFAULT_CONFIG
+        from marimo._ipc.types import ConnectionInfo, KernelArgs
+        from marimo._runtime.commands import AppMetadata
+
+        kwargs: dict = {
+            "configs": {},
+            "app_metadata": AppMetadata(
+                query_params={}, cli_args={}, app_config=_AppConfig()
+            ),
+            "user_config": DEFAULT_CONFIG,
+            "log_level": 0,
+            "profile_path": None,
+            "connection_info": ConnectionInfo(
+                control=1,
+                ui_element=2,
+                completion=3,
+                win32_interrupt=None,
+                input=4,
+                stream=5,
+            ),
+        }
+        kwargs.update(overrides)
+        return KernelArgs(**kwargs)
+
+    def test_kernel_args_roundtrip(self) -> None:
+        from marimo._ipc.types import KernelArgs
+
+        args = self._kernel_args(virtual_file_storage="shared_memory")
+        decoded = KernelArgs.decode_json(args.encode_json())
+        assert decoded.virtual_file_storage == "shared_memory"
+
+    def test_payload_without_field_decodes_to_none(self) -> None:
+        """A payload from an older launcher lacks the field entirely."""
+        import json
+
+        from marimo._ipc.types import KernelArgs
+
+        payload = json.loads(self._kernel_args().encode_json())
+        payload.pop("virtual_file_storage")
+        decoded = KernelArgs.decode_json(json.dumps(payload).encode())
+        assert decoded.virtual_file_storage is None
+
+    def test_manager_requests_shared_memory_when_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._session.managers.ipc import _virtual_file_storage
+        from marimo._utils import platform
+
+        monkeypatch.setattr(
+            platform, "check_shared_memory_available", lambda: (True, "")
+        )
+        assert _virtual_file_storage() == "shared_memory"
+
+    def test_manager_falls_back_to_none_without_shm(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._session.managers.ipc import _virtual_file_storage
+        from marimo._utils import platform
+
+        monkeypatch.setattr(
+            platform,
+            "check_shared_memory_available",
+            lambda: (False, "/dev/shm unavailable"),
+        )
+        assert _virtual_file_storage() is None
+
+
+def _make_manager(filename: str | None = None) -> object:
+    from unittest.mock import MagicMock
+
+    from marimo._session.managers.ipc import (
+        IPCKernelManagerImpl,
+        IPCQueueManagerImpl,
+    )
+    from marimo._session.model import SessionMode
+
+    app_metadata = MagicMock()
+    app_metadata.filename = filename
+    return IPCKernelManagerImpl(
+        queue_manager=IPCQueueManagerImpl(MagicMock()),
+        connection_info=MagicMock(),
+        mode=SessionMode.EDIT,
+        configs={},
+        app_metadata=app_metadata,
+        config_manager=MagicMock(),
+    )
+
+
+class TestProfilePath:
+    def test_none_without_profile_dir(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "PROFILE_DIR", None)
+        assert _make_manager("nb.py").profile_path is None
+
+    def test_derived_from_profile_dir_and_filename(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "PROFILE_DIR", str(tmp_path))
+        path = _make_manager("/some/dir/nb.py").profile_path
+        assert path is not None
+        assert path.startswith(str(tmp_path))
+        assert "nb.py" in os.path.basename(path)
+
+
+class TestCloseKernel:
+    def _closable_manager(self) -> object:
+        from unittest.mock import MagicMock
+
+        manager = _make_manager("nb.py")
+        manager.queue_manager = MagicMock()
+        process = MagicMock()
+        process.poll.return_value = None
+        manager._process = process
+        manager.kernel_task = None
+        return manager
+
+    def test_graceful_waits_bounded_for_exit(self) -> None:
+        from marimo._runtime import commands
+        from marimo._session.managers.ipc import GRACEFUL_EXIT_TIMEOUT
+
+        manager = self._closable_manager()
+        manager.close_kernel(graceful=True)
+
+        (request,), _ = manager.queue_manager.put_control_request.call_args
+        assert isinstance(request, commands.StopKernelCommand)
+        manager.queue_manager.close_queues.assert_called_once()
+        manager._process.wait.assert_called_once_with(
+            timeout=GRACEFUL_EXIT_TIMEOUT
+        )
+
+    def test_default_close_does_not_wait(self) -> None:
+        manager = self._closable_manager()
+        manager.close_kernel()
+        manager._process.wait.assert_not_called()
+
+    def test_profiling_close_waits_for_flush(self) -> None:
+        from marimo._session.managers.ipc import PROFILE_FLUSH_TIMEOUT
+
+        manager = self._closable_manager()
+        manager._profile_path = "/tmp/profile.stats"
+        manager.close_kernel()
+        manager._process.wait.assert_called_once_with(
+            timeout=PROFILE_FLUSH_TIMEOUT
+        )
+
+
+class TestAwaitHandshakeLine:
+    @staticmethod
+    def _await(manager: object, handshake: object, deadline: float) -> str:
+        from collections import deque
+
+        return manager._await_handshake_line(
+            handshake, deadline, deque(), ["python", "-m", "kernel"]
+        )
+
+    def test_returns_pending_line(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import time; time.sleep(30)"]
+        )
+        try:
+            handshake: queue.Queue[str] = queue.Queue()
+            handshake.put("KERNEL_READY")
+            line = self._await(
+                manager, handshake, deadline=time.monotonic() + 5
+            )
+            assert line == "KERNEL_READY"
+        finally:
+            manager._process.kill()
+            manager._process.wait()
+
+    def test_child_exit_fails_fast_with_exit_code(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        from marimo._session.managers.ipc import KernelStartupError
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import sys; sys.exit(3)"]
+        )
+        manager._process.wait()
+        with pytest.raises(KernelStartupError, match="exit code 3"):
+            self._await(manager, queue.Queue(), deadline=time.monotonic() + 30)
+
+    def test_line_printed_just_before_exit_is_not_lost(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen([_sys.executable, "-c", "pass"])
+        manager._process.wait()
+        handshake: queue.Queue[str] = queue.Queue()
+        handshake.put("KERNEL_READY")
+        line = self._await(manager, handshake, deadline=time.monotonic() + 5)
+        assert line == "KERNEL_READY"
+
+    def test_hung_child_times_out_and_is_killed(self) -> None:
+        import queue
+        import subprocess
+        import sys as _sys
+
+        from marimo._session.managers.ipc import KernelStartupError
+
+        manager = _make_manager("nb.py")
+        manager._process = subprocess.Popen(
+            [_sys.executable, "-c", "import time; time.sleep(60)"]
+        )
+        try:
+            with pytest.raises(
+                KernelStartupError, match="did not become ready"
+            ):
+                self._await(
+                    manager, queue.Queue(), deadline=time.monotonic() - 1
+                )
+            manager._process.wait(timeout=10)
+            assert manager._process.poll() is not None
+        finally:
+            if manager._process.poll() is None:
+                manager._process.kill()
+                manager._process.wait()
+
+
+class TestParseKernelInfo:
+    def test_full_line(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        pid, exe = _parse_kernel_info("KERNEL_INFO 1234 /env/bin/python")
+        assert pid == 1234
+        assert exe == "/env/bin/python"
+
+    def test_tolerates_absence_and_junk(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        assert _parse_kernel_info("") == (None, None)
+        assert _parse_kernel_info("something else") == (None, None)
+        assert _parse_kernel_info("KERNEL_INFO not-a-pid") == (None, None)
+
+    def test_pid_only(self) -> None:
+        from marimo._session.managers.ipc import _parse_kernel_info
+
+        assert _parse_kernel_info("KERNEL_INFO 99") == (99, None)
+
+
+def test_launch_kernel_handshake_reports_identity() -> None:
+    """The kernel prints KERNEL_READY then KERNEL_INFO <pid> <exe>, so a
+    manager separated from the kernel by a launcher can target it."""
+    import subprocess
+    import sys as _sys
+
+    code = (
+        "from unittest.mock import patch, MagicMock\n"
+        "import marimo._ipc.launch_kernel as lk\n"
+        "with patch.object(\n"
+        "    lk.KernelArgs, 'decode_json', return_value=MagicMock()\n"
+        "), patch.object(lk.QueueManager, 'connect', MagicMock()), \\\n"
+        "        patch.object(lk.runtime, 'launch_kernel', MagicMock()):\n"
+        "    lk.main()\n"
+    )
+    completed = subprocess.run(
+        [_sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        stdin=subprocess.DEVNULL,
+    )
+    assert completed.returncode == 0, completed.stderr
+    lines = completed.stdout.splitlines()
+    assert lines[0] == "KERNEL_READY"
+    from marimo._session.managers.ipc import _parse_kernel_info
+
+    pid, exe = _parse_kernel_info(lines[1])
+    assert pid is not None
+    assert exe is not None

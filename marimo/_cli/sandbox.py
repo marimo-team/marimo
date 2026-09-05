@@ -4,7 +4,6 @@ from __future__ import annotations
 import atexit
 import os
 import platform
-import shutil
 import signal
 import subprocess
 import sys
@@ -19,9 +18,11 @@ from marimo import _loggers
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._environments import script_metadata
+from marimo._environments import environment, script_metadata
+from marimo._environments.overlay import runtime_overlay
 from marimo._environments.uv import (
     UvCommandError,
+    UvError,
     UvMissingScriptMetadataError,
     UvNotFoundError,
     find_uv_bin,
@@ -40,7 +41,8 @@ from marimo._version import __version__
 class SandboxMode(Enum):
     """Sandbox mode for marimo notebooks.
 
-    - SINGLE: Single-file sandbox (wraps entire process with uv run)
+    - SINGLE: Single-file sandbox (the server runs from the notebook's
+      script environment)
     - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
     """
 
@@ -107,7 +109,8 @@ def resolve_sandbox_mode(
 
     Returns:
         - None: No sandboxing
-        - SandboxMode.SINGLE: Single-file sandbox (wrap with uv run)
+        - SandboxMode.SINGLE: Single-file sandbox (server in the script
+          environment)
         - SandboxMode.MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
 
     When sandbox is None, prompts the user if the notebook has sandbox metadata
@@ -131,7 +134,7 @@ def resolve_sandbox_mode(
 
     # Sandbox enabled - determine mode based on target type
     # Directory or home page -> multi-file sandbox (IPC kernels)
-    # Single file -> single-file sandbox (uv run wrapper)
+    # Single file -> single-file sandbox (server in the script environment)
     return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
 
 
@@ -248,7 +251,9 @@ def _resolve_requirements_txt_lines(pyproject: PyProjectReader) -> list[str]:
 
 
 def get_marimo_dir() -> Path:
-    return Path(__file__).parent.parent.parent
+    from marimo._environments.overlay import marimo_dir
+
+    return marimo_dir()
 
 
 def construct_uv_flags(
@@ -258,7 +263,9 @@ def construct_uv_flags(
     additional_deps: list[str],
     python_version_override: str | None = None,
 ) -> list[str]:
-    # NB. Used in quarto plugin
+    # Deprecated: retained for the quarto plugin. marimo launches
+    # sandboxes from the script environment instead; the flags built here
+    # flatten `[[tool.uv.index]]` semantics (#10547).
 
     # If name if a filepath, parse the dependencies from the file
     dependencies = _resolve_requirements_txt_lines(pyproject)
@@ -332,6 +339,7 @@ def construct_uv_command(
     additional_deps: list[str],
     python_version_override: str | None = None,
 ) -> list[str]:
+    """Deprecated: retained for the quarto plugin."""
     cmd = ["marimo"] + args
     if "--sandbox" in cmd:
         cmd.remove("--sandbox")
@@ -374,14 +382,17 @@ def run_in_sandbox(
     python_version_override: str | None = None,
     pyodide_constraints: bool = False,
 ) -> int:
-    """Run marimo in a sandboxed uv environment.
+    """Runs marimo inside the notebook's script environment.
 
-    This wraps the marimo command with `uv run` to create an isolated
-    virtual environment with the notebook's dependencies.
+    Synchronizes the environment from the notebook's metadata, then
+    launches `python -m marimo <args...>` from it with marimo layered on
+    top. uv resolves the metadata with its full semantics, so indexes,
+    sources, and credentials behave as they do for `uv run notebook.py`,
+    and the environment is shared with it. A target without a metadata
+    block runs in an ephemeral environment instead.
 
     Used for "single" sandbox mode (marimo edit --sandbox notebook.py).
-    For "multi" sandbox mode (directory), see IPCKernelManagerImpl which
-    creates per-notebook sandboxed kernels.
+    For "multi" sandbox mode (directory), see IPCKernelManagerImpl.
     """
     try:
         require_uv_bin()
@@ -394,7 +405,7 @@ def run_in_sandbox(
 
     # Ensure marimo and the python version are in the script metadata before
     # running. Adding marimo is best-effort: the sandbox still runs without
-    # it, since the requirements normalization injects marimo.
+    # it, since the runtime overlay carries marimo.
     if name is not None and name.endswith(".py"):
         try:
             script_metadata.ensure_marimo(name)
@@ -407,15 +418,9 @@ def run_in_sandbox(
             LOGGER.warning(f"Failed to add marimo to script metadata: {e}")
         script_metadata.ensure_requires_python(name)
 
-    uv_cmd = construct_uv_command(
-        args,
-        name,
-        additional_features or [],
-        additional_deps or [],
-        python_version_override=python_version_override,
-    )
-
-    echo(f"Running in a sandbox: {muted(' '.join(uv_cmd))}", err=True)
+    cmd = ["-m", "marimo", *args]
+    if "--sandbox" in cmd:
+        cmd.remove("--sandbox")
 
     env = os.environ.copy()
     env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
@@ -439,6 +444,7 @@ def run_in_sandbox(
         constraint_tmp.close()
         constraint_path = constraint_tmp.name
         if write_constraint_file(constraint_path):
+            # Resolution happens in the child uv process; see below.
             env["UV_CONSTRAINT"] = constraint_path
 
         def cleanup_constraint_file() -> None:
@@ -449,20 +455,81 @@ def run_in_sandbox(
 
         atexit.register(cleanup_constraint_file)
 
+    overlay = runtime_overlay(additional_features or [], additional_deps or [])
+
+    # Explicit override > metadata requires-python (uv reads it) > host.
+    pyproject = (
+        PyProjectReader.from_filename(name)
+        if name is not None
+        else PyProjectReader({}, config_path=None)
+    )
+    python_request = python_version_override or (
+        None if pyproject.python_version else platform.python_version()
+    )
+
+    # An interpreter override (html-wasm pins the Pyodide version) must
+    # not replace the notebook's shared script environment; it resolves
+    # ephemerally with the notebook's dependencies layered instead.
+    overridden = python_version_override is not None or pyodide_constraints
+
+    plan: environment.ProcessPlan | None = None
+    if name is not None and not overridden and os.path.isfile(name):
+        try:
+            handle = environment.sync_notebook(
+                name,
+                python_override=python_request,
+                # Stream uv's progress to the terminal; a first
+                # synchronization can install for a while.
+                on_output=lambda _line: None,
+            )
+            echo(
+                f"Using script environment: {muted(handle.root)}",
+                err=True,
+            )
+            # Only a server whose kernel runs in the script environment
+            # may route package changes through it.
+            env["MARIMO_SANDBOX_MODE"] = "single"
+            plan = environment.launch(
+                handle, cmd, overlay=overlay, base_env=env
+            )
+        except UvMissingScriptMetadataError:
+            # No metadata block yet; run ephemerally below.
+            pass
+        except UvError as e:
+            echo(str(e), err=True)
+            return getattr(e, "returncode", None) or 1
+
+    if plan is None:
+        if overridden and name is not None and os.path.isfile(name):
+            overlay = [
+                line
+                for line in _resolve_requirements_txt_lines(pyproject)
+                if line.strip() and not is_marimo_dependency(line)
+            ] + overlay
+        plan = environment.launch_isolated(
+            cmd,
+            overlay=overlay,
+            python=python_request or platform.python_version(),
+            base_env=env,
+        )
+
+    echo(f"Running in a sandbox: {muted(' '.join(plan.argv))}", err=True)
+
     if sys.platform == "win32":
         # The console already delivers Ctrl-C to uv and the inner server;
         # forwarding CTRL_C_EVENT would rebroadcast to the whole console,
         # including ourselves (#4842). Let the inner server drive shutdown.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
-        process = subprocess.Popen(uv_cmd, env=env)
+        process = subprocess.Popen(plan.argv, env=plan.env)
     else:
-        # On Unix, run `uv` in its own session so that (a) the tty no
+        # On Unix, run the child in its own session so that (a) the tty no
         # longer delivers SIGINT/SIGTERM to it directly and (b) we can
         # signal the whole subtree with a single killpg. The signal
         # handlers below are then the sole path for forwarding signals
-        # from the CLI down to uv, the inner marimo server, and the
-        # kernel.
-        process = subprocess.Popen(uv_cmd, env=env, start_new_session=True)
+        # from the CLI down to the inner marimo server and the kernel.
+        process = subprocess.Popen(
+            plan.argv, env=plan.env, start_new_session=True
+        )
 
         def handler(sig: int, frame: object) -> None:
             del frame
@@ -477,142 +544,3 @@ def run_in_sandbox(
         signal.signal(signal.SIGHUP, handler)
 
     return process.wait()
-
-
-def get_sandbox_requirements(
-    filename: str | None,
-    additional_deps: list[str] | None = None,
-) -> list[str]:
-    """Get normalized requirements for sandbox venv.
-
-    Reads dependencies from the notebook's PEP 723 script metadata,
-    normalizes marimo dependency, and adds any additional deps
-    (e.g., get_ipc_kernel_deps() for kernel communication).
-
-    Args:
-        filename: Path to notebook file, or None for empty deps.
-        additional_deps: Extra dependencies to add if not already present.
-
-    Returns:
-        List of normalized requirement strings.
-    """
-    pyproject = (
-        PyProjectReader.from_filename(filename)
-        if filename is not None
-        else PyProjectReader({}, config_path=None)
-    )
-
-    dependencies = _resolve_requirements_txt_lines(pyproject)
-    normalized = _normalize_sandbox_dependencies(
-        dependencies, __version__, additional_features=[]
-    )
-
-    # Add additional deps if not already present
-    if additional_deps:
-        existing_lower = {
-            d.lower().split("[")[0].split(">=")[0].split("==")[0]
-            for d in normalized
-        }
-        for dep in additional_deps:
-            if dep.lower() not in existing_lower:
-                normalized.append(dep)
-
-    return normalized
-
-
-def build_sandbox_venv(
-    filename: str | None,
-    additional_deps: list[str] | None = None,
-) -> tuple[str, str]:
-    """Build sandbox venv and install dependencies.
-
-    Creates an ephemeral virtual environment using uv with the notebook's
-    dependencies installed. Used for "multi" sandbox mode where each notebook
-    gets its own sandboxed environment.
-
-    Args:
-        filename: Path to notebook file for reading dependencies.
-        additional_deps: Extra dependencies to add (e.g., get_ipc_kernel_deps()).
-
-    Returns:
-        Tuple of (sandbox_dir, venv_python_path).
-
-    Raises:
-        RuntimeError: If dependency installation fails.
-    """
-    # Create temp directory for sandbox venv
-    sandbox_dir = tempfile.mkdtemp(prefix="marimo-sandbox-")
-    venv_path = os.path.join(sandbox_dir, "venv")
-
-    # Phase 1: Create venv
-    echo(f"Creating sandbox environment: {muted(venv_path)}", err=True)
-    uv(["venv", "--seed", venv_path])
-
-    # Get venv Python path
-    if sys.platform == "win32":
-        venv_python = os.path.join(venv_path, "Scripts", "python.exe")
-    else:
-        venv_python = os.path.join(venv_path, "bin", "python")
-
-    # Phase 2: Install dependencies
-    requirements = get_sandbox_requirements(filename, additional_deps)
-    echo("Installing sandbox dependencies...", err=True)
-
-    # Separate editable installs from regular requirements
-    # Editable installs look like "-e /path/to/package"
-    editable_reqs = [r for r in requirements if r.startswith("-e ")]
-    regular_reqs = [r for r in requirements if not r.startswith("-e ")]
-
-    # Install editable packages directly (not via requirements file)
-    for editable in editable_reqs:
-        # Extract path from "-e /path/to/package"
-        editable_path = editable[3:].strip()
-        try:
-            uv(
-                [
-                    "pip",
-                    "install",
-                    "--python",
-                    venv_python,
-                    "-e",
-                    editable_path,
-                ]
-            )
-        except UvCommandError as e:
-            echo(
-                f"Warning: Editable install failed: {e.stderr}",
-                err=True,
-            )
-
-    # Install regular packages via requirements file
-    if regular_reqs:
-        req_file = os.path.join(sandbox_dir, "requirements.txt")
-        with open(req_file, "w", encoding="utf-8") as f:
-            f.write("\n".join(regular_reqs))
-
-        try:
-            uv(["pip", "install", "--python", venv_python, "-r", req_file])
-        except UvCommandError as e:
-            # Clean up on failure
-            cleanup_sandbox_dir(sandbox_dir)
-            raise RuntimeError(
-                f"Failed to install sandbox dependencies: {e.stderr}"
-            ) from e
-
-    return sandbox_dir, venv_python
-
-
-def cleanup_sandbox_dir(sandbox_dir: str | None) -> None:
-    """Clean up sandbox directory.
-
-    Safely removes the sandbox directory and all its contents.
-    Silently ignores errors (e.g., if directory doesn't exist).
-
-    Args:
-        sandbox_dir: Path to sandbox directory, or None (no-op).
-    """
-    if sandbox_dir:
-        try:
-            shutil.rmtree(sandbox_dir)
-        except OSError:
-            pass

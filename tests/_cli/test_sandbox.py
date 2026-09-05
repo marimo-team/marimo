@@ -11,8 +11,6 @@ import pytest
 from marimo._cli.sandbox import (
     SandboxMode,
     _normalize_sandbox_dependencies,
-    build_sandbox_venv,
-    cleanup_sandbox_dir,
     construct_uv_command,
     resolve_sandbox_mode,
     run_in_sandbox,
@@ -463,19 +461,20 @@ import marimo
     )
 
     # Mock the prompt to return True (simulating user typing 'y')
-    with patch("marimo._cli.sandbox.click.confirm", return_value=True):
-        with patch(
-            "marimo._cli.sandbox.is_uv_available",
-            return_value=True,
-        ):
-            with patch(
-                "marimo._cli.sandbox.sys.stdin.isatty", return_value=True
-            ):
-                result = resolve_sandbox_mode(
-                    sandbox=None,
-                    name=str(script_path),
-                )
-                assert result is SandboxMode.SINGLE
+    with (
+        patch(
+            "marimo._cli.sandbox.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            False,
+        ),
+        patch("marimo._cli.sandbox.click.confirm", return_value=True),
+        patch("marimo._cli.sandbox.is_uv_available", return_value=True),
+        patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=True),
+    ):
+        result = resolve_sandbox_mode(
+            sandbox=None,
+            name=str(script_path),
+        )
+        assert result is SandboxMode.SINGLE
 
 
 def test_resolve_sandbox_mode_explicit_single() -> None:
@@ -562,128 +561,6 @@ import marimo
     assert uv_cmd[python_idx + 1] == platform.python_version()
 
 
-def test_get_sandbox_requirements_adds_additional_deps(tmp_path: Path) -> None:
-    """Test that additional deps are added when not present."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text(
-        """# /// script
-# dependencies = ["numpy"]
-# ///
-import marimo
-"""
-    )
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(
-            str(script_path),
-            additional_deps=["pyzmq", "msgspec"],
-        )
-
-    assert any("numpy" in r for r in reqs)
-    assert "pyzmq" in reqs
-    assert "msgspec" in reqs
-
-
-def test_get_sandbox_requirements_no_duplicate_deps(tmp_path: Path) -> None:
-    """Test that additional deps aren't duplicated if already present."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    script_path = tmp_path / "test.py"
-    script_path.write_text(
-        """# /// script
-# dependencies = ["numpy", "pyzmq>=25.0"]
-# ///
-import marimo
-"""
-    )
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(
-            str(script_path),
-            additional_deps=["pyzmq", "msgspec"],
-        )
-
-    # Should have only one pyzmq entry (uv resolves versions, so it may be ==X.Y.Z)
-    pyzmq_entries = [r for r in reqs if "pyzmq" in r.lower()]
-    assert len(pyzmq_entries) == 1
-    assert "msgspec" in reqs
-
-
-def test_get_sandbox_requirements_none_filename() -> None:
-    """Test get_sandbox_requirements with None filename."""
-    from marimo._cli.sandbox import get_sandbox_requirements
-
-    with patch("marimo._cli.sandbox.is_editable", return_value=False):
-        reqs = get_sandbox_requirements(None, additional_deps=["pyzmq"])
-
-    # Should have marimo and additional deps
-    assert any("marimo" in r for r in reqs)
-    assert "pyzmq" in reqs
-
-
-def test_cleanup_sandbox_dir_removes_directory(tmp_path: Path) -> None:
-    """Test that cleanup_sandbox_dir removes the directory."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    sandbox_dir = tmp_path / "sandbox"
-    sandbox_dir.mkdir()
-    (sandbox_dir / "file.txt").write_text("test")
-
-    cleanup_sandbox_dir(str(sandbox_dir))
-
-    assert not sandbox_dir.exists()
-
-
-def test_cleanup_sandbox_dir_handles_none() -> None:
-    """Test that cleanup_sandbox_dir handles None gracefully."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    cleanup_sandbox_dir(None)  # Should not raise
-
-
-def test_cleanup_sandbox_dir_handles_nonexistent(tmp_path: Path) -> None:
-    """Test that cleanup_sandbox_dir handles nonexistent directory."""
-    from marimo._cli.sandbox import cleanup_sandbox_dir
-
-    nonexistent = str(tmp_path / "does_not_exist")
-    cleanup_sandbox_dir(nonexistent)  # Should not raise
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_build_sandbox_venv_creates_venv(tmp_path: Path) -> None:
-    """Test venv is created and returns paths."""
-    script = tmp_path / "test.py"
-    script.write_text("# /// script\n# dependencies = []\n# ///\n")
-
-    sandbox_dir, venv_python = build_sandbox_venv(str(script))
-    try:
-        assert os.path.isdir(sandbox_dir)
-        assert os.path.exists(venv_python)
-        assert "python" in venv_python
-    finally:
-        cleanup_sandbox_dir(sandbox_dir)
-
-
-@pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_build_sandbox_venv_with_additional_deps(tmp_path: Path) -> None:
-    """Test additional deps are passed through."""
-    from marimo._session._venv import get_ipc_kernel_deps
-
-    script = tmp_path / "test.py"
-    script.write_text("# /// script\n# dependencies = []\n# ///\n")
-
-    sandbox_dir, venv_python = build_sandbox_venv(
-        str(script), additional_deps=get_ipc_kernel_deps()
-    )
-    try:
-        assert os.path.isdir(sandbox_dir)
-        assert os.path.exists(venv_python)
-    finally:
-        cleanup_sandbox_dir(sandbox_dir)
-
-
 def test_resolve_local_path_line() -> None:
     from marimo._cli.sandbox import _resolve_local_path_line
 
@@ -760,3 +637,118 @@ import marimo
     )
     python_idx = uv_cmd.index("--python")
     assert uv_cmd[python_idx + 1] == "3.12"
+
+
+def _supports_sync() -> bool:
+    from marimo._environments.environment import ensure_supported_uv
+    from marimo._environments.uv import UvError, is_uv_available
+
+    if not is_uv_available():
+        return False
+    try:
+        ensure_supported_uv()
+    except UvError:
+        return False
+    return True
+
+
+SUPPORTS_SYNC = _supports_sync()
+
+
+@pytest.fixture
+def _restore_signal_handlers():
+    """run_in_sandbox installs forwarding handlers; undo them."""
+    import signal
+
+    saved = {
+        sig: signal.getsignal(sig)
+        for name in ("SIGINT", "SIGTERM", "SIGHUP")
+        if (sig := getattr(signal, name, None)) is not None
+    }
+    yield
+    for sig, handler in saved.items():
+        signal.signal(sig, handler)
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+@pytest.mark.skipif(
+    os.name == "nt", reason="signal forwarding differs on Windows"
+)
+@pytest.mark.usefixtures("_restore_signal_handlers")
+def test_run_in_sandbox_from_script_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The provisioned path: a markdown notebook's manifest is
+    synchronized and marimo launches from the script environment."""
+    from marimo._cli.sandbox import run_in_sandbox
+
+    monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        """---
+pyproject: |
+  dependencies = []
+---
+
+# Hello
+""",
+        encoding="utf-8",
+    )
+
+    code = run_in_sandbox(["--version"], name=str(notebook))
+
+    assert code == 0
+    # The carrier is deleted after synchronization.
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["notebook.md"]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
+@pytest.mark.skipif(
+    os.name == "nt", reason="signal forwarding differs on Windows"
+)
+@pytest.mark.usefixtures("_restore_signal_handlers")
+def test_run_in_sandbox_without_a_manifest() -> None:
+    """No target means no manifest: marimo runs ephemerally."""
+    from marimo._cli.sandbox import run_in_sandbox
+
+    code = run_in_sandbox(["--version"], name=None)
+
+    assert code == 0
+
+
+def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
+    """Every sandbox entry point exits with the inner process's code."""
+    from unittest.mock import patch as mock_patch
+
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main as cli_main
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["numpy"]\n# ///\n', encoding="utf-8"
+    )
+    runner = CliRunner()
+
+    for command, target in (
+        (
+            ["edit", str(notebook), "--sandbox", "--headless", "--no-token"],
+            "marimo._cli.sandbox.run_in_sandbox",
+        ),
+        (
+            ["export", "html", str(notebook), "--sandbox"],
+            "marimo._cli.export.commands.run_in_sandbox",
+        ),
+    ):
+        with (
+            mock_patch(target, return_value=3),
+            mock_patch(
+                "marimo._cli.sandbox.maybe_prompt_run_in_sandbox",
+                return_value=True,
+            ),
+        ):
+            result = runner.invoke(cli_main, command)
+        assert result.exit_code == 3, (command, result.output)
