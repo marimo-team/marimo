@@ -132,6 +132,15 @@ def _is_versioned(dependency: str) -> bool:
     return any(c in dependency for c in ("==", ">=", "<=", ">", "<", "~"))
 
 
+def _requirement_name(requirement: str) -> str:
+    """Bare package name, lowercased. Enough to detect duplicates."""
+    token = requirement.strip().split(";", 1)[0].split("#", 1)[0]
+    token = token.split("[", 1)[0]
+    for spec in ("===", "==", ">=", "<=", "~=", "!=", ">", "<"):
+        token = token.split(spec, 1)[0]
+    return token.split("@", 1)[0].strip().lower()
+
+
 def _normalize_sandbox_dependencies(
     dependencies: list[str],
     marimo_version: str,
@@ -570,15 +579,14 @@ def get_sandbox_requirements(
         dependencies, __version__, additional_features=[]
     )
 
-    # Add additional deps if not already present
     if additional_deps:
-        existing_lower = {
-            d.lower().split("[")[0].split(">=")[0].split("==")[0]
-            for d in normalized
-        }
+        existing = {_requirement_name(dep) for dep in normalized}
+        existing.discard("")
         for dep in additional_deps:
-            if dep.lower() not in existing_lower:
+            name = _requirement_name(dep)
+            if name and name not in existing:
                 normalized.append(dep)
+                existing.add(name)
 
     return normalized
 
