@@ -723,6 +723,7 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
 
     mock_session = MagicMock()
     mock_session._kernel_manager = mock_kernel_manager
+    mock_session.notebook_sandbox = None
 
     # Mock app state
     mock_app_state = MagicMock()
@@ -757,7 +758,10 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
 
     # Verify create_package_manager was called with python_exe
     mock_create_pm.assert_called_once_with(
-        "pip", python_exe="/custom/venv/python", script_path=None
+        "pip",
+        python_exe="/custom/venv/python",
+        script_path=None,
+        sandbox_environment=None,
     )
 
 
@@ -772,6 +776,7 @@ def test_get_package_manager_with_script_environment() -> None:
 
     mock_session = MagicMock()
     mock_session._kernel_manager = mock_kernel_manager
+    mock_session.notebook_sandbox = None
     mock_session.app_file_manager.filename = "/nb/notebook.py"
 
     mock_app_state = MagicMock()
@@ -788,7 +793,7 @@ def test_get_package_manager_with_script_environment() -> None:
         ) as mock_create_pm,
         patch(
             "marimo._server.api.endpoints.packages.isinstance",
-            side_effect=lambda _obj, _cls: True,
+            side_effect=lambda _obj, cls: cls.__name__ != "NotebookSandbox",
         ),
     ):
         _get_package_manager(MagicMock())
@@ -797,6 +802,7 @@ def test_get_package_manager_with_script_environment() -> None:
         "uv",
         python_exe="/env/bin/python",
         script_path="/nb/notebook.py",
+        sandbox_environment=mock_kernel_manager.script_environment,
     )
 
 
@@ -830,7 +836,7 @@ def test_get_package_manager_without_ipc_session() -> None:
 
     # Verify create_package_manager was called with python_exe=None
     mock_create_pm.assert_called_once_with(
-        "uv", python_exe=None, script_path=None
+        "uv", python_exe=None, script_path=None, sandbox_environment=None
     )
 
 

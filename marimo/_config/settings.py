@@ -21,6 +21,10 @@ class GlobalSettings:
     # "single" or "multi" when this process belongs to a sandbox whose
     # dependencies live in script environments; None otherwise.
     SANDBOX_MODE: str | None = os.environ.get("MARIMO_SANDBOX_MODE") or None
+    # The environment manager behind SANDBOX_MODE.
+    SANDBOX_BACKEND: str | None = (
+        os.environ.get("MARIMO_SANDBOX_BACKEND") or None
+    )
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
     # Mark the session cookie as `Secure` so browsers only send it over HTTPS.
     # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default

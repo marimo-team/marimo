@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -415,6 +415,24 @@ class TestCloseKernel:
         manager._process.wait.assert_called_once_with(
             timeout=PROFILE_FLUSH_TIMEOUT
         )
+
+
+class TestFailedStartCleanup:
+    def test_kills_process_and_closes_sandbox(self) -> None:
+        from marimo._session.managers import ipc
+
+        manager = _make_manager("nb.py")
+        manager._process = MagicMock()
+        manager._process.poll.return_value = None
+        manager._notebook_sandbox = MagicMock()
+        sandbox = manager._notebook_sandbox
+
+        with patch.object(ipc, "try_kill_process_and_group") as kill:
+            manager._cleanup_failed_start()
+
+        kill.assert_called_once()
+        sandbox.close.assert_called_once()
+        assert manager.notebook_sandbox is None
 
 
 class TestAwaitHandshakeLine:

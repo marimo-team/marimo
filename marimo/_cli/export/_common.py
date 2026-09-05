@@ -66,7 +66,7 @@ class SandboxVenvPool:
         self._targets: dict[str, SandboxTarget] = {}
 
     def get_target(self, notebook_path: str) -> SandboxTarget:
-        from marimo._environments.environment import sync_notebook
+        from marimo._environments.backends import sync_notebook
         from marimo._environments.uv import UvMissingScriptMetadataError
 
         key = str(Path(notebook_path).resolve())
@@ -75,7 +75,9 @@ class SandboxVenvPool:
             return existing
 
         try:
-            target = SandboxTarget(environment=sync_notebook(key))
+            target = SandboxTarget(
+                environment=sync_notebook(key, backend="uv")
+            )
         except UvMissingScriptMetadataError:
             target = SandboxTarget(environment=None)
         self._targets[key] = target
@@ -93,19 +95,15 @@ def run_python_subprocess(
     payload: dict[str, Any],
     action: str,
 ) -> str:
-    import platform
-
-    from marimo._environments.environment import launch, launch_isolated
+    from marimo._environments.backends import launch_fallback
+    from marimo._environments.environment import launch
     from marimo._environments.overlay import runtime_overlay
 
     args = ["-c", script, json.dumps(payload)]
-    overlay = runtime_overlay()
     if sandbox.environment is not None:
-        plan = launch(sandbox.environment, args, overlay=overlay)
+        plan = launch(sandbox.environment, args, overlay=runtime_overlay())
     else:
-        plan = launch_isolated(
-            args, overlay=overlay, python=platform.python_version()
-        )
+        plan = launch_fallback(args)
     result = subprocess.run(
         list(plan.argv),
         env=plan.env,

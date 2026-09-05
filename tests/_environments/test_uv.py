@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from subprocess import CompletedProcess
 from typing import TYPE_CHECKING
 
 import pytest
@@ -166,6 +167,92 @@ def test_script_edits_ignore_an_active_virtualenv(
             str(script), ["numpy"], on_output=lambda _line: None
         )
     env = mock_stream.call_args.kwargs["env"]
+    assert "VIRTUAL_ENV" not in env
+    assert "UV_PROJECT_ENVIRONMENT" not in env
+
+
+def test_uv_adapter_reports_the_exact_invocation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The reported command is the argv the runner executes, not a
+    reconstruction that could drift from it."""
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.sandbox import SandboxCommand
+    from marimo._environments.script_metadata import MaterializedScript
+
+    executed: list[list[str]] = []
+
+    def fake_uv(
+        args: list[str], *, on_command: object = None, **kwargs: object
+    ) -> CompletedProcess[str]:
+        del kwargs
+        command = ["/local/uv", *args]
+        if on_command is not None:
+            on_command(command)  # type: ignore[operator]
+        executed.append(command)
+        return CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(uv_module, "uv", fake_uv)
+
+    class Recorder:
+        def __init__(self) -> None:
+            self.commands: list[SandboxCommand] = []
+
+        def report(self, command: SandboxCommand) -> None:
+            self.commands.append(command)
+
+    recorder = Recorder()
+    target = MaterializedScript(
+        path=str(tmp_path / "nb.py"), directory=str(tmp_path)
+    )
+
+    UvBackendAdapter(recorder).add(
+        target, "polars", upgrade=False, on_output=None
+    )
+
+    assert [list(command.argv) for command in recorder.commands] == executed
+    assert recorder.commands[0].operation == "add"
+    assert "--quiet" in recorder.commands[0].argv
+
+
+def test_uv_adapter_inspects_the_script_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+
+    invocation: dict[str, object] = {}
+
+    def fake_uv(args: list[str], **kwargs: object) -> CompletedProcess[str]:
+        invocation["args"] = args
+        invocation.update(kwargs)
+        return CompletedProcess(
+            ["uv", *args],
+            0,
+            stdout="test-package v1.0.0\n",
+            stderr="",
+        )
+
+    monkeypatch.setenv("VIRTUAL_ENV", "/outer")
+    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/project")
+    monkeypatch.setattr(uv_module, "uv", fake_uv)
+    target = MaterializedScript(
+        path=str(tmp_path / "nb.py"), directory=str(tmp_path)
+    )
+
+    UvBackendAdapter().packages(target, None)
+
+    assert invocation["args"] == [
+        "tree",
+        "--no-dedupe",
+        "--script",
+        str(tmp_path / "nb.py"),
+    ]
+    assert invocation["cwd"] == str(tmp_path)
+    env = invocation["env"]
+    assert isinstance(env, dict)
     assert "VIRTUAL_ENV" not in env
     assert "UV_PROJECT_ENVIRONMENT" not in env
 

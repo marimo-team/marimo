@@ -142,16 +142,21 @@ def uv(
     env: Mapping[str, str] | None = None,
     cwd: str | None = None,
     timeout: float | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Run a uv command and capture its output.
 
     Raises `UvNotFoundError` if uv is not installed and `UvCommandError` (or
     a refined subclass) on nonzero exit. `subprocess.TimeoutExpired`
     propagates when `timeout` elapses. When `env` is given it replaces the
-    inherited environment. Not for interactive or streaming use: output is
-    captured, and stdin is closed so uv can never hang waiting for input.
+    inherited environment. `on_command` receives the exact argv about to
+    run, so reports never drift from the invocation. Not for interactive
+    or streaming use: output is captured, and stdin is closed so uv can
+    never hang waiting for input.
     """
     command = [find_uv_bin(), *args]
+    if on_command is not None:
+        on_command(command)
     try:
         completed = subprocess.run(
             command,
@@ -179,6 +184,7 @@ def uv_stream(
     *,
     env: Mapping[str, str] | None = None,
     cwd: str | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Runs a uv command, streaming its diagnostics to a callback.
 
@@ -186,10 +192,13 @@ def uv_stream(
     stderr lines stream to `on_output` (and this process's stderr) while
     stdout is captured for the caller. `on_output` runs in the calling
     thread, so callbacks that rely on thread-local state, such as a
-    kernel's notification context, keep working. Failures raise the same
-    refined errors as `uv()`.
+    kernel's notification context, keep working. `on_command` receives
+    the exact argv about to run. Failures raise the same refined errors
+    as `uv()`.
     """
     command = [find_uv_bin(), *args]
+    if on_command is not None:
+        on_command(command)
     try:
         process = subprocess.Popen(
             command,

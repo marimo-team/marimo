@@ -2,16 +2,16 @@
 """The PEP 723 inline script metadata block.
 
 This module is the single reader and writer for the `# /// script` block in
-marimo notebooks. In-place edits of a user's file delegate to
-`uv ... --script` so uv owns the TOML edit and the user's formatting
+marimo notebooks. In-place edits of a user's file delegate to the selected
+environment manager so it owns the TOML edit and the user's formatting
 survives; whole-block generation (converters, codegen, export) serializes
 with tomlkit.
 
 Markdown notebooks (.md/.qmd) carry the block in their frontmatter; edit
 verbs round-trip the header verbatim through a carrier, a hidden sidecar
-next to the notebook, so uv anchors relative paths in the metadata
-against the notebook's directory. uv also runs from that directory, so
-directory-scoped uv configuration applies.
+next to the notebook, so the manager anchors relative paths in the metadata
+against the notebook's directory. The manager also runs from that directory,
+so directory-scoped configuration applies.
 """
 
 from __future__ import annotations
@@ -94,6 +94,59 @@ def replace_block(script: str, block: str) -> str:
     return re.sub(REGEX, lambda _: block, script, count=1)
 
 
+def copy_metadata(source: str, destination: str) -> None:
+    """Copy one notebook's PEP 723 block into another notebook.
+
+    This is a local Manifest operation: it does not invoke an environment
+    manager or synchronize an Environment. It is used when an unnamed
+    notebook's owned temporary Manifest becomes file-backed.
+    """
+    with materialized_for_environment(source) as source_target:
+        with open(source_target.path, encoding="utf-8") as source_file:
+            match = re.search(REGEX, source_file.read())
+    if match is None:
+        raise ScriptMetadataError(f"No script metadata found in {source}")
+    block = match.group(0)
+
+    with materialized_for_edit(destination) as destination_target:
+        with open(destination_target.path, encoding="utf-8") as target_file:
+            content = target_file.read()
+        if loads(content) is not None:
+            content = replace_block(content, block)
+        elif content.startswith("#!"):
+            shebang, _, rest = content.partition("\n")
+            content = f"{shebang}\n{block}\n{rest}"
+        else:
+            content = f"{block}\n{content}"
+        with open(
+            destination_target.path, "w", encoding="utf-8"
+        ) as target_file:
+            target_file.write(content)
+
+
+def ensure_metadata_block(path: str) -> None:
+    """Create an empty PEP 723 block when a Python notebook has none.
+
+    The manifest module owns this structural write; environment managers
+    only edit the materialized script it gives them.
+    """
+    if not path.endswith(".py"):
+        return
+    with open(path, encoding="utf-8") as f:
+        script = f.read()
+    if loads(script) is not None:
+        return
+
+    block = wrap_block("dependencies = []") + "\n"
+    if script.startswith("#!"):
+        shebang, _, rest = script.partition("\n")
+        script = shebang + "\n" + block + rest
+    else:
+        script = block + script
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(script)
+
+
 def with_python_version_requirement(project: dict[str, Any]) -> dict[str, Any]:
     # TODO(akshayka): consider locking the Python version for greater
     # reproducibility, instead of returning a lowerbound
@@ -150,23 +203,37 @@ def remove_dependencies(
     _edit(path, edit)
 
 
-def ensure_marimo(path: str) -> None:
+def should_add_marimo(path: str) -> bool:
+    """Whether `ensure_marimo` has work to do.
+
+    False for non-`.py` targets and for missing or empty files, whose
+    block is the notebook serializer's to create, and for manifests
+    that already declare marimo.
+    """
+    if not path.endswith(".py"):
+        return False
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        return False
+
+    from marimo._utils.inline_script_metadata import (
+        has_marimo_in_script_metadata,
+    )
+
+    return has_marimo_in_script_metadata(path) is not True
+
+
+def ensure_marimo(
+    path: str,
+    *,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> None:
     """Add marimo to the script metadata if it is not already a dependency.
 
     Creates the metadata block if the file has none. No-op for non-`.py`
     targets and for missing or empty files, whose block is the notebook
     serializer's to create.
     """
-    if not path.endswith(".py"):
-        return
-    if not os.path.exists(path) or os.path.getsize(path) == 0:
-        return
-
-    from marimo._utils.inline_script_metadata import (
-        has_marimo_in_script_metadata,
-    )
-
-    if has_marimo_in_script_metadata(path) is True:
+    if not should_add_marimo(path):
         return
 
     def edit(target: str, cwd: str) -> None:
@@ -175,6 +242,7 @@ def ensure_marimo(path: str) -> None:
             env=script_command_env(),
             timeout=30,
             cwd=cwd,
+            on_command=on_command,
         )
 
     _edit(path, edit)
@@ -213,18 +281,12 @@ def ensure_requires_python(path: str) -> None:
 def _edit(path: str, edit: Callable[[str, str], None]) -> None:
     """Apply an edit and normalize expected operational failures.
 
-    Edits receive the file uv operates on and the working directory for
-    the uv invocation, which is always the notebook's own directory so
-    that directory-scoped uv configuration is discovered.
+    Edits receive the materialized script and the notebook's own directory,
+    so manager-specific directory configuration is discovered.
     """
     try:
-        if path.endswith((".md", ".qmd")):
-            _edit_frontmatter(path, edit)
-        else:
-            # uv resolves a relative --script target against the cwd this
-            # module pins, so hand it an absolute path.
-            absolute = os.path.abspath(path)
-            edit(absolute, os.path.dirname(absolute))
+        with materialized_for_edit(path) as target:
+            edit(target.path, target.directory)
     except (UvError, subprocess.TimeoutExpired, OSError) as error:
         raise ScriptMetadataError(
             f"Failed to update script metadata for {path}: {error}"
@@ -388,24 +450,9 @@ def _fallback_carrier_path(absolute: str) -> str:
     )
 
 
-def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
-    """Edits metadata carried in markdown frontmatter.
-
-    The header is materialized verbatim as a carrier next to the
-    notebook, so uv resolves relative paths in the metadata against the
-    notebook's directory. Each edit gets its own carrier, deleted when
-    the edit finishes. The document is rewritten only if the edit
-    succeeds.
-    """
+def _write_frontmatter(path: str, front: _Frontmatter, header: str) -> None:
+    """Write a successfully edited carrier back to frontmatter."""
     from marimo._utils import yaml
-
-    front = _read_frontmatter(path)
-
-    notebook_dir = os.path.dirname(os.path.abspath(path))
-    with _carrier(path, front.header) as target:
-        edit(target, notebook_dir)
-        with open(target, encoding="utf-8") as f:
-            header = f.read()
 
     data = front.data
     if front.is_pyproject:
@@ -425,10 +472,33 @@ def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
 
 @dataclass(frozen=True)
 class MaterializedScript:
-    """A script uv can operate on and the directory to run uv from."""
+    """A script an environment manager can operate on and its cwd."""
 
     path: str
     directory: str
+
+
+@contextlib.contextmanager
+def materialized_for_edit(path: str) -> Iterator[MaterializedScript]:
+    """Materialize a notebook's manifest for one manager edit.
+
+    Python notebooks are edited directly. Markdown and Quarto frontmatter
+    use a unique carrier beside the notebook. A successful edit is written
+    back after the manager returns; an exception leaves the notebook
+    unchanged. The carrier is always removed by `_carrier`.
+    """
+    absolute = os.path.abspath(path)
+    directory = os.path.dirname(absolute)
+    if not path.endswith((".md", ".qmd")):
+        yield MaterializedScript(path=absolute, directory=directory)
+        return
+
+    front = _read_frontmatter(absolute)
+    with _carrier(absolute, front.header) as target:
+        yield MaterializedScript(path=target, directory=directory)
+        with open(target, encoding="utf-8") as f:
+            header = f.read()
+    _write_frontmatter(absolute, front, header)
 
 
 @contextlib.contextmanager

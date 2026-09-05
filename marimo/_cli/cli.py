@@ -21,7 +21,9 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
-from marimo._cli.errors import MarimoCLIRuntimeError
+from marimo._cli.errors import (
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup, RunCommand
@@ -533,13 +535,15 @@ def edit(
     # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
     sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
 
-    # Single-file sandbox: wrap with uv run
+    # Single-file sandbox: the server runs from the script environment
     if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
         sys.exit(
             run_in_sandbox(
-                sys.argv[1:], name=name, additional_features=["lsp"]
+                sys.argv[1:],
+                name=name,
+                extras=["lsp"],
             )
         )
 
@@ -550,6 +554,8 @@ def edit(
         GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
         os.environ["MARIMO_SANDBOX_MODE"] = "multi"
         GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
+        os.environ["MARIMO_SANDBOX_BACKEND"] = "uv"
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = "uv"
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -742,7 +748,9 @@ def new(
         # TODO: consider adding recommended as well
         sys.exit(
             run_in_sandbox(
-                sys.argv[1:], name=None, additional_features=["lsp"]
+                sys.argv[1:],
+                name=None,
+                extras=["lsp"],
             )
         )
 
@@ -1230,7 +1238,18 @@ def run(
             sandbox=sandbox, name=validated_paths[0]
         )
         if sandbox_mode is SandboxMode.SINGLE:
-            sys.exit(run_in_sandbox(sys.argv[1:], name=validated_paths[0]))
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=validated_paths[0],
+                )
+            )
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Kernel launches read the backend from the global.
+        os.environ["MARIMO_SANDBOX_BACKEND"] = "uv"
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = "uv"
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 

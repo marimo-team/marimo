@@ -45,14 +45,14 @@ def test_thumbnail_sandbox_single_bootstrap_adds_playwright(
         args: list[str],
         *,
         name: str | None = None,
-        additional_features: list[str] | None = None,
-        additional_deps: list[str] | None = None,
+        extras: list[str] | None = None,
+        command_deps: list[str] | None = None,
         extra_env: dict[str, str] | None = None,
     ) -> int:
         del args
-        del additional_features
+        del extras
         captured["name"] = name
-        captured["deps"] = additional_deps
+        captured["deps"] = command_deps
         captured["mode"] = (extra_env or {}).get(
             thumbnail_module._sandbox_mode_env
         )
@@ -105,14 +105,14 @@ def test_thumbnail_sandbox_multi_bootstrap_sets_multi_mode(
         args: list[str],
         *,
         name: str | None = None,
-        additional_features: list[str] | None = None,
-        additional_deps: list[str] | None = None,
+        extras: list[str] | None = None,
+        command_deps: list[str] | None = None,
         extra_env: dict[str, str] | None = None,
     ) -> int:
         del args
-        del additional_features
+        del extras
         captured["name"] = name
-        captured["deps"] = additional_deps
+        captured["deps"] = command_deps
         captured["mode"] = (extra_env or {}).get(
             thumbnail_module._sandbox_mode_env
         )

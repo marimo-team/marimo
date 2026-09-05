@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import os
 import subprocess
 import sys
@@ -62,6 +61,48 @@ def test_create_package_manager_without_python_exe() -> None:
     uv_mgr = create_package_manager("uv")
     assert isinstance(uv_mgr, UvPackageManager)
     assert uv_mgr._python_exe == PY_EXE
+
+
+def test_sandbox_backend_overrides_configured_package_manager() -> None:
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    manager = create_package_manager(
+        "pip",
+        script_path="nb.py",
+        sandbox_backend="uv",
+    )
+
+    assert isinstance(manager, SandboxPackageManager)
+    assert manager.name == "uv"
+
+
+async def test_sandbox_package_manager_splits_package_operations() -> None:
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    sandbox = MagicMock()
+    sandbox.backend = "uv"
+    sandbox.environment = None
+    manager = SandboxPackageManager(sandbox)
+
+    assert await manager._install(
+        "foo==1.0 bar[extra]",
+        upgrade=True,
+        log_callback=None,
+    )
+    assert await manager.uninstall("foo bar")
+
+    assert [call.args[0] for call in sandbox.add.call_args_list] == [
+        "foo==1.0",
+        "bar[extra]",
+    ]
+    assert [call.args[0] for call in sandbox.remove.call_args_list] == [
+        "foo",
+        "bar",
+    ]
 
 
 @pytest.fixture
@@ -767,160 +808,3 @@ def test_pixi_list_packages_uses_utf8_encoding(mock_run: MagicMock):
     call_kwargs = mock_run.call_args[1]
     assert call_kwargs.get("encoding") == "utf-8"
     assert call_kwargs.get("text") is True
-
-
-class TestUvScriptMode:
-    """In script mode, package changes edit the manifest and synchronize
-    its script environment, streaming uv's output."""
-
-    def test_install_edits_and_syncs(self) -> None:
-        from unittest.mock import patch
-
-        pm = UvPackageManager(script_path="nb.py")
-        logs: list[str] = []
-
-        with (
-            patch.object(script_metadata, "add_dependencies") as mock_add,
-            patch(
-                "marimo._environments.environment.sync_notebook"
-            ) as mock_sync,
-        ):
-            success = asyncio.run(
-                pm.install("foo bar", version=None, log_callback=logs.append)
-            )
-
-        assert success
-        args, kwargs = mock_add.call_args
-        assert args == ("nb.py", ["foo", "bar"])
-        assert kwargs["on_output"] is not None
-        mock_sync.assert_called_once()
-        assert mock_sync.call_args.kwargs["on_output"] is not None
-
-    def test_install_failure_streams_solver_message(self) -> None:
-        from unittest.mock import patch
-
-        from marimo._environments.uv import UvResolutionError
-
-        pm = UvPackageManager(script_path="nb.py")
-        logs: list[str] = []
-        error = UvResolutionError(
-            ["uv", "add"], 1, "", "No solution found when resolving"
-        )
-
-        with patch.object(
-            script_metadata, "add_dependencies", side_effect=error
-        ):
-            success = asyncio.run(
-                pm.install("foo", version=None, log_callback=logs.append)
-            )
-
-        assert not success
-        assert any("No solution found" in line for line in logs)
-
-    def test_uninstall_edits_and_syncs(self, tmp_path: Any) -> None:
-        from unittest.mock import patch
-
-        script = tmp_path / "nb.py"
-        script.write_text(
-            '# /// script\n# dependencies = ["foo"]\n# ///\n',
-            encoding="utf-8",
-        )
-        pm = UvPackageManager(script_path=str(script))
-
-        with (
-            patch.object(script_metadata, "remove_dependencies") as mock_rm,
-            patch(
-                "marimo._environments.environment.sync_notebook"
-            ) as mock_sync,
-        ):
-            success = asyncio.run(pm.uninstall("foo"))
-
-        assert success
-        assert mock_rm.call_args.args == (str(script), ["foo"])
-        mock_sync.assert_called_once()
-
-    def test_uninstall_reads_markdown_frontmatter(self, tmp_path: Any) -> None:
-        from unittest.mock import patch
-
-        notebook = tmp_path / "nb.md"
-        notebook.write_text(
-            '---\npyproject: |\n  dependencies = ["foo"]\n---\n\n# Notebook\n',
-            encoding="utf-8",
-        )
-        pm = UvPackageManager(script_path=str(notebook))
-
-        with (
-            patch.object(script_metadata, "remove_dependencies") as mock_rm,
-            patch(
-                "marimo._environments.environment.sync_notebook"
-            ) as mock_sync,
-        ):
-            success = asyncio.run(pm.uninstall("foo"))
-
-        assert success
-        assert mock_rm.call_args.args == (str(notebook), ["foo"])
-        mock_sync.assert_called_once()
-
-    def test_uninstall_rejects_undeclared_packages(
-        self, tmp_path: Any
-    ) -> None:
-        """A transitive dependency is not the notebook's to remove."""
-        from unittest.mock import patch
-
-        script = tmp_path / "nb.py"
-        script.write_text(
-            '# /// script\n# dependencies = ["foo"]\n# ///\n',
-            encoding="utf-8",
-        )
-        pm = UvPackageManager(script_path=str(script))
-
-        with patch.object(script_metadata, "remove_dependencies") as mock_rm:
-            success = asyncio.run(pm.uninstall("transitive-dep"))
-
-        assert not success
-        mock_rm.assert_not_called()
-
-    def test_metadata_update_skips_explicit_packages(
-        self, uv_calls: list[list[str]]
-    ) -> None:
-        """install/uninstall own explicit packages; only namespace changes
-        from cell registration reach the metadata writer."""
-
-        class MockUvPackageManager(UvPackageManager):
-            def _get_version_map(self) -> VersionMap:
-                return VersionMap({"pyyaml": "1.0"})
-
-        pm = MockUvPackageManager(script_path="nb.py")
-
-        pm.update_notebook_script_metadata(
-            filepath="nb.py",
-            packages_to_add=["already-handled"],
-            import_namespaces_to_add=["yaml"],
-            upgrade=False,
-        )
-
-        assert uv_calls == [
-            ["uv", "--quiet", "add", "--script", NB_ABSPATH, "pyyaml==1.0"],
-        ]
-
-    def test_metadata_update_does_not_pin_declared_dependency(
-        self, tmp_path: Any, uv_calls: list[list[str]]
-    ) -> None:
-        notebook = tmp_path / "nb.py"
-        notebook.write_text(
-            '# /// script\n# dependencies = ["pyyaml"]\n# ///\n',
-            encoding="utf-8",
-        )
-
-        class MockUvPackageManager(UvPackageManager):
-            def _get_version_map(self) -> VersionMap:
-                raise AssertionError("declared dependencies need no lookup")
-
-        pm = MockUvPackageManager(script_path=str(notebook))
-
-        assert pm.update_notebook_script_metadata(
-            filepath=str(notebook),
-            import_namespaces_to_add=["yaml"],
-            upgrade=False,
-        )
-        assert uv_calls == []
