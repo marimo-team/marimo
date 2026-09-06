@@ -557,13 +557,14 @@ export function useCellNavigationProps(
           if (Events.hasModifier(evt)) {
             return false;
           }
-          const importCellId = maybeAddMarimoImport({
+          maybeAddMarimoImport({
             autoInstantiate: true,
             createNewCell: actions.createNewCell,
             fromCellId: cellId,
+            before: true,
           });
           actions.createNewCell({
-            cellId: importCellId ?? cellId,
+            cellId,
             before: false,
             autoFocus: true,
             code: LanguageAdapters.sql.defaultCode,
