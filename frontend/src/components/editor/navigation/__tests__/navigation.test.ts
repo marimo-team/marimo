@@ -30,6 +30,11 @@ import {
 vi.mock("@/core/cells/cells", async (importOriginal) => ({
   ...(await importOriginal()),
   useCellActions: vi.fn(),
+  ensureCellEditorView: vi.fn(),
+}));
+
+vi.mock("@/core/codemirror/language/extension", () => ({
+  switchLanguage: vi.fn(),
 }));
 
 vi.mock("@/core/cells/focus", async (importOriginal) => ({
@@ -89,6 +94,14 @@ const mockUseRunCells = vi.mocked(
 const mockUseCellClipboard = vi.mocked(
   await import("../clipboard"),
 ).useCellClipboard;
+
+const mockEnsureCellEditorView = vi.mocked(
+  await import("@/core/cells/cells"),
+).ensureCellEditorView;
+
+const mockSwitchLanguage = vi.mocked(
+  await import("@/core/codemirror/language/extension"),
+).switchLanguage;
 
 afterAll(() => {
   vi.resetAllMocks();
@@ -418,6 +431,35 @@ describe("useCellNavigationProps", () => {
         cellId: mockCellId,
         before: false,
         autoFocus: true,
+      });
+    });
+
+    it("should create SQL cell after when 'q' key is pressed", () => {
+      const mockEditorView = { focus: vi.fn() };
+      mockEnsureCellEditorView.mockReturnValue(mockEditorView);
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "q" });
+
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCellActions.createNewCell).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cellId: mockCellId,
+          before: false,
+          autoFocus: true,
+          newCellId: expect.any(String),
+        }),
+      );
+      expect(mockEnsureCellEditorView).toHaveBeenCalled();
+      expect(mockSwitchLanguage).toHaveBeenCalledWith(mockEditorView, {
+        language: "sql",
+        keepCodeAsIs: true,
       });
     });
 

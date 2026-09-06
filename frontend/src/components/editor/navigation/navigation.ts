@@ -12,10 +12,14 @@ import { useMemo } from "react";
 import { mergeProps, useFocusWithin, useKeyboard } from "react-aria";
 import { DATA_FOR_CELL_ID } from "@/components/data-table/cell-utils";
 import { aiCompletionCellAtom } from "@/core/ai/state";
-import { cellIdsAtom, notebookAtom, useCellActions } from "@/core/cells/cells";
+import {
+  cellIdsAtom,
+  ensureCellEditorView,
+  notebookAtom,
+  useCellActions,
+} from "@/core/cells/cells";
 import { useCellFocusActions } from "@/core/cells/focus";
-import type { CellId } from "@/core/cells/ids";
-import { HTMLCellId } from "@/core/cells/ids";
+import { CellId, HTMLCellId } from "@/core/cells/ids";
 import {
   clearPendingCutAtom,
   pendingCutCellIdsAtom,
@@ -26,6 +30,7 @@ import {
   closeSignatureHint,
   signatureHintField,
 } from "@/core/codemirror/completion/signature-hint";
+import { switchLanguage } from "@/core/codemirror/language/extension";
 import {
   hotkeysAtom,
   isAiFeatureEnabled,
@@ -549,6 +554,23 @@ export function useCellNavigationProps(
             return false;
           }
           actions.createNewCell({ cellId, before: false, autoFocus: true });
+          return true;
+        },
+        "command.createCellAfterSQL": (cellId) => {
+          if (Events.hasModifier(evt)) {
+            return false;
+          }
+          const newCellId = CellId.create();
+          actions.createNewCell({
+            cellId,
+            before: false,
+            autoFocus: true,
+            newCellId,
+          });
+          const editorView = ensureCellEditorView(newCellId);
+          if (editorView) {
+            switchLanguage(editorView, { language: "sql", keepCodeAsIs: true });
+          }
           return true;
         },
         "cell.delete": () => {
