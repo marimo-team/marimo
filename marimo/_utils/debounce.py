@@ -48,7 +48,12 @@ class Debounce(Generic[F]):
         trailing_ctx: contextvars.Context | None = None
 
         def _fire() -> None:
-            nonlocal last_called, timer, trailing_args, trailing_kwargs, trailing_ctx
+            nonlocal \
+                last_called, \
+                timer, \
+                trailing_args, \
+                trailing_kwargs, \
+                trailing_ctx
             with lock:
                 args = trailing_args
                 kwargs = trailing_kwargs
@@ -67,7 +72,12 @@ class Debounce(Generic[F]):
 
         @functools.wraps(target_func)
         def wrapped(*args: Any, **kwargs: Any) -> None:
-            nonlocal last_called, timer, trailing_args, trailing_kwargs, trailing_ctx
+            nonlocal \
+                last_called, \
+                timer, \
+                trailing_args, \
+                trailing_kwargs, \
+                trailing_ctx
             current_time = time.time()
             execute_now = False
             with lock:

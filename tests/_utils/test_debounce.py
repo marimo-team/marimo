@@ -128,7 +128,10 @@ def test_debounce_preserves_metadata_and_signature():
         """Sample docstring for testing metadata preservation."""
 
     assert documented_fn.__name__ == "documented_fn"
-    assert documented_fn.__doc__ == "Sample docstring for testing metadata preservation."
+    assert (
+        documented_fn.__doc__
+        == "Sample docstring for testing metadata preservation."
+    )
     assert hasattr(documented_fn, "__wrapped__")
 
     sig = inspect.signature(documented_fn)
