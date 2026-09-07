@@ -32,6 +32,61 @@ function makePlugin(tagName: string) {
   };
 }
 
+describe("stylesheet copying", () => {
+  afterEach(() => {
+    delete (Document.prototype as Partial<Document>).adoptedStyleSheets;
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  test.each([
+    {
+      name: "linked stylesheet",
+      href: "http://localhost/assets/index.css",
+      title: "marimo-linked-test",
+      expectedBaseURL: "http://localhost/assets/index.css",
+    },
+    {
+      name: "inline stylesheet",
+      href: null,
+      title: "marimo-inline-test",
+      expectedBaseURL: document.baseURI,
+    },
+  ])(
+    "preserves the base URL of a $name",
+    ({ href, title, expectedBaseURL }) => {
+      const constructedStyleSheet = {
+        replaceSync: vi.fn(),
+      } as unknown as CSSStyleSheet;
+      const constructor = vi.fn(function () {
+        return constructedStyleSheet;
+      });
+      constructor.prototype.replace = vi.fn();
+      vi.stubGlobal("CSSStyleSheet", constructor);
+      Object.defineProperty(Document.prototype, "adoptedStyleSheets", {
+        configurable: true,
+        value: [],
+      });
+
+      const source = {
+        cssRules: [],
+        href,
+        ownerNode: null,
+        title,
+      } as unknown as CSSStyleSheet;
+      vi.spyOn(document, "styleSheets", "get").mockReturnValue([
+        source,
+      ] as unknown as StyleSheetList);
+
+      const tag = uniqueTag("stylesheet-base-url");
+      registerReactComponent(makePlugin(tag));
+      document.createElement(tag);
+
+      expect(constructor).toHaveBeenCalledWith({ baseURL: expectedBaseURL });
+    },
+  );
+});
+
 describe("isCustomMarimoElement", () => {
   test("returns false for null", () => {
     expect(isCustomMarimoElement(null)).toBe(false);

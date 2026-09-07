@@ -520,7 +520,9 @@ export function registerReactComponent<T>(plugin: IPlugin<T, unknown>): void {
         if (!styleSheetCache.has(sheetUniqueKey)) {
           // We need to create a new stylesheet because we can't use the same
           // stylesheet otherwise the browser will throw an error.
-          const newSheet = new CSSStyleSheet();
+          const newSheet = new CSSStyleSheet({
+            baseURL: sheet.href ?? document.baseURI,
+          });
           try {
             newSheet.replaceSync(
               Array.from(sheet.cssRules)
