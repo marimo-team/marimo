@@ -48,7 +48,7 @@ describe("Jotai atoms", () => {
       expect(activeSession).toEqual(
         expect.objectContaining({
           agentId: "gemini",
-          title: "New Gemini session",
+          title: "New gemini session",
         }),
       );
     });

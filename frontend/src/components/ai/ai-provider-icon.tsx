@@ -5,7 +5,6 @@ import BedrockIcon from "@marimo-team/llm-info/icons/aws.svg?inline";
 import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
 import CursorIcon from "@marimo-team/llm-info/icons/cursor.svg?inline";
 import DeepseekIcon from "@marimo-team/llm-info/icons/deepseek.svg?inline";
-import GitHubIcon from "@marimo-team/llm-info/icons/github.svg?inline";
 import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
@@ -26,7 +25,6 @@ const icons: Record<ProviderId | ExternalAgentId, string> = {
   gemini: GeminiIcon,
   google: GeminiIcon,
   codex: OpenAIIcon,
-  copilot: GitHubIcon,
   ollama: OllamaIcon,
   azure: AzureIcon,
   bedrock: BedrockIcon,

@@ -34,8 +34,7 @@ LOGGER = _loggers.marimo_logger()
 GITHUB_MODELS_RETIRED_MESSAGE = (
     "GitHub Models retired on July 30, 2026. "
     "For model inference in marimo, migrate to Microsoft Foundry or another "
-    "AI provider. For agentic coding with a Copilot subscription, use GitHub "
-    "Copilot in the Agents panel."
+    "AI provider."
 )
 
 

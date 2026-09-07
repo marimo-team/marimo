@@ -274,12 +274,6 @@ base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 For model inference, migrate to [Microsoft Foundry](#microsoft-foundry) or another AI provider.
 The [Microsoft migration guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/quickstart-github-models) explains the endpoint and credential changes.
 
-### GitHub Copilot
-
-GitHub Copilot is separate from GitHub Models. It is available as an external agent, not an AI assistant provider.
-
-See the [external agents guide](../editor_features/agents.md#github-copilot) for installation and login instructions.
-
 ### OpenRouter
 
 Route to many providers through OpenRouter with a single API.

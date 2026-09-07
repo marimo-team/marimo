@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
 import { Logger } from "@/utils/Logger";
+import { capitalize } from "@/utils/strings";
 import { AgentDocs } from "./agent-docs";
 import { AgentSelector } from "./agent-selector";
 import { ModelSelector } from "./model-selector";
@@ -31,7 +32,6 @@ import { SessionTabs } from "./session-tabs";
 import {
   agentSessionStateAtom,
   type ExternalAgentId,
-  getAgentDisplayName,
   getAgentWebSocketUrl,
   selectedTabAtom,
   updateSessionExternalAgentSessionId,
@@ -89,10 +89,8 @@ import type {
   SessionMode,
   SessionModelState,
 } from "./types";
-import { withTimeout } from "./utils";
 
 const logger = Logger.get("agents");
-const AGENT_INITIALIZATION_TIMEOUT_MS = 60_000;
 
 interface AgentTitleProps {
   currentAgentId?: ExternalAgentId;
@@ -100,7 +98,7 @@ interface AgentTitleProps {
 
 const AgentTitle = memo<AgentTitleProps>(({ currentAgentId }) => (
   <span className="text-sm font-medium">
-    {currentAgentId ? getAgentDisplayName(currentAgentId) : ""}
+    {capitalize(currentAgentId ?? "")}
   </span>
 ));
 AgentTitle.displayName = "AgentTitle";
@@ -661,7 +659,6 @@ function getAbsoluteFilename(): string {
 
 const AgentPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [isAgentInitialized, setIsAgentInitialized] = useState(false);
   const [error, setError] = useState<Error | string | null>(null);
   const [promptValue, setPromptValue] = useState("");
   const promptInputRef = useRef<ReactCodeMirrorRef | null>(null);
@@ -722,12 +719,9 @@ const AgentPanel: React.FC = () => {
   } = acpClient;
 
   useEffect(() => {
-    setIsAgentInitialized(false);
     if (!agent) {
       return;
     }
-
-    let cancelled = false;
 
     const initAndAuth = async () => {
       const response = await agent.initialize({
@@ -740,10 +734,6 @@ const AgentPanel: React.FC = () => {
         },
       });
 
-      if (cancelled) {
-        return;
-      }
-
       // We try to authenticate with the agent if it supports it.
       // The user must then restart the session
       const authMethods = response?.authMethods;
@@ -752,32 +742,10 @@ const AgentPanel: React.FC = () => {
       }
     };
 
-    setError(null);
-    withTimeout(
-      initAndAuth(),
-      AGENT_INITIALIZATION_TIMEOUT_MS,
-      "Agent initialization timed out. Read the connection terminal for CLI " +
-        "installation or authentication errors. Then reconnect.",
-    )
-      .then(() => {
-        if (!cancelled) {
-          setIsAgentInitialized(true);
-        }
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        cancelled = true;
-        logger.error("Failed to initialize/authenticate agent", { error });
-        setError(error instanceof Error ? error : String(error));
-        disconnect();
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [agent, disconnect]);
+    initAndAuth().catch((error) => {
+      logger.error("Failed to initialize/authenticate agent", { error });
+    });
+  }, [agent]);
 
   // Auto-connect to agent when we have an active session, but only once per session
   useEffect(() => {
@@ -885,7 +853,7 @@ const AgentPanel: React.FC = () => {
   const tabLastActiveSessionId = selectedTab?.externalAgentSessionId;
   useEffect(() => {
     // No need to do anything if we're not connected, don't have an agent, or don't have a selected tab
-    if (!isConnected || !isAgentInitialized || !selectedTab || !agent) {
+    if (!isConnected || !selectedTab || !agent) {
       return;
     }
 
@@ -925,13 +893,7 @@ const AgentPanel: React.FC = () => {
 
     createOrResumeSession();
     // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    isConnected,
-    isAgentInitialized,
-    agent,
-    tabLastActiveSessionId,
-    activeSessionId,
-  ]);
+  }, [isConnected, agent, tabLastActiveSessionId, activeSessionId]);
 
   // Handler for prompt submission
   const handlePromptSubmit = useEvent(
@@ -1174,9 +1136,7 @@ const AgentPanel: React.FC = () => {
       );
     }
 
-    const isConnecting =
-      connectionState.status === "connecting" ||
-      (connectionState.status === "connected" && !isAgentInitialized);
+    const isConnecting = connectionState.status === "connecting";
     const delay = 200; // ms
     if (isConnecting) {
       return (
@@ -1184,9 +1144,7 @@ const AgentPanel: React.FC = () => {
           <div className="flex items-center justify-center h-full min-h-[200px] flex-col">
             <Spinner size="medium" className="text-primary" />
             <span className="text-sm text-muted-foreground">
-              {connectionState.status === "connected"
-                ? "Initializing the agent..."
-                : "Connecting to the agent..."}
+              Connecting to the agent...
             </span>
           </div>
         </DelayMount>
