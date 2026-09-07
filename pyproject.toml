@@ -393,12 +393,9 @@ ignore = [
     "FURB110", # Replace ternary with an `or` expression
     "RUF036", # `None` is not last in a union
     "FURB113", # Repeated `append` calls
-    "PLC0207", # Missing `maxsplit` argument
     "RUF075", # Fallible context manager
     "FURB171", # Single-item membership test
     "NPY002", # Legacy NumPy random API
-    "RUF027", # Possible missing f-string prefix
-    "RUF055", # Unnecessary regular expression
     "RUF100", # Unused `noqa` directive
 ]
 

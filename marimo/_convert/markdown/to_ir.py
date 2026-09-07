@@ -89,7 +89,7 @@ def extract_attribs(
 
 
 def _is_code_tag(text: str) -> bool:
-    head = text.split("\n")[0].strip()
+    head = text.split("\n", maxsplit=1)[0].strip()
     # ```python {.marimo attr=...}, and the legacy
     # ```{.python.marimo attr=...} form we still read
     return bool(
