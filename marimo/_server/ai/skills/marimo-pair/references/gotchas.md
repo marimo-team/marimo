@@ -11,10 +11,10 @@ This matters when building notebooks programmatically. A common mistake:
 
 ```python
 # Cell A
-_df = pd.DataFrame(results)   # _df is private to this cell
+_df = pd.DataFrame(results)  # _df is private to this cell
 
 # Cell B — FAILS
-mo.ui.table(_df)               # NameError: name '_df' is not defined
+mo.ui.table(_df)  # NameError: name '_df' is not defined
 ```
 
 **Fix:** Either merge both into one cell, or use a non-private name (`df`).
@@ -30,7 +30,7 @@ incrementally — a second cell reassigns `df`, `results`, `data`, etc.
 df = pd.read_csv("data.csv")
 
 # Cell B — FAILS: df already defined in Cell A
-df = df.dropna()               # Multiply-defined names: df
+df = df.dropna()  # Multiply-defined names: df
 ```
 
 **Fix — pick one:**
@@ -65,6 +65,7 @@ tree = ast.parse(src)  # IndentationError: unexpected indent
 
 # FIX
 import textwrap
+
 src = textwrap.dedent(inspect.getsource(SomeClass.some_method))
 tree = ast.parse(src)
 ```
@@ -87,6 +88,7 @@ persist in the notebook.
 ```python
 import pyarrow as _pa
 import polars.dataframe.frame as _frame_mod
+
 _frame_mod.pa = _pa
 ```
 
