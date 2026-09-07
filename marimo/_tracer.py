@@ -145,8 +145,6 @@ def _set_tracer_provider() -> None:
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
         return
 
-    DependencyManager.opentelemetry.require("for tracing.")
-
     from opentelemetry import trace
     from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
     from opentelemetry.sdk.trace.export import (
@@ -258,18 +256,37 @@ def _instrument_ai(provider: trace.TracerProvider) -> None:
         LOGGER.debug("AI instrumentation failed: %s", e)
 
 
-def create_tracer(trace_name: str) -> trace.Tracer:
-    """
-    Creates a tracer that logs to a file.
-
-    This lazily loads opentelemetry.
-    """
-
-    # Don't load opentelemetry if we're in a Pyodide environment.
+def _initialize_tracing() -> bool:
+    """Initialize tracing, falling back to no-op tracers on failure."""
     if is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
-        return cast(Any, MockTracer())  # type: ignore[no-any-return]
+        return False
 
-    DependencyManager.opentelemetry.require("for tracing.")
+    try:
+        _set_tracer_provider()
+    except ModuleNotFoundError:
+        LOGGER.warning(
+            "Marimo cannot import the OpenTelemetry dependencies. Tracing "
+            "is disabled for this process. Install marimo[otel] to enable "
+            "tracing."
+        )
+        return False
+    except Exception as e:
+        LOGGER.warning(
+            "Marimo failed to initialize tracing. Tracing is disabled for "
+            "this process. Install a compatible version of marimo[otel] "
+            "to enable tracing."
+        )
+        LOGGER.debug("Failed to initialize tracing", exc_info=e)
+        return False
+
+    return True
+
+
+def create_tracer(trace_name: str) -> trace.Tracer:
+    """Create a real or no-op tracer from the initialized backend."""
+
+    if not _TRACING_AVAILABLE:
+        return cast(Any, MockTracer())  # type: ignore[no-any-return]
 
     try:
         from opentelemetry import trace
@@ -285,6 +302,11 @@ def create_tracer(trace_name: str) -> trace.Tracer:
         LOGGER.debug("Failed to create tracer: %s", e)
 
     return cast(Any, MockTracer())  # type: ignore[no-any-return]
+
+
+def is_tracing_enabled() -> bool:
+    """Return whether tracing initialized successfully."""
+    return _TRACING_AVAILABLE
 
 
 @contextmanager
@@ -303,7 +325,7 @@ def attach_trace_context(
     No-op when there are no headers, tracing is disabled, or opentelemetry
     is unavailable.
     """
-    if not headers or is_pyodide() or GLOBAL_SETTINGS.TRACING is False:
+    if not headers or not is_tracing_enabled():
         yield
         return
 
@@ -324,10 +346,7 @@ def attach_trace_context(
         otel_context.detach(token)
 
 
-try:
-    _set_tracer_provider()
-except Exception as e:
-    LOGGER.debug("Failed to set tracer provider", exc_info=e)
+_TRACING_AVAILABLE = _initialize_tracing()
 
 server_tracer = create_tracer("marimo.server")
 kernel_tracer = create_tracer("marimo.kernel")
