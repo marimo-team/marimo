@@ -26,7 +26,7 @@ jobs:
       notifications: ${{ steps.filter.outputs.notifications }}
       plugins: ${{ steps.filter.outputs.plugins }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
@@ -77,13 +77,13 @@ jobs:
     steps:
       - name: Checkout current branch
         if: ${{ matrix.schema.condition }}
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           path: current
 
       - name: Checkout main branch
         if: ${{ matrix.schema.condition }}
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: main
           path: main
