@@ -77,7 +77,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.params = params
         self.mode = mode
         self.doc_manager = doc_manager
-        self.status: ConnectionState
+        # CONNECTING until a connect path completes the handshake.
+        self.status: ConnectionState = ConnectionState.CONNECTING
         self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend

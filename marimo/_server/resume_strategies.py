@@ -49,9 +49,14 @@ class SessionResumeStrategy(Protocol):
 class EditModeResumeStrategy(SessionResumeStrategy):
     """Resume strategy for edit mode.
 
-    In edit mode, we can resume orphaned sessions for the same file.
-    Only one session per file is allowed in edit mode.
+    In edit mode, a session without a live editor can be resumed for the
+    same file. Only one session per file is allowed in edit mode.
     """
+
+    # The previous editor is gone: ORPHANED once its disconnect was
+    # processed, CLOSED when the socket closed but the disconnect has not
+    # been handled yet (a refresh where the new connection wins the race).
+    _RESUMABLE_STATES = (ConnectionState.ORPHANED, ConnectionState.CLOSED)
 
     def __init__(
         self,
@@ -66,7 +71,7 @@ class EditModeResumeStrategy(SessionResumeStrategy):
         new_session_id: SessionId,
         file_key: MarimoFileKey,
     ) -> Session | None:
-        """Try to resume an orphaned session for the same file."""
+        """Try to resume a session for the same file."""
         # Find sessions with the same file. File keys can be
         # workspace-relative, so match through the workspace resolver rather
         # than a CWD-dependent abspath.
@@ -91,7 +96,7 @@ class EditModeResumeStrategy(SessionResumeStrategy):
         session_id, session = sessions_with_file[0]
         connection_state = session.connection_state()
 
-        if connection_state == ConnectionState.ORPHANED:
+        if connection_state in self._RESUMABLE_STATES:
             LOGGER.debug(
                 f"Found a resumable EDIT session: prev_id={session_id}"
             )

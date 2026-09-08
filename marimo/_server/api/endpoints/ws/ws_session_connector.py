@@ -117,7 +117,11 @@ class SessionConnector:
         if resumable is not None:
             return self._resume_session(resumable)
 
-        # 5. Create new session
+        # 5. Create new session. Edit mode allows one session per notebook;
+        # join a mid-handshake session as a viewer instead of creating a
+        # second kernel.
+        if existing_by_file is not None and session_in_edit_mode:
+            return self._connect_kiosk()
         return self._create_new_session()
 
     def _connect_kiosk(self) -> tuple[Session, ConnectionType]:
@@ -188,6 +192,9 @@ class SessionConnector:
     ) -> tuple[Session, ConnectionType]:
         """Resume a previous session."""
         LOGGER.debug("Resuming session %s", self.params.session_id)
+        # Detach a main consumer whose socket closed but whose disconnect
+        # has not been processed yet.
+        session.disconnect_main_consumer()
         self.handler._reconnect_session(session, replay=True)
         return session, ConnectionType.RESUME
 
