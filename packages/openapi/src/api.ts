@@ -5386,7 +5386,12 @@ export interface components {
       /** @enum {unknown} */
       op: "installing-package-alert";
       packages: {
-        [key: string]: "failed" | "installed" | "installing" | "queued";
+        [key: string]:
+          | "failed"
+          | "installed"
+          | "installing"
+          | "queued"
+          | "restart-required";
       };
       /**
        * @default kernel
@@ -6321,6 +6326,8 @@ export interface components {
     PackageOperationResponse: {
       /** @default null */
       error?: string | null;
+      /** @default false */
+      restartRequired?: boolean;
       success: boolean;
     };
     /**

@@ -28,6 +28,7 @@ import type {
 } from "@/core/network/types";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
 import {
+  showPackageRestartToast,
   showRemovePackageToast,
   showUpgradePackageToast,
 } from "@/core/packages/toast-components";
@@ -441,7 +442,9 @@ const UpgradeButton: React.FC<{
         upgrade: true,
         group,
       });
-      if (response.success) {
+      if (response.restartRequired) {
+        showPackageRestartToast();
+      } else if (response.success) {
         onSuccess();
         showUpgradePackageToast(packageName);
       } else {
@@ -475,7 +478,9 @@ const RemoveButton: React.FC<{
         package: packageName,
         group,
       });
-      if (response.success) {
+      if (response.restartRequired) {
+        showPackageRestartToast();
+      } else if (response.success) {
         onSuccess();
         showRemovePackageToast(packageName);
       } else {

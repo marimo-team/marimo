@@ -923,6 +923,7 @@ components:
             - installed
             - installing
             - queued
+            - restart-required
           type: object
         source:
           default: kernel

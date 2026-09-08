@@ -23,9 +23,14 @@ HEADERS = {
 
 
 @pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("restart_required", [True, False])
 def test_sandbox_failure_returns_actionable_message(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch, operation: str
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    restart_required: bool,
 ) -> None:
+    from marimo._environments.errors import SandboxRestartRequired
     from marimo._environments.pixi import PixiError
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.packages.sandbox_package_manager import (
@@ -40,7 +45,11 @@ def test_sandbox_failure_returns_actionable_message(
     sandbox = MagicMock(spec=NotebookSandbox)
     sandbox.backend = "pixi"
     sandbox.environment = None
-    getattr(sandbox, operation).side_effect = PixiError(message)
+    getattr(sandbox, operation).side_effect = (
+        SandboxRestartRequired(message)
+        if restart_required
+        else PixiError(message)
+    )
     manager = SandboxPackageManager(sandbox)
     monkeypatch.setattr(
         "marimo._server.api.endpoints.packages._get_package_manager",
@@ -54,12 +63,17 @@ def test_sandbox_failure_returns_actionable_message(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"success": False, "error": message}
+    assert response.json() == {
+        "success": False,
+        "error": None if restart_required else message,
+        "restartRequired": restart_required,
+    }
 
 
 @pytest.fixture
 def mock_package_manager(monkeypatch: pytest.MonkeyPatch) -> PackageManager:
     mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.restart_required = False
     mock_manager.name = "pip"
     mock_manager.install = AsyncMock(return_value=True)
     mock_manager.uninstall = AsyncMock(return_value=True)
@@ -86,7 +100,11 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
         json={"package": "test-package"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=False, group=None
     )
@@ -113,7 +131,11 @@ def test_remove_package(
         json={"package": "test-package"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.uninstall.assert_called_once_with(
         "test-package", group=None
     )
@@ -174,6 +196,7 @@ def test_add_package_failure(
     assert response.json() == {
         "success": False,
         "error": "Failed to install test-package. See terminal for error logs.",
+        "restartRequired": False,
     }
 
 
@@ -190,6 +213,7 @@ def test_remove_package_failure(
     assert response.json() == {
         "success": False,
         "error": "Failed to uninstall test-package. See terminal for error logs.",
+        "restartRequired": False,
     }
 
 
@@ -203,7 +227,11 @@ def test_add_package_with_upgrade(
         json={"package": "test-package", "upgrade": True},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=True, group=None
     )
@@ -219,7 +247,11 @@ def test_add_package_without_upgrade(
         json={"package": "test-package", "upgrade": False},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=False, group=None
     )
@@ -583,7 +615,11 @@ def test_add_package_with_metadata_update(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
 
 
@@ -608,7 +644,11 @@ def test_add_package_with_spaced_extras_updates_metadata(
             json={"package": package, "upgrade": True},
         )
 
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager_with_metadata.install.assert_awaited_once_with(
         package, version=None, upgrade=True, group=None
     )
@@ -662,7 +702,11 @@ def test_remove_package_with_metadata_update(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
 
 
@@ -745,7 +789,11 @@ def test_add_package_with_git_dependency(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
 
             # Verify metadata update was called with the git dependency
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
@@ -768,7 +816,11 @@ def test_add_package_with_dev_dependency(
         json={"package": "test-package", "upgrade": True, "group": "dev"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=True, group="dev"
     )
@@ -785,7 +837,11 @@ def test_remove_package_with_dev_dependency(
         json={"package": "test-package", "group": "dev"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.uninstall.assert_called_once_with(
         "test-package", group="dev"
     )

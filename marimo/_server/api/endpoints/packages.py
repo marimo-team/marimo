@@ -84,6 +84,9 @@ async def add_package(request: Request) -> PackageOperationResponse:
     if success:
         return PackageOperationResponse.of_success()
 
+    if package_manager.restart_required:
+        return PackageOperationResponse(success=False, restart_required=True)
+
     return PackageOperationResponse.of_failure(
         _failure_message(package_manager)
         or f"Failed to install {body.package}. See terminal for error logs."
@@ -137,6 +140,9 @@ async def remove_package(request: Request) -> PackageOperationResponse:
 
     if success:
         return PackageOperationResponse.of_success()
+
+    if package_manager.restart_required:
+        return PackageOperationResponse(success=False, restart_required=True)
 
     return PackageOperationResponse.of_failure(
         _failure_message(package_manager)

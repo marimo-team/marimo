@@ -5,6 +5,7 @@ import asyncio
 import importlib.metadata
 import subprocess
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -109,6 +110,48 @@ async def test_cell_imports_record_transitive_sandbox_dependencies(
             upgrade=False,
         )
         assert notebook.read_bytes() == before
+
+
+@pytest.mark.parametrize("operation", ["install", "uninstall"])
+async def test_restart_required_batch_saves_every_requirement(
+    operation: str,
+) -> None:
+    from marimo._environments.errors import (
+        EnvironmentManagerError,
+        SandboxRestartRequired,
+    )
+    from marimo._environments.sandbox import NotebookSandbox
+
+    sandbox = MagicMock(spec=NotebookSandbox)
+    sandbox.backend = "pixi"
+    sandbox.environment = None
+    mutation = sandbox.add if operation == "install" else sandbox.remove
+    mutation.side_effect = SandboxRestartRequired("Restart the kernel")
+    manager = SandboxPackageManager(sandbox)
+
+    async def mutate() -> bool:
+        if operation == "install":
+            return await manager.install("boltons six", version=None)
+        return await manager.uninstall("boltons six")
+
+    assert not await mutate()
+    assert [call.args[0] for call in mutation.call_args_list] == [
+        "boltons",
+        "six",
+    ]
+    assert (manager.restart_required, manager.last_error) == (True, None)
+
+    # A subsequent solver failure is a failure, not another saved-change result.
+    mutation.side_effect = EnvironmentManagerError("No solution")
+    assert not await mutate()
+    assert (manager.restart_required, manager.last_error) == (
+        False,
+        "No solution",
+    )
+
+    mutation.side_effect = None
+    assert await mutate()
+    assert (manager.restart_required, manager.last_error) == (False, None)
 
 
 async def test_rename_rebinds_packages_before_rerunning_cells(

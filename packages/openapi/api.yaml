@@ -2770,6 +2770,7 @@ components:
             - installed
             - installing
             - queued
+            - restart-required
           type: object
         source:
           default: kernel
@@ -4350,6 +4351,9 @@ components:
           - type: string
           - type: 'null'
           default: null
+        restartRequired:
+          default: false
+          type: boolean
         success:
           type: boolean
       required:
@@ -8076,3 +8080,4 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
+

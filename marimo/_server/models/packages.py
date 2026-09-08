@@ -68,6 +68,7 @@ class DependencyTreeResponse(msgspec.Struct, rename="camel"):
 class PackageOperationResponse(msgspec.Struct, rename="camel"):
     success: bool
     error: str | None = None
+    restart_required: bool = False
 
     @staticmethod
     def of_success() -> PackageOperationResponse:
