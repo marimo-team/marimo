@@ -340,6 +340,17 @@ describe("ColumnVisibilityDropdown", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("omits search bulk actions when only non-hideable columns match", () => {
+    renderAndOpen({ nonHideable: ["customer_name"] });
+    fireEvent.change(getSearchInput(), { target: { value: "customer" } });
+    expect(screen.getByText("customer_name")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Show only \d+ matching/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hide \d+ matching/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show \d+ matching/)).not.toBeInTheDocument();
+  });
+
   it("show-only icon isolates one column without clearing search", () => {
     renderAndOpen();
     fireEvent.change(getSearchInput(), { target: { value: "cust" } });

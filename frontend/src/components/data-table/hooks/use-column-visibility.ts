@@ -82,21 +82,51 @@ export function applyShowOnlyColumns<TData>(
   }));
 }
 
+export interface ShowOnlyColumnState {
+  visibleHideableColumnIds: readonly string[];
+  hideableColumnIdSet: ReadonlySet<string>;
+}
+
+export function getShowOnlyColumnState<TData>(
+  table: Table<TData>,
+): ShowOnlyColumnState {
+  const hideableIds: string[] = [];
+  const visibleHideableColumnIds: string[] = [];
+
+  for (const column of table.getAllLeafColumns()) {
+    if (!column.getCanHide()) {
+      continue;
+    }
+    hideableIds.push(column.id);
+    if (column.getIsVisible()) {
+      visibleHideableColumnIds.push(column.id);
+    }
+  }
+
+  return {
+    visibleHideableColumnIds,
+    hideableColumnIdSet: new Set(hideableIds),
+  };
+}
+
+export function isShowingOnlyColumns(
+  state: ShowOnlyColumnState,
+  columnIds: readonly string[],
+): boolean {
+  const targetIds = new Set(
+    columnIds.filter((id) => state.hideableColumnIdSet.has(id)),
+  );
+
+  if (state.visibleHideableColumnIds.length !== targetIds.size) {
+    return false;
+  }
+
+  return state.visibleHideableColumnIds.every((id) => targetIds.has(id));
+}
+
 export function isShowingOnly<TData>(
   table: Table<TData>,
   columnIds: string[],
 ): boolean {
-  const targetIds = new Set(
-    columnIds.filter((id) => table.getColumn(id)?.getCanHide()),
-  );
-  const visibleHideableIds = table
-    .getAllLeafColumns()
-    .filter((column) => column.getCanHide() && column.getIsVisible())
-    .map((column) => column.id);
-
-  if (visibleHideableIds.length !== targetIds.size) {
-    return false;
-  }
-
-  return visibleHideableIds.every((id) => targetIds.has(id));
+  return isShowingOnlyColumns(getShowOnlyColumnState(table), columnIds);
 }

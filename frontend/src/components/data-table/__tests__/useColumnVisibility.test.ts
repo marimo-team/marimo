@@ -9,8 +9,10 @@ import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   applyShowOnlyColumns,
+  getShowOnlyColumnState,
   getShowOnlyVisibility,
   isShowingOnly,
+  isShowingOnlyColumns,
   useColumnVisibility,
 } from "../hooks/use-column-visibility";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "../types";
@@ -167,11 +169,25 @@ describe("isShowingOnly", () => {
   });
 });
 
+describe("isShowingOnlyColumns", () => {
+  it("reuses precomputed visible hideable columns", () => {
+    const table = createTestTable({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    const state = getShowOnlyColumnState(table);
+
+    expect(isShowingOnlyColumns(state, ["customer_name"])).toBe(true);
+    expect(isShowingOnly(table, ["customer_name"])).toBe(true);
+  });
+});
+
 describe("applyShowOnlyColumns", () => {
   it("shows only the requested hideable columns", () => {
     const table = createTestTable({ initiallyHidden: ["cust_age"] });
 
-    applyShowOnlyColumns(table, ["customer_name", "order_total"]);
+    act(() => {
+      applyShowOnlyColumns(table, ["customer_name", "order_total"]);
+    });
 
     expect(isShowingOnly(table, ["customer_name", "order_total"])).toBe(true);
   });

@@ -6,7 +6,7 @@
 
 import type { Table } from "@tanstack/react-table";
 import { Columns3Icon, EyeIcon, EyeOffIcon, ScanEyeIcon } from "lucide-react";
-import React from "react";
+import React, { useMemo } from "react";
 import { ColumnName } from "@/components/datasources/components";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,7 @@ import { smartMatchFilter } from "@/utils/smartMatch";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
 import {
   applyShowOnlyColumns,
-  isShowingOnly,
+  isShowingOnlyColumns,
 } from "./hooks/use-column-visibility";
 import { ShowOnlyColumnButton } from "./show-only-column-button";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "./types";
@@ -106,6 +106,17 @@ export const ColumnVisibilityDropdown = <TData,>({
           .filter((option) => !option.disabled)
           .map((option) => option.value)
       : [];
+  const showOnlyColumnState = useMemo(
+    () => ({
+      visibleHideableColumnIds: hideableIds.filter(
+        (id) => !hiddenIds.includes(id),
+      ),
+      hideableColumnIdSet: new Set(hideableIds),
+    }),
+    [hideableIds, hiddenIds],
+  );
+  const hasSearchBulkActions =
+    showOnlyMatchIds.length > 0 || matchingActions.length > 0;
 
   return (
     <Popover open={list.open} onOpenChange={list.setOpen}>
@@ -156,13 +167,16 @@ export const ColumnVisibilityDropdown = <TData,>({
                 <CommandSeparator />
               </>
             ) : (
-              list.visibleOptions.length > 0 && (
+              hasSearchBulkActions && (
                 <>
                   <CommandItem
                     value="__show_only_matching__"
                     disabled={
                       showOnlyMatchIds.length === 0 ||
-                      isShowingOnly(table, showOnlyMatchIds)
+                      isShowingOnlyColumns(
+                        showOnlyColumnState,
+                        showOnlyMatchIds,
+                      )
                     }
                     onSelect={() => {
                       applyShowOnlyColumns(table, showOnlyMatchIds);
@@ -223,6 +237,9 @@ export const ColumnVisibilityDropdown = <TData,>({
                         <ShowOnlyColumnButton
                           table={table}
                           columnIds={[option.value]}
+                          disabled={isShowingOnlyColumns(showOnlyColumnState, [
+                            option.value,
+                          ])}
                           iconClassName="w-3 h-3"
                         />
                         <span

@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeOffIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocale } from "react-aria";
 import {
   AddDataframeChart,
@@ -52,7 +52,10 @@ import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
 import {
   getColumnCountForDisplay,
+  getShowOnlyColumnState,
   getUserColumnVisibilityCounts,
+  isShowingOnlyColumns,
+  type ShowOnlyColumnState,
 } from "../hooks/use-column-visibility";
 import { ShowOnlyColumnButton } from "../show-only-column-button";
 
@@ -95,6 +98,11 @@ export function ColumnExplorerPanel<TData>({
     hiddenColumns: hiddenColumnCount,
   } = getColumnCountForDisplay(table, totalColumns);
   const { visible: visibleColumnCount } = getUserColumnVisibilityCounts(table);
+  const columnVisibility = table.getState().columnVisibility;
+  const showOnlyColumnState = useMemo(
+    () => getShowOnlyColumnState(table),
+    [table, columnVisibility],
+  );
 
   const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,
@@ -164,6 +172,7 @@ export function ColumnExplorerPanel<TData>({
                   externalType={externalType}
                   previewColumn={previewColumn}
                   table={table}
+                  showOnlyColumnState={showOnlyColumnState}
                   defaultExpanded={index === 0}
                 />
               );
@@ -182,6 +191,7 @@ function ColumnItem<TData>({
   externalType,
   previewColumn,
   table,
+  showOnlyColumnState,
   defaultExpanded = false,
 }: {
   columnName: string;
@@ -190,6 +200,7 @@ function ColumnItem<TData>({
   externalType: string;
   previewColumn: PreviewColumn;
   table: Table<TData>;
+  showOnlyColumnState: ShowOnlyColumnState;
   defaultExpanded?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -226,6 +237,9 @@ function ColumnItem<TData>({
               <ShowOnlyColumnButton
                 table={table}
                 columnIds={[columnName]}
+                disabled={isShowingOnlyColumns(showOnlyColumnState, [
+                  columnName,
+                ])}
                 className={cn(
                   column.getIsVisible()
                     ? "group-hover:opacity-100 opacity-0"

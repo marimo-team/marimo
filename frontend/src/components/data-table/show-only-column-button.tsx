@@ -6,14 +6,14 @@ import { ScanEyeIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/utils/cn";
-import {
-  applyShowOnlyColumns,
-  isShowingOnly,
-} from "./hooks/use-column-visibility";
+import { applyShowOnlyColumns } from "./hooks/use-column-visibility";
+
+export const SHOW_ONLY_COLUMN_LABEL = "Show only this column";
 
 interface ShowOnlyColumnButtonProps<TData> {
   table: Table<TData>;
   columnIds: string[];
+  disabled: boolean;
   className?: string;
   iconClassName?: string;
 }
@@ -21,18 +21,17 @@ interface ShowOnlyColumnButtonProps<TData> {
 export function ShowOnlyColumnButton<TData>({
   table,
   columnIds,
+  disabled,
   className,
   iconClassName = "h-3 w-3",
 }: ShowOnlyColumnButtonProps<TData>) {
-  const disabled = isShowingOnly(table, columnIds);
-
   return (
-    <Tooltip content="Show only this column" delayDuration={400}>
+    <Tooltip content={SHOW_ONLY_COLUMN_LABEL} delayDuration={400}>
       <Button
         type="button"
         variant="text"
         size="icon"
-        aria-label="Show only this column"
+        aria-label={SHOW_ONLY_COLUMN_LABEL}
         aria-disabled={disabled}
         tabIndex={disabled ? -1 : 0}
         className={cn(
