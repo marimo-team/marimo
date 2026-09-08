@@ -54,3 +54,39 @@ export function getColumnCountForDisplay<TData>(
     hiddenColumns: counts.hidden,
   };
 }
+
+export function getShowOnlyVisibility<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): VisibilityState {
+  const showOnlySet = new Set(columnIds);
+  const visibility: VisibilityState = {};
+
+  for (const column of table.getAllLeafColumns()) {
+    if (!column.getCanHide()) {
+      continue;
+    }
+    visibility[column.id] = showOnlySet.has(column.id);
+  }
+
+  return visibility;
+}
+
+export function isShowingOnly<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): boolean {
+  const targetIds = new Set(
+    columnIds.filter((id) => table.getColumn(id)?.getCanHide()),
+  );
+  const visibleHideableIds = table
+    .getAllLeafColumns()
+    .filter((column) => column.getCanHide() && column.getIsVisible())
+    .map((column) => column.id);
+
+  if (visibleHideableIds.length !== targetIds.size) {
+    return false;
+  }
+
+  return visibleHideableIds.every((id) => targetIds.has(id));
+}
