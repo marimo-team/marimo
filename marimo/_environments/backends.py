@@ -247,6 +247,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment:
         from marimo._environments.environment import sync
 
@@ -254,6 +255,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
             target.path,
             cwd=target.directory,
             python_override=python_override,
+            active_environment=active_environment,
             on_output=on_output,
             on_command=lambda argv: self._report("sync", argv),
         )
