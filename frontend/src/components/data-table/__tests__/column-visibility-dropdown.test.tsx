@@ -270,8 +270,59 @@ describe("ColumnVisibilityDropdown", () => {
   it("offers both bulk actions when matches are mixed", () => {
     renderAndOpen({ initiallyHidden: ["cust_age"] });
     fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(screen.getByText(/Show only 2 matching/)).toBeInTheDocument();
     expect(screen.getByText(/Hide 1 matching/)).toBeInTheDocument();
     expect(screen.getByText(/Show 1 matching/)).toBeInTheDocument();
+  });
+
+  it("lists show-only before hide and show bulk actions while searching", () => {
+    renderAndOpen({ initiallyHidden: ["cust_age"] });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getOptionTexts().slice(0, 3)).toEqual([
+      "Show only 2 matching",
+      "Hide 1 matching",
+      "Show 1 matching",
+    ]);
+  });
+
+  it("'Show only N matching' isolates matching columns", () => {
+    renderAndOpen({ initiallyHidden: ["cust_age"] });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    fireEvent.click(getColumnOption("Show only 2 matching"));
+    fireEvent.change(getSearchInput(), { target: { value: "" } });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("order_total").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getColumnOption("Show only 2 matching")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disables 'Show only N matching' when already showing only matches", () => {
+    renderAndOpen({
+      initiallyHidden: ["order_total"],
+    });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getColumnOption("Show only 2 matching")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("omits 'Show only N matching' without search text", () => {
+    renderAndOpen();
+    expect(
+      screen.queryByText(/Show only \d+ matching/),
+    ).not.toBeInTheDocument();
   });
 
   it("renders non-hideable columns disabled and without an eye toggle", () => {

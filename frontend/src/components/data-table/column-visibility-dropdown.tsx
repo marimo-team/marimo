@@ -5,7 +5,7 @@
 // https://github.com/TanStack/table/issues/5567
 
 import type { Table } from "@tanstack/react-table";
-import { Columns3Icon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { Columns3Icon, EyeIcon, EyeOffIcon, ScanEyeIcon } from "lucide-react";
 import React from "react";
 import { ColumnName } from "@/components/datasources/components";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,10 @@ import { cn } from "@/utils/cn";
 import { Events } from "@/utils/events";
 import { smartMatchFilter } from "@/utils/smartMatch";
 import { NAMELESS_COLUMN_PREFIX } from "./columns";
+import {
+  getShowOnlyVisibility,
+  isShowingOnly,
+} from "./hooks/use-column-visibility";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "./types";
 
 function getUserColumns<TData>(table: Table<TData>) {
@@ -95,6 +99,12 @@ export const ColumnVisibilityDropdown = <TData,>({
     > =>
       action.kind === "select-matching" || action.kind === "deselect-matching",
   );
+  const showOnlyMatchIds =
+    list.searchQuery !== ""
+      ? list.visibleOptions
+          .filter((option) => !option.disabled)
+          .map((option) => option.value)
+      : [];
 
   return (
     <Popover open={list.open} onOpenChange={list.setOpen}>
@@ -145,8 +155,25 @@ export const ColumnVisibilityDropdown = <TData,>({
                 <CommandSeparator />
               </>
             ) : (
-              matchingActions.length > 0 && (
+              list.visibleOptions.length > 0 && (
                 <>
+                  <CommandItem
+                    value="__show_only_matching__"
+                    disabled={
+                      showOnlyMatchIds.length === 0 ||
+                      isShowingOnly(table, showOnlyMatchIds)
+                    }
+                    onSelect={() => {
+                      table.setColumnVisibility((previous) => ({
+                        ...previous,
+                        ...getShowOnlyVisibility(table, showOnlyMatchIds),
+                      }));
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <ScanEyeIcon className="w-3 h-3 mr-1.5" />
+                    Show only {showOnlyMatchIds.length} matching
+                  </CommandItem>
                   {matchingActions.map((action) => (
                     <CommandItem
                       key={action.kind}
