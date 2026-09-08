@@ -37,7 +37,12 @@ export const CustomNode = memo((props: CustomNodeProps) => {
   const { width, height } = nodeDimensions(data);
   const isNamed = !isInternalCellName(cell.name);
   const name = displayCellName(cell.name, cellIndex);
-  const preview = extractCellPreview(cell.code).text;
+  // Only collapsed nodes without defs render the preview; skip the parse
+  // otherwise, since it scales with notebook size.
+  const preview =
+    !data.expanded && data.defs.length === 0
+      ? extractCellPreview(cell.code).text
+      : undefined;
 
   return (
     <div>
@@ -81,7 +86,11 @@ export const CustomNode = memo((props: CustomNodeProps) => {
             {data.defs.length > 0 ? (
               // Defs wrapped into comma-separated lines — taller, not wider.
               nodeBodyLines(data).map((line) => (
-                <span key={line} className="text-foreground whitespace-nowrap">
+                <span
+                  key={line}
+                  className="text-foreground truncate"
+                  title={line}
+                >
                   {line}
                 </span>
               ))

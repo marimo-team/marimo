@@ -23,7 +23,7 @@ export const layoutElements = ({
   nodes: Node<NodeData>[];
   edges: Edge[];
   direction: LayoutDirection;
-}): { nodes: Node[]; edges: Edge[] } => {
+}): { nodes: Node<NodeData>[]; edges: Edge[] } => {
   const g = new graphlib.Graph().setDefaultEdgeLabel(() => ({}));
   g.setGraph({
     rankdir: direction,

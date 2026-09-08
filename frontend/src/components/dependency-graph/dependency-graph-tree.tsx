@@ -1,8 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Atom } from "jotai";
+import { type Atom, atom, useAtomValue } from "jotai";
 import { MapPinIcon } from "lucide-react";
-import React, { type PropsWithChildren, useEffect, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import useEvent from "react-use-event-hook";
 import ReactFlow, {
   Background,
@@ -27,9 +32,15 @@ import { store } from "@/core/state/jotai";
 import type { Variables } from "@/core/variables/types";
 import { Events } from "@/utils/events";
 import { Tooltip } from "../ui/tooltip";
-import { type NodeData, nodeDimensions, TreeElementsBuilder } from "./elements";
+import {
+  computeDefsByCell,
+  type NodeData,
+  nodeDimensions,
+  TreeElementsBuilder,
+} from "./elements";
 import { GraphSelectionPanel } from "./panels";
 import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
+import { extractCellPreview } from "./utils/cell-preview";
 import { layoutElements } from "./utils/layout";
 import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
@@ -101,9 +112,53 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         edges: elements.edges,
         direction: layoutDirection,
       });
-      setNodes(result.nodes);
-      setEdges(result.edges);
+      // Rebuilt elements are fresh objects; carry selection over so a
+      // re-layout (e.g. toggling expansion) doesn't silently clear it while
+      // the selection panel still targets the element.
+      setNodes((prev) => {
+        const selected = new Set(
+          prev.filter((node) => node.selected).map((node) => node.id),
+        );
+        return result.nodes.map((node) =>
+          selected.has(node.id) ? { ...node, selected: true } : node,
+        );
+      });
+      setEdges((prev) => {
+        const selected = new Set(
+          prev.filter((edge) => edge.selected).map((edge) => edge.id),
+        );
+        return result.edges.map((edge) =>
+          selected.has(edge.id) ? { ...edge, selected: true } : edge,
+        );
+      });
     },
+  );
+
+  // Node sizes depend on live cell code: the line count when expanded, or the
+  // preview when a cell defines nothing. The cell atoms keep their identity
+  // across edits, so the rebuild effect below can't see code changes through
+  // its deps — subscribe to the size-relevant inputs explicitly.
+  const defsByCell = useMemo(() => computeDefsByCell(variables), [variables]);
+  const sizeSignature = useAtomValue(
+    useMemo(
+      () =>
+        atom((get) =>
+          cellIds
+            .map((cellId, index) => {
+              const code = get(cellAtoms[index]).code;
+              if (expandedIds.has(cellId)) {
+                return `e${code.trim().split("\n").length}`;
+              }
+              if ((defsByCell.get(cellId) ?? []).length > 0) {
+                // Collapsed nodes with defs size off the defs, not the code.
+                return "d";
+              }
+              return `p${extractCellPreview(code).text?.length ?? 0}`;
+            })
+            .join(),
+        ),
+      [cellIds, cellAtoms, expandedIds, defsByCell],
+    ),
   );
 
   // Rebuild + re-layout when the graph inputs or the expand/collapse set change.
@@ -127,6 +182,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     settings.hidePureMarkdown,
     settings.hideReusableFunctions,
     expandedIds,
+    sizeSignature,
   ]);
 
   const [selection, setSelection] = useState<GraphSelection>();

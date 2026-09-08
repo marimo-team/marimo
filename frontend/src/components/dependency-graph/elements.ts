@@ -13,6 +13,10 @@ import { extractCellPreview } from "./utils/cell-preview";
 /** The edge type registered for dependency edges (see `custom-edge.tsx`). */
 export const DEPENDENCY_EDGE_TYPE = "dependency";
 
+// Stroke/marker colors shared by the dependency edge and its arrow marker.
+export const STATE_FLOW_EDGE_COLOR = "var(--amber-10)";
+export const DEFAULT_EDGE_COLOR = "var(--gray-8)";
+
 export interface DependencyEdgeData {
   /** Variables carried across this edge. */
   variables: VariableName[];
@@ -58,6 +62,12 @@ const MAX_NODE_WIDTH = 240;
 // Wrap defs to the longest single name, but never narrower than this — short
 // names pack several per line, a long one gets a line to itself.
 const WRAP_MIN_CHARS = 12;
+// ... and never wider than fits MAX_NODE_WIDTH, or packed lines would be
+// clipped by the width clamp. A single name over this budget still gets its
+// own line; the renderer truncates it with an ellipsis and a title.
+const WRAP_MAX_CHARS = Math.floor(
+  (MAX_NODE_WIDTH - NODE_H_PADDING) / CHAR_WIDTH,
+);
 
 export function collapsedNodeWidth(label: string): number {
   const raw = label.length * CHAR_WIDTH + NODE_H_PADDING;
@@ -66,7 +76,11 @@ export function collapsedNodeWidth(label: string): number {
 
 /** The per-line character budget used to wrap a node's defs. */
 function defsWrapBudget(defs: VariableName[]): number {
-  return defs.reduce((max, def) => Math.max(max, def.length), WRAP_MIN_CHARS);
+  const longest = defs.reduce(
+    (max, def) => Math.max(max, def.length),
+    WRAP_MIN_CHARS,
+  );
+  return Math.min(longest, WRAP_MAX_CHARS);
 }
 
 /**
@@ -268,7 +282,7 @@ export class TreeElementsBuilder implements ElementsBuilder {
       type: DEPENDENCY_EDGE_TYPE,
       markerEnd: {
         type: MarkerType.ArrowClosed,
-        color: isStateFlow ? "var(--amber-10)" : "var(--gray-8)",
+        color: isStateFlow ? STATE_FLOW_EDGE_COLOR : DEFAULT_EDGE_COLOR,
       },
       id: `${source}-${target}`,
       data: { variables, isStateFlow },

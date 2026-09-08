@@ -95,6 +95,18 @@ describe("wrapDefs", () => {
   it("returns an empty list for no defs", () => {
     expect(wrapDefs(names([]))).toEqual([]);
   });
+
+  it("caps the budget so packed lines fit the max node width", () => {
+    // One name far beyond the width cap must not widen every other line.
+    const huge = "x".repeat(60);
+    const lines = wrapDefs(
+      names([huge, "aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc"]),
+    );
+    expect(lines[0]).toBe(huge);
+    for (const line of lines.slice(1)) {
+      expect(line.length).toBeLessThanOrEqual(33);
+    }
+  });
 });
 
 describe("computeDefsByCell", () => {
