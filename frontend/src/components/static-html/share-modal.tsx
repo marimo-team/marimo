@@ -25,11 +25,6 @@ interface PendingUploadResponse {
   expiresAt: string;
 }
 
-/**
- * Stage the HTML with marimo cloud: reserve a pending-upload ticket, PUT the
- * bytes to the presigned URL, and return the claim URL where the user
- * confirms the publish.
- */
 async function stageForPublish(
   fileName: string,
   html: string,
