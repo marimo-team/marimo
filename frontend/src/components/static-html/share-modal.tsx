@@ -18,16 +18,6 @@ import { useRequestClient } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { Spinner } from "../icons/spinner";
 
-/**
- * Where "Publish HTML to web" stages uploads. Overridable for local
- * development and self-hosted deployments; publishing goes through the
- * pending/claim flow, so nothing is public until the user confirms in
- * the tab this opens.
- */
-function getPublishBaseUrl(): string {
-  return localStorage.getItem("marimo:cloud-base-url") ?? Constants.molab;
-}
-
 interface PendingUploadResponse {
   pendingId: string;
   presignedUrl: string;
@@ -44,7 +34,6 @@ async function stageForPublish(
   fileName: string,
   html: string,
 ): Promise<string> {
-  const baseUrl = getPublishBaseUrl();
   const blob = new Blob([html], { type: "text/html" });
   // Keep in sync with marimo-cloud MAX_ARTIFACT_BYTES.
   const maxBytes = 100 * 1024 * 1024;
@@ -52,7 +41,7 @@ async function stageForPublish(
     throw new Error("File is too large. Maximum size is 100 MB.");
   }
 
-  const staged = await fetch(`${baseUrl}/api/artifacts/pending`, {
+  const staged = await fetch(`${Constants.molab}/api/artifacts/pending`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fileName, fileSize: blob.size }),
