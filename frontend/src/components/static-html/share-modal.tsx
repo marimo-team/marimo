@@ -30,7 +30,7 @@ async function stageForPublish(
   html: string,
 ): Promise<string> {
   const blob = new Blob([html], { type: "text/html" });
-  // Keep in sync with marimo-cloud MAX_ARTIFACT_BYTES.
+  // Keep in sync with molab.
   const maxBytes = 100 * 1024 * 1024;
   if (blob.size > maxBytes) {
     throw new Error("File is too large. Maximum size is 100 MB.");
