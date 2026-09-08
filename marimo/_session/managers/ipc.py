@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, cast
 from uuid import uuid4
 
 from marimo import _loggers
+from marimo._cli.sandbox import SandboxMode
 from marimo._config.config import VenvConfig
 from marimo._config.manager import MarimoConfigReader
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -275,6 +276,7 @@ class IPCKernelManagerImpl(KernelManager):
         app_metadata: AppMetadata,
         config_manager: MarimoConfigReader,
         redirect_console_to_browser: bool = True,
+        sandbox_mode: SandboxMode = SandboxMode.MULTI,
     ) -> None:
         self.queue_manager = queue_manager
         self.connection_info = connection_info
@@ -283,6 +285,7 @@ class IPCKernelManagerImpl(KernelManager):
         self.app_metadata = app_metadata
         self.config_manager = config_manager
         self.redirect_console_to_browser = redirect_console_to_browser
+        self.sandbox_mode = sandbox_mode
 
         self._process: subprocess.Popen[bytes] | None = None
         self.kernel_task: ProcessLike | None = None
@@ -325,8 +328,14 @@ class IPCKernelManagerImpl(KernelManager):
 
         venv_config = _get_venv_config(self.config_manager)
         try:
-            configured_python = get_configured_venv_python(
-                venv_config, base_path=self.app_metadata.filename
+            # SINGLE already selected its script environment at the CLI.
+            # Preserve that precedence when changing its kernel transport.
+            configured_python = (
+                get_configured_venv_python(
+                    venv_config, base_path=self.app_metadata.filename
+                )
+                if self.sandbox_mode is SandboxMode.MULTI
+                else None
             )
         except ValueError as e:
             raise KernelStartupError(str(e)) from e
@@ -401,7 +410,11 @@ class IPCKernelManagerImpl(KernelManager):
             kernel_args_list = ["-m", "marimo._ipc.launch_kernel"]
             overlay = runtime_overlay()
             filename = self.app_metadata.filename
-            sandbox = NotebookSandbox(filename, backend)
+            sandbox = (
+                NotebookSandbox.from_running_process(None, backend)
+                if filename is None and self.sandbox_mode is SandboxMode.SINGLE
+                else NotebookSandbox(filename, backend)
+            )
             try:
                 plan = sandbox.launch(
                     kernel_args_list,
@@ -432,7 +445,7 @@ class IPCKernelManagerImpl(KernelManager):
             plan_launched = True
             env = plan.env
             env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
-            env["MARIMO_SANDBOX_MODE"] = "multi"
+            env["MARIMO_SANDBOX_MODE"] = self.sandbox_mode.value
             env["MARIMO_SANDBOX_BACKEND"] = backend
             cmd = list(plan.argv)
 
