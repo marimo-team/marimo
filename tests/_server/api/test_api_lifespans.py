@@ -25,6 +25,45 @@ async def test_cleanup_mcp_task_disconnects_client() -> None:
     mcp_client.disconnect_from_all_servers.assert_awaited_once_with()
 
 
+async def test_cleanup_mcp_task_logs_task_failure() -> None:
+    task = MagicMock()
+    task.cancelled.return_value = False
+    task.result.side_effect = RuntimeError("connect failed")
+
+    with (
+        patch.object(
+            lifespans, "cancel_and_wait", new_callable=AsyncMock
+        ) as cancel_and_wait,
+        patch.object(lifespans.LOGGER, "exception") as log_exception,
+    ):
+        await lifespans._cleanup_mcp_task(task)
+
+    cancel_and_wait.assert_awaited_once_with(task)
+    log_exception.assert_called_once_with(
+        "MCP connection task failed during cleanup"
+    )
+
+
+async def test_cleanup_mcp_task_logs_disconnect_failure() -> None:
+    mcp_client = MagicMock()
+    mcp_client.disconnect_from_all_servers = AsyncMock(
+        side_effect=RuntimeError("disconnect failed")
+    )
+    task = MagicMock()
+    task.cancelled.return_value = False
+    task.result.return_value = mcp_client
+
+    with (
+        patch.object(lifespans, "cancel_and_wait", new_callable=AsyncMock),
+        patch.object(lifespans.LOGGER, "exception") as log_exception,
+    ):
+        await lifespans._cleanup_mcp_task(task)
+
+    log_exception.assert_called_once_with(
+        "Failed to disconnect from MCP servers"
+    )
+
+
 async def test_lsp_cleanup_after_error() -> None:
     state = MagicMock()
     state.config_manager.get_config.return_value = {}

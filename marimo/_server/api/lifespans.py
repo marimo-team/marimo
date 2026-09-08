@@ -88,11 +88,15 @@ async def tool_manager(app: Starlette) -> AsyncIterator[None]:
 async def _cleanup_mcp_task(
     task: asyncio.Task[MCPClient | None],
 ) -> None:
-    await cancel_and_wait(task)
-    if task.cancelled():
+    try:
+        await cancel_and_wait(task)
+        if task.cancelled():
+            return
+        mcp_client = task.result()
+    except Exception:
+        LOGGER.exception("MCP connection task failed during cleanup")
         return
 
-    mcp_client = task.result()
     if mcp_client is None:
         return
 
@@ -100,8 +104,8 @@ async def _cleanup_mcp_task(
         LOGGER.info("Disconnecting from all MCP servers")
         await mcp_client.disconnect_from_all_servers()
         LOGGER.info("Successfully disconnected from all MCP servers")
-    except Exception as e:
-        LOGGER.error("Error during MCP disconnect: %s", e)
+    except Exception:
+        LOGGER.exception("Failed to disconnect from MCP servers")
 
 
 @contextlib.asynccontextmanager
