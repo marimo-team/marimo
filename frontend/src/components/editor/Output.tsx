@@ -434,7 +434,9 @@ const ExpandableOutput = React.memo(
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
-    const isFullscreen = useFullScreenElement() === containerRef.current;
+    const fullScreenElement = useFullScreenElement();
+    const isFullscreen =
+      fullScreenElement !== null && fullScreenElement === containerRef.current;
 
     // Browsers handle Escape themselves. Embedded hosts such as JCEF deliver
     // the key event but do not act on it.

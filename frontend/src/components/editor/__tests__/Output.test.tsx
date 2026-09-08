@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OutputArea, OutputRenderer } from "../Output";
@@ -156,5 +156,82 @@ describe("OutputRenderer image and SVG rendering", () => {
     const imgElement = container.querySelector("img");
     expect(imgElement).not.toBeNull();
     expect(imgElement).toHaveAttribute("src", base64PngDataUrl);
+  });
+});
+
+describe("OutputArea fullscreen exit control", () => {
+  let fullscreenElement: Element | null = null;
+  const exitFullscreen = vi.fn(() => Promise.resolve());
+
+  beforeEach(() => {
+    fullscreenElement = null;
+    exitFullscreen.mockClear();
+    Object.defineProperty(document, "fullscreenElement", {
+      configurable: true,
+      get: () => fullscreenElement,
+    });
+    Object.defineProperty(document, "exitFullscreen", {
+      configurable: true,
+      value: exitFullscreen,
+    });
+  });
+
+  const renderOutput = () =>
+    render(
+      <TooltipProvider>
+        <OutputArea
+          output={{
+            channel: "output",
+            data: "Hello World",
+            mimetype: "text/plain",
+          }}
+          cellId={cellId("test")}
+          stale={false}
+          loading={false}
+          allowExpand={true}
+        />
+      </TooltipProvider>,
+    );
+
+  const enterFullscreen = (container: HTMLElement) => {
+    fullscreenElement = container.querySelector('[data-cell-role="output"]');
+    act(() => {
+      document.dispatchEvent(new Event("fullscreenchange"));
+    });
+  };
+
+  it("hides the exit button outside fullscreen", () => {
+    renderOutput();
+    expect(
+      screen.queryByTestId("exit-fullscreen-output-button"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the exit button when the output is the fullscreen element", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    expect(
+      screen.getByTestId("exit-fullscreen-output-button"),
+    ).toBeInTheDocument();
+  });
+
+  it("exits fullscreen on click", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    fireEvent.click(screen.getByTestId("exit-fullscreen-output-button"));
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("exits fullscreen on Escape", () => {
+    const { container } = renderOutput();
+    enterFullscreen(container);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(exitFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores Escape outside fullscreen", () => {
+    renderOutput();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(exitFullscreen).not.toHaveBeenCalled();
   });
 });
