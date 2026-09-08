@@ -132,7 +132,7 @@ const RangeSlider = React.forwardRef<
         "relative flex touch-none select-none hover:cursor-pointer",
         "data-[orientation=horizontal]:w-full data-[orientation=horizontal]:items-center",
         "data-[orientation=vertical]:h-full data-[orientation=vertical]:justify-center",
-        "data-disabled:cursor-not-allowed",
+        "data-disabled:cursor-not-allowed forced-color-adjust-none",
         className,
       )}
       {...props}
@@ -142,6 +142,7 @@ const RangeSlider = React.forwardRef<
         data-testid="track"
         className={cn(
           "relative grow overflow-hidden rounded-full bg-slate-200 dark:bg-accent/60",
+          "forced-colors:border forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace]",
           "data-[orientation=horizontal]:h-2 data-[orientation=horizontal]:w-full",
           "data-[orientation=vertical]:h-full data-[orientation=vertical]:w-2",
         )}
@@ -150,6 +151,7 @@ const RangeSlider = React.forwardRef<
           data-testid="range"
           className={cn(
             "absolute bg-blue-500 dark:bg-primary",
+            "forced-colors:bg-[Highlight] forced-colors:data-disabled:bg-[GrayText]",
             "data-[orientation=horizontal]:h-full",
             "data-[orientation=vertical]:w-full",
             "data-disabled:opacity-50",
@@ -165,7 +167,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace] forced-colors:data-disabled:border-[GrayText]"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}
@@ -186,7 +188,7 @@ const RangeSlider = React.forwardRef<
           <TooltipTrigger asChild={true}>
             <SliderPrimitive.Thumb
               data-testid="thumb"
-              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50"
+              className="block h-4 w-4 rounded-full shadow-xs-solid border border-blue-500 dark:border-primary dark:bg-accent bg-white hover:bg-blue-300 focus:bg-blue-300 transition-colors focus-visible:outline-hidden data-disabled:pointer-events-none data-disabled:opacity-50 forced-colors:border-[ButtonText] forced-colors:bg-[ButtonFace] forced-colors:data-disabled:border-[GrayText]"
               onFocus={openActions.setTrue}
               onBlur={openActions.setFalse}
               onMouseEnter={openActions.setTrue}

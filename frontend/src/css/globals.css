@@ -167,6 +167,13 @@
   }
 }
 
+@media (forced-colors: active) {
+  .marimo :focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
