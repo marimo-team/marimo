@@ -12,6 +12,10 @@ import pytest
 
 from marimo._environments import script_metadata
 from marimo._environments.environment import Environment, ProcessPlan
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
 from marimo._environments.overlay import RuntimeOverlay
 from marimo._environments.sandbox import (
     NotebookSandbox,
@@ -177,8 +181,110 @@ def test_add_pins_a_bare_requirement_to_the_resolved_version(
 
     assert adapter.add_requests == ["obstore", "obstore==0.8.2"]
     assert '"obstore==0.8.2"' in notebook.read_text()
-    # The pin records the synchronized environment; it does not resync.
+    # Only the final, pinned manifest needs synchronization.
     assert len(adapter.sync_targets) == 1
+
+
+def test_add_syncs_the_final_pin(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["obstore==0.7.0"]\n# ///\n'
+    )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    sync = adapter.sync
+
+    def synchronize(
+        target: MaterializedScript, **_kwargs: object
+    ) -> Environment:
+        assert script_metadata.loads(Path(target.path).read_text()) == {
+            "dependencies": ["obstore==0.8.2"]
+        }
+        return sync(target, python_override=None, on_output=None)
+
+    with patch.object(adapter, "sync", side_effect=synchronize):
+        sandbox.add("obstore", upgrade=True)
+
+
+@pytest.mark.parametrize("suffix", [".py", ".md", ".qmd"])
+@pytest.mark.parametrize("operation", ["add", "remove"])
+def test_failed_sync_restores_metadata_but_preserves_notebook_edits(
+    tmp_path: Path, suffix: str, operation: str
+) -> None:
+    notebook = tmp_path / f"notebook{suffix}"
+    if suffix == ".py":
+        notebook.write_text(
+            '# /// script\n# dependencies = ["obstore==0.7.0"]\n# ///\n\nx = 1\n'
+        )
+    else:
+        notebook.write_text(
+            '---\npyproject: |\n  dependencies = ["obstore==0.7.0"]\n---\n\nx = 1\n'
+        )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        notebook.write_text(notebook.read_text().replace("x = 1", "x = 2"))
+        raise EnvironmentManagerError("no solution")
+
+    with patch.object(adapter, "sync", side_effect=fail):
+        if operation == "add":
+            with pytest.raises(EnvironmentManagerError, match="no solution"):
+                sandbox.add("obstore", upgrade=True)
+        else:
+            with pytest.raises(EnvironmentManagerError, match="no solution"):
+                sandbox.remove("obstore")
+
+    with script_metadata.materialized_for_environment(str(notebook)) as target:
+        assert script_metadata.loads(Path(target.path).read_text()) == {
+            "dependencies": ["obstore==0.7.0"]
+        }
+    assert "x = 2" in notebook.read_text()
+    assert not list(tmp_path.glob(".marimo-*.py"))
+
+
+def test_restart_required_keeps_successful_manifest_changes(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    with patch.object(
+        adapter, "sync", side_effect=SandboxRestartRequired("restart")
+    ):
+        with pytest.raises(SandboxRestartRequired):
+            sandbox.add("obstore")
+
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore==0.8.2"]
+    }
+
+
+@pytest.mark.parametrize("stage", ["add", "packages"])
+@pytest.mark.parametrize("suffix", [".py", ".md"])
+def test_rejected_add_preserves_the_previous_successful_add(
+    tmp_path: Path, stage: str, suffix: str
+) -> None:
+    notebook = tmp_path / f"notebook{suffix}"
+    notebook.write_text(
+        "# /// script\n# dependencies = []\n# ///\n"
+        if suffix == ".py"
+        else "---\npyproject: |\n  dependencies = []\n---\n\n# Notebook\n"
+    )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    sandbox.add("obstore")
+    before = notebook.read_text()
+
+    with patch.object(
+        adapter, stage, side_effect=EnvironmentManagerError("no solution")
+    ):
+        with pytest.raises(EnvironmentManagerError, match="no solution"):
+            sandbox.add("other")
+
+    assert notebook.read_text() == before
 
 
 @pytest.mark.parametrize(

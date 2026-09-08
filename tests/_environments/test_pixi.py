@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._environments import pixi, script_metadata
-from marimo._environments.errors import SandboxRestartRequired
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
 from marimo._environments.overlay import RuntimeOverlay
 
 if TYPE_CHECKING:
@@ -397,6 +400,58 @@ def test_live_pixi_mutation_after_rename_requires_restart(
     assert sandbox.environment == running
     assert "boltons" in renamed.read_text()
     assert not original.exists()
+
+    # A later rejected dependency must not poison the saved manifest or
+    # prevent the user from restarting into the successful change.
+    before = renamed.read_text()
+    with pytest.raises(EnvironmentManagerError):
+        sandbox.add("six==999999")
+    assert renamed.read_text() == before
+    restarted = pixi.sync(str(renamed), cwd=str(tmp_path))
+    assert restarted.root != running.root
+
+
+@pytest.mark.network
+@pytest.mark.skipif(
+    not pixi.find_pixi_bin(), reason="pixi is required for this test"
+)
+def test_live_pixi_upgrade_installs_the_reported_version(
+    tmp_path: Path,
+) -> None:
+    import json
+    import subprocess
+
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._environments.uv import require_uv_bin
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["six==1.16.0"]\n'
+        '# [tool.pixi.workspace]\n# channels = ["conda-forge"]\n# ///\n'
+    )
+    running = pixi.sync(str(notebook), cwd=str(tmp_path))
+    sandbox = NotebookSandbox(str(notebook), "pixi", environment=running)
+    sandbox.add("six", upgrade=True)
+    reported = next(
+        p.version for p in sandbox.packages().packages if p.name == "six"
+    )
+    installed = subprocess.check_output(
+        [
+            require_uv_bin(),
+            "pip",
+            "list",
+            "--python",
+            running.python,
+            "--format",
+            "json",
+        ],
+        text=True,
+    )
+    assert (
+        next(p["version"] for p in json.loads(installed) if p["name"] == "six")
+        == reported
+    )
+    assert reported != "1.16.0"
 
 
 @pytest.mark.network
