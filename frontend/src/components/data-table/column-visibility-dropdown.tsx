@@ -22,6 +22,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tooltip } from "@/components/ui/tooltip";
 import { type BulkAction, useSelectList } from "@/components/ui/select-core";
 import type { DataType } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -221,17 +222,41 @@ export const ColumnVisibilityDropdown = <TData,>({
                       />
                     )}
                     {!option.disabled && (
-                      <span
-                        className={cn(
-                          "ml-auto",
-                          hidden ? "text-primary" : "text-muted-foreground",
-                        )}
-                      >
-                        {hidden ? (
-                          <EyeOffIcon className="w-3 h-3" />
-                        ) : (
-                          <EyeIcon className="w-3 h-3" />
-                        )}
+                      <span className="ml-auto flex items-center gap-0.5">
+                        <Tooltip
+                          content="Show only this column"
+                          delayDuration={400}
+                        >
+                          <Button
+                            type="button"
+                            variant="text"
+                            size="icon"
+                            aria-label="Show only this column"
+                            disabled={isShowingOnly(table, [option.value])}
+                            className="h-6 w-6 hover:bg-muted text-muted-foreground hover:text-primary"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              table.setColumnVisibility((previous) => ({
+                                ...previous,
+                                ...getShowOnlyVisibility(table, [option.value]),
+                              }));
+                            }}
+                          >
+                            <ScanEyeIcon className="w-3 h-3" />
+                          </Button>
+                        </Tooltip>
+                        <span
+                          className={cn(
+                            hidden ? "text-primary" : "text-muted-foreground",
+                          )}
+                        >
+                          {hidden ? (
+                            <EyeOffIcon className="w-3 h-3" />
+                          ) : (
+                            <EyeIcon className="w-3 h-3" />
+                          )}
+                        </span>
                       </span>
                     )}
                   </CommandItem>

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ColumnVisibilityDropdown } from "../column-visibility-dropdown";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "../types";
 
@@ -70,9 +71,23 @@ function Harness({ initiallyHidden = [], nonHideable = [] }: HarnessProps) {
 }
 
 function renderAndOpen(props?: HarnessProps) {
-  const result = render(<Harness {...(props ?? {})} />);
+  const result = render(
+    <TooltipProvider>
+      <Harness {...(props ?? {})} />
+    </TooltipProvider>,
+  );
   fireEvent.click(screen.getByTestId("column-visibility-trigger"));
   return result;
+}
+
+function getShowOnlyButton(columnName: string): HTMLElement {
+  const button = getColumnOption(columnName).querySelector(
+    '[aria-label="Show only this column"]',
+  );
+  if (!button) {
+    throw new Error(`No show-only button for column ${columnName}`);
+  }
+  return button as HTMLElement;
 }
 
 function getOptionTexts(): string[] {
@@ -323,6 +338,40 @@ describe("ColumnVisibilityDropdown", () => {
     expect(
       screen.queryByText(/Show only \d+ matching/),
     ).not.toBeInTheDocument();
+  });
+
+  it("show-only icon isolates one column without clearing search", () => {
+    renderAndOpen();
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    fireEvent.click(getShowOnlyButton("customer_name"));
+    expect(getSearchInput()).toHaveValue("cust");
+    fireEvent.change(getSearchInput(), { target: { value: "" } });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(
+      getColumnOption("order_total").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+  });
+
+  it("show-only icon does not toggle the row visibility", () => {
+    renderAndOpen();
+    fireEvent.click(getShowOnlyButton("customer_name"));
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+  });
+
+  it("disables show-only icon when the column is already alone", () => {
+    renderAndOpen({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    expect(getShowOnlyButton("customer_name")).toBeDisabled();
   });
 
   it("renders non-hideable columns disabled and without an eye toggle", () => {
