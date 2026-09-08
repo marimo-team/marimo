@@ -40,6 +40,10 @@ class SandboxPackageManager(PypiPackageManager):
         )
         super().__init__(python_exe=python)
 
+    def rebind(self, filename: str) -> None:
+        """Follow a notebook rename without replacing its package manager."""
+        self._sandbox.rebind(filename, persist_manifest=False)
+
     def is_manager_installed(self) -> bool:
         # A running sandbox already selected this manager. Operations retain
         # their typed backend errors if the executable disappears later.
