@@ -543,7 +543,8 @@ def test_pixi_launch_layers_the_runtime_overlay_through_uv(
     # A local runtime becomes --with-editable; other entries --with.
     assert ("--with-editable", str(checkout)) in pairs
     assert ("--with", "nbformat") in pairs
-    assert plan.argv[-3:] == ("python", "-m", "marimo")
+    assert plan.argv[-2:] == ("-m", "marimo")
+    assert ("python", "-c") in pairs
     assert plan.env["CONDA_PREFIX"] == str(root)
     assert plan.start_new_session
 

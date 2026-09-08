@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from marimo._environments import pixi, script_metadata
+from marimo._environments.errors import SandboxRestartRequired
 from marimo._environments.overlay import RuntimeOverlay
 
 if TYPE_CHECKING:
@@ -80,7 +81,7 @@ def test_pixi_sync_requires_restart_when_the_live_prefix_changes(
         )
 
     if active_root == "/previous-env":
-        with pytest.raises(pixi.PixiError, match="Restart the kernel"):
+        with pytest.raises(SandboxRestartRequired, match="Restart the kernel"):
             synchronize()
     else:
         assert synchronize() == synced
@@ -282,7 +283,7 @@ def test_launch_activates_the_conda_prefix(
     )
     # The conventional prefix paths are exposed, and the process itself
     # runs under uv's layer.
-    assert plan.argv[-3:] == ("python", "-m", "marimo")
+    assert plan.argv[-2:] == ("-m", "marimo")
     assert plan.env["CONDA_PREFIX"] == root
     assert "VIRTUAL_ENV" not in plan.env
     assert plan.env["PATH"].startswith(os.path.join(root, "bin") + os.pathsep)
@@ -390,7 +391,7 @@ def test_live_pixi_mutation_after_rename_requires_restart(
     original.rename(renamed)
     sandbox.rebind(str(renamed))
 
-    with pytest.raises(pixi.PixiError, match="Restart the kernel"):
+    with pytest.raises(SandboxRestartRequired, match="Restart the kernel"):
         sandbox.add("boltons")
 
     assert sandbox.environment == running
@@ -402,7 +403,10 @@ def test_live_pixi_mutation_after_rename_requires_restart(
 @pytest.mark.skipif(
     not pixi.find_pixi_bin(), reason="pixi is required for this test"
 )
-def test_overlay_chains_the_conda_prefix(tmp_path: Path) -> None:
+@pytest.mark.parametrize("enclosing", ["plain", "uv", "conda", "pixi"])
+def test_overlay_chains_the_conda_prefix(
+    tmp_path: Path, enclosing: str
+) -> None:
     """The behavior UV_OVERLAY_SPEC floors: uv's ephemeral overlay
     environment, created from the conda interpreter, chains the
     prefix's site-packages with overlay-first precedence."""
@@ -421,17 +425,39 @@ def test_overlay_chains_the_conda_prefix(tmp_path: Path) -> None:
 
     # `attrs` stands in for the runtime requirement so the layer resolves
     # cheaply; what matters is that it chains the prefix behind it.
+    base_env = os.environ.copy()
+    if enclosing == "uv":
+        base_env.update(
+            VIRTUAL_ENV="/outer/uv", UV_PROJECT_ENVIRONMENT="/outer/project"
+        )
+    elif enclosing in ("conda", "pixi"):
+        base_env.update(
+            CONDA_PREFIX="/outer/conda",
+            CONDA_PREFIX_1="/outer/base",
+            CONDA_SHLVL="2",
+        )
+        if enclosing == "pixi":
+            base_env.update(
+                PIXI_PROJECT_MANIFEST="/outer/pixi.toml",
+                PIXI_ENVIRONMENT_NAME="outer",
+            )
     plan = pixi.launch(
         environment,
         [
             "-c",
             (
-                "import attrs, six, sys; "
+                "import attrs, six, sys, os, json; "
                 "print('six', six.__file__); "
-                "print('exe', sys.executable)"
+                "print('exe', sys.executable); "
+                "print(json.dumps(dict(prefix=os.environ['CONDA_PREFIX'], "
+                "base=sys.base_prefix, overlay=sys.prefix, "
+                "venv=os.environ['VIRTUAL_ENV'], "
+                "path=os.environ['PATH'].split(os.pathsep), "
+                "pixi=os.environ.get('PIXI_ENVIRONMENT_NAME'))))"
             ),
         ],
         overlay=RuntimeOverlay(runtime="attrs"),
+        base_env=base_env,
     )
     completed = subprocess.run(
         list(plan.argv), env=plan.env, capture_output=True, text=True
@@ -440,7 +466,18 @@ def test_overlay_chains_the_conda_prefix(tmp_path: Path) -> None:
     # six resolves from the conda prefix, attrs from the overlay, and
     # the interpreter is uv's ephemeral chain -- not the prefix python.
     assert environment.root in completed.stdout
-    assert environment.python not in completed.stdout.splitlines()[-1]
+    assert environment.python not in completed.stdout.splitlines()[1]
+    import json
+
+    identity = json.loads(completed.stdout.splitlines()[-1])
+    assert identity["prefix"] == identity["base"] == environment.root
+    assert identity["venv"] == identity["overlay"] != environment.root
+    assert identity["pixi"] is None
+    expected_paths = [
+        os.path.dirname(completed.stdout.splitlines()[1].removeprefix("exe ")),
+        *pixi._activation_path_entries(environment.root),
+    ]
+    assert identity["path"][: len(expected_paths)] == expected_paths
 
 
 def test_command_env_drops_enclosing_activation(

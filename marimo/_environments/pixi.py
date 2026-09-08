@@ -11,6 +11,7 @@ prefix's site-packages, with overlay-first precedence.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 import shutil
@@ -345,6 +346,28 @@ def ensure_marimo(
 UV_OVERLAY_SPEC = "uv>=0.12"
 
 
+# Run before importing marimo: importing a module in this package would first
+# import marimo itself with pixi exec's *tool* environment still activated.
+# exec preserves Python's normal -m/-c/script argument handling and signal PID.
+_ACTIVATE_NOTEBOOK = """\
+import json, os, sys
+root, paths = json.loads(sys.argv[1])
+for key in tuple(os.environ):
+    if key.startswith("CONDA_PREFIX_") or key in (
+        "PIXI_PROJECT_MANIFEST", "PIXI_PROJECT_ROOT", "PIXI_PROJECT_NAME",
+        "PIXI_PROJECT_VERSION", "PIXI_ENVIRONMENT_NAME", "PIXI_IN_SHELL",
+        "PIXI_PROMPT",
+    ):
+        os.environ.pop(key, None)
+os.environ.update(CONDA_PREFIX=root, CONDA_DEFAULT_ENV=os.path.basename(root), CONDA_SHLVL="1")
+overlay_bin = os.path.dirname(sys.executable)
+os.environ["PATH"] = os.pathsep.join(dict.fromkeys([
+    overlay_bin, *paths, *os.environ.get("PATH", "").split(os.pathsep)
+]))
+os.execv(sys.executable, [sys.executable, *sys.argv[2:]])
+"""
+
+
 def launch(
     environment: Environment,
     args: Sequence[str],
@@ -354,10 +377,10 @@ def launch(
 ) -> ProcessPlan:
     """Plans running `python <args...>` inside the environment.
 
-    A pixi script environment is a conda environment, so the plan supplies
-    its conventional prefix variables and executable paths. `VIRTUAL_ENV`
-    is dropped; a conda prefix is not a virtualenv. Pixi activation scripts
-    are not evaluated by this launch path.
+    A pixi script environment is a conda environment. Its conventional prefix
+    variables and executable paths are restored after `pixi exec` activates
+    its uv tool environment, with uv's runtime overlay first on PATH.
+    Notebook activation scripts are not evaluated by this launch path.
 
     The overlay is layered by uv, which pixi supplies through
     `pixi exec` so that pixi stays the only tool a pixi sandbox needs:
@@ -398,6 +421,11 @@ def launch(
             *_with_args(overlay.requirements),
             "--",
             "python",
+            "-c",
+            _ACTIVATE_NOTEBOOK,
+            json.dumps(
+                [environment.root, _activation_path_entries(environment.root)]
+            ),
             *args,
         ),
         env=env,

@@ -405,7 +405,9 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
             # prefix, but pixi install --script has no equivalent target-prefix
             # option. A successful sync into the new prefix therefore needs
             # a kernel restart before the dependency changes take effect.
-            raise pixi.PixiError(
+            from marimo._environments.errors import SandboxRestartRequired
+
+            raise SandboxRestartRequired(
                 "Your dependency changes are saved, but Pixi installed them "
                 "in a new environment. Restart the kernel to use the updated "
                 "dependencies. Restarting clears in-memory variables."
