@@ -16,7 +16,7 @@ export const menuContentCommon = cva(
 );
 
 export const menuSubTriggerVariants = cva(
-  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
+  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden focus-visible:bg-accent focus-visible:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground",
   {
     variants: {
       inset: {
@@ -31,7 +31,7 @@ export const MENU_ITEM_DISABLED =
 
 export const menuControlVariants = cva(
   cn(
-    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors focus:bg-accent focus:text-accent-foreground",
+    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors focus-visible:bg-accent focus-visible:text-accent-foreground",
     MENU_ITEM_DISABLED,
   ),
   { variants: {} },
@@ -64,13 +64,13 @@ export const menuItemVariants = cva(
       },
       variant: {
         default:
-          "focus:bg-accent focus:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
+          "focus-visible:bg-accent focus-visible:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
         danger:
-          "focus:bg-(--red-5) focus:text-(--red-12) aria-selected:bg-(--red-5) aria-selected:text-(--red-12)",
+          "focus-visible:bg-(--red-5) focus-visible:text-(--red-12) aria-selected:bg-(--red-5) aria-selected:text-(--red-12)",
         muted:
-          "focus:bg-muted/70 focus:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
+          "focus-visible:bg-muted/70 focus-visible:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
         success:
-          "focus:bg-(--grass-3) focus:text-(--grass-11) aria-selected:bg-(--grass-3) aria-selected:text-(--grass-11)",
+          "focus-visible:bg-(--grass-3) focus-visible:text-(--grass-11) aria-selected:bg-(--grass-3) aria-selected:text-(--grass-11)",
         disabled: "text-muted-foreground",
       },
     },

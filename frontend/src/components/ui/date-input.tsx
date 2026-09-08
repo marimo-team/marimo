@@ -29,7 +29,7 @@ const DateSegment = ({ className, ...props }: AriaDateSegmentProps) => {
           /* Disabled */
           "data-disabled:cursor-not-allowed data-disabled:opacity-50",
           /* Focused */
-          "data-focused:bg-accent data-focused:text-accent-foreground focus:bg-accent focus:text-accent-foreground",
+          "data-focused:bg-accent data-focused:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
           /* Invalid */
           "data-invalid:data-focused:bg-destructive data-invalid:data-focused:data-placeholder:text-destructive-foreground data-invalid:data-focused:text-destructive-foreground data-invalid:data-placeholder:text-destructive data-invalid:text-destructive",
           className,
