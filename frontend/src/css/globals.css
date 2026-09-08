@@ -151,6 +151,22 @@
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .marimo,
+  .marimo::before,
+  .marimo::after,
+  .marimo *,
+  .marimo *::before,
+  .marimo *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
