@@ -195,6 +195,7 @@ def sync(
     *,
     cwd: str | None = None,
     python_override: str | None = None,
+    active_environment: Environment | None = None,
     on_output: Callable[[str], None] | None = None,
     on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> Environment:
@@ -205,7 +206,9 @@ def sync(
     over the script's `requires-python` (html-wasm export pins the
     Pyodide interpreter). With `on_output`, uv's progress streams to the
     callback line by line; `on_command` receives the exact argv about to
-    run. Raises `UvCommandError` on failure and never mutates `script`.
+    run. `active_environment` targets a live notebook's retained prefix,
+    including after rename, rather than the script's default cache entry.
+    Raises `UvCommandError` on failure and never mutates `script`.
     """
     ensure_supported_uv()
     args = [
@@ -218,18 +221,22 @@ def sync(
     ]
     if python_override is not None:
         args.extend(["--python", python_override])
+    env = script_command_env()
+    if active_environment is not None:
+        # A live kernel remains attached to this prefix after rename/save.
+        # Never inherit VIRTUAL_ENV: it may name the runtime overlay.
+        env["VIRTUAL_ENV"] = active_environment.root
+        args.append("--active")
     if on_output is not None:
         completed = uv_stream(
             args,
             on_output,
-            env=script_command_env(),
+            env=env,
             cwd=cwd,
             on_command=on_command,
         )
     else:
-        completed = uv(
-            args, env=script_command_env(), cwd=cwd, on_command=on_command
-        )
+        completed = uv(args, env=env, cwd=cwd, on_command=on_command)
     return _parse_report(completed.stdout)
 
 

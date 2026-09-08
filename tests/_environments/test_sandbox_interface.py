@@ -90,7 +90,7 @@ class FakeBackend:
         project["dependencies"] = [
             dependency
             for dependency in project.get("dependencies", [])
-            if dependency != package
+            if _requirement_name(str(dependency)) != _requirement_name(package)
         ]
         path.write_text(
             script_metadata.replace_block(
@@ -104,8 +104,9 @@ class FakeBackend:
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment:
-        del python_override, on_output
+        del python_override, on_output, active_environment
         self.sync_targets.append(target.path)
         return Environment(
             python=str(self.root / "bin" / "python"),
@@ -395,6 +396,61 @@ def test_close_cleans_unnamed_manifest() -> None:
     sandbox.close()
 
     assert not temporary_source.exists()
+
+
+@pytest.mark.network
+def test_add_after_rename_updates_the_running_environment(
+    tmp_path: Path,
+) -> None:
+    from marimo._environments.environment import sync
+    from tests._environments.test_environment import (
+        EMPTY_SCRIPT,
+        SUPPORTS_SYNC,
+    )
+
+    if not SUPPORTS_SYNC:
+        pytest.skip("uv script environments required")
+    original = tmp_path / "original.py"
+    renamed = tmp_path / "renamed.py"
+    original.write_text(EMPTY_SCRIPT)
+    running = sync(str(original))
+    sandbox = NotebookSandbox(str(original), "uv", environment=running)
+    original.rename(renamed)
+    sandbox.rebind(str(renamed))
+
+    sandbox.add("six==1.17.0")
+
+    assert sandbox.environment is not None
+    assert sandbox.environment.root == running.root
+    assert "six==1.17.0" in renamed.read_text()
+    assert not original.exists()
+
+    import subprocess
+
+    from marimo._environments.uv import require_uv_bin
+
+    result = subprocess.run(
+        [
+            require_uv_bin(),
+            "run",
+            "--no-project",
+            "--python",
+            running.python,
+            "--",
+            "python",
+            "-c",
+            "import six; print(six.__version__)",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip() == "1.17.0"
+    sandbox.remove("six")
+    assert "six" not in renamed.read_text()
+    # A future launch follows the renamed script's canonical identity.
+    canonical = sync(str(renamed))
+    assert canonical.root != running.root
 
 
 def test_runtime_dependency_cannot_be_removed(tmp_path: Path) -> None:

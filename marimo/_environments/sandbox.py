@@ -31,6 +31,7 @@ SandboxOperation = Literal["prepare", "add", "upgrade", "remove", "sync"]
 LogCallback = Callable[[str], None]
 ENVIRONMENT_PYTHON = "MARIMO_SANDBOX_ENVIRONMENT_PYTHON"
 ENVIRONMENT_ROOT = "MARIMO_SANDBOX_ENVIRONMENT_ROOT"
+MANIFEST_SOURCE = "MARIMO_SANDBOX_MANIFEST_SOURCE"
 
 
 @dataclass(frozen=True)
@@ -123,6 +124,7 @@ class BackendAdapter(Protocol):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment: ...
 
     def packages(
@@ -145,9 +147,9 @@ class NotebookSandbox:
     """A notebook's selected environment manager and latest Environment.
 
     `launch`, `add`, and `remove` synchronize internally. Package inspection is
-    read-only. Rebinding changes the durable source and lets the next mutating
-    operation reacquire any path-derived environment identity; it does not
-    retain a Carrier or disturb the running Environment.
+    read-only. Rebinding changes the durable source, while package mutations
+    continue to synchronize the retained Environment. The next launch acquires
+    the new source's path-derived environment identity. No Carrier is retained.
     """
 
     def __init__(
@@ -163,6 +165,7 @@ class NotebookSandbox:
             None
         )
         self._source = self._bind_source(source)
+        self._persist_on_rebind = source is None
         self._reporter = reporter or TerminalSandboxReporter()
         if adapter is None:
             from marimo._environments.backends import adapter_for
@@ -181,7 +184,7 @@ class NotebookSandbox:
     @classmethod
     def from_running_process(
         cls,
-        source: str,
+        source: str | None,
         backend: Backend,
         *,
         reporter: SandboxReporter | None = None,
@@ -198,12 +201,19 @@ class NotebookSandbox:
             if python is not None and root is not None
             else None
         )
-        return cls(
-            source,
+        manifest = source or os.environ.get(MANIFEST_SOURCE)
+        if manifest is None:
+            raise RuntimeError("Running sandbox did not export its manifest")
+        sandbox = cls(
+            manifest,
             backend,
             environment=environment,
             reporter=reporter,
         )
+        # The launcher owns cleanup; the child only persists the manifest
+        # when the unnamed notebook is first saved.
+        sandbox._persist_on_rebind = source is None
+        return sandbox
 
     @property
     def backend(self) -> Backend:
@@ -222,15 +232,23 @@ class NotebookSandbox:
         """The source that realized the current Environment, if known."""
         return self._environment_source
 
-    def rebind(self, source: str) -> None:
-        """Bind future operations without changing the running Environment."""
+    def rebind(self, source: str, *, persist_manifest: bool = True) -> None:
+        """Bind future operations without changing the running Environment.
+
+        The session persists an unnamed Manifest before notifying its kernel.
+        The kernel only follows that binding (`persist_manifest=False`): the
+        session may already have released the temporary Manifest.
+        """
         import os
 
         absolute = os.path.abspath(source)
         if absolute == self._source:
             return
+        if self._persist_on_rebind:
+            if persist_manifest:
+                script_metadata.copy_metadata(self._source, absolute)
+            self._persist_on_rebind = False
         if self._temporary_directory is not None:
-            script_metadata.copy_metadata(self._source, absolute)
             self._temporary_directory.cleanup()
             self._temporary_directory = None
         self._source = absolute
@@ -282,6 +300,7 @@ class NotebookSandbox:
         )
         plan.env[ENVIRONMENT_PYTHON] = environment.python
         plan.env[ENVIRONMENT_ROOT] = environment.root
+        plan.env[MANIFEST_SOURCE] = self._source
         return plan
 
     def add(
@@ -324,7 +343,7 @@ class NotebookSandbox:
                 upgrade=upgrade,
                 on_output=on_output,
             )
-        self._sync(on_output=on_output)
+        self._sync(on_output=on_output, active_environment=self._environment)
         if bare is not None:
             self._pin(bare)
 
@@ -343,7 +362,7 @@ class NotebookSandbox:
         self._adapter.ensure_available()
         with script_metadata.materialized_for_edit(self._source) as target:
             self._adapter.remove(target, package, on_output=on_output)
-        self._sync(on_output=on_output)
+        self._sync(on_output=on_output, active_environment=self._environment)
 
     def packages(
         self, *, on_output: LogCallback | None = None
@@ -476,6 +495,7 @@ class NotebookSandbox:
         *,
         python_override: str | None = None,
         on_output: LogCallback | None = None,
+        active_environment: Environment | None = None,
     ) -> Environment:
         with script_metadata.materialized_for_environment(
             self._source
@@ -484,6 +504,7 @@ class NotebookSandbox:
                 target,
                 python_override=python_override,
                 on_output=on_output,
+                active_environment=active_environment,
             )
         self._environment = environment
         self._environment_source = self._source
