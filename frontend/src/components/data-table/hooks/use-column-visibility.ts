@@ -72,6 +72,16 @@ export function getShowOnlyVisibility<TData>(
   return visibility;
 }
 
+export function applyShowOnlyColumns<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): void {
+  table.setColumnVisibility((previous) => ({
+    ...previous,
+    ...getShowOnlyVisibility(table, columnIds),
+  }));
+}
+
 export function isShowingOnly<TData>(
   table: Table<TData>,
   columnIds: string[],

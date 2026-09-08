@@ -371,7 +371,25 @@ describe("ColumnVisibilityDropdown", () => {
     renderAndOpen({
       initiallyHidden: ["cust_age", "order_total"],
     });
-    expect(getShowOnlyButton("customer_name")).toBeDisabled();
+    expect(getShowOnlyButton("customer_name")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disabled show-only icon blocks pointer activation of the row", () => {
+    renderAndOpen({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    const button = getShowOnlyButton("customer_name");
+    expect(button).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.pointerDown(button, { pointerId: 1, bubbles: true });
+    fireEvent.click(button, { bubbles: true });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
   });
 
   it("renders non-hideable columns disabled and without an eye toggle", () => {

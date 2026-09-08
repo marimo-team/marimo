@@ -8,6 +8,7 @@ import {
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
+  applyShowOnlyColumns,
   getShowOnlyVisibility,
   isShowingOnly,
   useColumnVisibility,
@@ -163,5 +164,15 @@ describe("isShowingOnly", () => {
     });
 
     expect(isShowingOnly(table, [])).toBe(true);
+  });
+});
+
+describe("applyShowOnlyColumns", () => {
+  it("shows only the requested hideable columns", () => {
+    const table = createTestTable({ initiallyHidden: ["cust_age"] });
+
+    applyShowOnlyColumns(table, ["customer_name", "order_total"]);
+
+    expect(isShowingOnly(table, ["customer_name", "order_total"])).toBe(true);
   });
 });

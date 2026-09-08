@@ -190,6 +190,23 @@ describe("ColumnExplorerPanel visibility actions", () => {
     renderPanel({
       initiallyHidden: ["cust_age", "order_total"],
     });
-    expect(getShowOnlyButton("customer_name")).toBeDisabled();
+    expect(getShowOnlyButton("customer_name")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disabled show-only icon does not toggle explorer row expansion", () => {
+    renderPanel({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    const row = getColumnRow("customer_name");
+    expect(row.querySelector(".lucide-chevron-down")).not.toBeNull();
+
+    const button = getShowOnlyButton("customer_name");
+    fireEvent.pointerDown(button, { pointerId: 1, bubbles: true });
+    fireEvent.click(button, { bubbles: true });
+
+    expect(row.querySelector(".lucide-chevron-down")).not.toBeNull();
   });
 });

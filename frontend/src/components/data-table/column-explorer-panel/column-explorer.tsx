@@ -9,7 +9,6 @@ import {
   ChevronRightIcon,
   EyeIcon,
   EyeOffIcon,
-  ScanEyeIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useLocale } from "react-aria";
@@ -53,10 +52,9 @@ import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
 import {
   getColumnCountForDisplay,
-  getShowOnlyVisibility,
   getUserColumnVisibilityCounts,
-  isShowingOnly,
 } from "../hooks/use-column-visibility";
+import { ShowOnlyColumnButton } from "../show-only-column-button";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -225,31 +223,15 @@ function ColumnItem<TData>({
           />
           {column?.getCanHide() && (
             <>
-              <Tooltip content="Show only this column" delayDuration={400}>
-                <Button
-                  type="button"
-                  variant="text"
-                  size="icon"
-                  aria-label="Show only this column"
-                  disabled={isShowingOnly(table, [columnName])}
-                  className={cn(
-                    "hover:bg-muted text-muted-foreground hover:text-primary",
-                    column.getIsVisible()
-                      ? "group-hover:opacity-100 opacity-0"
-                      : "opacity-100",
-                  )}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    table.setColumnVisibility((previous) => ({
-                      ...previous,
-                      ...getShowOnlyVisibility(table, [columnName]),
-                    }));
-                  }}
-                >
-                  <ScanEyeIcon className="h-3 w-3" strokeWidth={2.5} />
-                </Button>
-              </Tooltip>
+              <ShowOnlyColumnButton
+                table={table}
+                columnIds={[columnName]}
+                className={cn(
+                  column.getIsVisible()
+                    ? "group-hover:opacity-100 opacity-0"
+                    : "opacity-100",
+                )}
+              />
               <Tooltip
                 content={column.getIsVisible() ? "Hide column" : "Show column"}
                 delayDuration={400}
