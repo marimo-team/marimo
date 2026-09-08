@@ -9,6 +9,22 @@ from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
 
 
+async def test_cleanup_mcp_task_disconnects_client() -> None:
+    mcp_client = MagicMock()
+    mcp_client.disconnect_from_all_servers = AsyncMock()
+    task = MagicMock()
+    task.cancelled.return_value = False
+    task.result.return_value = mcp_client
+
+    with patch.object(
+        lifespans, "cancel_and_wait", new_callable=AsyncMock
+    ) as cancel_and_wait:
+        await lifespans._cleanup_mcp_task(task)
+
+    cancel_and_wait.assert_awaited_once_with(task)
+    mcp_client.disconnect_from_all_servers.assert_awaited_once_with()
+
+
 async def test_lsp_cleanup_after_error() -> None:
     state = MagicMock()
     state.config_manager.get_config.return_value = {}

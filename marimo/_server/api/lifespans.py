@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
+    from marimo._server.ai.mcp import MCPClient
+
 LOGGER = _loggers.marimo_logger()
 
 background_tasks: set[asyncio.Task[Any]] = set()
@@ -83,11 +85,27 @@ async def tool_manager(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
+async def _cleanup_mcp_task(
+    task: asyncio.Task[MCPClient | None],
+) -> None:
+    await cancel_and_wait(task)
+    if task.cancelled():
+        return
+
+    mcp_client = task.result()
+    if mcp_client is None:
+        return
+
+    try:
+        LOGGER.info("Disconnecting from all MCP servers")
+        await mcp_client.disconnect_from_all_servers()
+        LOGGER.info("Successfully disconnected from all MCP servers")
+    except Exception as e:
+        LOGGER.error("Error during MCP disconnect: %s", e)
+
+
 @contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
-    if TYPE_CHECKING:
-        from marimo._server.ai.mcp import MCPClient
-
     state = AppState.from_app(app)
     session_mgr = state.session_manager
     user_config = state.config_manager.get_config()
@@ -130,18 +148,7 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
     try:
         yield
     finally:
-        await cancel_and_wait(task)
-        if not task.cancelled():
-            mcp_client = task.result()
-            if mcp_client:
-                try:
-                    LOGGER.info("Disconnecting from all MCP servers")
-                    await mcp_client.disconnect_from_all_servers()
-                    LOGGER.info(
-                        "Successfully disconnected from all MCP servers"
-                    )
-                except Exception as e:
-                    LOGGER.error(f"Error during MCP disconnect: {e}")
+        await _cleanup_mcp_task(task)
 
 
 @contextlib.asynccontextmanager
