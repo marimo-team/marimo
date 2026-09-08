@@ -18,6 +18,7 @@ import {
   ChevronsDownUpIcon,
   ChevronsUpDownIcon,
   ExpandIcon,
+  ShrinkIcon,
 } from "lucide-react";
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
@@ -31,11 +32,13 @@ import { getContainerWidth } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import { Events } from "@/utils/events";
 import { invariant } from "@/utils/invariant";
+import { Logger } from "@/utils/Logger";
 import { processMimeBundle } from "@/utils/mime-types";
 import { Objects } from "@/utils/objects";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
+import { useFullScreenElement } from "../ui/fullscreen";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
@@ -425,6 +428,7 @@ const ExpandableOutput = React.memo(
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
+    const isFullscreen = useFullScreenElement() === containerRef.current;
 
     return (
       <>
@@ -488,6 +492,31 @@ const ExpandableOutput = React.memo(
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
           >
+            {/* The action buttons above sit outside this element, and fullscreen
+                paints this element only. Some hosts, for example the JCEF
+                browser in JetBrains IDEs, draw no exit overlay, so the output
+                must carry its own exit control. */}
+            {isFullscreen && (
+              <Tooltip content="Exit fullscreen" side="left">
+                <Button
+                  data-testid="exit-fullscreen-output-button"
+                  aria-label="Exit fullscreen"
+                  className="absolute right-2 top-2 z-2 p-1 bg-background/90 border border-border hover:bg-muted print:hidden"
+                  onClick={() => {
+                    document.exitFullscreen().catch((error) => {
+                      Logger.warn("Failed to exit fullscreen", error);
+                    });
+                  }}
+                  size="xs"
+                  variant="text"
+                >
+                  <ShrinkIcon
+                    className="size-4 opacity-60 hover:opacity-80"
+                    strokeWidth={1.25}
+                  />
+                </Button>
+              </Tooltip>
+            )}
             {children}
           </div>
         </div>
