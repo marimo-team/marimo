@@ -95,6 +95,26 @@ describe("createNetworkRequests", () => {
       process.env.NODE_ENV = originalEnv;
     });
 
+    it("exportAsHTML should respect a caller-provided assetUrl in dev/test mode", async () => {
+      const originalEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "development";
+
+      const cdnUrl = "https://cdn.example.com/dist";
+      const requests = createNetworkRequests();
+      await requests.exportAsHTML({ assetUrl: cdnUrl } as any);
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/html",
+        expect.objectContaining({
+          body: expect.objectContaining({
+            assetUrl: cdnUrl,
+          }),
+        }),
+      );
+
+      process.env.NODE_ENV = originalEnv;
+    });
+
     it("exportAsPDF should pass preset through to the API", async () => {
       const requests = createNetworkRequests();
       await requests.exportAsPDF({

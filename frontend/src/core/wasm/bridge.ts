@@ -529,9 +529,12 @@ export class PyodideBridge implements RunRequests, EditRequests {
     request: ExportAsHTMLRequest,
   ) => {
     await this.pendingSessionSave;
+    // Same dev-server default as createNetworkRequests.exportAsHTML; callers
+    // that publish to a remote origin pass their own assetUrl.
     if (
-      process.env.NODE_ENV === "development" ||
-      process.env.NODE_ENV === "test"
+      request.assetUrl == null &&
+      (process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "test")
     ) {
       request.assetUrl = window.location.origin;
     }

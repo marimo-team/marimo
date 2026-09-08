@@ -430,9 +430,13 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     exportAsHTML: async (request) => {
+      // In dev/test the CDN has no assets for the local build, so default to
+      // the dev server. Callers that need a specific origin (e.g. publishing,
+      // where local URLs would be unreachable) can pass their own assetUrl.
       if (
-        process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test"
+        request.assetUrl == null &&
+        (process.env.NODE_ENV === "development" ||
+          process.env.NODE_ENV === "test")
       ) {
         request.assetUrl = window.location.origin;
       }
