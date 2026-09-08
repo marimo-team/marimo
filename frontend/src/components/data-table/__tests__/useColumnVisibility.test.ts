@@ -44,6 +44,7 @@ function createTestTable({
           : column,
       ),
       getCoreRowModel: getCoreRowModel(),
+      locale: "en-US",
       initialState: {
         columnVisibility: Object.fromEntries(
           initiallyHidden.map((id) => [id, false]),
