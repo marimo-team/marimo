@@ -96,14 +96,27 @@ class PackagesCallbacks:
         broadcast_notification(CompletedRunNotification())
 
     def update_package_manager(self, package_manager: str) -> None:
-        script_path = self._sandbox_script_path()
+        if GLOBAL_SETTINGS.SANDBOX_MODE is not None:
+            from marimo._environments.backends import current_backend
+            from marimo._environments.sandbox import NotebookSandbox
+            from marimo._runtime.packages.sandbox_package_manager import (
+                SandboxPackageManager,
+            )
+
+            if not isinstance(self.package_manager, SandboxPackageManager):
+                self.package_manager = SandboxPackageManager(
+                    NotebookSandbox.from_running_process(
+                        self._kernel.app_metadata.filename, current_backend()
+                    )
+                )
+            return
+
         if (
             self.package_manager is None
             or package_manager != self.package_manager.name
         ):
             self.package_manager = create_package_manager(
                 package_manager,
-                script_path=script_path,
             )
 
             # All marimo notebooks depend on the marimo package; if the
@@ -111,6 +124,14 @@ class PackagesCallbacks:
             # dependency group with marimo, such as marimo[sql], this is a
             # NOOP.
             self._maybe_add_marimo_to_script_metadata()
+
+    def rename_file(self, filename: str) -> None:
+        from marimo._runtime.packages.sandbox_package_manager import (
+            SandboxPackageManager,
+        )
+
+        if isinstance(self.package_manager, SandboxPackageManager):
+            self.package_manager.rebind(filename)
 
     def send_missing_packages_alert(self, missing_packages: set[str]) -> None:
         if self.package_manager is None:
@@ -238,10 +259,9 @@ class PackagesCallbacks:
         assert self.package_manager is not None, (
             "Cannot install packages without a package manager"
         )
-        script_path = self._sandbox_script_path()
         if (
             request.manager != self.package_manager.name
-            and script_path is None
+            and GLOBAL_SETTINGS.SANDBOX_MODE is None
         ):
             # Swap out the package manager
             self.package_manager = create_package_manager(
@@ -395,13 +415,6 @@ class PackagesCallbacks:
 
         if cells_to_run:
             await self._kernel.maybe_autorun_cells(cells_to_run)
-
-    def _sandbox_script_path(self) -> str | None:
-        """The notebook path when its dependencies live in a script
-        environment; None otherwise."""
-        if GLOBAL_SETTINGS.SANDBOX_MODE is None:
-            return None
-        return self._kernel.app_metadata.filename
 
     def _maybe_add_marimo_to_script_metadata(self) -> None:
         if self.should_update_script_metadata():

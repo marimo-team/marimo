@@ -1805,6 +1805,7 @@ class Kernel:
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
+        self.packages_callbacks.rename_file(filename)
         roots: set[CellId_t] = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:

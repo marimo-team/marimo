@@ -282,7 +282,7 @@ class SessionImpl(Session):
             return
 
         filename = self.app_file_manager.filename
-        if GLOBAL_SETTINGS.SANDBOX_MODE != "single" or filename is None:
+        if GLOBAL_SETTINGS.SANDBOX_MODE != "single":
             return
 
         from marimo._environments.backends import current_backend
