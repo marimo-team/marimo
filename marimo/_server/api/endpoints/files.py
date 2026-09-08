@@ -133,13 +133,17 @@ async def rename_file(
 
     command = RenameNotebookCommand(filename=filename)
     enforce_consumer_capability(app_state, command)
+    success, error = await app_state.session_manager.rename_session(
+        app_state.require_current_session_id(), body.filename
+    )
+    if not success:
+        raise HTTPException(status_code=400, detail=error)
+
+    # Rename-triggered cells may immediately read the file or edit its
+    # dependencies. The durable file and server binding must be ready first.
     app_state.require_current_session().put_control_request(
         command,
         from_consumer_id=ConsumerId(app_state.require_current_session_id()),
-    )
-
-    await app_state.session_manager.rename_session(
-        app_state.require_current_session_id(), body.filename
     )
 
     return SuccessResponse()
