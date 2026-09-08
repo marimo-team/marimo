@@ -6,8 +6,6 @@ import sys
 from dataclasses import dataclass
 from functools import lru_cache
 
-import msgspec
-
 from marimo import _loggers
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
@@ -19,7 +17,6 @@ else:
 
 from typing import (
     TYPE_CHECKING,
-    Annotated,
     Any,
     Literal,
     TypedDict,
@@ -442,20 +439,11 @@ class GitHubConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: deprecated GitHub Models token
-    - `base_url`: deprecated GitHub Models URL
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
         and `github-enterprise` (enterprise URI).
     """
 
-    # Deprecated fields remain here so old configuration files load cleanly.
-    api_key: Annotated[
-        str, msgspec.Meta(extra_json_schema={"deprecated": True})
-    ]
-    base_url: NotRequired[
-        Annotated[str, msgspec.Meta(extra_json_schema={"deprecated": True})]
-    ]
     copilot_settings: NotRequired[dict[str, Any]]
 
 

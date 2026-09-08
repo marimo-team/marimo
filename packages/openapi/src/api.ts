@@ -5226,17 +5226,11 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: deprecated GitHub Models token
-     *         - `base_url`: deprecated GitHub Models URL
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
      *             and `github-enterprise` (enterprise URI).
      */
     GitHubConfig: {
-      /** @deprecated */
-      api_key?: string;
-      /** @deprecated */
-      base_url?: string;
       copilot_settings?: Record<string, any>;
     };
     /**

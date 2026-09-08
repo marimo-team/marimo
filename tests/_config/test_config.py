@@ -164,10 +164,7 @@ def test_configure_github_with_copilot_settings() -> None:
 def test_retired_github_models_config_logs_warning() -> None:
     config = PartialMarimoConfig(
         ai={
-            "github": {
-                "api_key": "legacy-token",
-                "base_url": "https://models.github.ai/inference",
-            },
+            "github": {},
             "models": {
                 "chat_model": "github/openai/gpt-4o",
                 "edit_model": "github/openai/gpt-4o-mini",
@@ -178,6 +175,14 @@ def test_retired_github_models_config_logs_warning() -> None:
                 ],
                 "custom_models": ["github/openai/gpt-4o"],
             },
+        },
+    )
+    # Legacy fields are intentionally absent from the public config schema.
+    github_config = cast(dict[str, str], config["ai"]["github"])
+    github_config.update(
+        {
+            "api_key": "legacy-token",
+            "base_url": "https://models.github.ai/inference",
         }
     )
 
@@ -190,7 +195,7 @@ def test_retired_github_models_config_logs_warning() -> None:
         config_module._warn_once_about_retired_github_models_config.cache_clear()
 
     assert merged["ai"]["models"] == config["ai"]["models"]
-    assert merged["ai"]["github"] == {
+    assert cast(dict[str, str], merged["ai"]["github"]) == {
         "api_key": "legacy-token",
         "base_url": "https://models.github.ai/inference",
     }
