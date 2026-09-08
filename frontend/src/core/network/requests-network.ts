@@ -11,6 +11,7 @@ import {
   waitForConnectionOpen,
   waitForConnectionOpenIfNotebook,
 } from "./connection";
+import { withDevAssetUrl } from "./export-asset-url";
 import type { EditRequests, RunRequests } from "./types";
 
 /**
@@ -430,19 +431,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     exportAsHTML: async (request) => {
-      // In dev/test the CDN has no assets for the local build, so default to
-      // the dev server. Callers that need a specific origin (e.g. publishing,
-      // where local URLs would be unreachable) can pass their own assetUrl.
-      if (
-        request.assetUrl == null &&
-        (process.env.NODE_ENV === "development" ||
-          process.env.NODE_ENV === "test")
-      ) {
-        request.assetUrl = window.location.origin;
-      }
       return getClient()
         .POST("/api/export/html", {
-          body: request,
+          body: withDevAssetUrl(request),
           parseAs: "text",
           params: getParams(),
         })

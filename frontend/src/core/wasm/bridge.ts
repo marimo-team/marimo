@@ -14,6 +14,7 @@ import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
+import { withDevAssetUrl } from "../network/export-asset-url";
 import type {
   EditRequests,
   EnvironmentInfo,
@@ -529,18 +530,9 @@ export class PyodideBridge implements RunRequests, EditRequests {
     request: ExportAsHTMLRequest,
   ) => {
     await this.pendingSessionSave;
-    // Same dev-server default as createNetworkRequests.exportAsHTML; callers
-    // that publish to a remote origin pass their own assetUrl.
-    if (
-      request.assetUrl == null &&
-      (process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test")
-    ) {
-      request.assetUrl = window.location.origin;
-    }
     const response = await this.rpc.proxy.request.bridge({
       functionName: "export_html",
-      payload: request,
+      payload: withDevAssetUrl(request),
     });
     return response as ExportedFile<string>;
   };
