@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { memo, Suspense, useMemo, useRef } from "react";
+import React, { memo, Suspense, useEffect, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -411,6 +411,12 @@ const Div = React.forwardRef<
 >((props, ref) => <div ref={ref} {...props} />);
 Div.displayName = "Div";
 
+function exitFullscreen() {
+  document.exitFullscreen().catch((error) => {
+    Logger.warn("Failed to exit fullscreen", error);
+  });
+}
+
 /**
  * Detects if there is overflow in the output area and adds a button to optionally expand
  */
@@ -429,6 +435,24 @@ const ExpandableOutput = React.memo(
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
     const isFullscreen = useFullScreenElement() === containerRef.current;
+
+    // Browsers handle Escape themselves. Embedded hosts such as JCEF deliver
+    // the key event but do not act on it.
+    useEffect(() => {
+      if (!isFullscreen) {
+        return;
+      }
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || !document.fullscreenElement) {
+          return;
+        }
+        exitFullscreen();
+      };
+      document.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.removeEventListener("keydown", handleKeyDown);
+      };
+    }, [isFullscreen]);
 
     return (
       <>
@@ -502,11 +526,7 @@ const ExpandableOutput = React.memo(
                   data-testid="exit-fullscreen-output-button"
                   aria-label="Exit fullscreen"
                   className="absolute right-2 top-2 z-2 p-1 bg-background/90 border border-border hover:bg-muted print:hidden"
-                  onClick={() => {
-                    document.exitFullscreen().catch((error) => {
-                      Logger.warn("Failed to exit fullscreen", error);
-                    });
-                  }}
+                  onClick={exitFullscreen}
                   size="xs"
                   variant="text"
                 >
