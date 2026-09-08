@@ -91,7 +91,7 @@ export const ShareStaticNotebookModal: React.FC<{
       onClose();
       // Popup blockers may swallow window.open after async work, so the
       // toast always carries the link as a fallback.
-      window.open(claimUrl, "_blank");
+      window.open(claimUrl, "_blank", "noopener,noreferrer");
       toast({
         title: "Notebook staged",
         description: (
@@ -127,7 +127,12 @@ export const ShareStaticNotebookModal: React.FC<{
         <DialogTitle>Publish HTML to web</DialogTitle>
         <DialogDescription>
           Publish a static, non-interactive snapshot of this notebook through{" "}
-          <a href={Constants.molab} target="_blank" className="underline">
+          <a
+            href={Constants.molab}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
             molab
           </a>
           . Nothing is public yet: a new tab will open where you sign in, choose
