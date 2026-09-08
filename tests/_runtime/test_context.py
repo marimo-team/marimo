@@ -1,6 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
+import pytest
+
 from marimo._runtime import context
+from marimo._runtime.context.types import ExecutionContext
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
+
+if TYPE_CHECKING:
+    import duckdb
 
 
 async def test_context_installed(
@@ -30,6 +40,27 @@ def test_not_running_in_notebook() -> None:
     from marimo._runtime.context.utils import running_in_notebook
 
     assert not running_in_notebook()
+
+
+def test_execution_context_restores_connection_after_error() -> None:
+    execution_context = ExecutionContext(
+        cell_id="cell_id", setting_element_value=False
+    )
+    original_connection = cast("duckdb.DuckDBPyConnection", object())
+    replacement_connection = cast("duckdb.DuckDBPyConnection", object())
+    execution_context.duckdb_connection = original_connection
+
+    def run_failing_cell() -> None:
+        with execution_context.with_connection(replacement_connection):
+            assert (
+                execution_context.duckdb_connection is replacement_connection
+            )
+            raise RuntimeError("cell failed")
+
+    with pytest.raises(RuntimeError, match="cell failed"):
+        run_failing_cell()
+
+    assert execution_context.duckdb_connection is original_connection
 
 
 async def test_is_embedded(
