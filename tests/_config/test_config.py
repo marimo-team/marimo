@@ -211,6 +211,18 @@ def test_github_copilot_config_does_not_log_retirement_warning() -> None:
     warning.assert_not_called()
 
 
+def test_merge_config_does_not_log_retirement_warning() -> None:
+    config = cast(
+        PartialMarimoConfig,
+        {"ai": {"models": {"chat_model": "github/openai/gpt-4o"}}},
+    )
+
+    with patch("marimo._config.config.LOGGER.warning") as warning:
+        merge_config(DEFAULT_CONFIG, config)
+
+    warning.assert_not_called()
+
+
 def test_retired_github_models_warning_handles_none_values() -> None:
     configs = [
         {"ai": None},

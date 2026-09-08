@@ -868,7 +868,9 @@ def merge_default_config(
     config: PartialMarimoConfig | MarimoConfig,
 ) -> MarimoConfig:
     """Merge a user configuration with the default configuration."""
-    return merge_config(DEFAULT_CONFIG, config)
+    merged = merge_config(DEFAULT_CONFIG, config)
+    _warn_about_retired_github_models_config(merged)
+    return merged
 
 
 def merge_config(
@@ -923,8 +925,6 @@ def merge_config(
             merged["runtime"].get("auto_reload") == "detect"  # type:ignore[comparison-overlap]
         ):
             merged["runtime"]["auto_reload"] = "lazy"
-
-    _warn_about_retired_github_models_config(merged)
 
     return merged
 
