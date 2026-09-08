@@ -382,6 +382,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment:
         from marimo._environments import pixi
 
@@ -389,12 +390,27 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
             raise pixi.PixiError(
                 "pixi sandboxes do not support a Python version override"
             )
-        return pixi.sync(
+        environment = pixi.sync(
             target.path,
             cwd=target.directory,
             on_output=on_output,
             on_command=lambda command: self._report("sync", command),
         )
+        if active_environment is not None and os.path.realpath(
+            environment.root
+        ) != os.path.realpath(active_environment.root):
+            # Renaming a notebook or first saving an unnamed one can change
+            # its script environment's cache identity. The live kernel still
+            # uses the original prefix. uv sync --active updates that retained
+            # prefix, but pixi install --script has no equivalent target-prefix
+            # option. A successful sync into the new prefix therefore needs
+            # a kernel restart before the dependency changes take effect.
+            raise pixi.PixiError(
+                "Your dependency changes are saved, but Pixi installed them "
+                "in a new environment. Restart the kernel to use the updated "
+                "dependencies. Restarting clears in-memory variables."
+            )
+        return environment
 
     def packages(
         self,

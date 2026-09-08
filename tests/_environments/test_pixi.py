@@ -49,6 +49,43 @@ def test_sync_parses_the_install_report(
     assert handle.action == "updated"
 
 
+@pytest.mark.parametrize("active_root", [None, "/env", "/previous-env"])
+def test_pixi_sync_requires_restart_when_the_live_prefix_changes(
+    active_root: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments.backends import PixiBackendAdapter
+    from marimo._environments.environment import Environment
+    from marimo._environments.script_metadata import MaterializedScript
+
+    synced = Environment(
+        python="/env/bin/python", root="/env", action="updated"
+    )
+    monkeypatch.setattr(pixi, "sync", lambda *_args, **_kwargs: synced)
+    active = (
+        Environment(
+            python=f"{active_root}/bin/python",
+            root=active_root,
+            action="unchanged",
+        )
+        if active_root is not None
+        else None
+    )
+
+    def synchronize() -> Environment:
+        return PixiBackendAdapter().sync(
+            MaterializedScript(path="/notebook.py", directory="/"),
+            python_override=None,
+            on_output=None,
+            active_environment=active,
+        )
+
+    if active_root == "/previous-env":
+        with pytest.raises(pixi.PixiError, match="Restart the kernel"):
+            synchronize()
+    else:
+        assert synchronize() == synced
+
+
 @posix_only
 def test_sync_surfaces_command_failures(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -331,6 +368,34 @@ def test_ensure_marimo_adds_a_loose_requirement(
         "--pypi",
         "marimo",
     ]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(
+    not pixi.find_pixi_bin(), reason="pixi is required for this test"
+)
+def test_live_pixi_mutation_after_rename_requires_restart(
+    tmp_path: Path,
+) -> None:
+    from marimo._environments.sandbox import NotebookSandbox
+
+    original = tmp_path / "original.py"
+    renamed = tmp_path / "renamed.py"
+    original.write_text(
+        '# /// script\n# dependencies = ["six==1.16.0"]\n'
+        '# [tool.pixi.workspace]\n# channels = ["conda-forge"]\n# ///\n'
+    )
+    running = pixi.sync(str(original), cwd=str(tmp_path))
+    sandbox = NotebookSandbox(str(original), "pixi", environment=running)
+    original.rename(renamed)
+    sandbox.rebind(str(renamed))
+
+    with pytest.raises(pixi.PixiError, match="Restart the kernel"):
+        sandbox.add("boltons")
+
+    assert sandbox.environment == running
+    assert "boltons" in renamed.read_text()
+    assert not original.exists()
 
 
 @pytest.mark.network
