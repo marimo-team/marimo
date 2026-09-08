@@ -6,21 +6,20 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { useAtomValue } from "jotai";
-import {
-  DatabaseIcon,
-  SparklesIcon,
-  SquareCodeIcon,
-  SquareMIcon,
-} from "lucide-react";
+import { DatabaseIcon, SquareCodeIcon, SquareMIcon } from "lucide-react";
 import { useEffect } from "react";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { StartupLogsAlert } from "@/components/editor/alerts/startup-logs-alert";
+import { AddConnectionDialogContent } from "@/components/editor/connections/add-connection-dialog";
 import { Cell } from "@/components/editor/notebook-cell";
+import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { PackageAlert } from "@/components/editor/package-alert";
 import { SortableCellsProvider } from "@/components/sort/SortableCellsProvider";
 import { Button } from "@/components/ui/button";
-import { Tooltip } from "@/components/ui/tooltip";
-import { maybeAddMarimoImport } from "@/core/cells/add-missing-import";
+import {
+  maybeAddAltairImport,
+  maybeAddMarimoImport,
+} from "@/core/cells/add-missing-import";
 import { SETUP_CELL_ID } from "@/core/cells/ids";
 import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { MARKDOWN_INITIAL_HIDE_CODE } from "@/core/codemirror/language/languages/markdown";
@@ -54,6 +53,8 @@ import { NotebookBanner } from "../notebook-banner";
 import { StdinBlockingAlert } from "../stdin-blocking-alert";
 import { useFocusFirstEditor } from "./vertical-layout/useFocusFirstEditor";
 import { VerticalLayoutWrapper } from "./vertical-layout/vertical-layout-wrapper";
+import { getCellRecipe, type CellRecipeId } from "./cell-recipes";
+import { MoreCellActions } from "./more-cell-actions";
 
 interface CellArrayProps {
   mode: AppMode;
@@ -276,6 +277,8 @@ const AddCellButtons: React.FC<{
   const aiEnabled = useAtomValue(aiEnabledAtom);
   const aiFeaturesEnabled = useAtomValue(aiFeaturesEnabledAtom);
   const canInteractWithApp = useAtomValue(canInteractWithAppAtom);
+  const { openModal, closeModal } = useImperativeModal();
+  const { openApplication } = useChromeActions();
   const { handleClick } = useOpenSettingsToTab();
 
   const buttonClass = cn(
@@ -283,109 +286,123 @@ const AddCellButtons: React.FC<{
     "font-semibold opacity-70 hover:opacity-90 uppercase text-xs",
   );
 
-  const renderBody = () => {
-    if (aiEnabled && isAiButtonOpen) {
-      return <AddCellWithAI onClose={isAiButtonOpenActions.toggle} />;
+  const insertRecipe = (id: CellRecipeId) => {
+    const recipe = getCellRecipe(id);
+    for (const requiredImport of recipe.requiredImports) {
+      if (requiredImport === "marimo") {
+        maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
+      } else {
+        maybeAddAltairImport({ autoInstantiate: true, createNewCell });
+      }
     }
-
-    return (
-      <>
-        <Button
-          className={buttonClass}
-          variant="text"
-          size="sm"
-          disabled={!canInteractWithApp}
-          onClick={() =>
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
-            })
-          }
-        >
-          <SquareCodeIcon className="mr-2 size-4 shrink-0" />
-          Python
-        </Button>
-        <Button
-          className={buttonClass}
-          variant="text"
-          size="sm"
-          disabled={!canInteractWithApp}
-          onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
-              code: LanguageAdapters.markdown.defaultCode,
-              hideCode: MARKDOWN_INITIAL_HIDE_CODE,
-            });
-          }}
-        >
-          <SquareMIcon className="mr-2 size-4 shrink-0" />
-          Markdown
-        </Button>
-        <Button
-          className={buttonClass}
-          variant="text"
-          size="sm"
-          disabled={!canInteractWithApp}
-          onClick={() => {
-            maybeAddMarimoImport({ autoInstantiate: true, createNewCell });
-
-            createNewCell({
-              cellId: { type: "__end__", columnId },
-              before: false,
-              code: LanguageAdapters.sql.defaultCode,
-            });
-          }}
-        >
-          <DatabaseIcon className="mr-2 size-4 shrink-0" />
-          SQL
-        </Button>
-        {aiEnabled && (
-          <Tooltip
-            content={
-              aiFeaturesEnabled ? null : (
-                <span>AI provider not found or Edit model not selected</span>
-              )
-            }
-            delayDuration={100}
-            asChild={false}
-          >
-            <Button
-              className={buttonClass}
-              variant="text"
-              size="sm"
-              disabled={!canInteractWithApp}
-              onClick={
-                aiFeaturesEnabled
-                  ? isAiButtonOpenActions.toggle
-                  : () => handleClick("ai", "ai-providers")
-              }
-            >
-              <SparklesIcon className="mr-2 size-4 shrink-0" />
-              Generate with AI
-            </Button>
-          </Tooltip>
-        )}
-      </>
-    );
+    for (const code of recipe.cells) {
+      createNewCell({
+        cellId: { type: "__end__", columnId },
+        before: false,
+        code,
+      });
+    }
   };
+
+  let generateWithAIAction:
+    | { description: string; onSelect: () => void }
+    | undefined;
+  if (aiEnabled) {
+    generateWithAIAction = {
+      description: aiFeaturesEnabled
+        ? "Describe the cell you want to create"
+        : "Configure an AI provider",
+      onSelect: aiFeaturesEnabled
+        ? isAiButtonOpenActions.toggle
+        : () => handleClick("ai", "ai-providers"),
+    };
+  }
 
   return (
     <div className="flex justify-center mt-4 pt-6 pb-32 group gap-4 w-full print:hidden">
       <div
         className={cn(
-          "border border-border rounded transition-all duration-200 overflow-hidden divide-x divide-border flex",
-          !isAiButtonOpen && "w-fit shadow-sm-solid-shade",
-          isAiButtonOpen &&
-            "w-full max-w-4xl shadow-md-solid-shade shadow-(color:--blue-3)",
+          isAiButtonOpen ? "w-full max-w-4xl" : "flex items-center gap-2 w-fit",
           className,
-          // Always show the AI input when it's open
           isAiButtonOpen && "opacity-100",
         )}
       >
-        {renderBody()}
+        {isAiButtonOpen ? (
+          <div className="border border-border rounded overflow-hidden shadow-md-solid-shade shadow-(color:--blue-3)">
+            <AddCellWithAI onClose={isAiButtonOpenActions.toggle} />
+          </div>
+        ) : (
+          <div className="border border-border rounded overflow-hidden divide-x divide-border flex shadow-sm-solid-shade">
+            <Button
+              className={buttonClass}
+              variant="text"
+              size="sm"
+              disabled={!canInteractWithApp}
+              onClick={() =>
+                createNewCell({
+                  cellId: { type: "__end__", columnId },
+                  before: false,
+                })
+              }
+            >
+              <SquareCodeIcon className="mr-2 size-4 shrink-0" />
+              Python
+            </Button>
+            <Button
+              className={buttonClass}
+              variant="text"
+              size="sm"
+              disabled={!canInteractWithApp}
+              onClick={() => {
+                maybeAddMarimoImport({
+                  autoInstantiate: true,
+                  createNewCell,
+                });
+
+                createNewCell({
+                  cellId: { type: "__end__", columnId },
+                  before: false,
+                  code: LanguageAdapters.markdown.defaultCode,
+                  hideCode: MARKDOWN_INITIAL_HIDE_CODE,
+                });
+              }}
+            >
+              <SquareMIcon className="mr-2 size-4 shrink-0" />
+              Markdown
+            </Button>
+            <Button
+              className={buttonClass}
+              variant="text"
+              size="sm"
+              disabled={!canInteractWithApp}
+              onClick={() => {
+                maybeAddMarimoImport({
+                  autoInstantiate: true,
+                  createNewCell,
+                });
+
+                createNewCell({
+                  cellId: { type: "__end__", columnId },
+                  before: false,
+                  code: LanguageAdapters.sql.defaultCode,
+                });
+              }}
+            >
+              <DatabaseIcon className="mr-2 size-4 shrink-0" />
+              SQL
+            </Button>
+            <MoreCellActions
+              buttonClassName={buttonClass}
+              disabled={!canInteractWithApp}
+              onSelectRecipe={insertRecipe}
+              onConnectData={() =>
+                openModal(<AddConnectionDialogContent onClose={closeModal} />)
+              }
+              onBrowseRecipes={() => openApplication("snippets")}
+              generateWithAI={generateWithAIAction}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
