@@ -8,6 +8,7 @@ export const ModelsDevModelSchema = z.object({
   name: z.string(),
   reasoning: z.boolean().optional(),
   tool_call: z.boolean().optional(),
+  status: z.string().optional(),
   release_date: z.string().optional(),
   modalities: z
     .object({

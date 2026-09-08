@@ -1,6 +1,10 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { EditRequests, ExportedFile } from "@/core/network/types";
+import type {
+  EditRequests,
+  ExportAsHTMLRequest,
+  ExportedFile,
+} from "@/core/network/types";
 import { assertNever } from "@/utils/assertNever";
 import { runServerSidePDFDownload } from "../pdf-export";
 import type { ExportFormat, ExportOptions } from "./state";
@@ -21,6 +25,7 @@ export async function exportNotebook({
   requests,
   sourceFilename,
   htmlFiles,
+  getLayout,
   captureOutputs,
   capturePNG,
   downloadFile,
@@ -30,6 +35,7 @@ export async function exportNotebook({
   requests: ExportRequests;
   sourceFilename: string;
   htmlFiles: string[];
+  getLayout: () => Promise<ExportAsHTMLRequest["layout"]>;
   captureOutputs: () => Promise<void>;
   capturePNG: () => Promise<void>;
   downloadFile: (file: ExportedFile) => void;
@@ -40,6 +46,7 @@ export async function exportNotebook({
         download: false,
         files: htmlFiles,
         includeCode: options.html.includeCode,
+        layout: await getLayout(),
       });
       downloadFile(file);
       return;

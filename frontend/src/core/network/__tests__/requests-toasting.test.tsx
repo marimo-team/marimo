@@ -43,4 +43,14 @@ describe("createErrorToastingRequests", () => {
       expect.objectContaining({ variant: "danger" }),
     );
   });
+
+  it("leaves file-root errors for the requesting tree to surface", async () => {
+    const error = new Error("Failed to load roots");
+    const requests = createErrorToastingRequests({
+      getFileRoots: vi.fn().mockRejectedValue(error),
+    } as unknown as EditRequests & RunRequests);
+
+    await expect(requests.getFileRoots()).rejects.toBe(error);
+    expect(toastMock).not.toHaveBeenCalled();
+  });
 });

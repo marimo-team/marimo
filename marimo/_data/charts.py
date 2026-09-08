@@ -121,7 +121,7 @@ class NumberChartBuilder(ChartBuilder):
         mark_bar = (
             """.mark_bar()"""
             if simple
-            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
+            else f""".mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""
@@ -728,7 +728,7 @@ class IntegerChartBuilder(ChartBuilder):
         mark_bar = (
             """.mark_bar()"""
             if simple
-            else """.mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
+            else f""".mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")"""
         )
 
         return f"""

@@ -136,6 +136,13 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
     });
 
+    it("getFileRoots should GET /api/files/roots", async () => {
+      const requests = createNetworkRequests();
+      await requests.getFileRoots();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/files/roots");
+    });
+
     it("getExportAvailability should GET /api/export/availability", async () => {
       const requests = createNetworkRequests();
       await requests.getExportAvailability();

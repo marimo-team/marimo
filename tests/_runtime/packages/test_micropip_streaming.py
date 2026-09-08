@@ -1,9 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 """Unit tests for the marimo-free `stream_transaction_install` engine.
 
-micropip itself only runs inside Pyodide, so we monkeypatch
-`micropip._micropip` + `micropip.transaction.Transaction` with stubs that
-simulate the resolution / install steps deterministically.
+micropip itself only runs inside Pyodide, so we monkeypatch its package-manager
+singleton and `micropip.transaction.Transaction` with stubs that simulate the
+resolution and install steps deterministically. These stubs prove the engine's
+logic, not that it still matches micropip's private API.
 """
 
 from __future__ import annotations
@@ -34,7 +35,8 @@ class _FakeWheel:
 @dataclass
 class _FakeTransaction:
     wheels: list[_FakeWheel] = field(default_factory=list)
-    failed: list[str] = field(default_factory=list)
+    # micropip stores `Requirement`s here; strings cover older releases.
+    failed: list[Any] = field(default_factory=list)
     pyodide_packages: list[tuple[str, str, str]] = field(default_factory=list)
     seen_requirements: list[str] = field(default_factory=list)
     init_kwargs: dict[str, Any] = field(default_factory=dict)
@@ -64,16 +66,16 @@ class _FakeMicropipManager:
 def _install_fake_micropip(
     monkeypatch: Any, fake_tx: _FakeTransaction
 ) -> _FakeMicropipManager:
-    """Install fake `micropip`, `micropip._utils`, `micropip.transaction`, and
-    `packaging.utils` modules into sys.modules so the engine resolves to them.
+    """Install fake `micropip` and `micropip.transaction` modules into
+    sys.modules so the engine resolves to them.
+
+    These stubs must track micropip's private API. A stub that drifts from the
+    real thing hides the breakage it exists to catch.
     """
     fake_mgr = _FakeMicropipManager()
 
     micropip_mod = types.ModuleType("micropip")
-    micropip_mod._micropip = fake_mgr  # type: ignore[attr-defined]
-
-    utils_mod = types.ModuleType("micropip._utils")
-    utils_mod.default_environment = dict  # type: ignore[attr-defined]
+    micropip_mod._package_manager_singleton = fake_mgr  # type: ignore[attr-defined]
 
     txn_mod = types.ModuleType("micropip.transaction")
 
@@ -84,7 +86,6 @@ def _install_fake_micropip(
     txn_mod.Transaction = _Transaction  # type: ignore[attr-defined]
 
     monkeypatch.setitem(sys.modules, "micropip", micropip_mod)
-    monkeypatch.setitem(sys.modules, "micropip._utils", utils_mod)
     monkeypatch.setitem(sys.modules, "micropip.transaction", txn_mod)
     return fake_mgr
 
@@ -134,15 +135,35 @@ async def test_wheel_install_failure_no_double_yield(
 async def test_resolution_failure_yields_false(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """micropip records failures as `Requirement`s, not strings."""
+    from packaging.requirements import Requirement
+
     from marimo._runtime.packages._micropip_streaming import (
         stream_transaction_install,
     )
 
-    tx = _FakeTransaction(failed=["foo"])
+    tx = _FakeTransaction(failed=[Requirement("foo")])
     _install_fake_micropip(monkeypatch, tx)
 
     results = await _drain(stream_transaction_install(["foo"]))
     assert results == [("foo", False)]
+
+
+async def test_failed_requirement_with_specifier_reports_base_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A versioned request must be reported back under the caller's spelling."""
+    from packaging.requirements import Requirement
+
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    tx = _FakeTransaction(failed=[Requirement("foo==1.2.3")])
+    _install_fake_micropip(monkeypatch, tx)
+
+    results = await _drain(stream_transaction_install(["foo==1.2.3"]))
+    assert results == [("foo==1.2.3", False)]
 
 
 async def test_pyodide_package_only_loadpackage_once(
@@ -448,9 +469,7 @@ async def test_loadpackage_failure_yields_false_no_terminate(
     )
 
     micropip_mod = types.ModuleType("micropip")
-    micropip_mod._micropip = fake_mgr  # type: ignore[attr-defined]
-    utils_mod = types.ModuleType("micropip._utils")
-    utils_mod.default_environment = dict  # type: ignore[attr-defined]
+    micropip_mod._package_manager_singleton = fake_mgr  # type: ignore[attr-defined]
     txn_mod = types.ModuleType("micropip.transaction")
 
     def _Transaction(**kwargs: Any) -> _FakeTransaction:
@@ -459,7 +478,6 @@ async def test_loadpackage_failure_yields_false_no_terminate(
 
     txn_mod.Transaction = _Transaction  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "micropip", micropip_mod)
-    monkeypatch.setitem(sys.modules, "micropip._utils", utils_mod)
     monkeypatch.setitem(sys.modules, "micropip.transaction", txn_mod)
 
     results = await _drain(stream_transaction_install(["foo", "numpy"]))
@@ -467,3 +485,20 @@ async def test_loadpackage_failure_yields_false_no_terminate(
     assert ("numpy", False) in results
     # foo wheel still succeeded independently.
     assert ("foo", True) in results
+
+
+async def test_marker_environment_passed_to_transaction(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """micropip evaluates environment markers against this context."""
+    from marimo._runtime.packages._micropip_streaming import (
+        stream_transaction_install,
+    )
+
+    tx = _FakeTransaction(wheels=[_FakeWheel("foo")])
+    _install_fake_micropip(monkeypatch, tx)
+
+    await _drain(stream_transaction_install(["foo"]))
+    assert tx.init_kwargs["ctx"]["python_version"] == ".".join(
+        str(part) for part in sys.version_info[:2]
+    )

@@ -16,15 +16,15 @@
   },
   "dependencies": {
     "@codemirror/lang-python": "^6.2.1",
-    "@lezer/common": "^1.5.1",
-    "@lezer/python": "^1.1.18",
+    "@lezer/common": "^1.5.2",
+    "@lezer/python": "^1.1.19",
     "string-dedent": "^3.0.2"
   },
   "devDependencies": {
     "@marimo-team/tsconfig": "workspace:*",
     "@types/node": "^20.19.30",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "keywords": [
     "marimo",

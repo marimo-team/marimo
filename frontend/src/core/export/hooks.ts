@@ -11,6 +11,7 @@ import { Objects } from "@/utils/objects";
 import { ProgressState } from "@/utils/progress";
 import { cellsRuntimeAtom } from "../cells/cells";
 import type { CellId } from "../cells/ids";
+import { getExportLayout } from "./layout";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
 import type { UpdateCellOutputsRequest } from "../network/types";
@@ -56,6 +57,7 @@ export function useAutoExport() {
         download: false,
         includeCode: true,
         files: VirtualFileTracker.INSTANCE.filenames(),
+        layout: await getExportLayout(),
       });
     },
     // Run every 5 seconds, or when the document becomes visible

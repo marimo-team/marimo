@@ -55,6 +55,11 @@ from marimo._messaging.serde import deserialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._output.hypertext import patch_html_for_non_interactive_output
 from marimo._runtime.commands import AppMetadata
+from marimo._runtime.layout.layout import (
+    LayoutConfig,
+    layout_config_to_data_uri,
+    read_layout_config,
+)
 from marimo._runtime.patches import extract_docstring_from_header
 from marimo._schemas.export_options import (
     IPYNBExportOptions,
@@ -77,6 +82,25 @@ if TYPE_CHECKING:
     from marimo._session.state.session_view import SessionView
     from marimo._session.types import Session
     from marimo._types.ids import CellId_t
+
+
+def _resolve_and_inline_layout(app: InternalApp) -> LayoutConfig | None:
+    layout_file = app.config.layout_file
+    if layout_file is None:
+        return None
+
+    directory = Path(app.filename).parent if app.filename else Path.cwd()
+    layout = read_layout_config(directory, layout_file)
+    app.update_config(
+        {
+            "layout_file": (
+                layout_config_to_data_uri(layout)
+                if layout is not None
+                else None
+            )
+        }
+    )
+    return layout
 
 
 def _as_ir(path: MarimoPath) -> NotebookSerialization:
@@ -192,8 +216,7 @@ async def export_wasm(
                 did_error=True,
             )
         app = InternalApp(_app)
-        # Inline the layout file, if it exists
-        app.inline_layout_file()
+        layout = _resolve_and_inline_layout(app)
         config = get_default_config_manager(
             current_path=request.path.absolute_name
         )
@@ -210,6 +233,7 @@ async def export_wasm(
                 display_config=resolved["display"],
                 code=code,
                 options=request.options,
+                layout=layout,
                 sharing_config=resolved.get("sharing"),
             )
         )
@@ -322,9 +346,7 @@ async def export_html(
     request: HTMLFileExportRequest,
 ) -> ExportResult:
     file_manager = load_notebook(request.path.absolute_name)
-
-    # Inline the layout file, if it exists
-    file_manager.app.inline_layout_file()
+    layout = _resolve_and_inline_layout(file_manager.app)
 
     if request.execution is None:
         from marimo._session.state.session_view import SessionView
@@ -358,6 +380,7 @@ async def export_html(
             ),
             display_config=display_config,
             options=request.options,
+            layout=layout,
             sharing_config=(
                 resolved.get("sharing")
                 if request.execution is not None
@@ -447,7 +470,7 @@ async def _export_wasm_with_execution(
         raise ValueError("Execution options are required.")
 
     file_manager = load_notebook(request.path.absolute_name)
-    file_manager.app.inline_layout_file()
+    layout = _resolve_and_inline_layout(file_manager.app)
 
     config = get_default_config_manager(current_path=file_manager.path)
     resolved = config.get_config()
@@ -508,6 +531,7 @@ async def _export_wasm_with_execution(
             display_config=display_config,
             code=code,
             options=request.options,
+            layout=layout,
             session_snapshot=snapshot.session,
             notebook_snapshot=snapshot.notebook,
             sharing_config=resolved.get("sharing"),

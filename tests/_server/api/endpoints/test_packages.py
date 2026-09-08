@@ -507,6 +507,63 @@ def test_add_package_with_metadata_update(
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
 
 
+def test_add_package_with_spaced_extras_updates_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    package = "pydantic-ai[duckduckgo, web-fetch]"
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": package, "upgrade": True},
+        )
+
+    assert response.json() == {"success": True, "error": None}
+    mock_package_manager_with_metadata.install.assert_awaited_once_with(
+        package, version=None, upgrade=True, group=None
+    )
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once_with(
+        filepath="test.py",
+        packages_to_add=[package],
+        upgrade=True,
+    )
+
+
+def test_add_package_failure_does_not_update_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    mock_package_manager_with_metadata.install.return_value = False
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+
+    assert response.json()["success"] is False
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
+
+
 def test_remove_package_with_metadata_update(
     client: TestClient, mock_package_manager_with_metadata: Mock
 ) -> None:
@@ -527,6 +584,31 @@ def test_remove_package_with_metadata_update(
             result = response.json()
             assert result == {"success": True, "error": None}
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+
+
+def test_remove_package_failure_does_not_update_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    mock_package_manager_with_metadata.uninstall.return_value = False
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/remove",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+
+    assert response.json()["success"] is False
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
 
 
 def test_add_package_no_metadata_update_when_disabled(

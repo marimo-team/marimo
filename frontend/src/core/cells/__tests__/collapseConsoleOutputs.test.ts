@@ -367,6 +367,39 @@ describe("collapseConsoleOutputs", () => {
       expect(consoleOutputs[0].data).toBe("Processing: |██████████| 100/100");
     });
 
+    it("should preserve nested progress lines across flushed writes", () => {
+      let consoleOutputs: OutputMessage[] = [
+        {
+          mimetype: "text/plain",
+          channel: "stderr",
+          data: "outer: 0%",
+          timestamp: 0,
+        },
+      ];
+      const append = (data: string) => {
+        consoleOutputs = collapseConsoleOutputs([
+          ...consoleOutputs,
+          {
+            mimetype: "text/plain",
+            channel: "stderr",
+            data,
+            timestamp: 0,
+          },
+        ]);
+      };
+
+      // tqdm flushes each of these writes independently.
+      append("\n");
+      append("\rinner: 0%");
+      append("\u001B[A");
+      expect(consoleOutputs[0].data).toBe("outer: 0%\ninner: 0%");
+
+      append("\n");
+      append("\rinner: 1%");
+      append("\u001B[A");
+      expect(consoleOutputs[0].data).toBe("outer: 0%\ninner: 1%");
+    });
+
     it("should handle cursor up/down movements", () => {
       // Test that cursor movements within a single message are handled
       const consoleOutputs: OutputMessage[] = [
@@ -379,8 +412,8 @@ describe("collapseConsoleOutputs", () => {
       ];
 
       const result = collapseConsoleOutputs(consoleOutputs);
-      // After moving up 1 line and writing "Modified", Line 2 gets overwritten
-      expect(result[0].data).toBe("Line 1\nModified");
+      // Moving the cursor does not erase the lines below it.
+      expect(result[0].data).toBe("Line 1\nModified\n");
     });
 
     it("should handle clear screen sequence", () => {

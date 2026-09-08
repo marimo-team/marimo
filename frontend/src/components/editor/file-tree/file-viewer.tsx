@@ -32,7 +32,7 @@ export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
 interface Props {
   file: FileInfo;
-  onOpenNotebook: (
+  onOpenNotebook?: (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
   ) => void;
 }
@@ -156,7 +156,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       onDownload={disableFileDownloads ? undefined : handleDownload}
       actions={
         <>
-          {file.isMarimoFile && !isWasm() && (
+          {file.isMarimoFile && onOpenNotebook && !isWasm() && (
             <Tooltip content="Open notebook">
               <Button
                 variant="text"

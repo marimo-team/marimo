@@ -9,6 +9,9 @@ from starlette.exceptions import HTTPException
 from starlette.responses import PlainTextResponse
 
 from marimo import _loggers
+from marimo._messaging.notification import (
+    NotebookDocumentTransactionNotification,
+)
 from marimo._runtime.commands import RenameNotebookCommand
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
@@ -184,7 +187,14 @@ async def save(
         )
 
     session = app_state.require_current_session()
-    contents = session.app_file_manager.save(body)
+    session_id = app_state.require_current_session_id()
+    contents = session.app_file_manager.save(
+        body,
+        on_document_transaction=lambda transaction: session.notify(
+            NotebookDocumentTransactionNotification(transaction=transaction),
+            from_consumer_id=ConsumerId(session_id),
+        ),
+    )
 
     return PlainTextResponse(content=contents)
 

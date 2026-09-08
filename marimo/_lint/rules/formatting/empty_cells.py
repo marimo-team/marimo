@@ -161,11 +161,7 @@ class EmptyCellRule(UnsafeFixRule):
                 return True
 
             # Check if all statements are pass statements
-            for node in tree.body:
-                if not isinstance(node, ast.Pass):
-                    return False
-
-            return True
+            return all(isinstance(node, ast.Pass) for node in tree.body)
 
         except SyntaxError:
             # If it doesn't parse, check if it's only comments

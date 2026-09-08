@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import IO, Any
 
 import click
 
@@ -79,23 +79,25 @@ def _format_usage_error(error: click.UsageError) -> list[str]:
 
 
 def show_compact_usage_error(
-    error: click.UsageError, file: Any = None
+    error: click.UsageError, file: IO[Any] | None = None
 ) -> None:
     """Print compact parser errors without the full command help block."""
-    if file is None:
-        file = click.get_text_stream("stderr")
+    use_stderr = file is None
 
     color = error.ctx.color if error.ctx is not None else None
     for line in _format_usage_error(error):
-        click.echo(line, file=file, color=color)
+        click.echo(line, file=file, err=use_stderr, color=color)
 
     if error.ctx is not None:
-        click.echo(file=file, color=color)
-        click.echo(error.ctx.get_usage(), file=file, color=color)
-        click.echo(file=file, color=color)
+        click.echo(file=file, err=use_stderr, color=color)
+        click.echo(
+            error.ctx.get_usage(), file=file, err=use_stderr, color=color
+        )
+        click.echo(file=file, err=use_stderr, color=color)
 
     click.echo(
         "For more information, try '--help'.",
         file=file,
+        err=use_stderr,
         color=color,
     )

@@ -80,7 +80,7 @@ async def stream_transaction_install(
     (via `asyncio.as_completed`) instead of waiting for an opaque end-to-end call.
 
     `index_urls` and `constraints`, when None, fall back to the values on
-    `micropip._micropip` (the global singleton); when provided, they override
+    micropip's global `PackageManager` singleton; when provided, they override
     the singleton for this transaction only.
 
     Yields `(package_name, success)` per requested package. Packages that
@@ -91,14 +91,12 @@ async def stream_transaction_install(
     # (where micropip isn't installed). A ModuleNotFoundError here propagates
     # as ImportError, which the marimo-side wrapper catches and falls back.
     micropip = importlib.import_module("micropip")
-    default_environment = importlib.import_module(
-        "micropip._utils"
-    ).default_environment
     Transaction = importlib.import_module("micropip.transaction").Transaction
+    from packaging.markers import default_environment
     from packaging.requirements import Requirement
     from packaging.utils import canonicalize_name
 
-    mgr = micropip._micropip  # singleton PackageManager
+    mgr = micropip._package_manager_singleton
     ctx = default_environment()
     wheel_base = Path(getsitepackages()[0])
 
@@ -144,9 +142,10 @@ async def stream_transaction_install(
             base_name = spec
         requested[canonicalize_name(base_name)] = (spec, base_name)
 
-    for failed_name in transaction.failed:
-        normalized = canonicalize_name(failed_name)
-        original, _ = requested.pop(normalized, (failed_name, failed_name))
+    for failed_req in transaction.failed:
+        # NB. `failed` holds Requirements, not strings.
+        name = failed_req.name
+        original, _ = requested.pop(canonicalize_name(name), (name, name))
         yield (original, False)
 
     async def _install_wheel(wheel: Any) -> tuple[str, Exception | None]:

@@ -253,7 +253,7 @@ _chart
 # integer
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
+    .mark_bar(color="#be93e4", stroke="#8e4ec6")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),
@@ -278,7 +278,7 @@ _chart
 # number
 _chart = (
     alt.Chart(df)
-    .mark_bar(color="{NUMBER_COLOR}", stroke="{NUMBER_STROKE}")
+    .mark_bar(color="#be93e4", stroke="#8e4ec6")
     .encode(
         x=alt.X("some_column", type="quantitative", bin=True, title="some_column"),
         y=alt.Y("count()", type="quantitative", title="Number of records"),

@@ -153,12 +153,20 @@ def _normalize_sandbox_dependencies(
 
         return dep.replace("marimo", f"marimo[{','.join(features)}]")
 
+    def editable_marimo_dependency(features: list[DepFeatures]) -> str:
+        path = str(get_marimo_dir())
+        if features:
+            path = f"{path}[{','.join(features)}]"
+        return f"-e {path}"
+
     # Find all marimo dependencies
     marimo_deps = [d for d in dependencies if is_marimo_dependency(d)]
     if not marimo_deps:
         if is_editable("marimo"):
             LOGGER.info("Using editable of marimo for sandbox")
-            return dependencies + [f"-e {get_marimo_dir()}"]
+            return dependencies + [
+                editable_marimo_dependency(additional_features)
+            ]
 
         return dependencies + [
             include_features(f"marimo=={marimo_version}", additional_features)
@@ -173,7 +181,7 @@ def _normalize_sandbox_dependencies(
 
     if is_editable("marimo"):
         LOGGER.info("Using editable of marimo for sandbox")
-        return filtered + [f"-e {get_marimo_dir()}"]
+        return filtered + [editable_marimo_dependency(additional_features)]
 
     # Add version if not already versioned
     if not _is_versioned(chosen):

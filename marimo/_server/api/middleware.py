@@ -33,14 +33,12 @@ from starlette.websockets import WebSocket, WebSocketState
 from websockets import ClientConnection, ConnectionClosed, connect
 
 from marimo import _loggers
-from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._server.api.auth import TOKEN_QUERY_PARAM, validate_auth
 from marimo._server.api.deps import AppState, AppStateBase
 from marimo._server.codes import WebSocketCodes
 from marimo._server.uvicorn_utils import close_uvicorn
 from marimo._session.model import SessionMode
-from marimo._tracer import server_tracer
+from marimo._tracer import is_tracing_enabled, server_tracer
 from marimo._utils.asyncio_utils import supervised_task
 from marimo._utils.print import print_tabbed
 
@@ -181,10 +179,9 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
     ) -> None:
         super().__init__(app, dispatch)
 
-        if not GLOBAL_SETTINGS.TRACING:
+        self._tracing_enabled = is_tracing_enabled()
+        if not self._tracing_enabled:
             return
-
-        DependencyManager.opentelemetry.require("for tracing.")
 
         # Import once and store for later
         from opentelemetry import trace
@@ -199,7 +196,7 @@ class OpenTelemetryMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        if not GLOBAL_SETTINGS.TRACING:
+        if not self._tracing_enabled:
             return await call_next(request)
 
         from opentelemetry.propagate import extract

@@ -1,6 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -368,10 +370,10 @@ class TestCreateTracer:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from marimo._config.settings import GLOBAL_SETTINGS
+        import marimo._tracer as tracer_module
         from marimo._tracer import MockTracer, create_tracer
 
-        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", False)
+        monkeypatch.setattr(tracer_module, "_TRACING_AVAILABLE", False)
         tracer = create_tracer("test")
         assert isinstance(tracer, MockTracer)
 
@@ -379,12 +381,121 @@ class TestCreateTracer:
         self,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from marimo._config.settings import GLOBAL_SETTINGS
+        import marimo._tracer as tracer_module
         from marimo._tracer import MockTracer, create_tracer
 
-        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        monkeypatch.setattr(tracer_module, "_TRACING_AVAILABLE", True)
         tracer = create_tracer("test.real")
         assert not isinstance(tracer, MockTracer)
+
+
+class TestInitializeTracing:
+    def test_disabled_tracing_does_not_initialize(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import marimo._tracer as tracer_module
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", False)
+        set_provider = MagicMock()
+        monkeypatch.setattr(
+            tracer_module, "_set_tracer_provider", set_provider
+        )
+
+        assert tracer_module._initialize_tracing() is False
+        set_provider.assert_not_called()
+
+    def test_missing_opentelemetry_warns_and_disables_tracing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import marimo._tracer as tracer_module
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        monkeypatch.setattr(
+            tracer_module,
+            "_set_tracer_provider",
+            MagicMock(side_effect=ModuleNotFoundError("opentelemetry.sdk")),
+        )
+        warning = MagicMock()
+        monkeypatch.setattr(tracer_module.LOGGER, "warning", warning)
+
+        assert tracer_module._initialize_tracing() is False
+        warning.assert_called_once()
+        assert "Install marimo[otel]" in warning.call_args.args[0]
+
+    def test_initialization_failure_warns_and_disables_tracing(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import marimo._tracer as tracer_module
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        monkeypatch.setattr(
+            tracer_module,
+            "_set_tracer_provider",
+            MagicMock(side_effect=RuntimeError("boom")),
+        )
+        warning = MagicMock()
+        monkeypatch.setattr(tracer_module.LOGGER, "warning", warning)
+
+        assert tracer_module._initialize_tracing() is False
+        warning.assert_called_once()
+        assert (
+            "compatible version of marimo[otel]" in warning.call_args.args[0]
+        )
+
+    def test_unavailable_tracing_uses_mock_for_all_tracers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import marimo._tracer as tracer_module
+
+        monkeypatch.setattr(tracer_module, "_TRACING_AVAILABLE", False)
+        warning = MagicMock()
+        monkeypatch.setattr(tracer_module.LOGGER, "warning", warning)
+
+        server = tracer_module.create_tracer("marimo.server")
+        kernel = tracer_module.create_tracer("marimo.kernel")
+
+        assert isinstance(server, tracer_module.MockTracer)
+        assert isinstance(kernel, tracer_module.MockTracer)
+        warning.assert_not_called()
+
+    def test_import_succeeds_without_opentelemetry(self) -> None:
+        script = """
+import importlib.abc
+import os
+import sys
+
+class BlockOpenTelemetry(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path, target=None):
+        del path, target
+        if fullname == "opentelemetry" or fullname.startswith("opentelemetry."):
+            raise ModuleNotFoundError(name=fullname)
+        return None
+
+sys.meta_path.insert(0, BlockOpenTelemetry())
+os.environ["MARIMO_TRACING"] = "1"
+import marimo
+from marimo._server.api.middleware import OpenTelemetryMiddleware
+from starlette.applications import Starlette
+
+OpenTelemetryMiddleware(Starlette())
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            check=False,
+            env=os.environ.copy(),
+            text=True,
+        )
+
+        assert result.returncode == 0, result.stderr
+        assert result.stderr.count("Marimo cannot import") == 1
 
 
 class TestInstrumentAI:
@@ -488,10 +599,10 @@ class TestAttachTraceContext:
         from opentelemetry import trace
         from opentelemetry.sdk.trace import TracerProvider
 
-        from marimo._config.settings import GLOBAL_SETTINGS
+        import marimo._tracer as tracer_module
         from marimo._tracer import attach_trace_context
 
-        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", True)
+        monkeypatch.setattr(tracer_module, "_TRACING_AVAILABLE", True)
         trace.set_tracer_provider(TracerProvider())
         tracer = trace.get_tracer("test")
 
@@ -524,10 +635,10 @@ class TestAttachTraceContext:
         from opentelemetry import trace
         from opentelemetry.sdk.trace import TracerProvider
 
-        from marimo._config.settings import GLOBAL_SETTINGS
+        import marimo._tracer as tracer_module
         from marimo._tracer import attach_trace_context
 
-        monkeypatch.setattr(GLOBAL_SETTINGS, "TRACING", False)
+        monkeypatch.setattr(tracer_module, "_TRACING_AVAILABLE", False)
         trace.set_tracer_provider(TracerProvider())
         tracer = trace.get_tracer("test")
 

@@ -10,10 +10,11 @@ import { logNever } from "@/utils/assertNever";
 import { Logger } from "@/utils/Logger";
 import type {
   ColumnEdit,
+  EditorRow,
   Edits,
   ModifiedGridColumn,
   PositionalEdit,
-  RowEdit,
+  RemoveRowEdit,
 } from "./types";
 
 export function getColumnKind(fieldType: DataType): GridCellKind {
@@ -24,7 +25,15 @@ export function getColumnKind(fieldType: DataType): GridCellKind {
       return GridCellKind.Number;
     case "boolean":
       return GridCellKind.Boolean;
+    case "integer":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
+      return GridCellKind.Text;
     default:
+      logNever(fieldType);
       return GridCellKind.Text;
   }
 }
@@ -52,13 +61,48 @@ export function getColumnHeaderIcon(fieldType: DataType): GridColumnIcon {
   }
 }
 
+export function isValidCellValue(
+  dataType: DataType | undefined,
+  value: unknown,
+): boolean {
+  switch (dataType) {
+    case "number":
+      return Number.isFinite(Number(value));
+    case "integer":
+      if (typeof value === "bigint") {
+        return true;
+      }
+      if (typeof value === "number") {
+        return Number.isFinite(value) && Number.isInteger(value);
+      }
+      if (typeof value === "string") {
+        const normalized = value.trim();
+        return /^[+-]?[0-9]+(?:\.0+)?$/u.test(normalized);
+      }
+      return false;
+    case "boolean":
+      return typeof value === "boolean";
+    case undefined:
+    case "string":
+    case "date":
+    case "datetime":
+    case "time":
+    case "geometry":
+    case "unknown":
+      return true;
+    default:
+      logNever(dataType);
+      return false;
+  }
+}
+
 export function isPositionalEdit(
   edit: Edits["edits"][number],
 ): edit is PositionalEdit {
   return "rowIdx" in edit && "columnId" in edit && "value" in edit;
 }
 
-export function isRowEdit(edit: Edits["edits"][number]): edit is RowEdit {
+export function isRowEdit(edit: Edits["edits"][number]): edit is RemoveRowEdit {
   return "rowIdx" in edit && "type" in edit;
 }
 
@@ -66,16 +110,14 @@ export function isColumnEdit(edit: Edits["edits"][number]): edit is ColumnEdit {
   return "columnIdx" in edit && "type" in edit;
 }
 
-export function pasteCells<T>(options: {
+export function pasteCells(options: {
   selection: GridSelection;
-  data: T[];
-  setData: (updater: (prev: T[]) => T[]) => void;
+  data: EditorRow[];
   columns: ModifiedGridColumn[];
   editableColumns: string[] | "all";
   onAddEdits: (edits: Edits["edits"]) => void;
 }) {
-  const { selection, data, setData, onAddEdits, columns, editableColumns } =
-    options;
+  const { selection, data, onAddEdits, columns, editableColumns } = options;
   if (!selection.current) {
     return;
   }
@@ -126,7 +168,7 @@ export function pasteCells<T>(options: {
           const targetColIdx = startCol + colIndex;
 
           // Check if we've exceeded the column bounds
-          if (!columns || targetColIdx >= columns.length) {
+          if (targetColIdx >= columns.length) {
             break;
           }
 
@@ -143,10 +185,19 @@ export function pasteCells<T>(options: {
           let convertedValue: unknown = cellValue;
 
           switch (columnType) {
-            case "integer":
+            case "integer": {
+              const numValue = Number(cellValue);
+              if (!isValidCellValue(columnType, cellValue)) {
+                continue;
+              }
+              convertedValue = Number.isSafeInteger(numValue)
+                ? numValue
+                : cellValue.trim();
+              break;
+            }
             case "number": {
               const numValue = Number(cellValue);
-              if (Number.isNaN(numValue)) {
+              if (!isValidCellValue(columnType, numValue)) {
                 continue;
               }
               convertedValue = numValue;
@@ -157,6 +208,16 @@ export function pasteCells<T>(options: {
               convertedValue = boolValue === "true" || boolValue === "1";
               break;
             }
+            case "string":
+            case "date":
+            case "datetime":
+            case "time":
+            case "geometry":
+            case "unknown":
+              break;
+            default:
+              logNever(columnType);
+              continue;
           }
 
           // Get the column ID from the columns array using the title
@@ -172,27 +233,6 @@ export function pasteCells<T>(options: {
 
       if (edits.length > 0) {
         onAddEdits(edits);
-
-        setData((prev: T[]) => {
-          const newData = [...prev];
-
-          // Apply all edits to the data
-          for (const edit of edits) {
-            if (isPositionalEdit(edit)) {
-              const rowIdx = edit.rowIdx;
-              const columnId = edit.columnId;
-
-              if (rowIdx < newData.length) {
-                const row = newData[rowIdx] as Record<string, unknown>;
-                if (columnId in row) {
-                  row[columnId] = edit.value;
-                }
-              }
-            }
-          }
-
-          return newData;
-        });
       }
     })
     .catch((error) => {

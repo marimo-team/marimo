@@ -54,7 +54,7 @@ class TestRecentFilesManager(unittest.TestCase):
             f"test_file_{i}" for i in range(RecentFilesManager.MAX_FILES)
         ]
         self.config_reader.read_toml.return_value = RecentFilesState(
-            files=original_files[:]
+            files=original_files.copy()
         )
         self.rfm.touch("new_file")
         self.config_reader.read_toml.assert_called_once_with(

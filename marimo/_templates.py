@@ -25,6 +25,7 @@ from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
 if TYPE_CHECKING:
+    from marimo._runtime.layout.layout import LayoutConfig
     from marimo._server.api.endpoints.assets import LspWorkspace
 
 
@@ -104,6 +105,7 @@ def _get_mount_config(
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
+    layout: LayoutConfig | None = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -121,6 +123,11 @@ def _get_mount_config(
         "app_config": _del_none_or_empty(app_config.asdict())
         if app_config
         else {},
+        "layout": (
+            {"type": layout.type, "data": layout.data}
+            if layout is not None
+            else None
+        ),
         "view": {
             "showAppCode": show_app_code,
         },
@@ -139,10 +146,11 @@ def _get_mount_config(
             "config": {user_config},
             "configOverrides": {config_overrides},
             "appConfig": {app_config},
+            "layout": {layout},
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config},
+            "runtimeConfig": {runtime_config}
         }}
 """.format(**{k: json_script(v) for k, v in options.items()}).strip()
 
@@ -397,6 +405,7 @@ def static_notebook_template(
     files: dict[str, str],
     model_notifications: list[ModelLifecycleNotification] | None = None,
     asset_url: str | None = None,
+    layout: LayoutConfig | None = None,
 ) -> str:
     if asset_url is None:
         version = str(__version__).replace(".dev", "-dev")
@@ -423,6 +432,7 @@ def static_notebook_template(
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             runtime_config=None,
+            layout=layout,
         ),
     )
 
@@ -508,6 +518,7 @@ def wasm_notebook_template(
     mode: Literal["edit", "run"],
     code: str,
     show_code: bool,
+    layout: LayoutConfig | None = None,
     asset_url: str | None = None,
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
@@ -546,6 +557,7 @@ def wasm_notebook_template(
             runtime_config=None,
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
+            layout=layout,
         ),
     )
 

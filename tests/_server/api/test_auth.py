@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import base64
+import os
+import subprocess
+import sys
 from typing import Any
 
 import pytest
@@ -11,8 +14,10 @@ from starlette.requests import HTTPConnection
 
 from marimo._config.manager import MarimoConfigManager, UserConfigManager
 from marimo._server.api.auth import (
+    CookieSession,
     CustomAuthenticationMiddleware,
     CustomSessionMiddleware,
+    hash_access_token,
     validate_auth,
 )
 from marimo._server.api.deps import AppState
@@ -131,8 +136,8 @@ async def test_validate_auth_with_valid_cookie(app: Starlette):
     conn = create_connection(app)
     # Run all middleware
     await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
-    conn.session["access_token"] = str(
-        AppState.from_app(app).session_manager.auth_token
+    conn.session["access_token"] = hash_access_token(
+        str(AppState.from_app(app).session_manager.auth_token)
     )
 
     assert validate_auth(conn) is True
@@ -145,6 +150,70 @@ async def test_validate_auth_with_bad_cookie(app: Starlette):
     conn.session["access_token"] = "bad_token"
 
     assert validate_auth(conn) is False
+
+
+async def test_validate_auth_rejects_raw_token_in_cookie(app: Starlette):
+    # A cookie carrying the raw token (e.g. from an older marimo version, or
+    # forged by someone who knows the token) must not be accepted; only the
+    # keyed hash is.
+    conn = create_connection(app)
+    await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
+    conn.session["access_token"] = str(
+        AppState.from_app(app).session_manager.auth_token
+    )
+
+    assert validate_auth(conn) is False
+
+
+def test_cookie_session_never_stores_raw_token():
+    session: dict[str, str] = {}
+    cookie_session = CookieSession(session)
+    cookie_session.set_access_token("super-secret")
+
+    assert session["access_token"] != "super-secret"
+    assert "super-secret" not in session["access_token"]
+    assert session["access_token"] == hash_access_token("super-secret")
+    assert cookie_session.get_access_token() == hash_access_token(
+        "super-secret"
+    )
+
+
+def test_hash_access_token_is_keyed_and_deterministic():
+    assert hash_access_token("a") == hash_access_token("a")
+    assert hash_access_token("a") != hash_access_token("b")
+    # 64 hex chars (sha256)
+    assert len(hash_access_token("a")) == 64
+
+
+def test_session_secret_env_override():
+    # GlobalSettings reads env vars at import time, so check in a fresh
+    # interpreter.
+    code = (
+        "from marimo._server.api.auth import SESSION_SECRET, hash_access_token;"
+        "print(str(SESSION_SECRET));"
+        "print(hash_access_token('tok'))"
+    )
+
+    def run(env: dict[str, str]) -> list[str]:
+        out = subprocess.check_output(
+            [sys.executable, "-c", code],
+            env={**os.environ, **env},
+            text=True,
+        )
+        return out.strip().splitlines()
+
+    stable_a = run({"MARIMO_SESSION_SECRET": "stable-secret"})
+    stable_b = run({"MARIMO_SESSION_SECRET": "stable-secret"})
+    assert stable_a[0] == "stable-secret"
+    # Same secret => same cookie hash across processes
+    assert stable_a[1] == stable_b[1]
+
+    random_a = run({"MARIMO_SESSION_SECRET": ""})
+    random_b = run({"MARIMO_SESSION_SECRET": ""})
+    # Empty/unset => random per process, so hashes differ
+    assert random_a[0] != "stable-secret"
+    assert random_a[0] != random_b[0]
+    assert random_a[1] != random_b[1]
 
 
 async def test_validate_auth_with_valid_access_token(app: Starlette):

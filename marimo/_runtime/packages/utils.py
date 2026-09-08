@@ -187,13 +187,73 @@ def append_version(pkg_name: str, version: str | None) -> str:
     return f"{pkg_name}=={version}"
 
 
+def _is_pep508_requirement(package: str) -> bool:
+    from packaging.requirements import InvalidRequirement, Requirement
+
+    try:
+        Requirement(package)
+    except InvalidRequirement:
+        return False
+    return True
+
+
+def _split_around_extras(package: str) -> list[str]:
+    """Split on whitespace except within package extras."""
+    parts: list[str] = []
+    current: list[str] = []
+    current_is_package_name = False
+    bracket_depth = 0
+    quote: str | None = None
+
+    for index, char in enumerate(package):
+        if char.isspace() and bracket_depth == 0 and quote is None:
+            if current and current[-1].isspace():
+                current.append(char)
+                continue
+            if not current:
+                continue
+            next_index = index + 1
+            while next_index < len(package) and package[next_index].isspace():
+                next_index += 1
+            if (
+                next_index < len(package)
+                and package[next_index] == "["
+                and current_is_package_name
+            ):
+                current.append(char)
+                continue
+            if current:
+                parts.append("".join(current))
+                current = []
+                current_is_package_name = False
+            continue
+
+        if char in ("'", '"') and bracket_depth == 0:
+            quote = None if quote == char else quote or char
+
+        if char == "[" and quote is None and current_is_package_name:
+            bracket_depth += 1
+        elif char == "]" and bracket_depth > 0:
+            bracket_depth -= 1
+
+        if not current:
+            current_is_package_name = char.isascii() and char.isalnum()
+        elif not (char.isascii() and (char.isalnum() or char in "._-")):
+            current_is_package_name = False
+        current.append(char)
+
+    if current:
+        parts.append("".join(current))
+    return parts
+
+
 def split_packages(package: str) -> list[str]:
-    """
-    Splits a package string into a list of packages.
+    """Split one or more package specifications.
 
-    This can handle editable packages (i.e. local directories)
+    PEP 508 requirements are parsed before falling back to handling editable
+    installs, paths, and URLs.
 
-    e.g.
+    Examples:
     "package1[extra1,extra2]==1.0.0" -> ["package1[extra1,extra2]==1.0.0"]
     "package1 package2" -> ["package1", "package2"]
     "package1==1.0.0 package2==2.0.0" -> ["package1==1.0.0", "package2==2.0.0"]
@@ -201,22 +261,22 @@ def split_packages(package: str) -> list[str]:
     "package1 --editable /path/to/package1" -> ["package1 --editable /path/to/package1"]
     "package1 -e /path/to/package1 package2" -> ["package1 -e /path/to/package1", "package2"]
     "package1 @ /path/to/package1" -> ["package1 @ /path/to/package1"]
-    "foo==1.0; python_version>'3.6' bar==2.0; sys_platform=='win32'" -> ["foo==1.0; python_version>'3.6'", "bar==2.0; sys_platform=='win32'"]
     """
+    package = package.strip()
+    if not package:
+        return []
+    if _is_pep508_requirement(package):
+        return [package]
+
     packages: list[str] = []
     current_package: list[str] = []
     in_environment_marker = False
 
-    for part in package.split():
+    for part in _split_around_extras(package):
         if (
             part in ["-e", "--editable", "@"]
             or current_package
-            and current_package[-1]
-            in [
-                "-e",
-                "--editable",
-                "@",
-            ]
+            and current_package[-1] in ["-e", "--editable", "@"]
         ):
             current_package.append(part)
         elif part.endswith(";"):
@@ -239,7 +299,7 @@ def split_packages(package: str) -> list[str]:
     if current_package:
         packages.append(" ".join(current_package))
 
-    return [pkg.strip() for pkg in packages]
+    return packages
 
 
 @dataclasses.dataclass
