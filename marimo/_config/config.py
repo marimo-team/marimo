@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import sys
 from dataclasses import dataclass
-from functools import lru_cache
 
 from marimo import _loggers
 from marimo._config.packages import infer_package_manager
@@ -963,9 +962,4 @@ def _warn_about_retired_github_models_config(config: MarimoConfig) -> None:
     ):
         return
 
-    _warn_once_about_retired_github_models_config()
-
-
-@lru_cache(maxsize=1)
-def _warn_once_about_retired_github_models_config() -> None:
     LOGGER.warning(GITHUB_MODELS_RETIRED_MESSAGE)

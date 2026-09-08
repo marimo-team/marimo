@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import cast
 from unittest.mock import patch
 
-from marimo._config import config as config_module
 from marimo._config.config import (
     DEFAULT_CONFIG,
     GITHUB_MODELS_RETIRED_MESSAGE,
@@ -186,13 +185,8 @@ def test_retired_github_models_config_logs_warning() -> None:
         }
     )
 
-    config_module._warn_once_about_retired_github_models_config.cache_clear()
-    try:
-        with patch("marimo._config.config.LOGGER.warning") as warning:
-            merged = merge_default_config(config)
-            merge_default_config(config)
-    finally:
-        config_module._warn_once_about_retired_github_models_config.cache_clear()
+    with patch("marimo._config.config.LOGGER.warning") as warning:
+        merged = merge_default_config(config)
 
     assert merged["ai"]["models"] == config["ai"]["models"]
     assert cast(dict[str, str], merged["ai"]["github"]) == {
