@@ -41,7 +41,7 @@ LOGGER = _loggers.marimo_logger()
 
 
 def current_backend() -> Backend:
-    """The backend this process was sandboxed with; uv when unset."""
+    """Return uv, the only supported notebook sandbox backend."""
     return "uv"
 
 

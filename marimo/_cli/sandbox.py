@@ -166,7 +166,7 @@ def _normalize_sandbox_dependencies(
 
         return dep.replace("marimo", f"marimo[{','.join(features)}]")
 
-    def editable_marimo_dependency(features: list[DepFeatures]) -> str:
+    def editable_marimo_dependency(features: list[DepExtras]) -> str:
         path = str(get_marimo_dir())
         if features:
             path = f"{path}[{','.join(features)}]"
