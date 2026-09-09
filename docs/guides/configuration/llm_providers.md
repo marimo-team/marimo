@@ -284,6 +284,7 @@ You can use models from your Copilot subscription in marimo's AI assistant.
 **Configuration**
 
 The available models depend on your Copilot subscription.
+marimo does not load the model list for your Copilot account.
 
 Add an available model to `custom_models`. Use the `github/` prefix.
 
