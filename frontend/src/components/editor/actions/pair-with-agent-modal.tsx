@@ -130,7 +130,11 @@ export const PairWithAgentModal: React.FC<{
             <Step
               index={2}
               title="Copy this prompt into your agent"
-              hint={hasToken ? "Use the terminal command to authenticate." : undefined}
+              hint={
+                hasToken
+                  ? "Use the terminal command to authenticate."
+                  : undefined
+              }
             >
               <CommandBlock
                 command={getRawPrompt(connection, hasToken)}
