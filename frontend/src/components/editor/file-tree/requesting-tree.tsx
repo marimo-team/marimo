@@ -316,7 +316,13 @@ export class RequestingTree {
         .map((id) => this.delegate.find(id)?.data.path)
         .filter((path): path is string => Boolean(path)),
     ];
-    await this.refreshPaths(paths, true);
+    await this.refreshPaths(
+      paths,
+      new Set([
+        ...this.roots.map((root) => fileTreeNodeId(root.path, root.path)),
+        ...ids,
+      ]),
+    );
   };
 
   refreshPath = async (path: FilePath): Promise<void> => {
@@ -410,12 +416,11 @@ export class RequestingTree {
 
   private refreshPaths = async (
     paths: string[],
-    invalidateClosed = false,
+    retainedIds?: ReadonlySet<string>,
   ): Promise<void> => {
     const uniquePaths = [...new Set(paths)].toSorted(
       (left, right) => left.length - right.length,
     );
-    const refreshedPaths = invalidateClosed ? new Set(uniquePaths) : undefined;
     if (uniquePaths.length === 0) {
       return;
     }
@@ -430,15 +435,13 @@ export class RequestingTree {
       if (!result) {
         continue;
       }
-      // The same absolute path may appear below multiple overlapping roots.
-      // Refresh every occurrence, while keeping each occurrence in its own ID
-      // namespace and preserving its root metadata.
+      // Fetch overlapping paths once, but retain loaded folders independently
+      // for each root-qualified occurrence.
       for (const root of this.roots) {
-        this.updateDirectory(
-          fileTreeNodeId(root.path, path),
-          result.files,
-          refreshedPaths,
-        );
+        const id = fileTreeNodeId(root.path, path);
+        if (!retainedIds || retainedIds.has(id)) {
+          this.updateDirectory(id, result.files, retainedIds);
+        }
       }
     }
     this.emitChange();
@@ -447,7 +450,7 @@ export class RequestingTree {
   private updateDirectory(
     id: string,
     files: FileInfo[],
-    refreshedPaths?: ReadonlySet<string>,
+    retainedIds?: ReadonlySet<string>,
   ): void {
     const node = this.delegate.find(id)?.data;
     if (!node?.isDirectory) {
@@ -460,8 +463,8 @@ export class RequestingTree {
     this.delegate.update({
       id,
       changes: {
-        children: refreshedPaths
-          ? invalidateClosedDirectories(children, refreshedPaths)
+        children: retainedIds
+          ? invalidateClosedDirectories(children, retainedIds)
           : children,
         loadState: "loaded",
       },
@@ -494,18 +497,18 @@ function mergeDirectoryChildren(
 
 function invalidateClosedDirectories(
   files: FileTreeNode[],
-  openPaths: ReadonlySet<string>,
+  openIds: ReadonlySet<string>,
 ): FileTreeNode[] {
   return files.map((file) => {
     if (!file.isDirectory) {
       return file;
     }
-    if (!openPaths.has(file.path)) {
+    if (!openIds.has(file.id)) {
       return { ...file, children: [], loadState: "unloaded" };
     }
     return {
       ...file,
-      children: invalidateClosedDirectories(file.children, openPaths),
+      children: invalidateClosedDirectories(file.children, openIds),
     };
   });
 }

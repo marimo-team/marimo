@@ -19,6 +19,8 @@ import { Deferred } from "@/utils/Deferred";
 import type { FilePath } from "@/utils/paths";
 import { TreeDndProvider } from "../dnd-wrapper";
 import { FileExplorer } from "../file-explorer";
+import { openStateAtom } from "../state";
+import { fileTreeNodeId } from "../requesting-tree";
 import { HOVER_EXPAND_DELAY } from "../use-hover-expand";
 
 vi.mock("../file-viewer", () => ({
@@ -530,6 +532,70 @@ describe("file browser navigation", () => {
     expect(
       client.sendSearchFiles.mock.calls.map(([request]) => request.path),
     ).toEqual(["/workspace", "/shared", "/workspace", "/shared"]);
+  });
+
+  it.each([
+    { counts: [100, 100], truncated: false },
+    { counts: [200, 0], truncated: true },
+    { counts: [150, 100], truncated: true },
+  ])(
+    "reports search truncation correctly for $counts",
+    async ({ counts, truncated }) => {
+      client.getFileRoots.mockResolvedValue({
+        roots: [
+          { path: "/workspace", name: "workspace", isPrimary: true },
+          { path: "/shared", name: "shared", isPrimary: false },
+        ],
+      });
+      client.sendSearchFiles.mockImplementation(async ({ path, query }) => {
+        const count = counts[path === "/workspace" ? 0 : 1];
+        const files = Array.from({ length: count }, (_, index) => ({
+          ...file(`report-${index}`),
+          path: `${path}/report-${index}`,
+        }));
+        return { files, query, totalFound: files.length };
+      });
+      render(<FileExplorer height={300} />, { wrapper });
+      const input = await screen.findByRole("textbox", {
+        name: "Search files and folders",
+      });
+      fireEvent.change(input, { target: { value: "report" } });
+      const status = await screen.findByText(/200 matches/);
+      expect(status.textContent?.includes("Refine your search")).toBe(
+        truncated,
+      );
+    },
+  );
+
+  it("keeps keyboard navigation aligned with a clicked row", async () => {
+    client.sendListFiles.mockResolvedValue({
+      root: "/workspace",
+      files: [file("a.txt"), file("b.txt"), file("c.txt")],
+    });
+    render(<FileExplorer height={300} />, { wrapper });
+    const middle = await screen.findByRole("treeitem", { name: "b.txt" });
+    fireEvent.click(middle);
+    expect(middle).toHaveFocus();
+    fireEvent.keyDown(middle, { key: "ArrowDown" });
+    expect(screen.getByRole("treeitem", { name: "c.txt" })).toHaveFocus();
+  });
+
+  it("closes failed expansions without persisting them and allows retry", async () => {
+    render(<FileExplorer height={300} />, { wrapper });
+    const folder = await screen.findByRole("treeitem", { name: "data" });
+    client.sendListFiles.mockRejectedValueOnce(new Error("Offline"));
+    fireEvent.click(folder);
+    fireEvent.keyDown(folder, { key: "ArrowRight" });
+    await waitFor(() =>
+      expect(folder).toHaveAttribute("aria-expanded", "false"),
+    );
+    expect(
+      store.get(openStateAtom)[fileTreeNodeId("/workspace", "/workspace/data")],
+    ).toBe(false);
+    fireEvent.keyDown(folder, { key: "ArrowRight" });
+    expect(
+      await screen.findByRole("treeitem", { name: "report.csv" }),
+    ).toBeVisible();
   });
 
   it("passes hidden-file visibility to search and refetches when it changes", async () => {

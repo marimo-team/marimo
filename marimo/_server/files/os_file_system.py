@@ -8,6 +8,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from collections import deque
 from functools import lru_cache
 from pathlib import Path
@@ -188,7 +189,11 @@ class OSFileSystem(FileSystem):
         except OSError:
             return False
         return _is_marimo_file_cached(
-            path, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+            path,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+            stat.st_size,
+            int(time.monotonic() // 5),
         )
 
     def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
@@ -510,10 +515,11 @@ class OSFileSystem(FileSystem):
 
 @lru_cache(maxsize=4096)
 def _is_marimo_file_cached(
-    path: str, _mtime_ns: int, _ctime_ns: int, _size: int
+    path: str, _mtime_ns: int, _ctime_ns: int, _size: int, _time_bucket: int
 ) -> bool:
     # Metadata invalidates cached detection when a file changes; repeated
-    # directory listings need not scan unchanged file contents.
+    # directory listings need not scan unchanged file contents. A five-second
+    # bucket also bounds stale detection on filesystems that preserve metadata.
     from marimo._server.files.directory_scanner import is_marimo_app
 
     return is_marimo_app(path)

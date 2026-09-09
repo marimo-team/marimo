@@ -421,6 +421,33 @@ describe("RequestingTree", () => {
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
   });
 
+  test("invalidates collapsed copies independently for overlapping roots", async () => {
+    getRoots.mockResolvedValue({
+      roots: [
+        { path: "/root", name: "workspace", isPrimary: true },
+        { path: "/root/folder1", name: "nested root", isPrimary: false },
+      ],
+    });
+    const overlapping = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
+    });
+    await overlapping.initialize(onChange);
+    await overlapping.expand(PRIMARY_ROOT_ID);
+    const collapsedCopy = fileTreeNodeId("/root", "/root/folder1");
+    await overlapping.expand(collapsedCopy);
+    await overlapping.refreshAll([]);
+    sendListFiles.mockClear();
+    await overlapping.expand(collapsedCopy);
+    expect(sendListFiles).toHaveBeenCalledExactlyOnceWith({
+      path: "/root/folder1",
+    });
+  });
+
   test("keeps existing children when a refresh fails", async () => {
     await tree.expand(PRIMARY_ROOT_ID);
     const beforeRefresh = onChange.mock.calls.at(-1)?.[0];

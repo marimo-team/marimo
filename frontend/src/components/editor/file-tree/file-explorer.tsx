@@ -483,10 +483,20 @@ export const FileExplorer: React.FC<{
               onToggle={async (id) => {
                 const isOpen =
                   treeRef.current?.isOpen(id) ?? !(openState[id] ?? false);
-                setOpenState((previous) => ({ ...previous, [id]: isOpen }));
-                if (isOpen) {
-                  await tree.expand(id);
+                if (!isOpen) {
+                  setOpenState((previous) => ({ ...previous, [id]: false }));
+                  return;
                 }
+                const loaded = await tree.expand(id);
+                if (!loaded) {
+                  treeRef.current?.close(id);
+                }
+                const remainsOpen =
+                  loaded && (treeRef.current?.isOpen(id) ?? false);
+                setOpenState((previous) => ({
+                  ...previous,
+                  [id]: remainsOpen,
+                }));
               }}
               padding={15}
               rowHeight={30}

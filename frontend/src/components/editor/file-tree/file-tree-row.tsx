@@ -15,8 +15,17 @@ export function FileTreeRow({
       ref={innerRef}
       aria-label={node.data.name}
       aria-expanded={node.isInternal ? node.isOpen : undefined}
-      onFocus={(event) => event.stopPropagation()}
-      onClick={() => node.select()}
+      onFocus={(event) => {
+        event.stopPropagation();
+        attrs.onFocus?.(event);
+        if (event.target === event.currentTarget && !node.isFocused) {
+          node.focus();
+        }
+      }}
+      onClick={(event) => {
+        attrs.onClick?.(event);
+        node.select();
+      }}
     >
       {children}
     </div>

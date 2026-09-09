@@ -676,6 +676,24 @@ class TestIsMarimoFile:
             assert fs.list_files(str(test_dir))[0].is_marimo_file is True
             assert detect.call_count == 2
 
+    def test_detection_expires_when_metadata_is_unchanged(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        py_file = test_dir / "preserved.py"
+        notebook = "import marimo\napp = marimo.App()\n"
+        py_file.write_text("print(0)".ljust(len(notebook)))
+        unchanged_stat = py_file.stat()
+        with patch(
+            "marimo._server.files.os_file_system.time.monotonic",
+            return_value=100,
+        ) as clock:
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
+            py_file.write_text(notebook)
+            clock.return_value = 104
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
+            clock.return_value = 105
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is True
+
     def test_python_marimo_file(
         self, test_dir: Path, fs: OSFileSystem
     ) -> None:

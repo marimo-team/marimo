@@ -48,6 +48,7 @@ export function useFileSearch({
     // queued queries and remaining roots are skipped, keeping scan work bounded.
     const request = pending.current.then(async () => {
       const files: FileTreeNode[] = [];
+      let rootLimitReached = false;
       for (const root of tree.getRoots()) {
         if (cancelled) {
           return;
@@ -61,6 +62,7 @@ export function useFileSearch({
           depth: 20,
           limit: RESULT_LIMIT,
         });
+        rootLimitReached ||= response.files.length >= RESULT_LIMIT;
         files.push(
           ...response.files.map((file): FileTreeNode => ({
             ...file,
@@ -92,7 +94,7 @@ export function useFileSearch({
           status: "success",
           query,
           files: sortedFiles.slice(0, RESULT_LIMIT),
-          hasMore: sortedFiles.length >= RESULT_LIMIT,
+          hasMore: rootLimitReached || sortedFiles.length > RESULT_LIMIT,
         });
       }
     });
