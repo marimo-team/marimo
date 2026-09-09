@@ -84,8 +84,8 @@ const ToastItem = ({
           className="h-4 w-4"
           buttonClassName={cn(
             "absolute right-8 top-2 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity",
-            "hover:text-foreground focus:opacity-100 focus:outline-hidden group-hover:opacity-100",
-            "group-[.destructive]:text-red-300 hover:group-[.destructive]:text-red-500 focus:group-[.destructive]:ring-red-400 focus:group-[.destructive]:ring-offset-red-600",
+            "hover:text-foreground focus:opacity-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 group-hover:opacity-100",
+            "group-[.destructive]:text-red-300 hover:group-[.destructive]:text-red-500 focus-visible:group-[.destructive]:ring-red-400 focus-visible:group-[.destructive]:ring-offset-red-600",
           )}
           value={() =>
             descriptionRef.current?.innerText ??
