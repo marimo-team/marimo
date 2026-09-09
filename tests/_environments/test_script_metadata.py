@@ -394,105 +394,112 @@ pyproject: |
         assert second.path == first.path
 
 
-def test_stable_carrier_lifetime_is_serialized(tmp_path: Path) -> None:
+def _enter_carrier(notebook, attempting, entered):
+    attempting.set()
+    with script_metadata.materialized_for_environment(notebook):
+        entered.set()
+
+
+@pytest.mark.parametrize("separate_process", [False, True])
+def test_stable_carrier_lifetime_is_serialized(
+    tmp_path: Path, separate_process: bool
+) -> None:
+    import multiprocessing
     import threading
 
     notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    context = (
+        multiprocessing.get_context("spawn") if separate_process else threading
     )
-    first_entered = threading.Event()
-    release_first = threading.Event()
-    second_attempting = threading.Event()
-    second_entered = threading.Event()
-    errors: list[BaseException] = []
-
-    def first_materialization() -> None:
-        try:
-            with script_metadata.materialized_for_environment(str(notebook)):
-                first_entered.set()
-                release_first.wait()
-        except BaseException as error:
-            errors.append(error)
-
-    def second_materialization() -> None:
-        try:
-            second_attempting.set()
-            with script_metadata.materialized_for_environment(str(notebook)):
-                second_entered.set()
-        except BaseException as error:
-            errors.append(error)
-
-    first = threading.Thread(target=first_materialization)
-    second = threading.Thread(target=second_materialization)
-    first.start()
-    try:
-        assert first_entered.wait(timeout=1)
-        second.start()
-        assert second_attempting.wait(timeout=1)
-        assert not second_entered.wait(timeout=0.1)
-    finally:
-        release_first.set()
-    first.join(timeout=1)
-    second.join(timeout=1)
-
-    assert second_entered.is_set()
-    assert not first.is_alive()
-    assert not second.is_alive()
-    assert not errors
+    attempting = context.Event()
+    entered = context.Event()
+    worker_type = context.Process if separate_process else threading.Thread
+    worker = worker_type(
+        target=_enter_carrier, args=(str(notebook), attempting, entered)
+    )
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        worker.start()
+        assert attempting.wait(timeout=10)
+        assert not entered.wait(timeout=0.2)
+        assert Path(materialized.path).exists()
+    worker.join(timeout=10)
+    assert not worker.is_alive()
+    assert entered.is_set()
+    assert not Path(materialized.path).exists()
 
 
-def test_stranded_carriers_are_swept(tmp_path: Path) -> None:
-    """A stray from a killed process is removed on the next operation;
-    a fresh carrier (a concurrent process's) is spared."""
-    import os as _os
-    import time as _time
+def test_old_active_carriers_are_preserved(tmp_path: Path) -> None:
+    import os
+    import time
 
     notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
-    )
-    stale = tmp_path / ".marimo-v1-notebook.md.stranded.py"
-    stale.write_text("# stray\n")
-    old = _time.time() - 3600
-    _os.utime(stale, (old, old))
-    fresh = tmp_path / ".marimo-v1-notebook.md.inflight.py"
-    fresh.write_text("# in flight\n")
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        carrier = Path(materialized.path)
+        old = time.time() - 3600
+        os.utime(carrier, (old, old))
+        with script_metadata._carrier(str(notebook), "# editing"):
+            assert carrier.exists()
 
-    with script_metadata.materialized_for_environment(str(notebook)):
-        pass
 
-    assert not stale.exists()
-    assert fresh.exists()
+def test_stranded_stable_carrier_is_reclaimed(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    stranded = tmp_path / ".marimo-v1-notebook.md.py"
+    stranded.write_text("stranded")
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        assert "dependencies = []" in Path(materialized.path).read_text()
+    assert not stranded.exists()
+
+
+@pytest.mark.parametrize("suffix", [".py", ".lock"])
+def test_carrier_symlinks_do_not_modify_target(
+    tmp_path: Path, suffix: str
+) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    target = tmp_path / "precious.txt"
+    target.write_text("do not touch")
+    link = tmp_path / f".marimo-v1-notebook.md{suffix}"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(script_metadata.ScriptMetadataError, match="symlink"):
+        with script_metadata.materialized_for_environment(str(notebook)):
+            pytest.fail("must reject the symlink")
+    assert target.read_text() == "do not touch"
 
 
 @pytest.mark.skipif(
-    sys.platform == "win32",
-    reason="Windows ignores POSIX directory permissions",
+    sys.platform == "win32", reason="requires POSIX permissions"
 )
-def test_materialize_falls_back_when_directory_is_read_only(
-    tmp_path: Path,
+@pytest.mark.parametrize("stable", [False, True])
+def test_readonly_notebook_directory_fails_clearly(
+    tmp_path: Path, stable: bool
 ) -> None:
-    """A read-only notebook directory materializes the carrier at a
-    deterministic temp path instead of failing."""
-    import os as _os
-    import stat as _stat
+    import os
 
     notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        "---\npyproject: |\n  dependencies = []\n---\n\n# Hi\n"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    carrier = (
+        script_metadata.materialized_for_environment(str(notebook))
+        if stable
+        else script_metadata._carrier(str(notebook), "# edit")
     )
-    _os.chmod(tmp_path, _stat.S_IRUSR | _stat.S_IXUSR)
+    os.chmod(tmp_path, 0o500)
     try:
-        with script_metadata.materialized_for_environment(
-            str(notebook)
-        ) as first:
-            assert Path(first.path).parent != tmp_path
-            assert Path(first.path).exists()
-            fallback = first.path
-        with script_metadata.materialized_for_environment(
-            str(notebook)
-        ) as second:
-            assert second.path == fallback
+        with pytest.raises(
+            script_metadata.ScriptMetadataError, match="directory writable"
+        ):
+            with carrier:
+                pytest.fail("must preserve adjacent path semantics")
     finally:
-        _os.chmod(tmp_path, 0o700)
+        os.chmod(tmp_path, 0o700)

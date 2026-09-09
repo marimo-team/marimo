@@ -17,12 +17,15 @@ directory-scoped uv configuration applies.
 from __future__ import annotations
 
 import contextlib
+import errno
 import os
 import platform
 import re
+import stat
 import subprocess
+import sys
 import tempfile
-import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -272,80 +275,78 @@ def _read_frontmatter(path: str) -> _Frontmatter:
     )
 
 
-# Bumping the version orphans every older carrier; `_sweep_carriers`
-# recognizes and removes all versions.
 _CARRIER_VERSION = 1
 
 
 def _carrier_prefix(path: str) -> str:
-    """The ownership-signed carrier prefix for a notebook.
-
-    Deterministic per notebook filename, so a carrier is recognizably
-    marimo's: safe to overwrite, sweep, and ignore.
-    """
     return f".marimo-v{_CARRIER_VERSION}-{os.path.basename(path)}"
 
 
-# A carrier lives for one uv command; a stray this old is stranded.
-_SWEEP_AGE_SECONDS = 15 * 60
+@contextlib.contextmanager
+def _stable_carrier_lock(path: str) -> Iterator[None]:
+    """Hold an OS lock through creation, use, and removal of the carrier.
 
-# A stable carrier is shared by every synchronization of one Markdown
-# notebook. Serialize its lifetime within this process so one caller cannot
-# truncate or unlink it while another uv process is still reading it. Locks
-# are per notebook: unrelated environments can still synchronize in parallel.
-_STABLE_CARRIER_LOCKS: dict[str, threading.Lock] = {}
-_STABLE_CARRIER_LOCKS_GUARD = threading.Lock()
-
-
-def _stable_carrier_lock(path: str) -> threading.Lock:
-    with _STABLE_CARRIER_LOCKS_GUARD:
-        return _STABLE_CARRIER_LOCKS.setdefault(path, threading.Lock())
-
-
-def _sweep_carriers(directory: str, path: str) -> None:
-    """Removes stranded carriers for the notebook, best effort.
-
-    Carriers are deleted after use; a killed process can strand one.
-    Only strays older than `_SWEEP_AGE_SECONDS` are removed, sparing a
-    concurrent process's in-flight carrier.
+    The lock file stays in place: unlinking it would let a new caller lock
+    a different inode while existing callers still wait on the old one.
+    Process exit releases the lock, including after a crash.
     """
-    import time
+    target = Path(path).with_name(f"{_carrier_prefix(path)}.lock")
+    # Never truncate or follow a pre-existing link, even for the lock file.
+    if target.is_symlink():
+        raise OSError(f"Refusing to use symlink as carrier lock: {target}")
+    descriptor = os.open(
+        target, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    with os.fdopen(descriptor, "r+b", buffering=0) as lock:
+        if not stat.S_ISREG(os.fstat(lock.fileno()).st_mode):
+            raise OSError(f"Carrier lock is not a regular file: {target}")
+        if sys.platform == "win32":
+            import msvcrt
 
-    pattern = f".marimo-v*-{os.path.basename(path)}*.py"
-    cutoff = time.time() - _SWEEP_AGE_SECONDS
-    for stray in Path(directory).glob(pattern):
-        try:
-            if stray.stat().st_mtime < cutoff:
-                stray.unlink()
-        except OSError:
-            LOGGER.debug("Could not remove carrier %s", stray)
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as error:
+                    if error.errno not in (errno.EACCES, errno.EDEADLK):
+                        raise
+                    time.sleep(0.05)
+            try:
+                yield
+            finally:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 @contextlib.contextmanager
 def _carrier(
     notebook: str, content: str, *, stable: bool = False
 ) -> Iterator[str]:
-    """A sidecar script uv can operate on, next to the notebook.
+    """Materialize beside the notebook so uv preserves path semantics.
 
-    uv anchors relative paths in script metadata to the script's own
-    directory and keys a script environment on the script's absolute
-    path, so a manifest that lives in frontmatter must be materialized
-    beside its notebook before uv can act on it. The versioned,
-    deterministic name (`.marimo-v<N>-<name>[.<rand>].py`) marks the
-    file as marimo's: safe to overwrite, sweep, and ignore. A stable
-    carrier maps one notebook to one environment across sessions; a
-    unique one keeps concurrent edits apart. Entry sweeps carriers
-    stranded by killed processes; exit always removes the carrier, best
-    effort.
+    Stable callers must hold `_stable_carrier_lock` for the full lifetime.
+    Only that carrier can be reclaimed after a crash; age alone cannot
+    distinguish another operation's active carrier from an abandoned one.
     """
     absolute = os.path.abspath(notebook)
     directory = os.path.dirname(absolute)
-    _sweep_carriers(directory, absolute)
     try:
         if stable:
             target = os.path.join(directory, f"{_carrier_prefix(absolute)}.py")
+            if os.path.islink(target):
+                raise OSError(f"Refusing to replace carrier symlink: {target}")
+            # The lock proves no cooperating process is still using it.
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(target)
             descriptor = os.open(
-                target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
+                target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
             )
         else:
             descriptor, target = tempfile.mkstemp(
@@ -353,21 +354,12 @@ def _carrier(
                 prefix=f"{_carrier_prefix(absolute)}.",
                 suffix=".py",
             )
-    except OSError:
-        # A read-only notebook directory cannot hold the carrier. Fall
-        # back to a deterministic path in the temp directory; the
-        # environment stays stable, but relative paths in the metadata
-        # and directory-scoped uv configuration no longer resolve
-        # against the notebook's directory.
-        target = _fallback_carrier_path(absolute)
-        LOGGER.warning(
-            "Notebook directory is not writable; materializing the "
-            "manifest at %s",
-            target,
-        )
-        descriptor = os.open(
-            target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600
-        )
+    except OSError as error:
+        raise ScriptMetadataError(
+            f"Cannot create a metadata carrier beside {notebook}. "
+            "Make the notebook directory writable and remove any "
+            "conflicting carrier symlinks."
+        ) from error
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             f.write(content)
@@ -377,21 +369,6 @@ def _carrier(
             os.unlink(target)
         except OSError:
             LOGGER.debug("Could not remove carrier %s", target)
-
-
-def _fallback_carrier_path(absolute: str) -> str:
-    """A deterministic carrier path outside the notebook's directory.
-
-    uv keys a script environment on the script's absolute path, so the
-    fallback must be a pure function of the notebook's path.
-    """
-    import hashlib
-
-    digest = hashlib.sha256(absolute.encode("utf-8")).hexdigest()[:16]
-    stem = re.sub(r"[^A-Za-z0-9._-]+", "-", Path(absolute).stem)[:64]
-    return os.path.join(
-        tempfile.gettempdir(), f".marimo-v1-{stem}-{digest}.py"
-    )
 
 
 def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
@@ -447,7 +424,8 @@ def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
     `.marimo-v<N>-<name>.py` next to the notebook, deleted on exit. uv
     keys a script environment on the script's absolute path, so the
     stable name maps one notebook to one environment, reconciled in
-    place across sessions. Concurrent writers produce identical content.
+    place across sessions. An OS lock serializes carrier lifetimes across
+    threads and processes.
     """
     absolute = os.path.abspath(path)
     directory = os.path.dirname(absolute)
@@ -455,7 +433,15 @@ def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
         yield MaterializedScript(path=absolute, directory=directory)
         return
 
-    with _stable_carrier_lock(absolute):
+    with contextlib.ExitStack() as stack:
+        try:
+            stack.enter_context(_stable_carrier_lock(absolute))
+        except OSError as error:
+            raise ScriptMetadataError(
+                f"Cannot lock a metadata carrier beside {path}. "
+                "Make the notebook directory writable and remove any "
+                "conflicting carrier lock symlinks."
+            ) from error
         content = (
             "# Generated by marimo; safe to delete.\n"
             + _read_frontmatter(absolute).header

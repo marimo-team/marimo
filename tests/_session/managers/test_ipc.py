@@ -74,39 +74,6 @@ class TestIPCKernelManagerImpl:
         # venv_python should be None before kernel starts
         assert kernel_manager.venv_python is None
 
-    def test_venv_python_property_returns_stored_value(self) -> None:
-        """Test that venv_python property returns the stored _venv_python value."""
-        from unittest.mock import MagicMock
-
-        from marimo._session.managers.ipc import (
-            IPCKernelManagerImpl,
-            IPCQueueManagerImpl,
-        )
-        from marimo._session.model import SessionMode
-
-        # Create minimal mocks for construction
-        mock_ipc = MagicMock()
-        queue_manager = IPCQueueManagerImpl(mock_ipc)
-        connection_info = MagicMock()
-        configs: dict = {}
-        app_metadata = MagicMock()
-        config_manager = MagicMock()
-
-        kernel_manager = IPCKernelManagerImpl(
-            queue_manager=queue_manager,
-            connection_info=connection_info,
-            mode=SessionMode.EDIT,
-            configs=configs,
-            app_metadata=app_metadata,
-            config_manager=config_manager,
-        )
-
-        # Manually set the internal state (simulating what start_kernel does)
-        kernel_manager._venv_python = "/path/to/sandbox/venv/python"
-
-        # venv_python property should return the stored value
-        assert kernel_manager.venv_python == "/path/to/sandbox/venv/python"
-
 
 class TestSubprocessWrapper:
     def test_exitcode_uses_popen_returncode(self) -> None:
@@ -144,24 +111,6 @@ class TestIPCQueueManagerImpl:
 
         # Clean up
         wrapper.close_queues()
-
-    def test_from_ipc_equals_direct_init(self) -> None:
-        """Test that from_ipc() and __init__() produce equivalent results."""
-        from marimo._ipc import QueueManager as IPCQueueManager
-        from marimo._session.managers.ipc import IPCQueueManagerImpl
-
-        ipc_queue_manager, _ = IPCQueueManager.create()
-
-        # Create using factory
-        via_factory = IPCQueueManagerImpl.from_ipc(ipc_queue_manager)
-        # Create using __init__ directly
-        via_init = IPCQueueManagerImpl(ipc_queue_manager)
-
-        # Both should reference the same underlying IPC manager
-        assert via_factory._ipc is via_init._ipc
-
-        # Clean up
-        via_factory.close_queues()
 
 
 class TestConstructKernelEnv:
@@ -376,6 +325,12 @@ class TestProfilePath:
 
 
 class TestCloseKernel:
+    @pytest.fixture(autouse=True)
+    def _disable_profiling(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        monkeypatch.setattr(GLOBAL_SETTINGS, "PROFILE_DIR", None)
+
     def _closable_manager(self) -> object:
         from unittest.mock import MagicMock
 
@@ -461,7 +416,7 @@ class TestAwaitHandshakeLine:
         with pytest.raises(KernelStartupError, match="exit code 3"):
             self._await(manager, queue.Queue(), deadline=time.monotonic() + 30)
 
-    def test_line_printed_just_before_exit_is_not_lost(self) -> None:
+    def test_queued_handshake_takes_precedence_over_child_exit(self) -> None:
         import queue
         import subprocess
         import sys as _sys

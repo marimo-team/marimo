@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
@@ -205,3 +205,50 @@ def test_stream_callback_runs_in_the_calling_thread(tmp_path: Path) -> None:
 
     assert seen, "expected streamed lines"
     assert all(value == "kernel" for value in seen), seen
+
+
+def test_stream_preserves_missing_cwd(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from marimo._environments.uv import uv_stream
+
+    monkeypatch.setenv("UV", sys.executable)
+    with pytest.raises(FileNotFoundError):
+        uv_stream(
+            ["-c", "pass"], lambda _: None, cwd=str(tmp_path / "missing")
+        )
+
+
+def test_stream_interrupt_reaps_child_and_closes_pipes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import subprocess
+    from unittest.mock import patch
+
+    from marimo._environments.uv import uv_stream
+
+    monkeypatch.setenv("UV", sys.executable)
+    children = []
+    popen = subprocess.Popen
+
+    def launch(*args: Any, **kwargs: Any):
+        child = popen(*args, **kwargs)
+        children.append(child)
+        return child
+
+    def interrupt(_line):
+        raise KeyboardInterrupt
+
+    with patch("marimo._environments.uv.subprocess.Popen", side_effect=launch):
+        with pytest.raises(KeyboardInterrupt):
+            uv_stream(
+                [
+                    "-c",
+                    "import sys,time; print('ready', file=sys.stderr, flush=True); time.sleep(30)",
+                ],
+                interrupt,
+            )
+    child = children[0]
+    assert child.poll() is not None
+    assert child.stdout.closed
+    assert child.stderr.closed

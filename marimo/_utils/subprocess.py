@@ -383,7 +383,7 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
     to reap the process.
     """
     pid = process.pid
-    if pid is None:
+    if pid is None or _process_finished(process):
         return
 
     if is_windows():
@@ -424,3 +424,34 @@ def try_kill_process_and_group(process: ProcessLike) -> None:
         task.add_done_callback(_REAP_TASKS.discard)
     except RuntimeError:
         pass
+
+
+def kill_subprocess(
+    process: subprocess.Popen[Any], *, start_new_session: bool
+) -> None:
+    """Kill and reap a cancelled synchronous command and its launch group.
+
+    Use SIGKILL for an isolated group so a descendant ignoring SIGTERM
+    cannot keep captured pipes open after the launcher exits.
+    """
+    if process.poll() is not None:
+        return
+    if is_windows():
+        try:
+            subprocess.run(
+                ["taskkill", "/T", "/F", "/PID", str(process.pid)],
+                capture_output=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        process.kill()
+    else:
+        try:
+            if start_new_session:
+                os.killpg(process.pid, signal.SIGKILL)
+            else:
+                process.kill()
+        except ProcessLookupError:
+            pass
+    process.wait()

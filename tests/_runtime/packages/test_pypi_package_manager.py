@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from marimo._ast import compiler
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.packages.pypi_package_manager import (
@@ -1274,3 +1276,35 @@ class TestVersionMap:
         # Test beautifulsoup4 (number in name)
         assert version_map.get_version("beautifulsoup4") == "4.12.0"
         assert version_map.has("beautifulsoup4") is True
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "requirement",
+    ["my_pkg[extra]", "my-pkg>=1", "my-pkg @ https://example.org/pkg.whl"],
+)
+async def test_script_uninstall_matches_distribution_name(
+    tmp_path: Path, requirement: str
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["my-pkg[extra]>=1"]\n# ///\n'
+    )
+    manager = UvPackageManager(script_path=str(notebook))
+    with patch.object(
+        manager, "_change_script_environment", return_value=True
+    ) as change:
+        assert await manager.uninstall(requirement)
+    change.assert_called_once_with(str(notebook), remove=["my-pkg"])
+
+
+@pytest.mark.asyncio
+async def test_script_uninstall_preserves_transitive_dependency(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["parent"]\n# ///\n')
+    manager = UvPackageManager(script_path=str(notebook))
+    with patch.object(manager, "_change_script_environment") as change:
+        assert not await manager.uninstall("transitive")
+    change.assert_not_called()

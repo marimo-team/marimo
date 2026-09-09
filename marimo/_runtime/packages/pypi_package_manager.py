@@ -745,7 +745,7 @@ class UvPackageManager(PypiPackageManager):
             undeclared = [
                 pkg
                 for pkg in requested
-                if _normalize_package_name(pkg) not in declared
+                if _normalized_requirement_name(pkg) not in declared
             ]
             if undeclared:
                 # A transitive dependency is not the notebook's to remove;
@@ -761,7 +761,11 @@ class UvPackageManager(PypiPackageManager):
             return await asyncio.to_thread(
                 self._change_script_environment,
                 self._script_path,
-                remove=requested,
+                remove=[
+                    name
+                    for pkg in requested
+                    if (name := _normalized_requirement_name(pkg)) is not None
+                ],
             )
 
         uninstall_cmd: list[str]

@@ -196,6 +196,8 @@ def uv_stream(
     kernel's notification context, keep working. Failures raise the same
     refined errors as `uv()`.
     """
+    from marimo._utils.subprocess import kill_subprocess
+
     command = [find_uv_bin(), *args]
     try:
         process = subprocess.Popen(
@@ -210,8 +212,12 @@ def uv_stream(
             # own session (ignored on Windows).
             start_new_session=True,
         )
-    except FileNotFoundError as e:
-        raise UvNotFoundError() from e
+    except OSError as e:
+        if cwd is not None:
+            os.stat(cwd)
+        if isinstance(e, FileNotFoundError):
+            raise UvNotFoundError() from e
+        raise
 
     assert process.stdout is not None
     assert process.stderr is not None
@@ -226,28 +232,33 @@ def uv_stream(
     reader.start()
 
     stderr_lines: list[bytes] = []
-    for line in iter(process.stderr.readline, b""):
-        stderr_lines.append(line)
-        decoded = line.decode("utf-8", errors="replace")
-        # The terminal tee is best effort: a kernel replaces sys.stderr
-        # with a redirect whose `buffer` may be None, and nothing here
-        # may stop the stream or deadlock uv.
-        try:
-            buffer = getattr(sys.stderr, "buffer", None)
-            if buffer is not None:
-                buffer.write(line)
-                buffer.flush()
-            else:
-                sys.stderr.write(decoded)
-        except Exception:
-            pass
-        try:
-            on_output(decoded)
-        except Exception:
-            LOGGER.exception("Failed to stream uv output")
-    process.stderr.close()
-    returncode = process.wait()
-    reader.join()
+    try:
+        for line in iter(process.stderr.readline, b""):
+            stderr_lines.append(line)
+            decoded = line.decode("utf-8", errors="replace")
+            # The terminal tee is best effort: a kernel replaces sys.stderr
+            # with a redirect whose `buffer` may be None, and nothing here
+            # may stop the stream or deadlock uv.
+            try:
+                buffer = getattr(sys.stderr, "buffer", None)
+                if buffer is not None:
+                    buffer.write(line)
+                    buffer.flush()
+                else:
+                    sys.stderr.write(decoded)
+            except Exception:
+                pass
+            try:
+                on_output(decoded)
+            except Exception:
+                LOGGER.exception("Failed to stream uv output")
+        returncode = process.wait()
+    except BaseException:
+        kill_subprocess(process, start_new_session=True)
+        raise
+    finally:
+        process.stderr.close()
+        reader.join()
 
     completed = subprocess.CompletedProcess(
         command,

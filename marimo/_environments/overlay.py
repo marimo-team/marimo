@@ -32,11 +32,10 @@ def runtime_overlay(
     process matches the CLI regardless of what a manifest's `marimo`
     resolves to. Overlay entries never enter the manifest.
     """
+    extras = f"[{','.join(features)}]" if features else ""
     if is_editable("marimo"):
         LOGGER.info("Using editable of marimo for sandbox")
-        marimo_dep = f"-e {marimo_dir()}"
-    elif features:
-        marimo_dep = f"marimo[{','.join(features)}]=={__version__}"
+        marimo_dep = f"-e {marimo_dir()}{extras}"
     else:
-        marimo_dep = f"marimo=={__version__}"
+        marimo_dep = f"marimo{extras}=={__version__}"
     return [marimo_dep, *additional_deps]

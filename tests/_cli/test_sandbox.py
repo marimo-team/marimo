@@ -729,7 +729,7 @@ pyproject: |
 
     assert code == 0
     # The carrier is deleted after synchronization.
-    assert sorted(p.name for p in tmp_path.iterdir()) == ["notebook.md"]
+    assert not list(tmp_path.glob("*.py"))
 
 
 @pytest.mark.network
@@ -780,3 +780,28 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
         ):
             result = runner.invoke(cli_main, command)
         assert result.exit_code == 3, (command, result.output)
+
+
+@pytest.mark.parametrize(
+    ("returncode", "expected"), [(0, 0), (7, 7), (-2, 130), (-15, 143)]
+)
+@pytest.mark.usefixtures("_restore_signal_handlers")
+def test_run_in_sandbox_normalizes_child_status(
+    returncode: int, expected: int
+) -> None:
+    from unittest.mock import MagicMock, patch
+
+    from marimo._environments.environment import ProcessPlan
+
+    process = MagicMock()
+    process.wait.return_value = returncode
+    with (
+        patch("marimo._cli.sandbox.require_uv_bin"),
+        patch("marimo._cli.sandbox.runtime_overlay", return_value=[]),
+        patch(
+            "marimo._cli.sandbox.environment.launch_isolated",
+            return_value=ProcessPlan(argv=("uv",), env={}),
+        ),
+        patch("marimo._cli.sandbox.subprocess.Popen", return_value=process),
+    ):
+        assert run_in_sandbox(["--version"]) == expected

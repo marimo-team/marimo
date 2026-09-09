@@ -1,8 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import contextlib
 import json
+import signal
 import subprocess
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -13,9 +16,10 @@ from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.workspace import flatten_files
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
+from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Iterator
 
     from marimo._environments.environment import Environment
 
@@ -86,6 +90,29 @@ class SandboxVenvPool:
         self._targets.clear()
 
 
+@contextlib.contextmanager
+def _export_termination_signals() -> Iterator[None]:
+    """Let termination unwind the runner so its isolated child is reaped."""
+    previous = {}
+
+    def terminate(signum: int, _frame: object) -> None:
+        raise SystemExit(128 + signum)
+
+    try:
+        if threading.current_thread() is threading.main_thread():
+            for name in ("SIGTERM", "SIGHUP"):
+                signum = getattr(signal, name, None)
+                if (
+                    signum is not None
+                    and signal.getsignal(signum) == signal.SIG_DFL
+                ):
+                    previous[signum] = signal.signal(signum, terminate)
+        yield
+    finally:
+        for signum, handler in previous.items():
+            signal.signal(signum, handler)
+
+
 def run_python_subprocess(
     *,
     sandbox: SandboxTarget,
@@ -106,18 +133,30 @@ def run_python_subprocess(
         plan = launch_isolated(
             args, overlay=overlay, python=platform.python_version()
         )
-    result = subprocess.run(
-        list(plan.argv),
-        env=plan.env,
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        stderr = result.stderr.strip()
+    with (
+        _export_termination_signals(),
+        subprocess.Popen(
+            list(plan.argv),
+            env=plan.env,
+            start_new_session=plan.start_new_session,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        ) as process,
+    ):
+        try:
+            stdout, stderr = process.communicate()
+        except BaseException:
+            kill_subprocess(process, start_new_session=plan.start_new_session)
+            raise
+    if process.returncode != 0:
+        # Identify the real launcher without exposing requirement URLs,
+        # credentials, notebook code, or the serialized request payload.
+        launcher = Path(plan.argv[0]).name
+        command = f"{launcher} <sandbox arguments> -c <script> <payload>"
         raise click.ClickException(
             f"Failed to {action} in sandbox.\n\n"
-            f"Command:\n\n  python -c <script>\n\n"
-            f"Stderr:\n\n{stderr}"
+            f"Command:\n\n  {command}\n\n"
+            f"Stderr:\n\n{stderr.strip()}"
         )
-    return result.stdout
+    return stdout

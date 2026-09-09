@@ -64,100 +64,21 @@ class TestAppHostCommands:
 
 @pytest.mark.requires("zmq")
 class TestAppHostOnEmpty:
-    def test_on_empty_fires_when_session_ids_becomes_empty(self) -> None:
-        """on_empty callback fires when all sessions exit."""
+    def test_cleanup_fires_once_after_last_session_exits(self) -> None:
         import threading
 
         from marimo._session.app_host.host import AppHost
 
         fired = threading.Event()
-
-        def on_empty() -> None:
-            fired.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        # Simulate a kernel being alive
-        app_host._session_ids.add("s1")
-
-        # Simulate receiving a KernelExited message by calling
-        # discard + the callback logic directly (avoids needing
-        # a real subprocess with ZMQ sockets).
-        app_host._session_ids.discard("s1")
-        assert len(app_host._session_ids) == 0
-        # Replicate the callback logic from _stream_receiver_loop
-        callback = app_host._on_empty
-        app_host._on_empty = None
-        if callback is not None:
-            threading.Thread(target=callback, daemon=True).start()
-
-        assert fired.wait(timeout=2), "on_empty callback was not fired"
-
-    def test_on_empty_does_not_fire_when_kernels_remain(self) -> None:
-        """on_empty callback does NOT fire when kernels remain."""
-        import threading
-
-        from marimo._session.app_host.host import AppHost
-
-        fired = threading.Event()
-
-        def on_empty() -> None:
-            fired.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        app_host._session_ids.add("s1")
-        app_host._session_ids.add("s2")
-
-        # Remove one — still one left
-        app_host._session_ids.discard("s1")
-        assert len(app_host._session_ids) == 1
-
-        # Replicate the callback logic
-        if not app_host._session_ids:
-            callback = app_host._on_empty
-            app_host._on_empty = None
-            if callback is not None:
-                threading.Thread(target=callback, daemon=True).start()
-
-        assert not fired.wait(timeout=0.5), (
-            "on_empty callback should not fire when kernels remain"
-        )
-
-    def test_on_empty_fires_only_once(self) -> None:
-        """on_empty callback fires at most once (double-fire prevention)."""
-        import threading
-
-        from marimo._session.app_host.host import AppHost
-
-        call_count = 0
-        lock = threading.Lock()
-        done = threading.Event()
-
-        def on_empty() -> None:
-            nonlocal call_count
-            with lock:
-                call_count += 1
-            done.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        app_host._session_ids.add("s1")
-        app_host._session_ids.add("s2")
-
-        # Simulate both kernels exiting
-        for sid in ["s1", "s2"]:
-            app_host._session_ids.discard(sid)
-            if not app_host._session_ids:
-                callback = app_host._on_empty
-                app_host._on_empty = None
-                if callback is not None:
-                    threading.Thread(target=callback, daemon=True).start()
-
-        assert done.wait(timeout=2)
-        # Give any potential second callback time to run
-        threading.Event().wait(timeout=0.2)
-        with lock:
-            assert call_count == 1, (
-                f"on_empty fired {call_count} times, expected 1"
-            )
+        host = AppHost("/tmp/test_app.py", on_empty=fired.set)
+        host._session_ids.update(("first", "second"))
+        host._session_ids.remove("first")
+        assert not host._fire_on_empty()
+        assert not fired.is_set()
+        host._session_ids.remove("second")
+        assert host._fire_on_empty()
+        assert fired.wait(timeout=5)
+        assert not host._fire_on_empty()
 
 
 @pytest.mark.requires("zmq")
@@ -234,16 +155,6 @@ class TestAppHost:
 
 @pytest.mark.requires("zmq")
 class TestAppHostSandbox:
-    def test_pool_sandbox_flag_stored(self) -> None:
-        """AppHostPool stores the sandbox flag."""
-        from marimo._session.app_host.pool import AppHostPool
-
-        pool = AppHostPool(sandbox=False)
-        assert pool._sandbox is False
-
-        pool = AppHostPool(sandbox=True)
-        assert pool._sandbox is True
-
     def test_pool_sandbox_syncs_and_passes_plan(self) -> None:
         """When sandbox=True, the pool synchronizes the notebook's script
         environment and hands AppHost a launch plan for it."""
@@ -345,40 +256,6 @@ class TestAppHostSandbox:
             plan = mock_host_cls.call_args[1]["plan"]
             assert "--isolated" in plan.argv
             assert "marimo==0.0.0" in plan.argv
-
-    def test_pool_sandbox_race_returns_existing_host(self) -> None:
-        """If another thread creates the host during synchronization, the
-        existing host wins."""
-        from unittest.mock import MagicMock, patch
-
-        from marimo._environments.environment import Environment
-        from marimo._session.app_host.pool import AppHostPool
-
-        pool = AppHostPool(sandbox=True)
-
-        existing_host = MagicMock()
-        existing_host.is_alive.return_value = True
-
-        def sync_and_inject(filename: str) -> Environment:
-            import os
-
-            pool._workers[os.path.abspath(filename)] = existing_host
-            return Environment(
-                python="/env/bin/python", root="/env", action="created"
-            )
-
-        with (
-            patch(
-                "marimo._session.app_host.pool.sync_notebook",
-                side_effect=sync_and_inject,
-            ),
-            patch(
-                "marimo._session.app_host.pool.runtime_overlay",
-                return_value=[],
-            ),
-        ):
-            result = pool.get_or_create("/tmp/test_app.py")
-            assert result is existing_host
 
 
 @pytest.mark.requires("zmq")

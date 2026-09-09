@@ -553,4 +553,5 @@ def run_in_sandbox(
         signal.signal(signal.SIGTERM, handler)
         signal.signal(signal.SIGHUP, handler)
 
-    return process.wait()
+    returncode = process.wait()
+    return 128 - returncode if returncode < 0 else returncode

@@ -858,3 +858,35 @@ def test_get_package_manager_no_session() -> None:
 
     # Verify create_package_manager was called without python_exe
     mock_create_pm.assert_called_once_with("pip")
+
+
+@pytest.mark.parametrize("mode", ["single", None])
+def test_package_manager_binding_for_inprocess_kernel(
+    monkeypatch: pytest.MonkeyPatch, mode: str | None
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.api.endpoints.packages import _get_package_manager
+    from marimo._session.session import SessionImpl
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", mode)
+    session = MagicMock(spec=SessionImpl)
+    session._kernel_manager = MagicMock(spec=[])
+    session.app_file_manager = MagicMock(filename="/nb/notebook.py")
+    state = MagicMock()
+    state.get_current_session.return_value = session
+    state.app_config_manager.package_manager = "uv"
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as create,
+    ):
+        _get_package_manager(MagicMock())
+    create.assert_called_once_with(
+        "uv",
+        python_exe=None,
+        script_path="/nb/notebook.py" if mode == "single" else None,
+    )

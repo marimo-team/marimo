@@ -350,3 +350,21 @@ def test_sync_streams_progress(
     assert env.action == "created"
     # Content wording is uv's, not ours; presence is the contract.
     assert lines, "expected streamed diagnostics"
+
+
+@pytest.mark.parametrize("editable", [False, True])
+@pytest.mark.parametrize("features", [[], ["sql", "lsp"]])
+def test_runtime_overlay_preserves_extras(
+    monkeypatch: pytest.MonkeyPatch, editable: bool, features: list[str]
+) -> None:
+    from marimo._environments import overlay
+    from marimo._version import __version__
+
+    monkeypatch.setattr(overlay, "is_editable", lambda _: editable)
+    extras = "[sql,lsp]" if features else ""
+    expected = (
+        f"-e {overlay.marimo_dir()}{extras}"
+        if editable
+        else f"marimo{extras}=={__version__}"
+    )
+    assert overlay.runtime_overlay(features, ["idna"]) == [expected, "idna"]
