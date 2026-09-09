@@ -1,0 +1,6 @@
+event: stdout
+data: {"data":"hello\n"}
+
+event: done
+data: {"success":true,"output":{"mimetype":"text/plain","data":"2"}}
+
