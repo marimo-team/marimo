@@ -4,7 +4,7 @@
 Run: uv run python scripts/benchmarks/file_browser.py
 Cold refers to the detector cache, not the operating system's filesystem cache.
 The clock is fixed to measure repeated listings within one cache expiry window.
-The 10,000-Python-file case intentionally exceeds the 4,096-entry detector cache;
+The larger cases intentionally exceed the 512-entry detector cache;
 its repeated scans measure eviction pressure, not a fully resident warm cache.
 """
 
@@ -37,7 +37,7 @@ def measure(
 
 def main() -> None:
     print("files  Python%  uncached_ms  cold_ms  repeat_ms  cache_fit")
-    for count, python_every in [(1000, 4), (10000, 4), (10000, 1)]:
+    for count, python_every in [(100, 4), (1000, 4), (1000, 1), (10000, 4)]:
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             for index in range(count):
@@ -59,7 +59,7 @@ def main() -> None:
                 cold = measure(fs, directory, clear=True)
                 warm = measure(fs, directory)
             print(
-                f"{count:5d}  {100 // python_every:7d}  {uncached:11.2f}  {cold:7.2f}  {warm:9.2f}  {count // python_every <= 4096}"
+                f"{count:5d}  {100 // python_every:7d}  {uncached:11.2f}  {cold:7.2f}  {warm:9.2f}  {count // python_every <= 512}"
             )
     _is_marimo_file_cached.cache_clear()
 

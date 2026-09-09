@@ -462,7 +462,8 @@ class OSFileSystem(FileSystem):
             return False
 
 
-@lru_cache(maxsize=4096)
+# Keep a small working set for repeated listings of recently viewed folders.
+@lru_cache(maxsize=512)
 def _is_marimo_file_cached(
     path: str, _mtime_ns: int, _ctime_ns: int, _size: int, _time_bucket: int
 ) -> bool:
