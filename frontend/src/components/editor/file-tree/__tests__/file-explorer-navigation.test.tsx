@@ -574,7 +574,7 @@ describe("file browser navigation", () => {
     });
     render(<FileExplorer height={300} />, { wrapper });
     const middle = await screen.findByRole("treeitem", { name: "b.txt" });
-    fireEvent.click(middle);
+    fireEvent.click(screen.getByText("b.txt"));
     expect(middle).toHaveFocus();
     fireEvent.keyDown(middle, { key: "ArrowDown" });
     expect(screen.getByRole("treeitem", { name: "c.txt" })).toHaveFocus();
@@ -596,6 +596,26 @@ describe("file browser navigation", () => {
     expect(
       await screen.findByRole("treeitem", { name: "report.csv" }),
     ).toBeVisible();
+  });
+
+  it("focuses a clicked search result so Enter opens that result", async () => {
+    client.sendSearchFiles.mockResolvedValue({
+      files: [file("report-first.txt"), file("report-second.txt")],
+      query: "report",
+      totalFound: 2,
+    });
+    render(<FileExplorer height={300} />, { wrapper });
+    const input = await screen.findByRole("textbox", {
+      name: "Search files and folders",
+    });
+    input.focus();
+    fireEvent.change(input, { target: { value: "report" } });
+    await screen.findByText("2 matches");
+    fireEvent.click(screen.getByText("report-second.txt"));
+    const second = screen.getByRole("treeitem", { name: "report-second.txt" });
+    expect(second).toHaveFocus();
+    fireEvent.keyDown(second, { key: "Enter" });
+    expect(await screen.findByText("Preview: report-second.txt")).toBeVisible();
   });
 
   it("passes hidden-file visibility to search and refetches when it changes", async () => {

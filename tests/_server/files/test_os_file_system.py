@@ -803,6 +803,22 @@ def test_search_filters_hidden_entries_before_limit(
     )
 
 
+def test_search_ranks_late_matches_before_limiting(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    for index in range(250):
+        (test_dir / f"weak-report-{index}.txt").write_text("")
+    nested = test_dir / "nested"
+    nested.mkdir()
+    (nested / "report").write_text("")
+    (nested / "report-summary.txt").write_text("")
+    results = fs.search("report", path=str(test_dir), limit=2)
+    assert [result.name for result in results] == [
+        "report",
+        "report-summary.txt",
+    ]
+
+
 def test_search_empty_query(test_dir: Path, fs: OSFileSystem) -> None:
     """Test search with empty query returns no results."""
     (test_dir / "test.txt").write_text("content")

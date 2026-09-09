@@ -23,8 +23,14 @@ export function FileTreeRow({
         }
       }}
       onClick={(event) => {
-        attrs.onClick?.(event);
-        node.select();
+        if (attrs.onClick) {
+          attrs.onClick(event);
+        } else {
+          node.select();
+        }
+        if (!event.defaultPrevented) {
+          event.currentTarget.focus({ preventScroll: true });
+        }
       }}
     >
       {children}

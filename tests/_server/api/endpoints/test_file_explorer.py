@@ -481,7 +481,7 @@ def test_search_files_hidden_visibility(
     visible = tmp_path / "visible"
     visible.mkdir()
     (visible / "match.txt").write_text("")
-    body = {"query": "match", "path": str(tmp_path), "limit": 1}
+    body = {"query": "txt", "path": str(tmp_path), "limit": 1}
     if include_hidden is not None:
         body["includeHidden"] = include_hidden
     response = client.post("/api/files/search", headers=HEADERS, json=body)

@@ -103,10 +103,6 @@ function SearchResult({ node }: NodeRendererProps<FileTreeNode>) {
         "flex h-full items-start gap-2.5 px-3 py-1 cursor-pointer hover:bg-accent/50",
         node.isSelected && "bg-accent/60",
       )}
-      onClick={(event) => {
-        event.stopPropagation();
-        node.select();
-      }}
       onDoubleClick={(event) => {
         event.stopPropagation();
         node.activate();

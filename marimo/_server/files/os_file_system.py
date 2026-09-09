@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import base64
+import heapq
 import os
 import platform
-import re
 import shutil
 import subprocess
 import tempfile
@@ -12,7 +12,7 @@ import time
 from collections import deque
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo import _loggers
 from marimo._server.files.file_system import FileSystem
@@ -20,6 +20,9 @@ from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._session.notebook.file_manager import AppFileManager
 from marimo._utils.files import natural_sort
 from marimo._utils.mime import guess_mime_type
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 LOGGER = _loggers.marimo_logger()
 
@@ -359,121 +362,68 @@ class OSFileSystem(FileSystem):
 
         query_lower = query.lower()
 
-        # Compile regex pattern for case-insensitive search
-        try:
-            pattern = re.compile(re.escape(query_lower))
-        except re.error:
-            # If regex compilation fails, fall back to simple string matching
-            pattern = None
-
-        results: list[FileInfo] = []
-        seen_paths: set[str] = set()
-
-        # Use BFS with deque for better performance than recursive DFS
-        queue = deque([(search_path, 0)])  # (path, current_depth)
-
-        while queue and len(results) < limit:
-            current_path, current_depth = queue.popleft()
-
-            # Skip if we've exceeded depth limit
-            if current_depth > depth:
-                continue
-
-            # Skip if we've already processed this path (avoid symlink loops)
-            real_path = os.path.realpath(current_path)
-            if real_path in seen_paths:
-                continue
-            seen_paths.add(real_path)
-
-            try:
-                # Use os.scandir for better performance than os.listdir
-                with os.scandir(current_path) as entries:
-                    for entry in entries:
-                        if len(results) >= limit:
-                            break
-
-                        # Skip ignored files/directories
-                        if entry.name in SEARCH_IGNORE_LIST or (
-                            not include_hidden and entry.name.startswith(".")
-                        ):
-                            continue
-
-                        # Check if name matches query
-                        name_lower = entry.name.lower()
-
-                        matches = False
-                        if pattern:
-                            matches = pattern.search(name_lower) is not None
-                        else:
-                            matches = query_lower in name_lower
-
-                        if not matches:
-                            # If this is a directory and we haven't hit depth limit, add to queue
-                            if current_depth < depth:
-                                try:
-                                    if entry.is_dir():
-                                        queue.append(
-                                            (entry.path, current_depth + 1)
-                                        )
-                                except OSError:
-                                    # Skip entries that can't be accessed
+        def candidates() -> Iterator[FileInfo]:
+            seen_paths: set[str] = set()
+            queue = deque([(search_path, 0)])
+            while queue:
+                current_path, current_depth = queue.popleft()
+                if current_depth > depth:
+                    continue
+                real_path = os.path.realpath(current_path)
+                if real_path in seen_paths:
+                    continue
+                seen_paths.add(real_path)
+                try:
+                    with os.scandir(current_path) as entries:
+                        for entry in entries:
+                            if entry.name in SEARCH_IGNORE_LIST or (
+                                not include_hidden
+                                and entry.name.startswith(".")
+                            ):
+                                continue
+                            try:
+                                is_directory = entry.is_dir()
+                                if is_directory and current_depth < depth:
+                                    queue.append(
+                                        (entry.path, current_depth + 1)
+                                    )
+                                if query_lower not in entry.name.lower():
                                     continue
-                            continue
-
-                        try:
-                            is_directory = entry.is_dir()
-                            entry_stat = entry.stat()
-
-                            # Apply directory/file filtering
-                            if not include_directories and is_directory:
-                                # Skip directories if directory=False
+                                if is_directory and not include_directories:
+                                    continue
+                                if not is_directory and not include_files:
+                                    continue
+                                entry_stat = entry.stat()
+                                yield FileInfo(
+                                    id=entry.path,
+                                    path=entry.path,
+                                    name=entry.name,
+                                    is_directory=is_directory,
+                                    # Notebook detection is deferred to preview.
+                                    is_marimo_file=False,
+                                    last_modified=entry_stat.st_mtime,
+                                    size=None
+                                    if is_directory
+                                    else entry_stat.st_size,
+                                )
+                            except OSError:
                                 continue
-                            if not include_files and not is_directory:
-                                # Skip files if file=False
-                                continue
+                except OSError:
+                    continue
 
-                            file_info = FileInfo(
-                                id=entry.path,
-                                path=entry.path,
-                                name=entry.name,
-                                is_directory=is_directory,
-                                # This can be expensive, so we don't do it on search
-                                is_marimo_file=False,
-                                last_modified=entry_stat.st_mtime,
-                                size=None
-                                if is_directory
-                                else entry_stat.st_size,
-                            )
-                            results.append(file_info)
-
-                            # If this is a matching directory and we haven't hit depth limit, add to queue
-                            if is_directory and current_depth < depth:
-                                queue.append((entry.path, current_depth + 1))
-
-                        except OSError:
-                            # Skip files/directories that can't be accessed
-                            continue
-
-            except OSError:
-                # Skip directories that can't be accessed
-                continue
-
-        # Sort results by relevance (exact matches first, then by name)
-        def sort_key(file_info: FileInfo) -> tuple[int, str]:
+        def sort_key(file_info: FileInfo) -> tuple[int, str, str]:
             name_lower = file_info.name.lower()
-
-            # Exact match gets highest priority
             if name_lower == query_lower:
-                return (0, file_info.name)
-            # Starts with query gets second priority
+                rank = 0
             elif name_lower.startswith(query_lower):
-                return (1, file_info.name)
-            # Contains query gets lowest priority
+                rank = 1
             else:
-                return (2, file_info.name)
+                rank = 2
+            return (rank, file_info.name, file_info.path)
 
-        results.sort(key=sort_key)
-        return results[:limit]
+        # Scan all candidates before limiting so a late exact match is retained.
+        # nsmallest keeps only O(limit) candidates in memory.
+        return heapq.nsmallest(limit, candidates(), key=sort_key)
 
     def open_in_editor(self, path: str, line_number: int | None) -> bool:
         try:

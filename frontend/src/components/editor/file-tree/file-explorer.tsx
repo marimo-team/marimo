@@ -629,16 +629,7 @@ const Show = ({
   ) => void;
 }) => {
   const label = (
-    <span
-      className="flex-1 overflow-hidden text-ellipsis"
-      onClick={(e) => {
-        if (node.data.isDirectory) {
-          return;
-        }
-        e.stopPropagation();
-        node.select();
-      }}
-    >
+    <span className="flex-1 overflow-hidden text-ellipsis">
       {node.data.name}
       {node.data.isMarimoFile && node.data.isPrimaryRoot && !isWasm() && (
         <span
@@ -751,9 +742,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
         "relative flex h-full items-center cursor-pointer ml-1 text-muted-foreground whitespace-nowrap group",
       )}
       draggable={!node.data.isRoot}
-      onClick={(evt) => {
-        evt.stopPropagation();
-        node.select();
+      onClick={() => {
         if (node.data.isDirectory) {
           node.toggle();
         }
