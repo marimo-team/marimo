@@ -10,6 +10,7 @@ import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._save.encode import (
+    attempt_signed_bytes,
     common_container_to_bytes,
     data_to_buffer,
     deterministic_dumps,
@@ -175,3 +176,20 @@ def test_polars_series_hash_includes_name_and_values() -> None:
     assert encoded == data_to_buffer(series.clone())
     assert encoded != data_to_buffer(pl.Series("label", ["a", "c"]))
     assert encoded != data_to_buffer(series.rename("name"))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+@pytest.mark.parametrize("in_container", [False, True])
+def test_polars_object_hash_uses_fallback(
+    as_frame: bool, in_container: bool
+) -> None:
+    import polars as pl
+
+    series = pl.Series("objects", [object()], dtype=pl.Object)
+    value: Any = series.to_frame() if as_frame else series
+    value = {"data": value} if in_container else value
+
+    assert attempt_signed_bytes(value, "state") is value

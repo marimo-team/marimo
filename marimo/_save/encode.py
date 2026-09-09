@@ -79,11 +79,18 @@ def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
         "polars.dataframe.frame.DataFrame",
         "polars.series.series.Series",
     ):
+        from polars.exceptions import ComputeError
+
         # Preserve column types and names, including mixed and string columns
         # whose NumPy representation contains Python object references.
         frame = data.to_frame() if hasattr(data, "to_frame") else data
         buffer = io.BytesIO()
-        frame.rechunk().write_ipc(buffer)
+        try:
+            frame.rechunk().write_ipc(buffer)
+        except ComputeError as exc:
+            raise TypeError(
+                "Polars value cannot be serialized to IPC."
+            ) from exc
         return buffer.getbuffer()
     data = standardize_tensor(data)
     # From joblib.hashing
