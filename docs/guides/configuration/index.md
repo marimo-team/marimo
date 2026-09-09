@@ -94,6 +94,19 @@ default_sql_output = "native"
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.
 
+### Additional file browser roots
+
+Add absolute local directories to the file browser with project configuration:
+
+```toml title="pyproject.toml"
+[tool.marimo.file_browser]
+folders = [{ path = "/absolute/path/to/data", name = "Data" }]
+```
+
+For `marimo.toml`, use `[file_browser]` instead. `name` is optional. Invalid or
+duplicate paths are ignored. Additional roots affect only the file browser and
+cannot be set through notebook script metadata.
+
 !!! note "Overridden settings"
     Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
 

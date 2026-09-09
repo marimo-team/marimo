@@ -183,8 +183,7 @@ def prune_cells_for_overrides(
             continue
         cell = graph.cells[cell_id]
         # Check all definitions this cell would have provided
-        for missing in cell.defs - refs:
-            missing_defs.add(missing)
+        missing_defs.update(cell.defs - refs)
 
     if missing_defs:
         from marimo._ast.errors import IncompleteRefsError

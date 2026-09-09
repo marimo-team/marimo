@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
+import { getExportLayout } from "@/core/export/layout";
 import { useRequestClient } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { copyToClipboard } from "@/utils/copy";
@@ -44,6 +45,7 @@ export const ShareStaticNotebookModal: React.FC<{
             download: false,
             includeCode: true,
             files: VirtualFileTracker.INSTANCE.filenames(),
+            layout: await getExportLayout(),
           });
 
           const prevToast = toast({

@@ -76,10 +76,6 @@ class TestTemplateFilenameHandling:
             config_overrides=config_overrides,
             app_config=app_config,
         )
-        # Remove the last ','
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
-
         # Should be valid JSON
         config_data = json.loads(result)
 
@@ -291,10 +287,6 @@ class TestMountConfigInjectionPrevention:
             app_config=app_config,
         )
 
-        # Remove trailing comma for JSON parsing
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
-
         # Must not contain unescaped script tags (< and > should be escaped)
         assert "</script><script>" not in result
         assert "<script>" not in result.lower()
@@ -331,10 +323,6 @@ class TestMountConfigInjectionPrevention:
             config_overrides=config_overrides,
             app_config=app_config,
         )
-
-        # Remove trailing comma
-        last_comma_index = result.rfind(",")
-        result = result[:last_comma_index] + result[last_comma_index + 1 :]
 
         # Must not contain unescaped script tags (< and > should be escaped)
         assert "</script><script>" not in result

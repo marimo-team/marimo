@@ -54,6 +54,7 @@ from marimo._runtime.context.types import teardown_context
 from marimo._session.model import SessionMode
 from marimo._session.notebook import AppFileManager
 from marimo._types.ids import CellId_t, UIElementId
+from tests._server.templates.utils import parse_mount_config
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Generator
@@ -893,6 +894,43 @@ def test_pyodide_bridge_list_files(
     assert response["root"] == str(tmp_path)
 
 
+def test_pyodide_bridge_file_roots(
+    pyodide_bridge: PyodideBridge,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test listing configured file-browser roots through the bridge."""
+    primary = tmp_path / "project"
+    shared = tmp_path / "shared"
+    primary.mkdir()
+    shared.mkdir()
+    monkeypatch.setattr(
+        pyodide_bridge.file_system, "get_root", lambda: str(primary)
+    )
+    monkeypatch.setitem(
+        pyodide_bridge.session._initial_user_config,
+        "file_browser",
+        {"folders": [{"path": str(shared), "name": "Shared"}]},
+    )
+
+    response = json.loads(pyodide_bridge.file_roots())
+
+    assert response == {
+        "roots": [
+            {
+                "path": str(primary.resolve()),
+                "name": "project",
+                "isPrimary": True,
+            },
+            {
+                "path": str(shared.resolve()),
+                "name": "Shared",
+                "isPrimary": False,
+            },
+        ]
+    }
+
+
 def test_pyodide_bridge_file_details(
     pyodide_bridge: PyodideBridge,
     tmp_path: Path,
@@ -1074,6 +1112,10 @@ def test_pyodide_bridge_export_html(
             "download": False,
             "files": [],
             "includeCode": True,
+            "layout": {
+                "type": "slides",
+                "data": {"deck": {"transition": "fade"}},
+            },
         }
     )
 
@@ -1082,8 +1124,10 @@ def test_pyodide_bridge_export_html(
 
     assert exported_file["filename"] == "test.html"
     assert exported_file["mediaType"] == "text/html; charset=utf-8"
-    # HTML should contain marimo-related content
-    assert len(exported_file["contents"]) > 0
+    assert parse_mount_config(exported_file["contents"])["layout"] == {
+        "type": "slides",
+        "data": {"deck": {"transition": "fade"}},
+    }
 
 
 @pytest.mark.parametrize(

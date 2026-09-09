@@ -319,6 +319,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getFileRoots: async () => {
+      await waitForConnectionOpen();
+      return getClient().GET("/api/files/roots").then(handleResponse);
+    },
     sendListFiles: async (request) => {
       await waitForConnectionOpen();
       return getClient()

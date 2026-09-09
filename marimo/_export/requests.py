@@ -13,6 +13,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.config import DisplayConfig, SharingConfig
 from marimo._export._status import PDFExportStatusCallback
 from marimo._runtime.commands import SerializedCLIArgs
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._schemas.export_options import (
     HTMLExportOptions,
     IPYNBExportOptions,
@@ -77,6 +78,7 @@ class HTMLExportRequest:
     snapshot: NotebookExportSnapshot
     display_config: DisplayConfig
     options: HTMLExportOptions
+    layout: LayoutConfig | None = None
     sharing_config: SharingConfig | None = None
 
 
@@ -94,6 +96,7 @@ class WASMExportRequest:
     display_config: DisplayConfig
     code: str
     options: WASMExportOptions
+    layout: LayoutConfig | None = None
     session_snapshot: NotebookSessionV1 | None = None
     notebook_snapshot: NotebookV1 | None = None
     sharing_config: SharingConfig | None = None

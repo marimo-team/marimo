@@ -63,7 +63,11 @@ async def add_package(request: Request) -> PackageOperationResponse:
 
     # Update the script metadata
     filename = _get_filename(request)
-    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+    if (
+        success
+        and filename is not None
+        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    ):
         await asyncio.to_thread(
             package_manager.update_notebook_script_metadata,
             filepath=filename,
@@ -112,7 +116,11 @@ async def remove_package(request: Request) -> PackageOperationResponse:
 
     # Update the script metadata
     filename = _get_filename(request)
-    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+    if (
+        success
+        and filename is not None
+        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    ):
         await asyncio.to_thread(
             package_manager.update_notebook_script_metadata,
             filepath=filename,

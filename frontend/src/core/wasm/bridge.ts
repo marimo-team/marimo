@@ -26,6 +26,7 @@ import type {
   FileDeleteResponse,
   FileDetailsResponse,
   FileListResponse,
+  FileRootsResponse,
   FileMoveResponse,
   FileSearchResponse,
   FileUpdateResponse,
@@ -417,6 +418,14 @@ export class PyodideBridge implements RunRequests, EditRequests {
       payload: request,
     });
     return response as FileListResponse;
+  };
+
+  getFileRoots: EditRequests["getFileRoots"] = async () => {
+    const response = await this.rpc.proxy.request.bridge({
+      functionName: "file_roots",
+      payload: undefined,
+    });
+    return response as FileRootsResponse;
   };
 
   sendSearchFiles: EditRequests["sendSearchFiles"] = async (request) => {

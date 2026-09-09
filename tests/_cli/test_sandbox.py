@@ -99,13 +99,26 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
         ) == ["numpy", f"marimo{spec}"]
 
 
-def test_normalize_marimo_dependencies_editable():
+@patch("marimo._cli.sandbox.is_editable", return_value=True)
+def test_normalize_marimo_dependencies_editable(
+    mock_is_editable: Any,
+) -> None:
     deps = _normalize_sandbox_dependencies(
         ["numpy"], "1.0.0", additional_features=[]
     )
     assert deps[0] == "numpy"
     assert deps[1].startswith("-e")
     assert "marimo" in deps[1]
+
+    deps = _normalize_sandbox_dependencies(
+        ["numpy", "marimo"],
+        "1.0.0",
+        additional_features=["lsp", "recommended"],
+    )
+    assert deps[0] == "numpy"
+    assert deps[1].startswith("-e")
+    assert deps[1].endswith("[lsp,recommended]")
+    assert mock_is_editable.call_count == 2
 
     deps = _normalize_sandbox_dependencies(
         ["numpy", "marimo"], "1.0.0", additional_features=[]

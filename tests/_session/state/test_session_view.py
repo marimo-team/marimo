@@ -50,6 +50,7 @@ from marimo._runtime.commands import (
     ModelUpdateMessage,
     UpdateUIElementCommand,
 )
+from marimo._runtime.layout.layout import LayoutConfig
 from marimo._session.state.session_view import ModelReplayState, SessionView
 from marimo._sql.engines.duckdb import INTERNAL_DUCKDB_ENGINE
 from marimo._types.ids import CellId_t, RequestId, VariableName, WidgetModelId
@@ -1603,6 +1604,48 @@ def test_mark_auto_export(session_view: SessionView):
 
     session_view._touch()
     assert session_view.needs_export("session")
+
+
+def test_auto_export_html_tracks_layout(session_view: SessionView):
+    slides = LayoutConfig(type="slides", data={"deck": {}})
+    changed_slides = LayoutConfig(
+        type="slides", data={"deck": {"transition": "fade"}}
+    )
+
+    assert session_view.needs_auto_export_html(slides)
+    session_view.mark_auto_export_html(slides)
+    assert not session_view.needs_auto_export_html(slides)
+    assert session_view.needs_auto_export_html(changed_slides)
+
+
+def test_auto_export_does_not_mark_an_older_generation_current(
+    session_view: SessionView,
+) -> None:
+    generation = session_view.auto_export_generation
+    session_view._touch()
+
+    assert not session_view.mark_auto_export_html(generation=generation)
+    assert not session_view.mark_auto_export_md(generation=generation)
+    assert not session_view.mark_auto_export_ipynb(generation=generation)
+    assert session_view.needs_export("html")
+    assert session_view.needs_export("md")
+    assert session_view.needs_export("ipynb")
+
+
+def test_notification_advances_auto_export_generation_once() -> None:
+    notification = CellNotification(
+        cell_id=cell_id,
+        output=initial_output,
+        status=initial_status,
+    )
+
+    direct = SessionView()
+    direct.add_notification(notification)
+    assert direct.auto_export_generation == 1
+
+    serialized = SessionView()
+    serialized.add_raw_notification(serialize_kernel_message(notification))
+    assert serialized.auto_export_generation == 1
 
 
 def test_dataset_filter_by_engine_and_variable(

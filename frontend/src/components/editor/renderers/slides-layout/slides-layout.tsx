@@ -8,6 +8,7 @@ import type { ICellRendererProps } from "../types";
 import type { SlidesLayout } from "./types";
 import { computeSlideCellsInfo } from "./compute-slide-cells";
 import { SlidesMinimap } from "@/components/slides/minimap";
+import { isSpeakerViewReceiver } from "@/components/slides/speaker-view";
 import useEvent from "react-use-event-hook";
 
 type Props = ICellRendererProps<SlidesLayout>;
@@ -38,6 +39,19 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
     : startCellIndex;
   const resolvedIndex =
     activeSlideIndex === -1 ? startCellIndex : activeSlideIndex;
+  const isSpeakerReceiver = isSpeakerViewReceiver(
+    kioskMode,
+    window.location.search,
+  );
+  // Let reveal.js resolve an initial URL coordinate before React resumes
+  // controlling the deck through the active cell.
+  const isInitialDeepLink =
+    isReading && activeCellId == null && window.location.hash.startsWith("#/");
+  // Speaker-view receivers take their position from reveal.js messages and
+  // the URL hash. Controlling their index here can push the presenter back to
+  // the first slide while the receiver initializes.
+  const controlledIndex =
+    isSpeakerReceiver || isInitialDeepLink ? undefined : resolvedIndex;
 
   const handleSlideChange = useEvent((index: number) => {
     const cell = slideCells[index];
@@ -52,8 +66,8 @@ export const SlidesLayoutRenderer: React.FC<Props> = ({
       layout={layout}
       setLayout={setLayout}
       noOutputIds={noOutputIds}
-      activeIndex={resolvedIndex}
-      onSlideChange={handleSlideChange}
+      activeIndex={controlledIndex}
+      onSlideChange={isSpeakerReceiver ? undefined : handleSlideChange}
       configWidth={280}
       mode={isReading ? "read" : mode}
       isEditable={!isReading}

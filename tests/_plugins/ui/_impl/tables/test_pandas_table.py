@@ -67,7 +67,7 @@ def _normalize_pandas_json(text: str) -> str:
     # Match NaN preceded by : or , or [ (JSON value positions), not inside quotes.
     text = re.sub(r"(?<=[:,\[])NaN(?=[,\]\}])", "null", text)
     # Replace "NaT" string with null for consistent null representation.
-    text = re.sub(r'"NaT"', "null", text)
+    text = text.replace('"NaT"', "null")
     return text
 
 

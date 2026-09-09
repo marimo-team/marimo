@@ -1,86 +1,83 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtomValue } from "jotai";
-import type { GridLayout } from "@/components/editor/renderers/grid-layout/types";
-import { cellRendererPlugins } from "@/components/editor/renderers/plugins";
-import type { LayoutType } from "@/components/editor/renderers/types";
-import { createReducerAndAtoms } from "@/utils/createReducer";
+import {
+  cellRendererPlugins,
+  deserializeLayout,
+} from "@/components/editor/renderers/plugins";
+import type { ICellRendererPlugin } from "@/components/editor/renderers/types";
 import { Logger } from "@/utils/Logger";
 import { getNotebook } from "../cells/cells";
+import type { CellData } from "../cells/types";
 import { notebookCells } from "../cells/utils";
 import { store } from "../state/jotai";
+import {
+  initialLayoutState,
+  layoutStateAtom,
+  type LayoutState,
+  type SerializedLayout,
+} from "./state";
 
-export type LayoutData = GridLayout | undefined;
+export function deserializeLayoutState(
+  layout: SerializedLayout | null | undefined,
+  cells: CellData[],
+): LayoutState {
+  if (layout == null) {
+    return initialLayoutState();
+  }
 
-export interface LayoutState {
-  selectedLayout: LayoutType;
-  layoutData: Partial<Record<LayoutType, LayoutData>>;
-}
+  const plugin = cellRendererPlugins.find(
+    (candidate) => candidate.type === layout.type,
+  );
+  if (plugin === undefined) {
+    Logger.warn(`Unknown layout type: ${layout.type}`);
+    return initialLayoutState();
+  }
 
-export function initialLayoutState(): LayoutState {
   return {
-    selectedLayout: "vertical",
-    layoutData: {},
+    selectedLayout: plugin.type,
+    layoutData: {
+      [plugin.type]: deserializeLayout({
+        type: plugin.type,
+        data: layout.data,
+        cells,
+      }),
+    },
   };
 }
 
-const { valueAtom: layoutStateAtom, useActions } = createReducerAndAtoms(
-  initialLayoutState,
-  {
-    setLayoutView: (state, payload: LayoutType) => {
-      return {
-        ...state,
-        selectedLayout: payload,
-      };
-    },
-    setLayoutData: (
-      state,
-      payload: { layoutView: LayoutType; data: LayoutData },
-    ) => {
-      return {
-        ...state,
-        selectedLayout: payload.layoutView,
-        layoutData: {
-          ...state.layoutData,
-          [payload.layoutView]: payload.data,
-        },
-      };
-    },
-    setCurrentLayoutData: (state, payload: LayoutData) => {
-      return {
-        ...state,
-        layoutData: {
-          ...state.layoutData,
-          [state.selectedLayout]: payload,
-        },
-      };
-    },
-  },
-);
-
-export { layoutStateAtom };
-
-export const useLayoutState = () => {
-  return useAtomValue(layoutStateAtom);
-};
-
-export const useLayoutActions = () => {
-  return useActions();
-};
+export function resolveLayoutData<S, L>({
+  state,
+  plugin,
+  cells,
+}: {
+  state: LayoutState;
+  plugin: ICellRendererPlugin<S, L>;
+  cells: CellData[];
+}): L {
+  const materialized = state.layoutData[plugin.type];
+  if (materialized != null) {
+    return materialized as L;
+  }
+  if (state.pendingLayout?.type === plugin.type) {
+    return deserializeLayout({
+      type: plugin.type,
+      data: state.pendingLayout.data,
+      cells,
+    }) as L;
+  }
+  return plugin.getInitialLayout(cells);
+}
 
 /**
  * Get the serialized layout data, to be used when saving.
  */
 export function getSerializedLayout() {
   const notebook = getNotebook();
-  const { layoutData, selectedLayout } = store.get(layoutStateAtom);
+  const layoutState = store.get(layoutStateAtom);
+  const { selectedLayout } = layoutState;
 
   // Vertical layout has no data, as it is the default.
   if (selectedLayout === "vertical") {
-    return null;
-  }
-
-  if (layoutData === undefined) {
     return null;
   }
 
@@ -92,10 +89,7 @@ export function getSerializedLayout() {
     return null;
   }
   const cells = notebookCells(notebook);
-  // Fall back to the plugin's initial layout when the user has not yet
-  // interacted with this layout — otherwise serializers that expect a
-  // structured layout object crash on `undefined`.
-  const data = layoutData[selectedLayout] ?? plugin.getInitialLayout(cells);
+  const data = resolveLayoutData({ state: layoutState, plugin, cells });
   return {
     type: selectedLayout,
     data: plugin.serializeLayout(data, cells),

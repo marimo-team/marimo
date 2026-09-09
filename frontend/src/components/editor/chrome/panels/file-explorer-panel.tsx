@@ -40,7 +40,7 @@ const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
 
   const getDropDestinationPath = useCallback(
     (event: DropEvent) =>
-      getUploadDestinationForEvent(event, tree.getRootPath()),
+      getUploadDestinationForEvent(event, tree.getPrimaryRootPath()),
     [tree],
   );
   const refreshUploadDestination = useCallback(
@@ -60,7 +60,8 @@ const FileExplorerComponent: React.FC<{ height: number }> = ({ height }) => {
     onDragLeave: () => setDropDestinationPath(null),
     onUploadStart: () => setDropDestinationPath(null),
   });
-  const displayedDestinationPath = dropDestinationPath ?? tree.getRootPath();
+  const displayedDestinationPath =
+    dropDestinationPath ?? tree.getPrimaryRootPath();
   const displayedDestinationLabel = getUploadDestinationLabel(
     tree,
     displayedDestinationPath,

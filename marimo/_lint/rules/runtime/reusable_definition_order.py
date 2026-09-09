@@ -207,7 +207,7 @@ class ReusableDefinitionOrderRule(UnsafeFixRule):
             notebook_index: set()
             for notebook_index in provider_indices.values()
         }
-        indegree = {notebook_index: 0 for notebook_index in graph}
+        indegree = dict.fromkeys(graph, 0)
 
         for status, notebook_index in zip(
             extraction.statuses, notebook_indices, strict=False

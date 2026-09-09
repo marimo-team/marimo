@@ -6,11 +6,13 @@ import type { CellId } from "@/core/cells/ids";
 const SlideTypeSchema = z.enum(["slide", "sub-slide", "fragment", "skip"]);
 export type SlideType = z.infer<typeof SlideTypeSchema>;
 
-const SlideConfigSchema = z.looseObject({
-  type: SlideTypeSchema.optional(),
-  speakerNotes: z.string().optional(),
-  showCode: z.boolean().optional(),
-});
+const SlideConfigSchema = z
+  .looseObject({
+    type: SlideTypeSchema.optional().catch(undefined),
+    speakerNotes: z.string().optional().catch(undefined),
+    showCode: z.boolean().optional().catch(undefined),
+  })
+  .catch({});
 export type SlideConfig = z.infer<typeof SlideConfigSchema>;
 
 const DeckTransitionSchema = z.enum([
@@ -26,10 +28,12 @@ export type DeckTransition = z.infer<typeof DeckTransitionSchema>;
 const DeckVerticalAlignSchema = z.enum(["top", "center", "bottom"]);
 export type DeckVerticalAlign = z.infer<typeof DeckVerticalAlignSchema>;
 
-const DeckConfigSchema = z.looseObject({
-  transition: DeckTransitionSchema.optional(),
-  verticalAlign: DeckVerticalAlignSchema.optional(),
-});
+const DeckConfigSchema = z
+  .looseObject({
+    transition: DeckTransitionSchema.optional().catch(undefined),
+    verticalAlign: DeckVerticalAlignSchema.optional().catch(undefined),
+  })
+  .catch({});
 export type DeckConfig = z.infer<typeof DeckConfigSchema>;
 
 /**
@@ -41,8 +45,8 @@ export type DeckConfig = z.infer<typeof DeckConfigSchema>;
  * keys are preserved (via `looseObject`) for the same reason.
  */
 export const SlidesLayoutSchema = z.looseObject({
-  cells: z.array(SlideConfigSchema).optional(),
-  deck: DeckConfigSchema.optional(),
+  cells: z.array(SlideConfigSchema).optional().catch(undefined),
+  deck: DeckConfigSchema.optional().catch(undefined),
 });
 export type SerializedSlidesLayout = z.infer<typeof SlidesLayoutSchema>;
 
