@@ -873,10 +873,11 @@ def _infer_provider_name_from_base_url(base_url: str | None) -> str | None:
     return _known_provider_base_urls().get(normalized)
 
 
+GITHUB_COPILOT_PACKAGE = "pydantic-ai-slim[openai]>=2.42.0"
 GITHUB_COPILOT_DEPENDENCY = Dependency(
     "pydantic_ai",
     min_version="2.42.0",
-    pkg_name_to_install="pydantic-ai-slim[openai]>=2.42.0",
+    pkg_name_to_install=GITHUB_COPILOT_PACKAGE,
 )
 
 
@@ -886,11 +887,9 @@ def _require_github_copilot_dependency() -> None:
     ) and DependencyManager.openai.has(quiet=True):
         return
 
-    package = GITHUB_COPILOT_DEPENDENCY.pkg_name_to_install
-    assert package is not None
     raise ManyModulesNotFoundError(
-        [package],
-        f"GitHub Copilot requires {package}.",
+        [GITHUB_COPILOT_PACKAGE],
+        f"GitHub Copilot requires {GITHUB_COPILOT_PACKAGE}.",
         source="server",
     )
 
