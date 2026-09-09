@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import msgspec
 
 from marimo import _loggers
+from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.context import safe_get_context
 from marimo._runtime.primitives import (
     is_data_primitive,
@@ -218,6 +219,13 @@ def maybe_update_lazy_stub(value: Any) -> str:
     # MRO not that expensive, type hashable for functools lookup.
     result = mro_lookup(value_type, LAZY_STUB_LOOKUP)
     loader = result[1] if result else "pickle"
+    if (
+        loader == "arrow"
+        and result is not None
+        and result[0].startswith("pandas.")
+        and not DependencyManager.pyarrow.has()
+    ):
+        return "pickle"
     return loader
 
 

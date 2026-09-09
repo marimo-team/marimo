@@ -611,10 +611,19 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"), reason="pandas required"
     )
-    def test_pandas_round_trip(self) -> None:
-        """pandas DataFrames survive save → flush → load via .arrow format."""
+    @pytest.mark.parametrize("pyarrow_available", [True, False])
+    def test_pandas_round_trip(
+        self, monkeypatch: pytest.MonkeyPatch, pyarrow_available: bool
+    ) -> None:
+        """Persist pandas DataFrames with the available serialization backend."""
         import pandas as pd
 
+        if pyarrow_available:
+            pytest.importorskip("pyarrow")
+        else:
+            monkeypatch.setattr(
+                DependencyManager.pyarrow, "has", lambda: False
+            )
         loader = self.instance()
         df = pd.DataFrame({"to_frame": [1, 2], "write_ipc": [3.0, 4.0]})
         cache = Cache(
@@ -623,25 +632,34 @@ class TestLazyLoader(ABCTestLoader):
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
-            meta={"version": MARIMO_CACHE_VERSION},
+            meta={"version": MARIMO_CACHE_VERSION, "return": df},
         )
         assert loader.save_cache(cache)
         loader.flush()
 
-        assert list(Path(self.store.save_path).rglob("*.arrow")), (
-            "expected .arrow blob, got pickle fallback"
-        )
+        extension = "arrow" if pyarrow_available else "pickle"
+        assert list(Path(self.store.save_path).rglob(f"*.{extension}"))
         loaded = loader.load_cache(key("pd_hash", "Pure"))
         assert loaded is not None
         pd.testing.assert_frame_equal(loaded.defs["df"], df)
+        pd.testing.assert_frame_equal(loaded.meta["return"], df)
 
     @pytest.mark.skipif(
         not DependencyManager.has("pandas"), reason="pandas required"
     )
-    def test_pandas_series_round_trip(self) -> None:
-        """pandas Series survive save → flush → load via .arrow format."""
+    @pytest.mark.parametrize("pyarrow_available", [True, False])
+    def test_pandas_series_round_trip(
+        self, monkeypatch: pytest.MonkeyPatch, pyarrow_available: bool
+    ) -> None:
+        """Persist pandas Series with the available serialization backend."""
         import pandas as pd
 
+        if pyarrow_available:
+            pytest.importorskip("pyarrow")
+        else:
+            monkeypatch.setattr(
+                DependencyManager.pyarrow, "has", lambda: False
+            )
         loader = self.instance()
         s = pd.Series([10, 20, 30], name="vals")
         cache = Cache(
@@ -650,15 +668,15 @@ class TestLazyLoader(ABCTestLoader):
             cache_type="Pure",
             stateful_refs=set(),
             hit=False,
-            meta={"version": MARIMO_CACHE_VERSION},
+            meta={"version": MARIMO_CACHE_VERSION, "return": s},
         )
         assert loader.save_cache(cache)
         loader.flush()
 
-        assert list(Path(self.store.save_path).rglob("*.arrow")), (
-            "expected .arrow blob, got pickle fallback"
-        )
+        extension = "arrow" if pyarrow_available else "pickle"
+        assert list(Path(self.store.save_path).rglob(f"*.{extension}"))
         loaded = loader.load_cache(key("pd_series_hash", "Pure"))
         assert loaded is not None
         assert isinstance(loaded.defs["s"], pd.Series)
         pd.testing.assert_series_equal(loaded.defs["s"], s)
+        pd.testing.assert_series_equal(loaded.meta["return"], s)

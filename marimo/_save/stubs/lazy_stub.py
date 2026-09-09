@@ -280,9 +280,6 @@ def _arrow_dump(obj: Any) -> bytes:
         buf = io.BytesIO()
         frame.write_ipc(buf)
         return buf.getvalue()
-    # Fall back to pickle when pyarrow is absent so the cache write never fails.
-    if not DependencyManager.pyarrow.has():
-        return pickle.dumps(obj)
     return _pandas_to_arrow_ipc(frame)
 
 
