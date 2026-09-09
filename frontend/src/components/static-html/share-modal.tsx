@@ -21,14 +21,14 @@ import { Input } from "../ui/input";
 import { Tooltip } from "../ui/tooltip";
 
 const BASE_URL = "https://static.marimo.app";
+const createRandomHash = () => Math.random().toString(36).slice(2, 6);
 
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
+  const [randomHash, setRandomHash] = useState("");
   const { exportAsHTML } = useRequestClient();
-  // Keep one random suffix for the lifetime of the modal.
-  const [randomHash] = useState(() => Math.random().toString(36).slice(2, 6));
 
   // Globally unique path
   const path = `${slug}-${randomHash}`;
@@ -120,6 +120,7 @@ export const ShareStaticNotebookModal: React.FC<{
                 .replaceAll(/\s/g, "-")
                 .replaceAll(/[^\da-z-]/g, "");
               setSlug(newSlug);
+              setRandomHash((currentHash) => currentHash || createRandomHash());
             }}
             required={true}
             autoComplete="off"
