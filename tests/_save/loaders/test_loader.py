@@ -616,7 +616,7 @@ class TestLazyLoader(ABCTestLoader):
         import pandas as pd
 
         loader = self.instance()
-        df = pd.DataFrame({"to_frame": [1, 2], "y": [3.0, 4.0]})
+        df = pd.DataFrame({"to_frame": [1, 2], "write_ipc": [3.0, 4.0]})
         cache = Cache(
             defs={"df": df},
             hash="pd_hash",

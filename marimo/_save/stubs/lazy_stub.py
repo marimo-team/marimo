@@ -270,11 +270,13 @@ def _arrow_dump(obj: Any) -> bytes:
     #   pandas DataFrame  → Arrow IPC via pyarrow.ipc
     #   Series (either)   → to_frame() first, then the appropriate DataFrame method
     # DataFrame columns can shadow Series method names such as to_frame.
-    if hasattr(obj, "write_ipc") or hasattr(obj, "to_feather"):
+    if callable(getattr(type(obj), "write_ipc", None)) or callable(
+        getattr(type(obj), "to_feather", None)
+    ):
         frame = obj
     else:
         frame = obj.to_frame()
-    if hasattr(frame, "write_ipc"):
+    if callable(getattr(type(frame), "write_ipc", None)):
         buf = io.BytesIO()
         frame.write_ipc(buf)
         return buf.getvalue()
