@@ -438,8 +438,7 @@ const ExpandableOutput = React.memo(
     const isFullscreen =
       fullScreenElement !== null && fullScreenElement === containerRef.current;
 
-    // Browsers handle Escape themselves. Embedded hosts such as JCEF deliver
-    // the key event but do not act on it.
+    // Not every host exits fullscreen on Escape by itself.
     useEffect(() => {
       if (!isFullscreen) {
         return;
@@ -518,10 +517,9 @@ const ExpandableOutput = React.memo(
               isExpanded || forceExpand ? { maxHeight: "none" } : undefined
             }
           >
-            {/* The action buttons above sit outside this element, and fullscreen
-                paints this element only. Some hosts, for example the JCEF
-                browser in JetBrains IDEs, draw no exit overlay, so the output
-                must carry its own exit control. */}
+            {/* Fullscreen paints this element only, and the action buttons sit
+                outside it. A host does not always draw an exit overlay, so the
+                output carries its own exit control. */}
             {isFullscreen && (
               <Tooltip content="Exit fullscreen" side="left">
                 <Button
