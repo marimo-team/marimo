@@ -75,23 +75,6 @@ def standardize_tensor(tensor: Tensor) -> Tensor:
 
 def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
     """Return a contiguous uint8 view of a tensor/array."""
-    if f"{type(data).__module__}.{type(data).__name__}" in (
-        "polars.dataframe.frame.DataFrame",
-        "polars.series.series.Series",
-    ):
-        from polars.exceptions import PanicException, PolarsError
-
-        # Preserve column types and names, including mixed and string columns
-        # whose NumPy representation contains Python object references.
-        frame = data.to_frame() if hasattr(data, "to_frame") else data
-        buffer = io.BytesIO()
-        try:
-            frame.rechunk().write_ipc(buffer)
-        except (PolarsError, PanicException) as exc:
-            raise TypeError(
-                "Polars value cannot be serialized to IPC."
-            ) from exc
-        return buffer.getbuffer()
     data = standardize_tensor(data)
     # From joblib.hashing
     if data.shape == ():
@@ -156,7 +139,11 @@ def common_container_to_bytes(value: Any) -> bytes:
 
         if is_primitive(value):
             return primitive_to_bytes(value)
-        return data_to_buffer(value)
+        if is_data_primitive(value):
+            return data_to_buffer(value)
+        raise TypeError(
+            f"Expected numeric array data, got {type(value).__name__}"
+        )
 
     return recurse_container(value)
 

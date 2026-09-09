@@ -147,35 +147,44 @@ def test_bytearray_does_not_collide_with_equal_bytes() -> None:
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars required"
 )
-def test_polars_dataframe_hash_includes_values_and_schema() -> None:
+def test_polars_numeric_hash_depends_on_values() -> None:
     import polars as pl
 
-    frame = pl.DataFrame({"count": [1, 2], "label": ["a", "b"]})
+    frame = pl.DataFrame({"x": [1, 2], "y": [3, 4]})
     encoded = data_to_buffer(frame)
-
-    assert encoded == data_to_buffer(frame.clone())
-    assert encoded == data_to_buffer(
-        pl.concat([frame.head(1), frame.tail(1)], rechunk=False)
-    )
-    assert encoded != data_to_buffer(
-        pl.DataFrame({"count": [1, 2], "label": ["a", "c"]})
-    )
-    assert encoded != data_to_buffer(frame.rename({"label": "name"}))
-    assert encoded != data_to_buffer(frame.cast({"count": pl.Int32}))
+    assert encoded == data_to_buffer(frame.rename({"x": "renamed"}))
+    assert encoded != data_to_buffer(pl.DataFrame({"x": [1, 2], "y": [3, 5]}))
 
 
 @pytest.mark.skipif(
     not DependencyManager.polars.has(), reason="polars required"
 )
-def test_polars_series_hash_includes_name_and_values() -> None:
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_state_uses_fallback(as_frame: bool) -> None:
     import polars as pl
 
     series = pl.Series("label", ["a", "b"])
-    encoded = data_to_buffer(series)
+    data = (
+        series.to_frame().with_columns(count=pl.Series([1, 2]))
+        if as_frame
+        else series
+    )
+    value = {"data": data}
+    assert attempt_signed_bytes(value, "state") is value
 
-    assert encoded == data_to_buffer(series.clone())
-    assert encoded != data_to_buffer(pl.Series("label", ["a", "c"]))
-    assert encoded != data_to_buffer(series.rename("name"))
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_pickle_fallback_preserves_values(
+    as_frame: bool,
+) -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    value = series.to_frame() if as_frame else series
+    assert pickle.loads(deterministic_dumps(value, "sha256")).equals(value)
 
 
 @pytest.mark.skipif(
@@ -193,40 +202,3 @@ def test_polars_object_hash_uses_fallback(
     value = {"data": value} if in_container else value
 
     assert attempt_signed_bytes(value, "state") is value
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="polars required"
-)
-@pytest.mark.parametrize(
-    "error_name", ["InvalidOperationError", "SchemaError", "PanicException"]
-)
-def test_polars_ipc_errors_use_state_hash_fallback(
-    monkeypatch: pytest.MonkeyPatch, error_name: str
-) -> None:
-    import polars as pl
-
-    value = {"data": pl.DataFrame({"x": [1, 2]})}
-
-    def fail_write_ipc(*_args: Any, **_kwargs: Any) -> None:
-        raise getattr(pl.exceptions, error_name)("unsupported IPC data")
-
-    monkeypatch.setattr(pl.DataFrame, "write_ipc", fail_write_ipc)
-    assert attempt_signed_bytes(value, "state") is value
-
-
-@pytest.mark.skipif(
-    not DependencyManager.polars.has(), reason="polars required"
-)
-def test_polars_ipc_panic_uses_pickle_fallback(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    import polars as pl
-
-    frame = pl.DataFrame({"x": [1, 2]})
-
-    def fail_write_ipc(*_args: Any, **_kwargs: Any) -> None:
-        raise pl.exceptions.PanicException("unsupported IPC data")
-
-    monkeypatch.setattr(pl.DataFrame, "write_ipc", fail_write_ipc)
-    assert pickle.loads(deterministic_dumps(frame, "sha256")).equals(frame)

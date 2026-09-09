@@ -24,6 +24,27 @@ class TestDataPrimitiveClassification:
 
         assert is_data_primitive(_ClassLikeArray) is False
 
+    @pytest.mark.skipif(
+        not DependencyManager.polars.has(), reason="polars required"
+    )
+    def test_polars_series_numeric_classification(self) -> None:
+        import polars as pl
+
+        values = [
+            pl.Series("integer", [1, 2]),
+            pl.Series("float", [1.0, 2.0]),
+            pl.Series("string", ["a", "b"]),
+            pl.Series("list", [[1], [2]]),
+            pl.Series("object", [object()], dtype=pl.Object),
+        ]
+        assert {value.name: is_data_primitive(value) for value in values} == {
+            "integer": True,
+            "float": True,
+            "string": False,
+            "list": False,
+            "object": False,
+        }
+
 
 class TestWrappedFunctionHandling:
     """Test handling of wrapped functions (decorators) in is_pure_function."""
