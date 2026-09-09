@@ -903,20 +903,30 @@ class GitHubCopilotProvider(PydanticProvider["Provider"]):
 
     @override
     def create_provider(self, config: AnyProviderConfig) -> Provider:
-        provider_class = _try_infer_provider_class("github-copilot")
-        assert provider_class is not None
-        return provider_class(  # type: ignore[call-arg]
-            api_key=config.api_key,
-            base_url=config.base_url,
+        from pydantic_ai.providers.github_copilot import (  # type: ignore[import-not-found]
+            GitHubCopilotProvider as PydanticGitHubCopilotProvider,
+        )
+
+        return cast(
+            "Provider",
+            PydanticGitHubCopilotProvider(
+                api_key=config.api_key,
+                base_url=config.base_url,
+            ),
         )
 
     @override
     def create_model(self) -> Model:
-        from pydantic_ai.models import infer_model
+        from pydantic_ai.models.github_copilot import (  # type: ignore[import-not-found]
+            GitHubCopilotModel,
+        )
 
-        return infer_model(
-            f"github-copilot:{self.model}",
-            provider_factory=lambda _: self.provider,
+        return cast(
+            "Model",
+            GitHubCopilotModel(
+                model_name=self.model,
+                provider=self.provider,
+            ),
         )
 
 
