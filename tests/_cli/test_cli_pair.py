@@ -339,6 +339,72 @@ Options:
         assert execute_calls[0]["stream"] is False
 
 
+class TestPairDocs:
+    def test_docs_help_lists_bundled_topics(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "docs", "--help"])
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair docs [OPTIONS] [TOPIC]
+
+  Read notebook guidance on demand.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Available topics:
+  gotchas                Gotchas
+  notebook-improvements  Notebook Improvements
+  rich-representations   Rich Representations
+""")
+
+    def test_docs_prints_topic(self) -> None:
+        reference = commands._REFERENCES_DIR / "gotchas.md"
+
+        result = _runner.invoke(cli_main, ["pair", "docs", "gotchas"])
+
+        assert result.exit_code == 0
+        assert result.output == reference.read_text(encoding="utf-8")
+
+    def test_docs_lists_topics(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "docs"])
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+gotchas  Gotchas
+notebook-improvements  Notebook Improvements
+rich-representations  Rich Representations
+""")
+
+    def test_docs_rejects_unknown_topic(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "docs", "nope"])
+
+        assert result.exit_code == 2
+        assert (
+            "Valid topics: gotchas, notebook-improvements, "
+            "rich-representations" in result.output
+        )
+
+    def test_docs_help_discovers_new_topic(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        (tmp_path / "extra.md").write_text(
+            "# Extra Guidance\n\nDetails.\n", encoding="utf-8"
+        )
+        monkeypatch.setattr(commands, "_REFERENCES_DIR", tmp_path)
+
+        result = _runner.invoke(cli_main, ["pair", "docs", "--help"])
+
+        assert result.exit_code == 0
+        assert "extra  Extra Guidance" in result.output
+
+    def test_docs_rejects_path_traversal(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "docs", "../x"])
+
+        assert result.exit_code == 2
+        assert "Valid topics:" in result.output
+
+
 class TestPairPrompt:
     def test_prompt_requires_url(self) -> None:
         result = _runner.invoke(cli_main, ["pair", "prompt"])

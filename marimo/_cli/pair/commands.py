@@ -15,9 +15,13 @@ from marimo._cli.pair.client import (
     execute as execute_code,
     load_token,
 )
+from marimo._server.ai.skills import utils as skills_utils
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
+_REFERENCES_DIR = (
+    Path(skills_utils.__file__).parent / "marimo-pair" / "references"
+)
 
 
 _cached_token_dir: Path | None = None
@@ -124,6 +128,26 @@ def pair_agents() -> dict[str, AgentConfig]:
             skill_dirs=_opencode_skill_dirs(),
         ),
     }
+
+
+def _doc_topics() -> dict[str, str]:
+    return {
+        path.stem: path.read_text(encoding="utf-8")
+        .splitlines()[0]
+        .removeprefix("# ")
+        for path in sorted(_REFERENCES_DIR.glob("*.md"))
+    }
+
+
+class _DocsCommand(ColoredCommand):
+    def format_epilog(
+        self, ctx: click.Context, formatter: click.HelpFormatter
+    ) -> None:
+        del ctx
+        formatter.write_paragraph()
+        formatter.write_text("Available topics:")
+        with formatter.indentation():
+            formatter.write_dl(list(_doc_topics().items()))
 
 
 @click.group(
@@ -239,6 +263,30 @@ def execute(
 
     if not result.success:
         ctx.exit(1)
+
+
+@click.command(
+    cls=_DocsCommand,
+    help="Read notebook guidance on demand.",
+)
+@click.argument("topic", required=False)
+def docs(topic: str | None) -> None:
+    topics = _doc_topics()
+    if topic is None:
+        for name, title in topics.items():
+            click.echo(f"{name}  {title}")
+        return
+
+    if topic not in topics:
+        valid_topics = ", ".join(topics)
+        raise click.UsageError(
+            f"Unknown topic {topic!r}. Valid topics: {valid_topics}."
+        )
+
+    click.echo(
+        (_REFERENCES_DIR / f"{topic}.md").read_text(encoding="utf-8"),
+        nl=False,
+    )
 
 
 @click.command(
@@ -370,4 +418,5 @@ def prompt(
 
 
 pair.add_command(execute)
+pair.add_command(docs)
 pair.add_command(prompt)
