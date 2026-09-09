@@ -27,6 +27,8 @@ export const LANGUAGE_MAP: Record<string, LanguageName | undefined> = {
   undefined: "text",
 };
 
+const EMPTY_EXTENSIONS: readonly Extension[] = [];
+
 function isSupportedLanguage(
   language: string | undefined,
 ): language is LanguageName {
@@ -43,17 +45,18 @@ function isSupportedLanguage(
  * language support.
  */
 const AnyLanguageCodeMirror: React.FC<
-  ReactCodeMirrorProps & {
+  Omit<ReactCodeMirrorProps, "extensions"> & {
     language: string | undefined;
     hideUnsupportedLanguageErrors?: boolean;
     theme: ResolvedTheme;
     showCopyButton?: boolean;
+    extensions?: readonly Extension[];
   }
 > = ({
   language,
   hideUnsupportedLanguageErrors,
   showCopyButton,
-  extensions = [],
+  extensions = EMPTY_EXTENSIONS,
   ...props
 }) => {
   // Maybe normalize the language to the extension
@@ -64,7 +67,7 @@ const AnyLanguageCodeMirror: React.FC<
     Logger.warn(`Language ${language} not found in CodeMirror.`);
   }
 
-  const finalExtensions = useMemo((): Extension[] => {
+  const finalExtensions = useMemo((): readonly Extension[] => {
     if (!isSupportedLanguage(language)) {
       return extensions;
     }
@@ -90,7 +93,7 @@ const AnyLanguageCodeMirror: React.FC<
           toastTitle="Copied to clipboard"
         />
       )}
-      <ReactCodeMirror {...props} extensions={finalExtensions} />
+      <ReactCodeMirror {...props} extensions={[...finalExtensions]} />
     </div>
   );
 };

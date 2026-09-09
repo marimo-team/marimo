@@ -60,15 +60,17 @@ interface Props<T extends FieldValues> {
   form: UseFormReturn<T>;
   schema: z.ZodType;
   path?: Path<T>;
-  renderers: FormRenderer<T>[] | undefined;
+  renderers: readonly FormRenderer<T>[] | undefined;
   children?: React.ReactNode;
 }
+
+const EMPTY_RENDERERS: readonly never[] = [];
 
 export const ZodForm = <T extends FieldValues>({
   schema,
   form,
   path = "" as Path<T>,
-  renderers = [],
+  renderers = EMPTY_RENDERERS,
   children,
 }: Props<T>) => {
   return (
@@ -83,7 +85,7 @@ export interface RenderZodSchemaOptions<T extends FieldValues, S> {
   schema: z.ZodType<S>;
   form: UseFormReturn<T>;
   path: Path<T>;
-  renderers: FormRenderer<T>[];
+  renderers: readonly FormRenderer<T>[];
 }
 
 export function renderZodSchema<T extends FieldValues, S>({
@@ -516,7 +518,7 @@ const FormArray = ({
   schema: z.ZodType;
   form: UseFormReturn<any>;
   path: Path<any>;
-  renderers: FormRenderer[];
+  renderers: readonly FormRenderer[];
   minLength?: number;
 }) => {
   const { label, description } = FieldOptions.parse(schema.description || "");

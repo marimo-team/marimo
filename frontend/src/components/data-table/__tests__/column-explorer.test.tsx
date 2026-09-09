@@ -25,6 +25,7 @@ const FIELD_TYPES: FieldTypesWithExternalType = [
 ];
 
 type Row = Record<string, unknown>;
+const EMPTY_HIDDEN_COLUMNS: readonly string[] = [];
 
 const TEST_COLUMNS: ColumnDef<Row>[] = [
   { id: "customer_name", accessorKey: "customer_name" },
@@ -34,12 +35,12 @@ const TEST_COLUMNS: ColumnDef<Row>[] = [
 
 interface HarnessProps {
   totalColumns?: number;
-  initiallyHidden?: string[];
+  initiallyHidden?: readonly string[];
 }
 
 function PanelHarness({
   totalColumns = 3,
-  initiallyHidden = [],
+  initiallyHidden = EMPTY_HIDDEN_COLUMNS,
 }: HarnessProps) {
   const table = useReactTable<Row>({
     data: [],
