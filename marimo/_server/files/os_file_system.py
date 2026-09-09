@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 from collections import deque
+from functools import lru_cache
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -91,7 +92,7 @@ class OSFileSystem(FileSystem):
                         name=entry.name,
                         is_directory=is_directory,
                         is_marimo_file=not is_directory
-                        and self._is_marimo_file(entry.path),
+                        and self._is_marimo_file(entry.path, entry_stat),
                         last_modified=entry_stat.st_mtime,
                         size=None if is_directory else entry_stat.st_size,
                     )
@@ -114,7 +115,8 @@ class OSFileSystem(FileSystem):
             path=path,
             name=os.path.basename(path),
             is_directory=is_directory,
-            is_marimo_file=not is_directory and self._is_marimo_file(path),
+            is_marimo_file=not is_directory
+            and self._is_marimo_file(path, stat),
             last_modified=stat.st_mtime,
             size=None if is_directory else stat.st_size,
         )
@@ -174,14 +176,20 @@ class OSFileSystem(FileSystem):
             is_too_large=is_too_large,
         )
 
-    def _is_marimo_file(self, path: str) -> bool:
+    def _is_marimo_file(
+        self, path: str, stat: os.stat_result | None = None
+    ) -> bool:
         file_path = Path(path)
         if file_path.suffix not in (".py", ".md", ".qmd"):
             return False
 
-        from marimo._server.files.directory_scanner import is_marimo_app
-
-        return is_marimo_app(path)
+        try:
+            stat = stat or os.stat(path)
+        except OSError:
+            return False
+        return _is_marimo_file_cached(
+            path, stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+        )
 
     def open_file(self, path: str, encoding: str | None = None) -> str | bytes:
         file_path = Path(path)
@@ -332,6 +340,7 @@ class OSFileSystem(FileSystem):
         path: str | None = None,
         include_directories: bool = True,
         include_files: bool = True,
+        include_hidden: bool = True,
         depth: int = 3,
         limit: int = 100,
     ) -> list[FileInfo]:
@@ -366,9 +375,10 @@ class OSFileSystem(FileSystem):
                 continue
 
             # Skip if we've already processed this path (avoid symlink loops)
-            if current_path in seen_paths:
+            real_path = os.path.realpath(current_path)
+            if real_path in seen_paths:
                 continue
-            seen_paths.add(current_path)
+            seen_paths.add(real_path)
 
             try:
                 # Use os.scandir for better performance than os.listdir
@@ -378,7 +388,9 @@ class OSFileSystem(FileSystem):
                             break
 
                         # Skip ignored files/directories
-                        if entry.name in SEARCH_IGNORE_LIST:
+                        if entry.name in SEARCH_IGNORE_LIST or (
+                            not include_hidden and entry.name.startswith(".")
+                        ):
                             continue
 
                         # Check if name matches query
@@ -494,6 +506,17 @@ class OSFileSystem(FileSystem):
         except Exception as e:
             LOGGER.error(f"Error opening file: {e}")
             return False
+
+
+@lru_cache(maxsize=4096)
+def _is_marimo_file_cached(
+    path: str, _mtime_ns: int, _ctime_ns: int, _size: int
+) -> bool:
+    # Metadata invalidates cached detection when a file changes; repeated
+    # directory listings need not scan unchanged file contents.
+    from marimo._server.files.directory_scanner import is_marimo_app
+
+    return is_marimo_app(path)
 
 
 def editor_open_file_in_line_args(

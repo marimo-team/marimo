@@ -80,6 +80,7 @@ class FileSystem(ABC):
         path: str | None = None,
         include_directories: bool = True,
         include_files: bool = True,
+        include_hidden: bool = True,
         depth: int = 3,
         limit: int = 100,
     ) -> list[FileInfo]:
@@ -88,6 +89,7 @@ class FileSystem(ABC):
         Args:
             query: Search query string (matches file/directory names)
             path: Root path to search from (defaults to root)
+            include_hidden: Include hidden files and traverse hidden directories
             include_directories: Include directories
             include_files: Include files
             depth: Maximum depth to search (default: 3)

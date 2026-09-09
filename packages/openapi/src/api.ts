@@ -5108,6 +5108,8 @@ export interface components {
       includeDirectories?: boolean;
       /** @default true */
       includeFiles?: boolean;
+      /** @default true */
+      includeHidden?: boolean;
       /** @default 100 */
       limit?: number;
       /** @default null */
