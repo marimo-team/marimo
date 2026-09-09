@@ -11,6 +11,8 @@ describe("badgeVariants", () => {
         "forced-colors:bg-[Highlight]",
         "forced-colors:border-[Highlight]",
         "forced-colors:text-[HighlightText]",
+        "forced-colors:hover:bg-[Highlight]",
+        "forced-colors:hover:text-[HighlightText]",
       ],
     },
     {
@@ -27,6 +29,8 @@ describe("badgeVariants", () => {
         "forced-colors:bg-[ButtonFace]",
         "forced-colors:border-[ButtonText]",
         "forced-colors:text-[ButtonText]",
+        "forced-colors:hover:bg-[Highlight]",
+        "forced-colors:hover:text-[HighlightText]",
       ],
     },
   ])("uses system colors for $variant", ({ variant, expected }) => {
@@ -50,6 +54,10 @@ describe("badgeVariants", () => {
           ].join(" "),
         ),
       );
+      if (variant !== "outline") {
+        expect(classes).toContain("forced-colors:hover:bg-[Highlight]");
+        expect(classes).toContain("forced-colors:hover:text-[HighlightText]");
+      }
     },
   );
 });

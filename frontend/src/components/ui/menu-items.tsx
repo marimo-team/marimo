@@ -16,7 +16,7 @@ export const menuContentCommon = cva(
 );
 
 export const menuSubTriggerVariants = cva(
-  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden focus-visible:bg-accent focus-visible:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground forced-color-adjust-none forced-colors:focus-visible:bg-[Highlight] forced-colors:focus-visible:text-[HighlightText] forced-colors:data-[state=open]:bg-[Highlight] forced-colors:data-[state=open]:text-[HighlightText]",
+  "flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground forced-color-adjust-none forced-colors:data-[highlighted]:bg-[Highlight] forced-colors:data-[highlighted]:text-[HighlightText] forced-colors:data-[state=open]:bg-[Highlight] forced-colors:data-[state=open]:text-[HighlightText]",
   {
     variants: {
       inset: {
@@ -31,7 +31,7 @@ export const MENU_ITEM_DISABLED =
 
 export const menuControlVariants = cva(
   cn(
-    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors focus-visible:bg-accent focus-visible:text-accent-foreground forced-color-adjust-none forced-colors:focus-visible:bg-[Highlight] forced-colors:focus-visible:text-[HighlightText]",
+    "relative flex cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-hidden transition-colors data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground forced-color-adjust-none forced-colors:data-[highlighted]:bg-[Highlight] forced-colors:data-[highlighted]:text-[HighlightText]",
     MENU_ITEM_DISABLED,
   ),
   { variants: {} },
@@ -54,7 +54,7 @@ export const menuLabelVariants = cva("px-2 py-1.5 text-sm font-semibold", {
 
 export const menuItemVariants = cva(
   cn(
-    "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden forced-color-adjust-none forced-colors:focus-visible:bg-[Highlight] forced-colors:focus-visible:text-[HighlightText] forced-colors:aria-selected:bg-[Highlight] forced-colors:aria-selected:text-[HighlightText]",
+    "menu-item relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-hidden forced-color-adjust-none forced-colors:data-[highlighted]:bg-[Highlight] forced-colors:data-[highlighted]:text-[HighlightText] forced-colors:aria-selected:bg-[Highlight] forced-colors:aria-selected:text-[HighlightText]",
     MENU_ITEM_DISABLED,
   ),
   {
@@ -64,13 +64,13 @@ export const menuItemVariants = cva(
       },
       variant: {
         default:
-          "focus-visible:bg-accent focus-visible:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
+          "data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground aria-selected:bg-accent aria-selected:text-accent-foreground",
         danger:
-          "focus-visible:bg-(--red-5) focus-visible:text-(--red-12) aria-selected:bg-(--red-5) aria-selected:text-(--red-12)",
+          "data-[highlighted]:bg-(--red-5) data-[highlighted]:text-(--red-12) aria-selected:bg-(--red-5) aria-selected:text-(--red-12)",
         muted:
-          "focus-visible:bg-muted/70 focus-visible:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
+          "data-[highlighted]:bg-muted/70 data-[highlighted]:text-muted-foreground aria-selected:bg-muted/70 aria-selected:text-muted-foreground",
         success:
-          "focus-visible:bg-(--grass-3) focus-visible:text-(--grass-11) aria-selected:bg-(--grass-3) aria-selected:text-(--grass-11)",
+          "data-[highlighted]:bg-(--grass-3) data-[highlighted]:text-(--grass-11) aria-selected:bg-(--grass-3) aria-selected:text-(--grass-11)",
         disabled: "text-muted-foreground",
       },
     },

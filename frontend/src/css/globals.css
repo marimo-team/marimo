@@ -165,6 +165,11 @@
     transition-duration: 0.01ms !important;
     transition-delay: 0s !important;
   }
+
+  .marimo .running-app-icon {
+    visibility: visible !important;
+    animation-name: none !important;
+  }
 }
 
 @media (forced-colors: active) {

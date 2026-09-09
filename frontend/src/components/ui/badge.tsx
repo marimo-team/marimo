@@ -11,15 +11,15 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-primary hover:bg-primary/60 border-transparent text-primary-foreground forced-colors:bg-[Highlight] forced-colors:border-[Highlight] forced-colors:text-[HighlightText]",
+          "bg-primary hover:bg-primary/60 border-transparent text-primary-foreground forced-colors:bg-[Highlight] forced-colors:border-[Highlight] forced-colors:text-[HighlightText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         defaultOutline:
           "bg-(--blue-2) border-(--blue-8) text-(--blue-11) forced-colors:bg-[Canvas] forced-colors:border-[Highlight] forced-colors:text-[CanvasText]",
         secondary:
-          "bg-secondary hover:bg-secondary/80 border-transparent text-secondary-foreground forced-colors:bg-[ButtonFace] forced-colors:border-[ButtonText] forced-colors:text-[ButtonText]",
+          "bg-secondary hover:bg-secondary/80 border-transparent text-secondary-foreground forced-colors:bg-[ButtonFace] forced-colors:border-[ButtonText] forced-colors:text-[ButtonText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         destructive:
-          "bg-(--red-2) border-(--red-6) text-(--red-9) hover:bg-(--red-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText]",
+          "bg-(--red-2) border-(--red-6) text-(--red-9) hover:bg-(--red-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         success:
-          "bg-(--grass-2) border-(--grass-5) text-(--grass-9) hover:bg-(--grass-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText]",
+          "bg-(--grass-2) border-(--grass-5) text-(--grass-9) hover:bg-(--grass-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         outline:
           "text-foreground forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText]",
       },

@@ -34,7 +34,11 @@ test("reduces motion in the marimo namespace", async ({ page }) => {
     const probe = document.createElement("div");
     probe.className = "animate-spin transition-all duration-300";
     root.append(probe);
+    const runningAppIcon = document.createElement("div");
+    runningAppIcon.className = "running-app-icon";
+    root.append(runningAppIcon);
     const style = getComputedStyle(probe);
+    const runningAppIconStyle = getComputedStyle(runningAppIcon);
     const result = {
       animationDelay: style.animationDelay,
       animationDuration: style.animationDuration,
@@ -42,8 +46,11 @@ test("reduces motion in the marimo namespace", async ({ page }) => {
       scrollBehavior: style.scrollBehavior,
       transitionDelay: style.transitionDelay,
       transitionDuration: style.transitionDuration,
+      runningAppIconAnimationName: runningAppIconStyle.animationName,
+      runningAppIconVisibility: runningAppIconStyle.visibility,
     };
     probe.remove();
+    runningAppIcon.remove();
     return result;
   });
 
@@ -57,6 +64,8 @@ test("reduces motion in the marimo namespace", async ({ page }) => {
   expect(cssTimeToMilliseconds(styles.transitionDelay)).toBe(0);
   expect(styles.animationIterationCount).toBe("1");
   expect(styles.scrollBehavior).toBe("auto");
+  expect(styles.runningAppIconAnimationName).toBe("none");
+  expect(styles.runningAppIconVisibility).toBe("visible");
 });
 
 test("uses visible system colors for control states", async ({ page }) => {
@@ -114,6 +123,7 @@ test("uses visible system colors for control states", async ({ page }) => {
   expect(disabledColors).toEqual({ border: grayText, text: grayText });
 
   const input = page.getByTestId("marimo-plugin-text-input");
+  await page.keyboard.press("Tab");
   await input.focus();
   await expect(input).toBeFocused();
   const focusOutline = await input.evaluate((element) => {
