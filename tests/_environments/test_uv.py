@@ -184,44 +184,41 @@ def test_uv_adapter_reports_the_exact_invocation(
 ) -> None:
     """The reported command is the argv the runner executes, not a
     reconstruction that could drift from it."""
+    from unittest.mock import Mock, patch
+
     from marimo._environments import uv as uv_module
     from marimo._environments.backends import UvBackendAdapter
-    from marimo._environments.sandbox import SandboxCommand
+    from marimo._environments.sandbox import SandboxCommand, SandboxReporter
     from marimo._environments.script_metadata import MaterializedScript
 
-    executed: list[list[str]] = []
-
-    def fake_uv(
-        args: list[str], *, on_command: object = None, **kwargs: object
-    ) -> CompletedProcess[str]:
-        del kwargs
-        command = ["/local/uv", *args]
-        if on_command is not None:
-            on_command(command)  # type: ignore[operator]
-        executed.append(command)
-        return CompletedProcess(command, 0, stdout="", stderr="")
-
-    monkeypatch.setattr(uv_module, "uv", fake_uv)
-
-    class Recorder:
-        def __init__(self) -> None:
-            self.commands: list[SandboxCommand] = []
-
-        def report(self, command: SandboxCommand) -> None:
-            self.commands.append(command)
-
-    recorder = Recorder()
+    executable = str(tmp_path / "uv")
+    monkeypatch.setenv("UV", executable)
+    recorder = Mock(spec=SandboxReporter)
     target = MaterializedScript(
         path=str(tmp_path / "nb.py"), directory=str(tmp_path)
     )
+    with patch.object(
+        uv_module.subprocess,
+        "run",
+        return_value=CompletedProcess([], 0, stdout="", stderr=""),
+    ) as run:
+        UvBackendAdapter(recorder).add(
+            target, "polars", upgrade=False, on_output=None
+        )
 
-    UvBackendAdapter(recorder).add(
-        target, "polars", upgrade=False, on_output=None
+    expected = [
+        executable,
+        "--quiet",
+        "add",
+        "--script",
+        target.path,
+        "polars",
+    ]
+    assert run.call_args.args == (expected,)
+    assert run.call_args.kwargs["cwd"] == target.directory
+    recorder.report.assert_called_once_with(
+        SandboxCommand(backend="uv", operation="add", argv=tuple(expected))
     )
-
-    assert [list(command.argv) for command in recorder.commands] == executed
-    assert recorder.commands[0].operation == "add"
-    assert "--quiet" in recorder.commands[0].argv
 
 
 def test_uv_adapter_inspects_the_script_environment(
