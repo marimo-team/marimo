@@ -21,13 +21,14 @@ import { Input } from "../ui/input";
 import { Tooltip } from "../ui/tooltip";
 
 const BASE_URL = "https://static.marimo.app";
-
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
   const { exportAsHTML } = useRequestClient();
-  // 4 character random string
+
+  // Keep one random suffix for the lifetime of the modal.
+  // oxlint-disable-next-line react/purity
   const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
 
   // Globally unique path
