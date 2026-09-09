@@ -497,7 +497,64 @@ describe("file browser navigation", () => {
     ).toEqual(["/workspace", "/shared"]);
   });
 
-  it("reports a failed root without presenting incomplete search results, and retries all roots", async () => {
+  it("shows an error when every search root fails", async () => {
+    client.sendSearchFiles.mockRejectedValue(new Error("Unavailable"));
+    render(<FileExplorer height={300} />, { wrapper });
+    const input = await screen.findByRole("textbox", {
+      name: "Search files and folders",
+    });
+    fireEvent.change(input, { target: { value: "report" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not search files",
+    );
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("retries failed hover expansion only after leaving and reentering", async () => {
+    const { rerender } = render(<FileExplorer height={300} />, { wrapper });
+    const folder = await screen.findByRole("treeitem", { name: "data" });
+    client.sendListFiles.mockRejectedValue(new Error("Unavailable"));
+    client.sendListFiles.mockClear();
+    vi.useFakeTimers();
+    try {
+      rerender(
+        <FileExplorer
+          height={300}
+          externalDropDestinationPath={"/workspace/data" as FilePath}
+        />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY);
+      });
+      expect(folder).toHaveAttribute("aria-expanded", "false");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY * 5);
+      });
+      expect(client.sendListFiles).toHaveBeenCalledTimes(1);
+      rerender(
+        <FileExplorer height={300} externalDropDestinationPath={null} />,
+      );
+      client.sendListFiles.mockResolvedValue({
+        root: "/workspace",
+        files: [file("data/report.csv")],
+      });
+      rerender(
+        <FileExplorer
+          height={300}
+          externalDropDestinationPath={"/workspace/data" as FilePath}
+        />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY);
+      });
+      expect(client.sendListFiles).toHaveBeenCalledTimes(2);
+      expect(folder).toHaveAttribute("aria-expanded", "true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps partial results when a root fails, and retries all roots", async () => {
     client.getFileRoots.mockResolvedValue({
       roots: [
         { path: "/workspace", name: "workspace", isPrimary: true },
@@ -521,11 +578,11 @@ describe("file browser navigation", () => {
     });
     fireEvent.change(input, { target: { value: "report" } });
     expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Could not search files",
+      "Some locations could not be searched",
     );
     expect(
-      screen.queryByRole("treeitem", { name: "report.txt" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("treeitem", { name: "report.txt" }),
+    ).toBeInTheDocument();
     sharedUnavailable = false;
     fireEvent.click(screen.getByRole("button", { name: "Retry" }));
     await screen.findByText("2 matches");

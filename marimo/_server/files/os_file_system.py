@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import base64
-import heapq
 import os
 import platform
 import shutil
@@ -11,6 +10,7 @@ import tempfile
 import time
 from collections import deque
 from functools import lru_cache
+from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
@@ -353,7 +353,7 @@ class OSFileSystem(FileSystem):
         limit: int = 100,
     ) -> list[FileInfo]:
         """Search for files and directories matching a query with high performance."""
-        if not query.strip():
+        if not query.strip() or limit <= 0:
             return []
 
         search_path = path if path is not None else self.get_root()
@@ -421,9 +421,8 @@ class OSFileSystem(FileSystem):
                 rank = 2
             return (rank, file_info.name, file_info.path)
 
-        # Scan all candidates before limiting so a late exact match is retained.
-        # nsmallest keeps only O(limit) candidates in memory.
-        return heapq.nsmallest(limit, candidates(), key=sort_key)
+        # Bound work for broad queries; ranking applies to the collected matches.
+        return sorted(islice(candidates(), limit), key=sort_key)
 
     def open_in_editor(self, path: str, line_number: int | None) -> bool:
         try:

@@ -48,7 +48,7 @@ export function FileSearchResults({
       </div>
     );
   }
-  const { files, hasMore } = state;
+  const { files, hasMore, isPartial } = state;
   const count = files.length;
   return (
     <div
@@ -60,6 +60,14 @@ export function FileSearchResults({
         }
       }}
     >
+      {isPartial && (
+        <div role="alert" className="px-3 py-2 text-xs text-muted-foreground">
+          Some locations could not be searched.{" "}
+          <button type="button" className="underline" onClick={refetch}>
+            Retry
+          </button>
+        </div>
+      )}
       <p role="status" className="px-3 py-2 text-xs text-muted-foreground">
         {files.length
           ? `${count} ${count === 1 ? "match" : "matches"}`
@@ -71,7 +79,7 @@ export function FileSearchResults({
         data={files}
         childrenAccessor={() => null}
         width="100%"
-        height={Math.max(0, height - 48)}
+        height={Math.max(0, height - 48 - (isPartial ? 48 : 0))}
         rowHeight={48}
         overscanCount={8}
         dndManager={dndManager}

@@ -803,20 +803,32 @@ def test_search_filters_hidden_entries_before_limit(
     )
 
 
-def test_search_ranks_late_matches_before_limiting(
+def test_search_stops_traversal_after_match_limit(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
-    for index in range(250):
-        (test_dir / f"weak-report-{index}.txt").write_text("")
+    for index in range(3):
+        (test_dir / f"report-{index}.txt").write_text("")
     nested = test_dir / "nested"
     nested.mkdir()
     (nested / "report").write_text("")
-    (nested / "report-summary.txt").write_text("")
-    results = fs.search("report", path=str(test_dir), limit=2)
-    assert [result.name for result in results] == [
-        "report",
-        "report-summary.txt",
-    ]
+    import os
+
+    with patch(
+        "marimo._server.files.os_file_system.os.scandir", wraps=os.scandir
+    ) as scandir:
+        results = fs.search("report", path=str(test_dir), limit=2)
+
+    assert len(results) == 2
+    assert all(result.name.startswith("report-") for result in results)
+    scandir.assert_called_once_with(str(test_dir))
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_search_nonpositive_limit(
+    test_dir: Path, fs: OSFileSystem, limit: int
+) -> None:
+    (test_dir / "match.txt").write_text("")
+    assert fs.search("match", path=str(test_dir), limit=limit) == []
 
 
 def test_search_empty_query(test_dir: Path, fs: OSFileSystem) -> None:
