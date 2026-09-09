@@ -22,19 +22,21 @@ import { TooltipProvider } from "../components/ui/tooltip";
 
 type Story = StoryObj<typeof Cell>;
 
-const EMPTY_OVERRIDES = {};
+interface CellOverrides {
+  runElapsedTimeMs?: Milliseconds;
+  output?: CellRuntimeState["output"];
+  edited?: boolean;
+  interrupted?: boolean;
+  errored?: boolean;
+  status?: CellRuntimeState["status"];
+  staleInputs?: boolean;
+  config?: CellConfig;
+}
+
+const EMPTY_OVERRIDES: CellOverrides = {};
 
 const Cell: React.FC<{
-  overrides?: {
-    runElapsedTimeMs?: Milliseconds;
-    output?: CellRuntimeState["output"];
-    edited?: boolean;
-    interrupted?: boolean;
-    errored?: boolean;
-    status?: CellRuntimeState["status"];
-    staleInputs?: boolean;
-    config?: CellConfig;
-  };
+  overrides?: CellOverrides;
 }> = ({ overrides = EMPTY_OVERRIDES }) => {
   const cid = cellId("1");
   const notebook: NotebookState = {
