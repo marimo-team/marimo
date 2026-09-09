@@ -37,7 +37,8 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s(?P<content>(^#(| .*)$\s)+)^# ///$"
+    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s"
+    r"(?P<content>(^#(?! ///$)(| .*)$\s)+)^# ///$"
 )
 
 
@@ -218,12 +219,17 @@ class _Frontmatter:
 
 def _read_frontmatter(path: str) -> _Frontmatter:
     from marimo._convert.markdown.to_ir import extract_frontmatter
+    from marimo._utils import yaml
     from marimo._utils.inline_script_metadata import (
         get_headers_from_frontmatter,
     )
 
-    with open(path, encoding="utf-8") as f:
-        data, body = extract_frontmatter(f.read())
+    with open(path, encoding="utf-8", newline="") as f:
+        content = f.read()
+    data, _ = extract_frontmatter(content)
+    match = yaml.YAML_FRONT_MATTER_REGEX.match(content)
+    # Preserve everything after the closing marker, including its newline.
+    body = content[match.end(1) + len("---") :] if match else "\n" + content
     headers = get_headers_from_frontmatter(data)
     is_pyproject = bool(headers.get("pyproject", ""))
     header = (
@@ -335,6 +341,6 @@ def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
         data["header"] = header
 
     header = yaml.marimo_compat_dump(data, sort_keys=False)
-    document = ["---", header.strip(), "---", front.body]
-    with open(path, "w", encoding="utf-8") as f:
-        f.write("\n".join(document))
+    document = f"---\n{header.strip()}\n---{front.body}"
+    with open(path, "w", encoding="utf-8", newline="") as f:
+        f.write(document)

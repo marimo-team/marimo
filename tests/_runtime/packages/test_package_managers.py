@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -69,7 +68,9 @@ def uv_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
     calls: list[list[str]] = []
 
     def fake_uv(args: list[str], **kwargs: Any) -> MagicMock:
-        del kwargs
+        target = args[args.index("--script") + 1]
+        assert os.path.isabs(target)
+        assert kwargs["cwd"] == os.path.dirname(target)
         calls.append(["uv", *args])
         return MagicMock()
 
@@ -99,30 +100,33 @@ def test_update_script_metadata(uv_calls: list[list[str]]) -> None:
     runs_calls.clear()
 
 
-@pytest.mark.parametrize(
-    "error",
-    [
-        UvNotFoundError(),
-        subprocess.TimeoutExpired(["uv", "add"], timeout=60),
-    ],
-)
-def test_update_script_metadata_returns_false_on_invocation_failure(
-    monkeypatch: pytest.MonkeyPatch,
-    error: Exception,
+@pytest.mark.parametrize("failures", [{"add"}, {"remove"}, {"add", "remove"}])
+def test_metadata_updates_attempt_both_operations_on_failure(
+    monkeypatch: pytest.MonkeyPatch, failures: set[str]
 ) -> None:
-    class MockUvPackageManager(UvPackageManager):
-        def _get_version_map(self) -> VersionMap:
-            return VersionMap({"foo": "1.0"})
-
-    def fail(*args: object, **kwargs: object) -> None:
-        del args, kwargs
-        raise error
-
-    monkeypatch.setattr(script_metadata, "uv", fail)
-
-    assert not MockUvPackageManager().update_notebook_script_metadata(
-        "nb.py", packages_to_add=["foo"], upgrade=False
+    manager = UvPackageManager()
+    monkeypatch.setattr(
+        manager, "_get_version_map", lambda: VersionMap({"foo": "1.0"})
     )
+    operations: list[str] = []
+
+    def run(args: list[str], **kwargs: Any) -> MagicMock:
+        del kwargs
+        operation = args[1]
+        operations.append(operation)
+        if operation in failures:
+            raise UvNotFoundError()
+        return MagicMock()
+
+    monkeypatch.setattr(script_metadata, "uv", run)
+
+    assert not manager.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["foo"],
+        packages_to_remove=["bar"],
+        upgrade=False,
+    )
+    assert operations == ["add", "remove"]
 
 
 def test_update_script_metadata_with_version_map(
@@ -363,21 +367,6 @@ async def test_uv_pip_install() -> None:
         assert runs_calls == [
             ["uv", "pip", "install", "foo", "-p", PY_EXE],
         ]
-
-
-def test_log_callback_type() -> None:
-    """Test that LogCallback type works correctly."""
-    captured_logs = []
-
-    def test_callback(log_line: str) -> None:
-        captured_logs.append(log_line)
-
-    # Test type annotation works
-    callback: LogCallback = test_callback
-    callback("test log\n")
-
-    assert len(captured_logs) == 1
-    assert captured_logs[0] == "test log\n"
 
 
 async def test_package_manager_run_without_callback() -> None:

@@ -561,15 +561,20 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
+        success = True
         try:
             script_metadata.add_dependencies(
                 filepath, packages_to_add, upgrade=upgrade
             )
+        except script_metadata.ScriptMetadataError as e:
+            LOGGER.warning("%s", e)
+            success = False
+        try:
             script_metadata.remove_dependencies(filepath, packages_to_remove)
         except script_metadata.ScriptMetadataError as e:
             LOGGER.warning("%s", e)
-            return False
-        return True
+            success = False
+        return success
 
     def _get_version_map(self) -> VersionMap:
         packages = self.list_packages()

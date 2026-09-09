@@ -56,7 +56,15 @@ def test_uv_raises_not_found_for_missing_binary(
 ) -> None:
     monkeypatch.setenv("UV", str(tmp_path / "uv-does-not-exist"))
     with pytest.raises(UvNotFoundError):
-        uv(["--version"])
+        uv(["--version"], cwd=str(tmp_path))
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_uv_preserves_missing_working_directory(tmp_path: Path) -> None:
+    missing = tmp_path / "missing"
+    with pytest.raises(FileNotFoundError) as exc_info:
+        uv(["--version"], cwd=str(missing))
+    assert exc_info.value.filename == str(missing)
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")

@@ -33,10 +33,19 @@ def test_loads_returns_none_without_block() -> None:
     assert script_metadata.loads("print('hi')\n") is None
 
 
-def test_loads_rejects_multiple_blocks() -> None:
+@pytest.mark.parametrize("separator", ["", "\n"])
+def test_loads_rejects_multiple_blocks(separator: str) -> None:
     block = "# /// script\n# dependencies = []\n# ///\n"
     with pytest.raises(ValueError, match="Multiple"):
-        script_metadata.loads(block + "\n" + block)
+        script_metadata.loads(block + separator + block)
+
+
+def test_loads_ignores_other_block_types() -> None:
+    script = (
+        "# /// script\n# dependencies = []\n# ///\n"
+        '# /// other\n# value = "other metadata"\n# ///\n'
+    )
+    assert script_metadata.loads(script) == {"dependencies": []}
 
 
 def test_dumps_round_trips_tool_tables() -> None:
@@ -67,6 +76,9 @@ def test_wrap_block() -> None:
     [
         UvNotFoundError(),
         subprocess.TimeoutExpired(["uv", "add"], timeout=60),
+        FileNotFoundError(
+            2, "No such file or directory", "/missing/notebooks"
+        ),
     ],
 )
 def test_edit_normalizes_invocation_failures(
@@ -275,28 +287,44 @@ pyproject: |
     assert sorted(p.name for p in tmp_path.iterdir()) == ["lib", "notebook.md"]
 
 
-@pytest.mark.network
 @pytest.mark.skipif(not HAS_UV, reason="uv required")
-def test_add_dependencies_markdown_frontmatter(tmp_path: Path) -> None:
-    notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        """---
-title: Test
-pyproject: |
-  requires-python = ">=3.11"
-  dependencies = []
----
+@pytest.mark.parametrize(
+    ("suffix", "key", "separator"),
+    [
+        (".md", "pyproject", "\n"),
+        (".md", "header", "\n\n\n"),
+        (".qmd", "pyproject", "\r\n\r\n"),
+        (".qmd", "header", " \n\n"),
+    ],
+)
+def test_frontmatter_edit_preserves_body(
+    tmp_path: Path, suffix: str, key: str, separator: str
+) -> None:
+    from marimo._convert.markdown.to_ir import extract_frontmatter
+    from marimo._utils import yaml
 
-# Hello
-"""
+    notebook = tmp_path / f"notebook{suffix}"
+    metadata = 'dependencies = ["numpy"]'
+    if key == "header":
+        metadata = script_metadata.wrap_block(metadata)
+    header = yaml.marimo_compat_dump(
+        {"title": "Test", key: metadata}, sort_keys=False
     )
+    body = separator + "    indented code\r\n\r\n# Hello\n\n"
+    notebook.write_bytes(f"---\n{header}---{body}".encode())
 
-    script_metadata.add_dependencies(str(notebook), ["idna"])
+    script_metadata.remove_dependencies(str(notebook), ["numpy"])
 
-    content = notebook.read_text()
-    assert "idna" in content
-    assert "# Hello" in content
-    assert "title: Test" in content
+    content = notebook.read_bytes().decode()
+    assert content.endswith("---" + body)
+    frontmatter, _ = extract_frontmatter(content)
+    assert frontmatter["title"] == "Test"
+    updated = frontmatter[key]
+    if key == "pyproject":
+        updated = script_metadata.wrap_block(updated)
+    project = script_metadata.loads(updated)
+    assert project is not None
+    assert project["dependencies"] == []
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")

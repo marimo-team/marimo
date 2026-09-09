@@ -161,8 +161,15 @@ def uv(
             # own session (ignored on Windows).
             start_new_session=True,
         )
-    except FileNotFoundError as e:
-        raise UvNotFoundError() from e
+    except OSError as e:
+        # subprocess raises FileNotFoundError for a missing cwd on POSIX and
+        # NotADirectoryError on Windows. Preserve that error before refining a
+        # missing executable to UvNotFoundError.
+        if cwd is not None:
+            os.stat(cwd)
+        if isinstance(e, FileNotFoundError):
+            raise UvNotFoundError() from e
+        raise
     if completed.returncode != 0:
         raise _refine(completed)
     return completed

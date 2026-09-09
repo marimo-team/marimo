@@ -221,6 +221,7 @@ def _uv_export_script_requirements_txt(
     if not name:
         return []
 
+    script = Path(name).absolute()
     result = uv(
         [
             "export",
@@ -228,10 +229,11 @@ def _uv_export_script_requirements_txt(
             "--no-annotate",
             "--no-header",
             "--script",
-            name,
-        ]
+            str(script),
+        ],
+        cwd=str(script.parent),
     )
-    script_dir = Path(name).resolve().parent
+    script_dir = script.parent
     return [
         _resolve_local_path_line(line, script_dir)
         for line in result.stdout.split("\n")

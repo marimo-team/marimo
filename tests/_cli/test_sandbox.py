@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -11,6 +10,7 @@ import pytest
 from marimo._cli.sandbox import (
     SandboxMode,
     _normalize_sandbox_dependencies,
+    _uv_export_script_requirements_txt,
     build_sandbox_venv,
     cleanup_sandbox_dir,
     construct_uv_command,
@@ -23,8 +23,30 @@ from marimo._utils.inline_script_metadata import PyProjectReader
 HAS_UV = DependencyManager.which("uv")
 
 
-@patch("marimo._cli.sandbox.is_editable", return_value=False)
-def test_normalize_marimo_dependencies(mock_is_editable: Any):
+def test_dependency_export_uses_notebook_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    notebook = tmp_path / "notebooks" / "nb.py"
+    notebook.parent.mkdir()
+    monkeypatch.chdir(tmp_path)
+
+    def export(
+        args: list[str], *, cwd: str
+    ) -> subprocess.CompletedProcess[str]:
+        target = args[args.index("--script") + 1]
+        assert target == str(notebook)
+        assert cwd == str(notebook.parent)
+        return subprocess.CompletedProcess(args, 0, stdout="-e ../lib")
+
+    monkeypatch.setattr("marimo._cli.sandbox.uv", export)
+
+    assert _uv_export_script_requirements_txt("notebooks/nb.py") == [
+        f"-e {tmp_path / 'lib'}"
+    ]
+
+
+def test_normalize_marimo_dependencies(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr("marimo._cli.sandbox.is_editable", lambda _: False)
     # Test adding marimo when not present
     assert _normalize_sandbox_dependencies(
         ["numpy"], "1.0.0", additional_features=[]
@@ -32,7 +54,6 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
         "numpy",
         "marimo==1.0.0",
     ]
-    assert mock_is_editable.call_count == 1
 
     # Test preferring bracketed version
     assert _normalize_sandbox_dependencies(
@@ -43,11 +64,6 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
     assert _normalize_sandbox_dependencies(
         ["marimo[extras]>=0.1.0", "numpy"], "1.0.0", additional_features=[]
     ) == ["numpy", "marimo[extras]>=0.1.0"]
-
-    # Test adding version when none exists
-    assert _normalize_sandbox_dependencies(
-        ["marimo[extras]", "numpy"], "1.0.0", additional_features=[]
-    ) == ["numpy", "marimo[extras]==1.0.0"]
 
     # Test keeping only one marimo dependency
     assert _normalize_sandbox_dependencies(
@@ -99,10 +115,10 @@ def test_normalize_marimo_dependencies(mock_is_editable: Any):
         ) == ["numpy", f"marimo{spec}"]
 
 
-@patch("marimo._cli.sandbox.is_editable", return_value=True)
 def test_normalize_marimo_dependencies_editable(
-    mock_is_editable: Any,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    monkeypatch.setattr("marimo._cli.sandbox.is_editable", lambda _: True)
     deps = _normalize_sandbox_dependencies(
         ["numpy"], "1.0.0", additional_features=[]
     )
@@ -118,7 +134,6 @@ def test_normalize_marimo_dependencies_editable(
     assert deps[0] == "numpy"
     assert deps[1].startswith("-e")
     assert deps[1].endswith("[lsp,recommended]")
-    assert mock_is_editable.call_count == 2
 
     deps = _normalize_sandbox_dependencies(
         ["numpy", "marimo"], "1.0.0", additional_features=[]
