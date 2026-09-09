@@ -1,5 +1,5 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import React, { memo, Suspense, useEffect, useMemo, useRef } from "react";
+import React, { memo, Suspense, useMemo, useRef } from "react";
 import { type CellId, CellOutputId } from "@/core/cells/ids";
 import type { CellOutput, OutputMessage } from "@/core/kernel/messages";
 import { cn } from "@/utils/cn";
@@ -23,6 +23,7 @@ import {
 import { tooltipHandler } from "@/components/charts/tooltip";
 import { useExpandedOutput } from "@/core/cells/outputs";
 import { viewStateAtom } from "@/core/mode";
+import { useEventListener } from "@/hooks/useEventListener";
 import { useIframeCapabilities } from "@/hooks/useIframeCapabilities";
 import { useOverflowDetection } from "@/hooks/useOverflowDetection";
 import { renderHTML } from "@/plugins/core/RenderHTML";
@@ -436,22 +437,14 @@ const ExpandableOutput = React.memo(
     const { hasFullscreen } = useIframeCapabilities();
     const isFullscreen = useIsFullScreen(containerRef);
 
-    // Not every host exits fullscreen on Escape by itself.
-    useEffect(() => {
-      if (!isFullscreen) {
+    // Not every host exits fullscreen on Escape by itself. A null target keeps
+    // the listener off every output that is not fullscreen.
+    useEventListener(isFullscreen ? document : null, "keydown", (event) => {
+      if (event.key !== "Escape" || !document.fullscreenElement) {
         return;
       }
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key !== "Escape" || !document.fullscreenElement) {
-          return;
-        }
-        exitFullscreen();
-      };
-      document.addEventListener("keydown", handleKeyDown);
-      return () => {
-        document.removeEventListener("keydown", handleKeyDown);
-      };
-    }, [isFullscreen]);
+      exitFullscreen();
+    });
 
     return (
       <>
