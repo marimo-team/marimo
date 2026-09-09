@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { CopyIcon } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -27,8 +27,8 @@ export const ShareStaticNotebookModal: React.FC<{
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
   const { exportAsHTML } = useRequestClient();
-  // 4 character random string
-  const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
+  // Keep one random suffix for the lifetime of the modal.
+  const [randomHash] = useState(() => Math.random().toString(36).slice(2, 6));
 
   // Globally unique path
   const path = `${slug}-${randomHash}`;

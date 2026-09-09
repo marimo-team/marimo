@@ -69,7 +69,6 @@
     "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
     "react/preserve-manual-memoization": "off",
     "react/prefer-function-component": "off",
-    "react/purity": "off",
     "react/refs": "off",
     "react/rule-suppression": "off",
     "react/set-state-in-effect": "off",
