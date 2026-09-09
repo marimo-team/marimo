@@ -8,6 +8,7 @@ import unittest
 from enum import Enum
 from math import isnan
 from typing import Any
+from unittest import mock
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -16,9 +17,11 @@ from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY
 from marimo._plugins.ui._impl.table import SortArgs
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.polars_table import (
     PolarsTableManagerFactory,
+    _supports_decimal_comma,
 )
 from marimo._plugins.ui._impl.tables.table_manager import TableManager
 from marimo._utils.platform import is_windows
@@ -170,6 +173,196 @@ class TestPolarsTableManagerFactory(unittest.TestCase):
 
     def test_to_csv(self) -> None:
         assert isinstance(self.manager.to_csv(), bytes)
+
+    def test_to_delimited_str_pt_br(self) -> None:
+        import polars as pl
+
+        df = pl.DataFrame(
+            {
+                "integer": [1234],
+                "fraction": [1234.567890123456],
+                "text": ["value.1,2;3"],
+                "null": [None],
+            }
+        )
+        manager = self.factory.create()(df)
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert (
+            result
+            == 'integer;fraction;text;null\n1234;1234,567890123456;"value.1,2;3";\n'
+        )
+
+    def test_to_delimited_str_uses_native_decimal_comma_writer(self) -> None:
+        import polars as pl
+
+        if not _supports_decimal_comma():
+            pytest.skip("Polars does not support native decimal commas")
+
+        manager = self.factory.create()(pl.DataFrame({"value": [1.5]}))
+        with mock.patch(
+            "marimo._plugins.ui._impl.tables.polars_table.dataframe_to_csv"
+        ) as fallback:
+            assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+                "value\n1,5\n"
+            )
+        fallback.assert_not_called()
+
+    def test_to_delimited_str_preserves_temporal_formatting(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "datetime": [
+                        datetime.datetime(2026, 1, 2, 3, 4, 5, 123456)
+                    ],
+                    "date": [datetime.date(2026, 1, 2)],
+                    "time": [datetime.time(3, 4, 5, 123456)],
+                }
+            )
+        )
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            "datetime;date;time\n"
+            "2026-01-02 03:04:05.123456;2026-01-02;"
+            "03:04:05.123456\n"
+        )
+
+    def test_to_delimited_str_preserves_binary_formatting(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame({"binary": [b"abc", bytes([0, 255])]})
+        )
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            "binary\nb'abc'\nb'\\x00\\xff'\n"
+        )
+
+    def test_to_delimited_str_uses_native_tsv_writer(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(pl.DataFrame({"value": [1.5]}))
+        with mock.patch(
+            "marimo._plugins.ui._impl.tables.polars_table.dataframe_to_csv"
+        ) as fallback:
+            assert manager.to_delimited_str(DelimitedDialect("\t", ".")) == (
+                "value\n1.5\n"
+            )
+        fallback.assert_not_called()
+
+    def test_to_delimited_str_normalizes_nested_values(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "struct": [{"value": 1}],
+                    "list": [[1, 2]],
+                    "array": pl.Series([[3, 4]], dtype=pl.Array(pl.Int64, 2)),
+                    "duration": [datetime.timedelta(days=1)],
+                    "object": pl.Series(
+                        "object", [{"value": 2}], dtype=pl.Object
+                    ),
+                }
+            )
+        )
+
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+
+        assert (
+            result == "struct;list;array;duration;object\n"
+            '"{""value"":1}";1,2;3,4;1d;{\'value\': 2}\n'
+        )
+
+    def test_to_delimited_str_normalizes_nested_containers(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "list_struct": pl.Series(
+                        [
+                            [{"a": 1}, {"a": 2}],
+                            [],
+                            None,
+                        ],
+                        dtype=pl.List(pl.Struct({"a": pl.Int64})),
+                    ),
+                    "list_list": pl.Series(
+                        [
+                            [[1, 2], [3]],
+                            [],
+                            None,
+                        ],
+                        dtype=pl.List(pl.List(pl.Int64)),
+                    ),
+                    "array_struct": pl.Series(
+                        [
+                            [{"b": "x"}, {"b": "y"}],
+                            [{"b": "m"}, {"b": "n"}],
+                            None,
+                        ],
+                        dtype=pl.Array(pl.Struct({"b": pl.String}), 2),
+                    ),
+                }
+            )
+        )
+
+        assert manager.to_csv_str() == (
+            "list_struct,list_list,array_struct\n"
+            '"[{""a"":1},{""a"":2}]","[[1,2],[3]]",'
+            '"[{""b"":""x""},{""b"":""y""}]"\n'
+            '[],[],"[{""b"":""m""},{""b"":""n""}]"\n'
+            ",,\n"
+        )
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            "list_struct;list_list;array_struct\n"
+            '"[{""a"":1},{""a"":2}]";[[1,2],[3]];'
+            '"[{""b"":""x""},{""b"":""y""}]"\n'
+            '[];[];"[{""b"":""m""},{""b"":""n""}]"\n'
+            ";;\n"
+        )
+
+    def test_to_delimited_str_decimal_and_exponent(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {
+                    "decimal": [decimal.Decimal("1234.567890123456")],
+                    "exponent": [1.23e-10],
+                }
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "decimal;exponent\n1234,567890123456;1,23e-10\n"
+
+    def test_to_delimited_str_non_finite(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame(
+                {"value": [float("nan"), float("inf"), float("-inf")]}
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "value\nnan\ninf\n-inf\n"
+
+    def test_to_delimited_str_unicode_decimal(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(pl.DataFrame({"value": [12.5]}))
+        result = manager.to_delimited_str(DelimitedDialect(",", "٫"))
+        assert result == "value\n12٫5\n"
+
+    def test_to_csv_str_remains_locale_neutral(self) -> None:
+        import polars as pl
+
+        manager = self.factory.create()(
+            pl.DataFrame({"value": [12.5], "text": ["1.2"]})
+        )
+        assert manager.to_csv_str() == "value,text\n12.5,1.2\n"
 
     @pytest.mark.skipif(
         is_windows(),
