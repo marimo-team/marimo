@@ -48,7 +48,7 @@ export function useFileSearch({
     // Let the in-flight server scan finish before starting another. Superseded
     // queued queries and remaining roots are skipped, keeping scan work bounded.
     const request = pending.current.then(async () => {
-      const files: FileTreeNode[] = [];
+      const filesByPath = new Map<string, FileTreeNode>();
       let rootLimitReached = false;
       let failedRootCount = 0;
       const roots = tree.getRoots();
@@ -67,16 +67,20 @@ export function useFileSearch({
             limit: RESULT_LIMIT,
           });
           rootLimitReached ||= response.files.length >= RESULT_LIMIT;
-          files.push(
-            ...response.files.map((file): FileTreeNode => ({
+          for (const file of response.files) {
+            const existing = filesByPath.get(file.path);
+            if (existing && (!root.isPrimary || existing.isPrimaryRoot)) {
+              continue;
+            }
+            filesByPath.set(file.path, {
               ...file,
               id: fileTreeNodeId(root.path, file.path),
               children: [],
               isRoot: false,
               rootPath: root.path,
               isPrimaryRoot: root.isPrimary,
-            })),
-          );
+            });
+          }
         } catch {
           failedRootCount += 1;
         }
@@ -101,7 +105,7 @@ export function useFileSearch({
           }
           return 2;
         };
-        const sortedFiles = files.toSorted(
+        const sortedFiles = [...filesByPath.values()].toSorted(
           (left, right) =>
             rank(left) - rank(right) || left.name.localeCompare(right.name),
         );

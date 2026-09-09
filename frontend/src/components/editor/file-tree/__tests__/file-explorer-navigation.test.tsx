@@ -4,6 +4,7 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -20,7 +21,8 @@ import type { FilePath } from "@/utils/paths";
 import { TreeDndProvider } from "../dnd-wrapper";
 import { FileExplorer } from "../file-explorer";
 import { openStateAtom } from "../state";
-import { fileTreeNodeId } from "../requesting-tree";
+import { fileTreeNodeId, RequestingTree } from "../requesting-tree";
+import { useFileSearch } from "../use-file-search";
 import { HOVER_EXPAND_DELAY } from "../use-hover-expand";
 
 vi.mock("../file-viewer", () => ({
@@ -491,10 +493,85 @@ describe("file browser navigation", () => {
     fireEvent.change(input, { target: { value: "report" } });
     await screen.findByText(/200 matches/);
     const results = screen.getAllByRole("treeitem");
-    expect(results[0]).toHaveAccessibleName("report");
+    expect(results[0]).toHaveAccessibleName("/shared/report");
     expect(
       client.sendSearchFiles.mock.calls.map(([request]) => request.path),
     ).toEqual(["/workspace", "/shared"]);
+  });
+
+  it.each([false, true])(
+    "deduplicates overlapping roots before limiting (primary first: %s)",
+    async (primaryFirst) => {
+      const roots = [
+        { path: "/workspace", name: "workspace", isPrimary: true },
+        { path: "/workspace/data", name: "data", isPrimary: false },
+      ];
+      client.getFileRoots.mockResolvedValue({
+        roots: primaryFirst ? roots : roots.toReversed(),
+      });
+      const sharedFiles = Array.from({ length: 150 }, (_, index) =>
+        file(`data/report-${index}.txt`),
+      );
+      client.sendSearchFiles.mockImplementation(async ({ path, query }) => {
+        const files =
+          path === "/workspace"
+            ? [...sharedFiles, file("report-unique.txt")]
+            : sharedFiles;
+        return { files, query, totalFound: files.length };
+      });
+      const tree = new RequestingTree({
+        getRoots: client.getFileRoots,
+        listFiles: client.sendListFiles,
+        createFileOrFolder: client.sendCreateFileOrFolder,
+        deleteFileOrFolder: client.sendDeleteFileOrFolder,
+        copyFileOrFolder: client.sendCopyFileOrFolder,
+        renameFileOrFolder: client.sendRenameFileOrFolder,
+      });
+      await tree.initialize(vi.fn());
+      const { result } = renderHook(
+        () => useFileSearch({ query: "report", tree, showHiddenFiles: false }),
+        { wrapper },
+      );
+      await waitFor(() => expect(result.current.state.status).toBe("success"));
+      const state = result.current.state;
+      if (state.status !== "success") {
+        throw new Error("Expected search results");
+      }
+      expect(state.files).toHaveLength(151);
+      expect(new Set(state.files.map((file) => file.path)).size).toBe(151);
+      expect(
+        state.files.every(
+          (file) => file.rootPath === "/workspace" && file.isPrimaryRoot,
+        ),
+      ).toBe(true);
+      expect(
+        state.files.some(
+          (file) => file.path === "/workspace/report-unique.txt",
+        ),
+      ).toBe(true);
+      expect(state.hasMore).toBe(false);
+    },
+  );
+
+  it("distinguishes same-named search results by their accessible paths", async () => {
+    client.sendSearchFiles.mockResolvedValue({
+      query: "report",
+      files: [file("data/report.csv"), file("archive/report.csv")],
+      totalFound: 2,
+    });
+    render(<FileExplorer height={300} />, { wrapper });
+    fireEvent.change(
+      await screen.findByRole("textbox", { name: "Search files and folders" }),
+      { target: { value: "report" } },
+    );
+    expect(
+      await screen.findByRole("treeitem", {
+        name: "/workspace/data/report.csv",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("treeitem", { name: "/workspace/archive/report.csv" }),
+    ).toBeVisible();
   });
 
   it("shows an error when every search root fails", async () => {
@@ -581,9 +658,11 @@ describe("file browser navigation", () => {
       "Some locations could not be searched",
     );
     expect(
-      screen.getByRole("treeitem", { name: "report.txt" }),
+      screen.getByRole("treeitem", { name: "/workspace/report.txt" }),
     ).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("treeitem", { name: "report.txt" }));
+    fireEvent.click(
+      screen.getByRole("treeitem", { name: "/workspace/report.txt" }),
+    );
     const retry = screen.getByRole("button", { name: "Retry" });
     retry.focus();
     sharedUnavailable = false;
@@ -675,7 +754,9 @@ describe("file browser navigation", () => {
     fireEvent.change(input, { target: { value: "report" } });
     await screen.findByText("2 matches");
     fireEvent.click(screen.getByText("report-second.txt"));
-    const second = screen.getByRole("treeitem", { name: "report-second.txt" });
+    const second = screen.getByRole("treeitem", {
+      name: "/workspace/report-second.txt",
+    });
     expect(second).toHaveFocus();
     fireEvent.keyDown(second, { key: "Enter" });
     expect(await screen.findByText("Preview: report-second.txt")).toBeVisible();
@@ -741,9 +822,11 @@ describe("file browser navigation", () => {
     expect(client.sendSearchFiles).toHaveBeenLastCalledWith(
       expect.objectContaining({ query: "note" }),
     );
-    expect(screen.getByRole("treeitem", { name: "notes.txt" })).toBeVisible();
     expect(
-      screen.queryByRole("treeitem", { name: "report.csv" }),
+      screen.getByRole("treeitem", { name: "/workspace/notes.txt" }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("treeitem", { name: "/workspace/data/report.csv" }),
     ).not.toBeInTheDocument();
   });
 });

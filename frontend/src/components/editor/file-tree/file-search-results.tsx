@@ -2,7 +2,12 @@
 
 import { FileIcon, FolderIcon } from "lucide-react";
 import type { RefObject } from "react";
-import { Tree, type NodeRendererProps, type TreeApi } from "react-arborist";
+import {
+  Tree,
+  type NodeRendererProps,
+  type RowRendererProps,
+  type TreeApi,
+} from "react-arborist";
 import { Spinner } from "@/components/icons/spinner";
 import { cn } from "@/utils/cn";
 import { useTreeDndManager } from "./dnd-wrapper";
@@ -93,7 +98,7 @@ export function FileSearchResults({
         disableMultiSelection={true}
         selectionFollowsFocus={true}
         rowClassName="outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-        renderRow={FileTreeRow}
+        renderRow={SearchResultRow}
         onActivate={(node) => {
           void onReveal(node.data);
         }}
@@ -105,6 +110,10 @@ export function FileSearchResults({
       </p>
     </div>
   );
+}
+
+function SearchResultRow(props: RowRendererProps<FileTreeNode>) {
+  return <FileTreeRow {...props} ariaLabel={props.node.data.path} />;
 }
 
 function SearchResult({ node }: NodeRendererProps<FileTreeNode>) {

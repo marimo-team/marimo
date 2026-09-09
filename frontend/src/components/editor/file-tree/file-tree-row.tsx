@@ -8,12 +8,13 @@ export function FileTreeRow({
   attrs,
   innerRef,
   children,
-}: RowRendererProps<FileTreeNode>) {
+  ariaLabel = node.data.name,
+}: RowRendererProps<FileTreeNode> & { ariaLabel?: string }) {
   return (
     <div
       {...attrs}
       ref={innerRef}
-      aria-label={node.data.name}
+      aria-label={ariaLabel}
       aria-expanded={node.isInternal ? node.isOpen : undefined}
       onFocus={(event) => {
         event.stopPropagation();
