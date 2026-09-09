@@ -25,7 +25,7 @@ const FIELD_TYPES: FieldTypesWithExternalType = [
 ];
 
 type Row = Record<string, unknown>;
-const EMPTY_HIDDEN_COLUMNS: string[] = [];
+const EMPTY_HIDDEN_COLUMNS: readonly string[] = [];
 
 const TEST_COLUMNS: ColumnDef<Row>[] = [
   { id: "customer_name", accessorKey: "customer_name" },
@@ -35,7 +35,7 @@ const TEST_COLUMNS: ColumnDef<Row>[] = [
 
 interface HarnessProps {
   totalColumns?: number;
-  initiallyHidden?: string[];
+  initiallyHidden?: readonly string[];
 }
 
 function PanelHarness({

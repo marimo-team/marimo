@@ -24,7 +24,7 @@ import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
 
-const EMPTY_REPLACEMENTS: ReplacementFn[] = [];
+const EMPTY_REPLACEMENTS: readonly ReplacementFn[] = [];
 
 interface Options {
   html: string;
@@ -33,7 +33,7 @@ interface Options {
    * @default true
    */
   alwaysSanitizeHtml?: boolean;
-  additionalReplacements?: ReplacementFn[];
+  additionalReplacements?: readonly ReplacementFn[];
 }
 
 const replaceValidTags = (domNode: DOMNode) => {

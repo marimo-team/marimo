@@ -33,7 +33,7 @@ interface CellOverrides {
   config?: CellConfig;
 }
 
-const EMPTY_OVERRIDES: CellOverrides = {};
+const EMPTY_OVERRIDES: Readonly<CellOverrides> = {};
 
 const Cell: React.FC<{
   overrides?: CellOverrides;
