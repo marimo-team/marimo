@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import type { RowRendererProps } from "react-arborist";
 import { useDrop } from "react-dnd";
 import { FileTreeRow } from "./file-tree-row";
+import { useHoverExpand } from "./use-hover-expand";
 import type { FileTreeNode } from "./requesting-tree";
 
 export function FileBrowserRow(props: RowRendererProps<FileTreeNode>) {
@@ -13,8 +14,6 @@ export function FileBrowserRow(props: RowRendererProps<FileTreeNode>) {
     <FileTreeRow {...props} />
   );
 }
-
-const HOVER_ROW_EXPAND_DELAY = 600;
 
 function FolderDropRow(props: RowRendererProps<FileTreeNode>) {
   const { node } = props;
@@ -61,21 +60,7 @@ function FolderDropRow(props: RowRendererProps<FileTreeNode>) {
     [tree, node.id],
   );
 
-  useEffect(() => {
-    if (!isHovering || node.isOpen) {
-      return;
-    }
-    const timeout = window.setTimeout(() => {
-      if (
-        tree.state.dnd.parentId === node.id &&
-        tree.state.dnd.dragIds.length > 0 &&
-        tree.canDrop()
-      ) {
-        tree.open(node.id);
-      }
-    }, HOVER_ROW_EXPAND_DELAY);
-    return () => window.clearTimeout(timeout);
-  }, [isHovering, node.isOpen, tree, node.id]);
+  useHoverExpand(node, isHovering);
 
   // Replacing innerRef avoids attaching Arborist's positional drop target.
   // Retain its focus behavior for keyboard navigation and rename completion.

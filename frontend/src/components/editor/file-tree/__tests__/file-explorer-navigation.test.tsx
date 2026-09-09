@@ -16,8 +16,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { requestClientAtom } from "@/core/network/requests";
 import type { FileInfo, FileSearchResponse } from "@/core/network/types";
 import { Deferred } from "@/utils/Deferred";
+import type { FilePath } from "@/utils/paths";
 import { TreeDndProvider } from "../dnd-wrapper";
 import { FileExplorer } from "../file-explorer";
+import { HOVER_EXPAND_DELAY } from "../use-hover-expand";
 
 vi.mock("../file-viewer", () => ({
   FileViewer: ({ file }: { file: FileInfo }) => <div>Preview: {file.name}</div>,
@@ -319,7 +321,7 @@ describe("file browser navigation", () => {
       dragEvent(folder, "dragenter");
       dragEvent(folder, "dragover");
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(799);
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY - 1);
       });
       expect(folder).toHaveAttribute("aria-expanded", "false");
       await act(async () => {
@@ -336,7 +338,7 @@ describe("file browser navigation", () => {
         await vi.advanceTimersByTimeAsync(16);
       });
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(800);
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY);
       });
       expect(nested).toHaveAttribute("aria-expanded", "true");
       expect(client.sendListFiles).toHaveBeenCalledWith({
@@ -399,6 +401,136 @@ describe("file browser navigation", () => {
       }
     },
   );
+
+  it("expands nested external upload destinations and cancels when the drag leaves", async () => {
+    client.sendListFiles.mockImplementation(async ({ path }) => {
+      if (path === "/workspace") {
+        return { root: "/workspace", files: [file("data", true)] };
+      }
+      if (path === "/workspace/data") {
+        return { root: "/workspace", files: [file("data/nested", true)] };
+      }
+      return { root: "/workspace", files: [] };
+    });
+    const { rerender } = render(<FileExplorer height={300} />, { wrapper });
+    const folder = await screen.findByRole("treeitem", { name: "data" });
+    vi.useFakeTimers();
+    try {
+      rerender(
+        <FileExplorer
+          height={300}
+          externalDropDestinationPath={"/workspace/data" as FilePath}
+        />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(300);
+      });
+      rerender(
+        <FileExplorer height={300} externalDropDestinationPath={null} />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY);
+      });
+      expect(folder).toHaveAttribute("aria-expanded", "false");
+      rerender(
+        <FileExplorer
+          height={300}
+          externalDropDestinationPath={"/workspace/data" as FilePath}
+        />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY - 1);
+      });
+      expect(folder).toHaveAttribute("aria-expanded", "false");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(folder).toHaveAttribute("aria-expanded", "true");
+      const nested = screen.getByRole("treeitem", { name: "nested" });
+      rerender(
+        <FileExplorer
+          height={300}
+          externalDropDestinationPath={"/workspace/data/nested" as FilePath}
+        />,
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(HOVER_EXPAND_DELAY);
+      });
+      expect(nested).toHaveAttribute("aria-expanded", "true");
+      expect(client.sendListFiles).toHaveBeenCalledWith({
+        path: "/workspace/data/nested",
+      });
+      expect(client.sendRenameFileOrFolder).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ranks matches across roots before applying the global result limit", async () => {
+    client.getFileRoots.mockResolvedValue({
+      roots: [
+        { path: "/workspace", name: "workspace", isPrimary: true },
+        { path: "/shared", name: "shared", isPrimary: false },
+      ],
+    });
+    client.sendSearchFiles.mockImplementation(async ({ path, query }) => {
+      const files =
+        path === "/workspace"
+          ? Array.from({ length: 200 }, (_, index) =>
+              file(`report-${index}.txt`),
+            )
+          : [{ ...file("report"), path: "/shared/report" }];
+      return { files, query, totalFound: files.length };
+    });
+    render(<FileExplorer height={300} />, { wrapper });
+    const input = await screen.findByRole("textbox", {
+      name: "Search files and folders",
+    });
+    fireEvent.change(input, { target: { value: "report" } });
+    await screen.findByText(/200 matches/);
+    const results = screen.getAllByRole("treeitem");
+    expect(results[0]).toHaveAccessibleName("report");
+    expect(
+      client.sendSearchFiles.mock.calls.map(([request]) => request.path),
+    ).toEqual(["/workspace", "/shared"]);
+  });
+
+  it("reports a failed root without presenting incomplete search results, and retries all roots", async () => {
+    client.getFileRoots.mockResolvedValue({
+      roots: [
+        { path: "/workspace", name: "workspace", isPrimary: true },
+        { path: "/shared", name: "shared", isPrimary: false },
+      ],
+    });
+    let sharedUnavailable = true;
+    client.sendSearchFiles.mockImplementation(async ({ path, query }) => {
+      if (path === "/shared" && sharedUnavailable) {
+        throw new Error("Storage unavailable");
+      }
+      return {
+        files: [{ ...file("report.txt"), path: `${path}/report.txt` }],
+        query,
+        totalFound: 1,
+      };
+    });
+    render(<FileExplorer height={300} />, { wrapper });
+    const input = await screen.findByRole("textbox", {
+      name: "Search files and folders",
+    });
+    fireEvent.change(input, { target: { value: "report" } });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not search files",
+    );
+    expect(
+      screen.queryByRole("treeitem", { name: "report.txt" }),
+    ).not.toBeInTheDocument();
+    sharedUnavailable = false;
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await screen.findByText("2 matches");
+    expect(
+      client.sendSearchFiles.mock.calls.map(([request]) => request.path),
+    ).toEqual(["/workspace", "/shared", "/workspace", "/shared"]);
+  });
 
   it("passes hidden-file visibility to search and refetches when it changes", async () => {
     client.sendSearchFiles.mockResolvedValue({

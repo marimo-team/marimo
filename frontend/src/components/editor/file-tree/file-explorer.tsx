@@ -66,6 +66,7 @@ import { useRequestClient } from "@/core/network/requests";
 import { isWasm } from "@/core/wasm/utils";
 import { useAsyncData } from "@/hooks/useAsyncData";
 import { useFileSearch } from "./use-file-search";
+import { useHoverExpand } from "./use-hover-expand";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -674,6 +675,7 @@ const Node = ({ node, style, dragHandle }: NodeRendererProps<FileTreeNode>) => {
   const isExternalDropTarget =
     node.data.isDirectory &&
     fileExplorer?.externalDropDestinationPath === node.data.path;
+  useHoverExpand(node, isExternalDropTarget);
 
   const handleOpenMarimoFile = async (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
