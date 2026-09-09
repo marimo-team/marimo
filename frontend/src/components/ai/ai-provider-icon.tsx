@@ -6,6 +6,7 @@ import AzureIcon from "@marimo-team/llm-info/icons/azure.svg?inline";
 import CursorIcon from "@marimo-team/llm-info/icons/cursor.svg?inline";
 import DeepseekIcon from "@marimo-team/llm-info/icons/deepseek.svg?inline";
 import GeminiIcon from "@marimo-team/llm-info/icons/googlegemini.svg?inline";
+import GitHubIcon from "@marimo-team/llm-info/icons/github.svg?inline";
 import OllamaIcon from "@marimo-team/llm-info/icons/ollama.svg?inline";
 import OpenAIIcon from "@marimo-team/llm-info/icons/openai.svg?inline";
 import OpencodeIcon from "@marimo-team/llm-info/icons/opencode-logo-light.svg?inline";
@@ -20,6 +21,7 @@ import type { ExternalAgentId } from "../chat/acp/state";
 
 const icons: Record<ProviderId | ExternalAgentId, string> = {
   openai: OpenAIIcon,
+  "github-copilot": GitHubIcon,
   anthropic: AnthropicIcon,
   claude: AnthropicIcon,
   gemini: GeminiIcon,

@@ -233,6 +233,19 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-opencode-key"
         assert provider_config.base_url == "https://opencode.ai/zen/go/v1/"
 
+    def test_for_github_copilot(self) -> None:
+        config: AiConfig = {
+            "github_copilot": {
+                "api_key": "gho_test-token",
+                "base_url": "https://copilot.example.com",
+            }
+        }
+
+        provider_config = AnyProviderConfig.for_github_copilot(config)
+
+        assert provider_config.api_key == "gho_test-token"
+        assert provider_config.base_url == "https://copilot.example.com"
+
     def test_for_openai_with_project(self):
         """Test OpenAI configuration with project field."""
         config: AiConfig = {
@@ -325,6 +338,16 @@ class TestAnyProviderConfig:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert exc_info.value.detail == GITHUB_MODELS_RETIRED_MESSAGE
+
+    def test_for_model_github_copilot(self) -> None:
+        config: AiConfig = {"github_copilot": {"api_key": "gho_test-token"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "github-copilot/gpt-5.4", config
+        )
+
+        assert provider_config.api_key == "gho_test-token"
+        assert provider_config.base_url == "https://api.githubcopilot.com"
 
     def test_for_model_openrouter(self) -> None:
         """Test for_model with OpenRouter model."""
@@ -710,6 +733,46 @@ class TestProviderConfigWithFallback:
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "OpenCode Go API key not configured" in str(
+            exc_info.value.detail
+        )
+
+    @pytest.mark.parametrize(
+        "variable",
+        [
+            "GITHUB_COPILOT_API_KEY",
+            "GITHUB_COPILOT_API_TOKEN",
+            "COPILOT_GITHUB_TOKEN",
+        ],
+    )
+    def test_for_github_copilot_with_fallback_key(self, variable: str) -> None:
+        with patch.dict(os.environ, {variable: "gho_env-token"}, clear=True):
+            provider_config = AnyProviderConfig.for_github_copilot({})
+
+        assert provider_config.api_key == "gho_env-token"
+
+    @patch.dict(
+        os.environ,
+        {
+            "GITHUB_COPILOT_API_KEY": "gho_env-token",
+            "GITHUB_COPILOT_BASE_URL": "https://copilot.example.com",
+        },
+        clear=True,
+    )
+    def test_for_github_copilot_with_environment_base_url(self) -> None:
+        provider_config = AnyProviderConfig.for_github_copilot({})
+
+        assert provider_config.base_url == "https://copilot.example.com"
+
+    @patch.dict(
+        os.environ,
+        {"GITHUB_TOKEN": "generic-token", "GH_TOKEN": "generic-token"},
+        clear=True,
+    )
+    def test_for_github_copilot_ignores_generic_github_tokens(self) -> None:
+        with pytest.raises(HTTPException) as exc_info:
+            AnyProviderConfig.for_github_copilot({})
+
+        assert "GitHub Copilot API key not configured" in str(
             exc_info.value.detail
         )
 

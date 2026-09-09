@@ -3772,6 +3772,7 @@ export interface components {
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
      *         - `github`: the GitHub Copilot language-server config
+     *         - `github_copilot`: the GitHub Copilot model inference config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
      *         - `opencode_go`: the OpenCode Go config
@@ -3788,6 +3789,7 @@ export interface components {
       };
       enabled?: boolean;
       github?: components["schemas"]["GitHubConfig"];
+      github_copilot?: components["schemas"]["OpenAiConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;
       max_tokens?: number;

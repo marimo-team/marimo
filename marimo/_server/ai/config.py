@@ -202,6 +202,34 @@ class AnyProviderConfig:
         )
 
     @classmethod
+    def for_github_copilot(
+        cls,
+        config: AiConfig,
+        *,
+        secret_resolver: SecretResolver | None = None,
+    ) -> AnyProviderConfig:
+        fallback_key = (
+            cls._resolve_secret("GITHUB_COPILOT_API_KEY", secret_resolver)
+            or cls._resolve_secret("GITHUB_COPILOT_API_TOKEN", secret_resolver)
+            or cls._resolve_secret("COPILOT_GITHUB_TOKEN", secret_resolver)
+        )
+        fallback_base_url = (
+            cls._resolve_secret("GITHUB_COPILOT_BASE_URL", secret_resolver)
+            or cls._resolve_secret("COPILOT_API_URL", secret_resolver)
+            or cls._resolve_secret("GITHUB_COPILOT_API_BASE", secret_resolver)
+            or "https://api.githubcopilot.com"
+        )
+        return cls._for_openai_like(
+            config,
+            "github_copilot",
+            "GitHub Copilot",
+            fallback_key=fallback_key,
+            fallback_base_url=fallback_base_url,
+            require_key=True,
+            secret_resolver=secret_resolver,
+        )
+
+    @classmethod
     def _for_openai_like(
         cls,
         config: AiConfig,
@@ -325,6 +353,10 @@ class AnyProviderConfig:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail=GITHUB_MODELS_RETIRED_MESSAGE,
+            )
+        elif model_id.provider == "github-copilot":
+            return cls.for_github_copilot(
+                config, secret_resolver=secret_resolver
             )
         elif model_id.provider == "openrouter":
             return cls.for_openrouter(config, secret_resolver=secret_resolver)

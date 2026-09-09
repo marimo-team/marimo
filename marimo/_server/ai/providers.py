@@ -27,6 +27,7 @@ from marimo._ai._pydantic_ai_utils import (
     profile_get,
 )
 from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._plugins.ui._impl.chat.chat import (
     AI_SDK_VERSION,
 )
@@ -872,6 +873,54 @@ def _infer_provider_name_from_base_url(base_url: str | None) -> str | None:
     return _known_provider_base_urls().get(normalized)
 
 
+GITHUB_COPILOT_DEPENDENCY = Dependency(
+    "pydantic_ai",
+    min_version="2.42.0",
+    pkg_name_to_install="pydantic-ai-slim[openai]>=2.42.0",
+)
+
+
+def _require_github_copilot_dependency() -> None:
+    if GITHUB_COPILOT_DEPENDENCY.has_required_version(
+        quiet=True
+    ) and DependencyManager.openai.has(quiet=True):
+        return
+
+    package = GITHUB_COPILOT_DEPENDENCY.pkg_name_to_install
+    assert package is not None
+    raise ManyModulesNotFoundError(
+        [package],
+        f"GitHub Copilot requires {package}.",
+        source="server",
+    )
+
+
+class GitHubCopilotProvider(PydanticProvider["Provider"]):
+    """Use Pydantic AI's GitHub Copilot provider and chat model."""
+
+    def __init__(self, model: str, config: AnyProviderConfig):
+        _require_github_copilot_dependency()
+        super().__init__(model, config, [DependencyManager.openai])
+
+    @override
+    def create_provider(self, config: AnyProviderConfig) -> Provider:
+        provider_class = _try_infer_provider_class("github-copilot")
+        assert provider_class is not None
+        return provider_class(  # type: ignore[call-arg]
+            api_key=config.api_key,
+            base_url=config.base_url,
+        )
+
+    @override
+    def create_model(self) -> Model:
+        from pydantic_ai.models import infer_model
+
+        return infer_model(
+            f"github-copilot:{self.model}",
+            provider_factory=lambda _: self.provider,
+        )
+
+
 class CustomProvider(OpenAIClientMixin, PydanticProvider["Provider"]):
     """Support for custom providers which may or may not be OpenAI-compatible.
 
@@ -1189,5 +1238,7 @@ def get_completion_provider(
         return OpenAIProvider(
             model_id.model, config, [DependencyManager.openai]
         )
+    elif model_id.provider == "github-copilot":
+        return GitHubCopilotProvider(model_id.model, config)
     else:
         return CustomProvider(model_id, config, [DependencyManager.openai])

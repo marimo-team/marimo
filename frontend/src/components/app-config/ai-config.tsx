@@ -969,6 +969,38 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
         </AccordionFormItem>
 
         <AccordionFormItem
+          title="GitHub Copilot"
+          provider="github-copilot"
+          isConfigured={hasValue("ai.github_copilot.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.github_copilot.api_key"
+            placeholder="gho_..."
+            testId="ai-github-copilot-api-key-input"
+            description={
+              <>
+                Your GitHub OAuth token. Run <Kbd>gh auth token</Kbd> after you
+                sign in with the GitHub CLI. A GitHub Copilot subscription is
+                required. See the{" "}
+                <ExternalLink href="https://pydantic.dev/docs/ai/models/github-copilot/">
+                  authentication guide
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.github_copilot.base_url"
+            placeholder="https://api.githubcopilot.com"
+            testId="ai-github-copilot-base-url-input"
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
           title="Anthropic"
           provider="anthropic"
           isConfigured={hasValue("ai.anthropic.api_key")}

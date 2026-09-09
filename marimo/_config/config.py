@@ -333,6 +333,7 @@ class AiConfig(TypedDict, total=False):
     - `azure`: the Azure config
     - `ollama`: the Ollama config
     - `github`: the GitHub Copilot language-server config
+    - `github_copilot`: the GitHub Copilot model inference config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
@@ -355,6 +356,7 @@ class AiConfig(TypedDict, total=False):
     azure: OpenAiConfig
     ollama: OpenAiConfig
     github: GitHubConfig
+    github_copilot: OpenAiConfig
     openrouter: OpenAiConfig
     wandb: OpenAiConfig
     opencode_go: OpenAiConfig

@@ -3,6 +3,11 @@
   description: OpenAI's API for GPT models, including GPT-3.5 and GPT-4.
   url: https://platform.openai.com/
 
+- name: GitHub Copilot
+  id: github-copilot
+  description: GitHub Copilot provides model inference through a Copilot subscription.
+  url: https://pydantic.dev/docs/ai/models/github-copilot/
+
 - name: Amazon Bedrock
   id: bedrock
   description: Amazon Bedrock provides access to foundation models from Amazon and leading AI startups via a unified API.

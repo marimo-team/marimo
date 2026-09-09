@@ -59,6 +59,7 @@ Some providers use a default environment variable when `api_key` is not set.
 | Provider | Environment variable |
 | --- | --- |
 | OpenAI | `OPENAI_API_KEY` |
+| GitHub Copilot | `GITHUB_COPILOT_API_KEY` |
 | Anthropic | `ANTHROPIC_API_KEY` |
 | Google AI | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
 | Azure OpenAI | `AZURE_API_KEY` |
@@ -117,6 +118,7 @@ You can configure the following providers:
 * Mistral
 * Ollama
 * OpenAI
+* GitHub Copilot
 * OpenCode Go
 * OpenRouter
 * Weights & Biases
@@ -273,6 +275,42 @@ base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 [GitHub Models retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/).
 For model inference, migrate to [Microsoft Foundry](#microsoft-foundry) or another AI provider.
 The [Microsoft migration guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/quickstart-github-models) explains the endpoint and credential changes.
+
+### GitHub Copilot
+
+GitHub Copilot is separate from the retired GitHub Models service. You can use
+models available through your Copilot subscription in marimo's AI assistant.
+
+**Requirements**
+
+* Install `pydantic-ai-slim[openai]>=2.42.0`.
+* Install the [GitHub CLI](https://cli.github.com/).
+* Sign in with `gh auth login`, then get your OAuth token with `gh auth token`.
+
+**Configuration**
+
+The available models depend on your Copilot subscription. Add a model from
+your account to `custom_models`, and use the `github-copilot/` prefix.
+
+```toml title="marimo.toml"
+[ai.models]
+custom_models = ["github-copilot/gpt-5.4"]
+chat_model = "github-copilot/gpt-5.4"
+
+[ai.github_copilot]
+api_key = "env:GITHUB_COPILOT_API_KEY"
+```
+
+Set the token before you start marimo:
+
+```bash
+export GITHUB_COPILOT_API_KEY="$(gh auth token)"
+```
+
+You can also set `GITHUB_COPILOT_API_TOKEN` or `COPILOT_GITHUB_TOKEN`.
+GitHub Copilot supports chat completions only. See the
+[Pydantic AI GitHub Copilot guide](https://pydantic.dev/docs/ai/models/github-copilot/)
+for authentication details and current limitations.
 
 ### OpenRouter
 
