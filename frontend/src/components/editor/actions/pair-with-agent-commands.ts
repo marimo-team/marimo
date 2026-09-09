@@ -37,6 +37,7 @@ function getFileFlag(file: string | undefined): string {
 /** Identifies the specific running notebook to pair on. */
 export interface ConnectionInfo {
   url: string;
+  sessionId: string;
   /** The server's file key, when the page URL identifies a notebook. */
   file?: string;
 }
@@ -47,12 +48,12 @@ export interface ConnectionInfo {
  */
 export function getTerminalCommand(
   agent: Exclude<AgentTab, "prompt">,
-  { url, file }: ConnectionInfo,
+  { url, sessionId, file }: ConnectionInfo,
   withToken: boolean,
 ): string {
   const fileFlag = getFileFlag(file);
   const tokenFlag = withToken ? " --with-token" : "";
-  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)}${fileFlag}${tokenFlag}`;
+  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)} --session ${shellQuote(sessionId)}${fileFlag}${tokenFlag}`;
   switch (agent) {
     case "claude":
       return `claude "$(${base} --claude)"`;
@@ -71,21 +72,29 @@ export function getTerminalCommand(
  * an agent behaves the same as the terminal commands.
  */
 export function getRawPrompt(
-  { url, file }: ConnectionInfo,
-  token: string | null,
+  { url, sessionId, file }: ConnectionInfo,
+  hasToken: boolean,
 ): string {
-  const fileFlag = getFileFlag(file);
-  const fileHint = file ? ` (file ${file})` : "";
-  const executeCmd = `execute-code.sh --url ${shellQuote(url)}${fileFlag}`;
-  const tokenHint = token
-    ? `\n\nUse this auth token when calling \`execute-code.sh\`: \`${executeCmd} --token ${shellQuote(token)}\`.`
-    : "";
+  const targetLines = [
+    "Pair with the live marimo notebook at this target:",
+    `  Server: ${url}`,
+    `  Session: ${sessionId}`,
+  ];
+  if (file) {
+    targetLines.push(`  Notebook: ${file}`);
+  }
+
   return [
-    "Use the /marimo-pair skill to pair-program on a running marimo notebook.",
+    ...targetLines,
     "",
-    `Connect to the notebook at: ${url}${fileHint}`,
-    "",
-    `Use \`${executeCmd}\` from the marimo-pair skill to execute code in the notebook.${tokenHint}`,
+    "Run commands from the uv project configured with this local marimo checkout.",
+    "Start with: uv run marimo pair --help",
+    ...(hasToken
+      ? [
+          "",
+          "This notebook uses authentication. Run the terminal command with --with-token and paste its output here instead.",
+        ]
+      : []),
     "",
     "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.",
   ].join("\n");

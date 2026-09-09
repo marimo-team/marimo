@@ -16,6 +16,7 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
+import { getSessionId } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
@@ -53,6 +54,7 @@ export const PairWithAgentModal: React.FC<{
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
+    sessionId: getSessionId(),
     file: getFileFromURL(window.location.href),
   };
 
@@ -128,18 +130,10 @@ export const PairWithAgentModal: React.FC<{
             <Step
               index={2}
               title="Copy this prompt into your agent"
-              hint={
-                hasToken
-                  ? "Includes your auth token — keep it private."
-                  : undefined
-              }
+              hint={hasToken ? "Use the terminal command to authenticate." : undefined}
             >
               <CommandBlock
-                command={getRawPrompt(connection, authToken)}
-                display={getRawPrompt(
-                  connection,
-                  authToken ? maskToken(authToken) : null,
-                )}
+                command={getRawPrompt(connection, hasToken)}
                 multiline={true}
               />
             </Step>
