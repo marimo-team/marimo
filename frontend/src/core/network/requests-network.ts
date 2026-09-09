@@ -11,6 +11,7 @@ import {
   waitForConnectionOpen,
   waitForConnectionOpenIfNotebook,
 } from "./connection";
+import { withDevAssetUrl } from "./export-asset-url";
 import type { EditRequests, RunRequests } from "./types";
 
 /**
@@ -430,15 +431,9 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         .then(handleResponse);
     },
     exportAsHTML: async (request) => {
-      if (
-        process.env.NODE_ENV === "development" ||
-        process.env.NODE_ENV === "test"
-      ) {
-        request.assetUrl = window.location.origin;
-      }
       return getClient()
         .POST("/api/export/html", {
-          body: request,
+          body: withDevAssetUrl(request),
           parseAs: "text",
           params: getParams(),
         })
