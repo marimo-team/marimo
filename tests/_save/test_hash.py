@@ -58,7 +58,7 @@ class TestHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "RSccsMCC0dBqvdcnBN1mdxlvKUr4zzR_qupKBW_P_qE"
+            expected_hash = "3npZ-M5wwDB0zG3H3PSfQOAfsudJ2UdAbw735A2KcG8"
 
             return expected_hash, persistent_cache, MockLoader
 
@@ -184,7 +184,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -205,7 +205,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -232,7 +232,7 @@ class TestHash:
             # Cannot be reused/ shared, because it will change the hash.
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             return
@@ -253,7 +253,7 @@ class TestHash:
             assert _X == 7
             assert (
                 _cache._cache.hash
-                == "r2_DqjuluzDmVs1wo1HZCNWz9wApoSSJlnXeYihOaNI"
+                == "nTzt1flCCbf7reZCc1-5DrSzstcrUI-D8UGqEerDWKI"
             ), _cache._cache.hash
             assert _cache._cache.cache_type == "ContextExecutionPath"
             # and a post block difference
@@ -796,7 +796,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "zLpFb6ANG99kP-4yWoH4zdV_FfrUodnEom1tILpF55c"
+            expected_hash = "pBZKYPYyDR5uEKFLKht3VSHEvnMkkEpciMcfpwbSMcc"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -849,7 +849,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "IaLyzmZZ4nwXMveSQjMVAa682QAyd2O90iSeHJvlb44"
+            expected_hash = "r1cAAVzNPB1fAY5-UHD9Ik1ErCZNT-UGfQen2qMlA9Q"
             return MockLoader, persistent_cache, expected_hash, np
 
         @app.cell
@@ -902,7 +902,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "6EJfKOu_iB6jpSTtCnUV1kjYy2u96m_w_3VzOUOn5Hg"
+            expected_hash = "9mgWGwYvJDMLUbORoNsWUWXSPxTIDSZRpdRbxslUw6A"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -962,7 +962,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "QIjIEzceYIH7WIvdIasBLceU3Ad40kYqTCSBnUmJZV4"
+            expected_hash = "F1d7Uh3ph4G7sg4R6O47WYAyecYoKZE_fmb3LOvqdNs"
             return MockLoader, persistent_cache, expected_hash, torch
 
         @app.cell
@@ -1002,7 +1002,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1eEgTTthH-FyKbziqYse1ITogQUMat0JW1meFZtMWCI"
+            expected_hash = "8TKOPfHs_A5BGSa6L_mFguHhvn_hL-Klq66oqg8_ypw"
             return MockLoader, persistent_cache, expected_hash, DNA, copy
 
         @app.cell
@@ -1040,7 +1040,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "ycCqtVaQAODpfHyimtlbxj1TIQB3WtLnhDIGq59yiqw"
+            expected_hash = "lndpMai6ipVnYD7vAbgy6yQbJXBRoHgwazlYcWaK9lY"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1104,7 +1104,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "C9MbH1ov4US2mrm_T_clm4VpI9WT97tg5BGEpOAbF1g"
+            expected_hash = "2N-ZrKapvfMcFABilql0eRhjB1JNXQVFWN98vWUQuS0"
             return MockLoader, persistent_cache, expected_hash, np, pd
 
         @app.cell
@@ -1145,7 +1145,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "DtWHQ972QmRo2kBlzgoGQDi-bRnRknWZsSFk_rT4lRA"
+            expected_hash = "sjT9F9XX-R4Uwc1d2NrCfRsPfBgLoSgU1JH_tsJr88E"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -1202,7 +1202,7 @@ class TestDataHash:
             from marimo._save.save import persistent_cache
             from tests._save.loaders.mocks import MockLoader
 
-            expected_hash = "1HlOXWU-oQ5MNB5B9YRNLnHcn3I8sngJvLuHV_ICLGY"
+            expected_hash = "WTp90mENyE_QMB1HlBCX4q_oPj68LYrpCd-TkwGHGTc"
             return MockLoader, persistent_cache, expected_hash, pl
 
         @app.cell
@@ -2623,31 +2623,18 @@ class TestSetLiteralDeterminism:
             digests.add(result.stdout.strip())
         assert len(digests) == 1, f"non-deterministic across seeds: {digests}"
 
-    def test_singleton_set_unchanged(self) -> None:
-        """A singleton set literal stays on the str() path (len > 1 guard).
-
-        `str(frozenset({'A'}))` has only one possible order, so it was never
-        broken; its hash must equal the plain str()-based serialization so we
-        don't invalidate caches that already worked.
-        """
-        import hashlib
-
+    def test_singleton_set_distinguishes_member_types(self) -> None:
+        # Singleton frozensets have no iteration-order ambiguity, but their
+        # encoded members must still distinguish types in the new key format.
         from marimo._save.hash import hash_module
 
-        def fn(x: object) -> bool:
-            return x in {"A"}
+        def number(x: object) -> bool:
+            return x in {1}
 
-        code = fn.__code__
-        singleton = next(c for c in code.co_consts if isinstance(c, frozenset))
-        assert len(singleton) == 1
+        def string(x: object) -> bool:
+            return x in {"1"}
 
-        expected = hashlib.new("sha256", usedforsecurity=False)
-        for const in code.co_consts:
-            expected.update(str(const).encode("utf8"))
-        expected.update(bytes("|".join(code.co_names), "utf8"))
-        expected.update(code.co_code)
-
-        assert hash_module(code) == expected.digest()
+        assert hash_module(number.__code__) != hash_module(string.__code__)
 
     def test_exotic_const_types_dont_crash(self) -> None:
         """Set literals can hold complex/bytes/bool/tuple — none may crash.

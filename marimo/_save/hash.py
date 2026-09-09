@@ -6,6 +6,7 @@ import base64
 import dataclasses
 import hashlib
 import inspect
+import pickle
 import sys
 import types
 from typing import TYPE_CHECKING, Any, NamedTuple
@@ -39,6 +40,7 @@ from marimo._save.encode import (
     common_container_to_bytes,
     data_to_buffer,
     deterministic_dumps,
+    iterable_sign,
     primitive_to_bytes,
     type_sign,
 )
@@ -75,48 +77,94 @@ def hash_module(code: CodeType | None, hash_type: str = DEFAULT_HASH) -> bytes:
         # Artifact of typing for mypy, but reasonable fallback.
         return b"0" * len(hash_alg.digest())
 
-    def process(code_obj: CodeType) -> None:
-        # Recursively hash the constants that are also code objects
-        for const in code_obj.co_consts:
-            if isinstance(const, types.CodeType):
-                process(const)
-            elif isinstance(const, frozenset) and len(const) > 1:
-                # Set literals fold to frozensets whose str()/iteration order is
-                # PYTHONHASHSEED-dependent once there are 2+ elements.
-                # Sort the element reprs for a deterministic order.
-                hash_alg.update(
-                    ",".join(sorted(map(repr, const))).encode("utf8")
-                )
-            else:
-                hash_alg.update(str(const).encode("utf8"))
-        # Concatenate the names and bytecode of the current code object
-        # Will cause invalidation of variable naming at the top level
+    def encode_constant(value: Any) -> bytes:
+        # Recursively hash the constants that are also code objects.
+        if isinstance(value, types.CodeType):
+            return encode_code(value)
+        if isinstance(value, tuple):
+            return iterable_sign(map(encode_constant, value), "tuple")
+        if isinstance(value, frozenset):
+            # Set literals fold to frozensets whose str()/iteration order is
+            # PYTHONHASHSEED-dependent once there are 2+ elements.
+            # Sort the encoded elements for a deterministic order.
+            return iterable_sign(
+                sorted(map(encode_constant, value)), "frozenset"
+            )
+        return primitive_to_bytes(value)
 
-        names = [unmangle_local(name).name for name in code_obj.co_names]
-        hash_alg.update(bytes("|".join(names), "utf8"))
-        hash_alg.update(code_obj.co_code)
+    def encode_code(code_obj: CodeType) -> bytes:
+        # Names contribute to the hash, so variable renames invalidate it.
+        # Strip marimo's cell-local prefixes so moving code preserves the hash.
+        names = tuple(
+            tuple(unmangle_local(name).name for name in group)
+            for group in (
+                code_obj.co_names,
+                code_obj.co_varnames,
+                code_obj.co_freevars,
+                code_obj.co_cellvars,
+            )
+        )
+        return iterable_sign(
+            (
+                iterable_sign(
+                    map(encode_constant, code_obj.co_consts), "constants"
+                ),
+                primitive_to_bytes(names),
+                primitive_to_bytes(
+                    (
+                        code_obj.co_argcount,
+                        code_obj.co_posonlyargcount,
+                        code_obj.co_kwonlyargcount,
+                        code_obj.co_flags,
+                    )
+                ),
+                code_obj.co_code,
+                getattr(code_obj, "co_exceptiontable", b""),
+            ),
+            "code",
+        )
 
-    process(code)
+    # Invalidate entries produced by the old, ambiguous encodings.
+    hash_alg.update(b"marimo-code:v2\0")
+    hash_alg.update(encode_code(code))
     return hash_alg.digest()
 
 
 def hash_wrapped_functions(
     wrapped: Callable[..., Any], hash_type: str = DEFAULT_HASH
 ) -> bytes:
-    seen = set()
+    seen: set[int] = set()
 
-    # there is a chance for a circular reference
-    # likely manually created, but easy to guard against.
     def process_function(fn: Callable[..., Any]) -> bytes:
+        # There is a chance for a circular reference, likely manually created,
+        # but easy to guard against.
+        if id(fn) in seen:
+            return b""
+        seen.add(id(fn))
+        hash_alg = hashlib.new(hash_type, usedforsecurity=False)
         if not inspect.isbuiltin(fn):
-            fn_hash = hash_module(fn.__code__, hash_type)
+            hash_alg.update(hash_module(fn.__code__, hash_type))
+            hash_alg.update(
+                type_sign(
+                    deterministic_dumps(
+                        (fn.__defaults__, fn.__kwdefaults__), hash_type
+                    ),
+                    "defaults",
+                )
+            )
         else:
-            # Builtin functions are not hashable, so we use their name.
-            fn_hash = type_sign(bytes(fn.__name__, "utf-8"), "builtin")
-        if fn_hash not in seen and hasattr(fn, "__wrapped__"):
-            child_hash = hash_wrapped_functions(fn.__wrapped__, hash_type)
+            # Builtin functions do not expose Python bytecode, so use their
+            # qualified name to distinguish functions from different modules.
+            hash_alg.update(
+                type_sign(
+                    primitive_to_bytes((fn.__module__, fn.__qualname__)),
+                    "builtin",
+                )
+            )
+        fn_hash = hash_alg.digest()
+        if hasattr(fn, "__wrapped__"):
+            child_hash = process_function(fn.__wrapped__)
             return child_hash + fn_hash
-        seen.add(fn_hash)
         return fn_hash
 
     return process_function(wrapped)
@@ -757,7 +805,10 @@ class BlockHasher:
                         version = getattr(module, "__version__", "") or ""
 
                 content_serialization[ref] = type_sign(
-                    bytes(f"module:{ref}:{version}", "utf-8"), "module"
+                    primitive_to_bytes(
+                        (ref, imports[import_key].module, version)
+                    ),
+                    "module",
                 )
                 # No need to watch the module otherwise. If the block depends
                 # on it then it should be caught when hashing the block.
@@ -789,9 +840,13 @@ class BlockHasher:
             elif is_pure_function(
                 local_ref, value, scope, self.fn_cache, self.graph
             ):
-                serial_value = hash_wrapped_functions(
-                    value, self.hash_alg.name
-                )
+                try:
+                    serial_value = hash_wrapped_functions(
+                        value, self.hash_alg.name
+                    )
+                except (pickle.PicklingError, AttributeError, TypeError):
+                    # A default that cannot be encoded needs producer identity.
+                    continue
             # A restored stub — a placeholder left in scope for a value we
             # could not materialize here (e.g. a tensor whose optional dep is
             # absent in this environment). The `__marimo_unhashable__` protocol

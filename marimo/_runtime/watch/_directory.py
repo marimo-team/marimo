@@ -35,7 +35,7 @@ def _hashable_walk(
 ) -> set[tuple[Path, tuple[str], tuple[str]]]:
     return cast(
         set[tuple[Path, tuple[str], tuple[str]]],
-        {(p, *map(tuple, r)) for p, *r in walked},
+        {(p, *[tuple(sorted(names)) for names in r]) for p, *r in walked},
     )
 
 
@@ -89,7 +89,7 @@ class DirectoryState(PathState):
 
     def walk(self) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Walk the directory."""
-        items = walk(self._value)
+        items = list(walk(self._value))
         as_list = list(_hashable_walk(items))
         write_side_effect(f"walk:{sorted(as_list)}")
         return iter(items)
@@ -115,7 +115,9 @@ class DirectoryState(PathState):
     def __repr__(self) -> str:
         """Return a string representation of the file state."""
         _walk = self.walk()  # Call to issue side effect
-        _hash = hashlib.sha256(f"{list(_walk)}".encode()).hexdigest()
+        _hash = hashlib.sha256(
+            repr(sorted(_hashable_walk(_walk))).encode()
+        ).hexdigest()
         return f"DirectoryState({self._value}: {_hash})"
 
 
