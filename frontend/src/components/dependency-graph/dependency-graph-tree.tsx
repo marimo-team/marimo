@@ -1,8 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { Atom } from "jotai";
+import { type Atom, atom, useAtomValue } from "jotai";
 import { MapPinIcon } from "lucide-react";
-import React, { type PropsWithChildren, useEffect, useState } from "react";
+import React, {
+  type PropsWithChildren,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import useEvent from "react-use-event-hook";
 import ReactFlow, {
   Background,
@@ -15,6 +20,7 @@ import ReactFlow, {
   useNodesState,
   useReactFlow,
 } from "reactflow";
+import { edgeTypes } from "@/components/dependency-graph/custom-edge";
 import {
   EdgeMarkerContext,
   nodeTypes,
@@ -25,11 +31,16 @@ import type { CellData } from "@/core/cells/types";
 import { store } from "@/core/state/jotai";
 import type { Variables } from "@/core/variables/types";
 import { Events } from "@/utils/events";
-import { scrollAndHighlightCell } from "../editor/links/cell-link";
 import { Tooltip } from "../ui/tooltip";
-import { type NodeData, TreeElementsBuilder } from "./elements";
+import {
+  computeDefsByCell,
+  type NodeData,
+  nodeDimensions,
+  TreeElementsBuilder,
+} from "./elements";
 import { GraphSelectionPanel } from "./panels";
 import type { GraphSelection, GraphSettings, LayoutDirection } from "./types";
+import { extractCellPreview } from "./utils/cell-preview";
 import { layoutElements } from "./utils/layout";
 import { useFitToViewOnDimensionChange } from "./utils/useFitToViewOnDimensionChange";
 
@@ -43,6 +54,24 @@ interface Props {
 
 const elementsBuilder = new TreeElementsBuilder();
 
+/**
+ * Apply the current expand/collapse selection to freshly-built nodes, resizing
+ * each so the layout engine and the DOM agree on node dimensions.
+ */
+function withExpansion(
+  nodes: Node<NodeData>[],
+  expandedIds: Set<CellId>,
+): Node<NodeData>[] {
+  return nodes.map((node) => {
+    const data: NodeData = {
+      ...node.data,
+      expanded: expandedIds.has(node.id as CellId),
+    };
+    const { width, height } = nodeDimensions(data);
+    return { ...node, data, width, height };
+  });
+}
+
 export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   cellIds,
   variables,
@@ -51,22 +80,23 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
   layoutDirection,
   settings,
 }) => {
+  // Cells whose node is expanded to show its full code (toggled by double-click).
+  const [expandedIds, setExpandedIds] = useState<Set<CellId>>(() => new Set());
+
   // oxlint-disable-next-line react/hook-use-state
   const [initial] = useState(() => {
-    let elements = elementsBuilder.createElements(
+    const elements = elementsBuilder.createElements(
       cellIds,
       cellAtoms,
       variables,
       settings.hidePureMarkdown,
       settings.hideReusableFunctions,
     );
-    elements = layoutElements({
-      nodes: elements.nodes,
+    return layoutElements({
+      nodes: withExpansion(elements.nodes, expandedIds),
       edges: elements.edges,
       direction: layoutDirection,
     });
-
-    return elements;
     // Only run once
   });
 
@@ -82,22 +112,68 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         edges: elements.edges,
         direction: layoutDirection,
       });
-      setNodes(result.nodes);
-      setEdges(result.edges);
+      // Rebuilt elements are fresh objects; carry selection over so a
+      // re-layout (e.g. toggling expansion) doesn't silently clear it while
+      // the selection panel still targets the element.
+      setNodes((prev) => {
+        const selected = new Set(
+          prev.filter((node) => node.selected).map((node) => node.id),
+        );
+        return result.nodes.map((node) =>
+          selected.has(node.id) ? { ...node, selected: true } : node,
+        );
+      });
+      setEdges((prev) => {
+        const selected = new Set(
+          prev.filter((edge) => edge.selected).map((edge) => edge.id),
+        );
+        return result.edges.map((edge) =>
+          selected.has(edge.id) ? { ...edge, selected: true } : edge,
+        );
+      });
     },
   );
 
-  // If the cellIds change, update the nodes.
+  // Node sizes depend on live cell code: the line count when expanded, or the
+  // preview when a cell defines nothing. The cell atoms keep their identity
+  // across edits, so the rebuild effect below can't see code changes through
+  // its deps — subscribe to the size-relevant inputs explicitly.
+  const defsByCell = useMemo(() => computeDefsByCell(variables), [variables]);
+  const sizeSignature = useAtomValue(
+    useMemo(
+      () =>
+        atom((get) =>
+          cellIds
+            .map((cellId, index) => {
+              const code = get(cellAtoms[index]).code;
+              if (expandedIds.has(cellId)) {
+                return `e${code.trim().split("\n").length}`;
+              }
+              if ((defsByCell.get(cellId) ?? []).length > 0) {
+                // Collapsed nodes with defs size off the defs, not the code.
+                return "d";
+              }
+              return `p${extractCellPreview(code).text?.length ?? 0}`;
+            })
+            .join(),
+        ),
+      [cellIds, cellAtoms, expandedIds, defsByCell],
+    ),
+  );
+
+  // Rebuild + re-layout when the graph inputs or the expand/collapse set change.
   useEffect(() => {
-    syncChanges(
-      elementsBuilder.createElements(
-        cellIds,
-        cellAtoms,
-        variables,
-        settings.hidePureMarkdown,
-        settings.hideReusableFunctions,
-      ),
+    const elements = elementsBuilder.createElements(
+      cellIds,
+      cellAtoms,
+      variables,
+      settings.hidePureMarkdown,
+      settings.hideReusableFunctions,
     );
+    syncChanges({
+      nodes: withExpansion(elements.nodes, expandedIds),
+      edges: elements.edges,
+    });
   }, [
     cellIds,
     variables,
@@ -105,6 +181,8 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
     syncChanges,
     settings.hidePureMarkdown,
     settings.hideReusableFunctions,
+    expandedIds,
+    sizeSignature,
   ]);
 
   const [selection, setSelection] = useState<GraphSelection>();
@@ -120,6 +198,7 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         minZoom={0.2}
         fitViewOptions={{
           minZoom: 0.5,
@@ -137,7 +216,17 @@ export const DependencyGraphTree: React.FC<PropsWithChildren<Props>> = ({
           });
         }}
         onNodeDoubleClick={(_event, node) => {
-          scrollAndHighlightCell(node.id as CellId, "focus");
+          // Expand/collapse the node to reveal its full code in place.
+          const id = node.id as CellId;
+          setExpandedIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+              next.delete(id);
+            } else {
+              next.add(id);
+            }
+            return next;
+          });
         }}
         fitView={true}
         onNodesChange={onNodesChange}
