@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it } from "vitest";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ColumnVisibilityDropdown } from "../column-visibility-dropdown";
 import { INDEX_COLUMN_NAME, SELECT_COLUMN_ID } from "../types";
 
@@ -70,9 +71,23 @@ function Harness({ initiallyHidden = [], nonHideable = [] }: HarnessProps) {
 }
 
 function renderAndOpen(props?: HarnessProps) {
-  const result = render(<Harness {...(props ?? {})} />);
+  const result = render(
+    <TooltipProvider>
+      <Harness {...(props ?? {})} />
+    </TooltipProvider>,
+  );
   fireEvent.click(screen.getByTestId("column-visibility-trigger"));
   return result;
+}
+
+function getShowOnlyButton(columnName: string): HTMLElement {
+  const button = getColumnOption(columnName).querySelector(
+    '[aria-label="Show only this column"]',
+  );
+  if (!button) {
+    throw new Error(`No show-only button for column ${columnName}`);
+  }
+  return button as HTMLElement;
 }
 
 function getOptionTexts(): string[] {
@@ -270,8 +285,122 @@ describe("ColumnVisibilityDropdown", () => {
   it("offers both bulk actions when matches are mixed", () => {
     renderAndOpen({ initiallyHidden: ["cust_age"] });
     fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(screen.getByText(/Show only 2 matching/)).toBeInTheDocument();
     expect(screen.getByText(/Hide 1 matching/)).toBeInTheDocument();
     expect(screen.getByText(/Show 1 matching/)).toBeInTheDocument();
+  });
+
+  it("lists show-only before hide and show bulk actions while searching", () => {
+    renderAndOpen({ initiallyHidden: ["cust_age"] });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getOptionTexts().slice(0, 3)).toEqual([
+      "Show only 2 matching",
+      "Hide 1 matching",
+      "Show 1 matching",
+    ]);
+  });
+
+  it("'Show only N matching' isolates matching columns", () => {
+    renderAndOpen({ initiallyHidden: ["cust_age"] });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    fireEvent.click(getColumnOption("Show only 2 matching"));
+    fireEvent.change(getSearchInput(), { target: { value: "" } });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("order_total").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getColumnOption("Show only 2 matching")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disables 'Show only N matching' when already showing only matches", () => {
+    renderAndOpen({
+      initiallyHidden: ["order_total"],
+    });
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    expect(getColumnOption("Show only 2 matching")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("omits 'Show only N matching' without search text", () => {
+    renderAndOpen();
+    expect(
+      screen.queryByText(/Show only \d+ matching/),
+    ).not.toBeInTheDocument();
+  });
+
+  it("omits search bulk actions when only non-hideable columns match", () => {
+    renderAndOpen({ nonHideable: ["customer_name"] });
+    fireEvent.change(getSearchInput(), { target: { value: "customer" } });
+    expect(screen.getByText("customer_name")).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Show only \d+ matching/),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Hide \d+ matching/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Show \d+ matching/)).not.toBeInTheDocument();
+  });
+
+  it("show-only icon isolates one column without clearing search", () => {
+    renderAndOpen();
+    fireEvent.change(getSearchInput(), { target: { value: "cust" } });
+    fireEvent.click(getShowOnlyButton("customer_name"));
+    expect(getSearchInput()).toHaveValue("cust");
+    fireEvent.change(getSearchInput(), { target: { value: "" } });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+    expect(
+      getColumnOption("cust_age").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+    expect(
+      getColumnOption("order_total").querySelector(".lucide-eye-off"),
+    ).not.toBeNull();
+  });
+
+  it("show-only icon does not toggle the row visibility", () => {
+    renderAndOpen();
+    fireEvent.click(getShowOnlyButton("customer_name"));
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
+  });
+
+  it("disables show-only icon when the column is already alone", () => {
+    renderAndOpen({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    expect(getShowOnlyButton("customer_name")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disabled show-only icon blocks pointer activation of the row", () => {
+    renderAndOpen({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    const button = getShowOnlyButton("customer_name");
+    expect(button).toHaveAttribute("aria-disabled", "true");
+
+    fireEvent.pointerDown(button, { pointerId: 1, bubbles: true });
+    fireEvent.click(button, { bubbles: true });
+
+    expect(
+      getColumnOption("customer_name").querySelector(".lucide-eye-off"),
+    ).toBeNull();
   });
 
   it("renders non-hideable columns disabled and without an eye toggle", () => {

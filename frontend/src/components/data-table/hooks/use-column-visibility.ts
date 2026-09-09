@@ -54,3 +54,79 @@ export function getColumnCountForDisplay<TData>(
     hiddenColumns: counts.hidden,
   };
 }
+
+export function getShowOnlyVisibility<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): VisibilityState {
+  const showOnlySet = new Set(columnIds);
+  const visibility: VisibilityState = {};
+
+  for (const column of table.getAllLeafColumns()) {
+    if (!column.getCanHide()) {
+      continue;
+    }
+    visibility[column.id] = showOnlySet.has(column.id);
+  }
+
+  return visibility;
+}
+
+export function applyShowOnlyColumns<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): void {
+  table.setColumnVisibility((previous) => ({
+    ...previous,
+    ...getShowOnlyVisibility(table, columnIds),
+  }));
+}
+
+export interface ShowOnlyColumnState {
+  visibleHideableColumnIds: readonly string[];
+  hideableColumnIdSet: ReadonlySet<string>;
+}
+
+export function getShowOnlyColumnState<TData>(
+  table: Table<TData>,
+): ShowOnlyColumnState {
+  const hideableIds: string[] = [];
+  const visibleHideableColumnIds: string[] = [];
+
+  for (const column of table.getAllLeafColumns()) {
+    if (!column.getCanHide()) {
+      continue;
+    }
+    hideableIds.push(column.id);
+    if (column.getIsVisible()) {
+      visibleHideableColumnIds.push(column.id);
+    }
+  }
+
+  return {
+    visibleHideableColumnIds,
+    hideableColumnIdSet: new Set(hideableIds),
+  };
+}
+
+export function isShowingOnlyColumns(
+  state: ShowOnlyColumnState,
+  columnIds: readonly string[],
+): boolean {
+  const targetIds = new Set(
+    columnIds.filter((id) => state.hideableColumnIdSet.has(id)),
+  );
+
+  if (state.visibleHideableColumnIds.length !== targetIds.size) {
+    return false;
+  }
+
+  return state.visibleHideableColumnIds.every((id) => targetIds.has(id));
+}
+
+export function isShowingOnly<TData>(
+  table: Table<TData>,
+  columnIds: string[],
+): boolean {
+  return isShowingOnlyColumns(getShowOnlyColumnState(table), columnIds);
+}

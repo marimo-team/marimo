@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeOffIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocale } from "react-aria";
 import {
   AddDataframeChart,
@@ -52,8 +52,12 @@ import type { Column, Table } from "@tanstack/react-table";
 import { cn } from "@/utils/cn";
 import {
   getColumnCountForDisplay,
+  getShowOnlyColumnState,
   getUserColumnVisibilityCounts,
+  isShowingOnlyColumns,
+  type ShowOnlyColumnState,
 } from "../hooks/use-column-visibility";
+import { ShowOnlyColumnButton } from "../show-only-column-button";
 
 interface ColumnExplorerPanelProps<TData> {
   previewColumn: PreviewColumn;
@@ -94,6 +98,11 @@ export function ColumnExplorerPanel<TData>({
     hiddenColumns: hiddenColumnCount,
   } = getColumnCountForDisplay(table, totalColumns);
   const { visible: visibleColumnCount } = getUserColumnVisibilityCounts(table);
+  const columnVisibility = table.getState().columnVisibility;
+  const showOnlyColumnState = useMemo(
+    () => getShowOnlyColumnState(table),
+    [table, columnVisibility],
+  );
 
   const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,
@@ -162,6 +171,8 @@ export function ColumnExplorerPanel<TData>({
                   dataType={dataType}
                   externalType={externalType}
                   previewColumn={previewColumn}
+                  table={table}
+                  showOnlyColumnState={showOnlyColumnState}
                   defaultExpanded={index === 0}
                 />
               );
@@ -179,6 +190,8 @@ function ColumnItem<TData>({
   dataType,
   externalType,
   previewColumn,
+  table,
+  showOnlyColumnState,
   defaultExpanded = false,
 }: {
   columnName: string;
@@ -186,6 +199,8 @@ function ColumnItem<TData>({
   dataType: DataType;
   externalType: string;
   previewColumn: PreviewColumn;
+  table: Table<TData>;
+  showOnlyColumnState: ShowOnlyColumnState;
   defaultExpanded?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -218,36 +233,50 @@ function ColumnItem<TData>({
             )}
           />
           {column?.getCanHide() && (
-            <Tooltip
-              content={column.getIsVisible() ? "Hide column" : "Show column"}
-              delayDuration={400}
-            >
-              <Button
-                type="button"
-                variant="text"
-                size="icon"
-                aria-label={
-                  column.getIsVisible() ? "Hide column" : "Show column"
-                }
+            <>
+              <ShowOnlyColumnButton
+                table={table}
+                columnIds={[columnName]}
+                disabled={isShowingOnlyColumns(showOnlyColumnState, [
+                  columnName,
+                ])}
                 className={cn(
-                  "hover:bg-muted text-muted-foreground hover:text-primary",
                   column.getIsVisible()
                     ? "group-hover:opacity-100 opacity-0"
                     : "opacity-100",
                 )}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  column.toggleVisibility(!column.getIsVisible());
-                }}
+              />
+              <Tooltip
+                content={column.getIsVisible() ? "Hide column" : "Show column"}
+                delayDuration={400}
               >
-                {column.getIsVisible() ? (
-                  <EyeIcon className="h-3 w-3" strokeWidth={2.5} />
-                ) : (
-                  <EyeOffIcon className="h-3 w-3" strokeWidth={2.5} />
-                )}
-              </Button>
-            </Tooltip>
+                <Button
+                  type="button"
+                  variant="text"
+                  size="icon"
+                  aria-label={
+                    column.getIsVisible() ? "Hide column" : "Show column"
+                  }
+                  className={cn(
+                    "hover:bg-muted text-muted-foreground hover:text-primary",
+                    column.getIsVisible()
+                      ? "group-hover:opacity-100 opacity-0"
+                      : "opacity-100",
+                  )}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    column.toggleVisibility(!column.getIsVisible());
+                  }}
+                >
+                  {column.getIsVisible() ? (
+                    <EyeIcon className="h-3 w-3" strokeWidth={2.5} />
+                  ) : (
+                    <EyeOffIcon className="h-3 w-3" strokeWidth={2.5} />
+                  )}
+                </Button>
+              </Tooltip>
+            </>
           )}
           <span className="text-xs text-muted-foreground">{externalType}</span>
         </div>
