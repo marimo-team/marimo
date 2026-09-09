@@ -9,7 +9,11 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._save.encode import common_container_to_bytes, deterministic_dumps
+from marimo._save.encode import (
+    common_container_to_bytes,
+    data_to_buffer,
+    deterministic_dumps,
+)
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NUMPY = DependencyManager.numpy.has()
@@ -137,3 +141,37 @@ def test_bytearray_does_not_collide_with_equal_bytes() -> None:
     assert common_container_to_bytes(bytearray(b"abc")) != (
         common_container_to_bytes(b"abc")
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+def test_polars_dataframe_hash_includes_values_and_schema() -> None:
+    import polars as pl
+
+    frame = pl.DataFrame({"count": [1, 2], "label": ["a", "b"]})
+    encoded = data_to_buffer(frame)
+
+    assert encoded == data_to_buffer(frame.clone())
+    assert encoded == data_to_buffer(
+        pl.concat([frame.head(1), frame.tail(1)], rechunk=False)
+    )
+    assert encoded != data_to_buffer(
+        pl.DataFrame({"count": [1, 2], "label": ["a", "c"]})
+    )
+    assert encoded != data_to_buffer(frame.rename({"label": "name"}))
+    assert encoded != data_to_buffer(frame.cast({"count": pl.Int32}))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+def test_polars_series_hash_includes_name_and_values() -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    encoded = data_to_buffer(series)
+
+    assert encoded == data_to_buffer(series.clone())
+    assert encoded != data_to_buffer(pl.Series("label", ["a", "c"]))
+    assert encoded != data_to_buffer(series.rename("name"))

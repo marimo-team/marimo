@@ -75,6 +75,16 @@ def standardize_tensor(tensor: Tensor) -> Tensor:
 
 def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
     """Return a contiguous uint8 view of a tensor/array."""
+    if f"{type(data).__module__}.{type(data).__name__}" in (
+        "polars.dataframe.frame.DataFrame",
+        "polars.series.series.Series",
+    ):
+        # Preserve column types and names, including mixed and string columns
+        # whose NumPy representation contains Python object references.
+        frame = data.to_frame() if hasattr(data, "to_frame") else data
+        buffer = io.BytesIO()
+        frame.rechunk().write_ipc(buffer)
+        return buffer.getbuffer()
     data = standardize_tensor(data)
     # From joblib.hashing
     if data.shape == ():

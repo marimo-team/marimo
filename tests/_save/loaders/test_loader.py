@@ -542,12 +542,19 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"
     )
-    def test_polars_round_trip(self) -> None:
+    @pytest.mark.parametrize("pyarrow_available", [True, False])
+    def test_polars_round_trip(
+        self, monkeypatch: pytest.MonkeyPatch, pyarrow_available: bool
+    ) -> None:
         """polars DataFrames survive save → flush → load via .arrow format."""
         import polars as pl
 
+        if not pyarrow_available:
+            monkeypatch.setattr(
+                DependencyManager.pyarrow, "has", lambda: False
+            )
         loader = self.instance()
-        df = pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0]})
+        df = pl.DataFrame({"a": [1, 2], "b": [3.0, 4.0], "c": ["x", "y"]})
         cache = Cache(
             defs={"df": df},
             hash="pl_hash",
@@ -569,12 +576,19 @@ class TestLazyLoader(ABCTestLoader):
     @pytest.mark.skipif(
         not DependencyManager.has("polars"), reason="polars required"
     )
-    def test_polars_series_round_trip(self) -> None:
+    @pytest.mark.parametrize("pyarrow_available", [True, False])
+    def test_polars_series_round_trip(
+        self, monkeypatch: pytest.MonkeyPatch, pyarrow_available: bool
+    ) -> None:
         """polars Series survive save → flush → load via .arrow format."""
         import polars as pl
 
+        if not pyarrow_available:
+            monkeypatch.setattr(
+                DependencyManager.pyarrow, "has", lambda: False
+            )
         loader = self.instance()
-        s = pl.Series("vals", [10, 20, 30])
+        s = pl.Series("vals", ["a", "b", "c"])
         cache = Cache(
             defs={"s": s},
             hash="pl_series_hash",
@@ -602,7 +616,7 @@ class TestLazyLoader(ABCTestLoader):
         import pandas as pd
 
         loader = self.instance()
-        df = pd.DataFrame({"x": [1, 2], "y": [3.0, 4.0]})
+        df = pd.DataFrame({"to_frame": [1, 2], "y": [3.0, 4.0]})
         cache = Cache(
             defs={"df": df},
             hash="pd_hash",
