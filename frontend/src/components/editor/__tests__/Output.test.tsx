@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { OutputArea, OutputRenderer } from "../Output";
@@ -174,6 +174,12 @@ describe("OutputArea fullscreen exit control", () => {
       configurable: true,
       value: exitFullscreen,
     });
+  });
+
+  // Drop the stubs so that the real document properties come back.
+  afterEach(() => {
+    Reflect.deleteProperty(document, "fullscreenElement");
+    Reflect.deleteProperty(document, "exitFullscreen");
   });
 
   const renderOutput = () =>
