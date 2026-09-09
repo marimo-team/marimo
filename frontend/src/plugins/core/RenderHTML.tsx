@@ -24,6 +24,8 @@ import { sanitizeHtml, useSanitizeHtml } from "./sanitize";
 type ReplacementFn = NonNullable<HTMLReactParserOptions["replace"]>;
 type TransformFn = NonNullable<HTMLReactParserOptions["transform"]>;
 
+const EMPTY_REPLACEMENTS: ReplacementFn[] = [];
+
 interface Options {
   html: string;
   /**
@@ -299,7 +301,7 @@ const CopyableCode = ({ children }: { children: ReactNode }) => {
  */
 export const renderHTML = ({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
   alwaysSanitizeHtml = true,
 }: Options) => {
   return (
@@ -313,7 +315,7 @@ export const renderHTML = ({
 
 const RenderHTML = ({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
   alwaysSanitizeHtml,
 }: Options) => {
   const shouldSanitizeHtml = useSanitizeHtml();
@@ -333,7 +335,7 @@ const RenderHTML = ({
 
 function parseHtml({
   html,
-  additionalReplacements = [],
+  additionalReplacements = EMPTY_REPLACEMENTS,
 }: Pick<Options, "html" | "additionalReplacements">) {
   const renderFunctions: ReplacementFn[] = [
     replaceValidTags,

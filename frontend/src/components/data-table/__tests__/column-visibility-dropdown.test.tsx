@@ -20,6 +20,7 @@ beforeAll(() => {
 });
 
 type Row = Record<string, unknown>;
+const EMPTY_COLUMN_IDS: string[] = [];
 
 // Select, index, and nameless columns are non-hideable in production
 // (see columns.tsx), so the harness mirrors that to keep visibility counts
@@ -50,7 +51,10 @@ interface HarnessProps {
   nonHideable?: string[];
 }
 
-function Harness({ initiallyHidden = [], nonHideable = [] }: HarnessProps) {
+function Harness({
+  initiallyHidden = EMPTY_COLUMN_IDS,
+  nonHideable = EMPTY_COLUMN_IDS,
+}: HarnessProps) {
   const table = useReactTable<Row>({
     data: [],
     columns: TEST_COLUMNS.map((column) =>

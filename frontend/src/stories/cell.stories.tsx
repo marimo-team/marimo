@@ -22,6 +22,8 @@ import { TooltipProvider } from "../components/ui/tooltip";
 
 type Story = StoryObj<typeof Cell>;
 
+const EMPTY_OVERRIDES = {};
+
 const Cell: React.FC<{
   overrides?: {
     runElapsedTimeMs?: Milliseconds;
@@ -33,7 +35,7 @@ const Cell: React.FC<{
     staleInputs?: boolean;
     config?: CellConfig;
   };
-}> = ({ overrides = {} }) => {
+}> = ({ overrides = EMPTY_OVERRIDES }) => {
   const cid = cellId("1");
   const notebook: NotebookState = {
     cellData: {

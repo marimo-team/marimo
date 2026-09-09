@@ -66,8 +66,7 @@
     "react/jsx-no-literals": "off",
     "react/memo-dependencies": "off",
     "react/no-deriving-state-in-effects": "off",
-    "react/no-object-type-as-default-prop": "off",
-    "react/no-unstable-nested-components": "off",
+    "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
     "react/preserve-manual-memoization": "off",
     "react/prefer-function-component": "off",
     "react/purity": "off",
@@ -78,7 +77,10 @@
     "typescript/explicit-member-accessibility": "off",
     "vitest/no-conditional-expect": "off",
     "vitest/no-disabled-tests": "off",
-    "vitest/no-standalone-expect": "off",
+    "vitest/no-standalone-expect": [
+      "error",
+      { "additionalTestBlockFunctions": ["beforeEach"] }
+    ],
     "vitest/prefer-snapshot-hint": "off",
     "vitest/require-to-throw-message": "off",
     "vitest/valid-expect": "off",

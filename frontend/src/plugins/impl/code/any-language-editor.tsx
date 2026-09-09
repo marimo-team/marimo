@@ -27,6 +27,8 @@ export const LANGUAGE_MAP: Record<string, LanguageName | undefined> = {
   undefined: "text",
 };
 
+const EMPTY_EXTENSIONS: Extension[] = [];
+
 function isSupportedLanguage(
   language: string | undefined,
 ): language is LanguageName {
@@ -53,7 +55,7 @@ const AnyLanguageCodeMirror: React.FC<
   language,
   hideUnsupportedLanguageErrors,
   showCopyButton,
-  extensions = [],
+  extensions = EMPTY_EXTENSIONS,
   ...props
 }) => {
   // Maybe normalize the language to the extension

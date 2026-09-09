@@ -189,6 +189,8 @@ export const MediaRenderer: React.FC<MediaSource & { mimeType: string }> = ({
  * based on MIME type. Used by both the local file viewer and the
  * storage file viewer.
  */
+const EMPTY_EXTENSIONS: Extension[] = [];
+
 export const FileContentRenderer: React.FC<{
   mimeType: string;
   filename?: string;
@@ -207,7 +209,7 @@ export const FileContentRenderer: React.FC<{
   mediaSource,
   readOnly = true,
   onChange,
-  extensions = [],
+  extensions = EMPTY_EXTENSIONS,
 }) => {
   const { theme } = useTheme();
 

@@ -64,11 +64,13 @@ interface Props<T extends FieldValues> {
   children?: React.ReactNode;
 }
 
+const EMPTY_RENDERERS: never[] = [];
+
 export const ZodForm = <T extends FieldValues>({
   schema,
   form,
   path = "" as Path<T>,
-  renderers = [],
+  renderers = EMPTY_RENDERERS,
   children,
 }: Props<T>) => {
   return (
