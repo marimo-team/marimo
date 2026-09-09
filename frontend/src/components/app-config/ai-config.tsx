@@ -981,9 +981,10 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             testId="ai-github-copilot-api-key-input"
             description={
               <>
-                Your GitHub OAuth token. Run <Kbd>gh auth token</Kbd> after you
-                sign in with the GitHub CLI. A GitHub Copilot subscription is
-                required. See the{" "}
+                Your GitHub OAuth token. Run{" "}
+                <Kbd className="inline">gh auth token</Kbd> after you sign in
+                with the GitHub CLI. A GitHub Copilot subscription is required.
+                See the{" "}
                 <ExternalLink href="https://pydantic.dev/docs/ai/models/github-copilot/">
                   authentication guide
                 </ExternalLink>
