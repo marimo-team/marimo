@@ -609,6 +609,32 @@ class TestLazyLoader(ABCTestLoader):
         assert loaded.defs["s"].to_list() == s.to_list()
 
     @pytest.mark.skipif(
+        not DependencyManager.has("polars"), reason="polars required"
+    )
+    @pytest.mark.parametrize("stored_version", [None, 5])
+    def test_polars_cache_versions_reuse_values(
+        self, stored_version: int | None
+    ) -> None:
+        import polars as pl
+
+        loader = self.instance()
+        frame = pl.DataFrame({"value": [1, 2]})
+        cache = Cache(
+            defs={"frame": frame},
+            hash="versioned_polars",
+            cache_type="Pure",
+            stateful_refs=set(),
+            hit=False,
+            meta={} if stored_version is None else {"version": stored_version},
+        )
+        assert loader.save_cache(cache)
+        loader.flush()
+        restored = loader.cache_attempt({"frame"}, cache.key, set())
+        assert restored.hit
+        assert restored.defs["frame"].equals(frame)
+        assert restored.meta["version"] == (6 if stored_version is None else 5)
+
+    @pytest.mark.skipif(
         not DependencyManager.has("pandas"), reason="pandas required"
     )
     @pytest.mark.parametrize("pyarrow_available", [True, False])

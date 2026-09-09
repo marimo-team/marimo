@@ -265,22 +265,15 @@ def _pandas_to_arrow_ipc(df: Any) -> bytes:
 
 
 def _arrow_dump(obj: Any) -> bytes:
-    # Duck-type dispatch:
-    #   polars DataFrame  → write_ipc()
-    #   pandas DataFrame  → Arrow IPC via pyarrow.ipc
-    #   Series (either)   → to_frame() first, then the appropriate DataFrame method
-    # DataFrame columns can shadow Series method names such as to_frame.
-    if callable(getattr(type(obj), "write_ipc", None)) or callable(
-        getattr(type(obj), "to_feather", None)
-    ):
-        frame = obj
-    else:
-        frame = obj.to_frame()
-    if callable(getattr(type(frame), "write_ipc", None)):
-        buf = io.BytesIO()
-        frame.write_ipc(buf)
-        return buf.getvalue()
-    return _pandas_to_arrow_ipc(frame)
+    # Inspect class methods because pandas columns also appear as attributes.
+    if not callable(getattr(type(obj), "write_ipc", None)):
+        if callable(getattr(type(obj), "to_frame", None)):
+            obj = obj.to_frame()
+        if not callable(getattr(type(obj), "write_ipc", None)):
+            return _pandas_to_arrow_ipc(obj)
+    buf = io.BytesIO()
+    obj.write_ipc(buf)
+    return buf.getvalue()
 
 
 def _pt_dump(obj: Any) -> bytes:
