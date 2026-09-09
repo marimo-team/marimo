@@ -1238,7 +1238,7 @@ def get_completion_provider(
         return OpenAIProvider(
             model_id.model, config, [DependencyManager.openai]
         )
-    elif model_id.provider == "github-copilot":
+    elif model_id.provider == "github":
         return GitHubCopilotProvider(model_id.model, config)
     else:
         return CustomProvider(model_id, config, [DependencyManager.openai])

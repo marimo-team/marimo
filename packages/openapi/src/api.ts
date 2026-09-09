@@ -3771,8 +3771,7 @@ export interface components {
      *         - `bedrock`: the Bedrock config
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
-     *         - `github`: the GitHub Copilot language-server config
-     *         - `github_copilot`: the GitHub Copilot model inference config
+     *         - `github`: the GitHub Copilot config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
      *         - `opencode_go`: the OpenCode Go config
@@ -3789,7 +3788,6 @@ export interface components {
       };
       enabled?: boolean;
       github?: components["schemas"]["GitHubConfig"];
-      github_copilot?: components["schemas"]["OpenAiConfig"];
       google?: components["schemas"]["GoogleAiConfig"];
       inline_tooltip?: boolean;
       max_tokens?: number;
@@ -5224,15 +5222,19 @@ export interface components {
     GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
-     * @description Configuration options for the GitHub Copilot language server.
+     * @description Configuration options for GitHub Copilot.
      *
      *         **Keys.**
      *
+     *         - `api_key`: a GitHub Copilot token or an `env:` reference
+     *         - `base_url`: the base URL for the GitHub Copilot API
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
      *             and `github-enterprise` (enterprise URI).
      */
     GitHubConfig: {
+      api_key?: string;
+      base_url?: string;
       copilot_settings?: Record<string, any>;
     };
     /**

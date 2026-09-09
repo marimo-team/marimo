@@ -13,7 +13,6 @@ from marimo._config.config import (
     MarimoConfig,
 )
 from marimo._server.ai.config import (
-    GITHUB_MODELS_RETIRED_MESSAGE,
     AnyProviderConfig,
     _get_ai_config,
     _get_base_url,
@@ -233,15 +232,15 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-opencode-key"
         assert provider_config.base_url == "https://opencode.ai/zen/go/v1/"
 
-    def test_for_github_copilot(self) -> None:
+    def test_for_github(self) -> None:
         config: AiConfig = {
-            "github_copilot": {
+            "github": {
                 "api_key": "gho_test-token",
                 "base_url": "https://copilot.example.com",
             }
         }
 
-        provider_config = AnyProviderConfig.for_github_copilot(config)
+        provider_config = AnyProviderConfig.for_github(config)
 
         assert provider_config.api_key == "gho_test-token"
         assert provider_config.base_url == "https://copilot.example.com"
@@ -332,19 +331,9 @@ class TestAnyProviderConfig:
         assert provider_config.api_key == "test-anthropic-key"
 
     def test_for_model_github(self) -> None:
-        """An old GitHub Models ID returns a migration error."""
-        with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_model("github/gpt-4o", {})
+        config: AiConfig = {"github": {"api_key": "gho_test-token"}}
 
-        assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
-        assert exc_info.value.detail == GITHUB_MODELS_RETIRED_MESSAGE
-
-    def test_for_model_github_copilot(self) -> None:
-        config: AiConfig = {"github_copilot": {"api_key": "gho_test-token"}}
-
-        provider_config = AnyProviderConfig.for_model(
-            "github-copilot/gpt-5.4", config
-        )
+        provider_config = AnyProviderConfig.for_model("github/gpt-5.4", config)
 
         assert provider_config.api_key == "gho_test-token"
         assert provider_config.base_url == "https://api.githubcopilot.com"
@@ -746,7 +735,7 @@ class TestProviderConfigWithFallback:
     )
     def test_for_github_copilot_with_fallback_key(self, variable: str) -> None:
         with patch.dict(os.environ, {variable: "gho_env-token"}, clear=True):
-            provider_config = AnyProviderConfig.for_github_copilot({})
+            provider_config = AnyProviderConfig.for_github({})
 
         assert provider_config.api_key == "gho_env-token"
 
@@ -759,7 +748,7 @@ class TestProviderConfigWithFallback:
         clear=True,
     )
     def test_for_github_copilot_with_environment_base_url(self) -> None:
-        provider_config = AnyProviderConfig.for_github_copilot({})
+        provider_config = AnyProviderConfig.for_github({})
 
         assert provider_config.base_url == "https://copilot.example.com"
 
@@ -770,7 +759,7 @@ class TestProviderConfigWithFallback:
     )
     def test_for_github_copilot_ignores_generic_github_tokens(self) -> None:
         with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_github_copilot({})
+            AnyProviderConfig.for_github({})
 
         assert "GitHub Copilot API key not configured" in str(
             exc_info.value.detail

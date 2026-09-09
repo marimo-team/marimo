@@ -415,7 +415,7 @@ def test_get_github_copilot_completion_provider() -> None:
             return_value=MagicMock(),
         ),
     ):
-        provider = get_completion_provider(config, "github-copilot/gpt-5.4")
+        provider = get_completion_provider(config, "github/gpt-5.4")
 
     assert isinstance(provider, GitHubCopilotProvider)
 

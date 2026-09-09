@@ -21,7 +21,7 @@ import type { ExternalAgentId } from "../chat/acp/state";
 
 const icons: Record<ProviderId | ExternalAgentId, string> = {
   openai: OpenAIIcon,
-  "github-copilot": GitHubIcon,
+  github: GitHubIcon,
   anthropic: AnthropicIcon,
   claude: AnthropicIcon,
   gemini: GeminiIcon,

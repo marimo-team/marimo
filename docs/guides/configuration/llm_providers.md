@@ -270,34 +270,29 @@ api_key = "sk-proj-..."
 base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 ```
 
-### GitHub Models
-
-[GitHub Models retired on July 30, 2026](https://github.blog/changelog/2026-07-01-github-models-is-being-fully-retired-on-july-30-2026/).
-For model inference, migrate to [Microsoft Foundry](#microsoft-foundry) or another AI provider.
-The [Microsoft migration guide](https://learn.microsoft.com/azure/foundry/foundry-models/how-to/quickstart-github-models) explains the endpoint and credential changes.
-
 ### GitHub Copilot
 
-GitHub Copilot is separate from the retired GitHub Models service. You can use
-models available through your Copilot subscription in marimo's AI assistant.
+You can use models from your Copilot subscription in marimo's AI assistant.
 
 **Requirements**
 
 * Install `pydantic-ai-slim[openai]>=2.42.0`.
 * Install the [GitHub CLI](https://cli.github.com/).
-* Sign in with `gh auth login`, then get your OAuth token with `gh auth token`.
+* Sign in with `gh auth login`.
+* Get your OAuth token with `gh auth token`.
 
 **Configuration**
 
-The available models depend on your Copilot subscription. Add a model from
-your account to `custom_models`, and use the `github-copilot/` prefix.
+The available models depend on your Copilot subscription.
+
+Add an available model to `custom_models`. Use the `github/` prefix.
 
 ```toml title="marimo.toml"
 [ai.models]
-custom_models = ["github-copilot/gpt-5.4"]
-chat_model = "github-copilot/gpt-5.4"
+custom_models = ["github/gpt-5.4"]
+chat_model = "github/gpt-5.4"
 
-[ai.github_copilot]
+[ai.github]
 api_key = "env:GITHUB_COPILOT_API_KEY"
 ```
 

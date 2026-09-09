@@ -1,12 +1,8 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import cast
-from unittest.mock import patch
-
 from marimo._config.config import (
     DEFAULT_CONFIG,
-    GITHUB_MODELS_RETIRED_MESSAGE,
     MarimoConfig,
     PartialMarimoConfig,
     merge_config,
@@ -158,88 +154,6 @@ def test_configure_github_with_copilot_settings() -> None:
         copilot_settings.get("github-enterprise", {}).get("uri")
         == "https://github.enterprise.com"
     )
-
-
-def test_retired_github_models_config_logs_warning() -> None:
-    config = PartialMarimoConfig(
-        ai={
-            "github": {},
-            "models": {
-                "chat_model": "github/openai/gpt-4o",
-                "edit_model": "github/openai/gpt-4o-mini",
-                "autocomplete_model": "github/openai/gpt-4o-mini",
-                "displayed_models": [
-                    "github/openai/gpt-4o",
-                    "openai/gpt-4o",
-                ],
-                "custom_models": ["github/openai/gpt-4o"],
-            },
-        },
-    )
-    # Legacy fields are intentionally absent from the public config schema.
-    github_config = cast(dict[str, str], config["ai"]["github"])
-    github_config.update(
-        {
-            "api_key": "legacy-token",
-            "base_url": "https://models.github.ai/inference",
-        }
-    )
-
-    with patch("marimo._config.config.LOGGER.warning") as warning:
-        merged = merge_default_config(config)
-
-    assert merged["ai"]["models"] == config["ai"]["models"]
-    assert cast(dict[str, str], merged["ai"]["github"]) == {
-        "api_key": "legacy-token",
-        "base_url": "https://models.github.ai/inference",
-    }
-    warning.assert_called_once_with(GITHUB_MODELS_RETIRED_MESSAGE)
-
-
-def test_github_copilot_config_does_not_log_retirement_warning() -> None:
-    config = PartialMarimoConfig(
-        ai={
-            "github": {
-                "copilot_settings": {"telemetry": {"telemetryLevel": "off"}}
-            }
-        }
-    )
-
-    with patch("marimo._config.config.LOGGER.warning") as warning:
-        merge_default_config(config)
-
-    warning.assert_not_called()
-
-
-def test_merge_config_does_not_log_retirement_warning() -> None:
-    config = cast(
-        PartialMarimoConfig,
-        {"ai": {"models": {"chat_model": "github/openai/gpt-4o"}}},
-    )
-
-    with patch("marimo._config.config.LOGGER.warning") as warning:
-        merge_config(DEFAULT_CONFIG, config)
-
-    warning.assert_not_called()
-
-
-def test_retired_github_models_warning_handles_none_values() -> None:
-    configs = [
-        {"ai": None},
-        {"ai": {"github": None, "models": None}},
-        {
-            "ai": {
-                "github": None,
-                "models": {"displayed_models": None, "custom_models": None},
-            }
-        },
-    ]
-
-    with patch("marimo._config.config.LOGGER.warning") as warning:
-        for config in configs:
-            merge_config(DEFAULT_CONFIG, cast(PartialMarimoConfig, config))
-
-    warning.assert_not_called()
 
 
 def test_merge_config_with_keymap_overrides() -> None:

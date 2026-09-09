@@ -4,7 +4,7 @@
   url: https://platform.openai.com/
 
 - name: GitHub Copilot
-  id: github-copilot
+  id: github
   description: GitHub Copilot provides model inference through a Copilot subscription.
   url: https://pydantic.dev/docs/ai/models/github-copilot/
 

@@ -11,7 +11,6 @@ from typing import (
 from starlette.exceptions import HTTPException
 
 from marimo._config.config import (
-    GITHUB_MODELS_RETIRED_MESSAGE,
     AiConfig,
     CopilotMode,
     MarimoConfig,
@@ -202,7 +201,7 @@ class AnyProviderConfig:
         )
 
     @classmethod
-    def for_github_copilot(
+    def for_github(
         cls,
         config: AiConfig,
         *,
@@ -221,7 +220,7 @@ class AnyProviderConfig:
         )
         return cls._for_openai_like(
             config,
-            "github_copilot",
+            "github",
             "GitHub Copilot",
             fallback_key=fallback_key,
             fallback_base_url=fallback_base_url,
@@ -350,14 +349,7 @@ class AnyProviderConfig:
         elif model_id.provider == "azure":
             return cls.for_azure(config, secret_resolver=secret_resolver)
         elif model_id.provider == "github":
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail=GITHUB_MODELS_RETIRED_MESSAGE,
-            )
-        elif model_id.provider == "github-copilot":
-            return cls.for_github_copilot(
-                config, secret_resolver=secret_resolver
-            )
+            return cls.for_github(config, secret_resolver=secret_resolver)
         elif model_id.provider == "openrouter":
             return cls.for_openrouter(config, secret_resolver=secret_resolver)
         elif model_id.provider == "wandb":

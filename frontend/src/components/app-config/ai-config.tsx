@@ -970,13 +970,13 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
 
         <AccordionFormItem
           title="GitHub Copilot"
-          provider="github-copilot"
-          isConfigured={hasValue("ai.github_copilot.api_key")}
+          provider="github"
+          isConfigured={hasValue("ai.github.api_key")}
         >
           <ApiKey
             form={form}
             config={config}
-            name="ai.github_copilot.api_key"
+            name="ai.github.api_key"
             placeholder="gho_..."
             testId="ai-github-copilot-api-key-input"
             description={
@@ -994,7 +994,7 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
           <BaseUrl
             form={form}
             config={config}
-            name="ai.github_copilot.base_url"
+            name="ai.github.base_url"
             placeholder="https://api.githubcopilot.com"
             testId="ai-github-copilot-base-url-input"
           />

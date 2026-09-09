@@ -4,7 +4,7 @@ import type { TypedString } from "@/utils/typed";
 
 export const KNOWN_PROVIDERS = [
   "openai",
-  "github-copilot",
+  "github",
   "anthropic",
   "google",
   "ollama",

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
-
 from marimo._config.config import PartialMarimoConfig
 from marimo._config.secrets import (
     SECRET_PLACEHOLDER,
@@ -11,14 +9,12 @@ from marimo._config.secrets import (
 
 
 def test_mask_secrets() -> None:
-    # Legacy GitHub Models tokens are not part of the public config schema,
-    # but must remain masked while old configuration files are accepted.
     config = PartialMarimoConfig(
         ai={
             "open_ai": {"api_key": "super_secret"},
             "anthropic": {"api_key": "anthropic_secret"},
             "google": {"api_key": "google_secret"},
-            "github": {},
+            "github": {"api_key": "github_secret"},
             "openrouter": {"api_key": "openrouter_secret"},
             "bedrock": {
                 "aws_access_key_id": "bedrock_access_key_id",
@@ -29,12 +25,10 @@ def test_mask_secrets() -> None:
             "dotenv": [".env"],
         },
     )
-    github_config = cast(dict[str, str], config["ai"]["github"])
-    github_config["api_key"] = "legacy_github_secret"
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
     assert config["ai"]["google"]["api_key"] == "google_secret"
-    assert github_config["api_key"] == "legacy_github_secret"
+    assert config["ai"]["github"]["api_key"] == "github_secret"
     assert config["ai"]["openrouter"]["api_key"] == "openrouter_secret"
     assert (
         config["ai"]["bedrock"]["aws_access_key_id"] == "bedrock_access_key_id"
@@ -45,11 +39,10 @@ def test_mask_secrets() -> None:
     )
 
     new_config = mask_secrets(config)
-    new_github_config = cast(dict[str, str], new_config["ai"]["github"])
     assert new_config["ai"]["open_ai"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["anthropic"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["google"]["api_key"] == SECRET_PLACEHOLDER
-    assert new_github_config["api_key"] == SECRET_PLACEHOLDER
+    assert new_config["ai"]["github"]["api_key"] == SECRET_PLACEHOLDER
     assert new_config["ai"]["openrouter"]["api_key"] == SECRET_PLACEHOLDER
     assert (
         new_config["ai"]["bedrock"]["aws_access_key_id"] == SECRET_PLACEHOLDER
@@ -63,7 +56,7 @@ def test_mask_secrets() -> None:
     assert config["ai"]["open_ai"]["api_key"] == "super_secret"
     assert config["ai"]["anthropic"]["api_key"] == "anthropic_secret"
     assert config["ai"]["google"]["api_key"] == "google_secret"
-    assert github_config["api_key"] == "legacy_github_secret"
+    assert config["ai"]["github"]["api_key"] == "github_secret"
     assert config["ai"]["openrouter"]["api_key"] == "openrouter_secret"
     assert (
         config["ai"]["bedrock"]["aws_access_key_id"] == "bedrock_access_key_id"
