@@ -10,6 +10,11 @@ from pathlib import Path
 import click
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
+from marimo._cli.pair.client import (
+    PairError,
+    execute as execute_code,
+    load_token,
+)
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
@@ -123,10 +128,117 @@ def pair_agents() -> dict[str, AgentConfig]:
 
 @click.group(
     cls=ColoredGroup,
-    help="""Commands for pair programming with AI.""",
+    help="""Pair with a live marimo notebook.
+
+    Read a command's --help before first use.
+    """,
 )
 def pair() -> None:
     pass
+
+
+@click.command(
+    cls=ColoredCommand,
+    help="""Run Python in the selected live notebook kernel's scratchpad.""",
+    epilog="""\b
+If you have not already inspected cm in this kernel, execute this call
+by itself before task-specific code:
+  import marimo._code_mode as cm
+  help(cm)
+
+The live kernel is the source of truth for state and available cm APIs.
+Scratchpad bindings are temporary. Make durable notebook edits through cm.
+Import cm in the scratchpad, not into a notebook cell.
+
+If a session is stale, rediscover it. Never silently switch sessions.
+Ctrl-C closes the request; the server interrupts the session kernel.
+If the connection ends before completion is confirmed, do not retry
+execution automatically. Inspect notebook state before deciding what to do.
+
+\b
+For name-redefinition traps: marimo pair docs gotchas
+For custom visual output: marimo pair docs rich-representations
+For notebook cleanup: marimo pair docs notebook-improvements
+
+\b
+First inspection template:
+  uv run marimo pair execute --url '<server-url>' --session '<session-id>' --token-file '<token-file>' -c 'import marimo._code_mode as cm; help(cm)'
+""",
+)
+@click.option(
+    "--url",
+    required=True,
+    metavar="URL",
+    help="Server URL.",
+)
+@click.option(
+    "--session",
+    "session_id",
+    required=True,
+    metavar="ID",
+    help="Current session ID. Required on every execution.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
+@click.option(
+    "-c",
+    "code",
+    help="Inline Python.",
+)
+@click.option(
+    "--code-file",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    metavar="PATH",
+    help="Read Python from a UTF-8 file. Supply exactly one input option. No implicit stdin input.",
+)
+@click.option(
+    "--no-stream",
+    is_flag=True,
+    help="Buffer output until execution ends. Default: stream stdout and stderr as they arrive.",
+)
+@click.pass_context
+def execute(
+    ctx: click.Context,
+    url: str,
+    session_id: str,
+    token_file: Path | None,
+    code: str | None,
+    code_file: Path | None,
+    no_stream: bool,
+) -> None:
+    if (code is None) == (code_file is None):
+        raise click.UsageError("Specify -c or --code-file.")
+
+    if code_file is not None:
+        code = code_file.read_text(encoding="utf-8")
+    assert code is not None
+    if not code:
+        raise click.UsageError("Code must not be empty.")
+
+    try:
+        token = load_token(token_file, os.environ)
+        result = execute_code(
+            url=url,
+            session_id=session_id,
+            token=token,
+            code=code,
+            stdout=click.get_text_stream("stdout"),
+            stderr=click.get_text_stream("stderr"),
+            stream=not no_stream,
+        )
+    except PairError as error:
+        click.echo(str(error), err=True)
+        ctx.exit(1)
+    except KeyboardInterrupt:
+        click.echo("Interrupted.", err=True)
+        ctx.exit(1)
+
+    if not result.success:
+        ctx.exit(1)
 
 
 @click.command(
@@ -257,4 +369,5 @@ def prompt(
     )
 
 
+pair.add_command(execute)
 pair.add_command(prompt)

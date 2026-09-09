@@ -4,11 +4,16 @@ from __future__ import annotations
 import hashlib
 import sys
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
+import pytest
 from click.testing import CliRunner
+from inline_snapshot import snapshot
 
 from marimo._cli.cli import main as cli_main
+from marimo._cli.pair import commands
+from marimo._cli.pair.client import ExecutionResult, PairError
 from marimo._cli.pair.commands import (
     AgentConfig,
     _opencode_skill_dirs,
@@ -37,6 +42,301 @@ class TestPairGroup:
         assert "--opencode" in result.output
         assert "--file" in result.output
         assert "--session" not in result.output
+
+
+class TestPairExecute:
+    def test_execute_help_is_offline(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail_execute(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            raise AssertionError("execute must not run while showing help")
+
+        monkeypatch.setattr(commands, "execute_code", fail_execute)
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "execute", "--help"],
+            input="print(1)\n",
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair execute [OPTIONS]
+
+  Run Python in the selected live notebook kernel's scratchpad.
+
+Options:
+  --url URL          Server URL.  [required]
+  --session ID       Current session ID. Required on every execution.
+                     [required]
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -c TEXT            Inline Python.
+  --code-file PATH   Read Python from a UTF-8 file. Supply exactly one input
+                     option. No implicit stdin input.
+  --no-stream        Buffer output until execution ends. Default: stream stdout
+                     and stderr as they arrive.
+  -h, --help         Show this message and exit.
+
+  If you have not already inspected cm in this kernel, execute this call
+  by itself before task-specific code:
+    import marimo._code_mode as cm
+    help(cm)
+
+  The live kernel is the source of truth for state and available cm APIs.
+  Scratchpad bindings are temporary. Make durable notebook edits through cm.
+  Import cm in the scratchpad, not into a notebook cell.
+
+  If a session is stale, rediscover it. Never silently switch sessions. Ctrl-C
+  closes the request; the server interrupts the session kernel. If the
+  connection ends before completion is confirmed, do not retry execution
+  automatically. Inspect notebook state before deciding what to do.
+
+  For name-redefinition traps: marimo pair docs gotchas
+  For custom visual output: marimo pair docs rich-representations
+  For notebook cleanup: marimo pair docs notebook-improvements
+
+  First inspection template:
+    uv run marimo pair execute --url '<server-url>' --session '<session-id>' --token-file '<token-file>' -c 'import marimo._code_mode as cm; help(cm)'
+""")
+
+    @pytest.mark.parametrize(
+        "arguments",
+        [
+            [],
+            ["-c", "print(1)", "--code-file", "code.py"],
+        ],
+    )
+    def test_execute_requires_exactly_one_input(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+        arguments: list[str],
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_text("print(2)", encoding="utf-8")
+        resolved_arguments = [
+            str(code_file) if value == "code.py" else value
+            for value in arguments
+        ]
+        calls: list[dict[str, Any]] = []
+        monkeypatch.setattr(
+            commands,
+            "execute_code",
+            lambda **kwargs: calls.append(kwargs),
+        )
+
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                *resolved_arguments,
+            ],
+            input="print('ignored')\n",
+        )
+
+        assert result.exit_code == 2
+        assert "specify -c or --code-file" in result.output
+        assert calls == []
+
+    def test_execute_rejects_empty_code(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "-c",
+                "",
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "code must not be empty" in result.output
+
+    def test_execute_reads_code_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_text("print('from file')", encoding="utf-8")
+        calls: list[dict[str, Any]] = []
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            calls.append(kwargs)
+            return ExecutionResult(success=True, output="")
+
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "--code-file",
+                str(code_file),
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert calls[0]["code"] == "print('from file')"
+
+    def test_execute_success_and_default_streaming(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[dict[str, Any]] = []
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            calls.append(kwargs)
+            return ExecutionResult(success=True, output="done")
+
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "-c",
+                "print(1)",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert calls[0]["url"] == TEST_URL
+        assert calls[0]["session_id"] == "s_ab12cd"
+        assert calls[0]["code"] == "print(1)"
+        assert calls[0]["token"] is None
+        assert calls[0]["stream"] is True
+
+    def test_execute_failure_exits_one(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail_execution(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            return ExecutionResult(success=False, output="failed")
+
+        monkeypatch.setattr(commands, "execute_code", fail_execution)
+
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "-c",
+                "raise ValueError",
+            ],
+        )
+
+        assert result.exit_code == 1
+
+    def test_execute_reports_pair_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail_execute(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            raise PairError("Could not execute code.")
+
+        monkeypatch.setattr(commands, "execute_code", fail_execute)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "-c",
+                "print(1)",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert result.stderr == "Could not execute code.\n"
+
+    def test_execute_reports_interrupt(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def interrupt(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            raise KeyboardInterrupt
+
+        monkeypatch.setattr(commands, "execute_code", interrupt)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "-c",
+                "print(1)",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert result.stderr == "Interrupted.\n"
+
+    def test_execute_no_stream_and_token_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        token_file = tmp_path / "token.txt"
+        token_file.write_text("secret", encoding="utf-8")
+        token_calls: list[Path | None] = []
+        execute_calls: list[dict[str, Any]] = []
+
+        def fake_load_token(path: Path | None, environ: Any) -> str | None:
+            del environ
+            token_calls.append(path)
+            return "secret"
+
+        def fake_execute(**kwargs: Any) -> ExecutionResult:
+            execute_calls.append(kwargs)
+            return ExecutionResult(success=True, output="")
+
+        monkeypatch.setattr(commands, "load_token", fake_load_token)
+        monkeypatch.setattr(commands, "execute_code", fake_execute)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "--token-file",
+                str(token_file),
+                "--no-stream",
+                "-c",
+                "print(1)",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert token_calls == [token_file]
+        assert execute_calls[0]["token"] == "secret"
+        assert execute_calls[0]["stream"] is False
 
 
 class TestPairPrompt:
