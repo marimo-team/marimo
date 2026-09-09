@@ -27,6 +27,7 @@ class PairTestServer:
     session_id: str
     _process: subprocess.Popen[bytes]
     _websocket: ClientConnection
+    _stderr_path: Path
 
     def wait_for_kernel(
         self,
@@ -36,6 +37,11 @@ class PairTestServer:
     ) -> None:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            if self._process.poll() is not None:
+                raise RuntimeError(
+                    "marimo server exited with code "
+                    f"{self._process.returncode}:\n{_tail(self._stderr_path)}"
+                )
             request = urllib.request.Request(
                 f"{self.url}/api/kernel/status",
                 headers={"Marimo-Session-Id": self.session_id},
@@ -71,12 +77,7 @@ class PairTestServer:
             self._websocket.close()
         except OSError:
             pass
-        self._process.terminate()
-        try:
-            self._process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self._process.kill()
-            self._process.wait()
+        _stop_process(self._process)
 
 
 def _free_port() -> int:
@@ -133,54 +134,75 @@ def _wait_for_kernel_ready(
             return
 
 
+def _stop_process(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is not None:
+        return
+    process.terminate()
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+
+
+def _start_server(
+    notebook: Path, stderr_path: Path, *, attempts: int = 3
+) -> tuple[subprocess.Popen[bytes], str]:
+    for attempt in range(attempts):
+        port = _free_port()
+        with stderr_path.open("wb") as stderr_file:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "marimo",
+                    "edit",
+                    str(notebook),
+                    "--headless",
+                    "--no-token",
+                    "--no-skew-protection",
+                    "--port",
+                    str(port),
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=stderr_file,
+            )
+        url = f"http://127.0.0.1:{port}"
+        try:
+            _wait_for_server(url, process, stderr_path)
+        except RuntimeError:
+            _stop_process(process)
+            if attempt + 1 == attempts:
+                raise
+            continue
+        return process, url
+    raise AssertionError("server start attempts must be positive")
+
+
 @contextmanager
 def pair_test_server(tmp_path: Path) -> Generator[PairTestServer, None, None]:
-    port = _free_port()
     notebook = tmp_path / "pair-integration.py"
     notebook.write_text("import marimo\napp = marimo.App()\n")
     stderr_path = tmp_path / "marimo-stderr.log"
 
-    with stderr_path.open("wb") as stderr_file:
-        process = subprocess.Popen(
-            [
-                sys.executable,
-                "-m",
-                "marimo",
-                "edit",
-                str(notebook),
-                "--headless",
-                "--no-token",
-                "--no-skew-protection",
-                "--port",
-                str(port),
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=stderr_file,
+    process, url = _start_server(notebook, stderr_path)
+    try:
+        session_id = f"pair_{uuid.uuid4().hex[:8]}"
+        websocket = websockets.sync.client.connect(
+            f"{url.replace('http://', 'ws://', 1)}/ws?session_id={session_id}",
+            open_timeout=5,
         )
-        url = f"http://127.0.0.1:{port}"
+        _wait_for_kernel_ready(websocket)
+        server = PairTestServer(
+            url=url,
+            session_id=session_id,
+            _process=process,
+            _websocket=websocket,
+            _stderr_path=stderr_path,
+        )
         try:
-            _wait_for_server(url, process, stderr_path)
-            session_id = f"pair_{uuid.uuid4().hex[:8]}"
-            websocket = websockets.sync.client.connect(
-                f"ws://127.0.0.1:{port}/ws?session_id={session_id}",
-                open_timeout=5,
-            )
-            _wait_for_kernel_ready(websocket)
-            server = PairTestServer(
-                url=url,
-                session_id=session_id,
-                _process=process,
-                _websocket=websocket,
-            )
-            try:
-                yield server
-            finally:
-                server.close()
+            yield server
         finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+            server.close()
+    finally:
+        _stop_process(process)

@@ -132,12 +132,16 @@ export const PairWithAgentModal: React.FC<{
               title="Copy this prompt into your agent"
               hint={
                 hasToken
-                  ? "Use the terminal command to authenticate."
+                  ? "Includes your auth token. Keep it private."
                   : undefined
               }
             >
               <CommandBlock
-                command={getRawPrompt(connection, hasToken)}
+                command={getRawPrompt(connection, authToken)}
+                display={getRawPrompt(
+                  connection,
+                  authToken ? maskToken(authToken) : null,
+                )}
                 multiline={true}
               />
             </Step>

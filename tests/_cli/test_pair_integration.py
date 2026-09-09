@@ -2,11 +2,11 @@
 from __future__ import annotations
 
 import os
-import select
 import signal
 import subprocess
 import sys
-from typing import TYPE_CHECKING
+from concurrent.futures import ThreadPoolExecutor
+from typing import TYPE_CHECKING, Any, cast
 
 import pytest
 
@@ -14,6 +14,7 @@ from tests._cli._pair_server import PairTestServer, pair_test_server
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from pathlib import Path
 
 
 @pytest.fixture(scope="module")
@@ -55,6 +56,30 @@ def _run(
     )
 
 
+def test_wait_for_kernel_reports_server_exit(tmp_path: Path) -> None:
+    stderr_path = tmp_path / "server.log"
+    stderr_path.write_text("bind failed", encoding="utf-8")
+
+    class ExitedProcess:
+        returncode = 7
+
+        def poll(self) -> int:
+            return self.returncode
+
+    server = PairTestServer(
+        url="http://127.0.0.1:1",
+        session_id="session-1",
+        _process=cast(Any, ExitedProcess()),
+        _websocket=cast(Any, None),
+        _stderr_path=stderr_path,
+    )
+
+    with pytest.raises(
+        RuntimeError, match="(?s)exited with code 7.*bind failed"
+    ):
+        server.wait_for_kernel("idle", timeout=0.1)
+
+
 def test_streams_output_before_execution_finishes(
     server: PairTestServer,
 ) -> None:
@@ -70,9 +95,10 @@ def test_streams_output_before_execution_finishes(
     )
     try:
         assert process.stdout is not None
-        ready, _, _ = select.select([process.stdout], [], [], 10)
-        assert ready, "stdout did not become readable"
-        first_line = process.stdout.readline()
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            first_line = executor.submit(process.stdout.readline).result(
+                timeout=10
+            )
         assert first_line == "a\n"
         assert process.poll() is None
         stdout, stderr = process.communicate(timeout=10)

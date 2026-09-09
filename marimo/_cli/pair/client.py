@@ -98,8 +98,8 @@ def open_response(
             path = f"{path}?{parsed.query}"
         connection.request(method, path, body=body, headers=headers)
         response = connection.getresponse()
-    except OSError as error:
-        raise PairError(f"Could not connect to {url}.") from error
+    except (OSError, ValueError) as error:
+        raise PairError("Could not connect to the server.") from error
 
     if response.status in (401, 403):
         response.close()
@@ -120,7 +120,10 @@ def execute(
     stderr: TextIO,
     stream: bool,
 ) -> ExecutionResult:
-    request_url = f"{url.rstrip('/')}/api/kernel/execute"
+    parsed = urlsplit(url)
+    request_url = parsed._replace(
+        path=f"{parsed.path.rstrip('/')}/api/kernel/execute"
+    ).geturl()
     headers = {
         "Content-Type": "application/json",
         "Marimo-Session-Id": session_id,
@@ -166,7 +169,7 @@ def execute(
                     return ExecutionResult(
                         success=payload["success"], output=output
                     )
-        except OSError as error:
+        except (OSError, http.client.HTTPException) as error:
             write_buffered_output()
             raise PairError(
                 "The execution response ended before completion was confirmed."

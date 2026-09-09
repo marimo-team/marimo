@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import http.client
 import io
 import json
 from pathlib import Path
@@ -163,7 +164,7 @@ def test_execute_sends_request_and_streams_in_event_order(
     stderr = RecordingStream("stderr", records)
 
     result = client.execute(
-        url="https://example.com/base/",
+        url="https://example.com/base/?access_token=query-token",
         session_id="session-1",
         token="secret-token",
         code="print(1)",
@@ -183,7 +184,7 @@ def test_execute_sends_request_and_streams_in_event_order(
     assert calls == [
         {
             "method": "POST",
-            "url": "https://example.com/base/api/kernel/execute",
+            "url": "https://example.com/base/api/kernel/execute?access_token=query-token",
             "headers": {
                 "Content-Type": "application/json",
                 "Marimo-Session-Id": "session-1",
@@ -215,6 +216,19 @@ def test_execute_omits_authorization_without_token(
 
     assert len(calls) == 1
     assert "Authorization" not in calls[0]["headers"]
+
+
+def test_open_response_rejects_invalid_port_without_exposing_url() -> None:
+    with pytest.raises(PairError) as exc_info:
+        client.open_response(
+            method="GET",
+            url="http://localhost:not-a-port?access_token=secret",
+            headers={},
+            body=None,
+        )
+
+    assert str(exc_info.value) == "Could not connect to the server."
+    assert "secret" not in str(exc_info.value)
 
 
 def test_execute_buffers_output_until_done(
@@ -316,6 +330,26 @@ def test_execute_keeps_buffered_output_after_read_error(
     assert stdout.getvalue() == "partial"
     assert response.closed
     assert len(calls) == 1
+
+
+def test_execute_rejects_truncated_http_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = RaisingResponse([], http.client.IncompleteRead(b"partial"))
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(PairError, match="ended before completion"):
+        client.execute(
+            url="http://localhost:2718",
+            session_id="session-1",
+            token=None,
+            code="print(1)",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            stream=True,
+        )
+
+    assert response.closed
 
 
 def test_execute_closes_response_after_keyboard_interrupt(

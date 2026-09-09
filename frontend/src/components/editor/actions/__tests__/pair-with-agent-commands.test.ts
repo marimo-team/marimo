@@ -108,13 +108,13 @@ describe("getMarimoCommand", () => {
 describe("getTerminalCommand", () => {
   it("includes the url and file for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --claude)"`,
+      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --claude)"`,
     );
     expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --codex)"`,
+      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --codex)"`,
     );
     expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --opencode)"`,
+      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --opencode)"`,
     );
   });
 
@@ -184,34 +184,44 @@ describe("getTerminalCommand", () => {
 });
 
 describe("getRawPrompt", () => {
+  it("uses uvx in production", () => {
+    vi.stubEnv("DEV", false);
+    try {
+      expect(getRawPrompt(CONNECTION, null)).toContain(
+        "Start with: uvx marimo@latest pair --help",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("omits file targeting when the page URL has no file", () => {
-    const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, false);
+    const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, null);
     expect(prompt).toContain("  Session: s_ab12cd");
     expect(prompt).not.toContain("  Notebook:");
   });
 
   it("omits the authentication hint when there is no token", () => {
-    const prompt = getRawPrompt(CONNECTION, false);
+    const prompt = getRawPrompt(CONNECTION, null);
     expect(prompt).not.toContain("uses authentication");
   });
 
-  it("directs authenticated notebooks through the terminal command", () => {
-    const prompt = getRawPrompt(CONNECTION, true);
-    expect(prompt).toContain(
-      "This notebook uses authentication. Run the terminal command with --with-token and paste its output here instead.",
-    );
-    expect(prompt).not.toContain("secret-token");
+  it("provides authenticated agents a private token-file path", () => {
+    const prompt = getRawPrompt(CONNECTION, "secret-token");
+    expect(prompt).toContain("Authentication token: secret-token");
+    expect(prompt).toContain("--token-file");
+    expect(prompt).toContain("Never put the token in command arguments.");
+    expect(prompt).not.toContain("--token secret-token");
   });
 
   it("matches the CLI prompt shape", () => {
-    const prompt = getRawPrompt(CONNECTION, false);
+    const prompt = getRawPrompt(CONNECTION, null);
     expect(prompt).toMatchInlineSnapshot(`
       "Pair with the live marimo notebook at this target:
         Server: http://localhost:8000
         Session: s_ab12cd
         Notebook: notebooks/example.py
 
-      Run commands from the uv project configured with this local marimo checkout.
       Start with: uv run marimo pair --help
 
       Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."

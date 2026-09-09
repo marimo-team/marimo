@@ -52,8 +52,9 @@ export function getTerminalCommand(
   withToken: boolean,
 ): string {
   const fileFlag = getFileFlag(file);
+  const projectFlag = import.meta.env.DEV ? " --uv-project" : "";
   const tokenFlag = withToken ? " --with-token" : "";
-  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)} --session ${shellQuote(sessionId)}${fileFlag}${tokenFlag}`;
+  const base = `${getMarimoCommand()} pair prompt --url ${shellQuote(url)} --session ${shellQuote(sessionId)}${fileFlag}${projectFlag}${tokenFlag}`;
   switch (agent) {
     case "claude":
       return `claude "$(${base} --claude)"`;
@@ -73,7 +74,7 @@ export function getTerminalCommand(
  */
 export function getRawPrompt(
   { url, sessionId, file }: ConnectionInfo,
-  hasToken: boolean,
+  token: string | null,
 ): string {
   const targetLines = [
     "Pair with the live marimo notebook at this target:",
@@ -87,12 +88,13 @@ export function getRawPrompt(
   return [
     ...targetLines,
     "",
-    "Run commands from the uv project configured with this local marimo checkout.",
-    "Start with: uv run marimo pair --help",
-    ...(hasToken
+    `Start with: ${getMarimoCommand()} pair --help`,
+    ...(token
       ? [
           "",
-          "This notebook uses authentication. Run the terminal command with --with-token and paste its output here instead.",
+          `Authentication token: ${token}`,
+          "Store the token in a temporary file with owner-only permissions.",
+          "Pass that path with --token-file. Never put the token in command arguments.",
         ]
       : []),
     "",

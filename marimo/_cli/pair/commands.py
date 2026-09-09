@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import click
+from click.utils import get_text_stream
 
 from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
@@ -237,7 +238,10 @@ def execute(
         raise click.UsageError("Specify -c or --code-file.")
 
     if code_file is not None:
-        code = code_file.read_text(encoding="utf-8")
+        try:
+            code = code_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as error:
+            raise click.UsageError("Could not read the code file.") from error
     assert code is not None
     if not code:
         raise click.UsageError("Code must not be empty.")
@@ -249,8 +253,8 @@ def execute(
             session_id=session_id,
             token=token,
             code=code,
-            stdout=click.get_text_stream("stdout"),
-            stderr=click.get_text_stream("stderr"),
+            stdout=get_text_stream("stdout"),
+            stderr=get_text_stream("stderr"),
             stream=not no_stream,
         )
     except PairError as error:
@@ -331,6 +335,12 @@ def docs(topic: str | None) -> None:
     help="Validate that the marimo-pair opencode skill is installed.",
 )
 @click.option(
+    "--uv-project",
+    is_flag=True,
+    default=False,
+    help="Use the current uv project in generated marimo commands.",
+)
+@click.option(
     "--with-token",
     is_flag=True,
     default=False,
@@ -343,6 +353,7 @@ def prompt(
     claude: bool,
     codex: bool,
     opencode: bool,
+    uv_project: bool,
     with_token: bool,
 ) -> None:
     """
@@ -411,9 +422,8 @@ def prompt(
     # Output the prompt to the wrapper agent CLI
     click.echo(
         "\n".join(target_lines) + "\n\n"
-        "Run commands from the uv project configured with this local "
-        "marimo checkout.\n"
-        "Start with: uv run marimo pair --help\n\n"
+        f"Start with: {'uv run marimo' if uv_project else 'uvx marimo@latest'} "
+        "pair --help\n\n"
         "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     )
 

@@ -191,6 +191,57 @@ Options:
         assert result.exit_code == 0
         assert calls[0]["code"] == "print('from file')"
 
+    def test_execute_rejects_invalid_utf8_code_file(
+        self, tmp_path: Path
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_bytes(b"\xff")
+
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "--code-file",
+                str(code_file),
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "error: could not read the code file" in result.output
+
+    def test_execute_rejects_unreadable_code_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        code_file = tmp_path / "code.py"
+        code_file.write_text("print(1)", encoding="utf-8")
+
+        def fail_read_text(self: Path, *, encoding: str) -> str:
+            del self, encoding
+            raise OSError("permission denied")
+
+        monkeypatch.setattr(Path, "read_text", fail_read_text)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "--code-file",
+                str(code_file),
+            ],
+        )
+
+        assert result.exit_code == 2
+        assert "error: could not read the code file" in result.output
+
     def test_execute_success_and_default_streaming(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -440,8 +491,7 @@ Pair with the live marimo notebook at this target:
   Session: s_ab12cd
   Notebook: notebooks/example.py
 
-Run commands from the uv project configured with this local marimo checkout.
-Start with: uv run marimo pair --help
+Start with: uvx marimo@latest pair --help
 
 Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
 """)
@@ -460,6 +510,23 @@ Once you are connected, send a fun toast (mo.status.toast(...)) to the user insi
         )
         assert result.exit_code == 0
         assert "Notebook:" not in result.output
+
+    def test_prompt_can_use_current_uv_project(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+                "--uv-project",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Start with: uv run marimo pair --help" in result.output
 
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
