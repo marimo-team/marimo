@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,7 +14,9 @@ from marimo._cli.help_formatter import ColoredCommand, ColoredGroup
 from marimo._cli.pair.client import (
     PairError,
     execute as execute_code,
+    list_sessions,
     load_token,
+    registry_urls,
 )
 from marimo._server.ai.skills import utils as skills_utils
 
@@ -164,6 +167,8 @@ def pair() -> None:
 @click.command(
     cls=ColoredCommand,
     help="""Run Python in the selected live notebook kernel's scratchpad.""",
+    short_help="""Run Python in a live notebook session.
+    Run: uv run marimo pair execute --help""",
     epilog="""\b
 If you have not already inspected cm in this kernel, execute this call
 by itself before task-specific code:
@@ -271,6 +276,8 @@ def execute(
 @click.command(
     cls=_DocsCommand,
     help="Read notebook guidance on demand.",
+    short_help="""Read notebook guidance on demand.
+    Run: uv run marimo pair docs --help""",
 )
 @click.argument("topic", required=False)
 def docs(topic: str | None) -> None:
@@ -295,6 +302,8 @@ def docs(topic: str | None) -> None:
 @click.command(
     cls=ColoredCommand,
     help="""Generate a prompt for pair programming on a running marimo notebook.""",
+    short_help="""Generate pairing instructions.
+    Run: uv run marimo pair prompt --help""",
 )
 @click.option(
     "--url",
@@ -428,6 +437,105 @@ def prompt(
     )
 
 
+def _group_notebooks(
+    url: str, sessions: dict[str, dict[str, str | None]]
+) -> list[dict[str, object]]:
+    grouped: dict[str | None, dict[str, object]] = {}
+    for session_id, session in sessions.items():
+        key = session.get("path") or session.get("filename")
+        notebook = grouped.setdefault(
+            key,
+            {
+                "url": url,
+                "filename": session.get("filename"),
+                "path": session.get("path"),
+                "sessions": [],
+            },
+        )
+        notebook_sessions = notebook["sessions"]
+        assert isinstance(notebook_sessions, list)
+        notebook_sessions.append({"session_id": session_id})
+
+    for notebook in grouped.values():
+        notebook_sessions = notebook["sessions"]
+        assert isinstance(notebook_sessions, list)
+        notebook_sessions.sort(key=lambda session: session["session_id"])
+    return sorted(
+        grouped.values(),
+        key=lambda notebook: str(notebook["filename"] or ""),
+    )
+
+
+@click.group(
+    cls=ColoredGroup,
+    help="Find active notebooks and their sessions.",
+    short_help="""Find active notebooks and their sessions.
+    Run: uv run marimo pair notebooks --help""",
+)
+def notebooks() -> None:
+    pass
+
+
+@click.command(
+    name="list",
+    cls=ColoredCommand,
+    help="List active notebooks and their session IDs.",
+    short_help="""List active notebooks and their session IDs.
+    Run: uv run marimo pair notebooks list --help""",
+    epilog="""\b
+This backend lists active notebooks only. Without --url, it discovers
+no-token servers from the local registry. For an authenticated server,
+supply its URL and credential source explicitly.
+
+Use the same URL and credential source for execution. Session IDs can
+become stale; list again instead of silently switching sessions.
+""",
+)
+@click.option(
+    "--url",
+    "urls",
+    multiple=True,
+    metavar="URL",
+    help="Server URL. Repeat to list more than one server.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(path_type=Path, dir_okay=False),
+    metavar="PATH",
+    help="Read the server token from a local file. Otherwise use MARIMO_TOKEN, if set.",
+)
+@click.pass_context
+def list_notebooks(
+    ctx: click.Context, urls: tuple[str, ...], token_file: Path | None
+) -> None:
+    token = load_token(token_file, os.environ) if urls else None
+    selected_urls = list(urls) if urls else registry_urls()
+    result: dict[str, list[dict[str, object]]] = {
+        "notebooks": [],
+        "errors": [],
+    }
+
+    for url in selected_urls:
+        try:
+            sessions = list_sessions(url=url, token=token)
+        except PairError as error:
+            result["errors"].append({"url": url, "message": str(error)})
+        else:
+            result["notebooks"].extend(_group_notebooks(url, sessions))
+
+    result["notebooks"].sort(
+        key=lambda notebook: (
+            str(notebook["url"]),
+            str(notebook["filename"] or ""),
+        )
+    )
+    click.echo(json.dumps(result, indent=2))
+    if result["errors"]:
+        ctx.exit(1)
+
+
+notebooks.add_command(list_notebooks)
 pair.add_command(execute)
 pair.add_command(docs)
+pair.add_command(notebooks)
 pair.add_command(prompt)
