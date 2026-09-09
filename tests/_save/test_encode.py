@@ -193,3 +193,40 @@ def test_polars_object_hash_uses_fallback(
     value = {"data": value} if in_container else value
 
     assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize(
+    "error_name", ["InvalidOperationError", "SchemaError", "PanicException"]
+)
+def test_polars_ipc_errors_use_state_hash_fallback(
+    monkeypatch: pytest.MonkeyPatch, error_name: str
+) -> None:
+    import polars as pl
+
+    value = {"data": pl.DataFrame({"x": [1, 2]})}
+
+    def fail_write_ipc(*_args: Any, **_kwargs: Any) -> None:
+        raise getattr(pl.exceptions, error_name)("unsupported IPC data")
+
+    monkeypatch.setattr(pl.DataFrame, "write_ipc", fail_write_ipc)
+    assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+def test_polars_ipc_panic_uses_pickle_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import polars as pl
+
+    frame = pl.DataFrame({"x": [1, 2]})
+
+    def fail_write_ipc(*_args: Any, **_kwargs: Any) -> None:
+        raise pl.exceptions.PanicException("unsupported IPC data")
+
+    monkeypatch.setattr(pl.DataFrame, "write_ipc", fail_write_ipc)
+    assert pickle.loads(deterministic_dumps(frame, "sha256")).equals(frame)

@@ -79,7 +79,7 @@ def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
         "polars.dataframe.frame.DataFrame",
         "polars.series.series.Series",
     ):
-        from polars.exceptions import ComputeError
+        from polars.exceptions import PanicException, PolarsError
 
         # Preserve column types and names, including mixed and string columns
         # whose NumPy representation contains Python object references.
@@ -87,7 +87,7 @@ def _contiguous_tensor_bytes(data: Tensor) -> memoryview:
         buffer = io.BytesIO()
         try:
             frame.rechunk().write_ipc(buffer)
-        except ComputeError as exc:
+        except (PolarsError, PanicException) as exc:
             raise TypeError(
                 "Polars value cannot be serialized to IPC."
             ) from exc
