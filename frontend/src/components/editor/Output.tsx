@@ -38,7 +38,7 @@ import { Objects } from "@/utils/objects";
 import { LazyVegaEmbed } from "../charts/lazy";
 import { ChartLoadingState } from "../data-table/charts/components/chart-states";
 import { Button } from "../ui/button";
-import { useFullScreenElement } from "../ui/fullscreen";
+import { useIsFullScreen } from "../ui/fullscreen";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Tooltip } from "../ui/tooltip";
 import { CsvViewer } from "./file-tree/renderers";
@@ -434,9 +434,7 @@ const ExpandableOutput = React.memo(
     const [isExpanded, setIsExpanded] = useExpandedOutput(cellId);
     const isOverflowing = useOverflowDetection(containerRef);
     const { hasFullscreen } = useIframeCapabilities();
-    const fullScreenElement = useFullScreenElement();
-    const isFullscreen =
-      fullScreenElement !== null && fullScreenElement === containerRef.current;
+    const isFullscreen = useIsFullScreen(containerRef);
 
     // Not every host exits fullscreen on Escape by itself.
     useEffect(() => {
