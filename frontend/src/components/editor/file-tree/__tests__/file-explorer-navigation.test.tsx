@@ -583,9 +583,15 @@ describe("file browser navigation", () => {
     expect(
       screen.getByRole("treeitem", { name: "report.txt" }),
     ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("treeitem", { name: "report.txt" }));
+    const retry = screen.getByRole("button", { name: "Retry" });
+    retry.focus();
     sharedUnavailable = false;
-    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(fireEvent.keyDown(retry, { key: "Enter" })).toBe(true);
+    // jsdom does not synthesize a button click from Enter.
+    fireEvent.click(retry);
     await screen.findByText("2 matches");
+    expect(screen.queryByText("Preview: report.txt")).not.toBeInTheDocument();
     expect(
       client.sendSearchFiles.mock.calls.map(([request]) => request.path),
     ).toEqual(["/workspace", "/shared", "/workspace", "/shared"]);

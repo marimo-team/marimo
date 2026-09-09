@@ -53,7 +53,11 @@ export function FileSearchResults({
   return (
     <div
       onKeyDownCapture={(event) => {
-        if (event.key === "Enter") {
+        if (
+          event.key === "Enter" &&
+          event.target instanceof HTMLElement &&
+          event.target.closest('[role="tree"]')
+        ) {
           event.preventDefault();
           event.stopPropagation();
           treeRef.current?.focusedNode?.activate();
