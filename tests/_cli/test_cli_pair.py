@@ -41,7 +41,7 @@ class TestPairGroup:
         assert "--codex" in result.output
         assert "--opencode" in result.output
         assert "--file" in result.output
-        assert "--session" not in result.output
+        assert "--session" in result.output
 
 
 class TestPairExecute:
@@ -407,19 +407,19 @@ rich-representations  Rich Representations
 
 class TestPairPrompt:
     def test_prompt_requires_url(self) -> None:
-        result = _runner.invoke(cli_main, ["pair", "prompt"])
+        result = _runner.invoke(
+            cli_main, ["pair", "prompt", "--session", "s_ab12cd"]
+        )
         assert result.exit_code != 0
 
-    def test_prompt_outputs_url(self) -> None:
+    def test_prompt_requires_session(self) -> None:
         result = _runner.invoke(
             cli_main, ["pair", "prompt", "--url", TEST_URL]
         )
-        assert result.exit_code == 0
-        assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "marimo-pair" in result.output
+        assert result.exit_code != 0
+        assert "--session" in result.output
 
-    def test_prompt_with_file(self) -> None:
+    def test_prompt_outputs_cli_bootstrap(self) -> None:
         result = _runner.invoke(
             cli_main,
             [
@@ -427,77 +427,54 @@ class TestPairPrompt:
                 "prompt",
                 "--url",
                 TEST_URL,
+                "--session",
+                "s_ab12cd",
                 "--file",
                 "notebooks/example.py",
             ],
         )
         assert result.exit_code == 0
-        assert TEST_URL in result.output
-        assert "notebooks/example.py" in result.output
-        assert "--file notebooks/example.py" in result.output
+        assert result.output == snapshot(f"""\
+Pair with the live marimo notebook at this target:
+  Server: {TEST_URL}
+  Session: s_ab12cd
+  Notebook: notebooks/example.py
 
-    def test_prompt_without_file_omits_flag(self) -> None:
-        result = _runner.invoke(
-            cli_main, ["pair", "prompt", "--url", TEST_URL]
-        )
-        assert result.exit_code == 0
-        assert "--file" not in result.output
-        assert "--session" not in result.output
+Run commands from the uv project configured with this local marimo checkout.
+Start with: uv run marimo pair --help
 
-    def test_prompt_rejects_removed_session_option(self) -> None:
+Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+""")
+
+    def test_prompt_without_file_omits_notebook(self) -> None:
         result = _runner.invoke(
             cli_main,
-            ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
+            [
+                "pair",
+                "prompt",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+            ],
         )
-        assert result.exit_code != 0
-        assert "--session" in result.output
-
-    def test_prompt_shell_quotes_file_paths(self) -> None:
-        cases = [
-            ("relative/path.py", "--file relative/path.py"),
-            ("/tmp/my notebook.py", "--file '/tmp/my notebook.py'"),
-            (
-                r"C:\Users\Jane Doe\notebook.py",
-                r"--file 'C:\Users\Jane Doe\notebook.py'",
-            ),
-            (
-                r"\\server\share\my notebook.py",
-                r"--file '\\server\share\my notebook.py'",
-            ),
-            (
-                "notebooks/it's.py",
-                """--file 'notebooks/it'"'"'s.py'""",
-            ),
-        ]
-        for file_path, expected in cases:
-            result = _runner.invoke(
-                cli_main,
-                [
-                    "pair",
-                    "prompt",
-                    "--url",
-                    TEST_URL,
-                    "--file",
-                    file_path,
-                ],
-            )
-            assert result.exit_code == 0
-            assert expected in result.output
-
-    def test_prompt_shell_quotes_url_with_metacharacters(self) -> None:
-        # The execute-code.sh command is meant to be copy-pasted into a shell,
-        # so a url with metacharacters (`&`) must be quoted so it isn't split.
-        url = "http://localhost:8000?file=a&b"
-        result = _runner.invoke(cli_main, ["pair", "prompt", "--url", url])
         assert result.exit_code == 0
-        assert f"execute-code.sh --url '{url}'" in result.output
+        assert "Notebook:" not in result.output
 
     def test_prompt_skill_missing(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
             for flag in ("--claude", "--codex", "--opencode"):
                 result = _runner.invoke(
                     cli_main,
-                    ["pair", "prompt", "--url", TEST_URL, flag],
+                    [
+                        "pair",
+                        "prompt",
+                        "--url",
+                        TEST_URL,
+                        "--session",
+                        "s_ab12cd",
+                        flag,
+                    ],
                 )
                 assert result.exit_code == 0, flag
                 assert "could not be found" in result.output, flag
@@ -507,7 +484,15 @@ class TestPairPrompt:
             for flag in ("--claude", "--codex", "--opencode"):
                 result = _runner.invoke(
                     cli_main,
-                    ["pair", "prompt", "--url", TEST_URL, flag],
+                    [
+                        "pair",
+                        "prompt",
+                        "--url",
+                        TEST_URL,
+                        "--session",
+                        "s_ab12cd",
+                        flag,
+                    ],
                 )
                 assert result.exit_code == 0, flag
                 assert TEST_URL in result.output, flag
@@ -522,14 +507,21 @@ class TestPairPromptWithToken:
         ):
             result = _runner.invoke(
                 cli_main,
-                ["pair", "prompt", "--url", TEST_URL, "--with-token"],
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    TEST_URL,
+                    "--session",
+                    "s_ab12cd",
+                    "--with-token",
+                ],
                 input="my-secret-token\n",
             )
         assert result.exit_code == 0
         assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "token" in result.output.lower()
-        assert "cat" in result.output
+        assert "Token file:" in result.output
+        assert "my-secret-token" not in result.output
 
         url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
         token_file = tmp_path / f"{url_hash}-token.txt"
@@ -549,6 +541,8 @@ class TestPairPromptWithToken:
                     "prompt",
                     "--url",
                     TEST_URL,
+                    "--session",
+                    "s_ab12cd",
                     "--file",
                     "notebooks/my notebook.py",
                     "--with-token",
@@ -556,14 +550,14 @@ class TestPairPromptWithToken:
                 input="my-secret-token\n",
             )
         assert result.exit_code == 0
-        assert "--file 'notebooks/my notebook.py'" in result.output
-        # The token hint should target the same file.
-        assert "--file 'notebooks/my notebook.py' --token" in result.output
+        assert "Notebook: notebooks/my notebook.py" in result.output
+        assert "Token file:" in result.output
+        assert "my-secret-token" not in result.output
 
     def test_with_token_still_requires_url(self) -> None:
         result = _runner.invoke(
             cli_main,
-            ["pair", "prompt", "--with-token"],
+            ["pair", "prompt", "--session", "s_ab12cd", "--with-token"],
             input="tok\n",
         )
         assert result.exit_code != 0
@@ -583,6 +577,8 @@ class TestPairPromptWithToken:
                     "prompt",
                     "--url",
                     TEST_URL,
+                    "--session",
+                    "s_ab12cd",
                     "--claude",
                     "--with-token",
                 ],
@@ -601,6 +597,8 @@ class TestPairPromptWithToken:
                     "prompt",
                     "--url",
                     TEST_URL,
+                    "--session",
+                    "s_ab12cd",
                     "--claude",
                     "--with-token",
                 ],
@@ -611,10 +609,18 @@ class TestPairPromptWithToken:
 
     def test_without_token_no_token_hint(self) -> None:
         result = _runner.invoke(
-            cli_main, ["pair", "prompt", "--url", TEST_URL]
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+            ],
         )
         assert result.exit_code == 0
-        assert "cat" not in result.output
+        assert "Token file:" not in result.output
 
 
 class TestOpencodeSkillDirs:

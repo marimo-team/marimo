@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shlex
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -300,6 +299,13 @@ def docs(topic: str | None) -> None:
     help="URL of the running marimo kernel.",
 )
 @click.option(
+    "--session",
+    "session_id",
+    required=True,
+    type=str,
+    help="Current session ID.",
+)
+@click.option(
     "--file",
     "file_path",
     default=None,
@@ -332,6 +338,7 @@ def docs(topic: str | None) -> None:
 )
 def prompt(
     url: str,
+    session_id: str,
     file_path: str | None,
     claude: bool,
     codex: bool,
@@ -343,22 +350,16 @@ def prompt(
 
     Example usage:
 
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude)"
-        codex "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --codex)"
-        opencode "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --opencode)"
+        claude "$(uv run marimo pair prompt --url 'https://localhost:8000' --session 'session-123' --claude)"
+        codex "$(uv run marimo pair prompt --url 'https://localhost:8000' --session 'session-123' --codex)"
+        opencode "$(uv run marimo pair prompt --url 'https://localhost:8000' --session 'session-123' --opencode)"
 
         # Connect to a specific notebook
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --file 'notebooks/example.py' --claude)"
+        claude "$(uv run marimo pair prompt --url 'https://localhost:8000' --session 'session-123' --file 'notebooks/example.py' --claude)"
 
         # With an auth token
-        claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
+        claude "$(uv run marimo pair prompt --url 'https://localhost:8000' --session 'session-123' --claude --with-token)"
     """
-    # Preserve the file key exactly as supplied. Relative keys are resolved by
-    # the server workspace and may refer to a remote or non-POSIX filesystem.
-    # Shell-quote dynamic values because this command is copy-pasted into a
-    # shell and paths may contain spaces or metacharacters.
-    file_flag = f" --file {shlex.quote(file_path)}" if file_path else ""
-    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{file_flag}"
     # Validate that the selected agents have the required skills
     selected_agents = {
         "claude": claude,
@@ -381,7 +382,7 @@ def prompt(
             )
 
     # Prompt for token and write it to a temp file if --with-token is set
-    token_hint = ""
+    token_file: Path | None = None
     if with_token:
         token_dir = _token_dir()
         url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
@@ -397,22 +398,22 @@ def prompt(
         finally:
             os.close(fd)
 
-        token_hint = (
-            f"\n\nAn auth token is stored at {token_file}. "
-            f"Pass it via `{execute_cmd} "
-            f"--token \"$(cat '{token_file}')\"`."
-        )
-
-    file_hint = f" (file {file_path})" if file_path else ""
+    target_lines = [
+        "Pair with the live marimo notebook at this target:",
+        f"  Server: {url}",
+        f"  Session: {session_id}",
+    ]
+    if file_path:
+        target_lines.append(f"  Notebook: {file_path}")
+    if token_file:
+        target_lines.append(f"  Token file: {token_file}")
 
     # Output the prompt to the wrapper agent CLI
     click.echo(
-        "Use the /marimo-pair skill to pair-program on a running "
-        "marimo notebook.\n\n"
-        f"Connect to the notebook at: {url}{file_hint}\n\n"
-        f"Use `{execute_cmd}` from the marimo-pair "
-        "skill to execute code in the notebook."
-        f"{token_hint}\n\n"
+        "\n".join(target_lines) + "\n\n"
+        "Run commands from the uv project configured with this local "
+        "marimo checkout.\n"
+        "Start with: uv run marimo pair --help\n\n"
         "Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     )
 
