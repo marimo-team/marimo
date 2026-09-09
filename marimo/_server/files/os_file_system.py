@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import heapq
 import os
 import platform
 import shutil
@@ -10,7 +11,6 @@ import tempfile
 import time
 from collections import deque
 from functools import lru_cache
-from itertools import islice
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
@@ -362,7 +362,7 @@ class OSFileSystem(FileSystem):
 
         query_lower = query.lower()
 
-        def candidates() -> Iterator[FileInfo]:
+        def candidates() -> Iterator[os.DirEntry[str]]:
             seen_paths: set[str] = set()
             queue = deque([(search_path, 0)])
             while queue:
@@ -393,36 +393,46 @@ class OSFileSystem(FileSystem):
                                     continue
                                 if not is_directory and not include_files:
                                     continue
-                                entry_stat = entry.stat()
-                                yield FileInfo(
-                                    id=entry.path,
-                                    path=entry.path,
-                                    name=entry.name,
-                                    is_directory=is_directory,
-                                    # Notebook detection is deferred to preview.
-                                    is_marimo_file=False,
-                                    last_modified=entry_stat.st_mtime,
-                                    size=None
-                                    if is_directory
-                                    else entry_stat.st_size,
-                                )
+                                yield entry
                             except OSError:
                                 continue
                 except OSError:
                     continue
 
-        def sort_key(file_info: FileInfo) -> tuple[int, str, str]:
-            name_lower = file_info.name.lower()
+        def sort_key(entry: os.DirEntry[str]) -> tuple[int, str, str]:
+            name_lower = entry.name.lower()
             if name_lower == query_lower:
                 rank = 0
             elif name_lower.startswith(query_lower):
                 rank = 1
             else:
                 rank = 2
-            return (rank, file_info.name, file_info.path)
+            return (rank, entry.name, entry.path)
 
-        # Bound work for broad queries; ranking applies to the collected matches.
-        return sorted(islice(candidates(), limit), key=sort_key)
+        # Rank all names before fetching metadata, which can be expensive on
+        # network mounts. Only the best matches are retained in memory.
+        matches = heapq.nsmallest(limit, candidates(), key=sort_key)
+        files: list[FileInfo] = []
+        for entry in matches:
+            try:
+                entry_stat = entry.stat()
+                is_directory = entry.is_dir()
+            except OSError:
+                # A match may disappear or become unreadable during traversal.
+                continue
+            files.append(
+                FileInfo(
+                    id=entry.path,
+                    path=entry.path,
+                    name=entry.name,
+                    is_directory=is_directory,
+                    # Notebook detection is deferred to preview.
+                    is_marimo_file=False,
+                    last_modified=entry_stat.st_mtime,
+                    size=None if is_directory else entry_stat.st_size,
+                )
+            )
+        return files
 
     def open_in_editor(self, path: str, line_number: int | None) -> bool:
         try:

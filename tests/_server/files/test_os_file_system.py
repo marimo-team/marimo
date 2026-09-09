@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Literal
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -803,24 +803,49 @@ def test_search_filters_hidden_entries_before_limit(
     )
 
 
-def test_search_stops_traversal_after_match_limit(
+def test_search_ranks_nested_matches_before_limiting(
     test_dir: Path, fs: OSFileSystem
 ) -> None:
-    for index in range(3):
-        (test_dir / f"report-{index}.txt").write_text("")
+    for index in range(250):
+        (test_dir / f"weak-report-{index}.txt").write_text("")
     nested = test_dir / "nested"
     nested.mkdir()
     (nested / "report").write_text("")
+    (nested / "report-summary.txt").write_text("")
+
+    results = fs.search("report", path=str(test_dir), limit=2)
+    assert [result.name for result in results] == [
+        "report",
+        "report-summary.txt",
+    ]
+
+
+@pytest.mark.parametrize("disappears", [False, True])
+def test_search_reads_metadata_only_for_selected_matches(
+    test_dir: Path, fs: OSFileSystem, disappears: bool
+) -> None:
     import os
 
-    with patch(
-        "marimo._server.files.os_file_system.os.scandir", wraps=os.scandir
-    ) as scandir:
-        results = fs.search("report", path=str(test_dir), limit=2)
+    entries = []
+    for name in ["weak-report.txt", "report-summary.txt", "report"]:
+        path = test_dir / name
+        path.write_text("")
+        entry = Mock(spec=os.DirEntry)
+        entry.configure_mock(name=name, path=str(path))
+        entry.is_dir.return_value = False
+        entry.stat.return_value = path.stat()
+        entries.append(entry)
+    if disappears:
+        entries[-1].stat.side_effect = FileNotFoundError
 
-    assert len(results) == 2
-    assert all(result.name.startswith("report-") for result in results)
-    scandir.assert_called_once_with(str(test_dir))
+    with patch("marimo._server.files.os_file_system.os.scandir") as scandir:
+        scandir.return_value.__enter__.return_value = iter(entries)
+        results = fs.search("report", path=str(test_dir), limit=1)
+
+    assert [result.name for result in results] == (
+        [] if disappears else ["report"]
+    )
+    assert [entry.stat.call_count for entry in entries] == [0, 0, 1]
 
 
 @pytest.mark.parametrize("limit", [0, -1])
