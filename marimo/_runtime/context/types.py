@@ -77,8 +77,10 @@ class ExecutionContext:
     ) -> Iterator[None]:
         old_conn = self.duckdb_connection
         self.duckdb_connection = connection
-        yield
-        self.duckdb_connection = old_conn
+        try:
+            yield
+        finally:
+            self.duckdb_connection = old_conn
 
 
 @dataclass
