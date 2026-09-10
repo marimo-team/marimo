@@ -176,6 +176,7 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._format_mapping = format_mapping
         self._transform_container = TransformsContainer(nw_df, handler)
         self._error: str | None = None
+        self._last_reported_error: str | None = None
         self._last_transforms = Transformations([])
         self._column_types_per_step: list[FieldTypes] = [
             self._manager.get_field_types()
@@ -258,6 +259,15 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         if self._error is not None:
             raise GetDataFrameError(self._error)
 
+        try:
+            response = self._get_dataframe_response()
+            self._last_reported_error = None
+            return response
+        except Exception as e:
+            self._record_error(e, self._last_transforms)
+            raise GetDataFrameError(self._error or str(e)) from e
+
+    def _get_dataframe_response(self) -> GetDataFrameResponse:
         manager = self._get_cached_table_manager(self._value, self._limit)
         response = self._search(
             SearchTableArgs(page_size=self._page_size, page_number=0)
@@ -309,22 +319,37 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             # Return the original data using the undo callback
             return self._undo(self._transform_container._original_df)
 
+        transformations = Transformations([])
         try:
             transformations = parse_raw(
                 normalize_transforms_payload(value), Transformations
             )
-            result, self._column_types_per_step = (
-                self._transform_container.apply(transformations)
+            result, column_types_per_step = self._transform_container.apply(
+                transformations
             )
+            converted = self._undo(result)
 
             self._error = None
             self._last_transforms = transformations
-            return self._undo(result)
+            self._column_types_per_step = column_types_per_step
+            return converted
         except Exception as e:
-            error = f"Error applying dataframe transform: {e!s}\n\n"
-            sys.stderr.write(error)
-            self._error = error
+            self._record_error(e, transformations)
+            if hasattr(self, "_value"):
+                return self._value
             return self._undo(self._transform_container._original_df)
+
+    def _record_error(
+        self, error: Exception, transformations: Transformations
+    ) -> None:
+        attributed = self._transform_container.get_error_message(
+            error, transformations
+        )
+        message = f"Error applying dataframe transform: {attributed}\n\n"
+        if message != self._last_reported_error:
+            sys.stderr.write(message)
+            self._last_reported_error = message
+        self._error = message
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size
