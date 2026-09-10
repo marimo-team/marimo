@@ -4,11 +4,13 @@ from __future__ import annotations
 import asyncio
 import concurrent.futures
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, final
+from typing import TYPE_CHECKING, final
 
 from marimo import _loggers
 
 if TYPE_CHECKING:
+    from types import TracebackType
+
     from typing_extensions import Self
 
 LOGGER = _loggers.marimo_logger()
@@ -146,7 +148,10 @@ class AsyncBackgroundTask(ABC):
         return self
 
     async def __aexit__(
-        self, exc_type: Any, exc_val: Any, exc_tb: Any
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
     ) -> None:
         """
         Async context manager exit.

@@ -499,7 +499,7 @@ def test_capture_pngs_from_page_reports_progress_in_notebook_order() -> None:
         async def __aenter__(self) -> _FakePlaywright:
             return self._playwright
 
-        async def __aexit__(self, *args: Any) -> bool:
+        async def __aexit__(self, *args: object) -> bool:
             del args
             return False
 

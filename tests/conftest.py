@@ -38,7 +38,7 @@ _MockStream = MockStream
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from types import ModuleType
+    from types import ModuleType, TracebackType
 
     from typing_extensions import Self
 
@@ -490,9 +490,14 @@ class MockPyodide:
         self._stack = stack
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         assert self._stack is not None
-        self._stack.__exit__(*exc)
+        self._stack.__exit__(exc_type, exc_value, traceback)
         self._stack = None
 
     def __call__(self, func: Any) -> Any:

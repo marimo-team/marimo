@@ -87,7 +87,7 @@ class SSETestConnection:
         )
         return self
 
-    async def __aexit__(self, *args: Any) -> None:
+    async def __aexit__(self, *args: object) -> None:
         self.disconnect()
         assert self._task is not None
         await asyncio.wait_for(self._task, timeout=10)
