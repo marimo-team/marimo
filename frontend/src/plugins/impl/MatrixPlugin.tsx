@@ -408,7 +408,7 @@ const MatrixComponent = ({
           {hasColumnLabels && (
             <thead>
               <tr>
-                {hasRowLabels && <th />}
+                {hasRowLabels && <th aria-hidden="true" />}
                 {columnLabels.map((lbl, j) => (
                   <th
                     key={j}

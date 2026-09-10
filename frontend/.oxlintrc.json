@@ -56,7 +56,6 @@
     // === Newly enabled in oxlint 1.79 ===
     // Adopt these incrementally
     "no-underscore-dangle": "off",
-    "jsx-a11y/control-has-associated-label": "off",
     "jsx-a11y/no-noninteractive-element-interactions": "off",
     "react/exhaustive-effect-dependencies": "off",
     "react/forbid-component-props": "off",
