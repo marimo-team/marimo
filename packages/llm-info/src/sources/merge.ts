@@ -20,7 +20,6 @@ export const PROVIDER_MAP = {
   "google-vertex": "google",
   "amazon-bedrock": "bedrock",
   azure: "azure",
-  "github-models": "github",
   "ollama-cloud": "ollama",
   wandb: "wandb",
   "opencode-go": "opencode-go",

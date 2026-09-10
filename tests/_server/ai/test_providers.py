@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from marimo._config.config import AiConfig
 from marimo._dependencies.dependencies import Dependency, DependencyManager
+from marimo._dependencies.errors import ManyModulesNotFoundError
 from marimo._server.ai.completion_output import (
     CELL_COMPLETION_DATA_TYPE,
     NOTEBOOK_CELLS_COMPLETION_DATA_TYPE,
@@ -25,12 +26,14 @@ from marimo._server.ai.providers import (
     AzureOpenAIProvider,
     BedrockProvider,
     CustomProvider,
+    GitHubCopilotProvider,
     GoogleProvider,
     OpenAIClientMixin,
     OpenAIProvider,
     StreamOptions,
     _infer_provider_name_from_base_url,
     _normalize_base_url,
+    _require_github_copilot_dependency,
     _structured_completion_finish_reason,
     get_completion_provider,
 )
@@ -395,6 +398,38 @@ def test_get_completion_provider(
         )
     provider = get_completion_provider(config, model_name)
     assert isinstance(provider, provider_type)
+
+
+def test_get_github_copilot_completion_provider() -> None:
+    config = AnyProviderConfig(
+        api_key="gho_test-token", base_url="https://api.githubcopilot.com"
+    )
+
+    with (
+        patch(
+            "marimo._server.ai.providers._require_github_copilot_dependency"
+        ),
+        patch.object(
+            GitHubCopilotProvider,
+            "create_provider",
+            return_value=MagicMock(),
+        ),
+    ):
+        provider = get_completion_provider(config, "github/gpt-5.4")
+
+    assert isinstance(provider, GitHubCopilotProvider)
+
+
+def test_github_copilot_requires_supported_pydantic_ai() -> None:
+    with patch(
+        "marimo._server.ai.providers."
+        "GITHUB_COPILOT_DEPENDENCY.has_required_version",
+        return_value=False,
+    ):
+        with pytest.raises(ManyModulesNotFoundError) as exc_info:
+            _require_github_copilot_dependency()
+
+    assert exc_info.value.package_names == ["pydantic-ai-slim[openai]>=2.42.0"]
 
 
 @pytest.mark.requires("pydantic_ai")
@@ -958,8 +993,8 @@ def test_custom_provider_agent_omits_max_tokens_when_none() -> None:
             id="path_before_v1",
         ),
         pytest.param(
-            "https://models.github.ai/inference",
-            "models.github.ai/inference",
+            "https://inference.example.com/custom-path",
+            "inference.example.com/custom-path",
             id="path_without_v1",
         ),
         pytest.param(

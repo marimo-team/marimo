@@ -3,6 +3,11 @@
   description: OpenAI's API for GPT models, including GPT-3.5 and GPT-4.
   url: https://platform.openai.com/
 
+- name: GitHub Copilot
+  id: github
+  description: GitHub Copilot provides model inference through a Copilot subscription.
+  url: https://pydantic.dev/docs/ai/models/github-copilot/
+
 - name: Amazon Bedrock
   id: bedrock
   description: Amazon Bedrock provides access to foundation models from Amazon and leading AI startups via a unified API.
@@ -27,11 +32,6 @@
   id: ollama
   description: Ollama is a lightweight, open-source model server for running and sharing LLMs.
   url: https://ollama.ai/
-
-- name: GitHub
-  id: github
-  description: GitHub's API for GPT models with GitHub-hosted models.
-  url: https://github.com/features/copilot
 
 - name: marimo
   id: marimo

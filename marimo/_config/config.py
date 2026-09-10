@@ -323,7 +323,7 @@ class AiConfig(TypedDict, total=False):
     - `bedrock`: the Bedrock config
     - `azure`: the Azure config
     - `ollama`: the Ollama config
-    - `github`: the GitHub config
+    - `github`: the GitHub Copilot config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
@@ -425,18 +425,18 @@ class BedrockConfig(TypedDict, total=False):
 
 @dataclass
 class GitHubConfig(TypedDict, total=False):
-    """Configuration options for GitHub.
+    """Configuration options for GitHub Copilot.
 
     **Keys.**
 
-    - `api_key`: the GitHub API token or an `env:` reference
-    - `base_url`: the base URL for the API
+    - `api_key`: a GitHub Copilot token or an `env:` reference
+    - `base_url`: the base URL for the GitHub Copilot API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
         and `github-enterprise` (enterprise URI).
     """
 
-    api_key: str
+    api_key: NotRequired[str]
     base_url: NotRequired[str]
     copilot_settings: NotRequired[dict[str, Any]]
 
