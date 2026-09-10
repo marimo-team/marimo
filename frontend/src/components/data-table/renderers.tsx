@@ -243,7 +243,7 @@ export const DataTableBody = <TData,>({
               data-virtual-spacer=""
               style={{ height: virtualItems[0].start }}
             >
-              <td colSpan={totalColSpan} />
+              <td aria-hidden="true" colSpan={totalColSpan} />
             </tr>
           )}
           {virtualItems.map((vItem) => renderRow(rows[vItem.index]))}
@@ -254,7 +254,7 @@ export const DataTableBody = <TData,>({
                 height: totalSize - (virtualItems.at(-1)?.end ?? totalSize),
               }}
             >
-              <td colSpan={totalColSpan} />
+              <td aria-hidden="true" colSpan={totalColSpan} />
             </tr>
           )}
         </>
