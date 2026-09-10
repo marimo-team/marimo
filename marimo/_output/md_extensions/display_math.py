@@ -195,18 +195,71 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 for line_ in run
             )
             if contains_math and self.LIST_MARKER_PATTERN.match(preceding):
-                non_blank = [line_ for line_ in run if line_.strip()]
-                min_indent = min(
-                    self._count_indent(line_) for line_ in non_blank
-                )
-                if 0 < min_indent < tab_length:
-                    padding = " " * (tab_length - min_indent)
-                    result[start:end] = [
-                        padding + line_ if line_.strip() else line_
-                        for line_ in run
-                    ]
+                self._pad_math_segments(result, start, end, tab_length)
 
         return result
+
+    def _pad_math_segments(
+        self, result: list[str], start: int, end: int, tab_length: int
+    ) -> None:
+        """Independently pad each blank-line-isolated segment to tab_length.
+
+        `_normalize_display_math_spacing` inserts a blank line before/after
+        every $$ construct, which splits a tight list item's continuation
+        into separate blocks: any leading prose directly under the marker
+        (untouched -- it rides along with the marker's own block and was
+        never going to be isolated), then each $$ block, then any prose
+        that follows. Each of those *isolated* segments needs its own
+        indentation raised to exactly tab_length if it falls short.
+
+        We must not pad them as one uniform block: if a shallower segment
+        pulled a $$ block past exactly tab_length, the excess would survive
+        list-item detabbing as a residual indent, which breaks arithmatex's
+        block match just as being under-indented does. And if a deeper
+        segment (e.g. a $$ block someone indented further than the prose
+        around it, deliberately or not) were left as the reference point,
+        a shallower prose segment would be under-padded and pop out of the
+        list.
+        """
+        j = start
+        seen_math = False
+        while j < end:
+            seg_start = j
+            if self.SINGLE_LINE_PATTERN.match(result[j]):
+                j += 1
+                seen_math = True
+            elif self.DOLLAR_DOLLAR_PATTERN.match(result[j]):
+                j += 1
+                while j < end and not self.DOLLAR_DOLLAR_PATTERN.match(
+                    result[j]
+                ):
+                    j += 1
+                if j < end:
+                    j += 1  # include the closing "$$" line
+                seen_math = True
+            else:
+                while j < end and not (
+                    self.SINGLE_LINE_PATTERN.match(result[j])
+                    or self.DOLLAR_DOLLAR_PATTERN.match(result[j])
+                ):
+                    j += 1
+                if seg_start == start and not seen_math:
+                    # Leading prose directly under the marker: still part
+                    # of the marker's own (unsplit) block, so it needs no
+                    # padding regardless of its indentation.
+                    continue
+
+            segment = result[seg_start:j]
+            non_blank = [line_ for line_ in segment if line_.strip()]
+            if not non_blank:
+                continue
+            min_indent = min(self._count_indent(line_) for line_ in non_blank)
+            if 0 < min_indent < tab_length:
+                padding = " " * (tab_length - min_indent)
+                result[seg_start:j] = [
+                    padding + line_ if line_.strip() else line_
+                    for line_ in segment
+                ]
 
     def _split_by_inline_code(self, text: str) -> list[tuple[str, bool]]:
         """Split text into inline-code and non-code segments.

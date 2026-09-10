@@ -1005,6 +1005,24 @@ def test_md_display_math_list_item_with_blank_line_in_block() -> None:
     assert "trailing text." in result
 
 
+def test_md_display_math_deeper_indent_than_continuation() -> None:
+    # A single-line $$ block indented deeper than the plain continuation
+    # line above it (e.g. 4 columns vs. 2) must not have that extra depth
+    # carried over: it's already at tab_length (4) on its own and needs no
+    # padding, while the continuation line above needs none either since
+    # it's still part of the marker's own (unsplit) paragraph. Padding by
+    # a uniform delta computed from the shallower line would push the $$
+    # to 6 columns, which -- after the list item detabs by tab_length --
+    # leaves a residual 2-space indent that breaks arithmatex's block
+    # match just as badly as being under-indented does.
+    text = "- Item\n  continuation\n    $$x$$\n- Next\n"
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[x||]" in result
+    assert "$$" not in result
+    assert "Next" in result
+
+
 def test_md_display_math_format_preserved() -> None:
     # __format__ should return original markdown text
     text = "Hello\n$$f(x)$$\nworld"
