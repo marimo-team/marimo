@@ -509,18 +509,20 @@ export const FileBrowser = ({
     <div>
       {error && <Banner kind="danger">{error.message}</Banner>}
       {renderHeader()}
-      <NativeSelect
-        className="mt-2 w-full"
-        placeholder={path}
-        value={path}
-        onChange={(e) => setNewPath(e.target.value)}
-      >
-        {parentDirectories.map((dir) => (
-          <option value={dir} key={dir}>
-            {dir}
-          </option>
-        ))}
-      </NativeSelect>
+      {!restrictNavigation && (
+        <NativeSelect
+          className="mt-2 w-full"
+          placeholder={path}
+          value={path}
+          onChange={(e) => setNewPath(e.target.value)}
+        >
+          {parentDirectories.map((dir) => (
+            <option value={dir} key={dir}>
+              {dir}
+            </option>
+          ))}
+        </NativeSelect>
+      )}
 
       {data && typeof data.total_count === "number" && (
         <div className="text-xs text-muted-foreground mt-1 px-1">
