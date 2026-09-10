@@ -533,6 +533,13 @@ const FormArray = ({
   const isBelowMinLength = minLength != null && fields.length < minLength;
   const canRemove = minLength == null || fields.length > minLength;
 
+  const notifyChange = () => {
+    form.register(path).onChange({
+      target: { name: path, value: form.getValues(path) },
+      type: "change",
+    });
+  };
+
   return (
     <div className="flex flex-col gap-2 min-w-[220px]">
       <FormLabel>{label}</FormLabel>
@@ -555,6 +562,7 @@ const FormArray = ({
                 className="w-4 h-4 ml-2 my-1 text-muted-foreground hover:text-destructive cursor-pointer absolute right-0 top-5"
                 onClick={() => {
                   remove(index);
+                  notifyChange();
                 }}
               />
             )}
@@ -574,6 +582,7 @@ const FormArray = ({
           className="hover:text-accent-foreground"
           onClick={() => {
             append(getDefaults(schema));
+            notifyChange();
           }}
         >
           <PlusIcon className="w-3.5 h-3.5 mr-1" />
@@ -760,7 +769,7 @@ const SelectFormField = ({
           <FormControl>
             <Select
               data-testid="marimo-plugin-data-frames-select"
-              value={field.value}
+              value={field.value ?? ""}
               onValueChange={field.onChange}
             >
               <SelectTrigger className="min-w-[180px]">

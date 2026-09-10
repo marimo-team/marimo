@@ -232,20 +232,10 @@ export const DataFrameComponent = memo(
       [lazy],
     );
 
-    // If dataframe changes and value.transforms gets reset, then
-    // apply existing transformations (displayed in panel) to new data
-    const prevValueRef = useRef(internalValue);
-
+    const lastSentValue = useRef(value || EMPTY);
     useEffect(() => {
-      prevValueRef.current = internalValue;
-    });
-
-    useEffect(() => {
-      const prevValue = prevValueRef.current;
-      if (value?.transforms.length !== prevValue.transforms.length) {
-        setValue(prevValue);
-      }
-    }, [data, value?.transforms.length, prevValueRef, setValue]);
+      lastSentValue.current = value || EMPTY;
+    }, [value]);
 
     return (
       <div>
@@ -281,13 +271,12 @@ export const DataFrameComponent = memo(
               initialValue={internalValue}
               columns={columns}
               onChange={(newValue) => {
-                // Ignore changes that are the same
-                if (isEqual(newValue, value)) {
+                setInternalValue(newValue);
+                if (isEqual(newValue, lastSentValue.current)) {
                   return;
                 }
-                // Update the value valid changes
+                lastSentValue.current = newValue;
                 setValue(newValue);
-                setInternalValue(newValue);
               }}
               onInvalidChange={setInternalValue}
               getColumnValues={get_column_values}
