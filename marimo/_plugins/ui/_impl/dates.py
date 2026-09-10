@@ -365,7 +365,10 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
         start (datetime.date | str, optional): Minimum date selectable. If None, defaults to 01-01-0001.
         stop (datetime.date | str, optional): Maximum date selectable. If None, defaults to 12-31-9999.
         value (Tuple[datetime.date | str, datetime.date | str], optional): Default value as (start_date, end_date).
-            If None, defaults to (start, stop) if provided, otherwise today's date for both.
+            If None and start and stop are None, defaults to today's date for both.
+            If None and both start and stop are provided, defaults to (start, stop).
+            If None and only start is provided, defaults to (start, start).
+            If None and only stop is provided, defaults to (stop, stop).
         label (str, optional): Markdown label for the element.
         on_change (Callable[[Tuple[datetime.date, datetime.date]], None], optional): Optional callback to run when this element's value changes.
         full_width (bool, optional): Whether the input should take up the full width of its container.
@@ -403,11 +406,16 @@ class date_range(UIElement[tuple[str, str], tuple[dt.date, dt.date]]):
             )
 
         if value is None:
-            if start is None or stop is None:
-                value = (dt.date.today(), dt.date.today())
-            else:
+            if start is not None and stop is not None:
                 value = (start, stop)
-        elif (
+            elif start is not None:
+                value = (start, start)
+            elif stop is not None:
+                value = (stop, stop)
+            else:
+                value = (dt.date.today(), dt.date.today())
+
+        if (
             value[0] < self._start
             or value[1] > self._stop
             or value[0] > value[1]
