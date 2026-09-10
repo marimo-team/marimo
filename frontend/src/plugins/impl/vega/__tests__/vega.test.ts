@@ -470,7 +470,7 @@ Bob.Jones,25
     `);
   });
 
-  it.skip("should handle arrow files", async () => {
+  it.fails("should handle arrow files", async () => {
     // Create a small arrow file with schema and one empty record batch
     const arrowData = new Uint8Array([
       0x41,
