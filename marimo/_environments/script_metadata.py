@@ -129,11 +129,17 @@ def copy_metadata(source: str, destination: str) -> None:
 
 
 def ensure_metadata_block(path: str) -> None:
-    """Create an empty PEP 723 block when a Python notebook has none.
+    """Create an empty dependency manifest when a notebook has none.
 
     The manifest module owns this structural write; environment managers
     only edit the materialized script it gives them.
     """
+    if path.endswith((".md", ".qmd")):
+        front = _read_frontmatter(path)
+        if loads(front.header) is None:
+            header = wrap_block("dependencies = []") + "\n" + front.header
+            _write_frontmatter(path, front, header)
+        return
     if not path.endswith(".py"):
         return
     with open(path, encoding="utf-8") as f:
