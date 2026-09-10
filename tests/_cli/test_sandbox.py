@@ -673,29 +673,51 @@ def _restore_signal_handlers():
     os.name == "nt", reason="signal forwarding differs on Windows"
 )
 @pytest.mark.usefixtures("_restore_signal_handlers")
+@pytest.mark.parametrize(
+    ("suffix", "metadata"),
+    [
+        (".md", "absent"),
+        (".qmd", "absent"),
+        (".md", "title"),
+        (".md", "pyproject"),
+        (".qmd", "header"),
+    ],
+)
 def test_run_in_sandbox_from_script_environment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    suffix: str,
+    metadata: str,
 ) -> None:
     """The provisioned path: a markdown notebook's manifest is
     synchronized and marimo launches from the script environment."""
 
     monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
 
-    notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        """---
-pyproject: |
-  dependencies = []
----
-
-# Hello
-""",
-        encoding="utf-8",
-    )
+    notebook = tmp_path / f"notebook{suffix}"
+    frontmatter = {
+        "absent": "",
+        "title": "---\ntitle: Hello\n---\n",
+        "pyproject": "---\npyproject: |\n  dependencies = []\n---\n",
+        "header": "---\nheader: |\n  # Keep this preamble\n---\n",
+    }[metadata]
+    body = "\n# Hello\r\n\r\n```python\r\nprint('hello')\r\n```\r\n"
+    original = (frontmatter + body).encode("utf-8")
+    notebook.write_bytes(original)
 
     code = run_in_sandbox(["--version"], name=str(notebook))
 
     assert code == 0
+    assert notebook.read_bytes().endswith(body.encode("utf-8"))
+    if metadata == "pyproject":
+        assert notebook.read_bytes() == original
+    if metadata == "title":
+        assert "title: Hello" in notebook.read_text()
+    if metadata == "header":
+        from marimo._convert.markdown.to_ir import extract_frontmatter
+
+        saved, _ = extract_frontmatter(notebook.read_text())
+        assert "# Keep this preamble" in saved["header"]
     # The carrier is deleted after synchronization.
     assert not list(tmp_path.glob("*.py"))
 
