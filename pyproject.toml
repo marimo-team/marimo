@@ -379,7 +379,6 @@ ignore = [
     "S112", # `try`-`except`-`continue`
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
-    "PLE0704", # Misplaced bare `raise`
     "D421", # Property docstring should not start with a verb (preview rule)
 
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
