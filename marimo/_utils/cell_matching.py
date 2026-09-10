@@ -85,7 +85,7 @@ def pop_local(available: list[tuple[int, CellId_t]], idx: int) -> CellId_t:
 # seconds for the padded worst case). Such large simultaneous edits are rare and
 # a slightly sub-optimal match there is harmless, so fall back to a fast O(n^2)
 # greedy assignment above the cutoff.
-_MAX_OPTIMAL_ASSIGNMENT_SIZE = 100
+_MAX_OPTIMAL_ASSIGNMENT_SIZE = 50
 
 
 def _greedy_assignment(scores: list[list[float]]) -> list[int]:

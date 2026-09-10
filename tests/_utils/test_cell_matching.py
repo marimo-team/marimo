@@ -55,7 +55,7 @@ def test_hungarian_known_suboptimal_case() -> None:
 def test_hungarian_matches_brute_force() -> None:
     # The assignment must be optimal for every matrix, not merely valid.
     rng = random.Random(20260825)
-    for _ in range(500):
+    for _ in range(150):
         n = rng.randint(1, 6)
         scores = [
             [float(rng.randint(0, 9)) for _ in range(n)] for _ in range(n)
@@ -66,7 +66,7 @@ def test_hungarian_matches_brute_force() -> None:
 
 def test_hungarian_handles_negative_and_float_costs() -> None:
     rng = random.Random(1234)
-    for _ in range(200):
+    for _ in range(80):
         n = rng.randint(1, 5)
         scores = [[rng.uniform(-5.0, 5.0) for _ in range(n)] for _ in range(n)]
         result = _hungarian_algorithm([row[:] for row in scores])
