@@ -364,6 +364,50 @@ class NotebookSandbox:
             self._adapter.remove(target, package, on_output=on_output)
         self._sync(on_output=on_output, active_environment=self._environment)
 
+    def record_dependencies(
+        self,
+        packages: Sequence[str],
+        *,
+        runtime_versions: Mapping[str, str],
+    ) -> None:
+        """Record imported packages without reinstalling the environment.
+
+        Existing declarations retain their constraints, extras, markers, and
+        sources. Versions come from the backend or the calling kernel's
+        runtime overlay, which can supply otherwise undeclared dependencies.
+        """
+        requested = {
+            _normalize_dependency_name(package) for package in packages
+        }
+        if not requested:
+            return
+        requested -= {
+            _normalize_dependency_name(dependency)
+            for dependency in self._declared_dependencies()
+        } | {"marimo"}
+        if not requested:
+            return
+        versions = {
+            _normalize_dependency_name(package.name): package.version
+            for package in self.packages().packages
+        }
+        versions.update(
+            (_normalize_dependency_name(name), version)
+            for name, version in runtime_versions.items()
+        )
+        requirements = [
+            f"{name}=={versions[name]}"
+            for name in sorted(requested)
+            if versions.get(name)
+        ]
+        if not requirements:
+            return
+        with script_metadata.materialized_for_edit(self._source) as target:
+            for requirement in requirements:
+                self._adapter.add(
+                    target, requirement, upgrade=False, on_output=None
+                )
+
     def packages(
         self, *, on_output: LogCallback | None = None
     ) -> PackageState:

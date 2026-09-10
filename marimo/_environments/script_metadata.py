@@ -484,10 +484,17 @@ def materialized_for_edit(path: str) -> Iterator[MaterializedScript]:
 
     front = _read_frontmatter(absolute)
     with _carrier(absolute, front.header) as target:
-        yield MaterializedScript(path=target, directory=directory)
-        with open(target, encoding="utf-8") as f:
-            header = f.read()
-    _write_frontmatter(absolute, front, header)
+        edit_succeeded = False
+        try:
+            yield MaterializedScript(path=target, directory=directory)
+            edit_succeeded = True
+        finally:
+            # Only commit frontmatter after the caller's edit completed.
+            # `_carrier` still removes the temporary script on every exit.
+            if edit_succeeded:
+                with open(target, encoding="utf-8") as f:
+                    header = f.read()
+                _write_frontmatter(absolute, front, header)
 
 
 @contextlib.contextmanager

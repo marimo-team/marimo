@@ -9,6 +9,8 @@ NotebookSandbox owns Manifest edits, synchronization, and inspection.
 from __future__ import annotations
 
 import asyncio
+import importlib.metadata
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -117,12 +119,36 @@ class SandboxPackageManager(PypiPackageManager):
             filepath,
             packages_to_add,
             packages_to_remove,
-            import_namespaces_to_add,
             import_namespaces_to_remove,
             upgrade,
         )
-        # add/remove already changed the Manifest and synchronized it.
-        return True
+        # Explicit add/remove already updated the manifest. Cell registration
+        # can also discover an imported package without any preceding install.
+        try:
+            packages = [
+                self.module_to_package(namespace)
+                for namespace in import_namespaces_to_add or []
+            ]
+            runtime_versions: dict[str, str] = {}
+            environment = self._sandbox.environment
+            prefix = Path(environment.root).resolve() if environment else None
+            for package in packages:
+                try:
+                    distribution = importlib.metadata.distribution(package)
+                except importlib.metadata.PackageNotFoundError:
+                    continue
+                # The backend owns packages in its prefix (including conda
+                # packages). Only add metadata from the runtime overlay here.
+                location = Path(str(distribution.locate_file(""))).resolve()
+                if prefix is None or not location.is_relative_to(prefix):
+                    runtime_versions[package] = distribution.version
+            self._sandbox.record_dependencies(
+                packages, runtime_versions=runtime_versions
+            )
+            return True
+        except EnvironmentManagerError as error:
+            self._report(error, None)
+            return False
 
     @staticmethod
     def _report(error: Exception, log_callback: LogCallback | None) -> None:

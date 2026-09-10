@@ -1,13 +1,23 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import importlib.metadata
+import subprocess
 from typing import TYPE_CHECKING
 
+import pytest
+
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments import script_metadata
+from marimo._environments.overlay import RuntimeOverlay
+from marimo._environments.sandbox import NotebookSandbox
+from marimo._environments.uv import is_uv_available
 from marimo._runtime.commands import ExecuteCellCommand
 from marimo._runtime.packages.sandbox_package_manager import (
     SandboxPackageManager,
 )
+from marimo._utils.inline_script_metadata import PyProjectReader
 from tests._environments.test_sandbox_interface import FakeBackend
 from tests._runtime._helpers.factories import default_app_metadata
 from tests._runtime._helpers.session import mocked_kernel_session
@@ -15,7 +25,90 @@ from tests._runtime._helpers.session import mocked_kernel_session
 if TYPE_CHECKING:
     from pathlib import Path
 
-    import pytest
+
+@pytest.mark.network
+@pytest.mark.skipif(not is_uv_available(), reason="uv is required")
+@pytest.mark.parametrize("suffix", [".py", ".md"])
+async def test_cell_imports_record_transitive_sandbox_dependencies(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, suffix: str
+) -> None:
+    notebook = tmp_path / f"notebook{suffix}"
+    dependencies = ["marimo", "click>=8"] if suffix == ".py" else ["click>=8"]
+    project = {"dependencies": dependencies}
+    notebook.write_text(
+        script_metadata.dumps(project) + "\n"
+        if suffix == ".py"
+        else '---\npyproject: |\n  dependencies = ["click>=8"]\n---\n\n# Notebook\n'
+    )
+    sandbox = NotebookSandbox(str(notebook), "uv")
+    plan = sandbox.launch(
+        ["-m", "marimo"], overlay=RuntimeOverlay(runtime="marimo")
+    )
+    assert sandbox.environment is not None
+    prefix_version = (
+        await asyncio.to_thread(
+            subprocess.check_output,
+            [
+                sandbox.environment.python,
+                "-c",
+                (
+                    "from importlib.metadata import distributions; "
+                    "print(next((d.version for d in distributions() "
+                    "if d.metadata['Name'] == 'parso'), ''))"
+                ),
+            ],
+            text=True,
+        )
+    ).strip()
+    if suffix == ".md":
+        # The Markdown prefix lacks parso; the running kernel's runtime
+        # environment still supplies it through marimo's dependencies.
+        assert prefix_version == ""
+    else:
+        assert prefix_version
+    installed_version = importlib.metadata.version("parso")
+    for key, value in plan.env.items():
+        if key.startswith("MARIMO_SANDBOX_"):
+            monkeypatch.setenv(key, value)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", "single")
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", True)
+
+    with mocked_kernel_session(
+        app_metadata=default_app_metadata(filename=str(notebook))
+    ) as session:
+        session.kernel._maybe_register_cell(
+            "0",
+            "import parso\nimport os\nimport click\nimport missing_package",
+            stale=False,
+        )
+
+        assert set(
+            PyProjectReader.from_filename(str(notebook)).dependencies
+        ) == {
+            *dependencies,
+            f"parso=={installed_version}",
+        }
+
+        # Registering another import must not rewrite the saved requirement.
+        before = notebook.read_bytes()
+        session.kernel._maybe_register_cell(
+            "1", "import parso as other_parso", stale=False
+        )
+        assert notebook.read_bytes() == before
+
+        # An explicit install owns its requirement; the import callback must
+        # not replace that range with an exact pin or redo the install edit.
+        manager = session.kernel.packages_callbacks.package_manager
+        assert isinstance(manager, SandboxPackageManager)
+        assert await manager.install("parso>=0.8", version=None)
+        before = notebook.read_bytes()
+        assert manager.update_notebook_script_metadata(
+            str(notebook),
+            packages_to_add=["parso"],
+            import_namespaces_to_add=["parso"],
+            upgrade=False,
+        )
+        assert notebook.read_bytes() == before
 
 
 async def test_rename_rebinds_packages_before_rerunning_cells(
