@@ -73,7 +73,6 @@
     "react/todo": "off",
     "typescript/explicit-member-accessibility": "off",
     "vitest/no-conditional-expect": "off",
-    "vitest/no-disabled-tests": "off",
     "vitest/no-standalone-expect": [
       "error",
       { "additionalTestBlockFunctions": ["beforeEach"] }
