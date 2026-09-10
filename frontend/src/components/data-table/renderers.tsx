@@ -71,11 +71,7 @@ export function renderTableHeader<TData>(
         {renderHeaderGroup(table.getCenterHeaderGroups())}
         {renderHeaderGroup(table.getRightHeaderGroups())}
         {table.getAllColumns().length <= AUTO_WIDTH_MAX_COLUMNS && (
-          <th
-            className="w-full border-0"
-            aria-hidden="true"
-            role="presentation"
-          />
+          <th className="w-full border-0" aria-hidden="true" />
         )}
       </TableRow>
     </TableHeader>
@@ -217,7 +213,7 @@ export const DataTableBody = <TData,>({
         {renderCells(row.getCenterVisibleCells())}
         {renderCells(row.getRightVisibleCells())}
         {columns.length <= AUTO_WIDTH_MAX_COLUMNS && (
-          <td className="border-0" aria-hidden="true" role="presentation" />
+          <td className="border-0" aria-hidden="true" />
         )}
       </TableRow>
     );
