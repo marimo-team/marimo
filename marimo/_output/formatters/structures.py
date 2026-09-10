@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from collections import defaultdict
+from numbers import Integral
 from typing import TYPE_CHECKING, Any
 
 from marimo._messaging.mimetypes import KnownMimeType
@@ -50,9 +51,10 @@ def _key_formatter(k: object) -> object:
         return k
     if k is None:
         return "text/plain+none:"
-    if isinstance(k, int):
+    if isinstance(k, Integral):
         # No bigint/int split for keys: the numeric payload lives inside
         # a string, so there's no JS `Number` precision concern.
+        # Include NumPy integers; unprefixed numeric keys are reordered by JS.
         return f"text/plain+int:{k}"
     if isinstance(k, float):
         # Cover the JSON-spec-violating NaN/Inf cases; json.dumps would
