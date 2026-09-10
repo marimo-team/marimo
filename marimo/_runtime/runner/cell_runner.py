@@ -761,17 +761,26 @@ class Runner:
         ctx: PostExecutionHookContext,
         run_result: RunResult,
     ) -> None:
-        for post_hook in self._hooks.post_execution_hooks:
-            try:
-                post_hook(cell, ctx, run_result)
-            except KeyboardInterrupt:
-                # Preserve the completed cell's result and continue so output
-                # flushing and the idle transition aren't skipped.
-                self.interrupted = True
-                LOGGER.info(
-                    "Cell %s interrupted during post-execution hook",
-                    cell.cell_id,
-                )
+        try:
+            for post_hook in self._hooks.post_execution_hooks:
+                try:
+                    post_hook(cell, ctx, run_result)
+                except KeyboardInterrupt:
+                    self.interrupted = True
+                    LOGGER.info(
+                        "Cell %s interrupted during post-execution hook",
+                        cell.cell_id,
+                    )
+        finally:
+            # Cleanup must complete even if interrupted after updating local
+            # state but before broadcasting it to the frontend.
+            while True:
+                try:
+                    for finalize in self._hooks.finalization_hooks:
+                        finalize(cell, ctx, run_result)
+                    break
+                except KeyboardInterrupt:
+                    self.interrupted = True
 
     async def _run_one(
         self,

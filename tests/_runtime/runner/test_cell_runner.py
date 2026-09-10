@@ -7,6 +7,7 @@ import pytest
 from marimo._ast.cell import CellImpl
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._messaging.errors import MarimoSQLError
+from marimo._messaging.notification_utils import CellNotificationUtils
 from marimo._runtime.capture import capture_stderr
 from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
@@ -559,6 +560,108 @@ async def test_post_execution_interrupt_still_finalizes_cell(
     assert runner.interrupted
     assert "y" not in k.globals
     assert k.graph.cells[child.cell_id].runtime_state == "idle"
+
+
+@pytest.mark.parametrize("with_execution_context", [True, False])
+@pytest.mark.parametrize("interrupted_cleanup", ["flush", "idle"])
+async def test_interrupt_during_finalization_still_broadcasts_idle(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+    with_execution_context: bool,
+    interrupted_cleanup: str,
+) -> None:
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("123")])
+    mocked_kernel.stream.messages.clear()
+    cell = k.graph.cells[er.cell_id]
+    interruptions = 0
+    events: list[str] = []
+    broadcast_status = CellNotificationUtils.broadcast_status
+
+    def maybe_interrupt(cleanup: str) -> None:
+        nonlocal interruptions
+        if cleanup == interrupted_cleanup and interruptions < 2:
+            interruptions += 1
+            raise KeyboardInterrupt
+
+    def flush_console() -> None:
+        maybe_interrupt("flush")
+        events.append("flush")
+
+    def broadcast_status_with_interrupt(*args: Any, **kwargs: Any) -> None:
+        if kwargs.get("status") == "idle":
+            # The local state is already idle; the frontend still needs
+            # the notification even when that state hasn't changed.
+            assert cell.runtime_state == "idle"
+            maybe_interrupt("idle")
+            events.append("idle")
+        broadcast_status(*args, **kwargs)
+
+    monkeypatch.setattr(k.stream, "flush_console", flush_console)
+    monkeypatch.setattr(
+        CellNotificationUtils,
+        "broadcast_status",
+        broadcast_status_with_interrupt,
+    )
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=create_default_hooks(),
+        execution_context=(
+            k._install_execution_context if with_execution_context else None
+        ),
+    )
+
+    await runner.run_all()
+
+    assert interruptions == 2
+    assert events[-2:] == ["flush", "idle"]
+    assert (cell.runtime_state, cell.run_result_status) == ("idle", "success")
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == er.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
+    assert runner.interrupted
+
+
+async def test_post_execution_error_still_finalizes_cell(
+    mocked_kernel: MockedKernel,
+    exec_req: ExecReqProvider,
+) -> None:
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("123")])
+    mocked_kernel.stream.messages.clear()
+
+    def fail(
+        cell: CellImpl, ctx: PostExecutionHookContext, result: RunResult
+    ) -> None:
+        del cell, ctx, result
+        raise ValueError("post-execution failed")
+
+    hooks = create_default_hooks()
+    hooks.add_post_execution(fail)
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=hooks,
+        execution_context=k._install_execution_context,
+    )
+
+    with pytest.raises(ValueError, match="post-execution failed"):
+        await runner.run_all()
+
+    assert k.graph.cells[er.cell_id].runtime_state == "idle"
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == er.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
 
 
 async def test_run_all_swallows_sigint_raise_and_fires_on_finish(

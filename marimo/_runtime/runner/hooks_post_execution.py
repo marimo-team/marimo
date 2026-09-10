@@ -560,6 +560,11 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_outputs,
     _reset_matplotlib_context,
     _delete_local_variables,
+]
+
+
+# These hooks may be retried after an interrupt, so they must be safe to repeat.
+FINALIZATION_HOOKS: list[PostExecutionHook] = [
     # Flush buffered console output so that stderr/stdout arrives at the
     # frontend before the cell transitions to idle.
     _flush_console,
@@ -567,6 +572,4 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     # other hooks take a long time (broadcast outputs can take a long time
     # if a formatter is slow).
     _set_status_idle,
-    # NB. Other hooks are added ad-hoc or manually due to priority.
-    # Consider implementing priority sort to keep everything more centralized.
 ]
