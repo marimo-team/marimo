@@ -18,6 +18,7 @@ def _() -> None:
 
 @app.cell
 def _() -> None:
+    raise ValueError("ooops")
     return
 
 
