@@ -26,7 +26,11 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     DOLLAR_DOLLAR_PATTERN = re.compile(r"^\s*\$\$\s*$")
 
     # Matches an ordered/unordered list item marker: "2. ", "- ", "* ", "+ "
-    LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+[.)]|[-*+])\s+")
+    # Only "N." is recognized by python-markdown's OList processor (unlike
+    # "N)"), so that's all we match here -- treating "1)" as a marker would
+    # misidentify plain prose and push its (non-list) continuation lines to
+    # 4-space indentation, turning them into an indented code block.
+    LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+\.|[-*+])\s+")
 
     # Matches inline RST math role: :math:`...`
     INLINE_MATH_ROLE_PATTERN = re.compile(r"(?<!`):math:`([^`\n]+)`")
@@ -167,11 +171,19 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 continue
 
             start = i
-            while (
-                i < n
-                and result[i].strip()
-                and self._count_indent(result[i]) > 0
-            ):
+            in_dollar_block = False
+            while i < n:
+                current = result[i]
+                if not current.strip():
+                    # A blank line inside an open $$...$$ block (e.g. a
+                    # multi-paragraph LaTeX environment) doesn't end the
+                    # continuation -- only a blank line outside one does.
+                    if not in_dollar_block:
+                        break
+                elif self._count_indent(current) == 0:
+                    break
+                elif self.DOLLAR_DOLLAR_PATTERN.match(current):
+                    in_dollar_block = not in_dollar_block
                 i += 1
             end = i
 
@@ -183,10 +195,16 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 for line_ in run
             )
             if contains_math and self.LIST_MARKER_PATTERN.match(preceding):
-                min_indent = min(self._count_indent(line_) for line_ in run)
+                non_blank = [line_ for line_ in run if line_.strip()]
+                min_indent = min(
+                    self._count_indent(line_) for line_ in non_blank
+                )
                 if 0 < min_indent < tab_length:
                     padding = " " * (tab_length - min_indent)
-                    result[start:end] = [padding + line_ for line_ in run]
+                    result[start:end] = [
+                        padding + line_ if line_.strip() else line_
+                        for line_ in run
+                    ]
 
         return result
 

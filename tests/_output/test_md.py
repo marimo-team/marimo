@@ -961,6 +961,50 @@ def test_md_display_math_inside_list_item() -> None:
     assert "and continuing text." in result
 
 
+def test_md_display_math_paren_marker_not_treated_as_list() -> None:
+    # "1)" is not recognized as an ordered-list marker by python-markdown
+    # (only "1." is), so an indented $$ block following it must NOT be
+    # widened to 4-space indentation -- doing so would turn it into an
+    # indented code block instead of leaving it as (unrendered) prose,
+    # since it was never inside a real list to begin with.
+    text = (
+        "Some intro text.\n"
+        "\n"
+        "1) Not actually a list item, just prose ending in a number.\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   trailing text.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert "<pre>" not in result
+    assert "codehilite" not in result
+    assert "highlight" not in result
+
+
+def test_md_display_math_list_item_with_blank_line_in_block() -> None:
+    # A blank line inside a $$...$$ block prevents pymdownx.arithmatex from
+    # ever rendering it as math (true at the top level too -- an unrelated,
+    # pre-existing limitation), but it must not cause the list item to pop
+    # out of its list or split the list in two.
+    text = (
+        "1. Item one.\n"
+        "2. Item two with a multi-part display block:\n"
+        "   $$\n"
+        "   a = 1\n"
+        "\n"
+        "   b = 2\n"
+        "   $$\n"
+        "   trailing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ol") == 1
+    assert 'start="3"' not in result
+    assert "Item three" in result
+    assert "trailing text." in result
+
+
 def test_md_display_math_format_preserved() -> None:
     # __format__ should return original markdown text
     text = "Hello\n$$f(x)$$\nworld"
