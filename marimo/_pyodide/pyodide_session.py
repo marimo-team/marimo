@@ -322,6 +322,7 @@ class PyodideBridge:
             depth=body.depth,
             include_directories=body.include_directories,
             include_files=body.include_files,
+            include_hidden=body.include_hidden,
             limit=body.limit,
         )
         response = FileSearchResponse(

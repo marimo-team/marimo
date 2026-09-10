@@ -307,6 +307,109 @@ describe("RequestingTree", () => {
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
   });
 
+  test("caches empty directories and shares concurrent expansion requests", async () => {
+    let finish!: (value: { files: never[] }) => void;
+    sendListFiles.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const first = tree.expand(EXTERNAL_ROOT_ID);
+    const second = tree.expand(EXTERNAL_ROOT_ID);
+    expect(sendListFiles).toHaveBeenCalledOnce();
+    finish({ files: [] });
+    expect(await Promise.all([first, second])).toEqual([true, true]);
+    await tree.expand(EXTERNAL_ROOT_ID);
+    expect(sendListFiles).toHaveBeenCalledOnce();
+  });
+
+  test("refreshes a cached ancestor when revealing a newly created folder", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    const newFolder = {
+      ...PRIMARY_FILES[1],
+      id: "/root/new",
+      path: "/root/new",
+      name: "new",
+    };
+    const nested = {
+      ...newFolder,
+      id: "/root/new/nested",
+      path: "/root/new/nested",
+      name: "nested",
+    };
+    sendListFiles.mockImplementation(async ({ path }: { path: string }) => {
+      if (path === "/root") {
+        return { files: [...PRIMARY_FILES, newFolder] };
+      }
+      if (path === "/root/new") {
+        return { files: [nested] };
+      }
+      return { files: [] };
+    });
+    sendListFiles.mockClear();
+    expect(
+      await tree.reveal({
+        ...nested,
+        id: fileTreeNodeId("/root", nested.path),
+        rootPath: "/root",
+        isRoot: false,
+        isPrimaryRoot: true,
+      }),
+    ).toBe(true);
+    expect(sendListFiles.mock.calls).toEqual([
+      [{ path: "/root" }],
+      [{ path: "/root/new" }],
+      [{ path: "/root/new/nested" }],
+    ]);
+  });
+
+  test("reports a search folder that no longer exists after refreshing its parent", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    expect(
+      await tree.reveal({
+        ...PRIMARY_FILES[1],
+        id: fileTreeNodeId("/root", "/root/missing"),
+        path: "/root/missing",
+        rootPath: "/root",
+        isRoot: false,
+        isPrimaryRoot: true,
+      }),
+    ).toBe(false);
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Could not reveal folder" }),
+    );
+  });
+
+  test("retries a failed expansion", async () => {
+    sendListFiles.mockRejectedValueOnce(new Error("Offline"));
+    expect(await tree.expand(EXTERNAL_ROOT_ID)).toBe(false);
+    expect(await tree.expand(EXTERNAL_ROOT_ID)).toBe(true);
+    expect(sendListFiles).toHaveBeenCalledTimes(2);
+  });
+
+  test("preserves loaded descendants when refreshing their parent", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    const folderId = fileTreeNodeId("/root", "/root/folder1");
+    await tree.expand(folderId);
+    await tree.refreshPath("/root" as FilePath);
+    sendListFiles.mockClear();
+    await tree.expand(folderId);
+    expect(sendListFiles).not.toHaveBeenCalled();
+  });
+
+  test("reloads a collapsed cached folder after refreshing", async () => {
+    await tree.expand(PRIMARY_ROOT_ID);
+    const folderId = fileTreeNodeId("/root", "/root/folder1");
+    await tree.expand(folderId);
+    await tree.refreshAll([]);
+    sendListFiles.mockClear();
+    await tree.expand(folderId);
+    expect(sendListFiles).toHaveBeenCalledExactlyOnceWith({
+      path: "/root/folder1",
+    });
+  });
+
   test("refreshes supplied open folders in addition to configured roots", async () => {
     await tree.expand(PRIMARY_ROOT_ID);
     sendListFiles.mockClear();
@@ -316,6 +419,33 @@ describe("RequestingTree", () => {
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/root" });
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/external" });
     expect(sendListFiles).toHaveBeenCalledWith({ path: "/root/folder1" });
+  });
+
+  test("invalidates collapsed copies independently for overlapping roots", async () => {
+    getRoots.mockResolvedValue({
+      roots: [
+        { path: "/root", name: "workspace", isPrimary: true },
+        { path: "/root/folder1", name: "nested root", isPrimary: false },
+      ],
+    });
+    const overlapping = new RequestingTree({
+      getRoots,
+      listFiles: sendListFiles,
+      createFileOrFolder: sendCreateFileOrFolder,
+      deleteFileOrFolder: sendDeleteFileOrFolder,
+      copyFileOrFolder: sendCopyFileOrFolder,
+      renameFileOrFolder: sendRenameFileOrFolder,
+    });
+    await overlapping.initialize(onChange);
+    await overlapping.expand(PRIMARY_ROOT_ID);
+    const collapsedCopy = fileTreeNodeId("/root", "/root/folder1");
+    await overlapping.expand(collapsedCopy);
+    await overlapping.refreshAll([]);
+    sendListFiles.mockClear();
+    await overlapping.expand(collapsedCopy);
+    expect(sendListFiles).toHaveBeenCalledExactlyOnceWith({
+      path: "/root/folder1",
+    });
   });
 
   test("keeps existing children when a refresh fails", async () => {

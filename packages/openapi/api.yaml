@@ -2363,6 +2363,9 @@ components:
         includeFiles:
           default: true
           type: boolean
+        includeHidden:
+          default: true
+          type: boolean
         limit:
           default: 100
           type: integer

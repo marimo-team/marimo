@@ -473,6 +473,29 @@ def test_search_files_basic(client: TestClient, tmp_path: Path) -> None:
     assert isinstance(data["totalFound"], int)
 
 
+@pytest.mark.parametrize("include_hidden", [None, True, False])
+def test_search_files_hidden_visibility(
+    client: TestClient, tmp_path: Path, include_hidden: bool | None
+) -> None:
+    (tmp_path / ".match.txt").write_text("")
+    visible = tmp_path / "visible"
+    visible.mkdir()
+    (visible / "match.txt").write_text("")
+    body = {"query": "txt", "path": str(tmp_path), "limit": 1}
+    if include_hidden is not None:
+        body["includeHidden"] = include_hidden
+    response = client.post("/api/files/search", headers=HEADERS, json=body)
+    assert response.status_code == 200, response.text
+    expected = (
+        tmp_path / ".match.txt"
+        if include_hidden is not False
+        else visible / "match.txt"
+    )
+    assert [file["path"] for file in response.json()["files"]] == [
+        str(expected)
+    ]
+
+
 def test_search_files_with_matches(client: TestClient, tmp_path: Path) -> None:
     """Test search returns expected matches."""
     # Create test structure

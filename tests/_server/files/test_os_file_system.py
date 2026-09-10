@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 from typing import Literal
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -656,6 +657,43 @@ def test_get_details_non_utf8_encoding_and_contents(
 class TestIsMarimoFile:
     """Tests for _is_marimo_file which delegates to is_marimo_app."""
 
+    def test_listing_reuses_detection_until_file_changes(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        from marimo._server.files.directory_scanner import is_marimo_app
+
+        py_file = test_dir / "app.py"
+        py_file.write_text("print('hello')\n")
+        with patch(
+            "marimo._server.files.directory_scanner.is_marimo_app",
+            wraps=is_marimo_app,
+        ) as detect:
+            assert fs.list_files(str(test_dir))[0].is_marimo_file is False
+            assert fs.list_files(str(test_dir))[0].is_marimo_file is False
+            assert detect.call_count == 1
+
+            py_file.write_text("import marimo\napp = marimo.App()\n")
+            assert fs.list_files(str(test_dir))[0].is_marimo_file is True
+            assert detect.call_count == 2
+
+    def test_detection_expires_when_metadata_is_unchanged(
+        self, test_dir: Path, fs: OSFileSystem
+    ) -> None:
+        py_file = test_dir / "preserved.py"
+        notebook = "import marimo\napp = marimo.App()\n"
+        py_file.write_text("print(0)".ljust(len(notebook)))
+        unchanged_stat = py_file.stat()
+        with patch(
+            "marimo._server.files.os_file_system.time.monotonic",
+            return_value=100,
+        ) as clock:
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
+            py_file.write_text(notebook)
+            clock.return_value = 104
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is False
+            clock.return_value = 105
+            assert fs._is_marimo_file(str(py_file), unchanged_stat) is True
+
     def test_python_marimo_file(
         self, test_dir: Path, fs: OSFileSystem
     ) -> None:
@@ -731,6 +769,91 @@ def test_search_basic(test_dir: Path, fs: OSFileSystem) -> None:
     assert "hello.txt" in file_names
     assert "hello_world.py" in file_names
     assert "world.txt" not in file_names
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="Requires symlinks")
+def test_search_does_not_revisit_symlinked_directories(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    (test_dir / "result.txt").write_text("result")
+    (test_dir / "loop").symlink_to(test_dir, target_is_directory=True)
+    results = fs.search("result", path=str(test_dir), depth=20)
+    assert [result.path for result in results] == [
+        str(test_dir / "result.txt")
+    ]
+
+
+def test_search_filters_hidden_entries_before_limit(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    (test_dir / ".match").write_text("")
+    hidden = test_dir / ".cache"
+    hidden.mkdir()
+    (hidden / "match.txt").write_text("")
+    visible = test_dir / "visible"
+    visible.mkdir()
+    (visible / "match.txt").write_text("")
+
+    results = fs.search(
+        "match", path=str(test_dir), include_hidden=False, limit=1
+    )
+    assert [result.path for result in results] == [str(visible / "match.txt")]
+    assert (
+        len(fs.search("match", path=str(test_dir), include_hidden=True)) == 3
+    )
+
+
+def test_search_ranks_nested_matches_before_limiting(
+    test_dir: Path, fs: OSFileSystem
+) -> None:
+    for index in range(250):
+        (test_dir / f"weak-report-{index}.txt").write_text("")
+    nested = test_dir / "nested"
+    nested.mkdir()
+    (nested / "report").write_text("")
+    (nested / "report-summary.txt").write_text("")
+
+    results = fs.search("report", path=str(test_dir), limit=2)
+    assert [result.name for result in results] == [
+        "report",
+        "report-summary.txt",
+    ]
+
+
+@pytest.mark.parametrize("disappears", [False, True])
+def test_search_reads_metadata_only_for_selected_matches(
+    test_dir: Path, fs: OSFileSystem, disappears: bool
+) -> None:
+    import os
+
+    entries = []
+    for name in ["weak-report.txt", "report-summary.txt", "report"]:
+        path = test_dir / name
+        path.write_text("")
+        entry = Mock(spec=os.DirEntry)
+        entry.configure_mock(name=name, path=str(path))
+        entry.is_dir.return_value = False
+        entry.stat.return_value = path.stat()
+        entries.append(entry)
+    if disappears:
+        entries[-1].stat.side_effect = FileNotFoundError
+
+    with patch("marimo._server.files.os_file_system.os.scandir") as scandir:
+        scandir.return_value.__enter__.return_value = iter(entries)
+        results = fs.search("report", path=str(test_dir), limit=1)
+
+    assert [result.name for result in results] == (
+        [] if disappears else ["report"]
+    )
+    assert [entry.stat.call_count for entry in entries] == [0, 0, 1]
+
+
+@pytest.mark.parametrize("limit", [0, -1])
+def test_search_nonpositive_limit(
+    test_dir: Path, fs: OSFileSystem, limit: int
+) -> None:
+    (test_dir / "match.txt").write_text("")
+    assert fs.search("match", path=str(test_dir), limit=limit) == []
 
 
 def test_search_empty_query(test_dir: Path, fs: OSFileSystem) -> None:

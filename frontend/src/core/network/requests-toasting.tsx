@@ -50,7 +50,7 @@ export function createErrorToastingRequests(
     getEnvironmentInfo: "", // No toast
     getFileRoots: "", // RequestingTree surfaces this error
     sendListFiles: "Failed to list files",
-    sendSearchFiles: "Failed to search files",
+    sendSearchFiles: "", // Search callers handle errors
     sendPdb: "Failed to start debug session",
     sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
