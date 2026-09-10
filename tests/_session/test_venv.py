@@ -12,9 +12,14 @@ import pytest
 from marimo._session._venv import (
     check_python_version_compatibility,
     get_configured_venv_python,
+    get_ipc_kernel_deps,
     get_kernel_pythonpath,
     has_marimo_installed,
 )
+
+
+def test_get_ipc_kernel_deps_is_a_lower_bound() -> None:
+    assert get_ipc_kernel_deps() == ["pyzmq>=27.1.0"]
 
 
 def test_get_configured_venv_python_returns_none_when_not_configured() -> None:
