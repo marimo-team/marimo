@@ -928,6 +928,39 @@ def test_md_math_normalization_skips_fenced_and_inline_code() -> None:
     assert "||(y||)" in result
 
 
+def test_md_display_math_inside_list_item() -> None:
+    # Display math written as a continuation line of a numbered-list item
+    # (no blank line separating it from the item's text, indented only to
+    # the width of the marker) must still render as display math, and the
+    # list item must stay nested rather than popping out to the top level.
+    text = (
+        "1. Item one.\n"
+        "2. Item two with inline $a^2$ math, then a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+
+    # Display math rendered as a block (not left as literal $$ text).
+    assert result.count("||[") == 1
+    assert "E = mc^2" in result
+    assert "$$" not in result
+
+    # Inline math in the same item still renders.
+    assert "||(a^2||)" in result
+
+    # The list stays a single, correctly numbered <ol> -- it doesn't split
+    # into a second list or leave the $$ block as a top-level paragraph.
+    assert result.count("<ol") == 1
+    assert 'start="3"' not in result
+    assert "Item three" in result
+    # The paragraph after the display block stays inside the list item.
+    assert "and continuing text." in result
+
+
 def test_md_display_math_format_preserved() -> None:
     # __format__ should return original markdown text
     text = "Hello\n$$f(x)$$\nworld"

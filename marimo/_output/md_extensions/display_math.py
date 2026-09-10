@@ -25,6 +25,9 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     # Opening or closing $$ on its own line
     DOLLAR_DOLLAR_PATTERN = re.compile(r"^\s*\$\$\s*$")
 
+    # Matches an ordered/unordered list item marker: "2. ", "- ", "* ", "+ "
+    LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+[.)]|[-*+])\s+")
+
     # Matches inline RST math role: :math:`...`
     INLINE_MATH_ROLE_PATTERN = re.compile(r"(?<!`):math:`([^`\n]+)`")
     # Matches role variant with embedded HTML code tag: :math:<code>...</code>
@@ -100,6 +103,8 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return "".join(converted_segments)
 
     def _normalize_display_math_spacing(self, lines: list[str]) -> list[str]:
+        lines = self._reindent_list_continuations(lines)
+
         result: list[str] = []
         i = 0
         in_multiline = False
@@ -134,6 +139,54 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 result.append(line)
 
             i += 1
+
+        return result
+
+    def _reindent_list_continuations(self, lines: list[str]) -> list[str]:
+        """Widen indentation of a list item's $$ continuation block.
+
+        We surround $$ blocks with blank lines so arithmatex treats them as
+        their own markdown block (see `_normalize_display_math_spacing`).
+        But a blank line turns a tight list item into a loose one, and
+        python-markdown's `ListIndentProcessor` only reattaches a
+        blank-line-separated block to its list item when the block is
+        indented by at least `tab_length` (4 by default) spaces -- indenting
+        it to merely match the width of the list marker (e.g. the 3 columns
+        of "2. ") is not enough. Continuation lines written under a marker
+        narrower than that would otherwise pop out of the list once we add
+        the blank lines, so widen them here first.
+        """
+        tab_length: int = getattr(self.md, "tab_length", 4)
+        result = list(lines)
+        n = len(result)
+        i = 0
+        while i < n:
+            line = result[i]
+            if not line.strip() or self._count_indent(line) == 0:
+                i += 1
+                continue
+
+            start = i
+            while (
+                i < n
+                and result[i].strip()
+                and self._count_indent(result[i]) > 0
+            ):
+                i += 1
+            end = i
+
+            preceding = result[start - 1] if start > 0 else ""
+            run = result[start:end]
+            contains_math = any(
+                self.SINGLE_LINE_PATTERN.match(line_)
+                or self.DOLLAR_DOLLAR_PATTERN.match(line_)
+                for line_ in run
+            )
+            if contains_math and self.LIST_MARKER_PATTERN.match(preceding):
+                min_indent = min(self._count_indent(line_) for line_ in run)
+                if 0 < min_indent < tab_length:
+                    padding = " " * (tab_length - min_indent)
+                    result[start:end] = [padding + line_ for line_ in run]
 
         return result
 
