@@ -33,7 +33,7 @@ interface AsyncBaseResult<T> {
 
   /**
    * The error object if the fetch operation failed.
-   * - `undefined` when not in error state
+   * - Retained during a retry after an error
    * - Contains the Error object when fetch fails
    */
   error: Error | undefined;
@@ -47,8 +47,8 @@ interface AsyncBaseResult<T> {
 
   /**
    * A derived boolean indicating if a fetch operation is currently in progress.
-   * - `true` when actively fetching data (pending or loading states)
-   * - `false` when not fetching (success or error states)
+   * - `true` when fetching data, including retries after an error
+   * - `false` when no fetch is in progress
    */
   isFetching: boolean;
 }
@@ -83,7 +83,7 @@ interface ErrorResult<T> extends AsyncBaseResult<T> {
   data: undefined | T;
   error: Error;
   isPending: false;
-  isFetching: false;
+  isFetching: boolean;
 }
 
 /**
@@ -189,7 +189,11 @@ export function combineAsyncData<T extends unknown[]>(
   // short circuit if any response has an error
   const maybeErrorResponse = responses.find((x) => x.status === "error");
   if (maybeErrorResponse?.error) {
-    return { ...Result.error(maybeErrorResponse.error), refetch };
+    return {
+      ...Result.error(maybeErrorResponse.error),
+      isFetching: responses.some((response) => response.isFetching),
+      refetch,
+    };
   }
 
   // Combine response data when all are successful
@@ -340,6 +344,9 @@ export function useAsyncData<T>(
       },
     };
     setResult((prevResult) => {
+      if (prevResult.status === "error") {
+        return { ...prevResult, isFetching: true };
+      }
       // If we have previous data, show reloading state
       if (prevResult.status === "success" || prevResult.status === "loading") {
         return Result.loading(prevResult.data);
