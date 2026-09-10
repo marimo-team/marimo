@@ -9,7 +9,12 @@ from typing import Any
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
-from marimo._save.encode import common_container_to_bytes, deterministic_dumps
+from marimo._save.encode import (
+    attempt_signed_bytes,
+    common_container_to_bytes,
+    data_to_buffer,
+    deterministic_dumps,
+)
 
 HAS_PANDAS = DependencyManager.pandas.has()
 HAS_NUMPY = DependencyManager.numpy.has()
@@ -137,3 +142,63 @@ def test_bytearray_does_not_collide_with_equal_bytes() -> None:
     assert common_container_to_bytes(bytearray(b"abc")) != (
         common_container_to_bytes(b"abc")
     )
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+def test_polars_numeric_hash_depends_on_values() -> None:
+    import polars as pl
+
+    frame = pl.DataFrame({"x": [1, 2], "y": [3, 4]})
+    encoded = data_to_buffer(frame)
+    assert encoded == data_to_buffer(frame.rename({"x": "renamed"}))
+    assert encoded != data_to_buffer(pl.DataFrame({"x": [1, 2], "y": [3, 5]}))
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_state_uses_fallback(as_frame: bool) -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    data = (
+        series.to_frame().with_columns(count=pl.Series([1, 2]))
+        if as_frame
+        else series
+    )
+    value = {"data": data}
+    assert attempt_signed_bytes(value, "state") is value
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+def test_polars_non_numeric_pickle_fallback_preserves_values(
+    as_frame: bool,
+) -> None:
+    import polars as pl
+
+    series = pl.Series("label", ["a", "b"])
+    value = series.to_frame() if as_frame else series
+    assert pickle.loads(deterministic_dumps(value, "sha256")).equals(value)
+
+
+@pytest.mark.skipif(
+    not DependencyManager.polars.has(), reason="polars required"
+)
+@pytest.mark.parametrize("as_frame", [False, True])
+@pytest.mark.parametrize("in_container", [False, True])
+def test_polars_object_hash_uses_fallback(
+    as_frame: bool, in_container: bool
+) -> None:
+    import polars as pl
+
+    series = pl.Series("objects", [object()], dtype=pl.Object)
+    value: Any = series.to_frame() if as_frame else series
+    value = {"data": value} if in_container else value
+
+    assert attempt_signed_bytes(value, "state") is value
