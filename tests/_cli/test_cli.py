@@ -1336,13 +1336,28 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
     _check_contents(p, b"edit", contents)
 
 
-def test_cli_run_sandbox_records_backend(tmp_path: Path) -> None:
+@pytest.mark.parametrize("command", ["edit", "run"])
+@pytest.mark.parametrize(
+    ("option", "backend"), [("--sandbox=pixi", "pixi"), ("--sandbox", "uv")]
+)
+@pytest.mark.parametrize("directory", ["pixi", "uv"])
+def test_cli_sandbox_records_backend_and_preserves_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    option: str,
+    backend: str,
+    directory: str,
+) -> None:
     """Kernel launches read the backend from GLOBAL_SETTINGS; `run` must
     record it or `run --sandbox=pixi` launches uv kernels."""
     from marimo._cli.sandbox import SandboxMode
     from marimo._config.settings import GLOBAL_SETTINGS
 
-    (tmp_path / "nb.py").write_text(
+    monkeypatch.chdir(tmp_path)
+    notebook_dir = tmp_path / directory
+    notebook_dir.mkdir()
+    (notebook_dir / "nb.py").write_text(
         codegen.generate_filecontents(
             codes=["import marimo as mo"],
             names=["one"],
@@ -1360,16 +1375,18 @@ def test_cli_run_sandbox_records_backend(tmp_path: Path) -> None:
     with (
         patch.dict(os.environ),
         patch.object(GLOBAL_SETTINGS, "SANDBOX_BACKEND", None),
+        patch.object(GLOBAL_SETTINGS, "SANDBOX_MODE", None),
+        patch.object(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False),
         patch("marimo._cli.cli.start", side_effect=_capture_start),
     ):
         result = runner.invoke(
             cli_main,
-            ["run", str(tmp_path), "--sandbox=pixi", "--headless"],
+            [command, option, directory, "--headless"],
         )
 
     assert result.exit_code == 0, result.output
     assert captured["sandbox_mode"] is SandboxMode.MULTI
-    assert captured["backend"] == "pixi"
+    assert captured["backend"] == backend
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")

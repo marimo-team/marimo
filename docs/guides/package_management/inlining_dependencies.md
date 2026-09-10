@@ -51,14 +51,16 @@ uv run notebook.py
 
 !!! note "Requires uv"
 
-    Sandboxed notebooks require the uv package manager
+    The default `--sandbox` backend requires the uv package manager
     ([installation
     instructions](https://docs.astral.sh/uv/getting-started/installation/)).
 
 ## Pixi sandboxes
 
-If your notebook needs conda packages, use [pixi](https://pixi.sh) as the
-sandbox backend:
+If your notebook needs conda packages, use Pixi as the sandbox backend.
+[Install Pixi](https://pixi.prefix.dev/latest/installation/) with support for
+`pixi install --script` (available in Pixi 0.80.0). marimo checks this capability
+at startup; use `pixi self-update` if your installation predates it.
 
 ```bash
 marimo edit --sandbox=pixi notebook.py

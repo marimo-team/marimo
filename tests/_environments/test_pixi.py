@@ -34,7 +34,7 @@ def _stub_pixi(tmp_path: Path, script: str) -> str:
 def test_sync_parses_the_install_report(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    root = tmp_path / "envs" / "default"
+    root = tmp_path / "envs" / "Zoë's environment"
     (root / "bin").mkdir(parents=True)
     (root / "bin" / "python").touch()
     # The message arrives styled; the parser must see through ANSI.
@@ -289,22 +289,20 @@ def test_launch_activates_the_conda_prefix(
     assert plan.argv[-2:] == ("-m", "marimo")
     assert plan.env["CONDA_PREFIX"] == root
     assert "VIRTUAL_ENV" not in plan.env
-    assert plan.env["PATH"].startswith(os.path.join(root, "bin") + os.pathsep)
-    assert plan.start_new_session
-
-
-def test_windows_conda_prefix_paths() -> None:
-    import ntpath
-
-    root = "C:\\pixi\\env"
-    assert pixi._activation_path_entries(root, platform="nt") == (
-        root,
-        ntpath.join(root, "Library", "mingw-w64", "bin"),
-        ntpath.join(root, "Library", "usr", "bin"),
-        ntpath.join(root, "Library", "bin"),
-        ntpath.join(root, "Scripts"),
-        ntpath.join(root, "bin"),
+    expected_paths = (
+        [
+            root,
+            os.path.join(root, "Library", "mingw-w64", "bin"),
+            os.path.join(root, "Library", "usr", "bin"),
+            os.path.join(root, "Library", "bin"),
+            os.path.join(root, "Scripts"),
+            os.path.join(root, "bin"),
+        ]
+        if os.name == "nt"
+        else [os.path.join(root, "bin")]
     )
+    assert plan.env["PATH"] == os.pathsep.join([*expected_paths, "/usr/bin"])
+    assert plan.start_new_session
 
 
 def test_fallback_plan_reflects_this_interpreter() -> None:
@@ -418,11 +416,9 @@ def test_live_pixi_mutation_after_rename_requires_restart(
 def test_live_pixi_upgrade_installs_the_reported_version(
     tmp_path: Path,
 ) -> None:
-    import json
     import subprocess
 
     from marimo._environments.sandbox import NotebookSandbox
-    from marimo._environments.uv import require_uv_bin
 
     notebook = tmp_path / "notebook.py"
     notebook.write_text(
@@ -437,20 +433,13 @@ def test_live_pixi_upgrade_installs_the_reported_version(
     )
     installed = subprocess.check_output(
         [
-            require_uv_bin(),
-            "pip",
-            "list",
-            "--python",
             running.python,
-            "--format",
-            "json",
+            "-c",
+            "from importlib.metadata import version; print(version('six'))",
         ],
         text=True,
     )
-    assert (
-        next(p["version"] for p in json.loads(installed) if p["name"] == "six")
-        == reported
-    )
+    assert installed.strip() == reported
     assert reported != "1.16.0"
 
 
@@ -538,10 +527,19 @@ def test_overlay_chains_the_conda_prefix(
 def test_command_env_drops_enclosing_activation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setenv("VIRTUAL_ENV", "/venv")
-    monkeypatch.setenv("CONDA_PREFIX", "/conda")
-    monkeypatch.setenv("PIXI_PROJECT_MANIFEST", "/pixi.toml")
+    activation = {
+        "VIRTUAL_ENV": "/venv",
+        "UV_PROJECT_ENVIRONMENT": "/uv-project",
+        "CONDA_PREFIX": "/conda",
+        "CONDA_DEFAULT_ENV": "outer",
+        "PIXI_PROJECT_MANIFEST": "/pixi.toml",
+        "PIXI_PROJECT_ROOT": "/pixi",
+        "PIXI_ENVIRONMENT_NAME": "outer",
+        "PIXI_IN_SHELL": "1",
+    }
+    for key, value in activation.items():
+        monkeypatch.setenv(key, value)
+    monkeypatch.setenv("KEEP_ME", "preserved")
     env = pixi.command_env()
-    assert "VIRTUAL_ENV" not in env
-    assert "CONDA_PREFIX" not in env
-    assert "PIXI_PROJECT_MANIFEST" not in env
+    assert not activation.keys() & env.keys()
+    assert env["KEEP_ME"] == "preserved"

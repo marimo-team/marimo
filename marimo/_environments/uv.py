@@ -17,7 +17,11 @@ import threading
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    EnvironmentManagerNotFoundError,
+    MissingScriptMetadataError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -33,7 +37,7 @@ class UvError(EnvironmentManagerError):
     """Base for all failures invoking uv."""
 
 
-class UvNotFoundError(UvError):
+class UvNotFoundError(UvError, EnvironmentManagerNotFoundError):
     """uv is not installed or not on the PATH."""
 
     def __init__(self, message: str | None = None) -> None:
@@ -65,7 +69,7 @@ class UvCommandError(UvError):
         )
 
 
-class UvMissingScriptMetadataError(UvCommandError):
+class UvMissingScriptMetadataError(UvCommandError, MissingScriptMetadataError):
     """The target script has no PEP 723 inline metadata block."""
 
 

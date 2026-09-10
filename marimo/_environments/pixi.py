@@ -19,7 +19,11 @@ import subprocess
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    EnvironmentManagerNotFoundError,
+    MissingScriptMetadataError,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -34,13 +38,13 @@ class PixiError(EnvironmentManagerError):
     """Base class for pixi invocation errors."""
 
 
-class PixiNotFoundError(PixiError):
+class PixiNotFoundError(PixiError, EnvironmentManagerNotFoundError):
     """No pixi executable was found."""
 
     def __init__(self) -> None:
         super().__init__(
             "pixi must be installed to use --sandbox=pixi. "
-            "Install pixi from https://pixi.sh"
+            "Install pixi from https://pixi.prefix.dev/latest/installation/"
         )
 
 
@@ -69,7 +73,9 @@ class PixiCommandError(PixiError):
         )
 
 
-class PixiMissingScriptMetadataError(PixiCommandError):
+class PixiMissingScriptMetadataError(
+    PixiCommandError, MissingScriptMetadataError
+):
     """The target script has no PEP 723 inline metadata block."""
 
 
@@ -110,6 +116,7 @@ def ensure_supported_pixi() -> None:
         [require_pixi_bin(), "install", "--help"],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         timeout=10,
     )
     if completed.returncode != 0 or "--script" not in completed.stdout:
@@ -119,7 +126,7 @@ def ensure_supported_pixi() -> None:
 # `pixi install --script` reports the environment on stderr:
 #   ✔ The script environment has been installed at '<prefix>'.
 # A `--json` report is the upstream ask that retires this parse.
-_INSTALLED_AT = re.compile(r"installed at '([^']+)'")
+_INSTALLED_AT = re.compile(r"installed at '(.+)'\.\s*$", re.MULTILINE)
 _ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
 
@@ -152,6 +159,7 @@ def sync(
         args,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         # pixi must never hang waiting for input.
         stdin=subprocess.DEVNULL,
         env=command_env(),
@@ -276,6 +284,7 @@ def _run(
         args,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         # pixi must never hang waiting for input.
         stdin=subprocess.DEVNULL,
         env=command_env(),
@@ -328,6 +337,7 @@ def ensure_marimo(
         args,
         capture_output=True,
         text=True,
+        encoding="utf-8",
         # pixi must never hang waiting for input.
         stdin=subprocess.DEVNULL,
         env=command_env(),
@@ -433,12 +443,9 @@ def launch(
     )
 
 
-def _activation_path_entries(
-    root: str, *, platform: str | None = None
-) -> tuple[str, ...]:
+def _activation_path_entries(root: str) -> tuple[str, ...]:
     """Executable paths exposed by a conventional conda prefix."""
-    platform = os.name if platform is None else platform
-    if platform == "nt":
+    if os.name == "nt":
         import ntpath
 
         return (

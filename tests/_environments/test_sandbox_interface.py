@@ -208,8 +208,9 @@ def test_add_syncs_the_final_pin(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("suffix", [".py", ".md", ".qmd"])
 @pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("error", [EnvironmentManagerError, KeyboardInterrupt])
 def test_failed_sync_restores_metadata_but_preserves_notebook_edits(
-    tmp_path: Path, suffix: str, operation: str
+    tmp_path: Path, suffix: str, operation: str, error: type[BaseException]
 ) -> None:
     notebook = tmp_path / f"notebook{suffix}"
     if suffix == ".py":
@@ -225,14 +226,14 @@ def test_failed_sync_restores_metadata_but_preserves_notebook_edits(
 
     def fail(*_args: object, **_kwargs: object) -> None:
         notebook.write_text(notebook.read_text().replace("x = 1", "x = 2"))
-        raise EnvironmentManagerError("no solution")
+        raise error("interrupted mutation")
 
     with patch.object(adapter, "sync", side_effect=fail):
         if operation == "add":
-            with pytest.raises(EnvironmentManagerError, match="no solution"):
+            with pytest.raises(error, match="interrupted mutation"):
                 sandbox.add("obstore", upgrade=True)
         else:
-            with pytest.raises(EnvironmentManagerError, match="no solution"):
+            with pytest.raises(error, match="interrupted mutation"):
                 sandbox.remove("obstore")
 
     with script_metadata.materialized_for_environment(str(notebook)) as target:

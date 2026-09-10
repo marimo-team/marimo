@@ -14,10 +14,11 @@ from dataclasses import dataclass
 from marimo._environments.environment import (
     ProcessPlan,
 )
-from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    MissingScriptMetadataError,
+)
 from marimo._environments.overlay import runtime_overlay
-from marimo._environments.pixi import PixiMissingScriptMetadataError
-from marimo._environments.uv import UvMissingScriptMetadataError
 from marimo._session.app_host.host import AppHost
 from marimo._session.managers.ipc import KernelStartupError
 
@@ -94,10 +95,7 @@ class AppHostPool:
         try:
             try:
                 handle = backends.sync_notebook(abs_path, backend=backend)
-            except (
-                UvMissingScriptMetadataError,
-                PixiMissingScriptMetadataError,
-            ):
+            except MissingScriptMetadataError:
                 plan = backends.launch_fallback(args)
                 plan.env.pop("MARIMO_SANDBOX_MODE", None)
             else:

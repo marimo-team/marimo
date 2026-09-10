@@ -21,6 +21,21 @@ from marimo._utils.inline_script_metadata import PyProjectReader
 HAS_UV = DependencyManager.which("uv")
 
 
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_missing_sandbox_backend_reports_install_instructions(
+    backend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(MarimoCLIMissingDependencyError) as error:
+        run_in_sandbox(["edit", "--sandbox", "notebook.py"], backend=backend)
+
+    assert f"{backend} must be installed" in str(error.value)
+
+
 def test_dependency_export_uses_notebook_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -804,7 +819,10 @@ def test_strip_sandbox_args() -> None:
     ) == ["-m", "marimo", "edit", "nb.py"]
     assert _strip_sandbox_args(
         ["-m", "marimo", "edit", "--sandbox", "pixi", "nb.py"]
-    ) == ["-m", "marimo", "edit", "nb.py"]
+    ) == ["-m", "marimo", "edit", "pixi", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "uv"]
+    ) == ["-m", "marimo", "edit", "uv"]
     assert _strip_sandbox_args(
         ["-m", "marimo", "run", "--sandbox", "nb.py", "--", "--sandbox"]
     ) == ["-m", "marimo", "run", "nb.py", "--", "--sandbox"]

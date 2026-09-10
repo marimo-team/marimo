@@ -288,7 +288,8 @@ def _normalize_sandbox_args(args: list[str]) -> list[str]:
 
     Click options cannot reliably accept both an optional value and a
     following positional argument. Normalize the bare spelling before Click
-    parses it, while preserving `--sandbox pixi` and arguments after `--`.
+    parses it. Explicit backends use `--sandbox=pixi`; following paths named
+    `uv` or `pixi` and arguments after `--` remain positional arguments.
     """
     normalized = list(args)
     try:
@@ -296,9 +297,7 @@ def _normalize_sandbox_args(args: list[str]) -> list[str]:
     except ValueError:
         limit = len(normalized)
     for index, token in enumerate(normalized[:limit]):
-        if token == "--sandbox" and (
-            index + 1 >= limit or normalized[index + 1] not in ("uv", "pixi")
-        ):
+        if token == "--sandbox":
             normalized[index] = "--sandbox=uv"
     return normalized
 

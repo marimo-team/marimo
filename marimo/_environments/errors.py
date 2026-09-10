@@ -13,6 +13,14 @@ class EnvironmentManagerError(Exception):
     """Base for failures invoking an environment manager."""
 
 
+class EnvironmentManagerNotFoundError(EnvironmentManagerError):
+    """The selected environment manager is not installed or on PATH."""
+
+
+class MissingScriptMetadataError(EnvironmentManagerError):
+    """The target script has no PEP 723 inline metadata block."""
+
+
 class SandboxRestartRequired(EnvironmentManagerError):
     """The manifest synchronized, but not into the live kernel's prefix.
 

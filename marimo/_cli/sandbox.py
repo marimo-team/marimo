@@ -23,7 +23,6 @@ from marimo._environments.sandbox import Backend as SandboxBackend
 from marimo._environments.uv import (
     UvCommandError,
     UvMissingScriptMetadataError,
-    UvNotFoundError,
     find_uv_bin,
     is_uv_available,
     uv,
@@ -436,23 +435,25 @@ def run_in_sandbox(
     For "multi" sandbox mode (directory), see IPCKernelManagerImpl.
     """
     from marimo._environments import backends
-    from marimo._environments.errors import EnvironmentManagerError
-    from marimo._environments.pixi import PixiNotFoundError
+    from marimo._environments.errors import (
+        EnvironmentManagerError,
+        EnvironmentManagerNotFoundError,
+    )
     from marimo._environments.sandbox import NotebookSandbox
 
     try:
         backends.ensure_available(backend)
-    except UvNotFoundError as e:
+    except EnvironmentManagerNotFoundError as e:
+        option = "--sandbox=pixi" if backend == "pixi" else "--sandbox"
+        install_url = (
+            "https://pixi.prefix.dev/latest/installation/"
+            if backend == "pixi"
+            else "https://docs.astral.sh/uv/getting-started/installation/"
+        )
         raise MarimoCLIMissingDependencyError(
-            "uv must be installed to use --sandbox.",
-            "uv",
-            additional_tip="Install uv from https://github.com/astral-sh/uv",
-        ) from e
-    except PixiNotFoundError as e:
-        raise MarimoCLIMissingDependencyError(
-            "pixi must be installed to use --sandbox=pixi.",
-            "pixi",
-            additional_tip="Install pixi from https://pixi.sh",
+            f"{backend} must be installed to use {option}.",
+            backend,
+            additional_tip=f"Install {backend} from {install_url}",
         ) from e
     except EnvironmentManagerError as e:
         # e.g. an environment manager too old for script environments.
@@ -589,8 +590,6 @@ def _strip_sandbox_args(cmd: list[str]) -> list[str]:
             continue
         if token == "--sandbox":
             index += 1
-            if index < len(cmd) and cmd[index] in ("uv", "pixi"):
-                index += 1
             continue
         stripped.append(token)
         index += 1

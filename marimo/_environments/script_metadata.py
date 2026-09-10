@@ -123,7 +123,7 @@ def metadata_transaction(path: str) -> Iterator[None]:
     except SandboxRestartRequired:
         # Synchronization succeeded; the live kernel uses a different prefix.
         raise
-    except Exception:
+    except (Exception, KeyboardInterrupt):
         if _metadata_block(path) == block:
             raise
         with materialized_for_edit(path) as target:
