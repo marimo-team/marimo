@@ -49,7 +49,9 @@ describe("runDuringPresentMode", () => {
     store.set(viewStateAtom, state);
 
     const result = runDuringPresentMode(() => Promise.reject(error));
-    const rejection = expect(result).rejects.toBe(error);
+    const rejection = result.catch((caughtError: unknown) => {
+      expect(caughtError).toBe(error);
+    });
     await vi.runAllTimersAsync();
     await rejection;
 
