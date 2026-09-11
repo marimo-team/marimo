@@ -158,9 +158,7 @@ class TransformsContainer:
         self._field_types_cache = field_types
         return df, field_types
 
-    def get_error_message(
-        self, error: Exception, transforms: Transformations
-    ) -> str:
+    def get_error_message(self, transforms: Transformations) -> str | None:
         # Evaluate prefixes only after failure so successful pipelines stay lazy.
         df = self._original_df
         for index, transform in enumerate(transforms.transforms):
@@ -170,7 +168,7 @@ class TransformsContainer:
             except Exception as e:
                 name = transform.type.value.replace("_", " ").title()
                 return f"Step {index + 1} ({name}): {e}"
-        return str(error)
+        return None
 
     def _is_superset(self, transforms: Transformations) -> bool:
         """

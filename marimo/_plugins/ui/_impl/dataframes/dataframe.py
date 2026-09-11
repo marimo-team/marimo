@@ -264,8 +264,15 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         try:
             return self._get_dataframe_response()
         except Exception as e:
-            self._record_error(e, self._last_transforms)
-            return GetDataFrameError(self._error or str(e))
+            LOGGER.debug("Error displaying dataframe", exc_info=e)
+            attributed = self._transform_container.get_error_message(
+                self._last_transforms
+            )
+            return GetDataFrameError(
+                f"Error applying dataframe transform: {attributed}"
+                if attributed is not None
+                else f"Error displaying dataframe: {e}"
+            )
 
     def _get_dataframe_response(self) -> GetDataFrameResponse:
         manager = self._get_cached_table_manager(self._value, self._limit)
@@ -344,9 +351,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     ) -> None:
         LOGGER.debug("Error applying dataframe transform", exc_info=error)
         attributed = self._transform_container.get_error_message(
-            error, transformations
+            transformations
         )
-        self._error = f"Error applying dataframe transform: {attributed}"
+        self._error = (
+            f"Error applying dataframe transform: {attributed or str(error)}"
+        )
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size

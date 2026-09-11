@@ -129,6 +129,27 @@ def test_incremental_error_uses_absolute_step_number(df: Any) -> None:
     assert re.search("Step 2 .*Sample Rows.*3 rows", response.error)
 
 
+@pytest.mark.parametrize("with_transform", [False, True])
+def test_display_error_is_retryable(df: Any, with_transform: bool) -> None:
+    subject = ui.dataframe(df)
+    if with_transform:
+        subject._update(
+            {"transforms": [{"type": "select_columns", "column_ids": ["a"]}]}
+        )
+    with patch.object(
+        subject,
+        "_get_dataframe_response",
+        side_effect=RuntimeError("temporary encoding failure"),
+    ) as response:
+        for _ in range(2):
+            result = subject._get_dataframe(EmptyArgs())
+            assert result == GetDataFrameError(
+                "Error displaying dataframe: temporary encoding failure"
+            )
+        assert response.call_count == 2
+    assert subject._get_dataframe(EmptyArgs()).total_rows == 3
+
+
 def test_same_name_rename(df: Any) -> None:
     subject = ui.dataframe(df)
     subject._update(
