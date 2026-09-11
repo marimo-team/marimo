@@ -500,7 +500,7 @@ const StorageEntryRow: React.FC<{
         <span className="truncate flex-1 text-left">{name}</span>
         <div className="flex items-center">
           {entry.size > 0 && (
-            <span className="text-[10px] text-muted-foreground pr-2 opacity-0 group-hover:opacity-100 transition-opacity tabular-nums">
+            <span className="text-[10px] text-muted-foreground pr-2 tabular-nums">
               {formatBytes(entry.size, locale)}
             </span>
           )}
@@ -508,7 +508,7 @@ const StorageEntryRow: React.FC<{
             <Tooltip
               content={`Last modified: ${new Date(entry.lastModified * 1000).toLocaleString()}`}
             >
-              <span className="text-[10px] text-muted-foreground pr-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+              <span className="text-[10px] text-muted-foreground pr-1 whitespace-nowrap">
                 {formatDate(entry.lastModified, locale)}
               </span>
             </Tooltip>
