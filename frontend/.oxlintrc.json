@@ -78,7 +78,6 @@
       { "additionalTestBlockFunctions": ["beforeEach"] }
     ],
     "vitest/prefer-snapshot-hint": "off",
-    "vitest/require-to-throw-message": "off",
     "vitest/valid-expect": "off",
 
     // === Core rules ===

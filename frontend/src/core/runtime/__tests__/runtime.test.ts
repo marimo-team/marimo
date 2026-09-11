@@ -698,7 +698,7 @@ describe("RuntimeManager", () => {
     it("should throw for invalid URLs", () => {
       expect(() => {
         new RuntimeManager({ url: "not-a-url", lazy: true });
-      }).toThrow();
+      }).toThrow("Invalid runtime URL");
     });
 
     it("should handle http to ws conversion correctly", () => {
