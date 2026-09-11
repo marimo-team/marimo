@@ -173,12 +173,12 @@ Install the extension by searching "marimo" in the extensions sidebar
 (`Cmd/Ctrl-Shift-P`, type "install extension", then search "marimo")
 or from the [VS Code marketplace site](https://marketplace.visualstudio.com/items?itemName=marimo-team.vscode-marimo).
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/BOzK-XBK8A4" title="VSCode extension demo video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/BOzK-XBK8A4" title="VSCode extension demo video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 
 **PyCharm.** Our [PyCharm
 plugin](https://plugins.jetbrains.com/plugin/32416-marimo), available on the
 JetBrains Marketplace, brings the full marimo editor inside PyCharm, letting you open, edit, and
 run notebooks without leaving your IDE.
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/J4yD_W8xAL0" title="PyCharm plugin demo video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/J4yD_W8xAL0" title="PyCharm plugin demo video" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
 

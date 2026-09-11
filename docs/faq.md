@@ -509,7 +509,13 @@ code completion.
 
 ### How do I use marimo on a remote server?
 
-> We recorded a video tutorial on how to use marimo on a remote server. Check it out [here](https://youtu.be/pam9Hw8rbaA).
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/pam9Hw8rbaA"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
 
 Use SSH port-forwarding to run marimo on a remote server
 and connect to it from a browser on your local machine. Make sure

@@ -6,6 +6,14 @@ in isolated or "sandboxed" venvs. This lets you share standalone notebooks
 without shipping `requirements.txt` files alongside them, and guarantees your
 notebooks will work weeks, months, even years into the future.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/39jpLPYond8"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 To opt-in to dependency inlining, use the `sandbox` flag:
 
 === "edit"

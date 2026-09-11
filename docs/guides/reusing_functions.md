@@ -8,6 +8,14 @@ of your choice.
 
 > Prefer learning by video? Watch our [tutorial on YouTube](https://youtu.be/4AFcgd-s3Fg).
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/4AFcgd-s3Fg"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## Overview
 
 For a function or class to be saved at the top level of the notebook file, it must 
