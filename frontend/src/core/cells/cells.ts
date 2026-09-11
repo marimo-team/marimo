@@ -1466,14 +1466,15 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
   const defaultCellConfig: Partial<CellConfig> = { column: null };
 
   // Handle the case where there's only one column
-  // We don't want to set the column config
+  // We don't set a column config, but we preserve any existing column metadata
+  // so that switching to a non-columns view and saving doesn't erase it.
   const hasMultipleColumns = state.cellIds.getColumns().length > 1;
   if (!hasMultipleColumns) {
     return state.cellIds.getColumns().flatMap((column) => {
       return column.inOrderIds.map((cellId) => {
         return {
           ...cells[cellId].config,
-          ...defaultCellConfig,
+          column: cells[cellId].config.column ?? null,
         };
       });
     });

@@ -102,6 +102,79 @@ describe("getCellConfigs", () => {
     ]);
   });
 
+  it("should preserve existing column metadata in a single-column tree", () => {
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+    const mockState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: MultiColumn.from([[cellId1, cellId2]]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: 0 },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: 1 },
+        } as CellData,
+      },
+      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    };
+
+    const result = getCellConfigs(mockState);
+    expect(result).toEqual([
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: 1 },
+    ]);
+  });
+
+  it("should preserve column metadata when a columns layout is collapsed via mergeAllColumns", () => {
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+    const cellId3 = CellId.create();
+    const cellId4 = CellId.create();
+
+    // Simulate the issue repro: a notebook loaded with a multi-column layout
+    // (column metadata stored per-cell), then the view is switched away from
+    // "columns", which calls mergeAllColumns() and flattens the tree.
+    const collapsedCellIds = MultiColumn.from([
+      [cellId1, cellId2],
+      [cellId3, cellId4],
+    ]).mergeAllColumns();
+
+    const mockState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: collapsedCellIds,
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: 0 },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: null },
+        } as CellData,
+        [cellId3]: {
+          id: cellId3,
+          config: { hide_code: false, disabled: true, column: 1 },
+        } as CellData,
+        [cellId4]: {
+          id: cellId4,
+          config: { hide_code: true, disabled: true, column: null },
+        } as CellData,
+      },
+      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    };
+
+    const result = getCellConfigs(mockState);
+    expect(result).toEqual([
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: null },
+      { hide_code: false, disabled: true, column: 1 },
+      { hide_code: true, disabled: true, column: null },
+    ]);
+  });
+
   it("should handle empty notebook state", () => {
     const mockState: NotebookState = initialNotebookState();
     const result = getCellConfigs(mockState);
