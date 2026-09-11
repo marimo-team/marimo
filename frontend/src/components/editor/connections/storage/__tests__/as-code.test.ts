@@ -412,7 +412,7 @@ describe("generateStorageCode", () => {
         generateStorageCode({ type: "s3", bucket: "" } as StorageConnection, {
           library: "obstore",
         }),
-      ).toThrow();
+      ).toThrow(/bucket/);
     });
 
     it("throws for empty GCS bucket", () => {
@@ -420,7 +420,7 @@ describe("generateStorageCode", () => {
         generateStorageCode({ type: "gcs", bucket: "" } as StorageConnection, {
           library: "obstore",
         }),
-      ).toThrow();
+      ).toThrow(/bucket/);
     });
 
     it("throws for empty Azure container", () => {
@@ -433,7 +433,7 @@ describe("generateStorageCode", () => {
           } as StorageConnection,
           { library: "obstore" },
         ),
-      ).toThrow();
+      ).toThrow(/container/);
     });
 
     it("throws for empty Azure account name", () => {
@@ -446,7 +446,7 @@ describe("generateStorageCode", () => {
           } as StorageConnection,
           { library: "obstore" },
         ),
-      ).toThrow();
+      ).toThrow(/account_name/);
     });
 
     it("throws for empty CoreWeave bucket", () => {
@@ -459,7 +459,7 @@ describe("generateStorageCode", () => {
           } as StorageConnection,
           { library: "obstore" },
         ),
-      ).toThrow();
+      ).toThrow(/bucket/);
     });
 
     it("throws for empty CoreWeave region", () => {
@@ -472,7 +472,7 @@ describe("generateStorageCode", () => {
           } as StorageConnection,
           { library: "obstore" },
         ),
-      ).toThrow();
+      ).toThrow(/region/);
     });
 
     it("throws for empty GitHub org", () => {
@@ -481,7 +481,7 @@ describe("generateStorageCode", () => {
           { type: "github", org: "", repo: "marimo" } as StorageConnection,
           { library: "fsspec" },
         ),
-      ).toThrow();
+      ).toThrow(/org/);
     });
 
     it("throws for empty GitHub repo", () => {
@@ -494,7 +494,7 @@ describe("generateStorageCode", () => {
           } as StorageConnection,
           { library: "fsspec" },
         ),
-      ).toThrow();
+      ).toThrow(/repo/);
     });
 
     it("throws when GitHub username is set without token", () => {
@@ -508,7 +508,7 @@ describe("generateStorageCode", () => {
           },
           { library: "fsspec" },
         ),
-      ).toThrow();
+      ).toThrow(/token/);
     });
 
     it("throws when GitHub token is set without username", () => {
@@ -522,7 +522,7 @@ describe("generateStorageCode", () => {
           },
           { library: "fsspec" },
         ),
-      ).toThrow();
+      ).toThrow("Username and access token are required together");
     });
   });
 });
