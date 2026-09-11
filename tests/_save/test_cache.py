@@ -1980,7 +1980,7 @@ class TestCacheDecorator:
         assert not k.stdout.messages, k.stdout
         # Throw a warning for flake edge case where cache is evicted earlier
         # than expected.
-        if k.globals["fib"].hits in (10,):
+        if k.globals["fib"].hits == 10:
             warnings.warn(
                 "Known flaky edge case for cache rerun.", stacklevel=1
             )
