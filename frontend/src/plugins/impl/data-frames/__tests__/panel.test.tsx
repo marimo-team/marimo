@@ -203,11 +203,12 @@ describe("pending transform steps", () => {
     await waitFor(() => expect(callbacks.onChange).toHaveBeenCalledTimes(1));
   });
 
-  it("applies deletion of a nested filter condition", async () => {
+  it("applies repeated edits to nested filter conditions", async () => {
     const first = { column_id: "a", operator: ">", value: 0 };
     const second = { column_id: "a", operator: "<", value: 3 };
+    const third = { column_id: "b", operator: ">", value: 4 };
     const initialValue = TransformationsSchema.parse({
-      transforms: [{ type: "filter_rows", where: [first, second] }],
+      transforms: [{ type: "filter_rows", where: [first, second, third] }],
     });
     const callbacks = props(initialValue);
     const { container } = render(<TransformPanel {...callbacks} />);
@@ -216,9 +217,47 @@ describe("pending transform steps", () => {
     await waitFor(() =>
       expect(callbacks.onChange).toHaveBeenCalledExactlyOnceWith(
         TransformationsSchema.parse({
-          transforms: [{ type: "filter_rows", where: [first] }],
+          transforms: [{ type: "filter_rows", where: [first, third] }],
         }),
       ),
+    );
+
+    fireEvent.click(container.querySelectorAll(".lucide-trash-2")[1]);
+    await waitFor(() =>
+      expect(callbacks.onChange).toHaveBeenLastCalledWith(
+        TransformationsSchema.parse({
+          transforms: [{ type: "filter_rows", where: [third] }],
+        }),
+      ),
+    );
+    fireEvent.change(screen.getByRole("textbox"), {
+      target: { value: "5" },
+    });
+    fireEvent.blur(screen.getByRole("textbox"));
+    await waitFor(() =>
+      expect(callbacks.onChange).toHaveBeenLastCalledWith(
+        TransformationsSchema.parse({
+          transforms: [
+            { type: "filter_rows", where: [{ ...third, value: 5 }] },
+          ],
+        }),
+      ),
+    );
+    expect(callbacks.onChange).toHaveBeenCalledTimes(3);
+
+    fireEvent.click(
+      screen.getByTestId("marimo-plugin-data-frames-add-array-item"),
+    );
+    await waitFor(() =>
+      expect(callbacks.onInvalidChange).toHaveBeenCalledTimes(1),
+    );
+    expect(callbacks.onChange).toHaveBeenCalledTimes(3);
+    fireEvent.click(container.querySelectorAll(".lucide-trash-2")[2]);
+    await waitFor(() => expect(callbacks.onChange).toHaveBeenCalledTimes(4));
+    expect(callbacks.onChange).toHaveBeenLastCalledWith(
+      TransformationsSchema.parse({
+        transforms: [{ type: "filter_rows", where: [{ ...third, value: 5 }] }],
+      }),
     );
   });
 });

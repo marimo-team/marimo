@@ -238,6 +238,7 @@ export const TransformPanel: React.FC<Props> = ({
                   schema={selectedTransformSchema}
                   path={`transforms.${selectedTransform}`}
                   renderers={DATAFRAME_FORM_RENDERERS}
+                  onArrayChange={handleStructureChange}
                 />
               </>
             )}

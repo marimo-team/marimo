@@ -62,9 +62,13 @@ interface Props<T extends FieldValues> {
   path?: Path<T>;
   renderers: readonly FormRenderer<T>[] | undefined;
   children?: React.ReactNode;
+  onArrayChange?: () => void;
 }
 
 const EMPTY_RENDERERS: readonly never[] = [];
+const ArrayChangeContext = React.createContext<(() => void) | undefined>(
+  undefined,
+);
 
 export const ZodForm = <T extends FieldValues>({
   schema,
@@ -72,11 +76,14 @@ export const ZodForm = <T extends FieldValues>({
   path = "" as Path<T>,
   renderers = EMPTY_RENDERERS,
   children,
+  onArrayChange,
 }: Props<T>) => {
   return (
     <FormProvider {...form}>
-      {children}
-      {renderZodSchema({ schema, form, path, renderers })}
+      <ArrayChangeContext value={onArrayChange}>
+        {children}
+        {renderZodSchema({ schema, form, path, renderers })}
+      </ArrayChangeContext>
     </FormProvider>
   );
 };
@@ -521,6 +528,7 @@ const FormArray = ({
   renderers: readonly FormRenderer[];
   minLength?: number;
 }) => {
+  const onArrayChange = React.use(ArrayChangeContext);
   const { label, description } = FieldOptions.parse(schema.description || "");
 
   const control = form.control;
@@ -532,13 +540,6 @@ const FormArray = ({
 
   const isBelowMinLength = minLength != null && fields.length < minLength;
   const canRemove = minLength == null || fields.length > minLength;
-
-  const notifyChange = () => {
-    form.register(path).onChange({
-      target: { name: path, value: form.getValues(path) },
-      type: "change",
-    });
-  };
 
   return (
     <div className="flex flex-col gap-2 min-w-[220px]">
@@ -562,7 +563,7 @@ const FormArray = ({
                 className="w-4 h-4 ml-2 my-1 text-muted-foreground hover:text-destructive cursor-pointer absolute right-0 top-5"
                 onClick={() => {
                   remove(index);
-                  notifyChange();
+                  onArrayChange?.();
                 }}
               />
             )}
@@ -582,7 +583,7 @@ const FormArray = ({
           className="hover:text-accent-foreground"
           onClick={() => {
             append(getDefaults(schema));
-            notifyChange();
+            onArrayChange?.();
           }}
         >
           <PlusIcon className="w-3.5 h-3.5 mr-1" />
