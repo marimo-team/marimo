@@ -30,6 +30,10 @@ html {
   margin: auto;
   z-index: 1;
   flex: 1;
+
+  /* Reserve the scrollbar track so content does not shift when the
+   * notebook grows past the viewport. */
+  scrollbar-gutter: stable;
 }
 
 .disconnected-gradient {
