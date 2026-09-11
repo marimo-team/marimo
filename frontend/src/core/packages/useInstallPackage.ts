@@ -3,7 +3,10 @@
 import { useState } from "react";
 import { Logger } from "@/utils/Logger";
 import { useRequestClient } from "../network/requests";
-import { showAddPackageToast } from "./toast-components";
+import {
+  showAddPackageToast,
+  showPackageRestartToast,
+} from "./toast-components";
 
 export function useInstallPackages(): {
   handleInstallPackages: (
@@ -30,7 +33,9 @@ export function useInstallPackages(): {
       // response only carries an aggregate success/error. Report a single
       // toast covering all requested packages rather than implying a
       // per-package outcome we don't actually have.
-      if (response.success) {
+      if (response.restartRequired) {
+        showPackageRestartToast();
+      } else if (response.success) {
         showAddPackageToast(packages);
       } else {
         showAddPackageToast(packages, response.error);

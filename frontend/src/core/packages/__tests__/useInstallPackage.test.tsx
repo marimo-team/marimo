@@ -1,10 +1,22 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import { act, renderHook } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useInstallPackages } from "../useInstallPackage";
+import { Toast, ToastProvider, ToastViewport } from "@/components/ui/toast";
 
 const toast = vi.fn();
 const addPackage = vi.fn();
+const restartKernel = vi.fn();
+
+vi.mock("@/components/editor/actions/useRestartKernel", () => ({
+  useRestartKernel: () => restartKernel,
+}));
 
 vi.mock("@/components/ui/use-toast", () => ({
   toast: (...args: unknown[]) => toast(...args),
@@ -20,6 +32,7 @@ describe("useInstallPackages", () => {
   beforeEach(() => {
     toast.mockClear();
     addPackage.mockClear();
+    restartKernel.mockClear();
   });
 
   it("batches all packages into a single install call", async () => {
@@ -107,6 +120,39 @@ describe("useInstallPackages", () => {
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Package added" }),
     );
+  });
+
+  it("reports saved changes requiring restart without claiming installation", async () => {
+    addPackage.mockResolvedValue({
+      success: false,
+      error: null,
+      restartRequired: true,
+    });
+    const { result } = renderHook(() => useInstallPackages());
+    await act(async () => {
+      await result.current.handleInstallPackages(["boltons", "six"]);
+    });
+    expect(toast).toHaveBeenCalledTimes(1);
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Changes saved — restart required",
+        description: expect.stringContaining(
+          "Restarting clears in-memory variables",
+        ),
+        duration: Infinity,
+        action: expect.anything(),
+      }),
+    );
+    expect(toast.mock.calls[0][0].variant).not.toBe("danger");
+    render(
+      <ToastProvider>
+        <Toast>{toast.mock.calls[0][0].action}</Toast>
+        <ToastViewport />
+      </ToastProvider>,
+    );
+    expect(restartKernel).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Restart Kernel" }));
+    expect(restartKernel).toHaveBeenCalledTimes(1);
   });
 
   it("calls onSuccess after a successful install", async () => {

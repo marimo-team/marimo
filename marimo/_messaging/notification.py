@@ -503,7 +503,8 @@ class MissingPackageAlertNotification(
 
 # package name => installation status
 PackageStatusType = dict[
-    str, Literal["queued", "installing", "installed", "failed"]
+    str,
+    Literal["queued", "installing", "installed", "failed", "restart-required"],
 ]
 
 

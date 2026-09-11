@@ -40,9 +40,9 @@ from marimo._ast.compiler import compile_cell
 from marimo._ast.names import SETUP_CELL_NAME
 from marimo._code_mode._better_inspect import _HelpableEnumMeta, helpable
 from marimo._code_mode._packages import (
+    PackageResult,
     Packages,
     _AddPackage,
-    _RemovePackage,
 )
 from marimo._code_mode._plan import (
     _AddOp,
@@ -838,14 +838,28 @@ class AsyncCodeModeContext:
     def _print_summary(
         self,
         ops: list[_Op],
-        package_ops: list[_AddPackage | _RemovePackage],
+        package_ops: list[PackageResult],
         ui_updates: list[tuple[UIElementId, Any]],
         cells_to_run: set[CellId_t] | None = None,
     ) -> None:
         """Print a human-readable summary of applied operations."""
         lines: list[str] = []
 
-        for pkg_op in package_ops:
+        for result in package_ops:
+            pkg_op = result.op
+            if result.outcome == "restart-required":
+                lines.append(
+                    f"changes saved for {pkg_op.package}; restart the kernel to use them"
+                )
+                continue
+            if result.outcome == "failed":
+                action = (
+                    "install"
+                    if isinstance(pkg_op, _AddPackage)
+                    else "uninstall"
+                )
+                lines.append(f"failed to {action} {pkg_op.package}")
+                continue
             if isinstance(pkg_op, _AddPackage):
                 lines.append(f"installed {pkg_op.package}")
             else:

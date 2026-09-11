@@ -31,7 +31,10 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
-from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
 from marimo._environments.uv import (
     UvError,
     script_command_env,
@@ -96,6 +99,40 @@ def replace_block(script: str, block: str) -> str:
     """Replace the script's existing `# /// script` block with `block`."""
     # A callable replacement keeps backslashes in `block` literal.
     return re.sub(REGEX, lambda _: block, script, count=1)
+
+
+def _metadata_block(path: str) -> str:
+    with materialized_for_environment(path) as target:
+        content = Path(target.path).read_text(encoding="utf-8")
+        match = re.search(REGEX, content)
+        return match.group(0) if match is not None else ""
+
+
+@contextlib.contextmanager
+def metadata_transaction(path: str) -> Iterator[None]:
+    """Restore the previous manifest if a dependency mutation fails.
+
+    Managers can save requirements before discovering they cannot solve them.
+    Restore only metadata, preserving notebook code and other frontmatter
+    edited while the manager was running. This does not undo partial changes
+    to an environment made by the manager.
+    """
+    block = _metadata_block(path)
+    try:
+        yield
+    except SandboxRestartRequired:
+        # Synchronization succeeded; the live kernel uses a different prefix.
+        raise
+    except (Exception, KeyboardInterrupt):
+        if _metadata_block(path) == block:
+            raise
+        with materialized_for_edit(path) as target:
+            file = Path(target.path)
+            current = file.read_text(encoding="utf-8")
+            restored = replace_block(current, block)
+            if restored != current:
+                file.write_text(restored, encoding="utf-8")
+        raise
 
 
 def copy_metadata(source: str, destination: str) -> None:

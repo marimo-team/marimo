@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import re
+import stat
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import patch
@@ -10,6 +12,10 @@ import pytest
 
 from marimo._environments import script_metadata
 from marimo._environments.environment import Environment, ProcessPlan
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
 from marimo._environments.overlay import RuntimeOverlay
 from marimo._environments.sandbox import (
     NotebookSandbox,
@@ -175,8 +181,111 @@ def test_add_pins_a_bare_requirement_to_the_resolved_version(
 
     assert adapter.add_requests == ["obstore", "obstore==0.8.2"]
     assert '"obstore==0.8.2"' in notebook.read_text()
-    # The pin records the synchronized environment; it does not resync.
+    # Only the final, pinned manifest needs synchronization.
     assert len(adapter.sync_targets) == 1
+
+
+def test_add_syncs_the_final_pin(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["obstore==0.7.0"]\n# ///\n'
+    )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    sync = adapter.sync
+
+    def synchronize(
+        target: MaterializedScript, **_kwargs: object
+    ) -> Environment:
+        assert script_metadata.loads(Path(target.path).read_text()) == {
+            "dependencies": ["obstore==0.8.2"]
+        }
+        return sync(target, python_override=None, on_output=None)
+
+    with patch.object(adapter, "sync", side_effect=synchronize):
+        sandbox.add("obstore", upgrade=True)
+
+
+@pytest.mark.parametrize("suffix", [".py", ".md", ".qmd"])
+@pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("error", [EnvironmentManagerError, KeyboardInterrupt])
+def test_failed_sync_restores_metadata_but_preserves_notebook_edits(
+    tmp_path: Path, suffix: str, operation: str, error: type[BaseException]
+) -> None:
+    notebook = tmp_path / f"notebook{suffix}"
+    if suffix == ".py":
+        notebook.write_text(
+            '# /// script\n# dependencies = ["obstore==0.7.0"]\n# ///\n\nx = 1\n'
+        )
+    else:
+        notebook.write_text(
+            '---\npyproject: |\n  dependencies = ["obstore==0.7.0"]\n---\n\nx = 1\n'
+        )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    def fail(*_args: object, **_kwargs: object) -> None:
+        notebook.write_text(notebook.read_text().replace("x = 1", "x = 2"))
+        raise error("interrupted mutation")
+
+    with patch.object(adapter, "sync", side_effect=fail):
+        if operation == "add":
+            with pytest.raises(error, match="interrupted mutation"):
+                sandbox.add("obstore", upgrade=True)
+        else:
+            with pytest.raises(error, match="interrupted mutation"):
+                sandbox.remove("obstore")
+
+    with script_metadata.materialized_for_environment(str(notebook)) as target:
+        assert script_metadata.loads(Path(target.path).read_text()) == {
+            "dependencies": ["obstore==0.7.0"]
+        }
+    assert "x = 2" in notebook.read_text()
+    assert not list(tmp_path.glob(".marimo-*.py"))
+
+
+def test_restart_required_keeps_successful_manifest_changes(
+    tmp_path: Path,
+) -> None:
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+
+    with patch.object(
+        adapter, "sync", side_effect=SandboxRestartRequired("restart")
+    ):
+        with pytest.raises(SandboxRestartRequired):
+            sandbox.add("obstore")
+
+    assert script_metadata.loads(notebook.read_text()) == {
+        "dependencies": ["obstore==0.8.2"]
+    }
+
+
+@pytest.mark.parametrize("stage", ["add", "packages"])
+@pytest.mark.parametrize("suffix", [".py", ".md"])
+def test_rejected_add_preserves_the_previous_successful_add(
+    tmp_path: Path, stage: str, suffix: str
+) -> None:
+    notebook = tmp_path / f"notebook{suffix}"
+    notebook.write_text(
+        "# /// script\n# dependencies = []\n# ///\n"
+        if suffix == ".py"
+        else "---\npyproject: |\n  dependencies = []\n---\n\n# Notebook\n"
+    )
+    adapter = FakeBackend(tmp_path / "environment")
+    sandbox = NotebookSandbox(str(notebook), "uv", adapter=adapter)
+    sandbox.add("obstore")
+    before = notebook.read_text()
+
+    with patch.object(
+        adapter, stage, side_effect=EnvironmentManagerError("no solution")
+    ):
+        with pytest.raises(EnvironmentManagerError, match="no solution"):
+            sandbox.add("other")
+
+    assert notebook.read_text() == before
 
 
 @pytest.mark.parametrize(
@@ -501,3 +610,135 @@ def test_package_view_hides_runtime_dependency(tmp_path: Path) -> None:
     assert [package.name for package in state.packages] == ["obstore"]
     assert state.tree is not None
     assert [node.name for node in state.tree.dependencies] == []
+
+
+def test_pixi_launch_layers_the_runtime_overlay_through_uv(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._environments import pixi
+    from marimo._environments.backends import PixiBackendAdapter
+
+    monkeypatch.setattr(pixi, "find_pixi_bin", lambda: "/stub/pixi")
+
+    root = tmp_path / "environment"
+    environment = Environment(
+        python=str(root / "bin" / "python"),
+        root=str(root),
+        action="unchanged",
+    )
+    checkout = tmp_path / "marimo-checkout"
+
+    plan = PixiBackendAdapter().launch(
+        environment,
+        ["-m", "marimo"],
+        overlay=RuntimeOverlay(
+            runtime=f"-e {checkout}", command=("nbformat",)
+        ),
+        base_env={"PATH": "/bin"},
+    )
+
+    pairs = list(zip(plan.argv, plan.argv[1:], strict=False))
+    assert plan.argv[:5] == (
+        "/stub/pixi",
+        "exec",
+        "--spec",
+        pixi.UV_OVERLAY_SPEC,
+        "uv",
+    )
+    assert ("--python", environment.python) in pairs
+    # A local runtime becomes --with-editable; other entries --with.
+    assert ("--with-editable", str(checkout)) in pairs
+    assert ("--with", "nbformat") in pairs
+    assert plan.argv[-2:] == ("-m", "marimo")
+    assert ("python", "-c") in pairs
+    assert plan.env["CONDA_PREFIX"] == str(root)
+    assert plan.start_new_session
+
+
+def test_pixi_package_list_exposes_only_managed_pypi_packages(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments import pixi
+    from marimo._environments.backends import PixiBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+
+    records = [
+        {
+            "name": "zlib",
+            "version": "1.3.1",
+            "kind": "conda",
+            "is_explicit": True,
+            "depends": [],
+        },
+        {
+            "name": "attrs",
+            "version": "25.3.0",
+            "kind": "pypi",
+            "is_explicit": True,
+            "depends": [],
+        },
+    ]
+    monkeypatch.setattr(
+        pixi,
+        "list_script_packages",
+        lambda *_args, **_kwargs: records,
+    )
+    monkeypatch.setattr(
+        pixi,
+        "tree_script_packages",
+        lambda *_args, **_kwargs: (
+            "Installed for: osx-arm64\n├── attrs 25.3.0\n└── zlib 1.3.1\n"
+        ),
+    )
+    target = MaterializedScript(
+        path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
+    )
+
+    state = PixiBackendAdapter().packages(target, environment=None)
+
+    assert [(package.name, package.version) for package in state.packages] == [
+        ("attrs", "25.3.0")
+    ]
+    assert state.tree is not None
+    assert [node.name for node in state.tree.dependencies] == ["attrs"]
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="stub executable is a POSIX shell"
+)
+def test_pixi_launch_does_not_require_uv(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments import pixi, uv
+
+    root = tmp_path / "pixi-environment"
+    (root / "bin").mkdir(parents=True)
+    (root / "bin" / "python").touch()
+    executable = tmp_path / "pixi"
+    executable.write_text(
+        "#!/bin/sh\n"
+        'if [ "$2" = "--help" ]; then echo "--script"; exit 0; fi\n'
+        f"echo \"The script environment has been installed at '{root}'.\" >&2\n"
+    )
+    executable.chmod(executable.stat().st_mode | stat.S_IEXEC)
+    monkeypatch.setattr(pixi, "find_pixi_bin", lambda: str(executable))
+
+    def fail_uv() -> str:
+        raise AssertionError("pixi selected the uv executable")
+
+    monkeypatch.setattr(uv, "require_uv_bin", fail_uv)
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text('# /// script\n# dependencies = ["marimo"]\n# ///\n')
+
+    sandbox = NotebookSandbox(str(notebook), "pixi")
+    plan = sandbox.launch(
+        ["-m", "example"], overlay=RuntimeOverlay(runtime="marimo")
+    )
+
+    # The overlay rides uv, but uv arrives through `pixi exec` -- never
+    # from the PATH (fail_uv above proves it was not consulted).
+    assert plan.argv[0] == str(executable)
+    assert plan.argv[1:5] == ("exec", "--spec", pixi.UV_OVERLAY_SPEC, "uv")
+    assert plan.env["CONDA_PREFIX"] == str(root)
+    assert plan.env["CONDA_DEFAULT_ENV"] == root.name

@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from marimo._environments.script_metadata import MaterializedScript
     from marimo._utils.uv_tree import DependencyTreeNode
 
-Backend = Literal["uv"]
+Backend = Literal["uv", "pixi"]
 SandboxOperation = Literal["prepare", "add", "upgrade", "remove", "sync"]
 LogCallback = Callable[[str], None]
 ENVIRONMENT_PYTHON = "MARIMO_SANDBOX_ENVIRONMENT_PYTHON"
@@ -336,16 +336,22 @@ class NotebookSandbox:
             reopened = self._reopened_requirement(bare)
             if reopened is not None:
                 bare, request = reopened
-        with script_metadata.materialized_for_edit(self._source) as target:
-            self._adapter.add(
-                target,
-                request,
-                upgrade=upgrade,
-                on_output=on_output,
+        with script_metadata.metadata_transaction(self._source):
+            with script_metadata.materialized_for_edit(self._source) as target:
+                self._adapter.add(
+                    target,
+                    request,
+                    upgrade=upgrade,
+                    on_output=on_output,
+                )
+            # Pixi can resolve a newer version than the installed one. Pin
+            # that resolution before syncing so success means the final
+            # manifest, not an intermediate constraint, was installed.
+            if bare is not None:
+                self._pin(bare)
+            self._sync(
+                on_output=on_output, active_environment=self._environment
             )
-        self._sync(on_output=on_output, active_environment=self._environment)
-        if bare is not None:
-            self._pin(bare)
 
     def remove(
         self,
@@ -360,9 +366,12 @@ class NotebookSandbox:
                 "marimo is managed by the sandbox runtime and cannot be removed"
             )
         self._adapter.ensure_available()
-        with script_metadata.materialized_for_edit(self._source) as target:
-            self._adapter.remove(target, package, on_output=on_output)
-        self._sync(on_output=on_output, active_environment=self._environment)
+        with script_metadata.metadata_transaction(self._source):
+            with script_metadata.materialized_for_edit(self._source) as target:
+                self._adapter.remove(target, package, on_output=on_output)
+            self._sync(
+                on_output=on_output, active_environment=self._environment
+            )
 
     def record_dependencies(
         self,
@@ -509,7 +518,7 @@ class NotebookSandbox:
         return [str(dependency) for dependency in dependencies]
 
     def _pin(self, bare: _BareRequirement) -> None:
-        """Record the synchronized version as the Manifest constraint."""
+        """Record the resolved version before synchronizing the Manifest."""
         version = self._resolved_version(bare.name)
         if version is None:
             # Not resolved on this platform (e.g. excluded by a marker);
@@ -524,7 +533,7 @@ class NotebookSandbox:
             )
 
     def _resolved_version(self, name: str) -> str | None:
-        """The package's version in the synchronized Environment."""
+        """The package's version resolved from the current Manifest."""
         with script_metadata.materialized_for_environment(
             self._source
         ) as target:

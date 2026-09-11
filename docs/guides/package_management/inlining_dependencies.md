@@ -51,9 +51,48 @@ uv run notebook.py
 
 !!! note "Requires uv"
 
-    Sandboxed notebooks require the uv package manager
+    The default `--sandbox` backend requires the uv package manager
     ([installation
     instructions](https://docs.astral.sh/uv/getting-started/installation/)).
+
+## Pixi sandboxes
+
+If your notebook needs conda packages, use Pixi as the sandbox backend.
+[Install Pixi](https://pixi.prefix.dev/latest/installation/) with support for
+`pixi install --script` (available in Pixi 0.80.0). marimo checks this capability
+at startup; use `pixi self-update` if your installation predates it.
+
+```bash
+marimo edit --sandbox=pixi notebook.py
+```
+
+Pixi sandboxes resolve conda dependencies (declared under `[tool.pixi]`
+tables in the inline metadata) alongside PyPI dependencies, and require
+only pixi — uv is fetched through `pixi exec` when needed. A pixi
+notebook also runs standalone with `pixi run --script notebook.py`.
+
+```python
+# /// script
+# dependencies = ["marimo", "polars"]
+#
+# [tool.pixi.workspace]
+# channels = ["conda-forge"]
+#
+# [tool.pixi.dependencies]
+# gdal = "*"
+# ///
+```
+
+!!! warning "Pixi limitations"
+
+    - Pixi activation scripts and activation environment variables are not
+      applied when marimo launches the notebook sandbox.
+    - `marimo export html-wasm --execute` runs notebooks under
+      [Pyodide](https://pyodide.org)'s package set, which has no conda
+      equivalent: notebooks that rely on `[tool.pixi.dependencies]`
+      cannot be exported to WASM.
+    - The `--sandbox` flag on `marimo export` commands always uses uv,
+      so conda dependencies are not available during export.
 
 !!! tip "Solving the notebook reproducibility crisis"
 
@@ -276,5 +315,3 @@ pyproject: |
     - altair==<version>
 ---
 ```
-
-

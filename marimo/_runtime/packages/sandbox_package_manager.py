@@ -14,14 +14,17 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
 from marimo._environments.sandbox import _redact_url_credentials
 from marimo._runtime.packages.package_manager import PackageDescription
 from marimo._runtime.packages.pypi_package_manager import PypiPackageManager
 from marimo._runtime.packages.utils import split_packages
 
 if TYPE_CHECKING:
-    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._environments.sandbox import Backend, NotebookSandbox
     from marimo._runtime.packages.package_manager import LogCallback
     from marimo._utils.uv_tree import DependencyTreeNode
 
@@ -33,14 +36,28 @@ class SandboxPackageManager(PypiPackageManager):
 
     def __init__(self, sandbox: NotebookSandbox) -> None:
         self._sandbox = sandbox
+        self.last_error: str | None = None
+        self._restart_required = False
         self.name = sandbox.backend
-        self.docs_url = "https://docs.astral.sh/uv/"
+        self.docs_url = (
+            "https://pixi.sh"
+            if self.name == "pixi"
+            else "https://docs.astral.sh/uv/"
+        )
         python = (
             sandbox.environment.python
             if sandbox.environment is not None
             else None
         )
         super().__init__(python_exe=python)
+
+    @property
+    def restart_required(self) -> bool:
+        return self._restart_required
+
+    @property
+    def backend(self) -> Backend:
+        return self._sandbox.backend
 
     def rebind(self, filename: str) -> None:
         """Follow a notebook rename without replacing its package manager."""
@@ -60,26 +77,40 @@ class SandboxPackageManager(PypiPackageManager):
         log_callback: LogCallback | None = None,
     ) -> bool:
         del group
+        self.last_error = None
+        self._restart_required = False
         try:
             for requirement in split_packages(package):
-                await asyncio.to_thread(
-                    self._sandbox.add,
-                    requirement,
-                    upgrade=upgrade,
-                    on_output=log_callback,
-                )
-            return True
+                try:
+                    await asyncio.to_thread(
+                        self._sandbox.add,
+                        requirement,
+                        upgrade=upgrade,
+                        on_output=log_callback,
+                    )
+                except SandboxRestartRequired as error:
+                    self._restart_required = True
+                    if log_callback is not None:
+                        log_callback(str(error) + "\n")
+            return not self.restart_required
         except EnvironmentManagerError as error:
+            self._restart_required = False
             self._report(error, log_callback)
             return False
 
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         del group
+        self.last_error = None
+        self._restart_required = False
         try:
             for requirement in split_packages(package):
-                await asyncio.to_thread(self._sandbox.remove, requirement)
-            return True
+                try:
+                    await asyncio.to_thread(self._sandbox.remove, requirement)
+                except SandboxRestartRequired:
+                    self._restart_required = True
+            return not self.restart_required
         except EnvironmentManagerError as error:
+            self._restart_required = False
             self._report(error, None)
             return False
 
@@ -150,9 +181,11 @@ class SandboxPackageManager(PypiPackageManager):
             self._report(error, None)
             return False
 
-    @staticmethod
-    def _report(error: Exception, log_callback: LogCallback | None) -> None:
+    def _report(
+        self, error: Exception, log_callback: LogCallback | None
+    ) -> None:
         message = _redact_url_credentials(str(error.__cause__ or error))
+        self.last_error = message
         LOGGER.error("Failed to update notebook sandbox: %s", message)
         if log_callback is not None:
             log_callback(message + "\n")

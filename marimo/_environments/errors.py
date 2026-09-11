@@ -11,3 +11,19 @@ from __future__ import annotations
 
 class EnvironmentManagerError(Exception):
     """Base for failures invoking an environment manager."""
+
+
+class EnvironmentManagerNotFoundError(EnvironmentManagerError):
+    """The selected environment manager is not installed or on PATH."""
+
+
+class MissingScriptMetadataError(EnvironmentManagerError):
+    """The target script has no PEP 723 inline metadata block."""
+
+
+class SandboxRestartRequired(EnvironmentManagerError):
+    """The manifest synchronized, but not into the live kernel's prefix.
+
+    This is not a solver failure. Callers must not report the requested
+    packages as importable until the kernel launches the new environment.
+    """

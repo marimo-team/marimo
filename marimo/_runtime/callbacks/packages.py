@@ -371,13 +371,22 @@ class PackagesCallbacks:
                     ),
                 )
             else:
-                package_statuses[pkg] = "failed"
+                restart_required = self.package_manager.restart_required
+                package_statuses[pkg] = (
+                    "restart-required" if restart_required else "failed"
+                )
                 mod = self.package_manager.package_to_module(pkg)
                 self._kernel.module_registry.excluded_modules.add(mod)
                 broadcast_notification(
                     InstallingPackageAlertNotification(
                         packages=package_statuses,
-                        logs={pkg: f"Failed to install {pkg}\n"},
+                        logs={
+                            pkg: (
+                                f"Dependency changes saved for {pkg}; restart the kernel to use them.\n"
+                                if restart_required
+                                else f"Failed to install {pkg}\n"
+                            )
+                        },
                         log_status="done",
                         source=request.source,
                     ),
