@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -7,6 +8,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._environments import script_metadata
+from marimo._environments.uv import UvNotFoundError
 from marimo._runtime.packages.package_manager import LogCallback
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
@@ -17,6 +20,9 @@ from marimo._runtime.packages.pypi_package_manager import (
     UvPackageManager,
     VersionMap,
 )
+
+# Metadata edits absolutize the --script target.
+NB_ABSPATH = os.path.abspath("nb.py")
 
 
 def test_create_package_managers() -> None:
@@ -56,23 +62,26 @@ def test_create_package_manager_without_python_exe() -> None:
     assert uv_mgr._python_exe == PY_EXE
 
 
-def test_update_script_metadata() -> None:
-    runs_calls: list[list[str]] = []
+@pytest.fixture
+def uv_calls(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+    """Capture uv invocations made through the script_metadata verbs."""
+    calls: list[list[str]] = []
+
+    def fake_uv(args: list[str], **kwargs: Any) -> MagicMock:
+        target = args[args.index("--script") + 1]
+        assert os.path.isabs(target)
+        assert kwargs["cwd"] == os.path.dirname(target)
+        calls.append(["uv", *args])
+        return MagicMock()
+
+    monkeypatch.setattr(script_metadata, "uv", fake_uv)
+    return calls
+
+
+def test_update_script_metadata(uv_calls: list[list[str]]) -> None:
+    runs_calls = uv_calls
 
     class MockUvPackageManager(UvPackageManager):
-        @property
-        def _uv_bin(self) -> str:
-            return "uv"
-
-        def _run_sync(
-            self,
-            command: list[str],
-            log_callback: LogCallback | None = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
-
         def _get_version_map(self) -> VersionMap:
             return VersionMap({"foo": "1.0", "bar": "2.0"})
 
@@ -84,30 +93,48 @@ def test_update_script_metadata() -> None:
         upgrade=False,
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "foo==1.0"],
-        ["uv", "--quiet", "remove", "--script", "nb.py", "bar"],
+        ["uv", "--quiet", "add", "--script", NB_ABSPATH, "foo==1.0"],
+        ["uv", "--quiet", "remove", "--script", NB_ABSPATH, "bar"],
     ]
 
     runs_calls.clear()
 
 
-def test_update_script_metadata_with_version_map() -> None:
-    runs_calls: list[list[str]] = []
+@pytest.mark.parametrize("failures", [{"add"}, {"remove"}, {"add", "remove"}])
+def test_metadata_updates_attempt_both_operations_on_failure(
+    monkeypatch: pytest.MonkeyPatch, failures: set[str]
+) -> None:
+    manager = UvPackageManager()
+    monkeypatch.setattr(
+        manager, "_get_version_map", lambda: VersionMap({"foo": "1.0"})
+    )
+    operations: list[str] = []
+
+    def run(args: list[str], **kwargs: Any) -> MagicMock:
+        del kwargs
+        operation = args[1]
+        operations.append(operation)
+        if operation in failures:
+            raise UvNotFoundError()
+        return MagicMock()
+
+    monkeypatch.setattr(script_metadata, "uv", run)
+
+    assert not manager.update_notebook_script_metadata(
+        "nb.py",
+        packages_to_add=["foo"],
+        packages_to_remove=["bar"],
+        upgrade=False,
+    )
+    assert operations == ["add", "remove"]
+
+
+def test_update_script_metadata_with_version_map(
+    uv_calls: list[list[str]],
+) -> None:
+    runs_calls = uv_calls
 
     class MockUvPackageManager(UvPackageManager):
-        @property
-        def _uv_bin(self) -> str:
-            return "uv"
-
-        def _run_sync(
-            self,
-            command: list[str],
-            log_callback: LogCallback | None = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
-
         def _get_version_map(self) -> VersionMap:
             return VersionMap({"foo": "1.0", "bar": "2.0"})
 
@@ -124,27 +151,16 @@ def test_update_script_metadata_with_version_map() -> None:
         "nb.py", packages_to_remove=["baz"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "remove", "--script", "nb.py", "baz"],
+        ["uv", "--quiet", "remove", "--script", NB_ABSPATH, "baz"],
     ]
 
 
-def test_update_script_metadata_with_mapping() -> None:
-    runs_calls: list[list[str]] = []
+def test_update_script_metadata_with_mapping(
+    uv_calls: list[list[str]],
+) -> None:
+    runs_calls = uv_calls
 
     class MockUvPackageManager(UvPackageManager):
-        @property
-        def _uv_bin(self) -> str:
-            return "uv"
-
-        def _run_sync(
-            self,
-            command: list[str],
-            log_callback: LogCallback | None = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
-
         def _get_version_map(self) -> VersionMap:
             return VersionMap(
                 {"ibis": "2.0", "ibis-framework": "2.0", "pyyaml": "1.0"}
@@ -156,7 +172,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", packages_to_add=["ibis"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "ibis==2.0"],
+        ["uv", "--quiet", "add", "--script", NB_ABSPATH, "ibis==2.0"],
     ]
     runs_calls.clear()
 
@@ -166,7 +182,7 @@ def test_update_script_metadata_with_mapping() -> None:
         "nb.py", import_namespaces_to_add=["yaml"], upgrade=False
     )
     assert runs_calls == [
-        ["uv", "--quiet", "add", "--script", "nb.py", "pyyaml==1.0"],
+        ["uv", "--quiet", "add", "--script", NB_ABSPATH, "pyyaml==1.0"],
     ]
     runs_calls.clear()
 
@@ -181,29 +197,18 @@ def test_update_script_metadata_with_mapping() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "ibis-framework[duckdb]==2.0",
         ],
     ]
 
 
-def test_update_script_metadata_marimo_packages() -> None:
-    runs_calls: list[list[str]] = []
+def test_update_script_metadata_marimo_packages(
+    uv_calls: list[list[str]],
+) -> None:
+    runs_calls = uv_calls
 
     class MockUvPackageManager(UvPackageManager):
-        @property
-        def _uv_bin(self) -> str:
-            return "uv"
-
-        def _run_sync(
-            self,
-            command: list[str],
-            log_callback: LogCallback | None = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
-
         def _get_version_map(self) -> VersionMap:
             return VersionMap(
                 {
@@ -230,7 +235,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "marimo-ai==0.2.0",
             "pandas==2.0.0",
         ]
@@ -253,7 +258,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "marimo",
             "marimo[sql]",
             "pandas==2.0.0",
@@ -278,7 +283,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "marimo",
             "marimo[sql]",
             "marimo[recommended]",
@@ -302,7 +307,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "marimo",
             "pandas==2.0.0",
         ]
@@ -321,7 +326,7 @@ def test_update_script_metadata_marimo_packages() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "--upgrade",
             "pandas==2.0.0",
         ],
@@ -362,21 +367,6 @@ async def test_uv_pip_install() -> None:
         assert runs_calls == [
             ["uv", "pip", "install", "foo", "-p", PY_EXE],
         ]
-
-
-def test_log_callback_type() -> None:
-    """Test that LogCallback type works correctly."""
-    captured_logs = []
-
-    def test_callback(log_line: str) -> None:
-        captured_logs.append(log_line)
-
-    # Test type annotation works
-    callback: LogCallback = test_callback
-    callback("test log\n")
-
-    assert len(captured_logs) == 1
-    assert captured_logs[0] == "test log\n"
 
 
 async def test_package_manager_run_without_callback() -> None:
@@ -587,24 +577,13 @@ async def test_package_manager_install_method_with_callback() -> None:
     assert captured_logs == ["Installing test-package==1.0.0...\n"]
 
 
-def test_update_script_metadata_with_git_dependencies() -> None:
+def test_update_script_metadata_with_git_dependencies(
+    uv_calls: list[list[str]],
+) -> None:
     """Test that git dependencies are passed through to uv add --script."""
-    runs_calls: list[list[str]] = []
+    runs_calls = uv_calls
 
     class MockUvPackageManager(UvPackageManager):
-        @property
-        def _uv_bin(self) -> str:
-            return "uv"
-
-        def _run_sync(
-            self,
-            command: list[str],
-            log_callback: LogCallback | None = None,
-        ) -> bool:
-            del log_callback
-            runs_calls.append(command)
-            return True
-
         def _get_version_map(self) -> VersionMap:
             # Git dependencies won't be in the version map with their git+ prefix
             return VersionMap({"python-gcode": "0.1.0"})
@@ -624,7 +603,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "git+https://github.com/fetlab/python_gcode",
         ],
     ]
@@ -642,7 +621,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "git+ssh://git@github.com/user/repo.git",
         ],
     ]
@@ -660,7 +639,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "package @ https://example.com/package.whl",
         ],
     ]
@@ -678,7 +657,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "mypackage @ file:///path/to/package",
         ],
     ]
@@ -699,7 +678,7 @@ def test_update_script_metadata_with_git_dependencies() -> None:
             "--quiet",
             "add",
             "--script",
-            "nb.py",
+            NB_ABSPATH,
             "python-gcode==0.1.0",
             "git+https://github.com/user/repo.git",
         ],

@@ -542,9 +542,9 @@ def _extract_header_comments(ir: NotebookSerializationV1) -> str | None:
             if header:
                 return str(header)
             if pyproject:
-                from marimo._utils.scripts import wrap_script_metadata
+                from marimo._environments.script_metadata import wrap_block
 
-                return wrap_script_metadata(pyproject)
+                return wrap_block(pyproject)
             return None
     except (yaml.YAMLError, AssertionError):
         pass

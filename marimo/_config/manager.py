@@ -435,10 +435,10 @@ class ScriptConfigManager(PartialMarimoConfigReader):
             if not filepath.is_file():
                 return {}
 
-            from marimo._utils.scripts import read_pyproject_from_script
+            from marimo._environments import script_metadata
 
             script_content = filepath.read_text(encoding="utf-8")
-            script_config = read_pyproject_from_script(script_content)
+            script_config = script_metadata.loads(script_content)
             if script_config is None:
                 return {}
 
