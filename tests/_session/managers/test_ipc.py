@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import time
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -303,6 +303,49 @@ def _make_manager(filename: str | None = None) -> object:
     )
 
 
+@pytest.mark.parametrize("saved", [False, True])
+def test_single_launch_preserves_manifest_binding_and_precedence(
+    saved: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.sandbox import SandboxMode
+    from marimo._environments.sandbox import MANIFEST_SOURCE, NotebookSandbox
+    from marimo._session.managers import ipc
+
+    temporary_manifest = tmp_path / "temporary.py"
+    temporary_manifest.write_text(
+        '# /// script\n# dependencies = ["six"]\n# ///\n'
+    )
+    saved_manifest = tmp_path / "saved.py"
+    saved_manifest.write_text(temporary_manifest.read_text())
+    monkeypatch.setenv(MANIFEST_SOURCE, str(temporary_manifest))
+    manager = _make_manager(str(saved_manifest) if saved else None)
+    manager.sandbox_mode = SandboxMode.SINGLE
+    configured_venv = MagicMock(
+        side_effect=AssertionError("SINGLE must retain its sandbox precedence")
+    )
+    monkeypatch.setattr(ipc, "get_configured_venv_python", configured_venv)
+
+    # Stop at the launch boundary: the selected source must be the original
+    # unnamed manifest or the newly saved path, never a fresh empty manifest.
+    class LaunchObserved(Exception):
+        pass
+
+    def observe(
+        sandbox: NotebookSandbox, *_args: object, **_kwargs: object
+    ) -> None:
+        assert sandbox.source == str(
+            saved_manifest if saved else temporary_manifest
+        )
+        assert "six" in Path(sandbox.source).read_text()
+        raise LaunchObserved
+
+    monkeypatch.setattr(NotebookSandbox, "launch", observe)
+    with pytest.raises(LaunchObserved):
+        manager.start_kernel()
+    configured_venv.assert_not_called()
+    assert temporary_manifest.exists()
+
+
 class TestProfilePath:
     def test_none_without_profile_dir(
         self, monkeypatch: pytest.MonkeyPatch
@@ -370,6 +413,24 @@ class TestCloseKernel:
         manager._process.wait.assert_called_once_with(
             timeout=PROFILE_FLUSH_TIMEOUT
         )
+
+
+class TestFailedStartCleanup:
+    def test_kills_process_and_closes_sandbox(self) -> None:
+        from marimo._session.managers import ipc
+
+        manager = _make_manager("nb.py")
+        manager._process = MagicMock()
+        manager._process.poll.return_value = None
+        manager._notebook_sandbox = MagicMock()
+        sandbox = manager._notebook_sandbox
+
+        with patch.object(ipc, "try_kill_process_and_group") as kill:
+            manager._cleanup_failed_start()
+
+        kill.assert_called_once()
+        sandbox.close.assert_called_once()
+        assert manager.notebook_sandbox is None
 
 
 class TestAwaitHandshakeLine:

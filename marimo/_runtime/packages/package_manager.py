@@ -55,6 +55,11 @@ class PackageManager(abc.ABC):
     def __init__(self) -> None:
         self._attempted_packages: set[str] = set()
 
+    @property
+    def restart_required(self) -> bool:
+        """Whether the last mutation was saved but needs a kernel restart."""
+        return False
+
     @abc.abstractmethod
     def module_to_package(self, module_name: str) -> str:
         """Canonicalizes a module name to a package name."""

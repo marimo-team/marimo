@@ -161,6 +161,7 @@ class TestAppHostSandbox:
         from unittest.mock import MagicMock, patch
 
         from marimo._environments.environment import Environment
+        from marimo._environments.overlay import RuntimeOverlay
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool(sandbox=True)
@@ -173,12 +174,12 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._session.app_host.pool.sync_notebook",
+                "marimo._environments.backends.sync_notebook",
                 return_value=handle,
             ) as mock_sync,
             patch(
                 "marimo._session.app_host.pool.runtime_overlay",
-                return_value=["kernel-dep==1.0"],
+                return_value=RuntimeOverlay(runtime="kernel-dep==1.0"),
             ),
             patch(
                 "marimo._session.app_host.pool.AppHost",
@@ -211,7 +212,7 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._session.app_host.pool.sync_notebook",
+                "marimo._environments.backends.sync_notebook",
             ) as mock_sync,
             patch(
                 "marimo._session.app_host.pool.AppHost",
@@ -223,8 +224,10 @@ class TestAppHostSandbox:
             mock_sync.assert_not_called()
             assert mock_host_cls.call_args[1].get("plan") is None
 
-    def test_pool_missing_metadata_runs_ephemerally(self) -> None:
-        """A notebook without a metadata block launches isolated."""
+    def test_pool_missing_metadata_runs_from_this_interpreter(self) -> None:
+        """A notebook without a metadata block has nothing to sandbox;
+        it runs from the parent interpreter, which has marimo."""
+        import sys
         from unittest.mock import MagicMock, patch
 
         from marimo._environments.uv import UvMissingScriptMetadataError
@@ -237,14 +240,10 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._session.app_host.pool.sync_notebook",
+                "marimo._environments.backends.sync_notebook",
                 side_effect=UvMissingScriptMetadataError(
                     ["uv"], 2, "", "no PEP 723 metadata"
                 ),
-            ),
-            patch(
-                "marimo._session.app_host.pool.runtime_overlay",
-                return_value=["marimo==0.0.0"],
             ),
             patch(
                 "marimo._session.app_host.pool.AppHost",
@@ -254,8 +253,61 @@ class TestAppHostSandbox:
             pool.get_or_create("/tmp/test_app.py")
 
             plan = mock_host_cls.call_args[1]["plan"]
-            assert "--isolated" in plan.argv
-            assert "marimo==0.0.0" in plan.argv
+            assert plan.argv[0] == sys.executable
+
+    def test_pool_missing_pixi_metadata_runs_from_this_interpreter(
+        self,
+    ) -> None:
+        import sys
+        from unittest.mock import MagicMock, patch
+
+        from marimo._environments.pixi import PixiMissingScriptMetadataError
+        from marimo._session.app_host.pool import AppHostPool
+
+        pool = AppHostPool(sandbox=True)
+        mock_host = MagicMock()
+        mock_host.is_alive.return_value = True
+
+        with (
+            patch(
+                "marimo._environments.backends.sync_notebook",
+                side_effect=PixiMissingScriptMetadataError(
+                    ["pixi"], 1, "no PEP 723 metadata block"
+                ),
+            ),
+            patch(
+                "marimo._session.app_host.pool.AppHost",
+                return_value=mock_host,
+            ) as mock_host_cls,
+        ):
+            pool.get_or_create("/tmp/test_app.py")
+
+        plan = mock_host_cls.call_args[1]["plan"]
+        assert plan.argv[0] == sys.executable
+
+    def test_pool_does_not_fall_back_after_other_pixi_failures(self) -> None:
+        from unittest.mock import patch
+
+        import pytest
+
+        from marimo._environments.pixi import PixiCommandError
+        from marimo._session.app_host.pool import AppHostPool
+        from marimo._session.managers.ipc import KernelStartupError
+
+        pool = AppHostPool(sandbox=True)
+        error = PixiCommandError(["pixi"], 1, "solver failed")
+
+        with (
+            patch(
+                "marimo._environments.backends.sync_notebook",
+                side_effect=error,
+            ),
+            patch("marimo._session.app_host.pool.AppHost") as mock_host_cls,
+            pytest.raises(KernelStartupError, match="solver failed"),
+        ):
+            pool.get_or_create("/tmp/test_app.py")
+
+        mock_host_cls.assert_not_called()
 
 
 @pytest.mark.requires("zmq")

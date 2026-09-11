@@ -9,8 +9,11 @@ import sys
 import pytest
 
 from marimo._messaging.msgspec_encoder import asdict
-from marimo._server.models.packages import DependencyTreeNode
-from marimo._utils.uv_tree import parse_uv_tree
+from marimo._utils.uv_tree import (
+    DependencyTag,
+    DependencyTreeNode,
+    parse_uv_tree,
+)
 from tests.mocks import snapshotter
 
 skip_if_below_py312 = pytest.mark.skipif(
@@ -50,6 +53,24 @@ def uv(cmd: list[str], cwd: str | None = None) -> str:
         env=env,
     )
     return result.stdout
+
+
+def test_uv_tree_distinguishes_deduplication_from_cycles() -> None:
+    repeated = parse_uv_tree(
+        "root v1.0.0\n"
+        "└── shared v2.0.0 (*)\n"
+        "(*) Package tree already displayed\n"
+    )
+    cycle = parse_uv_tree(
+        "root v1.0.0\n└── root v1.0.0 (*)\n(*) Package tree is a cycle\n"
+    )
+
+    assert repeated.dependencies[0].dependencies[0].tags == [
+        DependencyTag(kind="dedupe", value="true")
+    ]
+    assert cycle.dependencies[0].dependencies[0].tags == [
+        DependencyTag(kind="cycle", value="true")
+    ]
 
 
 @pytest.mark.skipif(UV_BIN is None, reason="requires uv executable.")

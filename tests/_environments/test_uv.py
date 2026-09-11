@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+from subprocess import CompletedProcess
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -176,6 +177,128 @@ def test_script_edits_ignore_an_active_virtualenv(
     env = mock_stream.call_args.kwargs["env"]
     assert "VIRTUAL_ENV" not in env
     assert "UV_PROJECT_ENVIRONMENT" not in env
+
+
+def test_uv_adapter_reports_the_exact_invocation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The reported command is the argv the runner executes, not a
+    reconstruction that could drift from it."""
+    from unittest.mock import Mock, patch
+
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.sandbox import SandboxCommand, SandboxReporter
+    from marimo._environments.script_metadata import MaterializedScript
+
+    executable = str(tmp_path / "uv")
+    monkeypatch.setenv("UV", executable)
+    recorder = Mock(spec=SandboxReporter)
+    target = MaterializedScript(
+        path=str(tmp_path / "nb.py"), directory=str(tmp_path)
+    )
+    with patch.object(
+        uv_module.subprocess,
+        "run",
+        return_value=CompletedProcess([], 0, stdout="", stderr=""),
+    ) as run:
+        UvBackendAdapter(recorder).add(
+            target, "polars", upgrade=False, on_output=None
+        )
+
+    expected = [
+        executable,
+        "--quiet",
+        "add",
+        "--script",
+        target.path,
+        "polars",
+    ]
+    assert run.call_args.args == (expected,)
+    assert run.call_args.kwargs["cwd"] == target.directory
+    recorder.report.assert_called_once_with(
+        SandboxCommand(backend="uv", operation="add", argv=tuple(expected))
+    )
+
+
+def test_uv_adapter_inspects_the_script_environment(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+
+    invocation: dict[str, object] = {}
+
+    def fake_uv(args: list[str], **kwargs: object) -> CompletedProcess[str]:
+        invocation["args"] = args
+        invocation.update(kwargs)
+        return CompletedProcess(
+            ["uv", *args],
+            0,
+            stdout="test-package v1.0.0\n",
+            stderr="",
+        )
+
+    monkeypatch.setenv("VIRTUAL_ENV", "/outer")
+    monkeypatch.setenv("UV_PROJECT_ENVIRONMENT", "/project")
+    monkeypatch.setattr(uv_module, "uv", fake_uv)
+    target = MaterializedScript(
+        path=str(tmp_path / "nb.py"), directory=str(tmp_path)
+    )
+
+    UvBackendAdapter().packages(target, None)
+
+    assert invocation["args"] == [
+        "tree",
+        "--script",
+        str(tmp_path / "nb.py"),
+    ]
+    assert invocation["cwd"] == str(tmp_path)
+    env = invocation["env"]
+    assert isinstance(env, dict)
+    assert "VIRTUAL_ENV" not in env
+    assert "UV_PROJECT_ENVIRONMENT" not in env
+
+
+def test_uv_adapter_uses_the_deduplicated_tree(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from marimo._environments import uv as uv_module
+    from marimo._environments.backends import UvBackendAdapter
+    from marimo._environments.script_metadata import MaterializedScript
+    from marimo._utils.uv_tree import DependencyTag
+
+    def fake_uv(
+        command: list[str], *, cwd: str, **_: object
+    ) -> CompletedProcess[str]:
+        assert cwd == str(tmp_path)
+        if "--no-dedupe" in command:
+            stdout = "root v1.0.0\n└── shared v2.0.0\n"
+        else:
+            stdout = (
+                "root v1.0.0\n"
+                "└── shared v2.0.0 (*)\n"
+                "(*) Package tree already displayed\n"
+            )
+        return CompletedProcess(
+            command,
+            0,
+            stdout=stdout,
+            stderr="",
+        )
+
+    monkeypatch.setattr(uv_module, "uv", fake_uv)
+    target = MaterializedScript(
+        path=str(tmp_path / "notebook.py"), directory=str(tmp_path)
+    )
+
+    state = UvBackendAdapter().packages(target, environment=None)
+
+    assert state.tree is not None
+    assert state.tree.dependencies[0].dependencies[0].tags == [
+        DependencyTag(kind="dedupe", value="true")
+    ]
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv required")

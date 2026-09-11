@@ -21,6 +21,21 @@ from marimo._utils.inline_script_metadata import PyProjectReader
 HAS_UV = DependencyManager.which("uv")
 
 
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_missing_sandbox_backend_reports_install_instructions(
+    backend, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.errors import MarimoCLIMissingDependencyError
+
+    monkeypatch.delenv("UV", raising=False)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(MarimoCLIMissingDependencyError) as error:
+        run_in_sandbox(["edit", "--sandbox", "notebook.py"], backend=backend)
+
+    assert f"{backend} must be installed" in str(error.value)
+
+
 def test_dependency_export_uses_notebook_directory(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -295,37 +310,6 @@ def test_construct_uv_cmd_empty_dependencies() -> None:
         assert "--isolated" in uv_cmd
         assert "--compile-bytecode" in uv_cmd
         assert "--no-project" in uv_cmd
-
-
-def test_run_in_sandbox_reports_wrapped_metadata_timeout() -> None:
-    from marimo._environments import script_metadata
-
-    timeout = subprocess.TimeoutExpired(["uv", "add"], timeout=30)
-    metadata_error = script_metadata.ScriptMetadataError("update failed")
-    metadata_error.__cause__ = timeout
-
-    with (
-        patch("marimo._cli.sandbox.require_uv_bin"),
-        patch(
-            "marimo._cli.sandbox.script_metadata.ensure_marimo",
-            side_effect=metadata_error,
-        ),
-        patch("marimo._cli.sandbox.script_metadata.ensure_requires_python"),
-        patch(
-            "marimo._cli.sandbox.construct_uv_command",
-            return_value=["uv", "run"],
-        ),
-        patch("marimo._cli.sandbox.subprocess.Popen") as popen,
-        patch("marimo._cli.sandbox.signal.signal"),
-        patch("marimo._cli.sandbox.LOGGER.warning") as warning,
-    ):
-        popen.return_value.wait.return_value = 0
-
-        assert run_in_sandbox(["edit", "notebook.py"], name="notebook.py") == 0
-
-    warning.assert_called_once_with(
-        "Timed out adding marimo to script metadata"
-    )
 
 
 def test_construct_uv_cmd_with_complex_args() -> None:
@@ -704,30 +688,51 @@ def _restore_signal_handlers():
     os.name == "nt", reason="signal forwarding differs on Windows"
 )
 @pytest.mark.usefixtures("_restore_signal_handlers")
+@pytest.mark.parametrize(
+    ("suffix", "metadata"),
+    [
+        (".md", "absent"),
+        (".qmd", "absent"),
+        (".md", "title"),
+        (".md", "pyproject"),
+        (".qmd", "header"),
+    ],
+)
 def test_run_in_sandbox_from_script_environment(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    suffix: str,
+    metadata: str,
 ) -> None:
     """The provisioned path: a markdown notebook's manifest is
     synchronized and marimo launches from the script environment."""
-    from marimo._cli.sandbox import run_in_sandbox
 
     monkeypatch.setenv("UV_CACHE_DIR", str(tmp_path.parent / "uv-cache"))
 
-    notebook = tmp_path / "notebook.md"
-    notebook.write_text(
-        """---
-pyproject: |
-  dependencies = []
----
-
-# Hello
-""",
-        encoding="utf-8",
-    )
+    notebook = tmp_path / f"notebook{suffix}"
+    frontmatter = {
+        "absent": "",
+        "title": "---\ntitle: Hello\n---\n",
+        "pyproject": "---\npyproject: |\n  dependencies = []\n---\n",
+        "header": "---\nheader: |\n  # Keep this preamble\n---\n",
+    }[metadata]
+    body = "\n# Hello\r\n\r\n```python\r\nprint('hello')\r\n```\r\n"
+    original = (frontmatter + body).encode("utf-8")
+    notebook.write_bytes(original)
 
     code = run_in_sandbox(["--version"], name=str(notebook))
 
     assert code == 0
+    assert notebook.read_bytes().endswith(body.encode("utf-8"))
+    if metadata == "pyproject":
+        assert notebook.read_bytes() == original
+    if metadata == "title":
+        assert "title: Hello" in notebook.read_text()
+    if metadata == "header":
+        from marimo._convert.markdown.to_ir import extract_frontmatter
+
+        saved, _ = extract_frontmatter(notebook.read_text())
+        assert "# Keep this preamble" in saved["header"]
     # The carrier is deleted after synchronization.
     assert not list(tmp_path.glob("*.py"))
 
@@ -740,7 +745,6 @@ pyproject: |
 @pytest.mark.usefixtures("_restore_signal_handlers")
 def test_run_in_sandbox_without_a_manifest() -> None:
     """No target means no manifest: marimo runs ephemerally."""
-    from marimo._cli.sandbox import run_in_sandbox
 
     code = run_in_sandbox(["--version"], name=None)
 
@@ -782,26 +786,80 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
         assert result.exit_code == 3, (command, result.output)
 
 
+def test_resolve_sandbox_backends(tmp_path: Path) -> None:
+    from marimo._cli.sandbox import resolve_sandbox
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text("import marimo\n")
+
+    mode, backend = resolve_sandbox("pixi", False, str(notebook))
+    assert mode is SandboxMode.SINGLE
+    assert backend == "pixi"
+
+    mode, backend = resolve_sandbox("uv", False, str(notebook))
+    assert mode is SandboxMode.SINGLE
+    assert backend == "uv"
+
+    mode, backend = resolve_sandbox("pixi", False, str(tmp_path))
+    assert mode is SandboxMode.MULTI
+    assert backend == "pixi"
+
+    mode, backend = resolve_sandbox("pixi", True, str(notebook))
+    assert mode is None
+
+
+def test_strip_sandbox_args() -> None:
+    from marimo._cli.sandbox import _strip_sandbox_args
+
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox=pixi", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "pixi", "nb.py"]
+    ) == ["-m", "marimo", "edit", "pixi", "nb.py"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "edit", "--sandbox", "uv"]
+    ) == ["-m", "marimo", "edit", "uv"]
+    assert _strip_sandbox_args(
+        ["-m", "marimo", "run", "--sandbox", "nb.py", "--", "--sandbox"]
+    ) == ["-m", "marimo", "run", "nb.py", "--", "--sandbox"]
+
+
+def test_no_reprompt_inside_a_sandbox(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A server launched inside a sandbox must not offer to re-wrap
+    itself in a second one."""
+    from marimo._cli.sandbox import maybe_prompt_run_in_sandbox
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    notebook = tmp_path / "nb.py"
+    notebook.write_text(
+        '# /// script\n# dependencies = ["numpy"]\n# ///\nimport marimo\n'
+    )
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", None)
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_BACKEND", "pixi")
+    assert maybe_prompt_run_in_sandbox(str(notebook)) is False
+
+
 @pytest.mark.parametrize(
     ("returncode", "expected"), [(0, 0), (7, 7), (-2, 130), (-15, 143)]
 )
 @pytest.mark.usefixtures("_restore_signal_handlers")
-def test_run_in_sandbox_normalizes_child_status(
+def test_sandbox_launch_normalizes_child_status(
     returncode: int, expected: int
 ) -> None:
     from unittest.mock import MagicMock, patch
 
+    from marimo._cli.sandbox import _wait_on_plan
     from marimo._environments.environment import ProcessPlan
 
     process = MagicMock()
     process.wait.return_value = returncode
-    with (
-        patch("marimo._cli.sandbox.require_uv_bin"),
-        patch("marimo._cli.sandbox.runtime_overlay", return_value=[]),
-        patch(
-            "marimo._cli.sandbox.environment.launch_isolated",
-            return_value=ProcessPlan(argv=("uv",), env={}),
-        ),
-        patch("marimo._cli.sandbox.subprocess.Popen", return_value=process),
-    ):
-        assert run_in_sandbox(["--version"]) == expected
+    with patch("marimo._cli.sandbox.subprocess.Popen", return_value=process):
+        assert _wait_on_plan(ProcessPlan(argv=("uv",), env={})) == expected

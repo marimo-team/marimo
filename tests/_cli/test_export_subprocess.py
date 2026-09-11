@@ -22,7 +22,11 @@ def test_export_runs_the_planned_command(isolated: bool) -> None:
         else Environment(sys.executable, sys.prefix, "unchanged")
     )
     module = "marimo._environments.environment"
-    target = f"{module}.launch_isolated" if isolated else f"{module}.launch"
+    target = (
+        "marimo._environments.backends.launch_fallback"
+        if isolated
+        else f"{module}.launch"
+    )
     code = (
         "import json,os,sys; print(json.dumps([os.getpid(), os.getsid(0)]))"
         if os.name != "nt"
@@ -60,7 +64,7 @@ def test_export_failure_identifies_launcher_without_payload_or_credentials() -> 
         True,
     )
     with patch(
-        "marimo._environments.environment.launch_isolated", return_value=plan
+        "marimo._environments.backends.launch_fallback", return_value=plan
     ):
         with pytest.raises(click.ClickException) as error:
             run_python_subprocess(
@@ -106,7 +110,7 @@ def test_export_interrupt_reaps_the_child(new_session: bool) -> None:
     )
     with (
         patch(
-            "marimo._environments.environment.launch_isolated",
+            "marimo._environments.backends.launch_fallback",
             return_value=plan,
         ),
         patch(
@@ -135,9 +139,9 @@ def test_export_sigterm_reaps_isolated_child(tmp_path) -> None:
     code = f"""
 import os, sys
 from marimo._cli.export._common import SandboxTarget, run_python_subprocess
-from marimo._environments import environment
+from marimo._environments import environment, backends
 child = "import os,time; from pathlib import Path; Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)"
-environment.launch_isolated = lambda *a, **kw: environment.ProcessPlan((sys.executable, '-c', child), dict(os.environ), True)
+backends.launch_fallback = lambda *a, **kw: environment.ProcessPlan((sys.executable, '-c', child), dict(os.environ), True)
 run_python_subprocess(sandbox=SandboxTarget(None), script='', payload={{}}, action='export')
 """
     parent = subprocess.Popen([sys.executable, "-c", code])

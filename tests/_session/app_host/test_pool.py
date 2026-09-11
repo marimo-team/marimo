@@ -138,17 +138,25 @@ def test_old_host_callback_does_not_remove_replacement() -> None:
     pool.shutdown()
 
 
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
 def test_manifestless_host_clears_inherited_sandbox_identity(
     monkeypatch: pytest.MonkeyPatch,
+    backend: str,
 ) -> None:
+    from marimo._environments.pixi import PixiMissingScriptMetadataError
     from marimo._environments.uv import UvMissingScriptMetadataError
 
+    error = (
+        PixiMissingScriptMetadataError(["pixi"], 1, "missing")
+        if backend == "pixi"
+        else UvMissingScriptMetadataError(["uv"], 1, "", "missing")
+    )
     monkeypatch.setenv("MARIMO_SANDBOX_MODE", "multi")
     pool = AppHostPool(sandbox=True)
     with (
         patch(
-            "marimo._session.app_host.pool.sync_notebook",
-            side_effect=UvMissingScriptMetadataError(["uv"], 1, "", "missing"),
+            "marimo._environments.backends.sync_notebook",
+            side_effect=error,
         ),
         patch(
             "marimo._session.app_host.pool.runtime_overlay", return_value=[]
@@ -170,10 +178,10 @@ def test_environment_failure_is_reported_without_fallback() -> None:
     pool = AppHostPool(sandbox=True)
     with (
         patch(
-            "marimo._session.app_host.pool.sync_notebook",
+            "marimo._environments.backends.sync_notebook",
             side_effect=UvError("solver diagnostic"),
         ),
-        patch("marimo._session.app_host.pool.launch_isolated") as fallback,
+        patch("marimo._environments.backends.launch_fallback") as fallback,
     ):
         with pytest.raises(KernelStartupError, match="solver diagnostic"):
             pool.get_or_create("nb.py")

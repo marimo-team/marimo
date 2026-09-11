@@ -21,10 +21,12 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
-from marimo._cli.errors import MarimoCLIRuntimeError
+from marimo._cli.errors import (
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
-from marimo._cli.help_formatter import ColoredGroup, RunCommand
+from marimo._cli.help_formatter import ColoredCommand, ColoredGroup, RunCommand
 from marimo._cli.pair.commands import pair
 from marimo._cli.parse_args import parse_args
 from marimo._cli.parser_ux import show_compact_usage_error
@@ -148,7 +150,7 @@ token_password_message = (
 sandbox_message = (
     "Run the notebook in an isolated environment, with dependencies tracked "
     "via PEP 723 inline metadata. If already declared, dependencies will "
-    "install automatically. Requires uv."
+    "install automatically. Choose uv (default) or pixi."
 )
 
 check_message = "Disable a static check of the notebook before running."
@@ -281,7 +283,36 @@ class _OptionalValueOption(click.Option):
             self.flag_value = opt_flag_value
 
 
-@main.command(help=edit_help_msg)
+def _normalize_sandbox_args(args: list[str]) -> list[str]:
+    """Give a bare `--sandbox` its backwards-compatible uv value.
+
+    Click options cannot reliably accept both an optional value and a
+    following positional argument. Normalize the bare spelling before Click
+    parses it. Explicit backends use `--sandbox=pixi`; following paths named
+    `uv` or `pixi` and arguments after `--` remain positional arguments.
+    """
+    normalized = list(args)
+    try:
+        limit = normalized.index("--")
+    except ValueError:
+        limit = len(normalized)
+    for index, token in enumerate(normalized[:limit]):
+        if token == "--sandbox":
+            normalized[index] = "--sandbox=uv"
+    return normalized
+
+
+class _SandboxCommand(ColoredCommand):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        return super().parse_args(ctx, _normalize_sandbox_args(args))
+
+
+class _SandboxRunCommand(RunCommand):
+    def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
+        return super().parse_args(ctx, _normalize_sandbox_args(args))
+
+
+@main.command(cls=_SandboxCommand, help=edit_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -347,11 +378,17 @@ class _OptionalValueOption(click.Option):
     help="Don't check if a new version of marimo is available for download.",
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--trusted/--untrusted",
@@ -451,7 +488,8 @@ def edit(
     base_url: str,
     allow_origins: tuple[str, ...] | None,
     skip_update_check: bool,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     trusted: bool | None,
     profile_dir: str | None,
     watch: bool,
@@ -467,7 +505,7 @@ def edit(
     name: str | None,
     args: tuple[str, ...],
 ) -> None:
-    from marimo._cli.sandbox import SandboxMode, resolve_sandbox_mode
+    from marimo._cli.sandbox import SandboxMode, resolve_sandbox
 
     pass_on_stdin = token_password_file == "-"
     # We support unix-style piping, e.g. cat notebook.py | marimo edit
@@ -531,15 +569,20 @@ def edit(
     # URLs into local file paths
 
     # Resolve sandbox mode: None, SandboxMode.SINGLE, or SandboxMode.MULTI
-    sandbox_mode = resolve_sandbox_mode(sandbox=sandbox, name=name)
+    sandbox_mode, sandbox_backend = resolve_sandbox(
+        sandbox=sandbox, no_sandbox=no_sandbox, name=name
+    )
 
-    # Single-file sandbox: wrap with uv run
+    # Single-file sandbox: the server runs from the script environment
     if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
         sys.exit(
             run_in_sandbox(
-                sys.argv[1:], name=name, additional_features=["lsp"]
+                sys.argv[1:],
+                name=name,
+                extras=["lsp"],
+                backend=sandbox_backend,
             )
         )
 
@@ -550,6 +593,8 @@ def edit(
         GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
         os.environ["MARIMO_SANDBOX_MODE"] = "multi"
         GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
+        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox_backend
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox_backend
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -648,7 +693,7 @@ new_help_msg = "\n".join(
 )
 
 
-@main.command(help=new_help_msg)
+@main.command(cls=_SandboxCommand, help=new_help_msg)
 @click.option(
     "-p",
     "--port",
@@ -701,11 +746,17 @@ new_help_msg = "\n".join(
     callback=validators.base_url,
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--skew-protection/--no-skew-protection",
@@ -731,18 +782,22 @@ def new(
     token_password: str | None,
     token_password_file: str | None,
     base_url: str,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     skew_protection: bool,
     timeout: float | None,
     prompt: str | None,
 ) -> None:
-    if sandbox:
-        from marimo._cli.sandbox import run_in_sandbox
+    if sandbox and not no_sandbox:
+        from marimo._cli.sandbox import backend_from_flag, run_in_sandbox
 
         # TODO: consider adding recommended as well
         sys.exit(
             run_in_sandbox(
-                sys.argv[1:], name=None, additional_features=["lsp"]
+                sys.argv[1:],
+                name=None,
+                extras=["lsp"],
+                backend=backend_from_flag(sandbox),
             )
         )
 
@@ -953,7 +1008,7 @@ def _create_run_workspace(
 
 
 @main.command(
-    cls=RunCommand,
+    cls=_SandboxRunCommand,
     help="""Run a notebook as an app in read-only mode.
 
 If NAME is a url, the notebook will be downloaded to a temporary file.
@@ -1064,11 +1119,17 @@ Example:
     help="Redirect console logs to the browser console.",
 )
 @click.option(
-    "--sandbox/--no-sandbox",
-    is_flag=True,
+    "--sandbox",
     default=None,
-    type=bool,
+    type=click.Choice(["uv", "pixi"]),
     help=sandbox_message,
+)
+@click.option(
+    "--no-sandbox",
+    is_flag=True,
+    default=False,
+    type=bool,
+    help="Never run in a sandbox, and never prompt to.",
 )
 @click.option(
     "--check/--no-check",
@@ -1133,7 +1194,8 @@ def run(
     base_url: str,
     allow_origins: tuple[str, ...],
     redirect_console_to_browser: bool,
-    sandbox: bool | None,
+    sandbox: str | None,
+    no_sandbox: bool,
     check: bool,
     trusted: bool | None,
     server_startup_command: str | None,
@@ -1145,7 +1207,8 @@ def run(
 ) -> None:
     from marimo._cli.sandbox import (
         SandboxMode,
-        resolve_sandbox_mode,
+        backend_from_flag,
+        resolve_sandbox,
         run_in_sandbox,
     )
 
@@ -1224,13 +1287,29 @@ def run(
     # URLs into local file paths
     if is_multi:
         # Gallery mode: use MULTI sandbox (IPC kernels) or None
-        sandbox_mode = SandboxMode.MULTI if sandbox else None
+        sandbox_mode = (
+            SandboxMode.MULTI if sandbox and not no_sandbox else None
+        )
+        sandbox_backend = backend_from_flag(sandbox)
     else:
-        sandbox_mode = resolve_sandbox_mode(
-            sandbox=sandbox, name=validated_paths[0]
+        sandbox_mode, sandbox_backend = resolve_sandbox(
+            sandbox=sandbox, no_sandbox=no_sandbox, name=validated_paths[0]
         )
         if sandbox_mode is SandboxMode.SINGLE:
-            sys.exit(run_in_sandbox(sys.argv[1:], name=validated_paths[0]))
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=validated_paths[0],
+                    backend=sandbox_backend,
+                )
+            )
+
+    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
+    if sandbox_mode is SandboxMode.MULTI:
+        # Kernel launches read the backend from the global; without
+        # this, `marimo run --sandbox=pixi` would launch uv kernels.
+        os.environ["MARIMO_SANDBOX_BACKEND"] = sandbox_backend
+        GLOBAL_SETTINGS.SANDBOX_BACKEND = sandbox_backend
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 

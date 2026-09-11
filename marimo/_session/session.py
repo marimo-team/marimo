@@ -66,6 +66,7 @@ from marimo._utils.repr import format_repr
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+    from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._session.app_host import AppHostContext
     from marimo._session.requests import InstantiateNotebookRequest
@@ -113,6 +114,18 @@ class SessionImpl(Session):
 
         configs = app_file_manager.app.cell_manager.config_map()
 
+        from marimo._config.settings import GLOBAL_SETTINGS
+
+        # The single-file launcher strips --sandbox before starting the
+        # server. Edit kernels must still relaunch from the current manifest,
+        # not inherit the server's original interpreter after a rename.
+        if (
+            mode == SessionMode.EDIT
+            and sandbox_mode is None
+            and GLOBAL_SETTINGS.SANDBOX_MODE == "single"
+        ):
+            sandbox_mode = SandboxMode.SINGLE
+
         # Create kernel manager
         # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
         # SandboxMode.MULTI falls through to IPC kernels only in edit mode.
@@ -143,7 +156,9 @@ class SessionImpl(Session):
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
-        elif sandbox_mode is SandboxMode.MULTI:
+        elif sandbox_mode is SandboxMode.MULTI or (
+            sandbox_mode is SandboxMode.SINGLE and mode == SessionMode.EDIT
+        ):
             # IPC kernel path — edit mode with sandbox
             # (AppHostPool is never created in edit mode)
             from marimo._ipc import QueueManager as IPCQueueManager
@@ -162,6 +177,7 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
+                sandbox_mode=sandbox_mode,
             )
         else:
             # Original kernel: Process for edit, Thread for run
@@ -240,8 +256,10 @@ class SessionImpl(Session):
         self.extensions = ExtensionRegistry()
         self.extensions.add(*extensions)
         self.scratchpad_lock = asyncio.Lock()
+        self._notebook_sandbox: NotebookSandbox | None = None
 
         self._kernel_manager.start_kernel()
+        self._bind_notebook_sandbox()
         self._event_bus = SessionEventBus()
 
         self._closed = False
@@ -264,6 +282,31 @@ class SessionImpl(Session):
         belongs to the cell manager.
         """
         return self.app_file_manager.app.cell_manager.document
+
+    @property
+    def notebook_sandbox(self) -> NotebookSandbox | None:
+        """The retained sandbox binding used by this session, if any."""
+        return self._notebook_sandbox
+
+    def _bind_notebook_sandbox(self) -> None:
+        from marimo._config.settings import GLOBAL_SETTINGS
+        from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+        if isinstance(self._kernel_manager, IPCKernelManagerImpl):
+            self._notebook_sandbox = self._kernel_manager.notebook_sandbox
+            return
+
+        filename = self.app_file_manager.filename
+        if GLOBAL_SETTINGS.SANDBOX_MODE != "single":
+            return
+
+        from marimo._environments.backends import current_backend
+        from marimo._environments.sandbox import NotebookSandbox
+
+        backend = current_backend()
+        self._notebook_sandbox = NotebookSandbox.from_running_process(
+            filename, backend
+        )
 
     def _attach_extensions(self) -> None:
         """Attach all extensions to the session."""
@@ -310,6 +353,10 @@ class SessionImpl(Session):
         """Rename the path of the session."""
         old_path = self.app_file_manager.path
         self.app_file_manager.rename(new_path)
+        if self._notebook_sandbox is not None:
+            path = self.app_file_manager.path
+            assert path is not None
+            self._notebook_sandbox.rebind(path)
         await self._event_bus.emit_session_notebook_renamed(self, old_path)
 
     def try_interrupt(self) -> None:
@@ -456,6 +503,8 @@ class SessionImpl(Session):
         # Close the room
         self.room.close()
         self._kernel_manager.close_kernel(graceful=graceful)
+        if self._notebook_sandbox is not None:
+            self._notebook_sandbox.close()
 
     def instantiate(
         self,
