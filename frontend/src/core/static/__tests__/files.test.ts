@@ -177,7 +177,7 @@ describe("patchFetch", () => {
       .mockImplementation(Functions.NOOP);
 
     // This should fallback to original fetch and potentially fail
-    await expect(window.fetch("invalid://url")).rejects.toThrow();
+    await expect(window.fetch("invalid://url")).rejects.toThrow(/fetch|url/i);
 
     unpatch();
     loggerSpy.mockRestore();
@@ -276,7 +276,9 @@ describe("patchVegaLoader - loader.load", () => {
   it("should handle missing virtual files gracefully in loader.load", async () => {
     const loader = createLoader();
     const unpatch = patchVegaLoader(loader, {});
-    await expect(loader.load("/non-existent-file.json")).rejects.toThrow();
+    await expect(loader.load("/non-existent-file.json")).rejects.toThrow(
+      /fetch|file|load/i,
+    );
     unpatch();
   });
 
@@ -592,9 +594,9 @@ describe("maybeGetVirtualFile utility function", () => {
     const unpatch = patchFetch(virtualFiles);
 
     // This file:// URL doesn't contain @file/, so it should fallback to original fetch
-    await expect(
-      window.fetch("file:///simple/path/test.txt"),
-    ).rejects.toThrow();
+    await expect(window.fetch("file:///simple/path/test.txt")).rejects.toThrow(
+      /fetch|file/i,
+    );
 
     unpatch();
   });
