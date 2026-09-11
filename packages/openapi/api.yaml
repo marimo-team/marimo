@@ -1506,12 +1506,22 @@ components:
       type: object
     DependencyTreeResponse:
       properties:
+        context:
+          anyOf:
+          - $ref: '#/components/schemas/SandboxPackageContext'
+          - $ref: '#/components/schemas/PackageManagerContext'
+          discriminator:
+            mapping:
+              package-manager: '#/components/schemas/PackageManagerContext'
+              sandbox: '#/components/schemas/SandboxPackageContext'
+            propertyName: kind
         tree:
           anyOf:
           - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
       required:
       - tree
+      - context
       title: DependencyTreeResponse
       type: object
     DetectedDataSource:
@@ -2760,6 +2770,7 @@ components:
             - installed
             - installing
             - queued
+            - restart-required
           type: object
         source:
           default: kernel
@@ -4321,6 +4332,18 @@ components:
       - manager
       title: PackageManagementConfig
       type: object
+    PackageManagerContext:
+      properties:
+        kind:
+          enum:
+          - package-manager
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: PackageManagerContext
+      type: object
     PackageOperationResponse:
       properties:
         error:
@@ -4328,6 +4351,9 @@ components:
           - type: string
           - type: 'null'
           default: null
+        restartRequired:
+          default: false
+          type: boolean
         success:
           type: boolean
       required:
@@ -4935,6 +4961,20 @@ components:
       - kind
       - value
       title: SafeLiteralDiscoveryValue
+      type: object
+    SandboxPackageContext:
+      properties:
+        backend:
+          enum:
+          - pixi
+          - uv
+        kind:
+          enum:
+          - sandbox
+      required:
+      - kind
+      - backend
+      title: SandboxPackageContext
       type: object
     SaveAppConfigurationRequest:
       properties:
@@ -8040,3 +8080,4 @@ paths:
       summary: Get the auth token for the current session
       tags:
       - auth
+

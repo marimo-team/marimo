@@ -11,14 +11,17 @@ app = marimo.App(width="medium")
 
 @app.cell
 def _() -> None:
-
-    print("ho")
     return
 
 
 @app.cell
 def _() -> None:
     raise ValueError("ooops")
+    return
+
+
+@app.cell
+def _() -> None:
     return
 
 

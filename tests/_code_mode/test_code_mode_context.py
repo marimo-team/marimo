@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, PropertyMock, patch
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -941,6 +941,53 @@ class TestPackages:
 
             captured = capsys.readouterr()  # type: ignore[attr-defined]
             assert "pandas" in captured.out
+
+
+@pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("restart_required", [False, True])
+async def test_package_summary_reports_unsuccessful_outcomes(
+    k: Kernel,
+    capsys: pytest.CaptureFixture[str],
+    operation: str,
+    restart_required: bool,
+) -> None:
+    from marimo._messaging.notification import (
+        InstallingPackageAlertNotification,
+    )
+
+    with _ctx(k) as ctx:
+        pm = k.packages_callbacks.package_manager
+        assert pm is not None
+        method = "install" if operation == "add" else "uninstall"
+        with (
+            patch.object(
+                pm, method, new_callable=AsyncMock, return_value=False
+            ),
+            patch.object(
+                type(pm),
+                "restart_required",
+                new_callable=PropertyMock,
+                return_value=restart_required,
+            ),
+        ):
+            async with ctx as nb:
+                getattr(nb.packages, operation)("boltons")
+        output = capsys.readouterr().out
+        assert (
+            "changes saved for boltons; restart the kernel"
+            if restart_required
+            else f"failed to {method} boltons"
+        ) in output
+        assert "installed boltons" not in output
+        if operation == "add":
+            alerts = [
+                n
+                for n in k.stream.operations
+                if isinstance(n, InstallingPackageAlertNotification)
+            ]
+            assert alerts[-1].packages == {
+                "boltons": "restart-required" if restart_required else "failed"
+            }
 
 
 class TestAutorunStaleState:

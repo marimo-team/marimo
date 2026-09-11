@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import AsyncMock, Mock, call, patch
 
@@ -18,7 +19,7 @@ from marimo._runtime.commands import (
     CommandMessage,
     InstallPackagesCommand,
 )
-from marimo._runtime.packages.package_manager import LogCallback
+from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.pypi_package_manager import (
     MicropipPackageManager,
@@ -30,38 +31,8 @@ from tests.conftest import MockedKernel, mock_pyodide
 
 if TYPE_CHECKING:
     import pathlib
-    from collections.abc import AsyncIterator, Callable
 
 HAS_UV = DependencyManager.which("uv")
-
-
-def _make_stream_install(mock_pm: Mock) -> Any:
-    """Create an async generator `stream_install` that delegates to
-    the mock's `install` method, matching the base-class default
-    behaviour so the existing test expectations hold."""
-
-    async def stream_install(
-        packages: list[str],
-        *,
-        versions: dict[str, str | None] | None = None,
-        index_urls: list[str] | None = None,
-        log_callback_factory: Callable[[str], LogCallback] | None = None,
-    ) -> AsyncIterator[tuple[str, bool]]:
-        del index_urls
-        for pkg in packages:
-            if mock_pm.attempted_to_install(package=pkg):
-                yield (pkg, False)
-                continue
-            version = (versions or {}).get(pkg)
-            cb = log_callback_factory(pkg) if log_callback_factory else None
-            success = await mock_pm.install(
-                pkg,
-                version=version,
-                log_callback=cb,
-            )
-            yield (pkg, success)
-
-    return stream_install
 
 
 @pytest.mark.skipif(not HAS_UV, reason="uv not installed")
@@ -541,7 +512,7 @@ async def test_install_missing_packages_with_streaming_logs(
             broadcast_messages.append(msg)
 
     # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager = Mock(spec=PipPackageManager, restart_required=False)
     mock_package_manager.name = "pip"
     mock_package_manager.is_manager_installed.return_value = True
     mock_package_manager.attempted_to_install.return_value = False
@@ -558,8 +529,8 @@ async def test_install_missing_packages_with_streaming_logs(
         return True
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install)
-    mock_package_manager.stream_install = _make_stream_install(
-        mock_package_manager
+    mock_package_manager.stream_install = partial(
+        PackageManager.stream_install, mock_package_manager
     )
 
     # Set up packages callbacks
@@ -622,7 +593,7 @@ async def test_install_missing_packages_streaming_logs_failure(
             broadcast_messages.append(msg)
 
     # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager = Mock(spec=PipPackageManager, restart_required=False)
     mock_package_manager.name = "pip"
     mock_package_manager.is_manager_installed.return_value = True
     mock_package_manager.attempted_to_install.return_value = False
@@ -637,8 +608,8 @@ async def test_install_missing_packages_streaming_logs_failure(
         return False  # Installation failed
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install_fail)
-    mock_package_manager.stream_install = _make_stream_install(
-        mock_package_manager
+    mock_package_manager.stream_install = partial(
+        PackageManager.stream_install, mock_package_manager
     )
     k.packages_callbacks.package_manager = mock_package_manager
 
@@ -684,7 +655,7 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
             broadcast_messages.append(msg)
 
     # Mock package manager
-    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager = Mock(spec=PipPackageManager, restart_required=False)
     mock_package_manager.name = "pip"
     mock_package_manager.is_manager_installed.return_value = True
     mock_package_manager.attempted_to_install.return_value = False
@@ -704,8 +675,8 @@ async def test_install_missing_packages_streaming_logs_multiple_packages(
         return True
 
     mock_package_manager.install = AsyncMock(side_effect=mock_install)
-    mock_package_manager.stream_install = _make_stream_install(
-        mock_package_manager
+    mock_package_manager.stream_install = partial(
+        PackageManager.stream_install, mock_package_manager
     )
     k.packages_callbacks.package_manager = mock_package_manager
 
@@ -767,7 +738,7 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
             broadcast_messages.append(msg)
 
     # Mock package manager that doesn't use log callbacks
-    mock_package_manager = Mock(spec=PipPackageManager)
+    mock_package_manager = Mock(spec=PipPackageManager, restart_required=False)
     mock_package_manager.name = "pip"
     mock_package_manager.is_manager_installed.return_value = True
     mock_package_manager.attempted_to_install.return_value = False
@@ -782,8 +753,8 @@ async def test_install_missing_packages_no_logs_backward_compatibility(
     mock_package_manager.install = AsyncMock(
         side_effect=mock_install_old_style
     )
-    mock_package_manager.stream_install = _make_stream_install(
-        mock_package_manager
+    mock_package_manager.stream_install = partial(
+        PackageManager.stream_install, mock_package_manager
     )
     k.packages_callbacks.package_manager = mock_package_manager
 
@@ -827,7 +798,7 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
     current = k.packages_callbacks.package_manager
     assert current is not None
 
-    fake = Mock()
+    fake = Mock(restart_required=False)
     fake.name = current.name
     fake.is_manager_installed.return_value = True
     fake.attempted_to_install.return_value = False
@@ -849,7 +820,7 @@ async def test_install_logs_reach_the_stream_from_worker_threads(
         return True
 
     fake.install = install
-    fake.stream_install = _make_stream_install(fake)
+    fake.stream_install = partial(PackageManager.stream_install, fake)
     k.packages_callbacks.package_manager = fake
 
     await k.packages_callbacks.install_missing_packages(

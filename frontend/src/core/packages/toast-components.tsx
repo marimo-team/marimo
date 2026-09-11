@@ -1,7 +1,33 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { useRestartKernel } from "@/components/editor/actions/useRestartKernel";
 import { Kbd } from "@/components/ui/kbd";
+import { ToastAction } from "@/components/ui/toast";
 import { toast } from "@/components/ui/use-toast";
+
+export const RESTART_REQUIRED_DESCRIPTION =
+  "Your dependency changes are saved. Restart the kernel to use the updated environment. Restarting clears in-memory variables.";
+
+const RestartKernelAction = () => {
+  const restartKernel = useRestartKernel();
+  return (
+    <ToastAction
+      altText="Restart the kernel to use the updated dependencies"
+      onClick={restartKernel}
+    >
+      Restart Kernel
+    </ToastAction>
+  );
+};
+
+export const showPackageRestartToast = () => {
+  toast({
+    title: "Changes saved — restart required",
+    description: RESTART_REQUIRED_DESCRIPTION,
+    duration: Infinity,
+    action: <RestartKernelAction />,
+  });
+};
 
 export const showAddPackageToast = (
   packageName: string | string[],
