@@ -556,6 +556,12 @@ def _db_type_to_data_type(db_type: str) -> DataType:
     if db_type in _STRING_TYPES:
         return "string"
 
+    # The MSSQL extension preserves declared string lengths in type aliases.
+    if db_type.startswith(
+        ("mssql_varchar(", "mssql_nvarchar(")
+    ) and db_type.endswith(")"):
+        return "string"
+
     if db_type == "date":
         return "date"
     if db_type in _TIME_TYPES:
