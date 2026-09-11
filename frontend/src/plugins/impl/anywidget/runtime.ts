@@ -1,6 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { Deferred } from "@/utils/Deferred";
 import { Logger } from "@/utils/Logger";
+import { isTrustedVirtualFileUrl } from "@/plugins/core/trusted-url";
 import type { Host, ResolvedWidget } from "@anywidget/types";
 import type { Model } from "./model";
 import {
@@ -154,9 +155,19 @@ export class WidgetRuntime {
   async createView(options: {
     el: HTMLElement;
     signal: AbortSignal;
+    viewSpec?: EsmSpec;
   }): Promise<void> {
     if (options.signal.aborted || this.#controller.signal.aborted) {
       return;
+    }
+    const viewSpec = options.viewSpec;
+    if (
+      !this.#generation &&
+      viewSpec &&
+      isTrustedVirtualFileUrl(viewSpec.url) &&
+      (!this.#esmSpec || this.#esmSpec.hash === viewSpec.hash)
+    ) {
+      this.#esmSpec = viewSpec;
     }
     const view: RuntimeView = {
       el: options.el,

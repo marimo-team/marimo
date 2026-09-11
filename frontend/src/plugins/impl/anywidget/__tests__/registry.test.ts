@@ -95,6 +95,68 @@ describe("WidgetRegistry models", () => {
     expect(controller.signal.aborted).toBe(false);
   });
 
+  it("uses the output URL for the first matching ESM generation", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const render = vi.fn();
+    const getModuleSpy = vi
+      .spyOn(WIDGET_DEF_REGISTRY, "getModule")
+      .mockResolvedValue({ default: { render } });
+    registry.setModel(testId, model);
+    registry.setSpec(testId, SPEC);
+
+    try {
+      await registry.createView({
+        modelId: testId,
+        el: document.createElement("div"),
+        signal: new AbortController().signal,
+        viewSpec: {
+          url: "./@file/10-current-widget.js",
+          hash: SPEC.hash,
+        },
+      });
+
+      expect(getModuleSpy).toHaveBeenCalledWith({
+        jsUrl: "./@file/10-current-widget.js",
+        jsHash: SPEC.hash,
+        kernelAuthored: true,
+      });
+      expect(render).toHaveBeenCalledOnce();
+    } finally {
+      registry.delete(testId);
+      getModuleSpy.mockRestore();
+    }
+  });
+
+  it("does not replace a newer ESM generation from output HTML", async () => {
+    const model = new Model<ModelState>({ count: 0 }, createMockComm());
+    const getModuleSpy = vi
+      .spyOn(WIDGET_DEF_REGISTRY, "getModule")
+      .mockResolvedValue({ default: { render: vi.fn() } });
+    registry.setModel(testId, model);
+    registry.setSpec(testId, SPEC);
+
+    try {
+      await registry.createView({
+        modelId: testId,
+        el: document.createElement("div"),
+        signal: new AbortController().signal,
+        viewSpec: {
+          url: "./@file/10-stale-widget.js",
+          hash: "stale-hash",
+        },
+      });
+
+      expect(getModuleSpy).toHaveBeenCalledWith({
+        jsUrl: SPEC.url,
+        jsHash: SPEC.hash,
+        kernelAuthored: true,
+      });
+    } finally {
+      registry.delete(testId);
+      getModuleSpy.mockRestore();
+    }
+  });
+
   it("should delete models", async () => {
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);

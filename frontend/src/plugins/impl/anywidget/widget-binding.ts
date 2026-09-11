@@ -46,16 +46,18 @@ function abortSignalAny(signals: AbortSignal[]): AbortSignal {
   return controller.signal;
 }
 
-/**
- * Deduplicates ESM imports by jsHash.
- * A single import is shared across all widget instances using the same module.
- */
+/** Deduplicates successfully loaded ESM modules by jsHash. */
 class WidgetDefRegistry {
-  #cache = new Map<string, Promise<unknown>>();
+  #cache = new Map<
+    string,
+    { url: string; loaded: boolean; promise: Promise<unknown> }
+  >();
 
   /**
-   * Get (or start) the ESM import for a widget module, cached by
-   * jsHash so multiple instances share one import. Pass
+   * Get (or start) the ESM import for a widget module. Loaded modules are
+   * cached by jsHash so multiple instances share one import. Pending imports
+   * are also keyed by URL because a virtual file can be replaced before its
+   * import settles. Pass
    * `kernelAuthored: true` only for URLs from an `EsmSpec`; it widens
    * the import gate to remote and data URLs.
    */
@@ -66,18 +68,30 @@ class WidgetDefRegistry {
   }): Promise<unknown> {
     const { jsUrl, jsHash, kernelAuthored = false } = options;
     const cached = this.#cache.get(jsHash);
-    if (cached) {
-      return cached;
+    if (cached && (cached.loaded || cached.url === jsUrl)) {
+      return cached.promise;
     }
 
-    const promise = this.#doImport(jsUrl, { kernelAuthored }).catch((error) => {
-      // On failure, remove from cache so a retry with a new URL can work
-      this.#cache.delete(jsHash);
-      throw error;
-    });
+    const entry = {
+      url: jsUrl,
+      loaded: false,
+      promise: this.#doImport(jsUrl, { kernelAuthored }),
+    };
+    entry.promise = entry.promise
+      .then((module) => {
+        entry.loaded = true;
+        return module;
+      })
+      .catch((error) => {
+        // Do not let an older failed URL evict its in-flight replacement.
+        if (this.#cache.get(jsHash) === entry) {
+          this.#cache.delete(jsHash);
+        }
+        throw error;
+      });
 
-    this.#cache.set(jsHash, promise);
-    return promise;
+    this.#cache.set(jsHash, entry);
+    return entry.promise;
   }
 
   invalidate(jsHash: string): void {

@@ -193,20 +193,35 @@ class anywidget(UIElement[ModelIdRef, AnyWidgetState]):
         self._initialized = False
 
         # Trigger comm initialization early to ensure _model_id is set.
-        # Opening the comm broadcasts the widget's state and its ESM
-        # spec; the component only needs to say which model it displays.
-        _ = widget.comm
+        # Opening the comm broadcasts the widget's state and its ESM spec.
+        comm = widget.comm
 
         # Get the model_id from the widget (should always be set after comm init)
         model_id = get_anywidget_model_id(widget)
 
         # Initial value is just the model_id reference
         # The frontend retrieves the actual state from the 'open' message
+        component_args = {"model-id": model_id}
+        if (
+            isinstance(comm, MarimoComm)
+            and comm.esm_spec is not None
+            and comm.esm_spec.url.startswith("./@file/")
+        ):
+            # Html owns virtual files referenced by its serialized output.
+            # Keep the model notification as the source of ESM, but retain
+            # this URL for as long as the output can create a widget view.
+            component_args.update(
+                {
+                    "esm-url": comm.esm_spec.url,
+                    "esm-hash": comm.esm_spec.hash,
+                }
+            )
+
         super().__init__(
             component_name="marimo-anywidget",
             initial_value=ModelIdRef(model_id=model_id),
             label=None,
-            args={"model-id": model_id},
+            args=component_args,
             on_change=None,
         )
 
