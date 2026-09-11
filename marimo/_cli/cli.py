@@ -21,10 +21,7 @@ from marimo._cli.config.commands import config
 from marimo._cli.convert.commands import convert
 from marimo._cli.development.commands import development
 from marimo._cli.envinfo import get_system_info
-from marimo._cli.errors import (
-    MarimoCLIMissingDependencyError,
-    MarimoCLIRuntimeError,
-)
+from marimo._cli.errors import MarimoCLIRuntimeError
 from marimo._cli.export.commands import export
 from marimo._cli.files.file_path import validate_name
 from marimo._cli.help_formatter import ColoredGroup, RunCommand
@@ -540,23 +537,19 @@ def edit(
     if sandbox_mode is SandboxMode.SINGLE:
         from marimo._cli.sandbox import run_in_sandbox
 
-        run_in_sandbox(sys.argv[1:], name=name, additional_features=["lsp"])
-        return
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:], name=name, additional_features=["lsp"]
+            )
+        )
 
     # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
     if sandbox_mode is SandboxMode.MULTI:
-        # Check for pyzmq dependency
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required when running the marimo edit server on a directory with --sandbox.",
-                "marimo[sandbox]",
-            )
-
         # Enable script metadata management for sandboxed notebooks
         os.environ["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
         GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA = True
+        os.environ["MARIMO_SANDBOX_MODE"] = "multi"
+        GLOBAL_SETTINGS.SANDBOX_MODE = "multi"
 
     # Check shared memory availability early (required for edit mode to
     # communicate between the server process and kernel subprocess)
@@ -747,8 +740,11 @@ def new(
         from marimo._cli.sandbox import run_in_sandbox
 
         # TODO: consider adding recommended as well
-        run_in_sandbox(sys.argv[1:], name=None, additional_features=["lsp"])
-        return
+        sys.exit(
+            run_in_sandbox(
+                sys.argv[1:], name=None, additional_features=["lsp"]
+            )
+        )
 
     workspace: NotebookWorkspace | None = None
 
@@ -1234,27 +1230,7 @@ def run(
             sandbox=sandbox, name=validated_paths[0]
         )
         if sandbox_mode is SandboxMode.SINGLE:
-            run_in_sandbox(sys.argv[1:], name=validated_paths[0])
-            return
-
-    # Multi-file sandbox: use IPC kernels with per-notebook sandboxed venvs
-    if sandbox_mode is SandboxMode.MULTI:
-        # Check for pyzmq dependency
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required when running a gallery with --sandbox.",
-                "marimo[sandbox]",
-            )
-    elif is_multi:
-        from marimo._dependencies.dependencies import DependencyManager
-
-        if not DependencyManager.zmq.has():
-            raise MarimoCLIMissingDependencyError(
-                "pyzmq is required for running multiple notebooks.",
-                "pyzmq",
-            )
+            sys.exit(run_in_sandbox(sys.argv[1:], name=validated_paths[0]))
 
     workspace = _create_run_workspace(validated_paths, watch=watch)
 

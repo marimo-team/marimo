@@ -11,6 +11,7 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export._common import (
+    SandboxTarget,
     SandboxVenvPool,
     collect_notebooks,
     is_multi_target,
@@ -104,14 +105,16 @@ def _bootstrap_thumbnail_sandbox(
 ) -> None:
     from marimo._cli.sandbox import run_in_sandbox
 
-    run_in_sandbox(
-        args,
-        name=name,
-        additional_deps=_thumbnail_sandbox_deps,
-        extra_env={
-            _sandbox_bootstrapped_env: "1",
-            _sandbox_mode_env: sandbox_mode.value,
-        },
+    sys.exit(
+        run_in_sandbox(
+            args,
+            name=name,
+            additional_deps=_thumbnail_sandbox_deps,
+            extra_env={
+                _sandbox_bootstrapped_env: "1",
+                _sandbox_mode_env: sandbox_mode.value,
+            },
+        )
     )
 
 
@@ -122,7 +125,7 @@ async def _render_html(
     include_code: bool,
     args: tuple[str, ...],
     asset_url: str | None = None,
-    venv_python: str | None = None,
+    sandbox: SandboxTarget | None = None,
 ) -> str:
     if not execute:
         result = await export_html(
@@ -137,7 +140,7 @@ async def _render_html(
         )
         return result.text
 
-    if venv_python is None:
+    if sandbox is None:
         cli_args = parse_args(args) if args else {}
         result = await export_html(
             HTMLFileExportRequest(
@@ -166,13 +169,13 @@ async def _render_html(
     # Render in a separate process so we can use a sandboxed venv without polluting the current environment.
     return await asyncio.to_thread(
         _render_html_in_subprocess,
-        venv_python,
+        sandbox,
         payload,
     )
 
 
 def _render_html_in_subprocess(
-    venv_python: str, payload: dict[str, Any]
+    sandbox: SandboxTarget, payload: dict[str, Any]
 ) -> str:
     """Render a notebook to HTML in a separate Python process."""
     script = r"""
@@ -216,7 +219,7 @@ sys.stdout.write(result.text)
 """
 
     return run_python_subprocess(
-        venv_python=venv_python,
+        sandbox=sandbox,
         script=script,
         payload=payload,
         action="render notebook",
@@ -303,8 +306,8 @@ async def _generate_thumbnails(
                         maybe_make_dirs(out_path)
 
                         echo(f"Rendering {notebook.short_name}...")
-                        venv_python = (
-                            sandbox_pool.get_python(str(notebook.path))
+                        sandbox = (
+                            sandbox_pool.get_target(str(notebook.path))
                             if sandbox_pool is not None
                             else None
                         )
@@ -314,7 +317,7 @@ async def _generate_thumbnails(
                             include_code=include_code,
                             args=notebook_args,
                             asset_url=server.base_url,
-                            venv_python=venv_python,
+                            sandbox=sandbox,
                         )
                         server.set_html(html)
 

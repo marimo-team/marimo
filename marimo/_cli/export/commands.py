@@ -295,8 +295,7 @@ def html(
         sandbox = maybe_prompt_run_in_sandbox(name)
 
     if sandbox:
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+        sys.exit(run_in_sandbox(sys.argv[1:], name=name))
 
     cli_args = parse_args(args)
 
@@ -379,8 +378,7 @@ def script(
     Export a marimo notebook as a flat script, in topological order.
     """
     if sandbox:
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+        sys.exit(run_in_sandbox(sys.argv[1:], name=name))
 
     def export_callback(file_path: MarimoPath) -> ExportResult:
         try:
@@ -462,8 +460,7 @@ def md(
     Export a marimo notebook as a code fenced markdown document.
     """
     if sandbox:
-        run_in_sandbox(sys.argv[1:], name=name)
-        return
+        sys.exit(run_in_sandbox(sys.argv[1:], name=name))
 
     filename = str(output) if output is not None else None
 
@@ -570,12 +567,13 @@ def ipynb(
             sandbox = maybe_prompt_run_in_sandbox(name)
 
         if sandbox:
-            run_in_sandbox(
-                sys.argv[1:],
-                name=name,
-                additional_deps=["nbformat"],
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=name,
+                    additional_deps=["nbformat"],
+                )
             )
-            return
 
     try:
         DependencyManager.nbformat.require(
@@ -760,12 +758,13 @@ def pdf(
             export_deps = ["nbformat"]
             # Adding webpdf extras to sandbox even if `webpdf` is False, since standard PDF export may fall back to it.
             export_deps.append("nbconvert[webpdf]")
-            run_in_sandbox(
-                sys.argv[1:],
-                name=name,
-                additional_deps=export_deps,
+            sys.exit(
+                run_in_sandbox(
+                    sys.argv[1:],
+                    name=name,
+                    additional_deps=export_deps,
+                )
             )
-            return
 
     try:
         DependencyManager.require_many(
@@ -1026,8 +1025,7 @@ def html_wasm(
             sandbox = maybe_prompt_run_in_sandbox(name)
 
         if sandbox:
-            run_in_sandbox(sys.argv[1:], name=name)
-            return
+            sys.exit(run_in_sandbox(sys.argv[1:], name=name))
 
     out_dir = output
     filename = "index.html"

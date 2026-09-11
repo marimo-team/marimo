@@ -173,10 +173,8 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
     package_manager = _get_package_manager(request)
 
     filename = _get_filename(request)
-    # TODO(manzt): Same as check below when installing packages. If we are
-    # managing script metadata, we are in sandbox mode.
     is_sandbox = (
-        filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+        filename is not None and GLOBAL_SETTINGS.SANDBOX_MODE is not None
     )
     if is_sandbox:
         tree = await asyncio.to_thread(
@@ -198,6 +196,7 @@ def _get_package_manager(request: Request) -> PackageManager:
 
     # Check if IPC mode - use kernel's venv Python
     python_exe: str | None = None
+    script_path: str | None = None
     from marimo._session.managers.ipc import IPCKernelManagerImpl
     from marimo._session.session import SessionImpl
 
@@ -205,9 +204,17 @@ def _get_package_manager(request: Request) -> PackageManager:
         kernel_manager = session._kernel_manager
         if isinstance(kernel_manager, IPCKernelManagerImpl):
             python_exe = kernel_manager.venv_python
+            if kernel_manager.script_environment is not None:
+                # The kernel runs in the notebook's script environment;
+                # package changes edit the manifest and synchronize it.
+                script_path = session.app_file_manager.filename
+        elif GLOBAL_SETTINGS.SANDBOX_MODE == "single":
+            script_path = session.app_file_manager.filename
 
     return create_package_manager(
-        config_manager.package_manager, python_exe=python_exe
+        config_manager.package_manager,
+        python_exe=python_exe,
+        script_path=script_path,
     )
 
 

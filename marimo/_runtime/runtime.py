@@ -2505,7 +2505,9 @@ def _bootstrap_subprocess(
     # process (which assumes its child is in another process group).
     if sys.platform != "win32":
         os.setsid()
-        start_parent_poller(parent_pid)
+        # The direct parent may be a launcher such as uv; also probe
+        # the server pid so its ungraceful death is still detected.
+        start_parent_poller(os.getppid(), ancestor_pid=parent_pid)
     else:
         ignore_console_ctrl_c()
 

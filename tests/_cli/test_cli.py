@@ -407,50 +407,6 @@ def test_cli_missing_argument_uses_compact_error() -> None:
     assert "Options:" not in result.output
 
 
-def test_cli_edit_sandbox_missing_zmq_skips_update_check() -> None:
-    from click.testing import CliRunner
-
-    from marimo._cli.cli import main
-
-    runner = CliRunner()
-    captured_packages: dict[str, str | list[str]] = {}
-
-    def _capture_install_commands(
-        packages: str | list[str] | tuple[str, ...],
-    ) -> list[str]:
-        captured_packages["value"] = (
-            packages if isinstance(packages, str) else list(packages)
-        )
-        return ["python -m pip install 'marimo[sandbox]'"]
-
-    with (
-        patch(
-            "marimo._cli.cli.prompt_run_in_docker_container",
-            return_value=False,
-        ),
-        patch(
-            "marimo._dependencies.dependencies.DependencyManager.zmq.has",
-            return_value=False,
-        ),
-        patch(
-            "marimo._cli.errors.get_install_commands",
-            side_effect=_capture_install_commands,
-        ),
-        patch("marimo._cli.cli.check_for_updates") as mock_check_for_updates,
-    ):
-        result = runner.invoke(main, ["edit", "--sandbox"])
-
-    assert result.exit_code == 1
-    mock_check_for_updates.assert_not_called()
-    assert captured_packages["value"] == "marimo[sandbox]"
-    assert (
-        "pyzmq is required when running the marimo edit server on a directory with --sandbox."
-        in result.output
-    )
-    assert "python -m pip install 'marimo[sandbox]'" in result.output
-    assert "'marimo[sandbox]' pyzmq" not in result.output
-
-
 def test_cli_edit_checks_for_updates_after_preflight() -> None:
     from click.testing import CliRunner
 
@@ -1388,6 +1344,7 @@ def test_cli_sandbox_edit_new_file() -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
                 ["edit", path, "--headless", "--no-token", "--sandbox"],
@@ -1921,6 +1878,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
                 ["new", "--sandbox", "--headless", "--no-token"],

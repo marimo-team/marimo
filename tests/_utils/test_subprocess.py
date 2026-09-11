@@ -191,3 +191,17 @@ async def test_try_kill_process_and_group_sigkills_stubborn_child(
     finally:
         with contextlib.suppress(ProcessLookupError):
             os.killpg(pgid, signal.SIGKILL)
+
+
+@pytest.mark.parametrize("windows", [False, True])
+def test_exited_process_is_not_signalled(windows: bool) -> None:
+    process = subprocess.Popen([sys.executable, "-c", "pass"])
+    process.wait(timeout=10)
+    with (
+        patch("marimo._utils.subprocess.is_windows", return_value=windows),
+        patch("marimo._utils.subprocess.subprocess.run") as taskkill,
+        patch("marimo._utils.subprocess.os.getpgid", create=True) as getpgid,
+    ):
+        try_kill_process_and_group(cast(ProcessLike, process))
+    taskkill.assert_not_called()
+    getpgid.assert_not_called()

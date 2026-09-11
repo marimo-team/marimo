@@ -8,14 +8,20 @@ from __future__ import annotations
 
 import os
 import threading
+from concurrent.futures import Future
 from dataclasses import dataclass
 
-from marimo import _loggers
-from marimo._cli.sandbox import build_sandbox_venv, cleanup_sandbox_dir
-from marimo._session._venv import get_ipc_kernel_deps
+from marimo._environments.environment import (
+    ProcessPlan,
+    launch,
+    launch_isolated,
+    sync_notebook,
+)
+from marimo._environments.errors import EnvironmentManagerError
+from marimo._environments.overlay import runtime_overlay
+from marimo._environments.uv import UvMissingScriptMetadataError
 from marimo._session.app_host.host import AppHost
-
-LOGGER = _loggers.marimo_logger()
+from marimo._session.managers.ipc import KernelStartupError
 
 
 class AppHostPool:
@@ -23,99 +29,91 @@ class AppHostPool:
         self._workers: dict[str, AppHost] = {}
         self._lock = threading.Lock()
         self._sandbox = sandbox
+        self._pending: dict[str, Future[AppHost]] = {}
+        self._closed = False
 
-    def _remove_and_shutdown(self, abs_path: str) -> None:
-        """Remove an app host from the pool and shut it down.
-
-        Called when the host has zero active kernels.
-        """
+    def _remove_and_shutdown(self, abs_path: str, worker: AppHost) -> None:
+        # A delayed callback from a dead host must not remove its replacement.
         with self._lock:
-            worker = self._workers.pop(abs_path, None)
-
-        if worker is not None:
-            LOGGER.debug(
-                "Shutting down app host for %s (no active kernels)",
-                abs_path,
-            )
-            worker.shutdown()
+            if self._workers.get(abs_path) is not worker:
+                return
+            del self._workers[abs_path]
+        worker.shutdown()
 
     def get_or_create(self, file_path: str) -> AppHost:
         abs_path = os.path.abspath(file_path)
-
-        if self._sandbox:
-            return self._get_or_create_sandboxed(abs_path)
-
         with self._lock:
-            return self._create_locked(abs_path)
-
-    def _get_or_create_sandboxed(self, abs_path: str) -> AppHost:
-        """Get or create an AppHost with a sandboxed venv.
-
-        Uses double-check locking: the venv build (which can take many
-        seconds) runs outside the lock to avoid blocking other threads.
-        """
-        with self._lock:
+            if self._closed:
+                raise KernelStartupError("App host pool is shut down")
             worker = self._workers.get(abs_path)
             if worker is not None and worker.is_alive():
                 return worker
+            pending = self._pending.get(abs_path)
+            owner = pending is None
+            if pending is None:
+                pending = Future()
+                self._pending[abs_path] = pending
 
-        # Build sandbox venv outside lock (can take many seconds)
-        sandbox_dir, python = build_sandbox_venv(
-            abs_path, additional_deps=get_ipc_kernel_deps()
-        )
+        if not owner:
+            return pending.result()
 
-        with self._lock:
-            # Re-check. Another thread may have created it while we were
-            # building the venv
-            worker = self._workers.get(abs_path)
-            if worker is not None and worker.is_alive():
-                cleanup_sandbox_dir(sandbox_dir)
-                return worker
-
-            return self._create_locked(
-                abs_path, python=python, sandbox_dir=sandbox_dir
+        new_worker: AppHost | None = None
+        try:
+            if worker is not None:
+                worker.shutdown()
+            plan = self._sandbox_plan(abs_path) if self._sandbox else None
+            with self._lock:
+                if self._closed:
+                    raise KernelStartupError("App host pool is shut down")
+            new_worker = AppHost(
+                abs_path,
+                plan=plan,
+                on_empty=lambda: self._remove_and_shutdown(abs_path, created),
             )
+            created = new_worker
+            new_worker.start()
+            with self._lock:
+                if self._closed:
+                    raise KernelStartupError("App host pool is shut down")
+                self._workers[abs_path] = new_worker
+            pending.set_result(new_worker)
+            return new_worker
+        except BaseException as error:
+            pending.set_exception(error)
+            if new_worker is not None:
+                new_worker.shutdown()
+            raise
+        finally:
+            with self._lock:
+                del self._pending[abs_path]
 
-    def _create_locked(
-        self,
-        abs_path: str,
-        python: str | None = None,
-        sandbox_dir: str | None = None,
-    ) -> AppHost:
-        """Create a new AppHost, replacing a dead one if present.
+    def _sandbox_plan(self, abs_path: str) -> ProcessPlan:
+        args = ["-m", "marimo._session.app_host.main"]
+        overlay = runtime_overlay()
+        try:
+            try:
+                handle = sync_notebook(abs_path)
+            except UvMissingScriptMetadataError:
+                import platform
 
-        Must be called while holding self._lock.
-        """
-        worker = self._workers.get(abs_path)
-        if worker is not None and worker.is_alive():
-            return worker
-
-        if worker is not None:
-            LOGGER.warning("App host for %s was dead, respawning", abs_path)
-            worker.shutdown()
-
-        def _on_empty() -> None:
-            self._remove_and_shutdown(abs_path)
-
-        worker = AppHost(
-            abs_path,
-            python=python,
-            sandbox_dir=sandbox_dir,
-            on_empty=_on_empty,
-        )
-        worker.start()
-        self._workers[abs_path] = worker
-        return worker
+                plan = launch_isolated(
+                    args, overlay=overlay, python=platform.python_version()
+                )
+                plan.env.pop("MARIMO_SANDBOX_MODE", None)
+            else:
+                plan = launch(handle, args, overlay=overlay)
+                plan.env["MARIMO_SANDBOX_MODE"] = "multi"
+            plan.env["MARIMO_MANAGE_SCRIPT_METADATA"] = "true"
+            return plan
+        except EnvironmentManagerError as error:
+            raise KernelStartupError(str(error)) from error
 
     def shutdown(self) -> None:
-        # Collect and clear under the lock, then shut down outside
-        # it. worker.shutdown() can trigger _on_empty callbacks that
-        # call _remove_and_shutdown, which also acquires self._lock;
-        # Holding the lock here would deadlock.
         with self._lock:
+            self._closed = True
             workers = list(self._workers.values())
             self._workers.clear()
-
+        # In-flight startups observe _closed before publishing and clean up.
         for worker in workers:
             worker.shutdown()
 

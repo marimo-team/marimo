@@ -64,100 +64,21 @@ class TestAppHostCommands:
 
 @pytest.mark.requires("zmq")
 class TestAppHostOnEmpty:
-    def test_on_empty_fires_when_session_ids_becomes_empty(self) -> None:
-        """on_empty callback fires when all sessions exit."""
+    def test_cleanup_fires_once_after_last_session_exits(self) -> None:
         import threading
 
         from marimo._session.app_host.host import AppHost
 
         fired = threading.Event()
-
-        def on_empty() -> None:
-            fired.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        # Simulate a kernel being alive
-        app_host._session_ids.add("s1")
-
-        # Simulate receiving a KernelExited message by calling
-        # discard + the callback logic directly (avoids needing
-        # a real subprocess with ZMQ sockets).
-        app_host._session_ids.discard("s1")
-        assert len(app_host._session_ids) == 0
-        # Replicate the callback logic from _stream_receiver_loop
-        callback = app_host._on_empty
-        app_host._on_empty = None
-        if callback is not None:
-            threading.Thread(target=callback, daemon=True).start()
-
-        assert fired.wait(timeout=2), "on_empty callback was not fired"
-
-    def test_on_empty_does_not_fire_when_kernels_remain(self) -> None:
-        """on_empty callback does NOT fire when kernels remain."""
-        import threading
-
-        from marimo._session.app_host.host import AppHost
-
-        fired = threading.Event()
-
-        def on_empty() -> None:
-            fired.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        app_host._session_ids.add("s1")
-        app_host._session_ids.add("s2")
-
-        # Remove one — still one left
-        app_host._session_ids.discard("s1")
-        assert len(app_host._session_ids) == 1
-
-        # Replicate the callback logic
-        if not app_host._session_ids:
-            callback = app_host._on_empty
-            app_host._on_empty = None
-            if callback is not None:
-                threading.Thread(target=callback, daemon=True).start()
-
-        assert not fired.wait(timeout=0.5), (
-            "on_empty callback should not fire when kernels remain"
-        )
-
-    def test_on_empty_fires_only_once(self) -> None:
-        """on_empty callback fires at most once (double-fire prevention)."""
-        import threading
-
-        from marimo._session.app_host.host import AppHost
-
-        call_count = 0
-        lock = threading.Lock()
-        done = threading.Event()
-
-        def on_empty() -> None:
-            nonlocal call_count
-            with lock:
-                call_count += 1
-            done.set()
-
-        app_host = AppHost("/tmp/test_app.py", on_empty=on_empty)
-        app_host._session_ids.add("s1")
-        app_host._session_ids.add("s2")
-
-        # Simulate both kernels exiting
-        for sid in ["s1", "s2"]:
-            app_host._session_ids.discard(sid)
-            if not app_host._session_ids:
-                callback = app_host._on_empty
-                app_host._on_empty = None
-                if callback is not None:
-                    threading.Thread(target=callback, daemon=True).start()
-
-        assert done.wait(timeout=2)
-        # Give any potential second callback time to run
-        threading.Event().wait(timeout=0.2)
-        with lock:
-            assert call_count == 1, (
-                f"on_empty fired {call_count} times, expected 1"
-            )
+        host = AppHost("/tmp/test_app.py", on_empty=fired.set)
+        host._session_ids.update(("first", "second"))
+        host._session_ids.remove("first")
+        assert not host._fire_on_empty()
+        assert not fired.is_set()
+        host._session_ids.remove("second")
+        assert host._fire_on_empty()
+        assert fired.wait(timeout=5)
+        assert not host._fire_on_empty()
 
 
 @pytest.mark.requires("zmq")
@@ -234,54 +155,79 @@ class TestAppHost:
 
 @pytest.mark.requires("zmq")
 class TestAppHostSandbox:
-    def test_app_host_stores_sandbox_dir(self) -> None:
-        """AppHost stores sandbox_dir for cleanup on shutdown."""
-        from marimo._session.app_host.host import AppHost
+    def test_pool_sandbox_syncs_and_passes_plan(self) -> None:
+        """When sandbox=True, the pool synchronizes the notebook's script
+        environment and hands AppHost a launch plan for it."""
+        from unittest.mock import MagicMock, patch
 
-        host = AppHost("/tmp/test.py", sandbox_dir="/tmp/sandbox-abc")
-        assert host._sandbox_dir == "/tmp/sandbox-abc"
+        from marimo._environments.environment import Environment
+        from marimo._session.app_host.pool import AppHostPool
 
-    def test_app_host_shutdown_cleans_up_sandbox_dir(self) -> None:
-        """shutdown() calls cleanup_sandbox_dir when sandbox_dir is set."""
-        from unittest.mock import patch
+        pool = AppHostPool(sandbox=True)
 
-        from marimo._session.app_host.host import AppHost
+        mock_host = MagicMock()
+        mock_host.is_alive.return_value = True
+        handle = Environment(
+            python="/env/bin/python", root="/env", action="created"
+        )
 
-        host = AppHost("/tmp/test.py", sandbox_dir="/tmp/sandbox-abc")
+        with (
+            patch(
+                "marimo._session.app_host.pool.sync_notebook",
+                return_value=handle,
+            ) as mock_sync,
+            patch(
+                "marimo._session.app_host.pool.runtime_overlay",
+                return_value=["kernel-dep==1.0"],
+            ),
+            patch(
+                "marimo._session.app_host.pool.AppHost",
+                return_value=mock_host,
+            ) as mock_host_cls,
+        ):
+            pool.get_or_create("/tmp/test_app.py")
 
-        with patch("marimo._cli.sandbox.cleanup_sandbox_dir") as mock_cleanup:
-            host.shutdown()
-            mock_cleanup.assert_called_once_with("/tmp/sandbox-abc")
+            mock_sync.assert_called_once()
+            plan = mock_host_cls.call_args[1]["plan"]
+            # The marimo runtime rides the launch overlay.
+            assert "kernel-dep==1.0" in plan.argv
+            assert plan.argv[-3:] == (
+                "--",
+                "python",
+                "-m",
+            ) or plan.argv[-2:] == ("-m", "marimo._session.app_host.main")
+            assert plan.env["VIRTUAL_ENV"] == "/env"
 
-        assert host._sandbox_dir is None
+    def test_pool_no_sandbox_skips_sync(self) -> None:
+        """When sandbox=False, the pool does not synchronize anything."""
+        from unittest.mock import MagicMock, patch
 
-    def test_app_host_shutdown_skips_cleanup_without_sandbox(self) -> None:
-        """shutdown() does not call cleanup when no sandbox_dir."""
-        from unittest.mock import patch
-
-        from marimo._session.app_host.host import AppHost
-
-        host = AppHost("/tmp/test.py")
-
-        with patch("marimo._cli.sandbox.cleanup_sandbox_dir") as mock_cleanup:
-            host.shutdown()
-            mock_cleanup.assert_not_called()
-
-    def test_pool_sandbox_flag_stored(self) -> None:
-        """AppHostPool stores the sandbox flag."""
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool(sandbox=False)
-        assert pool._sandbox is False
 
-        pool = AppHostPool(sandbox=True)
-        assert pool._sandbox is True
+        mock_host = MagicMock()
+        mock_host.is_alive.return_value = True
 
-    def test_pool_sandbox_builds_venv_and_passes_to_host(self) -> None:
-        """When sandbox=True, pool builds a venv and passes python/sandbox_dir
-        to AppHost."""
+        with (
+            patch(
+                "marimo._session.app_host.pool.sync_notebook",
+            ) as mock_sync,
+            patch(
+                "marimo._session.app_host.pool.AppHost",
+                return_value=mock_host,
+            ) as mock_host_cls,
+        ):
+            pool.get_or_create("/tmp/test_app.py")
+
+            mock_sync.assert_not_called()
+            assert mock_host_cls.call_args[1].get("plan") is None
+
+    def test_pool_missing_metadata_runs_ephemerally(self) -> None:
+        """A notebook without a metadata block launches isolated."""
         from unittest.mock import MagicMock, patch
 
+        from marimo._environments.uv import UvMissingScriptMetadataError
         from marimo._session.app_host.pool import AppHostPool
 
         pool = AppHostPool(sandbox=True)
@@ -291,15 +237,14 @@ class TestAppHostSandbox:
 
         with (
             patch(
-                "marimo._session.app_host.pool.build_sandbox_venv",
-                return_value=(
-                    "/tmp/sandbox-xyz",
-                    "/tmp/sandbox-xyz/bin/python",
+                "marimo._session.app_host.pool.sync_notebook",
+                side_effect=UvMissingScriptMetadataError(
+                    ["uv"], 2, "", "no PEP 723 metadata"
                 ),
-            ) as mock_build,
+            ),
             patch(
-                "marimo._session.app_host.pool.get_ipc_kernel_deps",
-                return_value=["pyzmq==26.0.0"],
+                "marimo._session.app_host.pool.runtime_overlay",
+                return_value=["marimo==0.0.0"],
             ),
             patch(
                 "marimo._session.app_host.pool.AppHost",
@@ -308,89 +253,9 @@ class TestAppHostSandbox:
         ):
             pool.get_or_create("/tmp/test_app.py")
 
-            # Verify venv was built with correct args
-            mock_build.assert_called_once()
-            _, kwargs = mock_build.call_args
-            assert kwargs["additional_deps"] == ["pyzmq==26.0.0"]
-
-            # Verify AppHost received python and sandbox_dir
-            mock_host_cls.assert_called_once()
-            host_kwargs = mock_host_cls.call_args[1]
-            assert host_kwargs["python"] == "/tmp/sandbox-xyz/bin/python"
-            assert host_kwargs["sandbox_dir"] == "/tmp/sandbox-xyz"
-
-    def test_pool_no_sandbox_skips_venv_build(self) -> None:
-        """When sandbox=False, pool does not build a venv."""
-        from unittest.mock import MagicMock, patch
-
-        from marimo._session.app_host.pool import AppHostPool
-
-        pool = AppHostPool(sandbox=False)
-
-        mock_host = MagicMock()
-        mock_host.is_alive.return_value = True
-
-        with (
-            patch(
-                "marimo._session.app_host.pool.build_sandbox_venv",
-            ) as mock_build,
-            patch(
-                "marimo._session.app_host.pool.AppHost",
-                return_value=mock_host,
-            ) as mock_host_cls,
-        ):
-            pool.get_or_create("/tmp/test_app.py")
-
-            mock_build.assert_not_called()
-
-            # AppHost should get python=None, sandbox_dir=None
-            host_kwargs = mock_host_cls.call_args[1]
-            assert host_kwargs.get("python") is None
-            assert host_kwargs.get("sandbox_dir") is None
-
-    def test_pool_sandbox_race_cleans_up_duplicate_venv(self) -> None:
-        """If another thread creates the host while we build the venv,
-        the duplicate venv is cleaned up."""
-        from unittest.mock import MagicMock, patch
-
-        from marimo._session.app_host.pool import AppHostPool
-
-        pool = AppHostPool(sandbox=True)
-
-        # Pre-populate pool with an alive host (simulates another thread)
-        existing_host = MagicMock()
-        existing_host.is_alive.return_value = True
-
-        # Simulate the race: first get_or_create finds no host, drops
-        # the lock to build the venv, then re-acquires and finds a host
-        # that another thread created. We do this by injecting the host
-        # into pool._workers during the build_sandbox_venv call.
-        def build_and_inject(
-            filename: str,
-            additional_deps: list[str] | None = None,  # noqa: ARG001
-        ) -> tuple[str, str]:
-            import os
-
-            abs_path = os.path.abspath(filename)
-            pool._workers[abs_path] = existing_host
-            return ("/tmp/sandbox-dup", "/tmp/sandbox-dup/bin/python")
-
-        with (
-            patch(
-                "marimo._session.app_host.pool.build_sandbox_venv",
-                side_effect=build_and_inject,
-            ),
-            patch(
-                "marimo._session.app_host.pool.get_ipc_kernel_deps",
-                return_value=[],
-            ),
-            patch(
-                "marimo._session.app_host.pool.cleanup_sandbox_dir",
-            ) as mock_cleanup,
-        ):
-            result = pool.get_or_create("/tmp/test_app.py")
-            assert result is existing_host
-            mock_cleanup.assert_called_once_with("/tmp/sandbox-dup")
+            plan = mock_host_cls.call_args[1]["plan"]
+            assert "--isolated" in plan.argv
+            assert "marimo==0.0.0" in plan.argv
 
 
 @pytest.mark.requires("zmq")

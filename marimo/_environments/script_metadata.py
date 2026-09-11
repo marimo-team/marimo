@@ -17,18 +17,27 @@ directory-scoped uv configuration applies.
 from __future__ import annotations
 
 import contextlib
+import errno
 import os
 import platform
 import re
+import stat
 import subprocess
+import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
 from marimo._environments.errors import EnvironmentManagerError
-from marimo._environments.uv import UvError, uv
+from marimo._environments.uv import (
+    UvError,
+    script_command_env,
+    uv,
+    uv_stream,
+)
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
@@ -99,32 +108,48 @@ def with_python_version_requirement(project: dict[str, Any]) -> dict[str, Any]:
 
 
 def add_dependencies(
-    path: str, packages: Sequence[str], *, upgrade: bool = False
+    path: str,
+    packages: Sequence[str],
+    *,
+    upgrade: bool = False,
+    on_output: Callable[[str], None] | None = None,
 ) -> None:
     """Add packages to the script's metadata via `uv add --script`."""
     if not packages:
         return
-    args = ["--quiet", "add", "--script"]
+    args = ["add", "--script"]
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            [*args, target, *(["--upgrade"] if upgrade else []), *packages],
-            cwd=cwd,
-        )
+        command = [
+            *args,
+            target,
+            *(["--upgrade"] if upgrade else []),
+            *packages,
+        ]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
 
-def remove_dependencies(path: str, packages: Sequence[str]) -> None:
+def remove_dependencies(
+    path: str,
+    packages: Sequence[str],
+    *,
+    on_output: Callable[[str], None] | None = None,
+) -> None:
     """Remove packages from the script's metadata via `uv remove --script`."""
     if not packages:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(
-            ["--quiet", "remove", "--script", target, *packages],
-            cwd=cwd,
-        )
+        command = ["remove", "--script", target, *packages]
+        if on_output is not None:
+            uv_stream(command, on_output, env=script_command_env(), cwd=cwd)
+        else:
+            uv(["--quiet", *command], env=script_command_env(), cwd=cwd)
 
     _edit(path, edit)
 
@@ -149,7 +174,12 @@ def ensure_marimo(path: str) -> None:
         return
 
     def edit(target: str, cwd: str) -> None:
-        uv(["add", "--script", target, "marimo"], timeout=30, cwd=cwd)
+        uv(
+            ["add", "--script", target, "marimo"],
+            env=script_command_env(),
+            timeout=30,
+            cwd=cwd,
+        )
 
     _edit(path, edit)
 
@@ -245,61 +275,91 @@ def _read_frontmatter(path: str) -> _Frontmatter:
     )
 
 
-# Bumping the version orphans every older carrier; `_sweep_carriers`
-# recognizes and removes all versions.
 _CARRIER_VERSION = 1
 
 
 def _carrier_prefix(path: str) -> str:
-    """The ownership-signed carrier prefix for a notebook.
-
-    Deterministic per notebook filename, so a carrier is recognizably
-    marimo's: safe to overwrite, sweep, and ignore.
-    """
     return f".marimo-v{_CARRIER_VERSION}-{os.path.basename(path)}"
 
 
-# A carrier lives for one uv command; a stray this old is stranded.
-_SWEEP_AGE_SECONDS = 15 * 60
+@contextlib.contextmanager
+def _stable_carrier_lock(path: str) -> Iterator[None]:
+    """Hold an OS lock through creation, use, and removal of the carrier.
 
-
-def _sweep_carriers(directory: str, path: str) -> None:
-    """Removes stranded carriers for the notebook, best effort.
-
-    Carriers are deleted after use; a killed process can strand one.
-    Only strays older than `_SWEEP_AGE_SECONDS` are removed, sparing a
-    concurrent process's in-flight carrier.
+    The lock file stays in place: unlinking it would let a new caller lock
+    a different inode while existing callers still wait on the old one.
+    Process exit releases the lock, including after a crash.
     """
-    import time
+    target = Path(path).with_name(f"{_carrier_prefix(path)}.lock")
+    # Never truncate or follow a pre-existing link, even for the lock file.
+    if target.is_symlink():
+        raise OSError(f"Refusing to use symlink as carrier lock: {target}")
+    descriptor = os.open(
+        target, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600
+    )
+    with os.fdopen(descriptor, "r+b", buffering=0) as lock:
+        if not stat.S_ISREG(os.fstat(lock.fileno()).st_mode):
+            raise OSError(f"Carrier lock is not a regular file: {target}")
+        if sys.platform == "win32":
+            import msvcrt
 
-    pattern = f".marimo-v*-{os.path.basename(path)}*.py"
-    cutoff = time.time() - _SWEEP_AGE_SECONDS
-    for stray in Path(directory).glob(pattern):
-        try:
-            if stray.stat().st_mtime < cutoff:
-                stray.unlink()
-        except OSError:
-            LOGGER.debug("Could not remove carrier %s", stray)
+            while True:
+                try:
+                    msvcrt.locking(lock.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError as error:
+                    if error.errno not in (errno.EACCES, errno.EDEADLK):
+                        raise
+                    time.sleep(0.05)
+            try:
+                yield
+            finally:
+                msvcrt.locking(lock.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
 @contextlib.contextmanager
-def _carrier(notebook: str, content: str) -> Iterator[str]:
-    """A sidecar script uv can operate on, next to the notebook.
+def _carrier(
+    notebook: str, content: str, *, stable: bool = False
+) -> Iterator[str]:
+    """Materialize beside the notebook so uv preserves path semantics.
 
-    uv anchors relative paths in script metadata to the script's own
-    directory, so a manifest that lives in frontmatter must be
-    materialized beside its notebook before uv can act on it. The
-    versioned, deterministic name (`.marimo-v<N>-<name>.<rand>.py`)
-    marks the file as marimo's: safe to overwrite, sweep, and ignore.
-    Entry sweeps carriers stranded by killed processes; exit always
-    removes the carrier, best effort.
+    Stable callers must hold `_stable_carrier_lock` for the full lifetime.
+    Only that carrier can be reclaimed after a crash; age alone cannot
+    distinguish another operation's active carrier from an abandoned one.
     """
     absolute = os.path.abspath(notebook)
     directory = os.path.dirname(absolute)
-    _sweep_carriers(directory, absolute)
-    descriptor, target = tempfile.mkstemp(
-        dir=directory, prefix=f"{_carrier_prefix(absolute)}.", suffix=".py"
-    )
+    try:
+        if stable:
+            target = os.path.join(directory, f"{_carrier_prefix(absolute)}.py")
+            if os.path.islink(target):
+                raise OSError(f"Refusing to replace carrier symlink: {target}")
+            # The lock proves no cooperating process is still using it.
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(target)
+            descriptor = os.open(
+                target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600
+            )
+        else:
+            descriptor, target = tempfile.mkstemp(
+                dir=directory,
+                prefix=f"{_carrier_prefix(absolute)}.",
+                suffix=".py",
+            )
+    except OSError as error:
+        raise ScriptMetadataError(
+            f"Cannot create a metadata carrier beside {notebook}. "
+            "Make the notebook directory writable and remove any "
+            "conflicting carrier symlinks."
+        ) from error
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as f:
             f.write(content)
@@ -344,3 +404,47 @@ def _edit_frontmatter(path: str, edit: Callable[[str, str], None]) -> None:
     document = f"---\n{header.strip()}\n---{front.body}"
     with open(path, "w", encoding="utf-8", newline="") as f:
         f.write(document)
+
+
+@dataclass(frozen=True)
+class MaterializedScript:
+    """A script uv can operate on and the directory to run uv from."""
+
+    path: str
+    directory: str
+
+
+@contextlib.contextmanager
+def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
+    """Materializes a notebook's manifest for environment operations.
+
+    A Python notebook is its own script, so its environment is the one
+    `uv run notebook.py` uses and nothing is created. A markdown or
+    Quarto notebook writes its header verbatim to the stable carrier
+    `.marimo-v<N>-<name>.py` next to the notebook, deleted on exit. uv
+    keys a script environment on the script's absolute path, so the
+    stable name maps one notebook to one environment, reconciled in
+    place across sessions. An OS lock serializes carrier lifetimes across
+    threads and processes.
+    """
+    absolute = os.path.abspath(path)
+    directory = os.path.dirname(absolute)
+    if not path.endswith((".md", ".qmd")):
+        yield MaterializedScript(path=absolute, directory=directory)
+        return
+
+    with contextlib.ExitStack() as stack:
+        try:
+            stack.enter_context(_stable_carrier_lock(absolute))
+        except OSError as error:
+            raise ScriptMetadataError(
+                f"Cannot lock a metadata carrier beside {path}. "
+                "Make the notebook directory writable and remove any "
+                "conflicting carrier lock symlinks."
+            ) from error
+        content = (
+            "# Generated by marimo; safe to delete.\n"
+            + _read_frontmatter(absolute).header
+        )
+        with _carrier(absolute, content, stable=True) as target:
+            yield MaterializedScript(path=target, directory=directory)
