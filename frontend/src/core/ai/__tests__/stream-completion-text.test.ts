@@ -44,7 +44,7 @@ describe("streamCompletionText", () => {
       data: { code: 42 },
     });
 
-    await expect(streamCompletionText(response)).rejects.toThrow();
+    await expect(streamCompletionText(response)).rejects.toThrow(/code/);
   });
 
   it("rejects a partial completion without successful final validation", async () => {

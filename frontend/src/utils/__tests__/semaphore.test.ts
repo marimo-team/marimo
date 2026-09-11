@@ -5,9 +5,15 @@ import { mapWithConcurrency, Semaphore } from "../semaphore";
 
 describe("Semaphore", () => {
   it("rejects invalid permit counts", () => {
-    expect(() => new Semaphore(0)).toThrow();
-    expect(() => new Semaphore(-1)).toThrow();
-    expect(() => new Semaphore(1.5)).toThrow();
+    expect(() => new Semaphore(0)).toThrow(
+      "Semaphore permits must be a positive integer, got 0",
+    );
+    expect(() => new Semaphore(-1)).toThrow(
+      "Semaphore permits must be a positive integer, got -1",
+    );
+    expect(() => new Semaphore(1.5)).toThrow(
+      "Semaphore permits must be a positive integer, got 1.5",
+    );
   });
 
   it("resolves run() with the function's value", async () => {
@@ -203,8 +209,12 @@ describe("mapWithConcurrency", () => {
   });
 
   it("throws on invalid concurrency, even for empty input", () => {
-    expect(() => mapWithConcurrency([1, 2, 3], 0, async (n) => n)).toThrow();
-    expect(() => mapWithConcurrency([], 0, async (n: number) => n)).toThrow();
+    expect(() => mapWithConcurrency([1, 2, 3], 0, async (n) => n)).toThrow(
+      "Semaphore permits must be a positive integer, got 0",
+    );
+    expect(() => mapWithConcurrency([], 0, async (n: number) => n)).toThrow(
+      "Semaphore permits must be a positive integer, got 0",
+    );
   });
 
   it("passes the index to fn", async () => {

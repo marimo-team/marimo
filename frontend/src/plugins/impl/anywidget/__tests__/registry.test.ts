@@ -99,7 +99,9 @@ describe("WidgetRegistry models", () => {
     const model = new Model<ModelState>({ count: 0 }, createMockComm());
     registry.setModel(testId, model);
     registry.delete(testId);
-    await expect(registry.getModel(testId)).rejects.toThrow();
+    await expect(registry.getModel(testId)).rejects.toThrow(
+      `Model not found for key: ${testId}`,
+    );
   });
 
   it("should handle widget messages", async () => {
@@ -148,7 +150,9 @@ describe("WidgetRegistry models", () => {
       model_id: testId,
       message: { method: "close" },
     });
-    await expect(registry.getModel(testId)).rejects.toThrow();
+    await expect(registry.getModel(testId)).rejects.toThrow(
+      `Model not found for key: ${testId}`,
+    );
   });
 
   describe("static mode", () => {

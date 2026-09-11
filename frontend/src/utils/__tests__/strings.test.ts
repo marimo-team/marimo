@@ -20,7 +20,9 @@ describe("Strings", () => {
     });
 
     it("throws for non-string input", () => {
-      expect(() => Strings.startCase(123 as unknown as string)).toThrow();
+      expect(() => Strings.startCase(123 as unknown as string)).toThrow(
+        /string/i,
+      );
     });
   });
 

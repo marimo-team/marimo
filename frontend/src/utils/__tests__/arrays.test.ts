@@ -106,7 +106,7 @@ describe("arrays", () => {
     });
 
     it("should throw for arrays of different lengths", () => {
-      expect(() => Arrays.zip([1, 2], ["a"])).toThrow();
+      expect(() => Arrays.zip([1, 2], ["a"])).toThrow(/same length/i);
     });
 
     it("should handle empty arrays", () => {
