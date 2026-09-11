@@ -125,7 +125,7 @@ def _check_modules(
     sys_modules: dict[str, types.ModuleType],
 ) -> dict[str, types.ModuleType]:
     """Returns the set of modules used by the graph that have been modified"""
-    modified_modules = reloader.check(modules=sys_modules, reload=False)
+    modified_modules = reloader.check_for_watcher(modules=sys_modules)
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
