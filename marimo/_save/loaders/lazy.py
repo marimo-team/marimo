@@ -1389,7 +1389,7 @@ class LazyLoader(BasePersistenceLoader):
             if loader == "ui":
                 ui_vars[var] = obj
                 ui_defs_list.append(var)
-            elif loader not in ("inline",):
+            elif loader != "inline":
                 format_vars.setdefault(loader, {})[var] = obj
 
         version = cache.meta.get("version", MARIMO_CACHE_VERSION)
