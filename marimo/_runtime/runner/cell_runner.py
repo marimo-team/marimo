@@ -62,6 +62,7 @@ if TYPE_CHECKING:
     from collections import deque
 
     from marimo._ast.cell import CellImpl
+    from marimo._runtime.runner.hook_context import PostExecutionHookContext
     from marimo._runtime.runner.hooks import NotebookCellHooks
     from marimo._runtime.state import State
 
@@ -754,6 +755,33 @@ class Runner:
                     return defining_cell_id
         return None
 
+    def _run_post_execution_hooks(
+        self,
+        cell: CellImpl,
+        ctx: PostExecutionHookContext,
+        run_result: RunResult,
+    ) -> None:
+        try:
+            for post_hook in self._hooks.post_execution_hooks:
+                try:
+                    post_hook(cell, ctx, run_result)
+                except KeyboardInterrupt:
+                    self.interrupted = True
+                    LOGGER.info(
+                        "Cell %s interrupted during post-execution hook",
+                        cell.cell_id,
+                    )
+        finally:
+            # Cleanup must complete even if interrupted after updating local
+            # state but before broadcasting it to the frontend.
+            while True:
+                try:
+                    for finalize in self._hooks.finalization_hooks:
+                        finalize(cell, ctx, run_result)
+                    break
+                except KeyboardInterrupt:
+                    self.interrupted = True
+
     async def _run_one(
         self,
         cell_id: CellId_t,
@@ -770,8 +798,9 @@ class Runner:
                 with self.execution_context(cell_id) as exc_ctx:
                     run_result = await self.run(cell_id)
                     run_result.accumulated_output = exc_ctx.output
-                    for post_hook in self._hooks.post_execution_hooks:
-                        post_hook(cell, post_exec_ctx, run_result)
+                    self._run_post_execution_hooks(
+                        cell, post_exec_ctx, run_result
+                    )
             except KeyboardInterrupt:
                 LOGGER.error(
                     "A keyboard interrupt was raised but not handled by "
@@ -779,8 +808,7 @@ class Runner:
                 )
         else:
             run_result = await self.run(cell_id)
-            for post_hook in self._hooks.post_execution_hooks:
-                post_hook(cell, post_exec_ctx, run_result)
+            self._run_post_execution_hooks(cell, post_exec_ctx, run_result)
 
     async def run_all(self) -> None:
         from marimo._runtime.runner.hook_context import (
