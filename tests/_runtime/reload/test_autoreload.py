@@ -17,6 +17,7 @@ from marimo._runtime.reload.autoreload import (
     ModuleReloader,
     StrongRef,
     append_obj,
+    clear_module_overloads,
     isinstance2,
     modules_imported_by_cell,
     safe_getattr,
@@ -28,6 +29,29 @@ from marimo._runtime.reload.autoreload import (
     update_instances,
     update_property,
 )
+
+# `get_overloads` landed in typing in 3.11; typing_extensions backports it.
+OVERLOAD_MODULE = """
+try:
+    from typing import get_overloads, overload
+except ImportError:
+    from typing_extensions import get_overloads, overload
+
+
+@overload
+def func(param: int) -> int: ...
+
+
+@overload
+def func(param: str) -> str: ...
+
+
+def func(param):
+    return param
+
+
+num_overloads = len(get_overloads(func))
+"""
 
 
 def test_reload_function(tmp_path: pathlib.Path, py_modname: str):
@@ -965,3 +989,62 @@ class TestSuperreload:
 
         # Instance should now use updated method
         assert instance.method() == 2
+
+
+class TestOverloadRegistry:
+    """Tests for clear_module_overloads and its use by superreload"""
+
+    def _registry(self) -> dict:
+        import typing
+
+        registry = getattr(typing, "_overload_registry", None)
+        if registry is None:
+            import typing_extensions
+
+            registry = typing_extensions._overload_registry
+        return registry
+
+    def test_clear_module_overloads_scoped_to_module(self):
+        """Test that only the named module's registrations are dropped"""
+        registry = self._registry()
+        registry["mod_to_clear"] = {"func": {1: None}}
+        registry["mod_to_keep"] = {"func": {1: None}}
+
+        try:
+            clear_module_overloads("mod_to_clear")
+            assert "mod_to_clear" not in registry
+            assert "mod_to_keep" in registry
+        finally:
+            registry.pop("mod_to_clear", None)
+            registry.pop("mod_to_keep", None)
+
+    def test_clear_module_overloads_unregistered_module(self):
+        """Test that clearing a module with no registrations is a no-op"""
+        registry = self._registry()
+        clear_module_overloads("module_that_never_registered_overloads")
+        assert "module_that_never_registered_overloads" not in registry
+
+    def test_reload_does_not_duplicate_overloads(
+        self, tmp_path: pathlib.Path, py_modname: str
+    ):
+        """Test that reloading doesn't leave stale overload registrations.
+
+        Overloads are registered by source line, so shifting a module's line
+        numbers used to make get_overloads() return the overloads of every
+        previous version of the module as well.
+        """
+        sys.path.append(str(tmp_path))
+        py_file = tmp_path / pathlib.Path(py_modname + ".py")
+        py_file.write_text(OVERLOAD_MODULE)
+
+        mod = importlib.import_module(py_modname)
+        reloader = ModuleReloader()
+        reloader.check(sys.modules, reload=False)
+        assert mod.num_overloads == 2
+
+        # Insert a line before the definitions, shifting their line numbers
+        update_file(py_file, "# shifted\n" + OVERLOAD_MODULE)
+        reloader.check(sys.modules, reload=True)
+
+        assert mod.num_overloads == 2
+        assert len(mod.get_overloads(mod.func)) == 2

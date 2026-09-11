@@ -512,6 +512,34 @@ def append_obj(
     return True
 
 
+def clear_module_overloads(modname: str) -> None:
+    """Drop `modname`'s `@overload` registrations ahead of a reload.
+
+    `typing.overload` (and `typing_extensions.overload` on Python 3.10)
+    records every decorated function in a private registry shaped like
+    `{module: {qualname: {firstlineno: func}}}`, which `get_overloads()`
+    reads back. The registry is keyed by source location, so reloading a
+    module whose line numbers shifted leaves the old entries behind and
+    `get_overloads()` then reports each overload more than once. Neither
+    module exposes a public API for evicting a single module's entries
+    (`clear_overloads()` wipes the whole registry), so we reach into the
+    registry defensively; re-executing the module repopulates it.
+    """
+    for typing_modname in ("typing", "typing_extensions"):
+        typing_module = sys.modules.get(typing_modname)
+        if typing_module is None:
+            continue
+        try:
+            registry = getattr(typing_module, "_overload_registry", None)
+            if isinstance(registry, dict):
+                registry.pop(modname, None)
+        except Exception:
+            LOGGER.debug(
+                f"Failed to clear {typing_modname} overloads for "
+                f"'{modname}': {traceback.format_exc(10)}"
+            )
+
+
 def superreload(
     module: types.ModuleType, old_objects: OldObjectsMapping | None
 ) -> types.ModuleType:
@@ -530,6 +558,9 @@ def superreload(
     # collect old objects in the module
     for name, obj in module.__dict__.items():
         append_obj(module, old_objects, name, obj)
+
+    # stale overload registrations would otherwise accumulate across reloads
+    clear_module_overloads(module.__name__)
 
     # reload module
     old_dict: dict[str, Any] | None = None
