@@ -367,7 +367,6 @@ ignore = [
     "SIM117", # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "RUF012", # Mutable class default
     "S102", # Use of `exec`
-    "PYI036", # Bad `sys.exit` annotation
     "DTZ005", # `datetime.now()` called without `tzinfo`
     "SIM115", # Open file without context handler
     "DTZ006", # `datetime.fromtimestamp()` called without `tzinfo`
