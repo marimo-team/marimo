@@ -626,6 +626,37 @@ def test_db_type_to_data_type_null() -> None:
     assert _db_type_to_data_type('"null"') == "unknown"
 
 
+@pytest.mark.parametrize(
+    "db_type",
+    [
+        "mssql_varchar(250)",
+        "MSSQL_VARCHAR(30)",
+        "MSSQL_NVARCHAR(50)",
+        "mssql_nvarchar(8)",
+        "MSSQL_VARCHAR(MAX)",
+        "MSSQL_NVARCHAR(MAX)",
+    ],
+)
+def test_db_type_to_data_type_mssql_strings(db_type: str) -> None:
+    with patch("marimo._data.get_datasets.LOGGER.warning") as warning:
+        assert _db_type_to_data_type(db_type) == "string"
+    warning.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "db_type",
+    [
+        "MSSQL_VARCHAR(250)[]",
+        "MSSQL_NVARCHAR(50)[3]",
+        "STRUCT(name MSSQL_VARCHAR(250))",
+    ],
+)
+def test_db_type_to_data_type_nested_mssql_strings(db_type: str) -> None:
+    with patch("marimo._data.get_datasets.LOGGER.warning") as warning:
+        assert _db_type_to_data_type(db_type) == "unknown"
+    warning.assert_not_called()
+
+
 def test_db_type_to_data_type_various() -> None:
     """Test various DuckDB type mappings."""
     # Integer types
