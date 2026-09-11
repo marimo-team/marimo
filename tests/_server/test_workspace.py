@@ -750,6 +750,28 @@ def test_lazy_router_respects_max_files(tmp_path: Path):
         DirectoryScanner.MAX_FILES = original_max_files
 
 
+def test_lazy_router_reports_truncated_scan(tmp_path: Path):
+    """Deeply nested notebooks are omitted, and the workspace says so (#10064)."""
+    deep = tmp_path.joinpath("a", "b", "c", "d", "e", "f")
+    deep.mkdir(parents=True)
+    (deep / "app.py").write_text(file_contents)
+
+    router = DirectoryWorkspace(str(tmp_path), include_markdown=False)
+
+    # The notebook sits past DirectoryScanner.MAX_DEPTH, so nothing is listed.
+    assert router.files == []
+    assert router.is_truncated
+
+
+def test_lazy_router_not_truncated_for_shallow_tree(tmp_path: Path):
+    (tmp_path / "app.py").write_text(file_contents)
+
+    router = DirectoryWorkspace(str(tmp_path), include_markdown=False)
+
+    assert len(router.files) == 1
+    assert not router.is_truncated
+
+
 def test_lazy_router_skips_common_dirs(tmp_path: Path):
     """Test that DirectoryWorkspace skips common directories"""
     # Create directories that should be skipped

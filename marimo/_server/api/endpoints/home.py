@@ -153,7 +153,9 @@ async def workspace_files(
 
         marimo_files = await asyncio.to_thread(get_files_with_metadata)
         file_count = len(marimo_files)
-        has_more = file_count >= MAX_FILES
+        has_more = (
+            file_count >= MAX_FILES or session_manager.workspace.is_truncated
+        )
         return WorkspaceFilesResponse(
             files=marimo_files,
             root=session_manager.workspace.directory or "",
@@ -171,7 +173,9 @@ async def workspace_files(
     files = await asyncio.to_thread(lambda: session_manager.workspace.files)
 
     file_count = count_files(files)
-    has_more = file_count >= MAX_FILES
+    has_more = (
+        file_count >= MAX_FILES or session_manager.workspace.is_truncated
+    )
 
     return WorkspaceFilesResponse(
         files=files,

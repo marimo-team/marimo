@@ -67,6 +67,7 @@ import {
   Header,
   OpenTutorialDropDown,
   ResourceLinks,
+  TruncatedWorkspaceBanner,
 } from "../home/components";
 import {
   expandedFoldersAtom,
@@ -196,10 +197,7 @@ const WorkspaceNotebooks: React.FC<{ onRefreshRecents: () => void }> = ({
     <WorkspaceContext value={workspaceContextValue}>
       <div className="flex flex-col gap-2">
         {workspace.hasMore && (
-          <Banner kind="warn" className="rounded p-4">
-            Showing first {workspace.fileCount} files. Your workspace has more
-            files.
-          </Banner>
+          <TruncatedWorkspaceBanner fileCount={workspace.fileCount} />
         )}
         <Header
           Icon={BookTextIcon}
