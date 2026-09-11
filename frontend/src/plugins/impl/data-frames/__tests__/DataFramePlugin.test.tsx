@@ -135,29 +135,38 @@ describe("dataframe value ownership", () => {
   });
 });
 
-it("keeps one error banner and the previous table through retries, then clears the error", async () => {
-  const error = new Error("Step 1 (Sample Rows): dataframe contains 3 rows");
-  const retry = new Deferred<typeof RESPONSE>();
-  const get_dataframe = vi
-    .fn<Props["get_dataframe"]>()
-    .mockResolvedValueOnce(RESPONSE)
-    .mockRejectedValueOnce(error)
-    .mockReturnValueOnce(retry.promise);
-  const initialProps = { ...props(), get_dataframe };
-  const { rerender } = render(<DataFrameComponent {...initialProps} />);
-  await screen.findByText("table.json: 3 rows");
-  rerender(<DataFrameComponent {...initialProps} value={BAD} />);
-  await screen.findByText(error.message);
-  expect(screen.getAllByText(error.message)).toHaveLength(1);
-  expect(screen.getByTestId("table")).toHaveTextContent("table.json: 3 rows");
+it.each(["rpc", "transform"])(
+  "keeps one %s error banner and the previous table through retries, then clears the error",
+  async (kind) => {
+    const error = new Error("Step 1 (Sample Rows): dataframe contains 3 rows");
+    const retry = new Deferred<typeof RESPONSE>();
+    const get_dataframe = vi
+      .fn<Props["get_dataframe"]>()
+      .mockResolvedValueOnce(RESPONSE);
+    if (kind === "rpc") {
+      get_dataframe.mockRejectedValueOnce(error);
+    } else {
+      get_dataframe.mockResolvedValueOnce({ error: error.message });
+    }
+    get_dataframe.mockReturnValueOnce(retry.promise);
+    const initialProps = { ...props(), get_dataframe };
+    const { rerender } = render(<DataFrameComponent {...initialProps} />);
+    await screen.findByText("table.json: 3 rows");
+    rerender(<DataFrameComponent {...initialProps} value={BAD} />);
+    await screen.findByText(error.message);
+    expect(screen.getAllByText(error.message)).toHaveLength(1);
+    expect(screen.getByTestId("table")).toHaveTextContent("table.json: 3 rows");
 
-  rerender(<DataFrameComponent {...initialProps} value={EMPTY} />);
-  await waitFor(() => expect(get_dataframe).toHaveBeenCalledTimes(3));
-  expect(screen.getAllByText(error.message)).toHaveLength(1);
-  expect(screen.getByTestId("table")).toHaveTextContent("table.json: 3 rows");
-  await act(async () => retry.resolve({ ...RESPONSE, url: "recovered.json" }));
-  expect(screen.queryByText(error.message)).not.toBeInTheDocument();
-  expect(screen.getByTestId("table")).toHaveTextContent(
-    "recovered.json: 3 rows",
-  );
-});
+    rerender(<DataFrameComponent {...initialProps} value={EMPTY} />);
+    await waitFor(() => expect(get_dataframe).toHaveBeenCalledTimes(3));
+    expect(screen.getAllByText(error.message)).toHaveLength(1);
+    expect(screen.getByTestId("table")).toHaveTextContent("table.json: 3 rows");
+    await act(async () =>
+      retry.resolve({ ...RESPONSE, url: "recovered.json" }),
+    );
+    expect(screen.queryByText(error.message)).not.toBeInTheDocument();
+    expect(screen.getByTestId("table")).toHaveTextContent(
+      "recovered.json: 3 rows",
+    );
+  },
+);

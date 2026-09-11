@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -11,6 +10,7 @@ from typing import (
     cast,
 )
 
+from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
@@ -62,6 +62,8 @@ from marimo._utils.variable_name import infer_variable_name
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+LOGGER = marimo_logger()
+
 TOO_MANY_ROWS = 100_000
 
 
@@ -96,10 +98,9 @@ class ColumnNotFound(Exception):
         super().__init__(f"Column {column} does not exist")
 
 
-class GetDataFrameError(Exception):
-    def __init__(self, error: str):
-        self.error = error
-        super().__init__(error)
+@dataclass
+class GetDataFrameError:
+    error: str
 
 
 @mddoc
@@ -176,7 +177,6 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
         self._format_mapping = format_mapping
         self._transform_container = TransformsContainer(nw_df, handler)
         self._error: str | None = None
-        self._last_reported_error: str | None = None
         self._last_transforms = Transformations([])
         self._column_types_per_step: list[FieldTypes] = [
             self._manager.get_field_types()
@@ -255,17 +255,17 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             for name, dtype in self._manager.get_field_types()
         ]
 
-    def _get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+    def _get_dataframe(
+        self, _args: EmptyArgs
+    ) -> GetDataFrameResponse | GetDataFrameError:
         if self._error is not None:
-            raise GetDataFrameError(self._error)
+            return GetDataFrameError(self._error)
 
         try:
-            response = self._get_dataframe_response()
-            self._last_reported_error = None
-            return response
+            return self._get_dataframe_response()
         except Exception as e:
             self._record_error(e, self._last_transforms)
-            raise GetDataFrameError(self._error or str(e)) from e
+            return GetDataFrameError(self._error or str(e))
 
     def _get_dataframe_response(self) -> GetDataFrameResponse:
         manager = self._get_cached_table_manager(self._value, self._limit)
@@ -342,14 +342,11 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
     def _record_error(
         self, error: Exception, transformations: Transformations
     ) -> None:
+        LOGGER.debug("Error applying dataframe transform", exc_info=error)
         attributed = self._transform_container.get_error_message(
             error, transformations
         )
-        message = f"Error applying dataframe transform: {attributed}\n\n"
-        if message != self._last_reported_error:
-            sys.stderr.write(message)
-            self._last_reported_error = message
-        self._error = message
+        self._error = f"Error applying dataframe transform: {attributed}"
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size

@@ -1,7 +1,10 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import re
+import sys
 from typing import Any
+from unittest.mock import patch
 
 import narwhals.stable.v2 as nw
 import pytest
@@ -14,6 +17,7 @@ from marimo._plugins.ui._impl.dataframes.transforms.handlers import (
 from marimo._plugins.ui._impl.dataframes.transforms.types import (
     Transformations,
 )
+from marimo._runtime.context import get_context
 from marimo._runtime.functions import EmptyArgs
 from marimo._utils.narwhals_utils import make_lazy
 from marimo._utils.parse_dataclass import parse_raw
@@ -86,7 +90,8 @@ def test_handler_validation(
 
 
 @pytest.mark.parametrize(("payload", "name", "message"), INVALID_TRANSFORMS)
-def test_replayed_error_is_attributed_deduplicated_and_recoverable(
+@pytest.mark.usefixtures("executing_kernel")
+def test_replayed_error_is_attributed_silent_and_recoverable(
     df: Any,
     payload: dict[str, Any],
     name: str,
@@ -94,19 +99,24 @@ def test_replayed_error_is_attributed_deduplicated_and_recoverable(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     subject = ui.dataframe(df)
-    for _ in range(2):
-        subject._update({"transforms": [payload]})
-        with pytest.raises(
-            GetDataFrameError, match=f"Step 1 .*{name}.*{message}"
-        ):
-            subject._get_dataframe(EmptyArgs())
-    assert (
-        capsys.readouterr().err.count("Error applying dataframe transform:")
-        == 1
+    rpc = get_context().function_registry.get_function(
+        subject._id, "get_dataframe"
     )
-    subject._update({"transforms": []})
-    assert subject._get_dataframe(EmptyArgs()).total_rows == 3
-    assert capsys.readouterr().err == ""
+    assert rpc is not None
+    print("user output")
+    print("user stderr", file=sys.stderr)
+    with patch("marimo._runtime.functions.LOGGER.error") as log_error:
+        for _ in range(2):
+            subject._update({"transforms": [payload]})
+            response = rpc({})
+            assert isinstance(response, GetDataFrameError)
+            assert re.search(f"Step 1 .*{name}.*{message}", response.error)
+        subject._update({"transforms": []})
+        assert rpc({}).total_rows == 3
+        log_error.assert_not_called()
+    captured = capsys.readouterr()
+    assert captured.out == "user output\n"
+    assert captured.err == "user stderr\n"
 
 
 def test_incremental_error_uses_absolute_step_number(df: Any) -> None:
@@ -114,10 +124,9 @@ def test_incremental_error_uses_absolute_step_number(df: Any) -> None:
     first = {"type": "select_columns", "column_ids": ["a", "b"]}
     subject._update({"transforms": [first]})
     subject._update({"transforms": [first, INVALID_TRANSFORMS[3][0]]})
-    with pytest.raises(
-        GetDataFrameError, match="Step 2 .*Sample Rows.*3 rows"
-    ):
-        subject._get_dataframe(EmptyArgs())
+    response = subject._get_dataframe(EmptyArgs())
+    assert isinstance(response, GetDataFrameError)
+    assert re.search("Step 2 .*Sample Rows.*3 rows", response.error)
 
 
 def test_same_name_rename(df: Any) -> None:
@@ -183,14 +192,10 @@ def test_deferred_error_names_the_failing_step(
     }
     for _ in range(2):
         subject._update(payload)
-        with pytest.raises(
-            GetDataFrameError, match="Step 1 .*Column Conversion"
-        ):
-            subject._get_dataframe(EmptyArgs())
-    assert (
-        capsys.readouterr().err.count("Error applying dataframe transform:")
-        == 1
-    )
+        response = subject._get_dataframe(EmptyArgs())
+        assert isinstance(response, GetDataFrameError)
+        assert re.search("Step 1 .*Column Conversion", response.error)
+    assert capsys.readouterr().err == ""
     subject._update({"transforms": []})
     assert subject._get_dataframe(EmptyArgs()).total_rows == 1
 

@@ -56,15 +56,18 @@ interface Data {
 
 // oxlint-disable-next-line typescript/consistent-type-definitions
 type PluginFunctions = {
-  get_dataframe: (req: {}) => Promise<{
-    url: string;
-    total_rows: number;
-    row_headers: FieldTypesWithExternalType;
-    field_types: FieldTypesWithExternalType | null;
-    column_types_per_step: FieldTypesWithExternalType[];
-    python_code?: string | null;
-    sql_code?: string | null;
-  }>;
+  get_dataframe: (req: {}) => Promise<
+    | {
+        url: string;
+        total_rows: number;
+        row_headers: FieldTypesWithExternalType;
+        field_types: FieldTypesWithExternalType | null;
+        column_types_per_step: FieldTypesWithExternalType[];
+        python_code?: string | null;
+        sql_code?: string | null;
+      }
+    | { error: string }
+  >;
   get_column_values: (req: { column: string }) => Promise<{
     values: unknown[];
     too_many_values: boolean;
@@ -113,15 +116,18 @@ export const DataFramePlugin = createPlugin<S>("marimo-dataframe")
   .withFunctions<PluginFunctions>({
     // Get the data as a URL
     get_dataframe: rpc.input(z.object({})).output(
-      z.object({
-        url: z.string(),
-        total_rows: z.number(),
-        row_headers: columnToFieldTypesSchema,
-        field_types: columnToFieldTypesSchema,
-        column_types_per_step: z.array(columnToFieldTypesSchema),
-        python_code: z.string().nullish(),
-        sql_code: z.string().nullish(),
-      }),
+      z.union([
+        z.object({
+          url: z.string(),
+          total_rows: z.number(),
+          row_headers: columnToFieldTypesSchema,
+          field_types: columnToFieldTypesSchema,
+          column_types_per_step: z.array(columnToFieldTypesSchema),
+          python_code: z.string().nullish(),
+          sql_code: z.string().nullish(),
+        }),
+        z.object({ error: z.string() }),
+      ]),
     ),
     get_column_values: rpc.input(z.object({ column: z.string() })).output(
       z.object({
@@ -197,10 +203,13 @@ export const DataFrameComponent = memo(
     get_size_bytes,
     host,
   }: DataTableProps): JSX.Element => {
-    const { data, error, isPending } = useAsyncData(
-      () => get_dataframe({}),
-      [value?.transforms],
-    );
+    const { data, error, isPending } = useAsyncData(async () => {
+      const response = await get_dataframe({});
+      if ("error" in response) {
+        throw new Error(response.error);
+      }
+      return response;
+    }, [value?.transforms]);
 
     const {
       url,
