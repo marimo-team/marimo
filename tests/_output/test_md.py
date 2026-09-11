@@ -1023,6 +1023,27 @@ def test_md_display_math_deeper_indent_than_continuation() -> None:
     assert "Next" in result
 
 
+@pytest.mark.parametrize("marker", ["-", "*", "+"])
+def test_md_display_math_bullet_markers(marker: str) -> None:
+    # LIST_MARKER_PATTERN must recognize all three bullet markers python-
+    # markdown's UList processor accepts, not just "-".
+    text = (
+        f"{marker} Item one, no math here.\n"
+        f"{marker} Item two with a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        f"{marker} Item three, plain.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[" in result
+    assert "$$" not in result
+    assert "Item three, plain." in result
+    assert "and continuing text." in result
+
+
 def test_md_display_math_format_preserved() -> None:
     # __format__ should return original markdown text
     text = "Hello\n$$f(x)$$\nworld"
