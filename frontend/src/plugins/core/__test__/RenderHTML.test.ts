@@ -450,6 +450,65 @@ describe("wrapTooltipTargets", () => {
       </Tooltip>
     `);
   });
+
+  test("data-tooltip with newline renders as line breaks", () => {
+    const html =
+      '<span data-tooltip="Line one\nLine two">Hover me</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          [
+            <React.Fragment>
+              Line one
+            </React.Fragment>,
+            <React.Fragment>
+              <br />
+              Line two
+            </React.Fragment>,
+          ]
+        }
+      >
+        <span
+          data-tooltip="Line one
+      Line two"
+        >
+          Hover me
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test("data-tooltip with multiple newlines renders all as line breaks", () => {
+    const html =
+      '<span data-tooltip="A\nB\nC">Hover me</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          [
+            <React.Fragment>
+              A
+            </React.Fragment>,
+            <React.Fragment>
+              <br />
+              B
+            </React.Fragment>,
+            <React.Fragment>
+              <br />
+              C
+            </React.Fragment>,
+          ]
+        }
+      >
+        <span
+          data-tooltip="A
+      B
+      C"
+        >
+          Hover me
+        </span>
+      </Tooltip>
+    `);
+  });
 });
 
 describe("parseHtml with < nad >", () => {
