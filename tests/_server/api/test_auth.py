@@ -72,6 +72,32 @@ def test_custom_session_middleware_secure_flag_enabled(app: Starlette):
     assert "secure" in middleware.security_flags
 
 
+def test_custom_session_middleware_samesite_default(app: Starlette):
+    # Lax by default: the cookie is only sent on same-site requests.
+    middleware = CustomSessionMiddleware(app, "secret_key")
+    assert "samesite=lax" in middleware.security_flags
+
+
+def test_custom_session_middleware_samesite_none_implies_secure(
+    app: Starlette,
+):
+    # Browsers reject SameSite=None without Secure, so honouring the pair as
+    # given would hand back a cookie that is silently dropped. Secure is
+    # implied instead.
+    middleware = CustomSessionMiddleware(
+        app, "secret_key", same_site="none", https_only=False
+    )
+    assert "samesite=none" in middleware.security_flags
+    assert "secure" in middleware.security_flags
+
+
+def test_custom_session_middleware_samesite_strict(app: Starlette):
+    # strict does not imply Secure -- it is usable over plain HTTP.
+    middleware = CustomSessionMiddleware(app, "secret_key", same_site="strict")
+    assert "samesite=strict" in middleware.security_flags
+    assert "secure" not in middleware.security_flags
+
+
 def _app_with_base_url(base_url: str) -> Starlette:
     app = create_starlette_app(base_url=base_url, enable_auth=True)
     get_starlette_server_state_init(base_url=base_url).apply(app.state)
