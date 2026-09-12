@@ -264,7 +264,20 @@ const wrapTooltipTargets: TransformFn = (
     }
     const tooltipContent = domNode.attribs["data-tooltip"];
     return (
-      <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>
+      <Tooltip
+        content={
+          tooltipContent.includes("\n")
+            ? tooltipContent.split("\n").map((line, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </React.Fragment>
+              ))
+            : tooltipContent
+        }
+      >
+        {reactNode as JSX.Element}
+      </Tooltip>
     );
   }
 };
