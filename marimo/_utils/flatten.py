@@ -280,7 +280,11 @@ def flatten(
     return flattened, unflatten_with_validation
 
 
-def contains_instance(value: Any, instance: Any) -> bool:
+def contains_instance(
+    value: Any,
+    instance: Any,
+    extra_children: Callable[[Any], Any | None] | None = None,
+) -> bool:
     """
     Recursively checks if value contains the given instance
     """
@@ -297,6 +301,14 @@ def contains_instance(value: Any, instance: Any) -> bool:
                 return any(_contains_instance(v) for v in value)
             elif isinstance(value, dict):
                 return any(_contains_instance(v) for v in value.values())
+            elif extra_children is not None:
+                # Allow callers to teach this generic utility how to
+                # descend into their own container types (e.g. marimo's
+                # Html containers), without this module needing to know
+                # about those types itself.
+                children = extra_children(value)
+                if children is not None:
+                    return any(_contains_instance(v) for v in children)
         except Exception:
             # .__iter__() or .values() raised. Cannot probe container.
             return False
