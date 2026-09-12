@@ -3189,91 +3189,98 @@ components:
       type: object
       properties: {}
     marimo-dataframe.get_dataframe.output:
-      type: object
-      properties:
-        url:
-          type: string
-        total_rows:
-          type: number
-        row_headers:
-          type: array
-          items:
-            type: array
-            prefixItems:
-              - type: string
-              - type: array
-                prefixItems:
-                  - default: unknown
-                    type: string
-                    enum:
-                      - string
-                      - boolean
-                      - integer
-                      - number
-                      - date
-                      - datetime
-                      - time
-                      - geometry
-                      - unknown
-                  - type: string
-        field_types:
-          type: array
-          items:
-            type: array
-            prefixItems:
-              - type: string
-              - type: array
-                prefixItems:
-                  - default: unknown
-                    type: string
-                    enum:
-                      - string
-                      - boolean
-                      - integer
-                      - number
-                      - date
-                      - datetime
-                      - time
-                      - geometry
-                      - unknown
-                  - type: string
-        column_types_per_step:
-          type: array
-          items:
-            type: array
-            items:
+      anyOf:
+        - type: object
+          properties:
+            url:
+              type: string
+            total_rows:
+              type: number
+            row_headers:
               type: array
-              prefixItems:
-                - type: string
-                - type: array
+              items:
+                type: array
+                prefixItems:
+                  - type: string
+                  - type: array
+                    prefixItems:
+                      - default: unknown
+                        type: string
+                        enum:
+                          - string
+                          - boolean
+                          - integer
+                          - number
+                          - date
+                          - datetime
+                          - time
+                          - geometry
+                          - unknown
+                      - type: string
+            field_types:
+              type: array
+              items:
+                type: array
+                prefixItems:
+                  - type: string
+                  - type: array
+                    prefixItems:
+                      - default: unknown
+                        type: string
+                        enum:
+                          - string
+                          - boolean
+                          - integer
+                          - number
+                          - date
+                          - datetime
+                          - time
+                          - geometry
+                          - unknown
+                      - type: string
+            column_types_per_step:
+              type: array
+              items:
+                type: array
+                items:
+                  type: array
                   prefixItems:
-                    - default: unknown
-                      type: string
-                      enum:
-                        - string
-                        - boolean
-                        - integer
-                        - number
-                        - date
-                        - datetime
-                        - time
-                        - geometry
-                        - unknown
                     - type: string
-        python_code:
-          anyOf:
-            - type: string
-            - type: "null"
-        sql_code:
-          anyOf:
-            - type: string
-            - type: "null"
-      required:
-        - url
-        - total_rows
-        - row_headers
-        - field_types
-        - column_types_per_step
+                    - type: array
+                      prefixItems:
+                        - default: unknown
+                          type: string
+                          enum:
+                            - string
+                            - boolean
+                            - integer
+                            - number
+                            - date
+                            - datetime
+                            - time
+                            - geometry
+                            - unknown
+                        - type: string
+            python_code:
+              anyOf:
+                - type: string
+                - type: "null"
+            sql_code:
+              anyOf:
+                - type: string
+                - type: "null"
+          required:
+            - url
+            - total_rows
+            - row_headers
+            - field_types
+            - column_types_per_step
+        - type: object
+          properties:
+            error:
+              type: string
+          required:
+            - error
     marimo-dataframe.get_size_bytes.input:
       type: object
       properties: {}

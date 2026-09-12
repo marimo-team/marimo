@@ -30,8 +30,8 @@ export const column_id = z
 
 export const column_id_array = z
   .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
-  .min(1, "At least one column is required")
   .default([])
+  .refine((columns) => columns.length > 0, "At least one column is required")
   .describe(FieldOptions.of({ label: "Columns", minLength: 1 }));
 
 const ColumnConversionTransformSchema = z
@@ -39,9 +39,8 @@ const ColumnConversionTransformSchema = z
     type: z.literal("column_conversion"),
     column_id: column_id,
     data_type: z
-      .enum(NUMPY_DTYPES)
-      .describe(FieldOptions.of({ label: "Data type (numpy)" }))
-      .default("bool"),
+      .enum(NUMPY_DTYPES, { error: "Select a target data type" })
+      .describe(FieldOptions.of({ label: "Data type (numpy)" })),
     errors: z
       .enum(["ignore", "raise"])
       .default("ignore")
@@ -139,10 +138,9 @@ const FilterRowsTransformSchema = z.object({
 const GroupByTransformSchema = z
   .object({
     type: z.literal("group_by"),
-    column_ids: z
-      .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
-      .default([])
-      .describe(FieldOptions.of({ label: "Group by columns", minLength: 1 })),
+    column_ids: column_id_array.describe(
+      FieldOptions.of({ label: "Group by columns", minLength: 1 }),
+    ),
     aggregation_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
@@ -239,12 +237,20 @@ const PivotTransformSchema = z
     value_column_ids: z
       .array(column_id.describe(FieldOptions.of({ special: "column_id" })))
       .default([])
-      .describe(FieldOptions.of({ label: "Values", minLength: 1 })),
+      .describe(FieldOptions.of({ label: "Values" })),
     aggregation: z
       .enum(AGGREGATION_FNS)
       .default("sum")
       .describe(FieldOptions.of({ label: "Aggregation" })),
   })
+  .refine(
+    (value) =>
+      value.index_column_ids.length > 0 || value.value_column_ids.length > 0,
+    {
+      message: "Select at least one column in Rows or Values",
+      path: ["value_column_ids"],
+    },
+  )
   .describe(FieldOptions.of({}));
 
 export const TransformTypeSchema = z.union([

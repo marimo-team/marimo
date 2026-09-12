@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import sys
 from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
@@ -11,6 +10,7 @@ from typing import (
     cast,
 )
 
+from marimo._loggers import marimo_logger
 from marimo._messaging.mimetypes import KnownMimeType
 from marimo._output.hypertext import is_non_interactive
 from marimo._output.rich_help import mddoc
@@ -62,6 +62,8 @@ from marimo._utils.variable_name import infer_variable_name
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+LOGGER = marimo_logger()
+
 TOO_MANY_ROWS = 100_000
 
 
@@ -96,10 +98,9 @@ class ColumnNotFound(Exception):
         super().__init__(f"Column {column} does not exist")
 
 
-class GetDataFrameError(Exception):
-    def __init__(self, error: str):
-        self.error = error
-        super().__init__(error)
+@dataclass
+class GetDataFrameError:
+    error: str
 
 
 @mddoc
@@ -254,10 +255,26 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             for name, dtype in self._manager.get_field_types()
         ]
 
-    def _get_dataframe(self, _args: EmptyArgs) -> GetDataFrameResponse:
+    def _get_dataframe(
+        self, _args: EmptyArgs
+    ) -> GetDataFrameResponse | GetDataFrameError:
         if self._error is not None:
-            raise GetDataFrameError(self._error)
+            return GetDataFrameError(self._error)
 
+        try:
+            return self._get_dataframe_response()
+        except Exception as e:
+            LOGGER.debug("Error displaying dataframe", exc_info=e)
+            attributed = self._transform_container.get_error_message(
+                self._last_transforms
+            )
+            return GetDataFrameError(
+                f"Error applying dataframe transform: {attributed}"
+                if attributed is not None
+                else f"Error displaying dataframe: {e}"
+            )
+
+    def _get_dataframe_response(self) -> GetDataFrameResponse:
         manager = self._get_cached_table_manager(self._value, self._limit)
         response = self._search(
             SearchTableArgs(page_size=self._page_size, page_number=0)
@@ -309,22 +326,36 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
             # Return the original data using the undo callback
             return self._undo(self._transform_container._original_df)
 
+        transformations = Transformations([])
         try:
             transformations = parse_raw(
                 normalize_transforms_payload(value), Transformations
             )
-            result, self._column_types_per_step = (
-                self._transform_container.apply(transformations)
+            result, column_types_per_step = self._transform_container.apply(
+                transformations
             )
+            converted = self._undo(result)
 
             self._error = None
             self._last_transforms = transformations
-            return self._undo(result)
+            self._column_types_per_step = column_types_per_step
+            return converted
         except Exception as e:
-            error = f"Error applying dataframe transform: {e!s}\n\n"
-            sys.stderr.write(error)
-            self._error = error
+            self._record_error(e, transformations)
+            if hasattr(self, "_value"):
+                return self._value
             return self._undo(self._transform_container._original_df)
+
+    def _record_error(
+        self, error: Exception, transformations: Transformations
+    ) -> None:
+        LOGGER.debug("Error applying dataframe transform", exc_info=error)
+        attributed = self._transform_container.get_error_message(
+            transformations
+        )
+        self._error = (
+            f"Error applying dataframe transform: {attributed or str(error)}"
+        )
 
     def _search(self, args: SearchTableArgs) -> SearchTableResponse:
         offset = args.page_number * args.page_size

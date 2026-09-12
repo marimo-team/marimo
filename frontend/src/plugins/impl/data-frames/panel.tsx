@@ -105,6 +105,12 @@ export const TransformPanel: React.FC<Props> = ({
 
   const onInvalidSubmit = useEvent(
     (values: z.infer<typeof TransformationsSchema>) => {
+      values.transforms.forEach((_transform, index) => {
+        const path = `transforms.${index}` as const;
+        if (!form.getFieldState(path).isTouched) {
+          form.clearErrors(path);
+        }
+      });
       onInvalidChange(values);
     },
   );
@@ -129,18 +135,21 @@ export const TransformPanel: React.FC<Props> = ({
     return {
       submit: handleApply,
     };
-  }, []);
+  }, [handleApply]);
 
   useEffect(() => {
-    // If lazy, do not auto-submit on input changes
-    if (lazy) {
-      return;
-    }
-    const subscription = watch(() => {
-      handleApply();
+    const subscription = watch((_values, { type, name }) => {
+      if (type === "change") {
+        if (name) {
+          form.setValue(name, form.getValues(name), { shouldTouch: true });
+        }
+        if (!lazy) {
+          handleApply();
+        }
+      }
     });
     return () => subscription.unsubscribe();
-  }, [watch, handleApply, lazy]);
+  }, [watch, handleApply, lazy, form]);
 
   const [selectedTransform, setSelectedTransform] = React.useState<
     number | undefined
@@ -160,10 +169,24 @@ export const TransformPanel: React.FC<Props> = ({
   const selectedTransformSchema = TransformTypeSchema.options.find((option) => {
     return getUnionLiteral(option).value === selectedTransformType;
   });
+  const pendingTransforms = transforms.map(
+    (transform) => !TransformTypeSchema.safeParse(transform).success,
+  );
+  const selectedIsPending =
+    selectedTransform !== undefined && pendingTransforms[selectedTransform];
+  const selectedIsTouched =
+    selectedTransform !== undefined &&
+    Boolean(formState.touchedFields.transforms?.[selectedTransform]);
 
   const effectiveColumns = useMemo(() => {
     return getEffectiveColumns(columns, columnTypesPerStep, selectedTransform);
-  }, [columns, transforms, selectedTransform]);
+  }, [columns, columnTypesPerStep, selectedTransform]);
+
+  const handleStructureChange = () => {
+    if (!lazy) {
+      handleApply();
+    }
+  };
 
   const handleAddTransform = (transform: z.ZodType) => {
     const next: TransformType = getDefaults(
@@ -172,6 +195,7 @@ export const TransformPanel: React.FC<Props> = ({
     const nextIdx = transformsField.fields.length;
     transformsField.append(next);
     setSelectedTransform(nextIdx);
+    handleStructureChange();
   };
 
   return (
@@ -188,11 +212,13 @@ export const TransformPanel: React.FC<Props> = ({
           <Sidebar
             items={form.watch("transforms")}
             selected={selectedTransform}
+            pending={pendingTransforms}
             onSelect={(index) => {
               setSelectedTransform(index);
             }}
             onDelete={(index) => {
               transformsField.remove(index);
+              handleStructureChange();
               const indexBefore = index - 1;
               setSelectedTransform(Math.max(indexBefore, 0));
             }}
@@ -200,13 +226,21 @@ export const TransformPanel: React.FC<Props> = ({
           />
           <div className="flex flex-col flex-1 p-4 overflow-auto min-h-[200px] border-l">
             {selectedTransform !== undefined && selectedTransformSchema && (
-              <ZodForm
-                key={`transforms.${selectedTransform}`}
-                form={form}
-                schema={selectedTransformSchema}
-                path={`transforms.${selectedTransform}`}
-                renderers={DATAFRAME_FORM_RENDERERS}
-              />
+              <>
+                {selectedIsPending && !selectedIsTouched && (
+                  <output className="text-xs text-muted-foreground mb-3">
+                    Complete the required fields to apply this step.
+                  </output>
+                )}
+                <ZodForm
+                  key={`transforms.${selectedTransform}`}
+                  form={form}
+                  schema={selectedTransformSchema}
+                  path={`transforms.${selectedTransform}`}
+                  renderers={DATAFRAME_FORM_RENDERERS}
+                  onArrayChange={handleStructureChange}
+                />
+              </>
             )}
             {(selectedTransform === undefined || !selectedTransformSchema) && (
               <div className="flex flex-col items-center justify-center grow gap-3">
@@ -275,6 +309,7 @@ export const TransformPanel: React.FC<Props> = ({
 interface SidebarProps {
   items: TransformType[];
   selected: number | undefined;
+  pending: boolean[];
   onSelect: (index: number) => void;
   onDelete: (index: number) => void;
   onAdd: (transform: z.ZodType) => void;
@@ -283,6 +318,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   items,
   selected,
+  pending,
   onAdd,
   onSelect,
   onDelete,
@@ -307,14 +343,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="grow text-ellipsis">
                 {Strings.startCase(item.type)}
+                {pending[idx] && (
+                  <span className="block text-xs text-muted-foreground">
+                    Pending
+                  </span>
+                )}
               </div>
-              <Trash2Icon
-                className="w-3 h-3 hover-action text-muted-foreground hover:text-destructive"
+              <button
+                type="button"
+                aria-label={`Delete ${Strings.startCase(item.type)}`}
+                className="hover-action text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                   onDelete(idx);
                   e.stopPropagation();
                 }}
-              />
+              >
+                <Trash2Icon className="w-3 h-3" />
+              </button>
             </div>
           );
         })}

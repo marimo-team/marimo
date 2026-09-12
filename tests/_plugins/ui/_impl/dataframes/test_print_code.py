@@ -164,7 +164,7 @@ def create_transform_strategy(
         RenameColumnTransform,
         type=st.just(TransformType.RENAME_COLUMN),
         column_id=column_id,
-        new_column_id=column_id,
+        new_column_id=column_id.map(lambda name: f"renamed_{name}"),
     ).filter(lambda x: x.column_id != x.new_column_id)
 
     sort_column_transform_strategy = st.builds(
