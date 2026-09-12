@@ -450,6 +450,70 @@ describe("wrapTooltipTargets", () => {
       </Tooltip>
     `);
   });
+
+  test("data-tooltip multiline via &#10; entity renders <br/>", () => {
+    const html =
+      '<span data-tooltip="Line A&#10;Line B&#10;Line C">hover</span>';
+    const result = parseHtml({ html });
+    expect(result).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          [
+            "Line A",
+            <br />,
+            "Line B",
+            <br />,
+            "Line C",
+          ]
+        }
+      >
+        <span
+          data-tooltip="Line A
+      Line B
+      Line C"
+        >
+          hover
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test("data-tooltip multiline via literal \\n renders <br/>", () => {
+    const html = '<span data-tooltip="Line A\nLine B">hover</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          [
+            "Line A",
+            <br />,
+            "Line B",
+          ]
+        }
+      >
+        <span
+          data-tooltip="Line A
+      Line B"
+        >
+          hover
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test("data-tooltip single line still works as before", () => {
+    const html = '<span data-tooltip="Single line">hover</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content="Single line"
+      >
+        <span
+          data-tooltip="Single line"
+        >
+          hover
+        </span>
+      </Tooltip>
+    `);
+  });
 });
 
 describe("parseHtml with < nad >", () => {

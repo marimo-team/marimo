@@ -7,6 +7,7 @@ import parse, {
 } from "html-react-parser";
 import React, {
   cloneElement,
+  Fragment,
   isValidElement,
   type JSX,
   type ReactNode,
@@ -263,9 +264,17 @@ const wrapTooltipTargets: TransformFn = (
       return undefined;
     }
     const tooltipContent = domNode.attribs["data-tooltip"];
-    return (
-      <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>
-    );
+    // Convert literal newlines to <br/> elements so the tooltip renders
+    // multiline content.  &#10; is decoded to \n by html-react-parser
+    // before this transform runs.
+    const lines = tooltipContent.split("\n");
+    const content: ReactNode =
+      lines.length === 1
+        ? tooltipContent
+        : lines.flatMap((line, i) =>
+            i === 0 ? [line] : [<br key={i} />, line],
+          );
+    return <Tooltip content={content}>{reactNode as JSX.Element}</Tooltip>;
   }
 };
 
