@@ -134,4 +134,42 @@ describe("OverridingHotkeyProvider", () => {
     );
     expect(provider.getHotkey("cell.run").key).toBe("Shift-Enter");
   });
+
+  it("should treat an empty override as disabling the hotkey", () => {
+    const provider = new OverridingHotkeyProvider(
+      { "command.enterCommandMode": "" },
+      { platform: "mac" },
+    );
+    expect(provider.getHotkey("command.enterCommandMode").key).toBe("");
+  });
+
+  it("should fall back to the default when an override is undefined", () => {
+    const provider = new OverridingHotkeyProvider(
+      { "command.enterCommandMode": undefined },
+      { platform: "mac" },
+    );
+    expect(provider.getHotkey("command.enterCommandMode").key).toBe("Escape");
+  });
+
+  it("should resolve the vim command mode shortcut per platform", () => {
+    // The shortcuts dialog advertises this key, so it must come from the
+    // provider rather than a hardcoded guess: Windows differs from mac/linux.
+    const key = (platform: "mac" | "windows" | "linux") =>
+      new OverridingHotkeyProvider({}, { platform }).getHotkey(
+        "command.vimEnterCommandMode",
+      ).key;
+    expect(key("windows")).toBe("Shift-Escape");
+    expect(key("mac")).toBe("Cmd-Escape");
+    expect(key("linux")).toBe("Ctrl-Escape");
+  });
+
+  it("should remap the command mode shortcut", () => {
+    const provider = new OverridingHotkeyProvider(
+      { "command.enterCommandMode": "Shift-escape" },
+      { platform: "mac" },
+    );
+    expect(provider.getHotkey("command.enterCommandMode").key).toBe(
+      "Shift-Escape",
+    );
+  });
 });
