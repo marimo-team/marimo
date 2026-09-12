@@ -274,9 +274,7 @@ const wrapTooltipTargets: TransformFn = (
         : lines.flatMap((line, i) =>
             i === 0 ? [line] : [<br key={i} />, line],
           );
-    return (
-      <Tooltip content={content}>{reactNode as JSX.Element}</Tooltip>
-    );
+    return <Tooltip content={content}>{reactNode as JSX.Element}</Tooltip>;
   }
 };
 
