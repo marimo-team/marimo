@@ -516,8 +516,7 @@ describe("wrapTooltipTargets", () => {
   });
 
   test("data-tooltip with newline renders as line breaks", () => {
-    const html =
-      '<span data-tooltip="Line one\nLine two">Hover me</span>';
+    const html = '<span data-tooltip="Line one\nLine two">Hover me</span>';
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
@@ -543,8 +542,7 @@ describe("wrapTooltipTargets", () => {
   });
 
   test("data-tooltip with multiple newlines renders all as line breaks", () => {
-    const html =
-      '<span data-tooltip="A\nB\nC">Hover me</span>';
+    const html = '<span data-tooltip="A\nB\nC">Hover me</span>';
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
