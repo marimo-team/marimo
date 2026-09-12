@@ -38,13 +38,32 @@ class AgentConfig:
         )
 
 
+def _claude_project_roots() -> list[Path]:
+    """Return the `.claude` directories that apply to the current project.
+
+    Claude Code loads project skills from `.claude/skills` in the directory it
+    was started in *and in every parent up to the repository root*, so a skill
+    installed once at the root is available from any subdirectory. Mirror that
+    walk here; checking only the current directory reports the skill missing
+    whenever the notebook lives below the root. Outside a repository there is
+    no root to walk to, so only the current directory applies.
+    """
+    cwd = Path.cwd()
+    candidates = [cwd, *cwd.parents]
+    for index, directory in enumerate(candidates):
+        # A worktree or submodule has `.git` as a file, not a directory.
+        if (directory / ".git").exists():
+            return [d / ".claude" for d in candidates[: index + 1]]
+    return [cwd / ".claude"]
+
+
 def _claude_skill_dirs() -> list[Path]:
     """Return all directories where a Claude Code skill may be installed.
 
     Skills can be installed directly or bundled in a marketplace plugin in
-    both the global (`~/.claude`) and local (`.claude`) config directories.
+    both the global (`~/.claude`) and project (`.claude`) config directories.
     """
-    roots = [Path.home() / ".claude", Path.cwd() / ".claude"]
+    roots = [Path.home() / ".claude", *_claude_project_roots()]
     subdirs = ["skills", "plugins", str(Path("plugins") / "marketplaces")]
     return [
         *[root / sub for root in roots for sub in subdirs],
