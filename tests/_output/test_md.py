@@ -928,6 +928,122 @@ def test_md_math_normalization_skips_fenced_and_inline_code() -> None:
     assert "||(y||)" in result
 
 
+def test_md_display_math_inside_list_item() -> None:
+    # Display math written as a continuation line of a numbered-list item
+    # (no blank line separating it from the item's text, indented only to
+    # the width of the marker) must still render as display math, and the
+    # list item must stay nested rather than popping out to the top level.
+    text = (
+        "1. Item one.\n"
+        "2. Item two with inline $a^2$ math, then a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+
+    # Display math rendered as a block (not left as literal $$ text).
+    assert result.count("||[") == 1
+    assert "E = mc^2" in result
+    assert "$$" not in result
+
+    # Inline math in the same item still renders.
+    assert "||(a^2||)" in result
+
+    # The list stays a single, correctly numbered <ol> -- it doesn't split
+    # into a second list or leave the $$ block as a top-level paragraph.
+    assert result.count("<ol") == 1
+    assert 'start="3"' not in result
+    assert "Item three" in result
+    # The paragraph after the display block stays inside the list item.
+    assert "and continuing text." in result
+
+
+def test_md_display_math_paren_marker_not_treated_as_list() -> None:
+    # "1)" is not recognized as an ordered-list marker by python-markdown
+    # (only "1." is), so an indented $$ block following it must NOT be
+    # widened to 4-space indentation -- doing so would turn it into an
+    # indented code block instead of leaving it as (unrendered) prose,
+    # since it was never inside a real list to begin with.
+    text = (
+        "Some intro text.\n"
+        "\n"
+        "1) Not actually a list item, just prose ending in a number.\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   trailing text.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert "<pre>" not in result
+    assert "codehilite" not in result
+    assert "highlight" not in result
+
+
+def test_md_display_math_list_item_with_blank_line_in_block() -> None:
+    # A blank line inside a $$...$$ block prevents pymdownx.arithmatex from
+    # ever rendering it as math (true at the top level too -- an unrelated,
+    # pre-existing limitation), but it must not cause the list item to pop
+    # out of its list or split the list in two.
+    text = (
+        "1. Item one.\n"
+        "2. Item two with a multi-part display block:\n"
+        "   $$\n"
+        "   a = 1\n"
+        "\n"
+        "   b = 2\n"
+        "   $$\n"
+        "   trailing text.\n"
+        "3. Item three.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ol") == 1
+    assert 'start="3"' not in result
+    assert "Item three" in result
+    assert "trailing text." in result
+
+
+def test_md_display_math_deeper_indent_than_continuation() -> None:
+    # A single-line $$ block indented deeper than the plain continuation
+    # line above it (e.g. 4 columns vs. 2) must not have that extra depth
+    # carried over: it's already at tab_length (4) on its own and needs no
+    # padding, while the continuation line above needs none either since
+    # it's still part of the marker's own (unsplit) paragraph. Padding by
+    # a uniform delta computed from the shallower line would push the $$
+    # to 6 columns, which -- after the list item detabs by tab_length --
+    # leaves a residual 2-space indent that breaks arithmatex's block
+    # match just as badly as being under-indented does.
+    text = "- Item\n  continuation\n    $$x$$\n- Next\n"
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[x||]" in result
+    assert "$$" not in result
+    assert "Next" in result
+
+
+@pytest.mark.parametrize("marker", ["-", "*", "+"])
+def test_md_display_math_bullet_markers(marker: str) -> None:
+    # LIST_MARKER_PATTERN must recognize all three bullet markers python-
+    # markdown's UList processor accepts, not just "-".
+    text = (
+        f"{marker} Item one, no math here.\n"
+        f"{marker} Item two with a display block:\n"
+        "   $$\n"
+        "   E = mc^2\n"
+        "   $$\n"
+        "   and continuing text.\n"
+        f"{marker} Item three, plain.\n"
+    )
+    result = _md(text, apply_markdown_class=False).text
+    assert result.count("<ul") == 1
+    assert "||[" in result
+    assert "$$" not in result
+    assert "Item three, plain." in result
+    assert "and continuing text." in result
+
+
 def test_md_display_math_format_preserved() -> None:
     # __format__ should return original markdown text
     text = "Hello\n$$f(x)$$\nworld"

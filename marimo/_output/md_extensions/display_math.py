@@ -25,6 +25,13 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     # Opening or closing $$ on its own line
     DOLLAR_DOLLAR_PATTERN = re.compile(r"^\s*\$\$\s*$")
 
+    # Matches an ordered/unordered list item marker: "2. ", "- ", "* ", "+ "
+    # Only "N." is recognized by python-markdown's OList processor (unlike
+    # "N)"), so that's all we match here -- treating "1)" as a marker would
+    # misidentify plain prose and push its (non-list) continuation lines to
+    # 4-space indentation, turning them into an indented code block.
+    LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+\.|[-*+])\s+")
+
     # Matches inline RST math role: :math:`...`
     INLINE_MATH_ROLE_PATTERN = re.compile(r"(?<!`):math:`([^`\n]+)`")
     # Matches role variant with embedded HTML code tag: :math:<code>...</code>
@@ -100,6 +107,8 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return "".join(converted_segments)
 
     def _normalize_display_math_spacing(self, lines: list[str]) -> list[str]:
+        lines = self._reindent_list_continuations(lines)
+
         result: list[str] = []
         i = 0
         in_multiline = False
@@ -136,6 +145,121 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
             i += 1
 
         return result
+
+    def _reindent_list_continuations(self, lines: list[str]) -> list[str]:
+        """Widen indentation of a list item's $$ continuation block.
+
+        We surround $$ blocks with blank lines so arithmatex treats them as
+        their own markdown block (see `_normalize_display_math_spacing`).
+        But a blank line turns a tight list item into a loose one, and
+        python-markdown's `ListIndentProcessor` only reattaches a
+        blank-line-separated block to its list item when the block is
+        indented by at least `tab_length` (4 by default) spaces -- indenting
+        it to merely match the width of the list marker (e.g. the 3 columns
+        of "2. ") is not enough. Continuation lines written under a marker
+        narrower than that would otherwise pop out of the list once we add
+        the blank lines, so widen them here first.
+        """
+        tab_length: int = getattr(self.md, "tab_length", 4)
+        result = list(lines)
+        n = len(result)
+        i = 0
+        while i < n:
+            line = result[i]
+            if not line.strip() or self._count_indent(line) == 0:
+                i += 1
+                continue
+
+            start = i
+            in_dollar_block = False
+            while i < n:
+                current = result[i]
+                if not current.strip():
+                    # A blank line inside an open $$...$$ block (e.g. a
+                    # multi-paragraph LaTeX environment) doesn't end the
+                    # continuation -- only a blank line outside one does.
+                    if not in_dollar_block:
+                        break
+                elif self._count_indent(current) == 0:
+                    break
+                elif self.DOLLAR_DOLLAR_PATTERN.match(current):
+                    in_dollar_block = not in_dollar_block
+                i += 1
+            end = i
+
+            preceding = result[start - 1] if start > 0 else ""
+            run = result[start:end]
+            contains_math = any(
+                self.SINGLE_LINE_PATTERN.match(line_)
+                or self.DOLLAR_DOLLAR_PATTERN.match(line_)
+                for line_ in run
+            )
+            if contains_math and self.LIST_MARKER_PATTERN.match(preceding):
+                self._pad_math_segments(result, start, end, tab_length)
+
+        return result
+
+    def _pad_math_segments(
+        self, result: list[str], start: int, end: int, tab_length: int
+    ) -> None:
+        """Independently pad each blank-line-isolated segment to tab_length.
+
+        `_normalize_display_math_spacing` inserts a blank line before/after
+        every $$ construct, which splits a tight list item's continuation
+        into separate blocks: any leading prose directly under the marker
+        (untouched -- it rides along with the marker's own block and was
+        never going to be isolated), then each $$ block, then any prose
+        that follows. Each of those *isolated* segments needs its own
+        indentation raised to exactly tab_length if it falls short.
+
+        We must not pad them as one uniform block: if a shallower segment
+        pulled a $$ block past exactly tab_length, the excess would survive
+        list-item detabbing as a residual indent, which breaks arithmatex's
+        block match just as being under-indented does. And if a deeper
+        segment (e.g. a $$ block someone indented further than the prose
+        around it, deliberately or not) were left as the reference point,
+        a shallower prose segment would be under-padded and pop out of the
+        list.
+        """
+        j = start
+        seen_math = False
+        while j < end:
+            seg_start = j
+            if self.SINGLE_LINE_PATTERN.match(result[j]):
+                j += 1
+                seen_math = True
+            elif self.DOLLAR_DOLLAR_PATTERN.match(result[j]):
+                j += 1
+                while j < end and not self.DOLLAR_DOLLAR_PATTERN.match(
+                    result[j]
+                ):
+                    j += 1
+                if j < end:
+                    j += 1  # include the closing "$$" line
+                seen_math = True
+            else:
+                while j < end and not (
+                    self.SINGLE_LINE_PATTERN.match(result[j])
+                    or self.DOLLAR_DOLLAR_PATTERN.match(result[j])
+                ):
+                    j += 1
+                if seg_start == start and not seen_math:
+                    # Leading prose directly under the marker: still part
+                    # of the marker's own (unsplit) block, so it needs no
+                    # padding regardless of its indentation.
+                    continue
+
+            segment = result[seg_start:j]
+            non_blank = [line_ for line_ in segment if line_.strip()]
+            if not non_blank:
+                continue
+            min_indent = min(self._count_indent(line_) for line_ in non_blank)
+            if 0 < min_indent < tab_length:
+                padding = " " * (tab_length - min_indent)
+                result[seg_start:j] = [
+                    padding + line_ if line_.strip() else line_
+                    for line_ in segment
+                ]
 
     def _split_by_inline_code(self, text: str) -> list[tuple[str, bool]]:
         """Split text into inline-code and non-code segments.
