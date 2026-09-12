@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from marimo._utils.env import env_to_value, is_env_true
+from marimo._utils.env import env_choice, env_to_value, is_env_true
 
 KEY = "MARIMO_TEST_IS_ENV_TRUE"
 ENV_TO_VALUE_KEY = "MARIMO_TEST_ENV_TO_VALUE"
@@ -79,3 +79,39 @@ def test_env_to_value_wraps_plain_string(
 ) -> None:
     monkeypatch.setenv(ENV_TO_VALUE_KEY, "hello")
     assert env_to_value(ENV_TO_VALUE_KEY) == ("hello",)
+
+
+CHOICE_KEY = "MARIMO_TEST_ENV_CHOICE"
+CHOICES = ("lax", "strict", "none")
+
+
+def test_env_choice_unset_uses_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(CHOICE_KEY, raising=False)
+    assert env_choice(CHOICE_KEY, CHOICES, "lax") == "lax"
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("none", "none"),
+        ("NONE", "none"),
+        (" Strict ", "strict"),
+        ("\tlax\n", "lax"),
+    ],
+)
+def test_env_choice_normalizes(
+    monkeypatch: pytest.MonkeyPatch, value: str, expected: str
+) -> None:
+    monkeypatch.setenv(CHOICE_KEY, value)
+    assert env_choice(CHOICE_KEY, CHOICES, "lax") == expected
+
+
+def test_env_choice_unrecognized_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # A typo in a deployment's environment must not stop the server; it
+    # degrades to the documented default.
+    monkeypatch.setenv(CHOICE_KEY, "nonw")
+    assert env_choice(CHOICE_KEY, CHOICES, "lax") == "lax"

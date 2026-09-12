@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Literal
 
-from marimo._utils.env import is_env_true
+from marimo._utils.env import env_choice, is_env_true
+
+SameSite = Literal["lax", "strict", "none"]
+SAME_SITE_CHOICES: tuple[SameSite, ...] = ("lax", "strict", "none")
 
 
 @dataclass
@@ -30,6 +34,16 @@ class GlobalSettings:
     # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default
     # "false" to preserve local (plain-HTTP) development.
     SESSION_COOKIE_SECURE: bool = is_env_true("MARIMO_SESSION_COOKIE_SECURE")
+    # `SameSite` attribute of the session cookie. Set to "none" when marimo is
+    # embedded in an iframe on another site: the cookie is third-party there,
+    # and browsers that restrict third-party cookies drop it under the default
+    # "lax", which leaves token auth unable to complete. "none" implies
+    # `Secure`, so it requires HTTPS.
+    SESSION_COOKIE_SAMESITE: SameSite = field(
+        default_factory=lambda: env_choice(
+            "MARIMO_SESSION_COOKIE_SAMESITE", SAME_SITE_CHOICES, "lax"
+        )
+    )
     # Secret used to sign the session cookie and to hash the auth token stored
     # in it. Defaults to a random value generated once per server process, so
     # cookies are invalidated on restart. Set this to a stable value (e.g.

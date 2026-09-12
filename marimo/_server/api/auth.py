@@ -193,6 +193,7 @@ class CustomSessionMiddleware(SessionMiddleware):
     """
     Wrapper around starlette's SessionMiddleware to:
      - customize the session cookie based on the port and base URL
+     - force `Secure` when the cookie is cross-site (`same_site="none"`)
      - only run in Edit mode
     """
 
@@ -208,6 +209,18 @@ class CustomSessionMiddleware(SessionMiddleware):
         domain: str | None = None,
     ) -> None:
         from packaging import version
+
+        # `SameSite=None` without `Secure` is rejected outright by browsers, so
+        # honouring the pair as given would hand back a cookie that is silently
+        # dropped -- the same failure mode `same_site` exists to fix. Implying
+        # `Secure` keeps the combination usable; it costs nothing, because a
+        # cross-site cookie is unusable over plain HTTP anyway.
+        if same_site == "none" and not https_only:
+            LOGGER.warning(
+                "Session cookie SameSite=None requires Secure; enabling it. "
+                "Serve marimo over HTTPS for the session cookie to be stored."
+            )
+            https_only = True
 
         # We can't update the cookie here since
         # we don't have access to the app state
