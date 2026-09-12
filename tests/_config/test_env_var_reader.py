@@ -35,6 +35,7 @@ def clean_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         (("package_management", "manager"), "pixi", "pixi"),
         (("server", "skip_update_check"), "true", True),
         (("server", "session_cookie_secure"), "1", True),
+        (("server", "session_cookie_partitioned"), "true", True),
         (("server", "session_secret"), "session-secret", "session-secret"),
         (("runtime", "sql_default_limit"), "300", 300),
         (("runtime", "sql_default_limit"), "null", None),
@@ -188,6 +189,7 @@ def test_migrated_settings_from_user_file(
         "follow_symlink": False,
         "skip_update_check": True,
         "session_cookie_secure": True,
+        "session_cookie_partitioned": False,
         "session_secret": "private-secret",
     }
     assert manager.get_config().server.session_secret == "********"

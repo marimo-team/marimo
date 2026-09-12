@@ -10,7 +10,11 @@ import pytest
 from starlette.applications import Starlette
 from starlette.authentication import SimpleUser
 from starlette.datastructures import Headers, QueryParams
-from starlette.requests import HTTPConnection
+from starlette.requests import HTTPConnection, Request
+from starlette.responses import Response
+from starlette.routing import Route, WebSocketRoute
+from starlette.testclient import TestClient
+from starlette.websockets import WebSocket, WebSocketDisconnect
 
 from marimo._config.config import merge_default_config
 from marimo._config.config_schema import ServerConfig
@@ -74,8 +78,15 @@ def test_custom_session_middleware_secure_flag_enabled(app: Starlette):
     assert "secure" in middleware.security_flags
 
 
-def _app_with_base_url(base_url: str) -> Starlette:
-    app = create_starlette_app(base_url=base_url, enable_auth=True)
+def _app_with_base_url(
+    base_url: str, *, partitioned: bool = False
+) -> Starlette:
+    app = create_starlette_app(
+        base_url=base_url,
+        enable_auth=True,
+        host="kernel.example",
+        server_config=ServerConfig(session_cookie_partitioned=partitioned),
+    )
     get_starlette_server_state_init(base_url=base_url).apply(app.state)
     return app
 
@@ -361,12 +372,16 @@ async def test_custom_auth_middleware_without_user():
     assert CustomAuthenticationMiddleware.KEY not in scope
 
 
-async def test_configured_session_secret_signs_and_validates_cookies() -> None:
+@pytest.mark.parametrize("partitioned", [False, True])
+async def test_configured_session_secret_signs_and_validates_cookies(
+    partitioned: bool,
+) -> None:
     config = merge_default_config(
         {
             "server": {
                 "session_secret": "configured-secret",
                 "session_cookie_secure": True,
+                "session_cookie_partitioned": partitioned,
             }
         }
     )
@@ -380,6 +395,7 @@ async def test_configured_session_secret_signs_and_validates_cookies() -> None:
     assert middleware.kwargs == {
         "secret_key": "configured-secret",
         "https_only": True,
+        "partitioned": partitioned,
     }
     conn = create_connection(app)
     await app.build_middleware_stack()(conn.scope, mock_receive, mock_send)
@@ -516,3 +532,176 @@ def test_local_credential_is_scoped_to_execution(
     )
     assert validate_auth(conn) is allowed
     assert conn.session == {}
+
+
+@pytest.mark.parametrize("partitioned", [False, True])
+@pytest.mark.parametrize("base_url", ["", "/nested/path"])
+def test_partitioned_cookie_lifecycle(partitioned: bool, base_url: str):
+    app = _app_with_base_url(base_url, partitioned=partitioned)
+
+    async def session(request: Request) -> Response:
+        if request.method == "DELETE":
+            request.session.clear()
+        else:
+            CookieSession(request.session).set_access_token("test-token")
+        return Response()
+
+    path = f"{base_url}/chips-session"
+    app.router.routes.insert(
+        0, Route(path, session, methods=["GET", "DELETE"])
+    )
+    skew_token = AppState.from_app(app).session_manager.skew_protection_token
+    with TestClient(app, base_url="https://kernel.example") as client:
+        for method in ("GET", "GET", "DELETE"):
+            response = client.request(
+                method,
+                path,
+                headers={"Marimo-Server-Token": str(skew_token)},
+            )
+            cookie = response.headers["set-cookie"].lower()
+            assert "; httponly" in cookie
+            assert ("; partitioned" in cookie) is partitioned
+            assert ("; samesite=none" in cookie) is partitioned
+            assert ("; secure" in cookie) is partitioned
+            assert ("; samesite=lax" in cookie) is not partitioned
+            assert cookie.startswith(
+                "session_1234" + base_url.replace("/", "_") + "="
+            )
+            assert f"path={base_url or '/'};" in cookie
+            if method == "DELETE":
+                assert "expires=thu, 01 jan 1970" in cookie
+
+
+@pytest.mark.parametrize(
+    ("origin", "metadata", "allowed"),
+    [
+        ("https://kernel.example", None, True),
+        ("https://kernel.example:443", None, True),
+        ("https://kernel.example:444", None, False),
+        ("https://kernel.example:0", None, False),
+        ("http://kernel.example", None, False),
+        ("https://attacker.example", None, False),
+        ("https://sibling.kernel.example", None, False),
+        ("null", None, False),
+        ("https://kernel.example/path", None, False),
+        ("https://user@kernel.example", None, False),
+        ("https://kernel.example:invalid", None, False),
+        (None, None, True),
+        (None, "cross-site", False),
+        (None, "same-site", False),
+        (None, "same-origin", True),
+    ],
+)
+@pytest.mark.parametrize("connection_type", ["http", "websocket"])
+def test_partitioned_cookie_origin(
+    app: Starlette,
+    origin: str | None,
+    metadata: str | None,
+    allowed: bool,
+    connection_type: str,
+):
+    conn = create_connection(app)
+    conn.scope.update(
+        type=connection_type,
+        method="POST",
+        scheme="http",
+        marimo_partitioned_session=True,
+        session={
+            "access_token": hash_access_token(
+                str(AppState.from_app(app).session_manager.auth_token)
+            )
+        },
+    )
+    headers = {"host": "kernel.example"}
+    if origin is not None:
+        headers["origin"] = origin
+    if metadata is not None:
+        headers["sec-fetch-site"] = metadata
+    conn.scope["headers"] = Headers(headers).raw
+    assert validate_auth(conn) is allowed
+
+
+@pytest.mark.parametrize("credential", ["query", "bearer"])
+def test_partitioned_cross_origin_explicit_token(
+    app: Starlette, credential: str
+):
+    conn = create_connection(app)
+    token = str(AppState.from_app(app).session_manager.auth_token)
+    conn.scope.update(
+        type="websocket",
+        marimo_partitioned_session=True,
+        session={"access_token": hash_access_token(token)},
+    )
+    headers = {"host": "kernel.example", "origin": "https://attacker.example"}
+    if credential == "bearer":
+        headers["authorization"] = f"Bearer {token}"
+    else:
+        conn.scope["query_string"] = f"access_token={token}".encode()
+    conn.scope["headers"] = Headers(headers).raw
+    assert validate_auth(conn) is True
+
+
+def test_partitioned_websocket_rejects_unrelated_origin():
+    app = _app_with_base_url("", partitioned=True)
+    token = str(AppState.from_app(app).session_manager.auth_token)
+
+    async def session(request: Request) -> Response:
+        CookieSession(request.session).set_access_token(token)
+        return Response()
+
+    async def websocket(socket: WebSocket) -> None:
+        if not validate_auth(socket):
+            await socket.close(code=1008)
+            return
+        await socket.accept()
+        await socket.send_text("authenticated")
+        await socket.close()
+
+    app.router.routes.insert(0, Route("/chips-session", session))
+    app.router.routes.insert(0, WebSocketRoute("/chips-ws", websocket))
+    with TestClient(app, base_url="https://kernel.example") as client:
+        cookie = client.get("/chips-session").headers["set-cookie"]
+        assert "partitioned" in cookie.lower()
+        # Replay the cookie as a browser that ignores Partitioned would.
+        headers = {"cookie": cookie.split(";", 1)[0]}
+        with client.websocket_connect(
+            "wss://kernel.example/chips-ws",
+            headers={**headers, "origin": "https://kernel.example"},
+        ) as socket:
+            assert socket.receive_text() == "authenticated"
+        with pytest.raises(WebSocketDisconnect):
+            with client.websocket_connect(
+                "wss://kernel.example/chips-ws",
+                headers={**headers, "origin": "https://attacker.example"},
+            ):
+                pytest.fail("accepted an unrelated origin")
+
+
+@pytest.mark.parametrize("value", ["true", "1", "false", "0"])
+def test_partitioned_cookie_env(value: str):
+    output = subprocess.check_output(
+        [
+            sys.executable,
+            "-c",
+            'from marimo._config.manager import EnvVarReader; print(EnvVarReader().read()["server"]["session_cookie_partitioned"])',
+        ],
+        env={**os.environ, "MARIMO_SERVER_SESSION_COOKIE_PARTITIONED": value},
+        text=True,
+    )
+    assert output.strip() == str(value in ("true", "1"))
+
+
+def test_partitioned_navigation_does_not_require_kernel_origin(app: Starlette):
+    conn = create_connection(app)
+    conn.scope.update(
+        marimo_partitioned_session=True,
+        session={
+            "access_token": hash_access_token(
+                str(AppState.from_app(app).session_manager.auth_token)
+            )
+        },
+        headers=Headers(
+            {"host": "kernel.example", "origin": "https://hub.example"}
+        ).raw,
+    )
+    assert validate_auth(conn) is True

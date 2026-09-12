@@ -7118,6 +7118,11 @@ export interface components {
        */
       follow_symlink: boolean;
       /**
+       * @description Use partitioned cookies for cross-site HTTPS embeds. Implies SameSite=None and Secure.
+       * @default false
+       */
+      session_cookie_partitioned: boolean;
+      /**
        * @description Only send session cookies over HTTPS. Enable when serving behind TLS.
        * @default false
        */
