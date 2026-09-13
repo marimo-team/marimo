@@ -143,7 +143,7 @@ export function usePendingDeleteService() {
         return entries.size > 1;
       },
     }),
-    [store, submit, clear, entries, deleteCell, deleteManyCells],
+    [submit, clear, entries, deleteCell, deleteManyCells],
   );
 }
 

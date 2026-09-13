@@ -94,8 +94,7 @@ export const FeedbackModal: React.FC<{
   );
 
   const notebook = useAtomValue(notebookAtom);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: recompute when the notebook changes
-  const errors = useMemo(() => getCellErrorEntries(store), [notebook]);
+  const errors = getCellErrorEntries(store);
 
   const cells = notebook.cellIds.inOrderIds.map(
     (cellId) => notebook.cellData[cellId],
