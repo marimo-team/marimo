@@ -14,7 +14,10 @@ from pathlib import Path
 import click
 
 from marimo import _loggers
-from marimo._cli.errors import MarimoCLIMissingDependencyError
+from marimo._cli.errors import (
+    MarimoCLIMissingDependencyError,
+    MarimoCLIRuntimeError,
+)
 from marimo._cli.print import bold, echo, green, muted
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._environments import environment, script_metadata
@@ -122,8 +125,12 @@ def ensure_server_environment(
         return
 
     from marimo._environments.backends import launch_server
+    from marimo._environments.errors import EnvironmentManagerError
 
-    require_sandbox_backend(backend)
+    try:
+        require_sandbox_backend(backend)
+    except EnvironmentManagerError as error:
+        raise MarimoCLIRuntimeError(str(error)) from error
     args = _strip_sandbox_args(sys.argv[1:])
     # Preserve a prompted choice and keep options before notebook arguments.
     index = args.index("--") if "--" in args else len(args)
@@ -581,6 +588,8 @@ def _strip_sandbox_args(cmd: list[str]) -> list[str]:
             continue
         if token == "--sandbox":
             index += 1
+            if index < len(cmd) and cmd[index] in ("uv", "pixi"):
+                index += 1
             continue
         stripped.append(token)
         index += 1

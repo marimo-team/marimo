@@ -741,10 +741,10 @@ def test_strip_sandbox_args() -> None:
     ) == ["-m", "marimo", "edit", "nb.py"]
     assert _strip_sandbox_args(
         ["-m", "marimo", "edit", "--sandbox", "pixi", "nb.py"]
-    ) == ["-m", "marimo", "edit", "pixi", "nb.py"]
+    ) == ["-m", "marimo", "edit", "nb.py"]
     assert _strip_sandbox_args(
         ["-m", "marimo", "edit", "--sandbox", "uv"]
-    ) == ["-m", "marimo", "edit", "uv"]
+    ) == ["-m", "marimo", "edit"]
     assert _strip_sandbox_args(
         ["-m", "marimo", "run", "--sandbox", "nb.py", "--", "--sandbox"]
     ) == ["-m", "marimo", "run", "nb.py", "--", "--sandbox"]
@@ -785,3 +785,27 @@ def test_sandbox_launch_normalizes_child_status(
     process.wait.return_value = returncode
     with patch("marimo._cli.sandbox.subprocess.Popen", return_value=process):
         assert _wait_on_plan(ProcessPlan(argv=("uv",), env={})) == expected
+
+
+def test_editor_reports_unsupported_sandbox_backend(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from click.testing import CliRunner
+
+    from marimo._cli.cli import main
+    from marimo._environments.errors import EnvironmentManagerError
+
+    def unavailable(_backend: str) -> None:
+        raise EnvironmentManagerError(
+            "pixi is too old for script environments"
+        )
+
+    monkeypatch.delenv("MARIMO_SERVER_OVERLAY", raising=False)
+    monkeypatch.setattr(
+        "marimo._environments.backends.ensure_available", unavailable
+    )
+    result = CliRunner().invoke(
+        main, ["new", "--sandbox", "pixi", "--headless"]
+    )
+    assert result.exit_code == 1
+    assert "Error: pixi is too old for script environments" in result.output

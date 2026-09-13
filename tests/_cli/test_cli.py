@@ -1390,20 +1390,24 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
 
 @pytest.mark.parametrize("command", ["edit", "run"])
 @pytest.mark.parametrize(
-    ("option", "backend"), [("--sandbox=pixi", "pixi"), ("--sandbox", "uv")]
+    ("options", "backend"),
+    [
+        (["--sandbox"], "uv"),
+        (["--sandbox=uv"], "uv"),
+        (["--sandbox=pixi"], "pixi"),
+        (["--sandbox", "uv"], "uv"),
+        (["--sandbox", "pixi"], "pixi"),
+    ],
 )
-@pytest.mark.parametrize("directory", ["pixi", "uv"])
-def test_cli_sandbox_records_backend_and_preserves_paths(
+def test_cli_sandbox_selects_backend(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     command: str,
-    option: str,
+    options: list[str],
     backend: str,
-    directory: str,
 ) -> None:
-    """Directories named after backends remain positional paths."""
     monkeypatch.chdir(tmp_path)
-    notebook_dir = tmp_path / directory
+    notebook_dir = tmp_path / "notebooks"
     notebook_dir.mkdir()
     (notebook_dir / "nb.py").write_text(
         codegen.generate_filecontents(
@@ -1414,13 +1418,10 @@ def test_cli_sandbox_records_backend_and_preserves_paths(
         encoding="utf-8",
     )
     monkeypatch.setenv("MARIMO_SERVER_OVERLAY", "1")
-    runner = CliRunner()
     with patch("marimo._cli.cli.start") as start_server:
-        result = runner.invoke(
-            cli_main,
-            [command, option, directory, "--headless"],
+        result = CliRunner().invoke(
+            cli_main, [command, *options, "notebooks", "--headless"]
         )
-
     assert result.exit_code == 0, result.output
     assert start_server.call_args.kwargs["sandbox"] == backend
     assert start_server.call_args.kwargs["workspace"].directory == str(

@@ -70,8 +70,7 @@ def _normalize_sandbox_args(args: list[str]) -> list[str]:
 
     Click options cannot reliably accept both an optional value and a
     following positional argument. Normalize the bare spelling before Click
-    parses it. Explicit backends use `--sandbox=pixi`; following paths named
-    `uv` or `pixi` and arguments after `--` remain positional arguments.
+    parses it, leaving explicit uv/pixi values for Click to consume.
     """
     normalized = list(args)
     try:
@@ -79,13 +78,15 @@ def _normalize_sandbox_args(args: list[str]) -> list[str]:
     except ValueError:
         limit = len(normalized)
     for index, token in enumerate(normalized[:limit]):
-        if token == "--sandbox":
+        if token == "--sandbox" and (
+            index + 1 == limit or normalized[index + 1] not in ("uv", "pixi")
+        ):
             normalized[index] = "--sandbox=uv"
     return normalized
 
 
 class SandboxCommand(RunCommand):
-    """Accept bare `--sandbox` and explicit `--sandbox=<backend>`."""
+    """Accept `--sandbox` with an optional uv/pixi backend."""
 
     def parse_args(self, ctx: click.Context, args: list[str]) -> list[str]:
         return super().parse_args(ctx, _normalize_sandbox_args(args))

@@ -426,6 +426,7 @@ def test_launch_kernel_handshake_reports_identity() -> None:
     assert exe is not None
 
 
+@pytest.mark.requires("zmq")
 @pytest.mark.parametrize("outcome", ["exit", "timeout", "cancel"])
 async def test_startup_failure_stops_kernel(
     outcome: str, monkeypatch: pytest.MonkeyPatch
