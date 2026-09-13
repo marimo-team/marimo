@@ -206,6 +206,19 @@ export class RuntimeManager {
     return this.formatWsURL(`/lsp/${lsp}`);
   }
 
+  /**
+   * The WebSocket URL of an external ACP agent.
+   */
+  getAgentWsURL(agentId: string): URL {
+    const url = this.formatWsURL(`/acp/${encodeURIComponent(agentId)}`);
+    const accessToken = url.searchParams.get(KnownQueryParams.accessToken);
+    url.search = "";
+    if (accessToken) {
+      url.searchParams.set(KnownQueryParams.accessToken, accessToken);
+    }
+    return url;
+  }
+
   getAiURL(path: "completion" | "chat"): URL {
     return this.formatHttpURL({ path: `/api/ai/${path}` });
   }

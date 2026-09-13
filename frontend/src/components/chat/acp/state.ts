@@ -3,6 +3,7 @@
 import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import { isPlatformWindows } from "@/core/hotkeys/shortcuts";
+import { getRuntimeManager } from "@/core/runtime/config";
 import { jotaiJsonStorage } from "@/utils/storage/jotai";
 import { capitalize } from "@/utils/strings";
 import type { TypedString } from "@/utils/typed";
@@ -238,15 +239,19 @@ export function getAgentDisplayName(agentId: ExternalAgentId): string {
 }
 
 export function getAgentWebSocketUrl(agentId: ExternalAgentId): string {
-  const port = AGENT_CONFIG[agentId].port;
-  // Use the current page's hostname so the agent is reachable when
-  // marimo is accessed remotely (e.g. via direct IP or reverse proxy).
-  const hostname = window.location.hostname;
-  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${hostname}:${port}/message` as const;
+  // Connect through the marimo server (`<base>/acp/<agentId>`) rather than
+  // directly to the agent's port, which isn't reachable from the browser when
+  // marimo is served behind a reverse proxy.
+  return getRuntimeManager().getAgentWsURL(agentId).toString();
 }
 
 interface AgentConfig {
+  /**
+   * Port the agent's websocket bridge listens on. Only used to render the
+   * connection command shown to the user -- the browser reaches the agent
+   * through the marimo server, not this port. Must stay in sync with
+   * `ACP_AGENT_PORTS` in `marimo/_server/main.py`.
+   */
   port: number;
   command: string;
   sessionSupport: SessionSupportType;

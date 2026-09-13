@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Final
 
 from starlette.applications import Starlette
 from starlette.exceptions import HTTPException
@@ -23,6 +23,7 @@ from marimo._server.api.middleware import (
     ProxyMiddleware,
     SkewProtectionMiddleware,
     TimeoutMiddleware,
+    create_proxy_error_handler,
 )
 from marimo._server.api.router import build_routes
 from marimo._server.errors import handle_error
@@ -46,6 +47,17 @@ class LspPorts:
     copilot: int | None
 
 
+# This must stay in sync with AGENT_CONFIG in
+# frontend/src/components/chat/acp/state.ts
+ACP_AGENT_PORTS: Final[dict[str, int]] = {
+    "claude": 3017,
+    "gemini": 3019,
+    "codex": 3021,
+    "opencode": 3023,
+    "cursor": 3025,
+}
+
+
 # Create app
 def create_starlette_app(
     *,
@@ -56,6 +68,7 @@ def create_starlette_app(
     enable_auth: bool = True,
     allow_origins: tuple[str, ...] | None = None,
     lsp_servers: list[LspServer] | None = None,
+    enable_acp_proxy: bool = False,
     skew_protection: bool = True,
     timeout: float | None = None,
 ) -> Starlette:
@@ -109,6 +122,11 @@ def create_starlette_app(
             )
         )
 
+    if enable_acp_proxy:
+        final_middlewares.extend(
+            _create_acp_proxy_middleware(base_url=base_url)
+        )
+
     if middleware:
         final_middlewares.extend(middleware)
 
@@ -145,3 +163,31 @@ def _create_lsps_proxy_middleware(
         )
         for server in servers
     )
+
+
+def _create_acp_proxy_middleware(base_url: str) -> Iterator[Middleware]:
+    """Proxy the external ACP agents' websockets through the marimo server.
+
+    The agents listen on fixed localhost ports, which aren't reachable from
+    the browser when marimo is served behind a reverse proxy. Proxying them
+    under `<base_url>/acp/<agent_id>` keeps the connection same-origin, so it
+    only needs the port marimo is already served on.
+    """
+    return (
+        Middleware(
+            ProxyMiddleware,
+            proxy_path=f"{base_url}/acp/{agent_id}",
+            target_url=f"http://127.0.0.1:{port}",
+            path_rewrite=_rewrite_acp_path,
+            connection_error_handler=create_proxy_error_handler(
+                f"The {agent_id} agent is not running. "
+                "Start it with the command shown in the agent panel."
+            ),
+        )
+        for agent_id, port in ACP_AGENT_PORTS.items()
+    )
+
+
+def _rewrite_acp_path(_path: str) -> str:
+    """ACP agents serve a single endpoint, regardless of the proxied path."""
+    return "/message"

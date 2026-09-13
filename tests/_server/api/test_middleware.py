@@ -32,6 +32,8 @@ from marimo._server.codes import WebSocketCodes
 from marimo._server.config import StarletteServerStateInit
 from marimo._server.lsp import BaseLspServer
 from marimo._server.main import (
+    ACP_AGENT_PORTS,
+    _create_acp_proxy_middleware,
     _create_lsps_proxy_middleware,
     create_starlette_app,
 )
@@ -956,3 +958,124 @@ class TestLspProxyAuth:
             target_url="http://example.com",
         )
         assert middleware.require_auth is True
+
+
+class TestAcpProxyMiddleware:
+    """Test that ACP agent proxy middleware respects base_url configuration."""
+
+    EXPECTED_AGENT_PORTS = {
+        "claude": 3017,
+        "gemini": 3019,
+        "codex": 3021,
+        "opencode": 3023,
+        "cursor": 3025,
+    }
+
+    def test_acp_proxy_ports_match_frontend(self) -> None:
+        assert ACP_AGENT_PORTS == self.EXPECTED_AGENT_PORTS
+
+    def test_acp_proxy_without_base_url(self) -> None:
+        middlewares = list(_create_acp_proxy_middleware(base_url=""))
+
+        assert {
+            mw.kwargs["proxy_path"]: mw.kwargs["target_url"]
+            for mw in middlewares
+        } == {
+            f"/acp/{agent_id}": f"http://127.0.0.1:{port}"
+            for agent_id, port in self.EXPECTED_AGENT_PORTS.items()
+        }
+
+    def test_acp_proxy_with_base_url(self) -> None:
+        middlewares = list(_create_acp_proxy_middleware(base_url="/foo"))
+
+        assert {mw.kwargs["proxy_path"] for mw in middlewares} == {
+            f"/foo/acp/{agent_id}" for agent_id in self.EXPECTED_AGENT_PORTS
+        }
+
+    def test_acp_proxy_rewrites_path_to_message(self) -> None:
+        # ACP agents serve everything on /message, so the proxied path is
+        # discarded.
+        middlewares = list(_create_acp_proxy_middleware(base_url="/foo"))
+
+        path_rewrite = middlewares[0].kwargs["path_rewrite"]
+        assert path_rewrite("/foo/acp/claude") == "/message"
+
+    def test_acp_proxy_integration(self) -> None:
+        """Verify the ACP proxy works with create_starlette_app."""
+        app = create_starlette_app(base_url="/marimo", enable_acp_proxy=True)
+
+        proxy_mw = [
+            mw
+            for mw in app.user_middleware
+            if mw.cls == ProxyMiddleware
+            and mw.kwargs.get("proxy_path") == "/marimo/acp/claude"
+        ]
+
+        assert len(proxy_mw) == 1
+        assert proxy_mw[0].kwargs["target_url"] == "http://127.0.0.1:3017"
+
+    def test_acp_proxy_not_registered_by_default(self) -> None:
+        app = create_starlette_app(base_url="")
+
+        proxy_paths = [
+            mw.kwargs.get("proxy_path")
+            for mw in app.user_middleware
+            if mw.cls == ProxyMiddleware
+        ]
+
+        assert not any(
+            path and path.startswith("/acp/") for path in proxy_paths
+        )
+
+
+class TestAcpProxyAuth:
+    """Access control for the ACP agent proxy middleware."""
+
+    @pytest.fixture
+    def acp_app(self) -> Starlette:
+        app = create_starlette_app(
+            base_url="",
+            enable_acp_proxy=True,
+            skew_protection=False,
+        )
+        with_server(app)
+        init_state(
+            session_manager=get_mock_session_manager(mode=SessionMode.EDIT),
+            skew_protection=False,
+        ).apply(app.state)
+        return app
+
+    def test_http_unauthenticated_is_rejected(
+        self, acp_app: Starlette
+    ) -> None:
+        client = TestClient(acp_app)
+        response = client.get("/acp/claude")
+        assert response.status_code == 401, response.text
+
+    def test_websocket_unauthenticated_is_rejected(
+        self, acp_app: Starlette
+    ) -> None:
+        client = TestClient(acp_app)
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect("/acp/claude"):
+                pass
+        assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+
+    def test_websocket_bad_access_token_is_rejected(
+        self, acp_app: Starlette
+    ) -> None:
+        client = TestClient(acp_app)
+        with pytest.raises(WebSocketDisconnect) as exc_info:
+            with client.websocket_connect(
+                "/acp/claude?access_token=not-the-right-token"
+            ):
+                pass
+        assert exc_info.value.code == WebSocketCodes.UNAUTHORIZED
+
+    def test_http_authenticated_is_forwarded(self, acp_app: Starlette) -> None:
+        client = TestClient(acp_app)
+        response = client.get(
+            "/acp/claude",
+            headers=token_header("fake-token"),
+        )
+        assert response.status_code != 401, response.text
