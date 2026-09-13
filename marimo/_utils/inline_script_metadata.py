@@ -408,7 +408,7 @@ def get_headers_from_frontmatter(
 
     pyproject = frontmatter.get("pyproject", "")
     if pyproject:
-        if not pyproject.startswith("#"):
+        if not pyproject.startswith("# /// script"):
             # Wrap raw TOML content in PEP 723 format
             pyproject = script_metadata.wrap_block(pyproject)
         headers["pyproject"] = pyproject

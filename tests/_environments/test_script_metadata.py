@@ -503,3 +503,78 @@ def test_readonly_notebook_directory_fails_clearly(
                 pytest.fail("must preserve adjacent path semantics")
     finally:
         os.chmod(tmp_path, 0o700)
+
+
+@pytest.mark.parametrize("suffix", [".py", ".md", ".qmd"])
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_replace_whole_manifest_preserves_custom_tables_and_notebook(
+    tmp_path: Path, suffix: str, newline: str
+) -> None:
+    path = tmp_path / f"notebook{suffix}"
+    original = 'dependencies = ["numpy==0.0.0"]\n'
+    replacement = """# Keep this comment and the user's table order.
+[tool.custom]
+label = "my experiment"
+
+[tool.uv.sources]
+numpy = { path = "../numpy", editable = true }
+
+[tool.pixi.dependencies]
+python = ">=3.12"
+"""
+    body = "\n# Notebook content\nprint('unchanged')\n"
+    if suffix == ".py":
+        source = script_metadata.wrap_block(original) + "\n" + body
+    else:
+        source = (
+            "---\ntitle: My notebook\npyproject: |\n"
+            '  dependencies = ["numpy==0.0.0"]\n---\n' + body
+        )
+    path.write_bytes(source.replace("\n", newline).encode())
+    previous = script_metadata.read_manifest(str(path))
+    saved = script_metadata.write_manifest(
+        str(path), replacement, previous=previous
+    )
+    assert saved == replacement
+    assert path.read_bytes().endswith(body.replace("\n", newline).encode())
+    if suffix != ".py":
+        assert "title: My notebook" in path.read_text()
+
+
+def test_manifest_repair_rejects_stale_edits_but_preserves_new_code(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "notebook.py"
+    broken = "dependencies = [\n"
+    path.write_text(script_metadata.wrap_block(broken) + "\nprint('old')\n")
+    previous = script_metadata.read_manifest(str(path))
+    path.write_text(path.read_text().replace("print('old')", "print('new')"))
+    script_metadata.write_manifest(
+        str(path), "[tool.custom]\nvalue = 1\n", previous=previous
+    )
+    saved = path.read_text()
+    with pytest.raises(script_metadata.ManifestConflictError):
+        script_metadata.write_manifest(
+            str(path), "dependencies = []\n", previous=previous
+        )
+    with pytest.raises(ValueError):
+        script_metadata.write_manifest(str(path), broken, previous=previous)
+    assert path.read_text() == saved
+    assert saved.endswith("print('new')\n")
+
+
+def test_manifest_replacement_preserves_crlf_notebook_code(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "notebook.py"
+    path.write_bytes(
+        b'# /// script\r\n# dependencies = []\r\n# ///\r\nprint("keep")\r\n'
+    )
+    previous = script_metadata.read_manifest(str(path))
+    script_metadata.write_manifest(
+        str(path), "[tool.custom]\nvalue = 1\n", previous=previous
+    )
+    assert (
+        path.read_bytes()
+        == b'# /// script\r\n# [tool.custom]\r\n# value = 1\r\n# ///\r\nprint("keep")\r\n'
+    )

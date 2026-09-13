@@ -20,10 +20,12 @@ export const StatusOverlay: React.FC<{
   onReconnect?: () => void;
 }> = ({ connection, isRunning, onReconnect }) => {
   const { mode } = useAtomValue(viewStateAtom);
-  const isClosed = connection.state === WebSocketState.CLOSED;
+  const isClosed =
+    connection.state === WebSocketState.CLOSED &&
+    (mode === "read" ||
+      connection.code !== WebSocketClosedReason.KERNEL_STARTUP_ERROR);
   const isOpen = connection.state === WebSocketState.OPEN;
-  // Only KERNEL_DISCONNECTED is recoverable by a retry. KERNEL_STARTUP_ERROR
-  // would deterministically fail the same way.
+  // Editor startup failures have their own recovery UI.
   const canReconnect =
     isClosed && connection.code === WebSocketClosedReason.KERNEL_DISCONNECTED;
 

@@ -7,7 +7,13 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._config.settings import GLOBAL_SETTINGS
-from marimo._environments.sandbox import NotebookSandbox
+from marimo._environments import script_metadata
+from marimo._environments.backends import current_backend
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
+from marimo._environments.sandbox import Backend, NotebookSandbox
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.sandbox_package_manager import (
@@ -25,8 +31,13 @@ from marimo._server.models.packages import (
     PackageOperationResponse,
     RemovePackageRequest,
     SandboxPackageContext,
+    SandboxRequest,
+    SandboxResponse,
+    SyncSandboxResponse,
+    UpdateManifestRequest,
 )
 from marimo._server.router import APIRouter
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -249,3 +260,142 @@ def _get_filename(request: Request) -> str | None:
     if session is None:
         return None
     return session.app_file_manager.filename
+
+
+def _sandbox_source(
+    request: Request, file_key: str | None, *, mutation: bool = False
+) -> tuple[NotebookSandbox | None, str | None, Backend | None]:
+    state = AppState(request)
+    manager = state.session_manager
+    if mutation and manager.is_session_starting(
+        state.require_current_session_id()
+    ):
+        raise HTTPException(409, "Wait for sandbox preparation to finish.")
+    session = state.get_current_session()
+    if session is not None:
+        sandbox = getattr(session, "notebook_sandbox", None)
+        if isinstance(sandbox, NotebookSandbox):
+            return sandbox, sandbox.source, sandbox.backend
+        return None, None, None
+    if not manager.sandbox:
+        return None, None, None
+    key = file_key or manager.workspace.get_unique_file_key()
+    path = manager.workspace.resolve(key) if key else None
+    return None, path, current_backend()
+
+
+@router.post("/sandbox")
+@requires("edit")
+async def get_sandbox(request: Request) -> SandboxResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SandboxRequest"
+    responses:
+        200:
+            description: Sandbox manifest, available before kernel startup
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SandboxResponse"
+    """
+    body = await parse_request(request, cls=SandboxRequest)
+    _, path, backend = _sandbox_source(request, body.file_key)
+    manifest = (
+        await asyncio.to_thread(script_metadata.read_manifest, path)
+        if path is not None
+        else None
+    )
+    return SandboxResponse(backend=backend, manifest=manifest, filename=path)
+
+
+@router.post("/manifest")
+@requires("edit")
+async def update_manifest(request: Request) -> SandboxResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/UpdateManifestRequest"
+    responses:
+        200:
+            description: Save notebook metadata without changing its cells
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SandboxResponse"
+    """
+    body = await parse_request(request, cls=UpdateManifestRequest)
+    _, path, backend = _sandbox_source(request, body.file_key, mutation=True)
+    if path is None or backend is None:
+        raise HTTPException(400, "No notebook manifest is available to edit.")
+    try:
+        manifest = await asyncio.to_thread(
+            script_metadata.write_manifest,
+            path,
+            body.contents,
+            previous=body.previous,
+        )
+    except script_metadata.ManifestConflictError as error:
+        raise HTTPException(409, str(error)) from error
+    except (ValueError, EnvironmentManagerError) as error:
+        raise HTTPException(400, str(error)) from error
+    return SandboxResponse(backend=backend, manifest=manifest, filename=path)
+
+
+@router.post("/sync")
+@requires("edit")
+async def sync_sandbox(request: Request) -> SyncSandboxResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/SandboxRequest"
+    responses:
+        200:
+            description: Apply the saved manifest, or reconnect to retry startup
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/SyncSandboxResponse"
+    """
+    body = await parse_request(request, cls=SandboxRequest)
+    sandbox, _, backend = _sandbox_source(
+        request, body.file_key, mutation=True
+    )
+    if backend is None:
+        raise HTTPException(400, "This notebook does not use a sandbox.")
+    if sandbox is None:
+        # Connection creation owns provisioning and streams its progress.
+        return SyncSandboxResponse(success=True, reconnect=True)
+    try:
+        await sandbox.sync_async()
+    except SandboxRestartRequired as error:
+        return SyncSandboxResponse(
+            success=False, error=str(error), restart_required=True
+        )
+    except (EnvironmentManagerError, OSError) as error:
+        return SyncSandboxResponse(success=False, error=str(error))
+    return SyncSandboxResponse(success=True)
