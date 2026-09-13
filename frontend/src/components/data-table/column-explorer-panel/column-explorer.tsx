@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeOffIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocale } from "react-aria";
 import {
   AddDataframeChart,
