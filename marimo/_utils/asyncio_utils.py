@@ -7,6 +7,8 @@
   where the loop's default handler would otherwise swallow them).
 - `cancel_and_wait`: the `task.cancel(); await task` /
   `except CancelledError` dance, in one place.
+- `run_on_subprocess_capable_loop`: `asyncio.run` on a loop that can spawn
+  subprocesses, even when marimo installed the Windows selector policy.
 """
 
 from __future__ import annotations
@@ -128,6 +130,66 @@ def fire_and_forget(
     return supervised_task(coro, name=name, registry=_BACKGROUND_TASKS)
 
 
+def run_on_subprocess_capable_loop(coro: Coroutine[Any, Any, T]) -> T:
+    """Run `coro` to completion on a fresh loop that supports subprocesses.
+
+    Equivalent to `asyncio.run(coro)`, except on Windows, where the loop is
+    always a `ProactorEventLoop`. marimo installs the
+    `WindowsSelectorEventLoopPolicy` process-wide because the server needs
+    `add_reader()`, but selector loops on Windows cannot spawn subprocesses,
+    so user code calling `asyncio.create_subprocess_exec` would fail.
+
+    The global policy is never mutated: other threads (e.g. the server)
+    create event loops concurrently and would race with the change.
+    """
+    if sys.platform != "win32":
+        return asyncio.run(coro)
+    if asyncio._get_running_loop() is not None:
+        raise RuntimeError(
+            "asyncio.run() cannot be called from a running event loop"
+        )
+    if sys.version_info >= (3, 12):
+        return asyncio.run(coro, loop_factory=asyncio.ProactorEventLoop)
+    if sys.version_info >= (3, 11):
+        with asyncio.Runner(loop_factory=asyncio.ProactorEventLoop) as runner:
+            return runner.run(coro)
+    return _run_with_loop_factory_py310(coro, asyncio.ProactorEventLoop)
+
+
+def _run_with_loop_factory_py310(
+    coro: Coroutine[Any, Any, T],
+    loop_factory: Callable[[], asyncio.AbstractEventLoop],
+) -> T:
+    # Mirrors CPython 3.10's `asyncio.run`, which has no `loop_factory`.
+    loop = loop_factory()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            to_cancel = asyncio.all_tasks(loop)
+            for task in to_cancel:
+                task.cancel()
+            loop.run_until_complete(
+                asyncio.gather(*to_cancel, return_exceptions=True)
+            )
+            for task in to_cancel:
+                if not task.cancelled() and task.exception() is not None:
+                    loop.call_exception_handler(
+                        {
+                            "message": "unhandled exception during "
+                            "asyncio.run() shutdown",
+                            "exception": task.exception(),
+                            "task": task,
+                        }
+                    )
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.run_until_complete(loop.shutdown_default_executor())
+        finally:
+            asyncio.set_event_loop(None)
+            loop.close()
+
+
 async def cancel_and_wait(task: asyncio.Task[Any]) -> None:
     """Cancel `task` and await its completion, suppressing `CancelledError`.
 
@@ -151,5 +213,6 @@ __all__ = [
     "cancel_and_wait",
     "fire_and_forget",
     "initialize_asyncio",
+    "run_on_subprocess_capable_loop",
     "supervised_task",
 ]

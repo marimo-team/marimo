@@ -4675,11 +4675,11 @@ def _filter_to_error_ops(
 class TestLaunchKernelEventLoop:
     """Event-loop policy / factory selection in launch_kernel.
 
-    The kernel subprocess must run on the Windows ProactorEventLoop so
-    user code can use asyncio.create_subprocess_exec() and other APIs
-    the SelectorEventLoop does not implement. The server keeps the
-    SelectorEventLoop because ConnectionDistributor relies on
-    loop.add_reader().
+    The server keeps the SelectorEventLoop because ConnectionDistributor
+    relies on loop.add_reader(). Kernels that run user code use a
+    ProactorEventLoop on Windows so asyncio.create_subprocess_exec()
+    works: child processes via the policy / loop_factory, in-process
+    run-mode threads via run_on_subprocess_capable_loop.
 
     Each test exercises a single (platform, python-version) branch and
     skips when the current runner doesn't match it. CI runs across all
@@ -4799,16 +4799,32 @@ class TestLaunchKernelEventLoop:
 
     @pytest.mark.skipif(
         sys.platform != "win32",
-        reason="run-mode guard is only meaningful on Windows",
+        reason="exercises the Windows run-mode branch",
     )
-    def test_run_mode_on_windows_does_not_touch_event_loop_policy(
-        self, harness
-    ):
-        # Run mode (not edit, not IPC) runs in-process on the server's
-        # loop and must NOT mutate the event loop policy — the server
-        # uses the Selector loop for ConnectionDistributor.add_reader().
+    @pytest.mark.usefixtures("harness")
+    def test_run_mode_on_windows_uses_subprocess_capable_loop(self) -> None:
+        # Patch the helper itself: on 3.10/3.11 it doesn't go through
+        # asyncio.run, so the harness mock would not observe it.
+        with (
+            patch(
+                "marimo._runtime.runtime.run_on_subprocess_capable_loop",
+                side_effect=self._fake_asyncio_run,
+            ) as helper,
+            patch.object(asyncio, "set_event_loop_policy") as set_policy,
+        ):
+            self._call_launch_kernel(is_edit_mode=False)
+
+        helper.assert_called_once()
+        set_policy.assert_not_called()
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="exercises the non-Windows run-mode branch",
+    )
+    def test_run_mode_on_non_windows_uses_plain_asyncio_run(self, harness):
         with patch.object(asyncio, "set_event_loop_policy") as set_policy:
             self._call_launch_kernel(is_edit_mode=False)
 
         set_policy.assert_not_called()
+        assert harness.call_count == 1
         assert "loop_factory" not in harness.call_args.kwargs

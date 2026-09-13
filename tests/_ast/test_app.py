@@ -632,6 +632,32 @@ class TestApp:
         assert defs["y"] == 1
 
     @staticmethod
+    @pytest.mark.skipif(
+        sys.platform != "win32", reason="Windows event loop regression"
+    )
+    def test_run_async_subprocess() -> None:
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[str]:
+            import asyncio
+            import sys
+
+            proc = await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-c",
+                "print('ok')",
+                stdout=asyncio.subprocess.PIPE,
+            )
+            stdout, _ = await proc.communicate()
+            output = stdout.decode().strip()
+            return (output,)
+
+        _, defs = app.run()
+
+        assert defs["output"] == "ok"
+
+    @staticmethod
     def test_run_mo_stop() -> None:
         app = App()
 
