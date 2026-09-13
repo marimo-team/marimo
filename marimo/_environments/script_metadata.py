@@ -95,7 +95,7 @@ def read_manifest(path: str) -> str:
 def write_manifest(path: str, contents: str, *, previous: str) -> str:
     """Replace only metadata, rejecting stale edits and invalid TOML."""
     toml_reader.reads(contents)
-    if any(line.startswith("///") for line in contents.splitlines()):
+    if any(line == "///" for line in contents.splitlines()):
         raise ScriptMetadataError("The manifest cannot contain script markers")
     with notebook_file_lock(path), materialized_for_edit(path) as target:
         file = Path(target.path)

@@ -1020,3 +1020,45 @@ def test_manifest_access_uses_workspace_permissions(
     )
     assert response.status_code == 404
     assert denied.read_text() == "private = True\n"
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "operation"),
+    [("sandbox", "read_manifest"), ("manifest", "write_manifest")],
+)
+def test_manifest_file_errors_are_reported(
+    client: TestClient,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
+    operation: str,
+) -> None:
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
+
+    path = tmp_path / "notebook.py"
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages.current_backend", lambda: "uv"
+    )
+
+    def denied(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError("Permission denied for notebook manifest")
+
+    monkeypatch.setattr(
+        f"marimo._environments.script_metadata.{operation}", denied
+    )
+    response = client.post(
+        f"/api/packages/{endpoint}",
+        headers=HEADERS,
+        json={
+            "fileKey": str(path),
+            "contents": "dependencies = []",
+            "previous": "",
+        },
+    )
+    assert response.status_code == 400
+    assert "Permission denied for notebook manifest" in response.text

@@ -568,7 +568,11 @@ def test_replace_whole_manifest_preserves_custom_tables_and_notebook(
 ) -> None:
     path = tmp_path / f"notebook{suffix}"
     original = 'dependencies = ["numpy==0.0.0"]\n'
-    replacement = """# Keep this comment and the user's table order.
+    replacement = '''# Keep this comment and the user's table order.
+notes = """
+/// example
+"""
+
 [tool.custom]
 label = "my experiment"
 
@@ -577,7 +581,7 @@ numpy = { path = "../numpy", editable = true }
 
 [tool.pixi.dependencies]
 python = ">=3.12"
-"""
+'''
     body = "\n# Notebook content\nprint('unchanged')\n"
     if suffix == ".py":
         source = script_metadata.wrap_block(original) + "\n" + body
@@ -615,6 +619,14 @@ def test_manifest_repair_rejects_stale_edits_but_preserves_new_code(
         )
     with pytest.raises(ValueError):
         script_metadata.write_manifest(str(path), broken, previous=previous)
+    with pytest.raises(
+        script_metadata.ScriptMetadataError, match="script markers"
+    ):
+        script_metadata.write_manifest(
+            str(path),
+            'value = """\n///\n"""\n',
+            previous=script_metadata.read_manifest(str(path)),
+        )
     assert path.read_text() == saved
     assert saved.endswith("print('new')\n")
 

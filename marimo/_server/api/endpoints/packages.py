@@ -295,6 +295,7 @@ async def get_sandbox(request: Request) -> SandboxResponse:
             type: string
           required: true
     requestBody:
+        required: true
         content:
             application/json:
                 schema:
@@ -309,11 +310,14 @@ async def get_sandbox(request: Request) -> SandboxResponse:
     """
     body = await parse_request(request, cls=SandboxRequest)
     _, path, backend = _sandbox_source(request, body.file_key)
-    manifest = (
-        await asyncio.to_thread(script_metadata.read_manifest, path)
-        if path is not None
-        else None
-    )
+    try:
+        manifest = (
+            await asyncio.to_thread(script_metadata.read_manifest, path)
+            if path is not None
+            else None
+        )
+    except (OSError, ValueError, EnvironmentManagerError) as error:
+        raise HTTPException(400, str(error)) from error
     return SandboxResponse(backend=backend, manifest=manifest, filename=path)
 
 
@@ -328,6 +332,7 @@ async def update_manifest(request: Request) -> SandboxResponse:
             type: string
           required: true
     requestBody:
+        required: true
         content:
             application/json:
                 schema:
@@ -353,7 +358,7 @@ async def update_manifest(request: Request) -> SandboxResponse:
         )
     except script_metadata.ManifestConflictError as error:
         raise HTTPException(409, str(error)) from error
-    except (ValueError, EnvironmentManagerError) as error:
+    except (OSError, ValueError, EnvironmentManagerError) as error:
         raise HTTPException(400, str(error)) from error
     return SandboxResponse(backend=backend, manifest=manifest, filename=path)
 
@@ -369,6 +374,7 @@ async def sync_sandbox(request: Request) -> SyncSandboxResponse:
             type: string
           required: true
     requestBody:
+        required: true
         content:
             application/json:
                 schema:

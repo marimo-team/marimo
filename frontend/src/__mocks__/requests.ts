@@ -142,7 +142,9 @@ export const MockRequestClient = {
       getSandbox: vi
         .fn()
         .mockResolvedValue({ backend: null, manifest: null, filename: null }),
-      updateManifest: vi.fn(),
+      updateManifest: vi
+        .fn()
+        .mockResolvedValue({ backend: null, manifest: null, filename: null }),
       syncSandbox: vi.fn().mockResolvedValue({ success: true }),
       getDependencyTree: vi.fn().mockResolvedValue({
         tree: null,
