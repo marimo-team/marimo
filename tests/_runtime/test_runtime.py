@@ -4803,8 +4803,7 @@ class TestLaunchKernelEventLoop:
     )
     @pytest.mark.usefixtures("harness")
     def test_run_mode_on_windows_uses_subprocess_capable_loop(self) -> None:
-        # Patch the helper itself: on 3.10/3.11 it doesn't go through
-        # asyncio.run, so the harness mock would not observe it.
+        # On 3.10/3.11 the helper bypasses the mocked asyncio.run.
         with (
             patch(
                 "marimo._runtime.runtime.run_on_subprocess_capable_loop",

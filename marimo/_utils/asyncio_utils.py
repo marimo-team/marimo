@@ -8,7 +8,7 @@
 - `cancel_and_wait`: the `task.cancel(); await task` /
   `except CancelledError` dance, in one place.
 - `run_on_subprocess_capable_loop`: `asyncio.run` on a loop that can spawn
-  subprocesses, even when marimo installed the Windows selector policy.
+  subprocesses on Windows.
 """
 
 from __future__ import annotations
@@ -131,16 +131,10 @@ def fire_and_forget(
 
 
 def run_on_subprocess_capable_loop(coro: Coroutine[Any, Any, T]) -> T:
-    """Run `coro` to completion on a fresh loop that supports subprocesses.
+    """`asyncio.run(coro)`, but on a `ProactorEventLoop` on Windows.
 
-    Equivalent to `asyncio.run(coro)`, except on Windows, where the loop is
-    always a `ProactorEventLoop`. marimo installs the
-    `WindowsSelectorEventLoopPolicy` process-wide because the server needs
-    `add_reader()`, but selector loops on Windows cannot spawn subprocesses,
-    so user code calling `asyncio.create_subprocess_exec` would fail.
-
-    The global policy is never mutated: other threads (e.g. the server)
-    create event loops concurrently and would race with the change.
+    The loop is created locally instead of changing the global policy,
+    because other threads create event loops at the same time.
     """
     if sys.platform != "win32":
         return asyncio.run(coro)
