@@ -11,12 +11,19 @@ from __future__ import annotations
 
 import re
 import shlex
+import subprocess
 import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 from marimo._environments import script_metadata
+from marimo._environments.errors import (
+    EnvironmentManagerError,
+    SandboxRestartRequired,
+)
+from marimo._environments.process import run_command
 
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
@@ -111,6 +118,7 @@ class BackendAdapter(Protocol):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment: ...
 
     def add(
@@ -329,6 +337,28 @@ class NotebookSandbox:
         self._environment_source = self._source
         return self._launch_plan(environment, args, overlay, base_env)
 
+    async def sync_async(self) -> None:
+        """Apply the saved manifest to the environment used by this kernel."""
+        await self._adapter.ensure_available_async()
+        async with script_metadata.materialized_for_environment_async(
+            self._source
+        ) as target:
+            requirement = _python_requirement(target, self._environment)
+            if requirement is not None:
+                assert self._environment is not None
+                completed = await run_command(
+                    [self._environment.python, "-I", "-S", "--version"]
+                )
+                _check_python_requirement(requirement, completed)
+            environment = await self._adapter.sync_async(
+                target,
+                python_override=None,
+                on_output=None,
+                active_environment=self._environment,
+            )
+        self._environment = environment
+        self._environment_source = self._source
+
     def _launch_plan(
         self,
         environment: Environment,
@@ -470,20 +500,7 @@ class NotebookSandbox:
         with script_metadata.materialized_for_environment(
             self._source
         ) as target:
-            state = self._adapter.packages(target, self._environment)
-        packages = tuple(
-            package
-            for package in state.packages
-            if _normalize_dependency_name(package.name) != "marimo"
-        )
-        tree = state.tree
-        if tree is not None:
-            tree.dependencies = [
-                dependency
-                for dependency in tree.dependencies
-                if _normalize_dependency_name(dependency.name) != "marimo"
-            ]
-        return PackageState(packages=packages, tree=tree)
+            return self._adapter.packages(target, self._environment)
 
     def _reopened_requirement(
         self, bare: _BareRequirement
@@ -597,6 +614,15 @@ class NotebookSandbox:
         with script_metadata.materialized_for_environment(
             self._source
         ) as target:
+            requirement = _python_requirement(target, active_environment)
+            if requirement is not None:
+                assert active_environment is not None
+                completed = subprocess.run(
+                    [active_environment.python, "-I", "-S", "--version"],
+                    capture_output=True,
+                    text=True,
+                )
+                _check_python_requirement(requirement, completed)
             environment = self._adapter.sync(
                 target,
                 python_override=python_override,
@@ -606,6 +632,47 @@ class NotebookSandbox:
         self._environment = environment
         self._environment_source = self._source
         return environment
+
+
+def _python_requirement(
+    target: MaterializedScript, active_environment: Environment | None
+) -> str | None:
+    if active_environment is None:
+        return None
+    project = script_metadata.loads(Path(target.path).read_text("utf-8"))
+    requirement = (
+        project.get("requires-python") if project is not None else None
+    )
+    if requirement is not None and not isinstance(requirement, str):
+        raise script_metadata.ScriptMetadataError(
+            "requires-python must be a version specifier string"
+        )
+    return requirement
+
+
+def _check_python_requirement(
+    requirement: str, completed: subprocess.CompletedProcess[str]
+) -> None:
+    from packaging.specifiers import InvalidSpecifier, SpecifierSet
+
+    try:
+        specifier = SpecifierSet(requirement)
+    except InvalidSpecifier as error:
+        raise script_metadata.ScriptMetadataError(
+            f"Invalid requires-python: {requirement}"
+        ) from error
+    if completed.returncode != 0:
+        raise EnvironmentManagerError(
+            "Could not determine the active sandbox's Python version.\n"
+            + completed.stderr
+        )
+    version = completed.stdout.strip().removeprefix("Python ")
+    if not specifier.contains(version, prereleases=True):
+        raise SandboxRestartRequired(
+            f"The manifest requires Python {requirement}, but the running "
+            f"kernel uses Python {version}. Restart the kernel to apply "
+            "the new Python requirement."
+        )
 
 
 def _normalize_dependency_name(requirement: str) -> str:

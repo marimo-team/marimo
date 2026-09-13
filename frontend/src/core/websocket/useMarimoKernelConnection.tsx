@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { invalidatePackageData } from "@/core/packages/package-data";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { useRef } from "react";
 import { useErrorBoundary } from "react-error-boundary";
@@ -241,9 +242,13 @@ export function useMarimoKernelConnection(opts: {
         reloadSafe();
         return;
       case "startup-progress":
-        // Startup progress does not imply that the session is ready.
+        setConnection({
+          state: WebSocketState.CONNECTING,
+          phase: msg.data.phase,
+        });
         return;
       case "kernel-ready": {
+        setKernelStartupError(null);
         setConnection({ state: WebSocketState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
@@ -367,6 +372,16 @@ export function useMarimoKernelConnection(opts: {
         });
         return;
       case "installing-package-alert":
+        if (
+          msg.data.source !== "server" &&
+          msg.data.log_status !== "append" &&
+          msg.data.log_status !== "start" &&
+          Object.values(msg.data.packages).some(
+            (status) => status === "installed" || status === "restart-required",
+          )
+        ) {
+          invalidatePackageData();
+        }
         addPackageAlert({
           ...msg.data,
           kind: "installing",
@@ -443,6 +458,7 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "reconnected":
+        setKernelStartupError(null);
         setConnection({ state: WebSocketState.OPEN });
         return;
 
@@ -487,6 +503,7 @@ export function useMarimoKernelConnection(opts: {
       return;
     }
     shouldTryReconnecting.current = true;
+    setKernelStartupError(null);
     setConnection({ state: WebSocketState.CONNECTING });
     const healthy = await runtimeManager.reconcileFromHealth();
     if (!healthy) {
@@ -564,7 +581,26 @@ export function useMarimoKernelConnection(opts: {
     onClose: (e) => {
       Logger.warn("WebSocket closed", e.code, e.reason);
       const decision = classifyCloseEvent(e);
-      setConnection(decision.status);
+      setConnection((previous) => {
+        const status = decision.status;
+        if (
+          status.state === WebSocketState.CLOSED &&
+          status.code === WebSocketClosedReason.KERNEL_STARTUP_ERROR &&
+          (previous.state === WebSocketState.CONNECTING ||
+            previous.state === WebSocketState.CLOSED)
+        ) {
+          return { ...status, phase: previous.phase };
+        }
+        if (
+          status.state === WebSocketState.CONNECTING &&
+          (previous.state === WebSocketState.OPEN ||
+            (previous.state === WebSocketState.CONNECTING &&
+              previous.phase === "reconnecting"))
+        ) {
+          return { ...status, phase: "reconnecting" };
+        }
+        return status;
+      });
       if (decision.kind === "terminal" && decision.closeTransport) {
         ws.close(); // close to prevent reconnecting
         return;

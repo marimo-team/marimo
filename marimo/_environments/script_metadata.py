@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import errno
+import hashlib
 import os
 import platform
 import re
@@ -44,6 +45,7 @@ from marimo._environments.uv import (
     uv_stream,
 )
 from marimo._utils.toml import toml_reader
+from marimo._utils.xdg import marimo_state_dir
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable, Iterator, Sequence
@@ -51,13 +53,73 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s"
-    r"(?P<content>(^#(?! ///$)(| .*)$\s)+)^# ///$"
+    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)\r?$\n"
+    r"(?P<content>(^#(?! ///\r?$)(| .*)\r?$\n)+)^# ///(?=\r?$)"
 )
 
 
 class ScriptMetadataError(EnvironmentManagerError):
     """A script metadata edit could not be completed."""
+
+
+class ManifestConflictError(ScriptMetadataError):
+    """The manifest changed after it was opened for editing."""
+
+
+def _manifest_text(script: str) -> tuple[re.Match[str] | None, str]:
+    matches = [
+        match
+        for match in re.finditer(REGEX, script)
+        if match.group("type") == "script"
+    ]
+    if len(matches) > 1:
+        raise ScriptMetadataError("Multiple script metadata blocks found")
+    if not matches:
+        return None, ""
+    match = matches[0]
+    contents = "".join(
+        line[2:] if line.startswith("# ") else line[1:]
+        for line in match.group("content").splitlines(keepends=True)
+    )
+    return match, contents.replace("\r\n", "\n")
+
+
+def read_manifest(path: str) -> str:
+    """Read the original TOML, including malformed TOML that needs repair."""
+    if path.endswith((".md", ".qmd")):
+        return _manifest_text(_read_frontmatter(path).header)[1]
+    with open(path, encoding="utf-8", newline="") as file:
+        return _manifest_text(file.read())[1]
+
+
+def write_manifest(path: str, contents: str, *, previous: str) -> str:
+    """Replace only metadata, rejecting stale edits and invalid TOML."""
+    toml_reader.reads(contents)
+    if any(line.startswith("///") for line in contents.splitlines()):
+        raise ScriptMetadataError("The manifest cannot contain script markers")
+    with notebook_file_lock(path), materialized_for_edit(path) as target:
+        file = Path(target.path)
+        with file.open(encoding="utf-8", newline="") as source:
+            script = source.read()
+        match, current = _manifest_text(script)
+        if current != previous:
+            raise ManifestConflictError(
+                "The manifest changed on disk. Reopen it before saving."
+            )
+        newline = "\r\n" if "\r\n" in script else "\n"
+        block = wrap_block(contents.replace("\r\n", "\n")).replace(
+            "\n", newline
+        )
+        if match is not None:
+            updated = script[: match.start()] + block + script[match.end() :]
+        elif script.startswith("#!"):
+            shebang, _, rest = script.partition("\n")
+            updated = f"{shebang}\n{block}{newline}{rest}"
+        else:
+            updated = f"{block}{newline}{script}"
+        with file.open("w", encoding="utf-8", newline="") as destination:
+            destination.write(updated)
+    return read_manifest(path)
 
 
 def loads(script: str) -> dict[str, Any] | None:
@@ -123,7 +185,7 @@ def metadata_transaction(path: str) -> Iterator[None]:
     try:
         yield
     except SandboxRestartRequired:
-        # Synchronization succeeded; the live kernel uses a different prefix.
+        # Keep the requested manifest so the restart can apply it.
         raise
     except (Exception, KeyboardInterrupt):
         if _metadata_block(path) == block:
@@ -408,25 +470,54 @@ def _carrier_prefix(path: str) -> str:
 
 
 @contextlib.contextmanager
+def notebook_file_lock(path: str) -> Iterator[None]:
+    """Serialize notebook read-modify-write operations across processes.
+
+    Keep this separate from the carrier lock: async environment operations
+    hold that lock while yielding, but notebook saves can run on the event loop.
+    """
+    with _file_lock(_notebook_lock_path(path), blocking=True):
+        yield
+
+
+def _notebook_lock_path(path: str) -> Path:
+    # Processes may have different temporary directories for the same notebook.
+    directory = marimo_state_dir() / "notebook-locks"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    key = hashlib.sha256(
+        os.path.normcase(os.path.realpath(path)).encode()
+    ).hexdigest()
+    return directory / f"{key}.lock"
+
+
+@contextlib.contextmanager
 def _stable_carrier_lock(
     path: str, *, blocking: bool = True
 ) -> Iterator[None]:
-    """Hold an OS lock through creation, use, and removal of the carrier.
+    # Carrier lifetimes can span async environment operations, so they must
+    # use a different lock from notebook writes.
+    target = _notebook_lock_path(path).with_suffix(".carrier.lock")
+    with _file_lock(target, blocking=blocking):
+        yield
+
+
+@contextlib.contextmanager
+def _file_lock(target: Path, *, blocking: bool) -> Iterator[None]:
+    """Hold an OS lock on a persistent file.
 
     The lock file stays in place: unlinking it would let a new caller lock
     a different inode while existing callers still wait on the old one.
     Process exit releases the lock, including after a crash.
     """
-    target = Path(path).with_name(f"{_carrier_prefix(path)}.lock")
     # Never truncate or follow a pre-existing link, even for the lock file.
     if target.is_symlink():
-        raise OSError(f"Refusing to use symlink as carrier lock: {target}")
+        raise OSError(f"Refusing to use symlink as lock file: {target}")
     descriptor = os.open(
         target, os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0), 0o600
     )
     with os.fdopen(descriptor, "r+b", buffering=0) as lock:
         if not stat.S_ISREG(os.fstat(lock.fileno()).st_mode):
-            raise OSError(f"Carrier lock is not a regular file: {target}")
+            raise OSError(f"Lock file is not a regular file: {target}")
         if sys.platform == "win32":
             import msvcrt
 
@@ -572,7 +663,7 @@ def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
     keys a script environment on the script's absolute path, so the
     stable name maps one notebook to one environment, reconciled in
     place across sessions. An OS lock serializes carrier lifetimes across
-    threads and processes.
+    threads and processes; its persistent file lives in marimo's state directory.
     """
     with _materialized_for_environment(path, blocking=True) as target:
         yield target
@@ -615,9 +706,8 @@ def _materialized_for_environment(
             raise
         except OSError as error:
             raise ScriptMetadataError(
-                f"Cannot lock a metadata carrier beside {path}. "
-                "Make the notebook directory writable and remove any "
-                "conflicting carrier lock symlinks."
+                f"Cannot lock a metadata carrier for {path}. "
+                f"Check the lock directory's permissions and files: {error}"
             ) from error
         content = (
             "# Generated by marimo; safe to delete.\n"

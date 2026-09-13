@@ -532,6 +532,18 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sandbox", { body: request, params: getParams() })
+        .then(handleResponse),
+    updateManifest: (request) =>
+      getClient()
+        .POST("/api/packages/manifest", { body: request, params: getParams() })
+        .then(handleResponse),
+    syncSandbox: (request) =>
+      getClient()
+        .POST("/api/packages/sync", { body: request, params: getParams() })
+        .then(handleResponse),
     addPackage: (request) => {
       return getClient()
         .POST("/api/packages/add", {

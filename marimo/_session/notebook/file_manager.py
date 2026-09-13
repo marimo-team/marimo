@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import threading
+from contextlib import nullcontext
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -12,6 +13,7 @@ from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
 from marimo._environments.script_metadata import (
+    notebook_file_lock,
     with_python_version_requirement,
 )
 from marimo._messaging.notebook.changes import (
@@ -220,7 +222,10 @@ class AppFileManager:
         """
         LOGGER.debug("Saving app to %s", path)
 
-        with self._save_lock:
+        # Read the header and write the cells under the same lock as manifest
+        # edits, so neither writer can restore the other's stale contents.
+        file_lock = notebook_file_lock(str(path)) if persist else nullcontext()
+        with self._save_lock, file_lock:
             # Get the header in case it was modified by the user (e.g. package installation)
             handler = get_notebook_serializer(path)
             header: str | None = None

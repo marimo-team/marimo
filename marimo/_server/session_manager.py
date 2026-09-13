@@ -248,6 +248,9 @@ class SessionManager:
                 pending.task.cancel()
                 await asyncio.gather(pending.task, return_exceptions=True)
 
+    def is_session_starting(self, session_id: SessionId) -> bool:
+        return session_id in self._pending
+
     async def _create_session(
         self,
         session_id: SessionId,
