@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shlex
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -219,6 +220,7 @@ def prompt(
                 "https://github.com/marimo-team/marimo-pair",
                 err=True,
             )
+            sys.exit(1)
 
     # Prompt for token and write it to a temp file if --with-token is set
     token_hint = ""
