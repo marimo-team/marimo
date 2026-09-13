@@ -210,17 +210,15 @@ def prompt(
         if not selected_agents[key]:
             continue
         if not agent.has_skill():
-            click.echo(
+            raise click.ClickException(
                 f"The marimo-pair skill for {agent.name} could not be found.\n\n"
                 "Please install it with:\n\n"
                 "  npx skills add marimo-team/marimo-pair\n\n"
                 "or\n\n"
                 "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
                 "More instructions at "
-                "https://github.com/marimo-team/marimo-pair",
-                err=True,
+                "https://github.com/marimo-team/marimo-pair"
             )
-            sys.exit(1)
 
     # Prompt for token and write it to a temp file if --with-token is set
     token_hint = ""
