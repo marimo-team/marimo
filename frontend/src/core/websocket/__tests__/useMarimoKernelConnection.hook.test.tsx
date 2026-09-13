@@ -377,10 +377,9 @@ describe("connection notice", () => {
       expect(screen.getByRole("status")).toHaveTextContent(title);
       act(() => vi.advanceTimersByTime(30_000));
       expect(screen.getByRole("status")).toHaveTextContent(title);
-      expect(screen.getByLabelText("Error details")).toHaveTextContent(
-        error,
-        { normalizeWhitespace: false },
-      );
+      expect(screen.getByLabelText("Error details")).toHaveTextContent(error, {
+        normalizeWhitespace: false,
+      });
       expect(transport.reconnect).not.toHaveBeenCalled();
       await act(async () =>
         fireEvent.click(screen.getByRole("button", { name: "Try again" })),
