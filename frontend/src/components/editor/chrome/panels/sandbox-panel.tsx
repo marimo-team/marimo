@@ -50,7 +50,7 @@ export function SandboxStartupPanel() {
           "flex items-center gap-2",
           notice.pending
             ? "text-muted-foreground"
-            : "font-medium text-destructive",
+            : "font-medium text-(--red-11)",
         )}
       >
         {notice.pending ? (
@@ -124,7 +124,7 @@ export function SandboxFooter() {
                   pending
                     ? "bg-amber-500 motion-safe:animate-pulse"
                     : notice
-                      ? "bg-destructive"
+                      ? "bg-(--red-9)"
                       : connected
                         ? "bg-emerald-500"
                         : "bg-muted-foreground",

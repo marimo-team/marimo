@@ -58,7 +58,7 @@ export const ConnectionNotice = ({
           hasCells
             ? "mt-4 mb-8 border rounded-lg px-5 py-5"
             : "max-w-sm mx-auto mt-16 sm:mt-24 px-4",
-          hasCells && !notice.pending && "border-destructive/50",
+          hasCells && !notice.pending && "border-(--red-7)",
         )}
       >
         <div role="status" className="flex items-center gap-2.5">
@@ -66,7 +66,7 @@ export const ConnectionNotice = ({
             <Spinner className="size-4 shrink-0" aria-hidden={true} />
           ) : (
             <AlertCircleIcon
-              className="size-4 shrink-0 text-destructive"
+              className="size-4 shrink-0 text-(--red-11)"
               aria-hidden={true}
             />
           )}
@@ -75,7 +75,7 @@ export const ConnectionNotice = ({
               "text-base",
               notice.pending
                 ? "font-normal text-foreground"
-                : "font-medium text-destructive",
+                : "font-medium text-(--red-11)",
             )}
           >
             {notice.title}
