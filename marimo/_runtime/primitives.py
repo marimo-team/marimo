@@ -76,9 +76,9 @@ def is_data_primitive(value: Any) -> bool:
     if is_instance_by_name(value, "torch.Tensor"):
         return str(value.device) == "cpu"
 
-    # Series follow the same numeric-schema policy as dataframes.
-    if is_instance_by_name(value, "polars.series.series.Series"):
-        return bool(value.dtype.is_numeric())
+    if type(value).__module__.startswith("polars."):
+        dtypes = value.dtypes if hasattr(value, "dtypes") else [value.dtype]
+        return all(dtype.is_numeric() for dtype in dtypes)
 
     # If a numpy like array, ensure that it's not an object array.
     if hasattr(value, "dtype"):
