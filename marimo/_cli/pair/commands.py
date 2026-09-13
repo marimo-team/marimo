@@ -4,7 +4,6 @@ from __future__ import annotations
 import hashlib
 import os
 import shlex
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
