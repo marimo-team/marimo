@@ -7866,6 +7866,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/UpdateManifestRequest'
+        required: true
       responses:
         200:
           content:
@@ -7900,6 +7901,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SandboxRequest'
+        required: true
       responses:
         200:
           content:
@@ -7920,6 +7922,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/SandboxRequest'
+        required: true
       responses:
         200:
           content:

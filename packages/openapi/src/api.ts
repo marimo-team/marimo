@@ -3115,7 +3115,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: {
+      requestBody: {
         content: {
           "application/json": components["schemas"]["UpdateManifestRequest"];
         };
@@ -3195,7 +3195,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: {
+      requestBody: {
         content: {
           "application/json": components["schemas"]["SandboxRequest"];
         };
@@ -3236,7 +3236,7 @@ export interface paths {
         path?: never;
         cookie?: never;
       };
-      requestBody?: {
+      requestBody: {
         content: {
           "application/json": components["schemas"]["SandboxRequest"];
         };
