@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import atexit
 import os
 import platform
@@ -8,7 +9,6 @@ import signal
 import subprocess
 import sys
 import tempfile
-from enum import Enum
 from pathlib import Path
 
 import click
@@ -33,19 +33,6 @@ from marimo._utils.inline_script_metadata import (
 )
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
-
-
-class SandboxMode(Enum):
-    """Sandbox mode for marimo notebooks.
-
-    - SINGLE: Single-file sandbox (the server runs from the notebook's
-      script environment)
-    - MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
-    """
-
-    SINGLE = "single"
-    MULTI = "multi"
-
 
 LOGGER = _loggers.marimo_logger()
 
@@ -104,67 +91,59 @@ def maybe_prompt_run_in_sandbox(name: str | None) -> bool:
     return False
 
 
-def resolve_sandbox_mode(
-    sandbox: bool | None, name: str | None
-) -> SandboxMode | None:
-    """Determine sandbox mode for the given target.
-
-    Returns:
-        - None: No sandboxing
-        - SandboxMode.SINGLE: Single-file sandbox (server in the script
-          environment)
-        - SandboxMode.MULTI: Multi-file sandbox (IPC kernels with per-notebook venvs)
-
-    When sandbox is None, prompts the user if the notebook has sandbox metadata
-    (only for single notebooks, not directories).
-    """
-    # Determine if target is a directory (or None = current directory)
-    is_directory = name is None or os.path.isdir(name)
-
-    # When the sandbox flag is omitted we infer whether to
-    # start in sandbox mode by examining the notebook file and
-    # prompting the user. Only prompt for single notebooks, not directories.
-    if sandbox is None:
-        # Don't prompt for directories - user must explicitly pass --sandbox
-        if not is_directory:
-            sandbox = maybe_prompt_run_in_sandbox(name)
-        else:
-            sandbox = False
-
-    if not sandbox:
-        return None
-
-    # Sandbox enabled - determine mode based on target type
-    # Directory or home page -> multi-file sandbox (IPC kernels)
-    # Single file -> single-file sandbox (server in the script environment)
-    return SandboxMode.MULTI if is_directory else SandboxMode.SINGLE
-
-
 def resolve_sandbox(
     sandbox: str | None,
     no_sandbox: bool,
     name: str | None,
-) -> tuple[SandboxMode | None, SandboxBackend]:
-    """Resolve the sandbox mode and backend from the CLI flags.
-
-    `sandbox` is None (unset; the user may be prompted), "uv" (a bare
-    `--sandbox`), or a named backend (`--sandbox=pixi`). `no_sandbox`
-    disables sandboxing and the prompt.
-    """
-    enabled: bool | None
+) -> SandboxBackend | None:
+    """Select a backend, prompting only for a notebook with dependencies."""
     if no_sandbox:
-        enabled = False
-    elif sandbox is None:
-        enabled = None
-    else:
-        enabled = True
-    mode = resolve_sandbox_mode(sandbox=enabled, name=name)
-    return mode, backend_from_flag(sandbox)
+        return None
+    if sandbox is not None:
+        return backend_from_flag(sandbox)
+    if maybe_prompt_run_in_sandbox(name):
+        return "uv"
+    return None
 
 
 def backend_from_flag(sandbox: str | None) -> SandboxBackend:
     """The backend named by a `--sandbox[=<backend>]` flag value."""
     return "pixi" if sandbox == "pixi" else "uv"
+
+
+def ensure_server_environment(
+    backend: SandboxBackend | None, *, stdin_notebook: str | None = None
+) -> None:
+    """Relaunch the editor with server tools, leaving kernels lazy."""
+    if (
+        backend is None
+        or os.environ.pop("MARIMO_SERVER_OVERLAY", None) is not None
+    ):
+        return
+
+    from marimo._environments.backends import launch_server
+
+    require_sandbox_backend(backend)
+    args = _strip_sandbox_args(sys.argv[1:])
+    # Preserve a prompted choice and keep options before notebook arguments.
+    index = args.index("--") if "--" in args else len(args)
+    args[index:index] = [f"--sandbox={backend}"]
+    if stdin_notebook is not None:
+        # The outer process already consumed stdin and owns this temp file.
+        args.insert(index, stdin_notebook)
+    sys.exit(
+        _wait_on_plan(
+            launch_server(
+                ["-m", "marimo", *args],
+                backend=backend,
+                base_env={
+                    **os.environ,
+                    "MARIMO_SERVER_OVERLAY": "1",
+                    "MARIMO_ANCESTOR_PID": str(os.getpid()),
+                },
+            )
+        )
+    )
 
 
 def _is_versioned(dependency: str) -> bool:
@@ -411,6 +390,27 @@ def construct_uv_command(
     return uv_cmd + cmd
 
 
+def require_sandbox_backend(backend: SandboxBackend) -> None:
+    """Check the backend and report installation instructions if missing."""
+    from marimo._environments import backends
+    from marimo._environments.errors import EnvironmentManagerNotFoundError
+
+    try:
+        backends.ensure_available(backend)
+    except EnvironmentManagerNotFoundError as e:
+        option = "--sandbox=pixi" if backend == "pixi" else "--sandbox"
+        install_url = (
+            "https://pixi.prefix.dev/latest/installation/"
+            if backend == "pixi"
+            else "https://docs.astral.sh/uv/getting-started/installation/"
+        )
+        raise MarimoCLIMissingDependencyError(
+            f"{backend} must be installed to use {option}.",
+            backend,
+            additional_tip=f"Install {backend} from {install_url}",
+        ) from e
+
+
 def run_in_sandbox(
     args: list[str],
     *,
@@ -434,27 +434,11 @@ def run_in_sandbox(
     Used for "single" sandbox mode (marimo edit --sandbox notebook.py).
     For "multi" sandbox mode (directory), see IPCKernelManagerImpl.
     """
-    from marimo._environments import backends
-    from marimo._environments.errors import (
-        EnvironmentManagerError,
-        EnvironmentManagerNotFoundError,
-    )
+    from marimo._environments.errors import EnvironmentManagerError
     from marimo._environments.sandbox import NotebookSandbox
 
     try:
-        backends.ensure_available(backend)
-    except EnvironmentManagerNotFoundError as e:
-        option = "--sandbox=pixi" if backend == "pixi" else "--sandbox"
-        install_url = (
-            "https://pixi.prefix.dev/latest/installation/"
-            if backend == "pixi"
-            else "https://docs.astral.sh/uv/getting-started/installation/"
-        )
-        raise MarimoCLIMissingDependencyError(
-            f"{backend} must be installed to use {option}.",
-            backend,
-            additional_tip=f"Install {backend} from {install_url}",
-        ) from e
+        require_sandbox_backend(backend)
     except EnvironmentManagerError as e:
         # e.g. an environment manager too old for script environments.
         echo(str(e), err=True)
@@ -522,12 +506,16 @@ def run_in_sandbox(
     if not overridden and (name is None or os.path.isfile(name)):
         notebook_sandbox = NotebookSandbox(name, backend)
         try:
-            plan = notebook_sandbox.launch(
-                cmd,
-                overlay=overlay,
-                base_env=env,
-                python_override=python_request if backend == "uv" else None,
-                on_output=lambda _line: None,
+            plan = asyncio.run(
+                notebook_sandbox.launch_async(
+                    cmd,
+                    overlay=overlay,
+                    base_env=env,
+                    python_override=python_request
+                    if backend == "uv"
+                    else None,
+                    on_output=lambda _line: None,
+                )
             )
             handle = notebook_sandbox.environment
             assert handle is not None
@@ -543,6 +531,9 @@ def run_in_sandbox(
             notebook_sandbox.close()
             echo(str(e), err=True)
             return getattr(e, "returncode", None) or 1
+        except BaseException:
+            notebook_sandbox.close()
+            raise
 
     if plan is None:
         if backend == "pixi":
@@ -558,7 +549,7 @@ def run_in_sandbox(
                 for line in _resolve_requirements_txt_lines(pyproject)
                 if line.strip() and not is_marimo_dependency(line)
             ] + requirements
-        from marimo._environments.environment import launch_isolated
+        from marimo._environments.backends import launch_isolated
 
         # The one resolve the parent environment cannot serve: an
         # overridden interpreter under external constraints.

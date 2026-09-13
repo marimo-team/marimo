@@ -7,6 +7,8 @@ import abc
 import asyncio
 from typing import TYPE_CHECKING
 
+from starlette.websockets import WebSocketDisconnect
+
 from marimo import _loggers
 from marimo._cli.upgrade import check_for_updates
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -15,11 +17,18 @@ from marimo._messaging.notification import (
     BannerNotification,
     NotificationMessage,
     ReconnectedNotification,
+    StartupProgressNotification,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    deserialize_kernel_notification_name,
+    serialize_kernel_message,
+)
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
+)
+from marimo._server.api.endpoints.ws.ws_message_loop import (
+    prepare_wire_message,
 )
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
@@ -29,9 +38,10 @@ from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._types.ids import ConsumerId
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import AsyncGenerator, Callable
     from typing import Any
 
     from starlette.requests import HTTPConnection
@@ -82,6 +92,10 @@ class SessionHandler(SessionConsumer, abc.ABC):
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage] = asyncio.Queue()
+        # Startup precedes session attachment and its viewer filtering.
+        self._startup_queue: asyncio.Queue[KernelMessage | None] | None = (
+            asyncio.Queue()
+        )
         self._consumer_id = ConsumerId(params.session_id)
 
     @property
@@ -107,7 +121,7 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     # Shared session lifecycle
 
-    def _connect_session(
+    async def _connect_session(
         self, connection: HTTPConnection
     ) -> tuple[Session, ConnectionType]:
         """Connect this handler to a session (new, resume, reconnect, ...).
@@ -117,12 +131,54 @@ class SessionHandler(SessionConsumer, abc.ABC):
             WebSocketDisconnect: If the connection is rejected; carries the
                 close code and reason.
         """
-        return SessionConnector(
-            manager=self.manager,
-            handler=self,
-            params=self.params,
-            connection=connection,
-        ).connect()
+        startup = asyncio.create_task(
+            SessionConnector(
+                manager=self.manager,
+                handler=self,
+                params=self.params,
+                connection=connection,
+            ).connect()
+        )
+        disconnected = asyncio.create_task(self._wait_for_disconnect())
+        try:
+            done, _ = await asyncio.wait(
+                (startup, disconnected), return_when=asyncio.FIRST_COMPLETED
+            )
+            if disconnected in done:
+                await disconnected
+                await cancel_and_wait(startup)
+                self._on_disconnect(WebSocketDisconnect(), lambda: None)
+                raise asyncio.CancelledError
+            return await startup
+        finally:
+            await cancel_and_wait(disconnected)
+            await cancel_and_wait(startup)
+
+    @abc.abstractmethod
+    async def _wait_for_disconnect(self) -> None:
+        """Notice a closed transport even while a session is starting."""
+
+    async def _startup_messages(
+        self, startup: asyncio.Task[tuple[Session, ConnectionType]]
+    ) -> AsyncGenerator[str, None]:
+        """Send progress before session messages, including before failure."""
+        queue = self._startup_queue
+        assert queue is not None
+
+        def finished(
+            _task: asyncio.Task[tuple[Session, ConnectionType]],
+        ) -> None:
+            queue.put_nowait(None)
+
+        startup.add_done_callback(finished)
+        try:
+            while (data := await queue.get()) is not None:
+                text = prepare_wire_message(data, is_kiosk=self.params.kiosk)
+                if text is not None:
+                    yield text
+        finally:
+            startup.remove_done_callback(finished)
+            self._startup_queue = None
 
     def _is_viewer(
         self, session: Session, connection_type: ConnectionType
@@ -134,7 +190,14 @@ class SessionHandler(SessionConsumer, abc.ABC):
         )
 
     def notify(self, notification: KernelMessage) -> None:
-        self.message_queue.put_nowait(notification)
+        if (
+            self._startup_queue is not None
+            and deserialize_kernel_notification_name(notification)
+            == StartupProgressNotification.name
+        ):
+            self._startup_queue.put_nowait(notification)
+        else:
+            self.message_queue.put_nowait(notification)
 
     def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))

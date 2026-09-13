@@ -5636,6 +5636,7 @@ export interface components {
         | components["schemas"]["MissingPackageAlertNotification"]
         | components["schemas"]["InstallingPackageAlertNotification"]
         | components["schemas"]["StartupLogsNotification"]
+        | components["schemas"]["StartupProgressNotification"]
         | components["schemas"]["KernelStartupErrorNotification"]
         | components["schemas"]["VariablesNotification"]
         | components["schemas"]["VariableValuesNotification"]
@@ -7056,6 +7057,16 @@ export interface components {
       op: "startup-logs";
       /** @enum {unknown} */
       status: "append" | "done" | "start";
+    };
+    /**
+     * StartupProgressNotification
+     * @description Progress reported before a session's kernel is ready.
+     */
+    StartupProgressNotification: {
+      /** @enum {unknown} */
+      op: "startup-progress";
+      /** @enum {unknown} */
+      phase: "preparing-environment" | "starting-kernel";
     };
     /** StdinRequest */
     StdinRequest: {

@@ -123,6 +123,16 @@ def ensure_supported_pixi() -> None:
         raise PixiUnsupportedVersionError()
 
 
+async def ensure_supported_pixi_async() -> None:
+    from marimo._environments.process import run_command
+
+    completed = await run_command(
+        [require_pixi_bin(), "install", "--help"], timeout=10
+    )
+    if completed.returncode != 0 or "--script" not in completed.stdout:
+        raise PixiUnsupportedVersionError()
+
+
 # `pixi install --script` reports the environment on stderr:
 #   ✔ The script environment has been installed at '<prefix>'.
 # A `--json` report is the upstream ask that retires this parse.
@@ -145,14 +155,7 @@ def sync(
     on interpreter identity. Raises `PixiCommandError` on failure and
     never mutates `script`.
     """
-    from marimo._environments.environment import Environment
-
-    args = [
-        require_pixi_bin(),
-        "install",
-        "--script",
-        os.path.abspath(script),
-    ]
+    args = _sync_command(script)
     if on_command is not None:
         on_command(args)
     completed = subprocess.run(
@@ -171,7 +174,37 @@ def sync(
             on_output(line)
     if completed.returncode != 0:
         raise _command_error(completed)
-    report = _ANSI.sub("", completed.stderr)
+    return _parse_sync_report(completed.stderr)
+
+
+async def sync_async(
+    script: str,
+    *,
+    cwd: str | None = None,
+    on_output: Callable[[str], None] | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> Environment:
+    from marimo._environments.process import run_command
+
+    args = _sync_command(script)
+    if on_command is not None:
+        on_command(args)
+    completed = await run_command(
+        args, env=command_env(), cwd=cwd, on_stderr=on_output
+    )
+    if completed.returncode != 0:
+        raise _command_error(completed)
+    return _parse_sync_report(completed.stderr)
+
+
+def _sync_command(script: str) -> list[str]:
+    return [require_pixi_bin(), "install", "--script", os.path.abspath(script)]
+
+
+def _parse_sync_report(stderr: str) -> Environment:
+    from marimo._environments.environment import Environment
+
+    report = _ANSI.sub("", stderr)
     match = _INSTALLED_AT.search(report)
     if match is None:
         raise PixiError(
@@ -368,6 +401,41 @@ def ensure_marimo(
 # this relies on -- `uv run --python <conda-python> --with ...` chaining
 # the conda prefix's site-packages -- was verified.
 UV_OVERLAY_SPEC = "uv>=0.12"
+
+
+async def ensure_marimo_async(
+    path: str,
+    *,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> None:
+    from marimo._environments.process import run_command
+    from marimo._environments.script_metadata import (
+        ensure_metadata_block,
+        should_add_marimo,
+    )
+
+    if not should_add_marimo(path):
+        return
+    ensure_metadata_block(path)
+    absolute = os.path.abspath(path)  # noqa: ASYNC240
+    args = [
+        require_pixi_bin(),
+        "add",
+        "--script",
+        absolute,
+        "--pypi",
+        "marimo",
+    ]
+    if on_command is not None:
+        on_command(args)
+    completed = await run_command(
+        args,
+        env=command_env(),
+        cwd=os.path.dirname(absolute),
+        timeout=60,
+    )
+    if completed.returncode != 0:
+        raise _command_error(completed)
 
 
 # Run before importing marimo: importing a module in this package would first

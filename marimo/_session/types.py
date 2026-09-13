@@ -67,7 +67,7 @@ class KernelManager(Protocol):
     kernel_task: ProcessLike | threading.Thread | None
     mode: SessionMode
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         """Start the kernel process or thread."""
         ...
 

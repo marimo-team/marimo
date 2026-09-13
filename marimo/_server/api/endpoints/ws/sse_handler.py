@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import asyncio
 import enum
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Union, cast
 
 from starlette.websockets import WebSocketDisconnect
@@ -44,6 +45,7 @@ from marimo._server.sse import (
     wait_for_http_disconnect,
 )
 from marimo._session.managers.ipc import KernelStartupError
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -125,8 +127,14 @@ class SSESessionHandler(SessionHandler):
         Ends with a `close` event when the server closes the connection
         (shutdown, takeover); ends without one on client disconnect.
         """
+        startup = asyncio.create_task(self._connect_session(self.request))
         try:
-            session, connection_type = self._connect_session(self.request)
+            async with aclosing(self._startup_messages(startup)) as messages:
+                async for progress in messages:
+                    yield format_sse_event(progress)
+            session, connection_type = await startup
+        except asyncio.CancelledError:
+            return
         except KernelStartupError as e:
             LOGGER.error("Kernel startup failed: %s", e)
             yield format_sse_event(
@@ -145,6 +153,8 @@ class SSESessionHandler(SessionHandler):
             # transport.
             yield format_close_event(e.code, e.reason or "")
             return
+        finally:
+            await cancel_and_wait(startup)
 
         LOGGER.debug(
             "Connected to session %s with type %s",
@@ -187,6 +197,9 @@ class SSESessionHandler(SessionHandler):
                     lambda: None,
                 )
 
+    async def _wait_for_disconnect(self) -> None:
+        await wait_for_http_disconnect(self.request)
+
     async def _signal_on_disconnect(self) -> None:
         """Signal the stream loop when the client disconnects.
 
@@ -195,7 +208,7 @@ class SSESessionHandler(SessionHandler):
         to the disconnect first, the generator is cancelled and its
         `finally` performs the same teardown.
         """
-        await wait_for_http_disconnect(self.request)
+        await self._wait_for_disconnect()
         self._queue.put_nowait(_Signal.DISCONNECT)
 
     async def _heartbeat_loop(self) -> None:

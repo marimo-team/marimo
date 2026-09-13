@@ -3,10 +3,11 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from contextlib import aclosing
 from typing import TYPE_CHECKING
 
 from starlette.responses import StreamingResponse
-from starlette.websockets import WebSocket, WebSocketState
+from starlette.websockets import WebSocket, WebSocketDisconnect, WebSocketState
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
@@ -35,6 +36,7 @@ from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sse import SSE_HEADERS, format_close_event
 from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import SessionMode
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -245,12 +247,21 @@ class WebSocketHandler(SessionHandler):
         )
         LOGGER.debug("Existing sessions: %s", self.manager.sessions)
 
+        startup = asyncio.create_task(self._connect_session(self.websocket))
         try:
-            session, connection_type = self._connect_session(self.websocket)
+            async with aclosing(self._startup_messages(startup)) as messages:
+                async for text in messages:
+                    await self.websocket.send_text(text)
+            session, connection_type = await startup
+        except asyncio.CancelledError:
+            await self._safe_close(WebSocketCodes.NORMAL_CLOSE, "")
+            return
         except KernelStartupError as e:
             LOGGER.error("Kernel startup failed: %s", e)
             await self._close_kernel_startup_error(str(e))
             return
+        finally:
+            await cancel_and_wait(startup)
         LOGGER.debug(
             "Connected to session %s with type %s",
             session.initialization_id,
@@ -272,6 +283,12 @@ class WebSocketHandler(SessionHandler):
         except asyncio.CancelledError:
             LOGGER.debug("Websocket terminated with CancelledError")
 
+    async def _wait_for_disconnect(self) -> None:
+        while True:
+            message = await self.websocket.receive()
+            if message["type"] == "websocket.disconnect":
+                return
+
     async def _safe_close(self, code: int, reason: str) -> None:
         """Close the WebSocket, ignoring errors from uninitialized state.
 
@@ -282,6 +299,8 @@ class WebSocketHandler(SessionHandler):
         """
         try:
             await self.websocket.close(code, reason)
+        except WebSocketDisconnect:
+            pass
         except AttributeError as e:
             if "transfer_data_task" not in str(e):
                 raise

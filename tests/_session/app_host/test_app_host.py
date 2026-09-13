@@ -333,7 +333,7 @@ class TestAppHostQueueManager:
 
 @pytest.mark.requires("zmq")
 class TestAppHostMultipleClients:
-    def test_create_session_uses_per_client_session_id(self) -> None:
+    async def test_create_session_uses_per_client_session_id(self) -> None:
         """SessionImpl.create() must pass the per-client session_id — not
         the shared initialization_id (file_key) — to the AppHost managers.
 
@@ -361,7 +361,7 @@ class TestAppHostMultipleClients:
             "AppHostKernelManager.start_kernel"
         ):
             for sid in ("session-1", "session-2"):
-                SessionImpl.create(
+                await SessionImpl.create(
                     initialization_id=file_key,
                     session_consumer=Mock(),
                     mode=SessionMode.RUN,

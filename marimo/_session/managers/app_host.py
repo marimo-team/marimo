@@ -175,7 +175,7 @@ class AppHostKernelManager(KernelManager):
 
         self.kernel_task: ProcessLike | threading.Thread | None = None
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         response = self._app_host.create_kernel(
             session_id=self._session_id,
             configs=self._configs,

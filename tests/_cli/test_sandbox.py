@@ -8,11 +8,10 @@ from unittest.mock import patch
 import pytest
 
 from marimo._cli.sandbox import (
-    SandboxMode,
     _normalize_sandbox_dependencies,
     _uv_export_script_requirements_txt,
     construct_uv_command,
-    resolve_sandbox_mode,
+    resolve_sandbox,
     run_in_sandbox,
 )
 from marimo._dependencies.dependencies import DependencyManager
@@ -459,8 +458,7 @@ import marimo
         assert "numpy" in requirements
 
 
-def test_resolve_sandbox_mode_user_confirms(tmp_path: Path) -> None:
-    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE when user types 'y'."""
+def test_resolve_sandbox_user_confirms(tmp_path: Path) -> None:
     # Create a file with dependencies
     script_path = tmp_path / "test.py"
     script_path.write_text(
@@ -482,70 +480,12 @@ import marimo
         patch("marimo._cli.sandbox.is_uv_available", return_value=True),
         patch("marimo._cli.sandbox.sys.stdin.isatty", return_value=True),
     ):
-        result = resolve_sandbox_mode(
+        result = resolve_sandbox(
             sandbox=None,
+            no_sandbox=False,
             name=str(script_path),
         )
-        assert result is SandboxMode.SINGLE
-
-
-def test_resolve_sandbox_mode_explicit_single() -> None:
-    """Test that resolve_sandbox_mode returns SandboxMode.SINGLE for single file with sandbox=True."""
-    result = resolve_sandbox_mode(
-        sandbox=True,
-        name="test.py",
-    )
-    assert result is SandboxMode.SINGLE
-
-
-def test_resolve_sandbox_mode_explicit_false() -> None:
-    """Test that resolve_sandbox_mode returns None when sandbox=False."""
-    result = resolve_sandbox_mode(
-        sandbox=False,
-        name="test.py",
-    )
-    assert result is None
-
-
-def test_resolve_sandbox_mode_directory(tmp_path: Path) -> None:
-    """Test that resolve_sandbox_mode returns SandboxMode.MULTI for directories."""
-    dir_path = tmp_path / "notebooks"
-    dir_path.mkdir()
-
-    # Directory with sandbox=True returns SandboxMode.MULTI
-    result = resolve_sandbox_mode(
-        sandbox=True,
-        name=str(dir_path),
-    )
-    assert result is SandboxMode.MULTI
-
-
-def test_resolve_sandbox_mode_all_cases(tmp_path: Path) -> None:
-    """Test resolve_sandbox_mode for all cases."""
-    dir_path = tmp_path / "notebooks"
-    dir_path.mkdir()
-    file_path = tmp_path / "notebook.py"
-    file_path.write_text("# test")
-
-    # sandbox=False always returns None
-    assert resolve_sandbox_mode(sandbox=False, name=None) is None
-    assert resolve_sandbox_mode(sandbox=False, name=str(dir_path)) is None
-    assert resolve_sandbox_mode(sandbox=False, name=str(file_path)) is None
-
-    # sandbox=True with None (current dir) -> SandboxMode.MULTI
-    assert resolve_sandbox_mode(sandbox=True, name=None) is SandboxMode.MULTI
-
-    # sandbox=True with directory -> SandboxMode.MULTI
-    assert (
-        resolve_sandbox_mode(sandbox=True, name=str(dir_path))
-        is SandboxMode.MULTI
-    )
-
-    # sandbox=True with file -> SandboxMode.SINGLE
-    assert (
-        resolve_sandbox_mode(sandbox=True, name=str(file_path))
-        is SandboxMode.SINGLE
-    )
+        assert result == "uv"
 
 
 def test_construct_uv_cmd_without_python_version(tmp_path: Path) -> None:
@@ -765,47 +705,29 @@ def test_sandbox_exit_codes_propagate(tmp_path: Path) -> None:
     )
     runner = CliRunner()
 
-    for command, target in (
-        (
-            ["edit", str(notebook), "--sandbox", "--headless", "--no-token"],
-            "marimo._cli.sandbox.run_in_sandbox",
-        ),
-        (
-            ["export", "html", str(notebook), "--sandbox"],
-            "marimo._cli.export.commands.run_in_sandbox",
-        ),
+    with mock_patch(
+        "marimo._cli.export.commands.run_in_sandbox", return_value=3
     ):
-        with (
-            mock_patch(target, return_value=3),
-            mock_patch(
-                "marimo._cli.sandbox.maybe_prompt_run_in_sandbox",
-                return_value=True,
-            ),
-        ):
-            result = runner.invoke(cli_main, command)
-        assert result.exit_code == 3, (command, result.output)
+        result = runner.invoke(
+            cli_main, ["export", "html", str(notebook), "--sandbox"]
+        )
+    assert result.exit_code == 3, result.output
 
 
-def test_resolve_sandbox_backends(tmp_path: Path) -> None:
-    from marimo._cli.sandbox import resolve_sandbox
+@pytest.mark.parametrize("name", [None, "notebook.py"])
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_explicit_sandbox_selection(
+    name: str | None, backend: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def unexpected_prompt(_name: str | None) -> bool:
+        raise AssertionError("Explicit sandbox flags must not prompt")
 
-    notebook = tmp_path / "nb.py"
-    notebook.write_text("import marimo\n")
-
-    mode, backend = resolve_sandbox("pixi", False, str(notebook))
-    assert mode is SandboxMode.SINGLE
-    assert backend == "pixi"
-
-    mode, backend = resolve_sandbox("uv", False, str(notebook))
-    assert mode is SandboxMode.SINGLE
-    assert backend == "uv"
-
-    mode, backend = resolve_sandbox("pixi", False, str(tmp_path))
-    assert mode is SandboxMode.MULTI
-    assert backend == "pixi"
-
-    mode, backend = resolve_sandbox("pixi", True, str(notebook))
-    assert mode is None
+    monkeypatch.setattr(
+        "marimo._cli.sandbox.maybe_prompt_run_in_sandbox", unexpected_prompt
+    )
+    assert resolve_sandbox(backend, False, name) == backend
+    assert resolve_sandbox(backend, True, name) is None
+    assert resolve_sandbox(None, True, name) is None
 
 
 def test_strip_sandbox_args() -> None:

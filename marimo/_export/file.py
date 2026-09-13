@@ -652,7 +652,7 @@ async def run_notebook(
 
     # Create a session
     session_consumer = RunUntilCompletionSessionConsumer()
-    session = SessionImpl.create(
+    session = await SessionImpl.create(
         # Any initialization ID will do
         initialization_id="_any_",
         session_consumer=session_consumer,

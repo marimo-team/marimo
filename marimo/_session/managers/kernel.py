@@ -65,7 +65,7 @@ class KernelManagerImpl(KernelManager):
         self._read_conn: TypedConnection[KernelMessage] | None = None
         self._virtual_file_storage = virtual_file_storage
 
-    def start_kernel(self) -> None:
+    async def start_kernel(self) -> None:
         # We use a process in edit mode so that we can interrupt the app
         # with a SIGINT; we don't mind the additional memory consumption,
         # since there's only one client session

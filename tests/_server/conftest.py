@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import sys
 import threading
 from pathlib import Path
@@ -47,7 +48,7 @@ def join_kernel_thread_tasks(session_manager: SessionManager) -> None:
     # To ensure that this fixture correctly restores the original saved
     # main module, we wait for threads to finish before restoring the module.
     kernel_tasks = get_kernel_tasks(session_manager)
-    session_manager.shutdown()
+    asyncio.run(session_manager.shutdown())
     for task in kernel_tasks:
         # At least some tests are flaky with processes (edit tasks)
         # not joining for a long time; orphaned edit tasks

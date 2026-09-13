@@ -434,7 +434,8 @@ def kill_subprocess(
     Use SIGKILL for an isolated group so a descendant ignoring SIGTERM
     cannot keep captured pipes open after the launcher exits.
     """
-    if process.poll() is not None:
+    # A launcher may have exited while its descendants still hold the pipes.
+    if process.poll() is not None and (is_windows() or not start_new_session):
         return
     if is_windows():
         try:

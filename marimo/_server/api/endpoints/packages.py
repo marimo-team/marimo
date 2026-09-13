@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from starlette.authentication import requires
 
 from marimo._config.settings import GLOBAL_SETTINGS
+from marimo._environments.sandbox import NotebookSandbox
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
 from marimo._runtime.packages.sandbox_package_manager import (
@@ -217,14 +218,10 @@ def _get_package_manager(request: Request) -> PackageManager:
 
     # Check if IPC mode - use kernel's venv Python
     python_exe: str | None = None
-    script_path: str | None = None
-    sandbox_environment = None
     from marimo._session.managers.ipc import IPCKernelManagerImpl
     from marimo._session.session import SessionImpl
 
     if isinstance(session, SessionImpl):
-        from marimo._environments.sandbox import NotebookSandbox
-
         sandbox = session.notebook_sandbox
         if isinstance(sandbox, NotebookSandbox):
             return SandboxPackageManager(sandbox)
@@ -232,19 +229,10 @@ def _get_package_manager(request: Request) -> PackageManager:
         kernel_manager = session._kernel_manager
         if isinstance(kernel_manager, IPCKernelManagerImpl):
             python_exe = kernel_manager.venv_python
-            if kernel_manager.script_environment is not None:
-                # The kernel runs in the notebook's script environment;
-                # package changes edit the manifest and synchronize it.
-                script_path = session.app_file_manager.filename
-                sandbox_environment = kernel_manager.script_environment
-        elif GLOBAL_SETTINGS.SANDBOX_MODE == "single":
-            script_path = session.app_file_manager.filename
 
     return create_package_manager(
         config_manager.package_manager,
         python_exe=python_exe,
-        script_path=script_path,
-        sandbox_environment=sandbox_environment,
     )
 
 

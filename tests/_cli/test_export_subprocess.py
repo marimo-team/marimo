@@ -1,57 +1,101 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
+import select
+import signal
 import subprocess
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import patch
 
 import click
 import pytest
 
-from marimo._cli.export._common import SandboxTarget, run_python_subprocess
+from marimo._cli.export._common import run_python_subprocess
 from marimo._environments.environment import Environment, ProcessPlan
+from marimo._environments.pixi import PixiMissingScriptMetadataError
+from marimo._environments.sandbox import Backend
+from marimo._environments.uv import UvMissingScriptMetadataError
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
-@pytest.mark.parametrize("isolated", [False, True])
-def test_export_runs_the_planned_command(isolated: bool) -> None:
-    handle = (
-        None
-        if isolated
-        else Environment(sys.executable, sys.prefix, "unchanged")
+@pytest.fixture
+def notebook_without_metadata(monkeypatch: pytest.MonkeyPatch) -> str:
+    async def missing_metadata(*_args: Any, **_kwargs: Any) -> None:
+        raise UvMissingScriptMetadataError(
+            ["uv", "sync"], 1, "", "No script metadata"
+        )
+
+    monkeypatch.setattr(
+        "marimo._environments.backends.sync_notebook_async", missing_metadata
     )
-    module = "marimo._environments.environment"
-    target = (
-        "marimo._environments.backends.launch_fallback"
-        if isolated
-        else f"{module}.launch"
-    )
+    return "notebook.py"
+
+
+async def test_export_runs_the_planned_command() -> None:
     code = (
         "import json,os,sys; print(json.dumps([os.getpid(), os.getsid(0)]))"
         if os.name != "nt"
         else "print('done')"
     )
     plan = ProcessPlan((sys.executable, "-c", code), dict(os.environ), True)
-    with patch(target, return_value=plan):
-        output = run_python_subprocess(
-            sandbox=SandboxTarget(handle),
+    with (
+        patch(
+            "marimo._environments.backends.sync_notebook_async",
+            return_value=Environment(sys.executable, sys.prefix, "unchanged"),
+        ),
+        patch("marimo._environments.environment.launch", return_value=plan),
+    ):
+        output = await run_python_subprocess(
+            notebook_path="notebook.py",
+            backend="uv",
             script="ignored",
             payload={},
             action="export",
         )
     if os.name != "nt":
-        import json
-
         pid, session = json.loads(output)
         assert pid == session
     else:
         assert output.strip() == "done"
 
 
-def test_export_failure_identifies_launcher_without_payload_or_credentials() -> (
-    None
-):
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+async def test_export_without_metadata_uses_current_interpreter(
+    notebook_without_metadata: str,
+    backend: Backend,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if backend == "pixi":
+
+        async def missing_metadata(*_args: Any, **_kwargs: Any) -> None:
+            raise PixiMissingScriptMetadataError(
+                ["pixi", "install"], 1, "No script metadata"
+            )
+
+        monkeypatch.setattr(
+            "marimo._environments.backends.sync_notebook_async",
+            missing_metadata,
+        )
+
+    payload = {"args": ["value with spaces", "--flag"], "unicode": "🎲"}
+    output = await run_python_subprocess(
+        notebook_path=notebook_without_metadata,
+        backend=backend,
+        script="import json,sys; print(json.dumps([sys.executable, json.loads(sys.argv[1])]))",
+        payload=payload,
+        action="export",
+    )
+    assert json.loads(output) == [sys.executable, payload]
+
+
+async def test_export_failure_identifies_launcher_without_payload_or_credentials(
+    notebook_without_metadata: str,
+) -> None:
     plan = ProcessPlan(
         (
             sys.executable,
@@ -67,8 +111,9 @@ def test_export_failure_identifies_launcher_without_payload_or_credentials() -> 
         "marimo._environments.backends.launch_fallback", return_value=plan
     ):
         with pytest.raises(click.ClickException) as error:
-            run_python_subprocess(
-                sandbox=SandboxTarget(None),
+            await run_python_subprocess(
+                notebook_path=notebook_without_metadata,
+                backend="uv",
                 script="private notebook",
                 payload={"token": "secret"},
                 action="export",
@@ -80,87 +125,103 @@ def test_export_failure_identifies_launcher_without_payload_or_credentials() -> 
     assert "private notebook" not in message
 
 
-@pytest.mark.parametrize("new_session", [False, True])
-def test_export_interrupt_reaps_the_child(new_session: bool) -> None:
-    children = []
-    popen = subprocess.Popen
-
-    class InterruptedProcess(subprocess.Popen):
-        def communicate(self, *_args: Any, **_kwargs: Any):
-            assert self.stdout.readline().strip() == "ready"
-            raise KeyboardInterrupt
-
-    def launch(*args: Any, **kwargs: Any):
-        # `patch` mutates the shared subprocess module, so Windows taskkill
-        # launched by `kill_subprocess` must keep using the real Popen.
-        if args[0][0] == "taskkill":
-            return popen(*args, **kwargs)
-        child = InterruptedProcess(*args, **kwargs)
-        children.append(child)
-        return child
-
-    plan = ProcessPlan(
-        (
-            sys.executable,
-            "-c",
-            "import time; print('ready', flush=True); time.sleep(30)",
-        ),
-        dict(os.environ),
-        new_session,
-    )
-    with (
-        patch(
-            "marimo._environments.backends.launch_fallback",
-            return_value=plan,
-        ),
-        patch(
-            "marimo._cli.export._common.subprocess.Popen", side_effect=launch
-        ),
-    ):
-        with pytest.raises(KeyboardInterrupt):
-            run_python_subprocess(
-                sandbox=SandboxTarget(None),
-                script="",
-                payload={},
-                action="export",
-            )
-    child = children[0]
-    assert child.poll() is not None
-    assert child.stdout.closed
-    assert child.stderr.closed
-
-
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
-def test_export_sigterm_reaps_isolated_child(tmp_path) -> None:
-    import signal
-    import time
+@pytest.mark.parametrize("signal_name", ["SIGINT", "SIGTERM"])
+@pytest.mark.parametrize("phase", ["preparation", "execution"])
+def test_session_cli_cancellation_stops_active_subprocesses(
+    tmp_path: Path, signal_name: str, phase: str
+) -> None:
+    import psutil
 
     ready = tmp_path / "ready"
-    code = f"""
-import os, sys
-from marimo._cli.export._common import SandboxTarget, run_python_subprocess
-from marimo._environments import environment, backends
-child = "import os,time; from pathlib import Path; Path({str(ready)!r}).write_text(str(os.getpid())); time.sleep(30)"
-backends.launch_fallback = lambda *a, **kw: environment.ProcessPlan((sys.executable, '-c', child), dict(os.environ), True)
-run_python_subprocess(sandbox=SandboxTarget(None), script='', payload={{}}, action='export')
+    os.mkfifo(ready)
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        "import marimo\napp = marimo.App()\n@app.cell\ndef _():\n"
+        "    import os, time\n    from pathlib import Path\n"
+        f"    Path({str(ready)!r}).write_text(str(os.getpid()))\n"
+        "    time.sleep(30)\n    return\n",
+        encoding="utf-8",
+    )
+    # Skip dependency installation, but exercise the CLI, worker, and kernel.
+    code = """
+from marimo._cli.cli import main
+from marimo._environments import backends
+from marimo._environments.uv import UvMissingScriptMetadataError
+
+async def missing_metadata(*args, **kwargs):
+    raise UvMissingScriptMetadataError(["uv", "sync"], 1, "", "No script metadata")
+
+backends.sync_notebook_async = missing_metadata
+main(prog_name="marimo")
 """
-    parent = subprocess.Popen([sys.executable, "-c", code])
-    child_pid = None
-    try:
-        deadline = time.monotonic() + 10
-        while not ready.exists() and time.monotonic() < deadline:
-            assert parent.poll() is None
-            time.sleep(0.02)
-        child_pid = int(ready.read_text())
-        parent.send_signal(signal.SIGTERM)
-        assert parent.wait(timeout=10) == 128 + signal.SIGTERM
-        with pytest.raises(ProcessLookupError):
-            os.kill(child_pid, 0)
-    finally:
-        parent.kill()
-        parent.wait(timeout=5)
-        if child_pid is not None:
-            try:
-                os.kill(child_pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+
+    env = dict(os.environ)
+    if phase == "preparation":
+        # Stop in the real preparation path before an export worker exists.
+        command = tmp_path / "uv"
+        command.write_text(
+            f"#!{sys.executable}\n"
+            "import os, signal, sys\nfrom pathlib import Path\n"
+            "if '--version' in sys.argv:\n"
+            "    print('uv 0.12.0')\n"
+            "elif 'sync' in sys.argv:\n"
+            f"    Path({str(ready)!r}).write_text(str(os.getpid()))\n"
+            "    signal.pause()\n",
+            encoding="utf-8",
+        )
+        command.chmod(0o755)
+        env["UV"] = str(command)
+        code = "from marimo._cli.cli import main; main(prog_name='marimo')"
+
+    children: list[psutil.Process] = []
+    with (
+        (tmp_path / "stderr").open("w+") as stderr,
+        os.fdopen(
+            os.open(ready, os.O_RDONLY | os.O_NONBLOCK), "rb"
+        ) as readiness,
+    ):
+        parent = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                code,
+                "export",
+                "session",
+                str(tmp_path),
+                "--sandbox",
+            ],
+            cwd=tmp_path,
+            env=env,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr,
+            start_new_session=True,
+        )
+        try:
+            assert select.select([readiness], [], [], 15)[0], (
+                "Sandbox subprocess did not start"
+            )
+            active_pid = int(readiness.read())
+            children = psutil.Process(parent.pid).children(recursive=True)
+            assert active_pid in {child.pid for child in children}
+            signum = getattr(signal, signal_name)
+            parent.send_signal(signum)
+            exit_code = parent.wait(timeout=5)
+            _, alive = psutil.wait_procs(children, timeout=5)
+            assert not alive, "Export left children running"
+            # Click reports KeyboardInterrupt as an aborted command (exit 1).
+            assert exit_code == (
+                1 if signal_name == "SIGINT" else 128 + signum
+            )
+        finally:
+            if parent.poll() is None:
+                children += psutil.Process(parent.pid).children(recursive=True)
+            for child in reversed(children):
+                try:
+                    child.kill()
+                except psutil.NoSuchProcess:
+                    pass
+            parent.kill()
+            parent.wait(timeout=5)
+            stderr.seek(0)
+            print(stderr.read())
