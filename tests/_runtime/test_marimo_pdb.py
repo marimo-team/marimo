@@ -124,6 +124,42 @@ def test_getval_keeps_names_bound_by_the_expression() -> None:
     assert debugger._getval("(lambda _b=_b: _b)()") == 10
 
 
+def test_mangle_keeps_names_bound_by_a_match_pattern() -> None:
+    # Capture names bind through the pattern node (ast.MatchAs / MatchStar /
+    # MatchMapping), not through an ast.Name with a Store context, so they
+    # were invisible to _names_bound_by and a `_`-prefixed capture got
+    # mangled out from under the case body.
+    glbls: dict[str, Any] = {"_cell_0_x": 99}
+    debugger = _debugger_stopped_in(glbls, get_filename(CELL_ID))
+
+    for source in (
+        "def _f(v):\n"
+        "    match v:\n"
+        "        case _x:\n"
+        "            return _x",
+        "def _f(v):\n"
+        "    match v:\n"
+        "        case [1] as _x:\n"
+        "            return _x",
+        "def _f(v):\n"
+        "    match v:\n"
+        "        case [1, *_x]:\n"
+        "            return _x",
+        "def _f(v):\n"
+        "    match v:\n"
+        "        case {1: _a, **_x}:\n"
+        "            return _a, _x",
+    ):
+        assert debugger._mangle_cell_locals(source) == source
+
+    # A name the pattern does NOT bind is still the cell's. `case _:` is the
+    # wildcard and binds nothing, so `_x` in the body belongs to the cell.
+    mangled = debugger._mangle_cell_locals(
+        "def _f(v):\n    match v:\n        case _:\n            return _x"
+    )
+    assert "_cell_0_x" in mangled
+
+
 def test_mangle_keeps_names_bound_by_a_nested_def() -> None:
     # Same rule for a `def`: its parameters and its own locals are the
     # function's, even when the cell happens to define the same names.
