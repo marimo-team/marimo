@@ -9,8 +9,9 @@ file watching, and LSP server management.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+from time import monotonic
 from typing import TYPE_CHECKING
 from weakref import WeakValueDictionary
 
@@ -48,7 +49,7 @@ from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._session.session import Session, SessionImpl
 from marimo._session.session_repository import SessionRepository
-from marimo._session.types import KernelState
+from marimo._session.types import KernelState, SessionSnapshot
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
@@ -59,6 +60,7 @@ if TYPE_CHECKING:
     from marimo._session.notebook import AppFileManager
 
 LOGGER = _loggers.marimo_logger()
+_TERMINAL_RETENTION_SECONDS = 300
 
 
 @dataclass
@@ -121,6 +123,7 @@ class SessionManager:
 
         self._repository = SessionRepository()
         self._pending: dict[SessionId, _PendingSession] = {}
+        self._terminal_sessions: dict[str, tuple[float, SessionSnapshot]] = {}
         self._connection_locks: WeakValueDictionary[str, asyncio.Lock] = (
             WeakValueDictionary()
         )
@@ -404,6 +407,27 @@ class SessionManager:
             file_key, resolved_path=self._resolve_file_key(file_key)
         )
 
+    def get_session_snapshot(self, stable_id: str) -> SessionSnapshot | None:
+        """Read live or retained terminal details using a stable session ID.
+
+        Closing a session retains its details for five minutes without keeping
+        the session, kernel, or document alive. Browser resumes preserve the ID.
+        """
+        self._discard_expired_snapshots()
+        for session in self._repository.get_all():
+            if session.stable_id == stable_id:
+                return SessionSnapshot.from_session(session)
+        retained = self._terminal_sessions.get(stable_id)
+        return retained[1] if retained is not None else None
+
+    def _discard_expired_snapshots(self) -> None:
+        now = monotonic()
+        self._terminal_sessions = {
+            key: entry
+            for key, entry in self._terminal_sessions.items()
+            if entry[0] > now
+        }
+
     def _resolve_file_key(self, file_key: MarimoFileKey) -> str | None:
         """Best-effort canonical absolute path for a file key.
 
@@ -500,7 +524,15 @@ class SessionManager:
             name="session.closed",
         )
 
+        # Capture a prior kernel failure before intentional shutdown can
+        # replace its exit status with the signal used to close it.
+        snapshot = SessionSnapshot.from_session(session)
         session.close()
+        self._discard_expired_snapshots()
+        self._terminal_sessions[snapshot.session_id] = (
+            monotonic() + _TERMINAL_RETENTION_SECONDS,
+            replace(snapshot, kernel_state=KernelState.STOPPED),
+        )
         return True
 
     def close_all_sessions(self) -> None:

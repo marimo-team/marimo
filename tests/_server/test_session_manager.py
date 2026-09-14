@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from datetime import datetime, timezone
 from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock
@@ -54,6 +55,8 @@ def mock_session_consumer():
 @pytest.fixture
 def mock_session():
     session = Mock(spec=Session)
+    session.started_at = datetime.now(timezone.utc)
+    session.app_file_manager = Mock(path=None)
     session.initialization_id = "test_init_id"
     session.session_cache_manager = None
     session.connection_state.return_value = ConnectionState.OPEN

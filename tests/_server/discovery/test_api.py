@@ -76,6 +76,7 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
                 "catalog.watch",
                 "notebook.open",
                 "session.execute",
+                "session.read",
             ],
             "projects": [
                 {
@@ -215,6 +216,13 @@ def test_execute_reuses_scratchpad_sse_after_resume(
     headers = {"Authorization": f"Bearer {manager.token}"}
     snapshot = local.get("/api/marimo/v1/catalog", headers=headers).json()
     discovered_session = snapshot["projects"][0]["notebooks"][0]["sessions"][0]
+    details_url = f"/api/marimo/v1/sessions/{session.stable_id}"
+    details = local.get(details_url, headers=headers).json()
+    assert details == {
+        **discovered_session,
+        "project_id": snapshot["projects"][0]["id"],
+        "notebook_id": snapshot["projects"][0]["notebooks"][0]["id"],
+    }
     assert discovered_session["session_id"] == session.stable_id
     assert session.stable_id == IsUUID
     execution_url = (
@@ -238,6 +246,7 @@ def test_execute_reuses_scratchpad_sse_after_resume(
     assert (
         local.get("/api/marimo/v1/catalog", headers=headers).json() == snapshot
     )
+    assert local.get(details_url, headers=headers).json() == details
     assert discovered_session["status"] == "running"
     assert discovered_session["mode"] == "edit"
     captured: list[object] = []
