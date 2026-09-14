@@ -133,8 +133,10 @@ class TestPairPrompt:
                     cli_main,
                     ["pair", "prompt", "--url", TEST_URL, flag],
                 )
-                assert result.exit_code != 0, flag
+                assert result.exit_code == 0, flag
+                assert "Warning:" in result.output, flag
                 assert "could not be found" in result.output, flag
+                assert TEST_URL in result.output, flag
 
     def test_prompt_skill_installed(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=True):
@@ -226,7 +228,7 @@ class TestPairPromptWithToken:
         assert TEST_URL in result.output
         assert "token" in result.output.lower()
 
-    def test_with_token_and_skill_missing_fails(self) -> None:
+    def test_with_token_and_skill_missing_warns(self) -> None:
         with patch.object(AgentConfig, "has_skill", return_value=False):
             result = _runner.invoke(
                 cli_main,
@@ -240,8 +242,10 @@ class TestPairPromptWithToken:
                 ],
                 input="secret\n",
             )
-        assert result.exit_code != 0
+        assert result.exit_code == 0
+        assert "Warning:" in result.output
         assert "could not be found" in result.output
+        assert TEST_URL in result.output
 
     def test_without_token_no_token_hint(self) -> None:
         result = _runner.invoke(
