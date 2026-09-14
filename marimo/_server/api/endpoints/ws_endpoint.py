@@ -36,7 +36,6 @@ from marimo._server.rtc.doc import LoroDocManager
 from marimo._server.sse import SSE_HEADERS, format_close_event
 from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import SessionMode
-from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -247,41 +246,43 @@ class WebSocketHandler(SessionHandler):
         )
         LOGGER.debug("Existing sessions: %s", self.manager.sessions)
 
-        startup = asyncio.create_task(self._connect_session(self.websocket))
-        try:
-            async with aclosing(self._startup_messages(startup)) as messages:
-                async for text in messages:
-                    await self.websocket.send_text(text)
-            session, connection_type = await startup
-        except asyncio.CancelledError:
-            await self._safe_close(WebSocketCodes.NORMAL_CLOSE, "")
-            return
-        except KernelStartupError as e:
-            LOGGER.error("Kernel startup failed: %s", e)
-            await self._close_kernel_startup_error(str(e))
-            return
-        finally:
-            await cancel_and_wait(startup)
-        LOGGER.debug(
-            "Connected to session %s with type %s",
-            session.initialization_id,
-            connection_type,
-        )
+        async with self._connection_lifetime(self.websocket) as startup:
+            try:
+                async with aclosing(
+                    self._startup_messages(startup)
+                ) as messages:
+                    async for text in messages:
+                        await self.websocket.send_text(text)
+                session, connection_type = await startup
+            except asyncio.CancelledError:
+                await self._safe_close(WebSocketCodes.NORMAL_CLOSE, "")
+                return
+            except KernelStartupError as e:
+                LOGGER.error("Kernel startup failed: %s", e)
+                await self._close_kernel_startup_error(str(e))
+                return
+            except WebSocketDisconnect as e:
+                await self._safe_close(e.code, e.reason or "")
+                return
+            LOGGER.debug(
+                "Connected to session %s with type %s",
+                session.initialization_id,
+                connection_type,
+            )
 
-        # Start message loops
-        message_loop = WebSocketMessageLoop(
-            websocket=self.websocket,
-            message_queue=self.message_queue,
-            is_kiosk=lambda: self._is_viewer(session, connection_type),
-            on_disconnect=self._on_disconnect,
-            on_check_status_update=self._check_status_update,
-        )
+            # Start message loops
+            message_loop = WebSocketMessageLoop(
+                websocket=self.websocket,
+                message_queue=self.message_queue,
+                is_kiosk=lambda: self._is_viewer(session, connection_type),
+                on_check_status_update=self._check_status_update,
+            )
 
-        try:
-            self.ws_future = asyncio.create_task(message_loop.start())
-            await self.ws_future
-        except asyncio.CancelledError:
-            LOGGER.debug("Websocket terminated with CancelledError")
+            try:
+                self.ws_future = asyncio.create_task(message_loop.start())
+                await self.ws_future
+            except asyncio.CancelledError:
+                LOGGER.debug("Websocket terminated with CancelledError")
 
     async def _wait_for_disconnect(self) -> None:
         while True:

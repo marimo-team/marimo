@@ -5,9 +5,8 @@ from __future__ import annotations
 
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
-
-from starlette.websockets import WebSocketDisconnect
 
 from marimo import _loggers
 from marimo._cli.upgrade import check_for_updates
@@ -41,8 +40,7 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncGenerator, Callable
-    from typing import Any
+    from collections.abc import AsyncGenerator, AsyncIterator
 
     from starlette.requests import HTTPConnection
 
@@ -87,7 +85,8 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.params = params
         self.mode = mode
         self.doc_manager = doc_manager
-        self.status: ConnectionState
+        self.status = ConnectionState.CONNECTING
+        self._session: Session | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
@@ -121,6 +120,20 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     # Shared session lifecycle
 
+    @asynccontextmanager
+    async def _connection_lifetime(
+        self, connection: HTTPConnection
+    ) -> AsyncIterator[asyncio.Task[tuple[Session, ConnectionType]]]:
+        """Own attachment through startup, progress delivery, and streaming."""
+        startup = asyncio.create_task(self._connect_session(connection))
+        try:
+            yield startup
+        finally:
+            try:
+                await cancel_and_wait(startup)
+            finally:
+                self._on_disconnect()
+
     async def _connect_session(
         self, connection: HTTPConnection
     ) -> tuple[Session, ConnectionType]:
@@ -147,7 +160,6 @@ class SessionHandler(SessionConsumer, abc.ABC):
             if disconnected in done:
                 await disconnected
                 await cancel_and_wait(startup)
-                self._on_disconnect(WebSocketDisconnect(), lambda: None)
                 raise asyncio.CancelledError
             return await startup
         finally:
@@ -344,24 +356,19 @@ class SessionHandler(SessionConsumer, abc.ABC):
             LOGGER.debug("Replaying notification %s", notif)
             self._serialize_and_notify(notif)
 
-    def _on_disconnect(
-        self,
-        e: Exception,
-        cleanup_fn: Callable[[], Any],
-    ) -> None:
+    def _on_disconnect(self) -> None:
+        session = self._session
+        if session is None:
+            return
         LOGGER.debug(
-            "Connection closed for session %s with exception %s, type %s",
+            "Connection closed for session %s",
             self.params.session_id,
-            str(e),
-            type(e),
         )
 
         # Change the status
         self.status = ConnectionState.CLOSED
         # Disconnect the consumer
-        session = self.manager.get_session(self.params.session_id)
-        if session:
-            session.disconnect_consumer(self)
+        session.disconnect_consumer(self)
 
         # When the connection is closed, we wait session.ttl_seconds before
         # closing the session. This prevents the session from being closed
@@ -393,27 +400,18 @@ class SessionHandler(SessionConsumer, abc.ABC):
                         "Closing session %s (TTL EXPIRED)",
                         self.params.session_id,
                     )
-                    # wait until TTL is expired before calling the cleanup
-                    # function
-                    cleanup_fn()
                     self.manager.close_session(self.params.session_id)
 
-            if session is not None:
-                cancellation_handle = asyncio.get_running_loop().call_later(
-                    session.ttl_seconds, _close
-                )
-                self.cancel_close_handle = cancellation_handle
-            else:
-                _close()
-        else:
-            cleanup_fn()
+            self.cancel_close_handle = asyncio.get_running_loop().call_later(
+                session.ttl_seconds, _close
+            )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
         del event_bus
-        return
+        self._session = session
 
     def on_detach(self) -> None:
+        self._session = None
         # If the transport is open, send a close message
         is_connected = (
             self.status == ConnectionState.OPEN

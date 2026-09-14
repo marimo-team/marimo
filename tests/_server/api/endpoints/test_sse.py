@@ -11,7 +11,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._messaging.notification import AlertNotification
+from marimo._messaging.notification import (
+    AlertNotification,
+    StartupProgressNotification,
+)
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.sse_handler import SSESessionHandler
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -441,8 +444,18 @@ def _make_handler(
     # Bypass SessionConnector; unit tests drive the handler directly
     session = MagicMock()
     session.room.main_consumer = handler
+    session.ttl_seconds = 120
+    session.disconnect_consumer.side_effect = lambda consumer: (
+        consumer.on_detach()
+    )
+    handler.manager.get_session.return_value = session
+
+    async def connect(_request: Any) -> tuple[Any, ConnectionType]:
+        handler.on_attach(session, MagicMock())
+        return session, ConnectionType.NEW
+
     handler._connect_session = AsyncMock(  # type: ignore[method-assign]
-        return_value=(session, ConnectionType.NEW)
+        side_effect=connect
     )
     return handler
 
@@ -491,6 +504,27 @@ async def test_stream_does_not_connect_until_iterated() -> None:
 
     await stream.aclose()
     handler._connect_session.assert_not_called()
+
+
+async def test_disconnect_during_startup_progress_detaches_session() -> None:
+    request = MagicMock()
+    request._receive = _never_receive()
+    handler = _make_handler(request)
+    session = handler.manager.get_session.return_value
+    handler.notify(
+        serialize_kernel_message(
+            StartupProgressNotification(phase="starting-kernel")
+        )
+    )
+
+    stream = handler.stream()
+    assert "startup-progress" in await anext(stream)
+    await asyncio.sleep(0)  # Complete attachment while the yield is suspended.
+    await stream.aclose()
+
+    session.disconnect_consumer.assert_called_once_with(handler)
+    assert handler.connection_state() == ConnectionState.CLOSED
+    assert not handler._is_transport_connected()
 
 
 async def test_stream_flushes_pending_messages_before_close() -> None:
