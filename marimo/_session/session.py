@@ -16,10 +16,7 @@ from uuid import uuid4
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
-from marimo._messaging.notification import (
-    NotificationMessage,
-    StartupProgressNotification,
-)
+from marimo._messaging.notification import NotificationMessage
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -67,11 +64,12 @@ from marimo._types.ids import ConsumerId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from marimo._environments.sandbox import NotebookSandbox
     from marimo._runtime.virtual_file import VirtualFileStorageType
     from marimo._session.app_host import AppHostContext
+    from marimo._session.model import StartupPhase
     from marimo._session.requests import InstantiateNotebookRequest
 
 LOGGER = _loggers.marimo_logger()
@@ -107,6 +105,7 @@ class SessionImpl(Session):
         app_host_context: AppHostContext | None = None,
         stable_id: str | None = None,
         started_at: datetime | None = None,
+        on_progress: Callable[[StartupPhase], None] | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -168,15 +167,7 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                on_progress=(
-                    lambda phase: session_consumer.notify(
-                        serialize_kernel_message(
-                            StartupProgressNotification(phase=phase)
-                        )
-                    )
-                )
-                if session_consumer is not None
-                else None,
+                on_progress=on_progress,
             )
         else:
             # Original kernel: Process for edit, Thread for run
