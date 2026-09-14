@@ -113,7 +113,7 @@ anthropic:
 openai:
   - name: GPT-6 Astra
     model: gpt-6-astra
-    description: ""
+    description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -223,7 +223,7 @@ openai:
 google:
   - name: Grok 4.6
     model: xai/grok-4.6
-    description: ""
+    description: "xAI frontier model for coding, knowledge work, and STEM"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -402,7 +402,7 @@ google:
 bedrock:
   - name: GPT-6 Astra (Global)
     model: global.openai.gpt-6-astra
-    description: ""
+    description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -410,29 +410,9 @@ bedrock:
     release_date: 2026-09-04
     cost: {input: 10, output: 50}
 
-  - name: GPT-6 Astra
-    model: openai.gpt-6-astra
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-04
-    cost: {input: 11, output: 55}
-
-  - name: GPT-6 Astra (US)
-    model: us.openai.gpt-6-astra
-    description: ""
-    roles: [chat, edit]
-    capabilities: [thinking, tool_calling]
-    input_types: [text, image, pdf]
-    output_types: [text]
-    release_date: 2026-09-04
-    cost: {input: 11, output: 55}
-
   - name: Grok 4.6 (Global)
     model: global.xai.grok-4.6
-    description: ""
+    description: "xAI frontier model for coding, knowledge work, and STEM"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -633,7 +613,7 @@ bedrock:
 azure:
   - name: GPT-6 Astra
     model: gpt-6-astra
-    description: ""
+    description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image, pdf]
@@ -853,7 +833,7 @@ azure:
 ollama:
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
-    description: ""
+    description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -862,7 +842,7 @@ ollama:
 
   - name: DeepSeek V4 Pro 0813
     model: deepseek-v4-pro:0813
-    description: ""
+    description: "Large-scale Mixture-of-Experts model and generally available release of DeepSeek V4 Pro"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text]
@@ -1016,7 +996,7 @@ ollama:
 wandb:
   - name: GLM 5.3 Flash
     model: zai-org/GLM-5.3-Flash
-    description: ""
+    description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
@@ -1237,7 +1217,7 @@ wandb:
 opencode-go:
   - name: DeepSeek V4.1 Flash
     model: deepseek-v4.1-flash
-    description: ""
+    description: "Sparse Mixture-of-Experts model from DeepSeek built on a Causal Encoder-Decoder architecture"
     roles: [chat, edit]
     capabilities: [thinking, tool_calling]
     input_types: [text, image]
