@@ -256,7 +256,7 @@ class Catalog(Struct):
     operations: Annotated[
         list[str],
         Meta(
-            description="Optional operation identifiers; unknown identifiers must be accepted."
+            description="Optional operation identifiers; unknown identifiers must be accepted.\nsession.start requires session.read and session.watch. session.watch,\nsession.stop, and session.restart require session.read.\n"
         ),
     ]
     projects: list[ProjectSummary]

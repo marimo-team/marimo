@@ -854,8 +854,9 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
         assert len(messages) >= 1
 
 
+@pytest.mark.parametrize("stop", [False, True])
 def test_disconnect_cancels_pending_startup(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, stop: bool
 ) -> None:
     import asyncio
     import threading
@@ -875,7 +876,15 @@ def test_disconnect_cancels_pending_startup(
     monkeypatch.setattr(SessionImpl, "create", create)
     with client.websocket_connect(WS_URL) as websocket:
         assert started.wait(timeout=5)
-        websocket.close()
+        if stop:
+            manager = get_session_manager(client)
+            pending = manager.session_snapshots[0]
+            websocket.portal.call(manager.stop_session, pending.session_id)
+            with pytest.raises(WebSocketDisconnect) as closed:
+                websocket.receive_json()
+            assert closed.value.reason == "MARIMO_SHUTDOWN"
+        else:
+            websocket.close()
         # Stay in the client context: its teardown cancels the server task,
         # which would hide a failure to notice the actual disconnect.
         assert cleaned_up.wait(timeout=5)

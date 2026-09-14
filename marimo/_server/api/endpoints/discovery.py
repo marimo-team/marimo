@@ -234,6 +234,25 @@ async def watch_session(*, request: Request) -> Response:
     )
 
 
+@router.delete("/sessions/{session_id}")
+async def stop_session(request: Request) -> Response:
+    """Stop this edit session for all clients without closing the server."""
+    try:
+        result = await _manager(request).stop_session(
+            request.path_params["session_id"]
+        )
+        return Response(
+            encode_json_bytes(result), media_type="application/json"
+        )
+    except KeyError:
+        return _error(404, "Session not found")
+    except HTTPException as e:
+        return _error(e.status_code, str(e.detail))
+    except Exception:
+        LOGGER.exception("Failed to stop a locally discovered session")
+        return _error(500, "Failed to stop session")
+
+
 @router.post("/sessions/{session_id}/execute")
 async def execute(*, request: Request) -> Response:
     """Execute code in a running session using the scratchpad SSE stream."""

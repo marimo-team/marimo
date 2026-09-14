@@ -60,6 +60,7 @@ DISCOVERY_OPERATIONS = [
     "session.execute",
     "session.read",
     "session.start",
+    "session.stop",
     "session.watch",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
@@ -293,6 +294,10 @@ class DiscoveryManager:
         snapshot = self.session_manager.get_session_snapshot(session_id)
         if snapshot is None:
             raise KeyError("Session not found")
+        return self._session_details(snapshot)
+
+    async def stop_session(self, session_id: str) -> DiscoveredSession:
+        snapshot = await self.session_manager.stop_session(session_id)
         return self._session_details(snapshot)
 
     def _session_details(self, snapshot: SessionSnapshot) -> DiscoveredSession:
