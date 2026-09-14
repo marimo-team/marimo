@@ -28,7 +28,8 @@ from marimo._server.discovery.models import (
     NotebookSummary,
     OpenNotebookResponse,
     ProjectSummary,
-    SessionStatus,
+    Session as DiscoveredSession,
+    SessionError,
     SessionSummary,
 )
 from marimo._server.files.os_file_system import OSFileSystem
@@ -38,9 +39,10 @@ from marimo._server.workspace import (
     flatten_files,
 )
 from marimo._session.model import SessionMode
-from marimo._session.types import KernelState
+from marimo._session.types import SessionSnapshot
 from marimo._utils.asyncio_utils import cancel_and_wait
 from marimo._utils.http import HTTPException, HTTPStatus
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator, Sequence
@@ -54,6 +56,7 @@ DISCOVERY_OPERATIONS = [
     "catalog.watch",
     "notebook.open",
     "session.execute",
+    "session.read",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
@@ -284,6 +287,36 @@ class DiscoveryManager:
                     queue.put_nowait(None)
             return Notebook(project_id=project.id, **asdict(notebook))
 
+    def read_session(self, session_id: str) -> DiscoveredSession:
+        snapshot = self.session_manager.get_session_snapshot(session_id)
+        if snapshot is None:
+            raise KeyError("Session not found")
+        root = self._project_root()
+        identity = snapshot.initialization_id
+        if snapshot.path is not None:
+            identity = self._normalize_path(snapshot.path)
+        else:
+            unique_key = self.session_manager.workspace.get_unique_file_key()
+            if unique_key is not None and unique_key.startswith(NEW_FILE):
+                identity = unique_key
+        details = DiscoveredSession(
+            session_id=snapshot.session_id,
+            notebook_id=self._stable_id(f"notebook:{identity}"),
+            project_id=self._stable_id(f"project:{root or 'untitled'}"),
+            status=snapshot.status,
+            mode="edit"
+            if self.session_manager.mode is SessionMode.EDIT
+            else "app",
+            started_at=snapshot.started_at,
+            marimo_version=__version__,
+        )
+        if snapshot.status == "failed":
+            details.error = SessionError(
+                code="KERNEL_EXITED",
+                message=f"Kernel exited with code {snapshot.exitcode}",
+            )
+        return details
+
     async def open_notebook(self, notebook_id: str) -> OpenNotebookResponse:
         # Refresh first so IDs for files added since the previous request work.
         _, targets = await self._snapshot()
@@ -438,36 +471,25 @@ class DiscoveryManager:
     def _session_summaries(
         self, pairs: list[tuple[str, Session]]
     ) -> list[SessionSummary]:
-        from marimo._version import __version__
-
+        snapshots = (
+            SessionSnapshot.from_session(session) for _, session in pairs
+        )
         summaries = [
             SessionSummary(
-                session_id=session_id,
-                status=self._session_status(session),
+                session_id=snapshot.session_id,
+                status=snapshot.status,
                 mode=(
                     "edit"
                     if self.session_manager.mode is SessionMode.EDIT
                     else "app"
                 ),
-                started_at=getattr(session, "started_at", self.started_at),
+                started_at=snapshot.started_at,
                 marimo_version=__version__,
             )
-            for session_id, session in pairs
+            for snapshot in snapshots
         ]
         summaries.sort(key=lambda summary: summary.session_id)
         return summaries
-
-    @staticmethod
-    def _session_status(session: Session) -> SessionStatus:
-        state = session.kernel_state()
-        if state is KernelState.NOT_STARTED:
-            return "starting"
-        if state is KernelState.RUNNING:
-            return "running"
-        exit_info = session.kernel_exit_info()
-        if exit_info is not None and exit_info.exitcode not in (None, 0):
-            return "failed"
-        return "terminated"
 
     def _stable_id(self, value: str) -> str:
         return str(uuid5(self.instance_id, value))

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from datetime import datetime, timezone
 from textwrap import dedent
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, Mock
@@ -55,6 +56,8 @@ def mock_session_consumer():
 @pytest.fixture
 def mock_session():
     session = Mock(spec=Session)
+    session.started_at = datetime.now(timezone.utc)
+    session.app_file_manager = Mock(path=None)
     session.initialization_id = "test_init_id"
     session.session_cache_manager = None
     session.room = Room()
@@ -1019,6 +1022,8 @@ async def test_closed_startup_cannot_be_attached(
         assert not session_manager.sessions
 
         replacement = Mock(spec=Session)
+        replacement.started_at = datetime.now(timezone.utc)
+        replacement.initialization_id = NEW_FILE
         replacement.room = Room()
         replacement.connect_consumer.side_effect = (
             replacement.room.add_consumer

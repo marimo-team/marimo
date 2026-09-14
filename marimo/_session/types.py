@@ -11,7 +11,7 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 if TYPE_CHECKING:
     import asyncio
@@ -130,6 +130,43 @@ class KernelExitInfo:
     exitcode: int | None
     cause: str
     message: str
+
+
+@dataclass(frozen=True)
+class SessionSnapshot:
+    """Session identity and kernel state, without retaining runtime resources."""
+
+    session_id: str
+    initialization_id: str
+    path: str | None
+    started_at: datetime
+    kernel_state: KernelState
+    exitcode: int | None
+
+    @classmethod
+    def from_session(cls, session: Session) -> SessionSnapshot:
+        state = session.kernel_state()
+        exit_info = (
+            session.kernel_exit_info()
+            if state is KernelState.STOPPED
+            else None
+        )
+        return cls(
+            session_id=session.stable_id,
+            initialization_id=session.initialization_id,
+            path=session.app_file_manager.path,
+            started_at=session.started_at,
+            kernel_state=state,
+            exitcode=exit_info.exitcode if exit_info is not None else None,
+        )
+
+    @property
+    def status(self) -> Literal["starting", "running", "failed", "terminated"]:
+        if self.kernel_state is KernelState.NOT_STARTED:
+            return "starting"
+        if self.kernel_state is KernelState.RUNNING:
+            return "running"
+        return "failed" if self.exitcode not in (None, 0) else "terminated"
 
 
 class Session(Protocol):

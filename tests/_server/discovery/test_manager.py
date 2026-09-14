@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from unittest.mock import Mock
 from urllib.parse import parse_qs, urlparse
@@ -122,6 +123,7 @@ async def test_untitled_catalog_and_open_agree(
     )
     for index in range(session_count):
         session = Mock(spec=Session)
+        session.started_at = datetime.now(timezone.utc)
         session.stable_id = str(uuid4())
         session.app_file_manager = Mock(path=None)
         session.initialization_id = f"{NEW_FILE}{index}"
@@ -160,6 +162,7 @@ async def test_open_refreshes_deleted_notebook(
     )
     if with_session:
         session = Mock(spec=Session)
+        session.started_at = datetime.now(timezone.utc)
         session.stable_id = str(uuid4())
         session.app_file_manager = Mock(path=str(path))
         session.initialization_id = str(path)

@@ -151,6 +151,20 @@ async def open_notebook(*, request: Request) -> object:
         return _error(500, "Failed to open notebook")
 
 
+@router.get("/sessions/{session_id}")
+async def read_session(*, request: Request) -> object:
+    """Inspect a session independently of notebook indexing."""
+    try:
+        return _manager(request).read_session(
+            request.path_params["session_id"]
+        )
+    except KeyError:
+        return _error(404, "Session not found")
+    except Exception:
+        LOGGER.exception("Failed to read a locally discovered session")
+        return _error(500, "Failed to read session")
+
+
 @router.post("/sessions/{session_id}/execute")
 async def execute(*, request: Request) -> Response:
     """Execute code in a running session using the scratchpad SSE stream."""
