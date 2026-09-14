@@ -238,21 +238,35 @@ class OSFileSystem(FileSystem):
         if file_type == "directory":
             full_path.mkdir(parents=True, exist_ok=True)
         elif file_type == "notebook" and not contents:
-            from marimo._convert.converters import MarimoConvert
-
             full_path.parent.mkdir(parents=True, exist_ok=True)
-            # Create a new AppFileManager to get the default notebook code
-            # We pass None as filename to get the empty notebook template
-            ir = AppFileManager(None).app.to_ir()
-            converter = MarimoConvert.from_ir(ir)
-            if full_path.suffix in (".md", ".qmd"):
-                notebook_code = converter.to_markdown(full_path.name)
-            else:
-                notebook_code = converter.to_py()
-            full_path.write_text(notebook_code, encoding="utf-8")
+            return self.create_notebook(str(full_path))
         else:
             full_path.parent.mkdir(parents=True, exist_ok=True)
             full_path.write_bytes(contents or b"")
+        return self.get_info(str(full_path))
+
+    def create_notebook(self, path: str) -> FileInfo:
+        """Create an empty notebook at an exact path, without overwriting.
+
+        The parent directory must exist.
+        """
+        from marimo._convert.converters import MarimoConvert
+
+        full_path = Path(path)
+        converter = MarimoConvert.from_ir(AppFileManager(None).app.to_ir())
+        code = (
+            converter.to_markdown(full_path.name)
+            if full_path.suffix in (".md", ".qmd")
+            else converter.to_py()
+        )
+        contents = code.encode("utf-8")
+        file = full_path.open("xb")
+        try:
+            with file:
+                file.write(contents)
+        except BaseException:
+            full_path.unlink()
+            raise
         return self.get_info(str(full_path))
 
     async def stream_create_file(
