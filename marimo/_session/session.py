@@ -93,7 +93,7 @@ class SessionImpl(Session):
         cls,
         *,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
         mode: SessionMode,
         app_metadata: AppMetadata,
         app_file_manager: AppFileManager,
@@ -105,6 +105,8 @@ class SessionImpl(Session):
         extensions: list[SessionExtension] | None = None,
         sandbox: bool = False,
         app_host_context: AppHostContext | None = None,
+        stable_id: str | None = None,
+        started_at: datetime | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -166,11 +168,15 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                on_progress=lambda phase: session_consumer.notify(
-                    serialize_kernel_message(
-                        StartupProgressNotification(phase=phase)
+                on_progress=(
+                    lambda phase: session_consumer.notify(
+                        serialize_kernel_message(
+                            StartupProgressNotification(phase=phase)
+                        )
                     )
-                ),
+                )
+                if session_consumer is not None
+                else None,
             )
         else:
             # Original kernel: Process for edit, Thread for run
@@ -227,25 +233,30 @@ class SessionImpl(Session):
             config_manager=config_manager,
             ttl_seconds=ttl_seconds,
             extensions=extensions,
+            stable_id=stable_id,
+            started_at=started_at,
         )
 
     def __init__(
         self,
         initialization_id: str,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
         kernel_manager: KernelManager,
         app_file_manager: AppFileManager,
         config_manager: MarimoConfigManager,
         ttl_seconds: int | None,
         extensions: list[SessionExtension],
+        *,
+        stable_id: str | None = None,
+        started_at: datetime | None = None,
     ) -> None:
         """Initialize kernel and client connection to it."""
         # This is some unique ID that we can use to identify the session
         # in edit mode. We don't use the session_id because this can change if
         # the session is resumed
         self.initialization_id = initialization_id
-        self._stable_id = str(uuid4())
-        self.started_at = datetime.now(timezone.utc)
+        self._stable_id = stable_id or str(uuid4())
+        self.started_at = started_at or datetime.now(timezone.utc)
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
@@ -268,7 +279,12 @@ class SessionImpl(Session):
         self._attach_extensions()
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
-        self.connect_consumer(session_consumer, main=True)
+        if (
+            session_consumer is not None
+            and session_consumer.connection_state()
+            is not ConnectionState.CLOSED
+        ):
+            self.connect_consumer(session_consumer, main=True)
 
     @property
     def stable_id(self) -> str:
