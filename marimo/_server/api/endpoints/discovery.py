@@ -10,14 +10,19 @@ import msgspec
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from marimo import _loggers
+from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._runtime.commands import HTTPRequest
 from marimo._server.api.utils import parse_request
 from marimo._server.discovery.manager import DiscoveryManager
-from marimo._server.discovery.models import ExecuteRequest
+from marimo._server.discovery.models import (
+    CreateNotebookRequest,
+    ExecuteRequest,
+)
 from marimo._server.router import APIRouter
 from marimo._server.scratchpad import stream_scratchpad_code
 from marimo._server.sse import SSE_HEADERS
 from marimo._session.types import KernelState
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -105,6 +110,30 @@ async def watch_catalog(*, request: Request) -> StreamingResponse:
         media_type="text/event-stream",
         headers=SSE_HEADERS,
     )
+
+
+@router.post("/notebooks")
+async def create_notebook(*, request: Request) -> Response:
+    """Save a notebook without opening a browser or starting a kernel."""
+    try:
+        body = await parse_request(
+            request, cls=CreateNotebookRequest, allow_unknown_keys=True
+        )
+        notebook = await _manager(request).create_notebook(body)
+        return Response(
+            encode_json_bytes(notebook),
+            status_code=201,
+            media_type="application/json",
+        )
+    except FileExistsError:
+        return _error(409, "Path already exists")
+    except (msgspec.ValidationError, ValueError, TypeError) as e:
+        return _error(400, str(e))
+    except HTTPException as e:
+        return _error(e.status_code, str(e.detail))
+    except Exception:
+        LOGGER.exception("Failed to create a locally discovered notebook")
+        return _error(500, "Failed to create notebook")
 
 
 @router.post("/notebooks/{notebook_id}/open")
