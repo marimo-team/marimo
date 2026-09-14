@@ -137,6 +137,8 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
+      // Refresh insertion order so automatic selection follows discovery recency.
+      newMap.delete(conn.name);
       newMap.set(conn.name, conn);
     }
 

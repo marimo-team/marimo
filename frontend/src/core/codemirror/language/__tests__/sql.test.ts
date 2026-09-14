@@ -17,6 +17,7 @@ import type {
 import type { DataSourceConnection } from "@/core/datasets/data-source-connections";
 import {
   dataSourceConnectionsAtom,
+  exportedForTesting as dataSourceTesting,
   setLatestEngineSelected,
 } from "@/core/datasets/data-source-connections";
 import { type ConnectionName, DUCKDB_ENGINE } from "@/core/datasets/engines";
@@ -663,10 +664,25 @@ _df = mo.sql(
           store.get(dataSourceConnectionsAtom).latestEngineSelected,
         ).toBeNull();
 
+        const refreshConnection = (connection: DataSourceConnection) => {
+          store.set(
+            dataSourceConnectionsAtom,
+            dataSourceTesting.reducer(store.get(dataSourceConnectionsAtom), {
+              type: "addDataSourceConnection",
+              payload: { connections: [connection] },
+            }),
+          );
+        };
+        refreshConnection(connection);
+        expect(adapter.defaultMetadata.engine).toBe(connection.name);
+        expect(adapter.defaultCode).toContain("engine=first_connection");
+
         setLatestEngineSelected(connection.name);
+        refreshConnection(newestConnection);
         expect(adapter.defaultCode).toContain("engine=first_connection");
 
         setLatestEngineSelected(DUCKDB_ENGINE);
+        refreshConnection(connection);
         expect(adapter.defaultMetadata.engine).toBe(DUCKDB_ENGINE);
         expect(adapter.defaultCode).toBe('_df = mo.sql(f"""SELECT * FROM """)');
       } finally {
