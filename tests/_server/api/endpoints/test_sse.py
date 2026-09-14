@@ -296,7 +296,9 @@ async def test_sse_kernel_startup_error(client: TestClient) -> None:
             )
 
 
-@pytest.mark.parametrize("outcome", ["ready", "error", "disconnect"])
+@pytest.mark.parametrize(
+    "outcome", ["ready", "error", "disconnect", "stopped"]
+)
 async def test_sandbox_progress_during_preparation(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -348,7 +350,16 @@ async def test_sandbox_progress_during_preparation(
         assert running["data"]["action"] == "prepare"
         assert running["data"]["status"] == {"kind": "running"}
         assert not manager.sessions
-        if outcome == "disconnect":
+        if outcome == "stopped":
+            await manager.stop_session(manager.session_snapshots[0].session_id)
+            cancelled = json.loads((await connection.next_event())["data"])
+            assert (
+                cancelled["data"]["operation_id"]
+                == running["data"]["operation_id"]
+            )
+            assert cancelled["data"]["status"] == {"kind": "cancelled"}
+            await _expect_close(connection, 1000, "MARIMO_SHUTDOWN")
+        elif outcome == "disconnect":
             connection.disconnect()
             await asyncio.wait_for(cleaned_up.wait(), timeout=5)
         else:

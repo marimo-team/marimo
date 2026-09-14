@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import abc
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from typing import TYPE_CHECKING
+
+from starlette.websockets import WebSocketDisconnect
 
 from marimo import _loggers
 from marimo._cli.upgrade import check_for_updates
@@ -132,7 +134,11 @@ class SessionHandler(SessionConsumer, abc.ABC):
             yield startup
         finally:
             try:
-                await cancel_and_wait(startup)
+                # The transport may disconnect immediately after receiving a
+                # close signal while startup is still translating its
+                # cancellation into the same in-band shutdown signal.
+                with suppress(WebSocketDisconnect):
+                    await cancel_and_wait(startup)
             finally:
                 self._on_disconnect()
 
@@ -164,6 +170,13 @@ class SessionHandler(SessionConsumer, abc.ABC):
                 await cancel_and_wait(startup)
                 raise asyncio.CancelledError
             return await startup
+        except asyncio.CancelledError:
+            if startup.cancelled() and not disconnected.done():
+                raise WebSocketDisconnect(
+                    WebSocketCodes.NORMAL_CLOSE,
+                    WebSocketCloseReason.SHUTDOWN,
+                ) from None
+            raise
         finally:
             await cancel_and_wait(disconnected)
             await cancel_and_wait(startup)

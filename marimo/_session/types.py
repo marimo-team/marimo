@@ -141,7 +141,9 @@ class SessionSnapshot:
     initialization_id: str
     path: str | None
     started_at: datetime
-    status: Literal["starting", "running", "failed", "terminated"]
+    status: Literal[
+        "starting", "running", "terminating", "failed", "terminated"
+    ]
     error: KernelExitInfo | None = None
     startup_phase: StartupPhase | None = None
 
