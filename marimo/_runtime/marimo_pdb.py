@@ -90,6 +90,15 @@ def _names_bound_by(nodes: Iterable[ast.AST]) -> set[str]:
                 )
             elif isinstance(child, ast.ExceptHandler) and child.name:
                 names.add(child.name)
+            elif isinstance(child, (ast.MatchAs, ast.MatchStar)) and child.name:
+                # `case x:`, `case [1] as x:`, `case [1, *x]:` -- capture
+                # names bind through the pattern node, not through an
+                # ast.Name with a Store context, so the branch above misses
+                # them. `case _:` carries name=None and binds nothing.
+                names.add(child.name)
+            elif isinstance(child, ast.MatchMapping) and child.rest:
+                # `case {1: a, **rest}:` -- the double-star capture.
+                names.add(child.rest)
     return names
 
 
