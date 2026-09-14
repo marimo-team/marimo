@@ -1,7 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { useAtomValue, useStore } from "jotai";
-import { useMemo } from "react";
 import {
   useDeleteCellCallback,
   useDeleteManyCellsCallback,
@@ -130,21 +129,18 @@ export function usePendingDeleteService() {
   const { entries } = useAtomValue(pendingDeleteStateAtom);
   const deleteCell = useDeleteCellCallback();
   const deleteManyCells = useDeleteManyCellsCallback();
-  return useMemo(
-    () => ({
-      submit: (cellIds: CellId[]) => {
-        submit({ cellIds, deleteCell, deleteManyCells, store });
-      },
-      clear,
-      get idle() {
-        return entries.size === 0;
-      },
-      get shouldConfirmDelete() {
-        return entries.size > 1;
-      },
-    }),
-    [submit, clear, entries, deleteCell, deleteManyCells],
-  );
+  return {
+    submit: (cellIds: CellId[]) => {
+      submit({ cellIds, deleteCell, deleteManyCells, store });
+    },
+    clear,
+    get idle() {
+      return entries.size === 0;
+    },
+    get shouldConfirmDelete() {
+      return entries.size > 1;
+    },
+  };
 }
 
 export function usePendingDelete(cellId: CellId) {

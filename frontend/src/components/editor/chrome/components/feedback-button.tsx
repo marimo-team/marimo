@@ -6,7 +6,7 @@ const Slot = SlotPrimitive.Slot;
 
 import { useAtomValue } from "jotai";
 import { ExternalLinkIcon, TriangleAlertIcon } from "lucide-react";
-import React, { type PropsWithChildren, useMemo, useState } from "react";
+import React, { type PropsWithChildren, useState } from "react";
 import { CopyClipboardIcon } from "@/components/icons/copy-icon";
 import { useImperativeModal } from "@/components/modal/ImperativeModal";
 import { Button } from "@/components/ui/button";
@@ -144,10 +144,9 @@ export const FeedbackModal: React.FC<{
     return contents;
   }, [includeCode, notebookSourceAvailable, readCode]);
 
-  const { url: githubIssueUrl, omitted } = useMemo(() => {
-    if (!environment) {
-      return { url: Constants.bugReportUrl, omitted: [] as string[] };
-    }
+  let githubIssueUrl = Constants.bugReportUrl;
+  let omitted: string[] = [];
+  if (environment) {
     const fields: Record<string, string> = {
       env: formatEnvironmentSection(environment),
     };
@@ -157,8 +156,11 @@ export const FeedbackModal: React.FC<{
     if (includeCode && codeRequest.data) {
       fields["reproduction-code"] = formatCodeSection(codeRequest.data);
     }
-    return buildBugReportUrl(Constants.bugReportUrl, fields);
-  }, [environment, errors, includeErrors, includeCode, codeRequest.data]);
+    ({ url: githubIssueUrl, omitted } = buildBugReportUrl(
+      Constants.bugReportUrl,
+      fields,
+    ));
+  }
 
   const omittedLabels = omitted
     .map((field) =>
