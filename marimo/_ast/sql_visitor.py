@@ -742,7 +742,7 @@ def find_unqualified_sql_refs_fallback(sql_statement: str) -> set[SQLRef]:
 
 
 def find_polars_sql_refs(sql_statement: str) -> set[SQLRef]:
-    """Find local Polars frame references across supported SQL quoting."""
+    """Find unqualified local Polars frame references."""
     refs = find_unqualified_sql_refs_fallback(sql_statement)
     if DependencyManager.sqlglot.has():
         # SQLGlot understands richer query structure, while the fallback also
@@ -750,7 +750,7 @@ def find_polars_sql_refs(sql_statement: str) -> set[SQLRef]:
         # backticks and SEMI/ANTI joins). The fallback is query-scope aware, so
         # merging avoids dropping relations from either supported syntax.
         refs.update(find_sql_refs(sql_statement))
-    return refs
+    return {ref for ref in refs if ref.schema is None and ref.catalog is None}
 
 
 def find_sql_refs(sql_statement: str) -> set[SQLRef]:

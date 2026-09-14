@@ -35,10 +35,6 @@ class PolarsEngine(QueryEngine[dict[str, Any]]):
 
         frames: dict[str, Any] = {}
         for ref in find_polars_sql_refs(query):
-            # Polars SQLContext registers named frames, not qualified database
-            # relations. Qualified refs should be resolved by Polars itself.
-            if ref.schema is not None or ref.catalog is not None:
-                continue
             value = self._connection.get(ref.table)
             if isinstance(value, (pl.DataFrame, pl.LazyFrame)):
                 frames[ref.table] = value
@@ -71,15 +67,12 @@ class PolarsEngine(QueryEngine[dict[str, Any]]):
         result = context.execute(query, eager=False)
         sql_output_format = self.sql_output_format()
 
-        if sql_output_format == "auto":
-            return result
-        if sql_output_format == "native":
-            return result
-        if sql_output_format == "lazy-polars":
-            return result
-        if sql_output_format == "polars":
-            return result.collect()
-        if sql_output_format == "pandas":
-            return self._to_pandas(result.collect())
-
-        log_never(sql_output_format)
+        match sql_output_format:
+            case "auto" | "native" | "lazy-polars":
+                return result
+            case "polars":
+                return result.collect()
+            case "pandas":
+                return self._to_pandas(result.collect())
+            case _:
+                log_never(sql_output_format)

@@ -34,7 +34,7 @@ import type {
   SerializedBridge,
   WasmController,
 } from "./types";
-import { getSQLPackageNeeds } from "../utils";
+import { prependSQLPackageImports } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -141,33 +141,9 @@ const requestHandler = createRPCRequestHandler({
   loadPackages: async (opts: { code: string; sqlOutput: SqlOutputType }) => {
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
-    let { code } = opts;
-    const sqlPackageNeeds = getSQLPackageNeeds(code, {
+    const code = prependSQLPackageImports(opts.code, {
       sqlOutput: opts.sqlOutput,
     });
-
-    if (sqlPackageNeeds.polars) {
-      code = `import polars\n${code}`;
-      code = `import sqlglot\n${code}`;
-    }
-    if (sqlPackageNeeds.pandasForPolars) {
-      code = `import pandas\n${code}`;
-      code = `import pyarrow\n${code}`;
-    }
-
-    if (sqlPackageNeeds.duckdb) {
-      // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-      code = `import pandas\n${code}`;
-      code = `import duckdb\n${code}`;
-      code = `import sqlglot\n${code}`;
-
-      // Polars + SQL requires pyarrow, and installing
-      // after notebook load does not work. As a heuristic,
-      // if it appears that the notebook uses polars, add pyarrow.
-      if (code.includes("polars")) {
-        code = `import pyarrow\n${code}`;
-      }
-    }
 
     await self.pyodide.loadPackagesFromImports(code, {
       messageCallback: Logger.log,

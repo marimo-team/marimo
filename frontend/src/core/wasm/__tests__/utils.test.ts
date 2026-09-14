@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 import {
   getNotebookSQLOutput,
   getSQLPackageNeeds,
+  prependSQLPackageImports,
   shouldLoadDuckDBPackages,
-  shouldLoadPolarsSQLPackages,
 } from "../utils";
 
 describe("shouldLoadDuckDBPackages", () => {
@@ -54,44 +54,27 @@ duckdb_result = mo.sql("SELECT 1")
   });
 });
 
-describe("shouldLoadPolarsSQLPackages", () => {
-  it("loads for the built-in Polars SQL engine", () => {
-    expect(
-      shouldLoadPolarsSQLPackages(
-        '_df = mo.sql("SELECT * FROM orders", engine="polars")',
-      ),
-    ).toBe(true);
-    expect(
-      shouldLoadPolarsSQLPackages(
-        "_df = mo.sql('SELECT 1', engine = 'polars')",
-      ),
-    ).toBe(true);
-    expect(
-      shouldLoadPolarsSQLPackages(
-        'result = marimo.sql(query="SELECT 1", engine="polars")',
-      ),
-    ).toBe(true);
-  });
-
+describe("Polars SQL package detection", () => {
   it.each([
-    'engine=("polars")',
-    'engine=r"polars"',
-    'engine="""polars"""',
-    'engine="po" "lars"',
-    'engine= # selected engine\n"polars"',
-  ])("loads for equivalent literal syntax: %s", (engine) => {
-    expect(shouldLoadPolarsSQLPackages(`mo.sql("SELECT 1", ${engine})`)).toBe(
-      true,
-    );
+    '_df = mo.sql("SELECT * FROM orders", engine="polars")',
+    "_df = mo.sql('SELECT 1', engine = 'polars')",
+    'result = marimo.sql(query="SELECT 1", engine="polars")',
+    'mo.sql("SELECT 1", engine=("polars"))',
+    'mo.sql("SELECT 1", engine=r"polars")',
+    'mo.sql("SELECT 1", engine="""polars""")',
+    'mo.sql("SELECT 1", engine="po" "lars")',
+    'mo.sql("SELECT 1", engine= # selected engine\n"polars")',
+  ])("loads for a static Polars engine: %s", (code) => {
+    expect(getSQLPackageNeeds(code).polars).toBe(true);
   });
 
   it("does not load for default SQL or incidental text", () => {
-    expect(shouldLoadPolarsSQLPackages('df = mo.sql("SELECT 1")')).toBe(false);
-    expect(shouldLoadPolarsSQLPackages('engine = "polars"')).toBe(false);
+    expect(getSQLPackageNeeds('df = mo.sql("SELECT 1")').polars).toBe(false);
+    expect(getSQLPackageNeeds('engine = "polars"').polars).toBe(false);
     expect(
-      shouldLoadPolarsSQLPackages(
+      getSQLPackageNeeds(
         `df = mo.sql("SELECT * FROM configs WHERE engine = 'polars'")`,
-      ),
+      ).polars,
     ).toBe(false);
   });
 });
@@ -124,6 +107,11 @@ describe("Polars SQL output packages", () => {
       getSQLPackageNeeds("import polars as pl", { sqlOutput: "auto" })
         .pandasForPolars,
     ).toBe(false);
+    expect(
+      prependSQLPackageImports("import polars as pl", {
+        sqlOutput: "pandas",
+      }),
+    ).toBe("import pyarrow\nimport pandas\nimport polars as pl");
   });
 
   it("uses the notebook app setting over the user default", () => {
@@ -143,5 +131,15 @@ app = marimo.App(sql_output="pandas")
 ${polarsSQL}
 `;
     expect(getSQLPackageNeeds(code).pandasForPolars).toBe(true);
+  });
+
+  it("builds one ordered import prelude for mixed SQL engines", () => {
+    const code =
+      'result = mo.sql("SELECT 1", engine="po" "lars")\n' +
+      'result2 = mo.sql("SELECT 2")';
+
+    expect(prependSQLPackageImports(code, { sqlOutput: "auto" })).toBe(
+      `import pyarrow\nimport sqlglot\nimport duckdb\nimport pandas\nimport polars\n${code}`,
+    );
   });
 });

@@ -33,6 +33,12 @@ interface SQLPackageOptions {
   sqlOutput?: SqlOutputType;
 }
 
+interface SQLCodeAnalysis {
+  appSqlOutput?: SqlOutputType;
+  hasOtherSql: boolean;
+  hasPolarsSql: boolean;
+}
+
 function isQualifiedCall(
   call: SyntaxNode,
   code: string,
@@ -126,62 +132,55 @@ export function getNotebookSQLOutput(
   code: string,
   defaultOutput: SqlOutputType = "auto",
 ): SqlOutputType {
-  return getAppSQLOutput(code) ?? defaultOutput;
+  return analyzeSQLCode(code).appSqlOutput ?? defaultOutput;
 }
 
-function getAppSQLOutput(code: string): SqlOutputType | undefined {
-  let output: SqlOutputType | undefined;
+function analyzeSQLCode(code: string): SQLCodeAnalysis {
+  let appSqlOutput: SqlOutputType | undefined;
+  let hasPolarsSql = false;
+  let hasOtherSql = false;
   const cursor = pythonParser.parse(code).cursor();
   do {
-    if (
-      cursor.name !== "CallExpression" ||
-      !isQualifiedCall(cursor.node, code, MARIMO_APP_CALLS)
-    ) {
+    if (cursor.name !== "CallExpression") {
       continue;
     }
-    const value = getStaticString(
-      getKeywordArgument(cursor.node, code, "sql_output"),
-      code,
-    );
-    if (
-      value === "auto" ||
-      value === "native" ||
-      value === "polars" ||
-      value === "lazy-polars" ||
-      value === "pandas"
-    ) {
-      output = value;
+
+    if (isQualifiedCall(cursor.node, code, MARIMO_APP_CALLS)) {
+      const value = getStaticString(
+        getKeywordArgument(cursor.node, code, "sql_output"),
+        code,
+      );
+      if (
+        value === "auto" ||
+        value === "native" ||
+        value === "polars" ||
+        value === "lazy-polars" ||
+        value === "pandas"
+      ) {
+        appSqlOutput = value;
+      }
+    } else if (isQualifiedCall(cursor.node, code, MARIMO_SQL_CALLS)) {
+      if (hasPolarsEngineArgument(cursor.node, code)) {
+        hasPolarsSql = true;
+      } else {
+        hasOtherSql = true;
+      }
     }
   } while (cursor.next());
-  return output;
+  return { appSqlOutput, hasOtherSql, hasPolarsSql };
 }
 
 export function getSQLPackageNeeds(
   code: string,
   options: SQLPackageOptions = {},
 ): SQLPackageNeeds {
-  let hasPolarsSql = false;
-  let hasOtherSql = false;
-  const cursor = pythonParser.parse(code).cursor();
-  do {
-    if (
-      cursor.name !== "CallExpression" ||
-      !isQualifiedCall(cursor.node, code, MARIMO_SQL_CALLS)
-    ) {
-      continue;
-    }
-    if (hasPolarsEngineArgument(cursor.node, code)) {
-      hasPolarsSql = true;
-    } else {
-      hasOtherSql = true;
-    }
-  } while (cursor.next());
+  const { appSqlOutput, hasOtherSql, hasPolarsSql } = analyzeSQLCode(code);
 
   return {
     polars: hasPolarsSql,
     pandasForPolars:
       (hasPolarsSql || POLARS_IMPORT_PATTERN.test(code)) &&
-      getNotebookSQLOutput(code, options.sqlOutput) === "pandas",
+      (appSqlOutput ?? options.sqlOutput ?? "auto") === "pandas",
     duckdb:
       hasOtherSql ||
       DUCKDB_USAGE_PATTERN.test(code) ||
@@ -189,13 +188,44 @@ export function getSQLPackageNeeds(
   };
 }
 
+export function prependSQLPackageImports(
+  code: string,
+  options: SQLPackageOptions = {},
+): string {
+  const needs = getSQLPackageNeeds(code, options);
+  const packages = new Set<string>();
+
+  // PyArrow must be loaded before Polars to avoid a stale optional-dependency
+  // cache. Preserve the existing DuckDB + Polars heuristic as well.
+  if (
+    needs.pandasForPolars ||
+    (needs.duckdb && (needs.polars || code.includes("polars")))
+  ) {
+    packages.add("pyarrow");
+  }
+  if (needs.duckdb) {
+    packages.add("sqlglot");
+    packages.add("duckdb");
+    packages.add("pandas");
+  }
+  if (needs.pandasForPolars) {
+    packages.add("pandas");
+  }
+  if (needs.polars) {
+    packages.add("sqlglot");
+    packages.add("polars");
+  }
+
+  if (packages.size === 0) {
+    return code;
+  }
+  const imports = [...packages].map((pkg) => `import ${pkg}`).join("\n");
+  return `${imports}\n${code}`;
+}
+
 export function shouldLoadDuckDBPackages(
   code: string,
   foundPackages?: ReadonlySet<string>,
 ): boolean {
   return getSQLPackageNeeds(code, { foundPackages }).duckdb;
-}
-
-export function shouldLoadPolarsSQLPackages(code: string): boolean {
-  return getSQLPackageNeeds(code).polars;
 }

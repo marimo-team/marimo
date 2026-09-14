@@ -11,7 +11,10 @@ import {
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
 import type { SqlOutputType } from "@/core/config/config-schema";
-import { getNotebookSQLOutput, getSQLPackageNeeds } from "@/core/wasm/utils";
+import {
+  getNotebookSQLOutput,
+  prependSQLPackageImports,
+} from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
@@ -165,33 +168,9 @@ const requestHandler = createRPCRequestHandler({
     await enqueueSession(async () => {
       requireActiveBridge(opts);
 
-      let { code } = opts;
-      const sqlPackageNeeds = getSQLPackageNeeds(code, {
+      const code = prependSQLPackageImports(opts.code, {
         sqlOutput: activeSession?.sqlOutput,
       });
-
-      if (sqlPackageNeeds.polars) {
-        code = `import polars\n${code}`;
-        code = `import sqlglot\n${code}`;
-      }
-      if (sqlPackageNeeds.pandasForPolars) {
-        code = `import pandas\n${code}`;
-        code = `import pyarrow\n${code}`;
-      }
-
-      if (sqlPackageNeeds.duckdb) {
-        // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
-        code = `import pandas\n${code}`;
-        code = `import duckdb\n${code}`;
-        code = `import sqlglot\n${code}`;
-
-        // Polars + SQL requires pyarrow, and installing
-        // after notebook load does not work. As a heuristic,
-        // if it appears that the notebook uses polars, add pyarrow.
-        if (code.includes("polars")) {
-          code = `import pyarrow\n${code}`;
-        }
-      }
 
       await self.pyodide.loadPackagesFromImports(code, {
         messageCallback: Logger.log,

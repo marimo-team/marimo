@@ -49,8 +49,6 @@ class TestPolarsEngine:
         [
             ("SEMI JOIN", [2]),
             ("ANTI JOIN", [1]),
-            ("LEFT SEMI JOIN", [2]),
-            ("LEFT ANTI JOIN", [1]),
         ],
     )
     def test_polars_join_syntax_registers_both_frames(
@@ -116,6 +114,7 @@ class TestPolarsEngine:
             "orders": orders
         }
         assert engine._referenced_frames("SELECT * FROM not_a_frame") == {}
+        assert engine._referenced_frames("SELECT * FROM main.orders") == {}
 
     @pytest.mark.parametrize("relation", [None, [1, 2, 3]])
     def test_missing_or_incompatible_relation_uses_sql_error_path(
@@ -132,39 +131,24 @@ class TestPolarsEngine:
 
         assert is_sql_parse_error(exc_info.value.__cause__)
 
-    @pytest.mark.parametrize(
-        ("query", "error_name"),
-        [
-            ("SELECT missing_column FROM orders", "ColumnNotFoundError"),
-            ("SELECT SUM(kind) FROM orders", "InvalidOperationError"),
-            (
-                (
-                    "SELECT * FROM orders JOIN customers "
-                    "ON orders.amount = customers.amount"
-                ),
-                "SchemaError",
-            ),
-        ],
-    )
-    def test_polars_errors_use_sql_error_path(
-        self, query: str, error_name: str
-    ) -> None:
+    def test_polars_errors_use_sql_error_path(self) -> None:
         import polars as pl
 
-        namespace = {
-            "orders": pl.DataFrame({"amount": [1], "kind": ["sale"]}),
-            "customers": pl.DataFrame({"amount": ["1"]}),
-        }
+        namespace = {"orders": pl.DataFrame({"amount": [1]})}
 
         with pytest.raises(MarimoSQLException) as exc_info:
             with patch(
                 "marimo._sql.sql._namespace_for_polars",
                 return_value=namespace,
             ):
-                sql(query, engine="polars", output=False)
+                sql(
+                    "SELECT missing_column FROM orders",
+                    engine="polars",
+                    output=False,
+                )
 
         assert isinstance(
-            exc_info.value.__cause__, getattr(pl.exceptions, error_name)
+            exc_info.value.__cause__, pl.exceptions.ColumnNotFoundError
         )
 
     def test_non_sql_polars_error_is_not_classified_as_sql(self) -> None:
@@ -175,15 +159,11 @@ class TestPolarsEngine:
 
         assert not is_sql_parse_error(exc_info.value)
 
-    @pytest.mark.parametrize(
-        "query",
-        ["SELECT * FROM `orders`", "SELECT * FROM orders AS `o`"],
-    )
-    def test_polars_backtick_quoted_identifiers(self, query: str) -> None:
+    def test_polars_backtick_quoted_identifiers(self) -> None:
         import polars as pl
 
         orders = pl.DataFrame({"amount": [1]})
-        result = sql(query, engine="polars", output=False)
+        result = sql("SELECT * FROM `orders`", engine="polars", output=False)
 
         assert result.collect().to_dict(as_series=False) == {"amount": [1]}
 

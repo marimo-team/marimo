@@ -213,10 +213,14 @@ def sql(
             # Limiting a lazy result must remain lazy; determining the total
             # row count would execute the query.
             df = df.limit(result_limit)
-        elif DependencyManager.polars.has():
-            import polars as pl
+        else:
+            is_polars_dataframe = False
+            if DependencyManager.polars.has():
+                import polars as pl
 
-            if isinstance(df, pl.DataFrame):
+                is_polars_dataframe = isinstance(df, pl.DataFrame)
+
+            if is_polars_dataframe:
                 custom_total_count = (
                     "too_many" if len(df) > result_limit else None
                 )
@@ -228,11 +232,6 @@ def sql(
                 df = df.head(result_limit)
             else:
                 raise_df_import_error("polars[pyarrow]")
-        elif DependencyManager.pandas.has():
-            custom_total_count = "too_many" if len(df) > result_limit else None
-            df = df.head(result_limit)
-        else:
-            raise_df_import_error("polars[pyarrow]")
 
     if output:
         from marimo._output.formatters.df_formatters import include_opinionated

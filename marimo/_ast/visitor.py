@@ -752,13 +752,12 @@ class ScopedVisitor(ast.NodeVisitor):
             if isinstance(sql, str) and sql and is_polars_sql:
                 try:
                     for ref in find_polars_sql_refs(sql):
-                        if ref.schema is None and ref.catalog is None:
-                            self._add_ref(
-                                None,
-                                ref.table,
-                                deleted=False,
-                                sql_ref=ref,
-                            )
+                        self._add_ref(
+                            None,
+                            ref.table,
+                            deleted=False,
+                            sql_ref=ref,
+                        )
                 except BaseException as e:
                     log_sql_error(
                         LOGGER.warning,
