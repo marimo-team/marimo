@@ -29,8 +29,7 @@ class accordion(ContainerHtml):
         expanded: the items to expand initially. `True` expands the first
             item, or all items with `multiple=True`. A list of item names
             expands the corresponding items. More than one distinct name
-            requires `multiple=True`. Names must match the original names
-            in `items`.
+            requires `multiple=True`. Names must match the names in `items`.
             Users can still open and close items.
 
     Example:
