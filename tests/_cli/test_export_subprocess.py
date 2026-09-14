@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import select
@@ -91,6 +92,59 @@ async def test_export_without_metadata_uses_current_interpreter(
         action="export",
     )
     assert json.loads(output) == [sys.executable, payload]
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX process groups")
+async def test_export_fallback_cancellation_stops_descendants(
+    notebook_without_metadata: str, tmp_path: Path
+) -> None:
+    import psutil
+
+    ready = tmp_path / "child.pid"
+    child_code = (
+        "import os, signal; from pathlib import Path; "
+        f"Path({str(ready)!r}).write_text(str(os.getpid())); "
+        "signal.pause()"
+    )
+    script = (
+        "import subprocess, sys; "
+        f"subprocess.Popen([sys.executable, '-c', {child_code!r}])"
+    )
+    task = asyncio.create_task(
+        run_python_subprocess(
+            notebook_path=notebook_without_metadata,
+            backend="uv",
+            script=script,
+            payload={},
+            action="export",
+        )
+    )
+    child = None
+    try:
+
+        async def wait_for_child() -> int:
+            while True:
+                try:
+                    return int(await asyncio.to_thread(ready.read_text))
+                except (FileNotFoundError, ValueError):
+                    await asyncio.sleep(0.01)
+
+        child = psutil.Process(await asyncio.wait_for(wait_for_child(), 5))
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=5)
+        _, alive = await asyncio.to_thread(
+            psutil.wait_procs, [child], timeout=5
+        )
+        assert not alive, "Cancelled export left its descendant running"
+    finally:
+        if child is not None:
+            try:
+                child.kill()
+            except psutil.NoSuchProcess:
+                pass
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
 
 
 async def test_export_failure_identifies_launcher_without_payload_or_credentials(

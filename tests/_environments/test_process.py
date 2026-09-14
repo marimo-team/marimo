@@ -5,6 +5,7 @@ import asyncio
 import json
 import os
 import sys
+import threading
 from typing import TYPE_CHECKING
 
 import pytest
@@ -86,8 +87,8 @@ subprocess.Popen(
         await asyncio.wait_for(ready.wait(), timeout=5)
         launcher, child = (psutil.Process(pid) for pid in pids)
         await asyncio.to_thread(launcher.wait, timeout=5)
-        assert not task.done()
         if stop == "cancel":
+            assert not task.done()
             task.cancel()
         with pytest.raises(
             asyncio.CancelledError
@@ -105,5 +106,53 @@ subprocess.Popen(
                 psutil.Process(pid).kill()
             except psutil.NoSuchProcess:
                 pass
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
+async def test_repeated_cancellation_waits_for_cleanup_without_blocking(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._utils import subprocess as subprocess_utils
+
+    loop = asyncio.get_running_loop()
+    ready = asyncio.Event()
+    stopping = asyncio.Event()
+    release = threading.Event()
+    kill = subprocess_utils.kill_subprocess
+    processes = []
+
+    def slow_kill(process, *, start_new_session):
+        processes.append(process)
+        loop.call_soon_threadsafe(stopping.set)
+        try:
+            assert release.wait(timeout=10)
+        finally:
+            kill(process, start_new_session=start_new_session)
+
+    monkeypatch.setattr(subprocess_utils, "kill_subprocess", slow_kill)
+    task = asyncio.create_task(
+        run_command(
+            [
+                sys.executable,
+                "-c",
+                "import sys,time; print('ready', file=sys.stderr, flush=True); time.sleep(60)",
+            ],
+            on_stderr=lambda _line: ready.set(),
+        )
+    )
+    try:
+        await asyncio.wait_for(ready.wait(), timeout=5)
+        task.cancel()
+        await asyncio.wait_for(stopping.wait(), timeout=5)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(task, timeout=5)
+        assert processes[0].poll() is not None
+    finally:
+        release.set()
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

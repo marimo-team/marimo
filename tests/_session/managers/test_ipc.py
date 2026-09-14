@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -427,9 +428,17 @@ def test_launch_kernel_handshake_reports_identity() -> None:
 
 
 @pytest.mark.requires("zmq")
-@pytest.mark.parametrize("outcome", ["exit", "timeout", "cancel"])
+@pytest.mark.parametrize(
+    ("outcome", "configured"),
+    [
+        ("exit", False),
+        ("timeout", False),
+        ("cancel", False),
+        ("cancel", True),
+    ],
+)
 async def test_startup_failure_stops_kernel(
-    outcome: str, monkeypatch: pytest.MonkeyPatch
+    outcome: str, configured: bool, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from marimo._ast.app_config import _AppConfig
     from marimo._config.manager import get_default_config_manager
@@ -456,9 +465,10 @@ async def test_startup_failure_stops_kernel(
     server = await asyncio.start_server(ready, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
     code = (
-        "import socket, sys, time; sys.stdin.read(); "
+        "import socket, sys, time, signal; sys.stdin.read(); "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
         f"socket.create_connection(('127.0.0.1', {port})).send(b'x'); "
-        "print('KERNEL_READY', flush=True); "
+        + ("" if configured else "print('KERNEL_READY', flush=True); ")
         + (
             # The launcher exits, but a descendant still holds its pipes.
             "import subprocess; "
@@ -479,6 +489,22 @@ async def test_startup_failure_stops_kernel(
     monkeypatch.setattr(
         "marimo._environments.sandbox.NotebookSandbox", lambda *_: sandbox
     )
+    if configured:
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.get_configured_venv_python",
+            lambda *_args, **_kwargs: sys.executable,
+        )
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.has_marimo_installed",
+            AsyncMock(return_value=True),
+        )
+        popen = subprocess.Popen
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.subprocess.Popen",
+            lambda _cmd, **kwargs: popen(
+                [sys.executable, "-c", code], **kwargs
+            ),
+        )
     monkeypatch.setenv(
         "MARIMO_KERNEL_STARTUP_TIMEOUT", "1" if outcome == "timeout" else "30"
     )
@@ -515,7 +541,7 @@ async def test_startup_failure_stops_kernel(
     finally:
         startup.cancel()
         await asyncio.gather(startup, return_exceptions=True)
-        manager._cleanup_failed_start()
+        await manager._cleanup_failed_start()
         manager.queue_manager.close_queues()
         server.close()
         await server.wait_closed()

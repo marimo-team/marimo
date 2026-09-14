@@ -8,7 +8,7 @@ import subprocess
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
-from marimo._utils.subprocess import kill_subprocess
+from marimo._utils.subprocess import stop_subprocess
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping, Sequence
@@ -21,14 +21,13 @@ async def run_command(
     *,
     env: Mapping[str, str] | None = None,
     cwd: str | None = None,
-    start_new_session: bool = True,
     timeout: float | None = None,
     on_stderr: Callable[[str], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
     """Capture output and stream stderr without blocking the event loop.
 
     The callback runs on the caller's event loop. Cancellation and timeout
-    stop the command's process group and finish reading its pipes before
+    stop the command's owned process group and finish reading its pipes before
     returning. Nonzero exits are returned for the backend to interpret.
     """
     loop = asyncio.get_running_loop()
@@ -52,7 +51,7 @@ async def run_command(
         errors="replace",
         env=env,
         cwd=cwd,
-        start_new_session=start_new_session,
+        start_new_session=True,
     ) as process:
         assert process.stdout is not None
         assert process.stderr is not None
@@ -76,14 +75,9 @@ async def run_command(
                 asyncio.shield(output), timeout=timeout
             )
         except BaseException:
-            kill_subprocess(process, start_new_session=start_new_session)
-            # A second cancellation must not close pipes under their readers.
-            while not output.done():
-                try:
-                    await asyncio.shield(output)
-                except asyncio.CancelledError:
-                    continue
-            output.result()
+            await stop_subprocess(
+                process, start_new_session=True, drain=output
+            )
             raise
     return subprocess.CompletedProcess(
         list(argv), process.returncode, stdout, stderr
