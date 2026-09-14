@@ -6,6 +6,7 @@ import narwhals.stable.v2 as nw
 import pytest
 
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.delimited import DelimitedDialect
 from marimo._utils.narwhals_utils import (
     assert_narwhals_dataframe_or_lazyframe,
     assert_narwhals_series,
@@ -118,10 +119,39 @@ def test_dataframe_to_csv(df: IntoDataFrame) -> None:
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 def test_dataframe_to_csv_with_separator(df: IntoDataFrame) -> None:
     df_wrapped = nw.from_native(df)
-    csv = dataframe_to_csv(df_wrapped, separator=";")
+    csv = dataframe_to_csv(df_wrapped, dialect=DelimitedDialect(";", "."))
     assert "a;b" in csv
     assert "1;x" in csv
     assert "2;y" in csv
+
+
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {
+            "integer": [1234],
+            "fraction": [1234.567890123456],
+            "text": ["value.1,2;3"],
+        }
+    ),
+)
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_to_csv_with_comma_decimal(df: IntoDataFrame) -> None:
+    csv = dataframe_to_csv(
+        nw.from_native(df), dialect=DelimitedDialect(";", ",")
+    )
+    assert "integer;fraction;text" in csv
+    assert "1234;1234,567890123456;" in csv
+    assert "value.1,2;3" in csv
+
+
+@pytest.mark.parametrize("df", create_dataframes({"value": [12.5]}))
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_dataframe_to_csv_with_unicode_decimal(df: IntoDataFrame) -> None:
+    csv = dataframe_to_csv(
+        nw.from_native(df), dialect=DelimitedDialect(",", "٫")
+    )
+    assert csv == "value\n12٫5\n"
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

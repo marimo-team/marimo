@@ -19,6 +19,7 @@ from marimo._data.models import ColumnStats
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._output.data.data import BIGINT_KEY, sanitize_json_bigint
 from marimo._plugins.ui._impl.table import SortArgs
+from marimo._plugins.ui._impl.tables.delimited import DelimitedDialect
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.pandas_table import (
     PandasTableManagerFactory,
@@ -244,6 +245,155 @@ class TestPandasTableManager(unittest.TestCase):
     def test_to_csv(self) -> None:
         expected_csv = self.data.to_csv(index=False).encode("utf-8")
         assert self.manager.to_csv() == expected_csv
+
+    def test_to_delimited_str_pt_br(self) -> None:
+        df = pd.DataFrame(
+            {
+                "integer": [1234],
+                "fraction": [1234.567890123456],
+                "text": ["value.1,2;3"],
+                "null": [None],
+            }
+        )
+        manager = PandasTableManagerFactory.create()(df)
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert (
+            result
+            == 'integer;fraction;text;null\n1234;1234,567890123456;"value.1,2;3";\n'
+        )
+
+    def test_to_delimited_str_uses_native_writer(self) -> None:
+        df = pd.DataFrame({"value": [1.5]})
+        manager = PandasTableManagerFactory.create()(df)
+
+        with patch.object(df, "to_csv", wraps=df.to_csv) as writer:
+            assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+                "value\n1,5\n"
+            )
+
+        writer.assert_called_once_with(
+            index=False,
+            sep=";",
+            decimal=",",
+            lineterminator="\n",
+        )
+
+    def test_to_delimited_str_uses_platform_newline_for_default(self) -> None:
+        df = pd.DataFrame({"value": [1.5]})
+        manager = PandasTableManagerFactory.create()(df)
+
+        with (
+            patch("os.linesep", "\r\n"),
+            patch.object(df, "to_csv", wraps=df.to_csv) as writer,
+        ):
+            assert (
+                manager.to_delimited_str(DelimitedDialect(",", "."))
+                == "value\r\n1.5\r\n"
+            )
+
+        writer.assert_called_once_with(
+            index=False,
+            sep=",",
+            decimal=".",
+            lineterminator=None,
+        )
+
+    def test_to_delimited_str_decimal_and_exponent(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame(
+                {
+                    "decimal": [decimal.Decimal("1234.567890123456")],
+                    "exponent": [1.23e-10],
+                }
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "decimal;exponent\n1234,567890123456;1,23e-10\n"
+
+    def test_to_delimited_str_localizes_mixed_object_numbers(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame(
+                {
+                    "mixed": pd.Series(
+                        [1.25, decimal.Decimal("2.5")], dtype=object
+                    ),
+                    "text": ["1.25", "unchanged"],
+                }
+            )
+        )
+
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+
+        assert result == "mixed;text\n1,25;1.25\n2,5;unchanged\n"
+
+    def test_to_delimited_str_non_finite(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame(
+                {"value": [float("nan"), float("inf"), float("-inf")]}
+            )
+        )
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+        assert result == "value\nnan\ninf\n-inf\n"
+
+    def test_to_delimited_str_localizes_float_column_with_nan(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame({"value": [1.5, float("nan")]})
+        )
+
+        result = manager.to_delimited_str(DelimitedDialect(";", ","))
+
+        assert result == "value\n1,5\nnan\n"
+
+    def test_to_delimited_str_unicode_decimal(self) -> None:
+        manager = PandasTableManagerFactory.create()(
+            pd.DataFrame({"value": [12.5]})
+        )
+        result = manager.to_delimited_str(DelimitedDialect(",", "٫"))
+        assert result == "value\n12٫5\n"
+
+    def test_to_csv_str_remains_locale_neutral(self) -> None:
+        df = pd.DataFrame({"value": [12.5], "text": ["1.2"]})
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_csv_str() == df.to_csv(index=False)
+
+    def test_to_csv_str_preserves_unnamed_index_header(self) -> None:
+        df = pd.DataFrame({"value": [1]}, index=[10])
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_csv_str() == df.to_csv(index=True)
+
+    def test_to_delimited_str_preserves_unnamed_index_header(self) -> None:
+        df = pd.DataFrame({"value": [1.5]}, index=[10])
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            ";value\n10;1,5\n"
+        )
+
+    def test_to_delimited_str_localizes_decimal_index(self) -> None:
+        df = pd.DataFrame(
+            {"value": [decimal.Decimal("2.5")]},
+            index=[decimal.Decimal("1.5")],
+        )
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            ";value\n1,5;2,5\n"
+        )
+
+    def test_to_delimited_str_preserves_unnamed_multi_index_headers(
+        self,
+    ) -> None:
+        df = pd.DataFrame(
+            {"value": [1.5]},
+            index=pd.MultiIndex.from_tuples([("a", 1)]),
+        )
+        manager = PandasTableManagerFactory.create()(df)
+
+        assert manager.to_delimited_str(DelimitedDialect(";", ",")) == (
+            ";;value\na;1;1,5\n"
+        )
 
     def test_to_csv_datetime(self) -> None:
         D = pd.to_datetime("2024-12-17", errors="coerce")
