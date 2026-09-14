@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import json
 import os
 import signal
 import sys
@@ -48,6 +49,89 @@ def test_terminal_ws(client: TestClient) -> None:
         websocket.send_text("echo hello")
         data = websocket.receive_text()
         assert "echo hello" in data
+
+
+@pytest.mark.skipif(
+    is_windows or is_mac, reason="PTY integration requires Linux"
+)
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize(
+    ("query", "expected_size"),
+    [
+        ("&rows=30&cols=140", (30, 140)),
+        ("", (24, 80)),
+        ("&rows=0&cols=140", (24, 80)),
+        ("&rows=30&cols=-1", (24, 80)),
+        ("&rows=invalid&cols=140", (24, 80)),
+        ("&rows=30&cols=65536", (24, 80)),
+    ],
+)
+def test_terminal_ws_initial_size(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    query: str,
+    expected_size: tuple[int, int],
+) -> None:
+    shell = tmp_path / "shell"
+    shell.write_text(
+        "#!/bin/sh\nstty size\nwhile read -r line; do stty size; done\n"
+    )
+    shell.chmod(0o755)
+    monkeypatch.setenv("SHELL", str(shell))
+
+    with client.websocket_connect(TERMINAL_WS_URL + query) as websocket:
+        # No resize message is sent until the shell has reported its size.
+        data = ""
+        while "\n" not in data:
+            data += websocket.receive_text()
+        assert tuple(map(int, data.split())) == expected_size
+
+        websocket.send_text(
+            json.dumps({"type": "resize", "rows": 40, "cols": 160})
+        )
+        websocket.send_text("\n")
+        data = ""
+        while "40 160" not in data:
+            data += websocket.receive_text()
+        assert data.strip() == "40 160"
+
+
+@pytest.mark.skipif(
+    is_windows or is_mac, reason="PTY integration requires Linux"
+)
+@pytest.mark.timeout(10)
+def test_terminal_ws_long_prompt(
+    client: TestClient,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    shell = tmp_path / "shell"
+    shell.write_text("#!/bin/sh\nexec /bin/bash --noprofile --norc -i\n")
+    shell.chmod(0o755)
+    monkeypatch.setenv("SHELL", str(shell))
+    prompt = (
+        "henkan@session-gbm-henkan-notebook-m-6b3c03b8238e-56ddd64d76-5p27b"
+        ":~/notebooks$ "
+    )
+    monkeypatch.setenv("PS1", prompt)
+    monkeypatch.setenv("LC_ALL", "C")
+    monkeypatch.delenv("PROMPT_COMMAND", raising=False)
+
+    with client.websocket_connect(
+        TERMINAL_WS_URL + "&rows=30&cols=140"
+    ) as websocket:
+        data = ""
+        while "$ " not in data:
+            data += websocket.receive_text()
+        # Type before sending any resize message, as on a slow connection.
+        websocket.send_text("ls")
+        while not data.endswith("ls"):
+            data += websocket.receive_text()
+
+        # A wrong initial width makes Bash emit a carriage return after the
+        # prompt, placing typed characters over its first letters.
+        assert data.replace("\x1b[?2004h", "") == prompt + "ls"
 
 
 def test_terminal_ws_not_allowed_in_run(client: TestClient) -> None:
