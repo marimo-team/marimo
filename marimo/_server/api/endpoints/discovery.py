@@ -26,6 +26,8 @@ from marimo._session.types import KernelState
 from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from starlette.requests import Request
     from starlette.types import Receive, Scope, Send
 
@@ -91,6 +93,40 @@ class _ExecutionResponse(Response):
                 await StreamingResponse(
                     events, media_type="text/event-stream"
                 )(scope, receive, send)
+
+
+class _SessionWatchResponse(Response):
+    def __init__(self, manager: DiscoveryManager, session_id: str) -> None:
+        super().__init__()
+        self._manager = manager
+        self._session_id = session_id
+
+    async def __call__(
+        self, scope: Scope, receive: Receive, send: Send
+    ) -> None:
+        async with aclosing(
+            self._manager.watch_session(self._session_id)
+        ) as events:
+            try:
+                first = await anext(events)
+            except KeyError:
+                await _error(404, "Session not found")(scope, receive, send)
+                return
+            except Exception:
+                LOGGER.exception("Failed to observe session")
+                await _error(500, "Failed to observe session")(
+                    scope, receive, send
+                )
+                return
+
+            async def stream() -> AsyncIterator[str]:
+                yield first
+                async for event in events:
+                    yield event
+
+            await StreamingResponse(
+                stream(), media_type="text/event-stream", headers=SSE_HEADERS
+            )(scope, receive, send)
 
 
 @router.get("/catalog")
@@ -188,6 +224,14 @@ async def read_session(*, request: Request) -> object:
     except Exception:
         LOGGER.exception("Failed to read a locally discovered session")
         return _error(500, "Failed to read session")
+
+
+@router.get("/sessions/{session_id}/watch")
+async def watch_session(*, request: Request) -> Response:
+    """Stream session state independently of browser attachment."""
+    return _SessionWatchResponse(
+        _manager(request), request.path_params["session_id"]
+    )
 
 
 @router.post("/sessions/{session_id}/execute")

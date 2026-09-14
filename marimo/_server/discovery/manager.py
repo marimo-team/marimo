@@ -8,7 +8,7 @@ import hashlib
 import hmac
 import os
 import secrets
-from contextlib import contextmanager
+from contextlib import aclosing, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -34,6 +34,7 @@ from marimo._server.discovery.models import (
     SessionSummary,
 )
 from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.sse import format_sse_event
 from marimo._server.workspace import (
     NEW_FILE,
     DirectoryWorkspace,
@@ -59,6 +60,7 @@ DISCOVERY_OPERATIONS = [
     "session.execute",
     "session.read",
     "session.start",
+    "session.watch",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
@@ -291,6 +293,9 @@ class DiscoveryManager:
         snapshot = self.session_manager.get_session_snapshot(session_id)
         if snapshot is None:
             raise KeyError("Session not found")
+        return self._session_details(snapshot)
+
+    def _session_details(self, snapshot: SessionSnapshot) -> DiscoveredSession:
         root = self._project_root()
         identity = snapshot.initialization_id
         if snapshot.path is not None:
@@ -320,7 +325,23 @@ class DiscoveryManager:
                 if startup_failed
                 else f"Kernel exited with code {snapshot.error.exitcode}",
             )
+        if snapshot.startup_phase is not None:
+            details.startup_phase = snapshot.startup_phase
         return details
+
+    async def watch_session(
+        self, session_id: str
+    ) -> AsyncGenerator[str, None]:
+        async with aclosing(
+            self.session_manager.watch_session(session_id)
+        ) as snapshots:
+            async for snapshot in snapshots:
+                yield format_sse_event(
+                    encode_json_bytes(
+                        self._session_details(snapshot)
+                    ).decode(),
+                    event="session.updated",
+                )
 
     async def start_session(self, notebook_id: str) -> SessionCreateResult:
         _, targets = await self._snapshot()
@@ -403,8 +424,6 @@ class DiscoveryManager:
             self._browser_tokens.pop(auth_token, None)
 
     async def watch(self) -> AsyncGenerator[str, None]:
-        from marimo._server.sse import format_sse_event
-
         queue: asyncio.Queue[None] = asyncio.Queue(maxsize=1)
         self._subscribers.add(queue)
         if self._watch_task is None:

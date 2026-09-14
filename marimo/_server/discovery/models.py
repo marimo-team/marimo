@@ -201,7 +201,17 @@ class Session(Struct):
         Annotated[
             str,
             Meta(
-                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during polling\nmeans the requested restart was superseded.\n",
+                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during observation\nmeans the requested restart was superseded.\n",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    startup_phase: (
+        Annotated[
+            str,
+            Meta(
+                description="Optional host-defined progress phase while starting. Omitted when\nno phase is available or the session is no longer starting.\nClients accept unknown phases and may display generic startup UI.\nProgress changes do not invalidate the catalog's session summaries.\n",
                 min_length=1,
             ),
         ]
@@ -223,7 +233,17 @@ class SessionCreateResult(Struct):
         Annotated[
             str,
             Meta(
-                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during polling\nmeans the requested restart was superseded.\n",
+                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during observation\nmeans the requested restart was superseded.\n",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+    startup_phase: (
+        Annotated[
+            str,
+            Meta(
+                description="Optional host-defined progress phase while starting. Omitted when\nno phase is available or the session is no longer starting.\nClients accept unknown phases and may display generic startup UI.\nProgress changes do not invalidate the catalog's session summaries.\n",
                 min_length=1,
             ),
         ]

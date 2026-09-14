@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextlib import aclosing
 from typing import TYPE_CHECKING, Any
 from unittest.mock import MagicMock, Mock
 
@@ -173,11 +174,8 @@ async def test_failed_start_is_retained_and_can_be_retried(
     app, discovery = _app()
     manager = discovery.session_manager
     entered, release = asyncio.Event(), asyncio.Event()
-    startup: asyncio.Task[object] | None = None
 
     async def fail(**_kwargs: object):
-        nonlocal startup
-        startup = asyncio.current_task()
         entered.set()
         await release.wait()
         raise RuntimeError("private provisioning diagnostic")
@@ -197,12 +195,14 @@ async def test_failed_start_is_retained_and_can_be_retried(
             assert response.status_code == 201
             created = response.json()
             await asyncio.wait_for(entered.wait(), 5)
-            assert startup is not None
-            release.set()
-            with pytest.raises(
-                RuntimeError, match="private provisioning diagnostic"
-            ):
-                await asyncio.wait_for(startup, 5)
+            async with aclosing(
+                manager.watch_session(created["session_id"])
+            ) as events:
+                assert (await anext(events)).status == "starting"
+                release.set()
+                assert (
+                    await asyncio.wait_for(anext(events), 5)
+                ).status == "failed"
             failed = await client.get(
                 f"/api/marimo/v1/sessions/{created['session_id']}"
             )
