@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import json
+from textwrap import dedent
 from typing import TYPE_CHECKING, get_type_hints
 
 import pytest
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
+from marimo._environments import script_metadata
 from marimo._islands._island_generator import MarimoIslandGenerator
 from marimo._messaging.cell_output import CellChannel, CellOutput
 from marimo._messaging.errors import MarimoExceptionRaisedError
@@ -14,6 +16,7 @@ from marimo._schemas.islands import ISLANDS_JSON_SCRIPT_TYPE
 from marimo._schemas.serialization import (
     AppInstantiation,
     CellDef,
+    Header,
     NotebookSerialization,
 )
 from tests.mocks import snapshotter
@@ -139,6 +142,129 @@ async def test_render_payload():
     assert "Payload output" in payload["cells"][1]["outputHtml"]
     assert payload["cells"][1]["outputMimetype"] == "text/markdown"
     assert payload["cells"][1]["reactive"] is True
+
+
+@pytest.mark.parametrize("from_file", [True, False])
+@pytest.mark.parametrize(
+    ("header", "dependencies"),
+    [
+        ("", []),
+        ("# /// script\n# dependencies = []\n# ///\n", []),
+        ("# /// script\n# dependencies = [\n# ///\n", []),
+        (
+            script_metadata.dumps(
+                {"dependencies": ["desktop; sys_platform != 'emscripten'"]}
+            ),
+            [],
+        ),
+        (
+            dedent("""\
+                # /// script
+                # dependencies = [
+                #   "cowsay==6.1",
+                #   "rich[jupyter]>=13",
+                #   "pyodide-only; sys_platform == 'emscripten'",
+                #   "desktop-only; sys_platform != 'emscripten'",
+                # ]
+                # ///
+                """),
+            [
+                "cowsay==6.1",
+                "rich[jupyter]>=13",
+                "pyodide-only; sys_platform == 'emscripten'",
+            ],
+        ),
+    ],
+)
+def test_render_payload_dependencies(
+    tmp_path: Path,
+    from_file: bool,
+    header: str,
+    dependencies: list[str],
+) -> None:
+    if from_file:
+        path = tmp_path / "notebook.py"
+        path.write_text(
+            header
+            + "\n"
+            + dedent("""\
+                import marimo
+                app = marimo.App()
+
+                @app.cell
+                def _():
+                    import cowsay
+                    return
+                """),
+            encoding="utf-8",
+        )
+        generator = MarimoIslandGenerator.from_file(str(path))
+    else:
+        generator = MarimoIslandGenerator._from_ir(
+            NotebookSerialization(
+                app=AppInstantiation(),
+                header=Header(value=header) if header else None,
+                cells=[CellDef(code="import cowsay")],
+            )
+        )
+
+    payload = _parse_payload_from_body(
+        generator.render_body(include_payload=True)
+    )
+    assert payload == {
+        "schemaVersion": 1,
+        "appId": "main",
+        "cells": [stub.to_payload() for stub in generator.stubs],
+        **({"dependencies": dependencies} if dependencies else {}),
+    }
+
+
+def test_render_dependency_payload_snapshot() -> None:
+    generator = MarimoIslandGenerator._from_ir(
+        NotebookSerialization(
+            app=AppInstantiation(),
+            header=Header(
+                value=script_metadata.dumps(
+                    {
+                        "dependencies": [
+                            'cowsay==6.1; sys_platform == "emscripten"',
+                            "rich[jupyter]>=13",
+                            "desktop; sys_platform != 'emscripten'",
+                        ]
+                    }
+                )
+            ),
+            cells=[CellDef(code="import cowsay")],
+        )
+    )
+    # Shared with the frontend parser test to cover the export contract.
+    snapshot(
+        "body-dependencies.txt",
+        generator.render_body(include_payload=True, include_init_island=False),
+    )
+
+
+def test_render_payload_script_escapes_dependencies() -> None:
+    dependencies = ["pkg @ https://example.com/</script>?a=1&b=2"]
+    generator = MarimoIslandGenerator._from_ir(
+        NotebookSerialization(
+            app=AppInstantiation(),
+            header=Header(
+                value=script_metadata.dumps({"dependencies": dependencies})
+            ),
+        )
+    )
+
+    script = generator.render_payload_script()
+
+    assert script.count("</script>") == 1
+    assert "&" not in script
+    assert _parse_payload_script(script) == {
+        "schemaVersion": 1,
+        "appId": "main",
+        "cells": [],
+        "dependencies": dependencies,
+    }
 
 
 def test_render_payload_preserves_error_output_mimetype():

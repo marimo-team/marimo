@@ -413,9 +413,11 @@ Any relevant `.html` that gets generated can be run through the [`development.md
 
 ### Island payloads
 
-`MarimoIslandGenerator.render_html(include_payload=True)` and `render_body(include_payload=True)` include a JSON payload. The payload stores each cell's code, rendered output HTML, output MIME type, and display settings.
+Use `render_html(include_payload=True)` or `render_body(include_payload=True)` to include a JSON payload. For custom layouts, include `render_payload_script()` alongside the rendered islands.
 
-The islands runtime uses this payload to hydrate the page. The DOM still provides the visible island slots, and the payload provides the runtime cell code and output metadata.
+The payload supplies cell code, output HTML, MIME types, and display settings for the island elements. For notebooks loaded with `from_file`, it also carries PEP 723 dependencies that apply to Pyodide. The runtime installs these dependencies before it runs the cells.
+
+Declare PyPI packages such as `cowsay` in the notebook's PEP 723 block. Imports alone do not add PyPI packages to the payload.
 
 An emitted payload looks like this. HTML-sensitive characters inside JSON strings are escaped before marimo writes the script tag.
 
