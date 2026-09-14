@@ -725,6 +725,27 @@ def test_project_config_manager_resolve_custom_css(tmp_path: Path) -> None:
     assert config["display"]["custom_css"] == expected_custom_css
 
 
+def test_project_config_manager_resolve_custom_css_home_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_content = """
+    [tool.marimo.display]
+    custom_css = ["~/theme.css"]
+    """
+    pyproject_path.write_text(textwrap.dedent(pyproject_content))
+
+    manager = get_default_config_manager(current_path=str(pyproject_path))
+    config = manager.get_config(hide_secrets=False)
+
+    assert config["display"]["custom_css"] == [
+        str((tmp_path / "theme.css").absolute())
+    ]
+
+
 def test_project_config_manager_resolve_invalid_custom_css(
     tmp_path: Path,
 ) -> None:

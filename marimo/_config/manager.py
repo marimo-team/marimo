@@ -303,7 +303,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             return config
 
         resolved_custom_css = [
-            str((self.pyproject_path.parent / path).absolute())
+            str((self.pyproject_path.parent / Path(path).expanduser()).absolute())
             for path in custom_css
         ]
         return {
