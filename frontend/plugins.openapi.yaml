@@ -2700,6 +2700,11 @@ components:
             type: string
         multiple:
           type: boolean
+        expanded:
+          default: []
+          type: array
+          items:
+            type: string
       required:
         - labels
         - multiple
