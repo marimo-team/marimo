@@ -44,7 +44,8 @@ export interface DataSourceConnection extends Omit<
 export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
 
 export interface DataSourceState {
-  latestEngineSelected: ConnectionName;
+  // Null permits automatic selection; DuckDB can also be an explicit choice.
+  latestEngineSelected: ConnectionName | null;
   connectionsMap: ConnectionsMap;
 }
 
@@ -110,7 +111,7 @@ function tableSchemaPath(sqlTableContext: SQLTableContext): string[] {
 
 function initialState(): DataSourceState {
   return {
-    latestEngineSelected: DUCKDB_ENGINE,
+    latestEngineSelected: null,
     connectionsMap: initialConnections,
   };
 }
@@ -161,16 +162,17 @@ const {
       }),
     );
     return {
-      // If the latest engine selected is not in the new map, use the default engine
-      latestEngineSelected: newMap.has(latestEngineSelected)
-        ? latestEngineSelected
-        : DUCKDB_ENGINE,
+      // Allow automatic selection again when the selected connection disappears.
+      latestEngineSelected:
+        latestEngineSelected && newMap.has(latestEngineSelected)
+          ? latestEngineSelected
+          : null,
       connectionsMap: newMap,
     };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
-    latestEngineSelected: DUCKDB_ENGINE,
+    latestEngineSelected: null,
     connectionsMap: new Map(),
   }),
 
@@ -183,9 +185,10 @@ const {
     const newMap = new Map(connectionsMap);
     newMap.delete(connectionName);
     return {
-      latestEngineSelected: newMap.has(latestEngineSelected)
-        ? latestEngineSelected
-        : DUCKDB_ENGINE,
+      latestEngineSelected:
+        latestEngineSelected && newMap.has(latestEngineSelected)
+          ? latestEngineSelected
+          : null,
       connectionsMap: newMap,
     };
   },
