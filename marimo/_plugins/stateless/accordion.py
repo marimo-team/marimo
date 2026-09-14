@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 from marimo._output.formatting import as_html
@@ -11,7 +12,7 @@ from marimo._plugins.core.web_component import build_stateless_plugin
 from marimo._plugins.stateless.lazy import lazy as lazy_ui
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Mapping
 
 
 @mddoc
@@ -83,7 +84,7 @@ class accordion(ContainerHtml):
             count = len(items) if multiple else min(1, len(items))
             self._expanded = [str(i) for i in range(count)] if expanded else []
         else:
-            if isinstance(expanded, str):
+            if isinstance(expanded, str) or not isinstance(expanded, Sequence):
                 raise TypeError(
                     "expanded must be a bool or a sequence of item keys. "
                     'Use ["key"] instead of "key".'

@@ -129,6 +129,7 @@ def test_accordion_multiple_expanded_requires_multiple() -> None:
         )
 
 
-def test_accordion_rejects_string_expanded() -> None:
+@pytest.mark.parametrize("expanded", ["Summary", 1, None, {"Summary"}])
+def test_accordion_rejects_invalid_expanded_type(expanded: object) -> None:
     with pytest.raises(TypeError, match="sequence of item keys"):
-        accordion({"Summary": "Overview"}, expanded="Summary")
+        accordion({"Summary": "Overview"}, expanded=expanded)  # type: ignore[arg-type]
