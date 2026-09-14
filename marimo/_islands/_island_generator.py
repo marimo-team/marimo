@@ -14,9 +14,9 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.load import load_notebook_ir
+from marimo._convert.script import _header_for_script
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
-from marimo._runtime.packages.utils import filter_requirements_for_emscripten
 from marimo._schemas.islands import (
     ISLANDS_JSON_SCHEMA_VERSION,
     ISLANDS_JSON_SCRIPT_TYPE,
@@ -751,8 +751,10 @@ def _notebook_dependencies(notebook: NotebookSerialization) -> list[str]:
     if notebook.header is None:
         return []
     try:
-        reader = PyProjectReader.from_script(notebook.header.value)
-        return filter_requirements_for_emscripten(reader.dependencies)
+        reader = PyProjectReader.from_script(_header_for_script(notebook))
+        # Evaluate markers in Pyodide, whose Python version may differ
+        # from the exporter's.
+        return reader.dependencies
     except Exception as e:
         LOGGER.warning("Error parsing script metadata: %s", e)
         return []

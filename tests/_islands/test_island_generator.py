@@ -5,9 +5,11 @@ from textwrap import dedent
 from typing import TYPE_CHECKING, get_type_hints
 
 import pytest
+import yaml
 
 from marimo import __version__
 from marimo._ast.app_config import _AppConfig
+from marimo._convert.markdown.to_ir import convert_from_md_to_marimo_ir
 from marimo._environments import script_metadata
 from marimo._islands._island_generator import MarimoIslandGenerator
 from marimo._messaging.cell_output import CellChannel, CellOutput
@@ -155,7 +157,7 @@ async def test_render_payload():
             script_metadata.dumps(
                 {"dependencies": ["desktop; sys_platform != 'emscripten'"]}
             ),
-            [],
+            ["desktop; sys_platform != 'emscripten'"],
         ),
         (
             dedent("""\
@@ -172,6 +174,21 @@ async def test_render_payload():
                 "cowsay==6.1",
                 "rich[jupyter]>=13",
                 "pyodide-only; sys_platform == 'emscripten'",
+                "desktop-only; sys_platform != 'emscripten'",
+            ],
+        ),
+        (
+            script_metadata.dumps(
+                {
+                    "dependencies": [
+                        "older-python; python_version < '3.13'",
+                        "newer-python; python_version >= '3.13'",
+                    ]
+                }
+            ),
+            [
+                "older-python; python_version < '3.13'",
+                "newer-python; python_version >= '3.13'",
             ],
         ),
     ],
@@ -219,6 +236,89 @@ def test_render_payload_dependencies(
     }
 
 
+@pytest.mark.parametrize("from_file", [True, False])
+@pytest.mark.parametrize("extension", ["md", "qmd"])
+@pytest.mark.parametrize(
+    ("frontmatter", "dependencies"),
+    [
+        ({"title": "Notebook"}, []),
+        ({"pyproject": 'dependencies = ["cowsay==6.1"]'}, ["cowsay==6.1"]),
+        (
+            {
+                "pyproject": script_metadata.dumps(
+                    {"dependencies": ["cowsay==6.1"]}
+                )
+            },
+            ["cowsay==6.1"],
+        ),
+        (
+            {
+                "header": script_metadata.dumps(
+                    {"dependencies": ["rich[jupyter]>=13"]}
+                )
+            },
+            ["rich[jupyter]>=13"],
+        ),
+        (
+            {
+                "pyproject": 'dependencies = ["cowsay==6.1"]',
+                "header": script_metadata.dumps(
+                    {"dependencies": ["rich[jupyter]>=13"]}
+                ),
+            },
+            ["cowsay==6.1"],
+        ),
+        (
+            {
+                "pyproject": "",
+                "header": script_metadata.dumps(
+                    {"dependencies": ["rich[jupyter]>=13"]}
+                ),
+            },
+            ["rich[jupyter]>=13"],
+        ),
+        (
+            {
+                "pyproject": "dependencies = []",
+                "header": script_metadata.dumps(
+                    {"dependencies": ["rich[jupyter]>=13"]}
+                ),
+            },
+            [],
+        ),
+    ],
+)
+def test_render_payload_markdown_dependencies(
+    tmp_path: Path,
+    from_file: bool,
+    extension: str,
+    frontmatter: dict[str, str],
+    dependencies: list[str],
+) -> None:
+    path = tmp_path / f"notebook.{extension}"
+    contents = (
+        "---\n"
+        + yaml.safe_dump(frontmatter)
+        + "---\n\n```{python}\nimport cowsay\n```\n"
+    )
+    if from_file:
+        path.write_text(contents, encoding="utf-8")
+        generator = MarimoIslandGenerator.from_file(str(path))
+    else:
+        generator = MarimoIslandGenerator._from_ir(
+            convert_from_md_to_marimo_ir(contents, filepath=str(path))
+        )
+
+    assert _parse_payload_from_body(
+        generator.render_body(include_payload=True)
+    ) == {
+        "schemaVersion": 1,
+        "appId": "main",
+        "cells": [stub.to_payload() for stub in generator.stubs],
+        **({"dependencies": dependencies} if dependencies else {}),
+    }
+
+
 def test_render_dependency_payload_snapshot() -> None:
     generator = MarimoIslandGenerator._from_ir(
         NotebookSerialization(
@@ -230,6 +330,8 @@ def test_render_dependency_payload_snapshot() -> None:
                             'cowsay==6.1; sys_platform == "emscripten"',
                             "rich[jupyter]>=13",
                             "desktop; sys_platform != 'emscripten'",
+                            "older-python; python_version < '3.13'",
+                            "newer-python; python_version >= '3.13'",
                         ]
                     }
                 )

@@ -1,5 +1,5 @@
 # /// script
-# dependencies = ["cowsay==6.1; sys_platform == \"emscripten\"","rich[jupyter]>=13"]
+# dependencies = ["cowsay==6.1; sys_platform == \"emscripten\"","rich[jupyter]>=13","desktop; sys_platform != 'emscripten'","older-python; python_version < '3.13'","newer-python; python_version >= '3.13'"]
 # ///
 import marimo
 app = marimo.App()

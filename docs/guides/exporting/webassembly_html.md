@@ -415,9 +415,11 @@ Any relevant `.html` that gets generated can be run through the [`development.md
 
 Use `render_html(include_payload=True)` or `render_body(include_payload=True)` to include a JSON payload. For custom layouts, include `render_payload_script()` alongside the rendered islands.
 
-The payload supplies cell code, output HTML, MIME types, and display settings for the island elements. For notebooks loaded with `from_file`, it also carries PEP 723 dependencies that apply to Pyodide. The runtime installs these dependencies before it runs the cells.
+The payload supplies cell code, output HTML, MIME types, and display settings for the island elements. For notebooks loaded with `from_file`, it also carries declared dependencies. Pyodide evaluates dependency markers in its own Python environment and installs applicable packages before it runs the cells.
 
 Declare PyPI packages such as `cowsay` in the notebook's PEP 723 block. Imports alone do not add PyPI packages to the payload.
+
+Markdown and QMD notebooks can declare dependencies in the `pyproject` or `header` frontmatter field. When both fields define metadata, `pyproject` takes precedence.
 
 An emitted payload looks like this. HTML-sensitive characters inside JSON strings are escaped before marimo writes the script tag.
 

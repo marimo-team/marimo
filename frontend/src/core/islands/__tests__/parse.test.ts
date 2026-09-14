@@ -821,6 +821,9 @@ describe("parseMarimoIslandApps", () => {
         dependencies: [
           'cowsay==6.1; sys_platform == "emscripten"',
           "rich[jupyter]>=13",
+          "desktop; sys_platform != 'emscripten'",
+          "older-python; python_version < '3.13'",
+          "newer-python; python_version >= '3.13'",
         ],
         cells: [{ cellId: "Hbol", code: "import cowsay", output: "", idx: 0 }],
       },
