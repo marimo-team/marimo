@@ -78,6 +78,7 @@ def test_catalog_requires_discovery_bearer_and_loopback() -> None:
                 "notebook.open",
                 "session.execute",
                 "session.read",
+                "session.start",
             ],
             "projects": [
                 {

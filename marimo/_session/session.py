@@ -80,10 +80,10 @@ LOGGER = _loggers.marimo_logger()
 _DEFAULT_TTL_SECONDS = 120
 _SESSION_ID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz"
 
-__all__ = ["Session", "SessionImpl"]
+__all__ = ["Session", "SessionImpl", "new_stable_session_id"]
 
 
-def _new_stable_session_id() -> StableSessionId:
+def new_stable_session_id() -> StableSessionId:
     """Match Hub's session IDs: sess- plus 80 random bits in Crockford Base32."""
     body = "".join(secrets.choice(_SESSION_ID_ALPHABET) for _ in range(16))
     return StableSessionId(f"sess-{body}")
@@ -114,6 +114,8 @@ class SessionImpl(Session):
         extensions: list[SessionExtension] | None = None,
         sandbox: bool = False,
         app_host_context: AppHostContext | None = None,
+        stable_id: StableSessionId | None = None,
+        started_at: datetime | None = None,
     ) -> Session:
         """
         Create a new session.
@@ -235,6 +237,8 @@ class SessionImpl(Session):
             config_manager=config_manager,
             ttl_seconds=ttl_seconds,
             extensions=extensions,
+            stable_id=stable_id,
+            started_at=started_at,
         )
 
     def __init__(
@@ -247,12 +251,15 @@ class SessionImpl(Session):
         config_manager: MarimoConfigManager,
         ttl_seconds: int | None,
         extensions: list[SessionExtension],
+        *,
+        stable_id: StableSessionId | None = None,
+        started_at: datetime | None = None,
     ) -> None:
         """Initialize kernel and client connection to it."""
         # The notebook's creation key is used to find resumable sessions.
         self.initialization_id = initialization_id
-        self._stable_id = _new_stable_session_id()
-        self.started_at = datetime.now(timezone.utc)
+        self._stable_id = stable_id or new_stable_session_id()
+        self.started_at = started_at or datetime.now(timezone.utc)
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
@@ -275,7 +282,11 @@ class SessionImpl(Session):
         self._attach_extensions()
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
-        if session_consumer is not None:
+        if (
+            session_consumer is not None
+            and session_consumer.connection_state()
+            is not ConnectionState.CLOSED
+        ):
             self.connect_consumer(session_consumer, main=True)
 
     @property

@@ -29,6 +29,7 @@ from marimo._server.discovery.models import (
     OpenNotebookResponse,
     ProjectSummary,
     Session as DiscoveredSession,
+    SessionCreateResult,
     SessionError,
     SessionSummary,
 )
@@ -57,6 +58,7 @@ DISCOVERY_OPERATIONS = [
     "notebook.open",
     "session.execute",
     "session.read",
+    "session.start",
 ]
 DISCOVERY_ENABLED_ENV = "MARIMO_DISCOVERY_ENABLED"
 DISCOVERY_KIND_ENV = "MARIMO_DISCOVERY_KIND"
@@ -144,13 +146,11 @@ class DiscoveryManager:
         project_id = self._stable_id(f"project:{project_key}")
         project_name = Path(root).name if root else "Untitled"
 
-        sessions_by_path: dict[str | None, list[tuple[str, Session]]] = {}
-        for session in self.session_manager.sessions.values():
-            path = session.app_file_manager.path
+        sessions_by_path: dict[str | None, list[SessionSnapshot]] = {}
+        for session in self.session_manager.session_snapshots:
+            path = session.path
             normalized = self._normalize_path(path) if path else None
-            sessions_by_path.setdefault(normalized, []).append(
-                (session.stable_id, session)
-            )
+            sessions_by_path.setdefault(normalized, []).append(session)
 
         notebooks: list[NotebookSummary] = []
         targets: dict[str, _NotebookTarget] = {}
@@ -159,7 +159,7 @@ class DiscoveryManager:
             identity: str,
             path: str | None,
             title: str,
-            session_pairs: list[tuple[str, Session]],
+            session_pairs: list[SessionSnapshot],
             untitled_key: str = NEW_FILE,
         ) -> None:
             notebook_id = self._stable_id(f"notebook:{identity}")
@@ -170,7 +170,7 @@ class DiscoveryManager:
             else:
                 openable = len(session_pairs) <= 1
                 file_key = (
-                    session_pairs[0][1].initialization_id
+                    session_pairs[0].initialization_id
                     if len(session_pairs) == 1
                     else untitled_key
                 )
@@ -223,8 +223,8 @@ class DiscoveryManager:
         for normalized, session_pairs in sessions_by_path.items():
             if normalized in represented_paths:
                 continue
-            first_session = session_pairs[0][1]
-            path = first_session.app_file_manager.path
+            first_session = session_pairs[0]
+            path = first_session.path
             identity = normalized or first_session.initialization_id
             add_notebook(
                 identity,
@@ -310,12 +310,29 @@ class DiscoveryManager:
             started_at=snapshot.started_at,
             marimo_version=__version__,
         )
-        if snapshot.status == "failed":
+        if snapshot.error is not None:
+            startup_failed = snapshot.error.cause == "startup_failed"
             details.error = SessionError(
-                code="KERNEL_EXITED",
-                message=f"Kernel exited with code {snapshot.exitcode}",
+                code="KERNEL_START_FAILED"
+                if startup_failed
+                else "KERNEL_EXITED",
+                message="Kernel failed to start"
+                if startup_failed
+                else f"Kernel exited with code {snapshot.error.exitcode}",
             )
         return details
+
+    async def start_session(self, notebook_id: str) -> SessionCreateResult:
+        _, targets = await self._snapshot()
+        target = targets.get(notebook_id)
+        if target is None:
+            raise KeyError("Notebook not found")
+        if not target.openable:
+            raise HTTPException(409, "Notebook is not openable")
+        snapshot, reused = self.session_manager.start_session(target.file_key)
+        return SessionCreateResult(
+            reused=reused, **asdict(self.read_session(snapshot.session_id))
+        )
 
     async def open_notebook(self, notebook_id: str) -> OpenNotebookResponse:
         # Refresh first so IDs for files added since the previous request work.
@@ -469,11 +486,8 @@ class DiscoveryManager:
         return absolute_path
 
     def _session_summaries(
-        self, pairs: list[tuple[str, Session]]
+        self, snapshots: list[SessionSnapshot]
     ) -> list[SessionSummary]:
-        snapshots = (
-            SessionSnapshot.from_session(session) for _, session in pairs
-        )
         summaries = [
             SessionSummary(
                 session_id=snapshot.session_id,

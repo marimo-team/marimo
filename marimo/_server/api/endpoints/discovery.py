@@ -17,6 +17,7 @@ from marimo._server.discovery.manager import DiscoveryManager
 from marimo._server.discovery.models import (
     CreateNotebookRequest,
     ExecuteRequest,
+    StartSessionRequest,
 )
 from marimo._server.router import APIRouter
 from marimo._server.scratchpad import stream_scratchpad_code
@@ -151,6 +152,30 @@ async def open_notebook(*, request: Request) -> object:
         return _error(500, "Failed to open notebook")
 
 
+@router.post("/sessions")
+async def start_session(*, request: Request) -> Response:
+    """Start or reuse an edit session without opening a browser."""
+    try:
+        body = await parse_request(
+            request, cls=StartSessionRequest, allow_unknown_keys=True
+        )
+        result = await _manager(request).start_session(body.notebook_id)
+        return Response(
+            encode_json_bytes(result),
+            status_code=200 if result.reused else 201,
+            media_type="application/json",
+        )
+    except (msgspec.ValidationError, ValueError, TypeError) as e:
+        return _error(400, str(e))
+    except KeyError:
+        return _error(404, "Notebook not found")
+    except HTTPException as e:
+        return _error(e.status_code, str(e.detail))
+    except Exception:
+        LOGGER.exception("Failed to start a locally discovered session")
+        return _error(500, "Failed to start session")
+
+
 @router.get("/sessions/{session_id}")
 async def read_session(*, request: Request) -> object:
     """Inspect a session independently of notebook indexing."""
@@ -178,6 +203,13 @@ async def execute(*, request: Request) -> Response:
         None,
     )
     if session is None:
+        if (
+            manager.session_manager.get_session_snapshot(
+                request.path_params["session_id"]
+            )
+            is not None
+        ):
+            return _error(409, "Session is not running")
         return _error(404, "Session not found")
     if session.kernel_state() is not KernelState.RUNNING:
         return _error(409, "Session is not running")
