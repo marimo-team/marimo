@@ -109,12 +109,19 @@ def _check_shutdown(
 
 
 def _try_fetch(
-    port: int, host: str = "localhost", token: str | None = None
+    port: int,
+    host: str = "localhost",
+    token: str | None = None,
+    *,
+    timeout: float = 60,
 ) -> bytes | None:
     import http.cookiejar
 
+    # Cold sandbox installs and remote notebooks can take longer than the
+    # usual server startup, especially on macOS CI runners.
+    deadline = time.monotonic() + timeout
     err: Exception | None = None
-    for _ in range(20):
+    while (remaining := deadline - time.monotonic()) > 0:
         try:
             url = f"http://{host}:{port}"
             if token is not None:
@@ -127,12 +134,55 @@ def _try_fetch(
             opener = urllib.request.build_opener(
                 urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
             )
-            return opener.open(url).read()
+            with opener.open(url, timeout=min(5, remaining)) as response:
+                return response.read()
         except Exception as e:
             err = e
-            time.sleep(0.6)
-    print(f"Failed to fetch contents: {err}")
+            time.sleep(min(0.6, max(0, deadline - time.monotonic())))
+    print(f"Failed to fetch contents within {timeout}s: {err}")
     return None
+
+
+@pytest.mark.parametrize(
+    ("ready_after", "request_duration"),
+    [(0, 0), (15, 0), (None, 0), (None, 5)],
+)
+def test_try_fetch_waits_for_startup(
+    monkeypatch: pytest.MonkeyPatch,
+    ready_after: int | None,
+    request_duration: int,
+) -> None:
+    elapsed = 0.0
+
+    def sleep(seconds: float) -> None:
+        nonlocal elapsed
+        elapsed += seconds
+
+    def open_url(url: str, *, timeout: float = 5) -> Any:
+        assert url == "http://localhost:2718?access_token=secret"
+        assert 0 < timeout <= 5
+        if request_duration:
+            sleep(min(request_duration, timeout))
+            raise TimeoutError("Request timed out")
+        if ready_after is None or elapsed < ready_after:
+            raise urllib.error.URLError("Connection refused")
+        return response
+
+    monkeypatch.setattr(time, "monotonic", lambda: elapsed)
+    monkeypatch.setattr(time, "sleep", sleep)
+    with patch("urllib.request.build_opener") as build_opener:
+        response = build_opener.return_value.open.return_value
+        response.__enter__.return_value = response
+        response.read.return_value = b"ready"
+        build_opener.return_value.open.side_effect = open_url
+        contents = _try_fetch(2718, token="secret")
+
+    if ready_after is None:
+        assert contents is None
+        assert elapsed == 60
+    else:
+        assert contents == b"ready"
+        assert ready_after <= elapsed < ready_after + 0.6
 
 
 def _check_started(port: int, host: str = "localhost") -> bytes | None:

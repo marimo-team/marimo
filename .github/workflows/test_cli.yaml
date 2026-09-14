@@ -29,6 +29,7 @@ jobs:
           filters: |
             cli:
               - 'marimo/**'
+              - 'tests/_cli/**'
               - '.github/workflows/test_cli.yaml'
 
   build_wheel:
