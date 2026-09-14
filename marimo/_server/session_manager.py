@@ -290,6 +290,8 @@ class SessionManager:
                 raise HTTPException(409, "Session is closing")
             return SessionSnapshot.from_session(session), True
         if pending:
+            if pending[0].snapshot.status != "starting":
+                raise HTTPException(409, "Session is closing")
             pending[0].server_owned = True
             return pending[0].snapshot, True
         session_id = SessionId(str(uuid4()))
@@ -742,6 +744,33 @@ class SessionManager:
             return
         else:
             LOGGER.info("LSP server started successfully")
+
+    async def stop_session(self, stable_id: str) -> SessionSnapshot:
+        """Stop an edit session by stable ID without closing its server."""
+        snapshot = self.get_session_snapshot(stable_id)
+        if snapshot is None:
+            raise KeyError("Session not found")
+        for pending in tuple(self._pending.values()):
+            if pending.snapshot.session_id == stable_id:
+                pending.snapshot = replace(
+                    pending.snapshot, status="terminating", startup_phase=None
+                )
+                self._notify_session_changed(stable_id)
+                if not pending.task.cancelling():
+                    pending.task.cancel()
+                await asyncio.shield(
+                    asyncio.gather(pending.task, return_exceptions=True)
+                )
+                break
+        else:
+            for session_id, session in tuple(self.sessions.items()):
+                if session.stable_id != stable_id:
+                    continue
+                self.close_session(session_id)
+                break
+        result = self.get_session_snapshot(stable_id)
+        assert result is not None
+        return result
 
     def close_session(self, session_id: SessionId) -> bool:
         """Close a session."""
