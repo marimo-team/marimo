@@ -50,7 +50,19 @@ def func(param):
     return param
 
 
+class Klass:
+    @overload
+    def method(self, param: int) -> int: ...
+
+    @overload
+    def method(self, param: str) -> str: ...
+
+    def method(self, param):
+        return param
+
+
 num_overloads = len(get_overloads(func))
+num_method_overloads = len(get_overloads(Klass.method))
 """
 
 
@@ -1041,6 +1053,7 @@ class TestOverloadRegistry:
         reloader = ModuleReloader()
         reloader.check(sys.modules, reload=False)
         assert mod.num_overloads == 2
+        assert mod.num_method_overloads == 2
 
         # Insert a line before the definitions, shifting their line numbers
         update_file(py_file, "# shifted\n" + OVERLOAD_MODULE)
@@ -1048,3 +1061,10 @@ class TestOverloadRegistry:
 
         assert mod.num_overloads == 2
         assert len(mod.get_overloads(mod.func)) == 2
+
+        # Methods accumulate the same way -- the registry nests
+        # module -> qualname -> lineno, so the module-level pop clears them
+        # too. Pinned because @overload on methods is at least as common as
+        # on free functions.
+        assert mod.num_method_overloads == 2
+        assert len(mod.get_overloads(mod.Klass.method)) == 2
