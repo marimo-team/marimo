@@ -276,6 +276,17 @@ describe("RuntimeManager", () => {
   });
 
   describe("getTerminalWsURL", () => {
+    it("should include dimensions in the terminal handshake", () => {
+      const runtime = new RuntimeManager(mockConfig);
+      const url = runtime.getTerminalWsURL({ rows: 30, cols: 140 });
+
+      expect(Object.fromEntries(url.searchParams)).toEqual({
+        access_token: "test-token",
+        rows: "30",
+        cols: "140",
+      });
+    });
+
     it("should return terminal WebSocket URL", () => {
       const runtime = new RuntimeManager(mockConfig);
       const url = runtime.getTerminalWsURL();
