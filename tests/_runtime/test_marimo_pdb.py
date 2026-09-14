@@ -133,10 +133,7 @@ def test_mangle_keeps_names_bound_by_a_match_pattern() -> None:
     debugger = _debugger_stopped_in(glbls, get_filename(CELL_ID))
 
     for source in (
-        "def _f(v):\n"
-        "    match v:\n"
-        "        case _x:\n"
-        "            return _x",
+        "def _f(v):\n    match v:\n        case _x:\n            return _x",
         "def _f(v):\n"
         "    match v:\n"
         "        case [1] as _x:\n"
