@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -427,9 +428,21 @@ def test_launch_kernel_handshake_reports_identity() -> None:
 
 
 @pytest.mark.requires("zmq")
-@pytest.mark.parametrize("outcome", ["exit", "timeout", "cancel"])
-async def test_startup_failure_stops_kernel(
-    outcome: str, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize(
+    ("outcome", "configured"),
+    [
+        ("exit", False),
+        ("timeout", False),
+        ("cancel", False),
+        ("cancel", True),
+        ("output", False),
+    ],
+)
+async def test_startup_owns_kernel_process_and_pipes(
+    outcome: str,
+    configured: bool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     from marimo._ast.app_config import _AppConfig
     from marimo._config.manager import get_default_config_manager
@@ -456,9 +469,10 @@ async def test_startup_failure_stops_kernel(
     server = await asyncio.start_server(ready, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
     code = (
-        "import socket, sys, time; sys.stdin.read(); "
+        "import socket, sys, time, signal; sys.stdin.read(); "
+        "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
         f"socket.create_connection(('127.0.0.1', {port})).send(b'x'); "
-        "print('KERNEL_READY', flush=True); "
+        + ("" if configured else "print('KERNEL_READY', flush=True); ")
         + (
             # The launcher exits, but a descendant still holds its pipes.
             "import subprocess; "
@@ -468,6 +482,21 @@ async def test_startup_failure_stops_kernel(
             else "time.sleep(60)"
         )
     )
+    output_ready = tmp_path / "output-ready"
+    if outcome == "output":
+        child_code = "import sys; sys.stdout.write('x' * 131072)"
+        code = (
+            "import socket, sys, os, subprocess, time\n"
+            "from pathlib import Path\n"
+            "sys.stdin.read()\n"
+            f"socket.create_connection(('127.0.0.1', {port})).send(b'x')\n"
+            "print('KERNEL_READY', flush=True)\n"
+            "print(f'KERNEL_INFO {os.getpid()} {sys.executable}', flush=True)\n"
+            f"while not Path({str(output_ready)!r}).exists(): time.sleep(0.01)\n"
+            # Inherit the kernel's stdout and fill more than the pipe buffer.
+            f"result = subprocess.run([sys.executable, '-c', {child_code!r}], stdout=sys.stdout)\n"
+            "sys.exit(result.returncode)\n"
+        )
     sandbox = MagicMock()
     sandbox.launch_async = AsyncMock(
         return_value=ProcessPlan(
@@ -479,6 +508,26 @@ async def test_startup_failure_stops_kernel(
     monkeypatch.setattr(
         "marimo._environments.sandbox.NotebookSandbox", lambda *_: sandbox
     )
+    if configured:
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.get_configured_venv_python",
+            lambda *_args, **_kwargs: sys.executable,
+        )
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.has_marimo_installed",
+            AsyncMock(return_value=True),
+        )
+        popen = subprocess.Popen
+        # Windows cleanup also uses Popen for taskkill; only replace the kernel.
+        monkeypatch.setattr(
+            "marimo._session.managers.ipc.subprocess.Popen",
+            lambda cmd, **kwargs: popen(
+                [sys.executable, "-c", code]
+                if cmd == [sys.executable, "-m", "marimo._ipc.launch_kernel"]
+                else cmd,
+                **kwargs,
+            ),
+        )
     monkeypatch.setenv(
         "MARIMO_KERNEL_STARTUP_TIMEOUT", "1" if outcome == "timeout" else "30"
     )
@@ -500,7 +549,13 @@ async def test_startup_failure_stops_kernel(
     startup = asyncio.create_task(manager.start_kernel())
     try:
         await asyncio.wait_for(started.wait(), 5)
-        if outcome == "cancel":
+        if outcome == "output":
+            await asyncio.wait_for(startup, 5)
+            output_ready.touch()  # noqa: ASYNC240
+            assert manager.kernel_task is not None
+            await asyncio.to_thread(manager.kernel_task.join, 5)
+            assert manager.kernel_task.exitcode == 0
+        elif outcome == "cancel":
             startup.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await asyncio.wait_for(startup, 5)
@@ -511,11 +566,12 @@ async def test_startup_failure_stops_kernel(
             with pytest.raises(KernelStartupError, match=message):
                 await asyncio.wait_for(startup, 5)
         assert not manager.is_alive()
-        assert manager.notebook_sandbox is None
+        if outcome != "output":
+            assert manager.notebook_sandbox is None
     finally:
         startup.cancel()
         await asyncio.gather(startup, return_exceptions=True)
-        manager._cleanup_failed_start()
+        await manager._cleanup_failed_start()
         manager.queue_manager.close_queues()
         server.close()
         await server.wait_closed()

@@ -37,13 +37,14 @@ from marimo._session.queue import ProcessLike, QueueType, route_control_request
 from marimo._session.types import KernelManager, QueueManager
 from marimo._utils.subprocess import (
     interrupt_kernel_process,
-    kill_subprocess,
+    stop_subprocess,
     try_kill_process_and_group,
 )
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from typing import Literal
 
     from marimo._ast.cell import CellConfig
     from marimo._environments.sandbox import NotebookSandbox
@@ -441,6 +442,7 @@ class IPCKernelManagerImpl(KernelManager):
             plan.start_new_session if plan_launched else False
         )
         LOGGER.debug(f"Launching kernel: {' '.join(cmd)}")
+        handshake: asyncio.Future[list[str]] | None = None
 
         try:
             if self._on_progress is not None:
@@ -459,25 +461,29 @@ class IPCKernelManagerImpl(KernelManager):
             # pipe before the kernel ever prints KERNEL_READY,
             # deadlocking startup. Tee to the server's stderr as the
             # kernel's console, keeping a tail for startup diagnostics.
-            stderr_pipe = self._process.stderr
+            process = self._process
             stderr_tail: deque[bytes] = deque(maxlen=64)
 
-            def drain_stderr() -> None:
-                assert stderr_pipe is not None
-                for line in iter(stderr_pipe.readline, b""):
-                    stderr_tail.append(line)
-                    try:
-                        sys.stderr.buffer.write(line)
-                        sys.stderr.buffer.flush()
-                    except Exception:
-                        pass
-                stderr_pipe.close()
+            def drain_output(stream: Literal["stdout", "stderr"]) -> None:
+                pipe = process.stderr if stream == "stderr" else process.stdout
+                assert pipe is not None
+                with pipe:
+                    for line in iter(pipe.readline, b""):
+                        if stream == "stderr":
+                            stderr_tail.append(line)
+                        try:
+                            output = getattr(sys, stream).buffer
+                            output.write(line)
+                            output.flush()
+                        except Exception:
+                            pass
 
-            threading.Thread(target=drain_stderr, daemon=True).start()
+            threading.Thread(
+                target=drain_output, args=("stderr",), daemon=True
+            ).start()
 
             # Pipe I/O stays on a thread for Windows selector loops. EOF
             # wakes the awaiter just like a handshake; no liveness polling.
-            process = self._process
             expected_lines = 2 if plan_launched else 1
 
             def exchange_handshake() -> list[str]:
@@ -486,11 +492,18 @@ class IPCKernelManagerImpl(KernelManager):
                 with process.stdin:
                     process.stdin.write(kernel_args.encode_json())
                     process.stdin.flush()
-                with process.stdout:
+                try:
                     lines = [
                         process.stdout.readline().decode().strip()
                         for _ in range(expected_lines)
                     ]
+                finally:
+                    # Notebook subprocesses can inherit this pipe for stdout.
+                    # Keep draining it without occupying an executor worker
+                    # for the kernel's lifetime.
+                    threading.Thread(
+                        target=drain_output, args=("stdout",), daemon=True
+                    ).start()
                 if not all(lines):
                     process.wait()
                 return lines
@@ -532,20 +545,6 @@ class IPCKernelManagerImpl(KernelManager):
                             f"Kernel exited during startup (exit code {exited.result()})."
                         ) from None
                 lines = handshake.result()
-            except BaseException:
-                # Stop the writer before joining its reader. Shielding keeps
-                # cancellation from abandoning pipe I/O in the executor.
-                self._cleanup_failed_start()
-                while not handshake.done():
-                    try:
-                        await asyncio.shield(handshake)
-                    except asyncio.CancelledError:
-                        continue
-                    except Exception:
-                        break
-                if not handshake.cancelled():
-                    handshake.exception()
-                raise
             finally:
                 exited.cancel()
             if not all(lines):
@@ -577,11 +576,7 @@ class IPCKernelManagerImpl(KernelManager):
 
             # Create a ProcessLike wrapper for the subprocess
             self.kernel_task = _SubprocessWrapper(self._process)
-        except asyncio.CancelledError:
-            self._cleanup_failed_start()
-            raise
         except asyncio.TimeoutError as e:
-            self._cleanup_failed_start()
             raise KernelStartupError(
                 f"Kernel did not become ready within {_startup_timeout():.0f}s "
                 f"(override with MARIMO_KERNEL_STARTUP_TIMEOUT).\n\n"
@@ -589,34 +584,31 @@ class IPCKernelManagerImpl(KernelManager):
                 f"Stderr:\n{_decode_tail(stderr_tail)}"
             ) from e
         except KernelStartupError:
-            self._cleanup_failed_start()
             raise
         except Exception as e:
-            self._cleanup_failed_start()
             # Wrap other exceptions as KernelStartupError
             raise KernelStartupError(
                 f"Failed to start kernel subprocess.\n\n{e}"
             ) from e
+        finally:
+            if self.kernel_task is None:
+                await self._cleanup_failed_start(handshake)
 
-    def _cleanup_failed_start(self) -> None:
+    async def _cleanup_failed_start(
+        self, handshake: asyncio.Future[list[str]] | None = None
+    ) -> None:
         """Release resources retained before the startup handshake."""
-        if self._process is not None:
-            try:
-                if self._start_new_session:
-                    kill_subprocess(self._process, start_new_session=True)
-                else:
-                    # Configured venvs share the server's process group.
-                    try_kill_process_and_group(
-                        _SubprocessWrapper(self._process)
-                    )
-                    self._process.wait()
-            except (ProcessLookupError, PermissionError):
-                pass
-            except Exception as error:
-                LOGGER.warning(error)
-        if self._notebook_sandbox is not None:
-            self._notebook_sandbox.close()
-            self._notebook_sandbox = None
+        try:
+            if self._process is not None:
+                await stop_subprocess(
+                    self._process,
+                    start_new_session=self._start_new_session,
+                    drain=handshake,
+                )
+        finally:
+            if self._notebook_sandbox is not None:
+                self._notebook_sandbox.close()
+                self._notebook_sandbox = None
 
     @property
     def pid(self) -> int | None:

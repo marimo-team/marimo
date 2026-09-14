@@ -101,7 +101,6 @@ async def run_python_subprocess(
         completed = await run_command(
             plan.argv,
             env=plan.env,
-            start_new_session=plan.start_new_session,
         )
     if completed.returncode != 0:
         # Identify the real launcher without exposing requirement URLs,

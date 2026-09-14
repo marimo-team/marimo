@@ -155,25 +155,12 @@ def sync(
     on interpreter identity. Raises `PixiCommandError` on failure and
     never mutates `script`.
     """
-    args = _sync_command(script)
-    if on_command is not None:
-        on_command(args)
-    completed = subprocess.run(
-        args,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        # pixi must never hang waiting for input.
-        stdin=subprocess.DEVNULL,
-        env=command_env(),
+    completed = _run(
+        _sync_command(script),
         cwd=cwd,
-        start_new_session=os.name != "nt",
+        on_output=on_output,
+        on_command=on_command,
     )
-    if on_output is not None:
-        for line in (completed.stdout + completed.stderr).splitlines(True):
-            on_output(line)
-    if completed.returncode != 0:
-        raise _command_error(completed)
     return _parse_sync_report(completed.stderr)
 
 
@@ -321,7 +308,8 @@ def tree_script_packages(script: str, *, cwd: str) -> str:
 def _run(
     args: Sequence[str],
     *,
-    cwd: str,
+    cwd: str | None,
+    timeout: float | None = None,
     on_output: Callable[[str], None] | None = None,
     on_command: Callable[[Sequence[str]], None] | None = None,
 ) -> subprocess.CompletedProcess[str]:
@@ -336,6 +324,7 @@ def _run(
         stdin=subprocess.DEVNULL,
         env=command_env(),
         cwd=cwd,
+        timeout=timeout,
         start_new_session=os.name != "nt",
     )
     if on_output is not None:
@@ -378,22 +367,12 @@ def ensure_marimo(
         "--pypi",
         "marimo",
     ]
-    if on_command is not None:
-        on_command(args)
-    completed = subprocess.run(
+    _run(
         args,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        # pixi must never hang waiting for input.
-        stdin=subprocess.DEVNULL,
-        env=command_env(),
         cwd=os.path.dirname(os.path.abspath(path)),
         timeout=60,
-        start_new_session=os.name != "nt",
+        on_command=on_command,
     )
-    if completed.returncode != 0:
-        raise _command_error(completed)
 
 
 # The uv that applies launch overlays, fetched through `pixi exec` so
