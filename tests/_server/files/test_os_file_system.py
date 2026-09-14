@@ -75,12 +75,13 @@ def test_create_notebook_with_contents(
     assert notebook_code == "marimo"
 
 
+@pytest.mark.parametrize("file_type", ["file", "notebook"])
 def test_create_file_with_duplicate_name(
-    test_dir: Path, fs: OSFileSystem
+    test_dir: Path, fs: OSFileSystem, file_type: Literal["file", "notebook"]
 ) -> None:
     test_file_name = "test_file.txt"
-    fs.create_file_or_directory(str(test_dir), "file", test_file_name, None)
-    fs.create_file_or_directory(str(test_dir), "file", test_file_name, None)
+    fs.create_file_or_directory(str(test_dir), file_type, test_file_name, None)
+    fs.create_file_or_directory(str(test_dir), file_type, test_file_name, None)
     expected_path = test_dir / "test_file_1.txt"
     assert expected_path.exists()
 

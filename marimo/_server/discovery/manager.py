@@ -16,21 +16,31 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 from uuid import uuid4, uuid5
 
+from msgspec.structs import asdict
+
 from marimo import _loggers
 from marimo._messaging.msgspec_encoder import encode_json_bytes
 from marimo._server.discovery.models import (
     Catalog,
+    CreateNotebookRequest,
     InstanceRecord,
+    Notebook,
     NotebookSummary,
     OpenNotebookResponse,
     ProjectSummary,
     SessionStatus,
     SessionSummary,
 )
-from marimo._server.workspace import NEW_FILE, flatten_files
+from marimo._server.files.os_file_system import OSFileSystem
+from marimo._server.workspace import (
+    NEW_FILE,
+    DirectoryWorkspace,
+    flatten_files,
+)
 from marimo._session.model import SessionMode
 from marimo._session.types import KernelState
 from marimo._utils.asyncio_utils import cancel_and_wait
+from marimo._utils.http import HTTPException, HTTPStatus
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterator, Sequence
@@ -91,6 +101,7 @@ class DiscoveryManager:
             token=self.token,
         )
         self._catalog_lock = asyncio.Lock()
+        self._created_paths: set[str] = set()
         self._browser_tokens: dict[str, _BrowserToken] = {}
         self._subscribers: set[asyncio.Queue[None]] = set()
         self._watch_task: asyncio.Task[None] | None = None
@@ -102,6 +113,7 @@ class DiscoveryManager:
             await cancel_and_wait(task)
         self._subscribers.clear()
         self._browser_tokens.clear()
+        self._created_paths.clear()
 
     def is_authorized(self, token: str) -> bool:
         return hmac.compare_digest(token, self.token)
@@ -183,6 +195,18 @@ class DiscoveryManager:
             session_pairs = sessions_by_path.get(normalized, [])
             add_notebook(normalized, absolute_path, item.name, session_pairs)
 
+        # Keep resources returned by create addressable even beyond scan limits.
+        for path in self._created_paths:
+            normalized = self._normalize_path(path)
+            if normalized not in represented_paths and Path(path).is_file():
+                represented_paths.add(normalized)
+                add_notebook(
+                    normalized,
+                    path,
+                    Path(path).name,
+                    sessions_by_path.get(normalized, []),
+                )
+
         unique_key = workspace.get_unique_file_key()
         if unique_key is not None and unique_key.startswith(NEW_FILE):
             session_pairs = sessions_by_path.get(None, [])
@@ -208,9 +232,12 @@ class DiscoveryManager:
             )
 
         notebooks.sort(key=lambda notebook: (notebook.path or "", notebook.id))
+        operations = list(DISCOVERY_OPERATIONS)
+        if isinstance(workspace, DirectoryWorkspace):
+            operations.append("notebook.create")
         return Catalog(
             instance_id=self.instance_id,
-            operations=list(DISCOVERY_OPERATIONS),
+            operations=operations,
             projects=[
                 ProjectSummary(
                     id=project_id,
@@ -221,6 +248,41 @@ class DiscoveryManager:
                 )
             ],
         ), targets
+
+    async def create_notebook(self, body: CreateNotebookRequest) -> Notebook:
+        workspace = self.session_manager.workspace
+        if not isinstance(workspace, DirectoryWorkspace):
+            raise HTTPException(
+                HTTPStatus.FORBIDDEN,
+                detail="Notebook creation requires a directory workspace",
+            )
+        async with self._catalog_lock:
+            catalog, _ = self._build_catalog([])
+            project = catalog.projects[0]
+            if body.project_id != project.id:
+                raise HTTPException(
+                    HTTPStatus.NOT_FOUND, detail="Project not found"
+                )
+            info = await asyncio.to_thread(
+                _create_notebook_file,
+                workspace.directory,
+                body.path,
+            )
+            workspace.invalidate()
+            self._created_paths.add(info.path)
+            catalog, _ = self._build_catalog([])
+            notebook_id = self._stable_id(
+                f"notebook:{self._normalize_path(info.path)}"
+            )
+            notebook = next(
+                notebook
+                for notebook in catalog.projects[0].notebooks
+                if notebook.id == notebook_id
+            )
+            for queue in tuple(self._subscribers):
+                if queue.empty():
+                    queue.put_nowait(None)
+            return Notebook(project_id=project.id, **asdict(notebook))
 
     async def open_notebook(self, notebook_id: str) -> OpenNotebookResponse:
         # Refresh first so IDs for files added since the previous request work.
@@ -365,6 +427,11 @@ class DiscoveryManager:
 
     def _file_key(self, absolute_path: str, relative_path: str | None) -> str:
         if self.session_manager.workspace.directory is not None:
+            # A real filename must not become an untitled-notebook key.
+            if relative_path is not None and relative_path.startswith(
+                NEW_FILE
+            ):
+                return absolute_path
             return relative_path or absolute_path
         return absolute_path
 
@@ -431,6 +498,21 @@ class DiscoveryManager:
             for token, entry in self._browser_tokens.items()
             if entry.expires_at is None or entry.expires_at > now
         }
+
+
+def _create_notebook_file(root: str, path: str) -> FileInfo:
+    relative = Path(path)
+    if relative.is_absolute() or relative.suffix != ".py":
+        raise ValueError("Expected a relative .py path")
+    directory = Path(root)
+    destination = directory / relative
+    try:
+        destination.resolve().relative_to(directory.resolve())
+    except (ValueError, RuntimeError) as e:
+        raise ValueError("Path must stay within the workspace") from e
+    if not destination.parent.is_dir():
+        raise ValueError("Parent directory must exist")
+    return OSFileSystem().create_notebook(os.path.abspath(destination))
 
 
 def build_discovery_manager(
