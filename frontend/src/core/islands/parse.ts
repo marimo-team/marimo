@@ -30,6 +30,8 @@ export interface MarimoIslandApp {
    * Whether cells came from a supported JSON payload instead of DOM parsing.
    */
   payloadBacked?: boolean;
+  /** Explicit notebook dependencies to install before starting the app. */
+  dependencies?: string[];
   /**
    * Cells in the app.
    */
@@ -62,6 +64,7 @@ interface MarimoIslandCell {
 interface MarimoIslandPayload {
   schemaVersion: 1;
   appId: string;
+  dependencies?: string[];
   cells: MarimoIslandPayloadCell[];
 }
 
@@ -235,6 +238,12 @@ function parsePayloadBackedApps({
         embed?.setAttribute(ISLAND_DATA_ATTRIBUTES.CELL_IDX, idx.toString());
       }
     }
+    const app = apps.get(payload.appId);
+    if (app && payload.dependencies?.length) {
+      app.dependencies = [
+        ...new Set([...(app.dependencies ?? []), ...payload.dependencies]),
+      ];
+    }
   }
 
   // A supported payload is the runtime source for its app. Extra same-app DOM
@@ -371,6 +380,7 @@ export function parseIslandElement(
 
 export function createMarimoFile(app: {
   cells: { code: string; disabled?: boolean }[];
+  dependencies?: string[];
 }): string {
   const lines = [
     "import marimo",
@@ -402,6 +412,13 @@ export function createMarimoFile(app: {
       .join("\n"),
   ];
 
+  if (app.dependencies?.length) {
+    lines.unshift(
+      "# /// script",
+      `# dependencies = ${JSON.stringify(app.dependencies)}`,
+      "# ///",
+    );
+  }
   return lines.join("\n");
 }
 
@@ -507,6 +524,9 @@ function isMarimoIslandPayload(
   return (
     payload.schemaVersion === 1 &&
     typeof payload.appId === "string" &&
+    (payload.dependencies === undefined ||
+      (Array.isArray(payload.dependencies) &&
+        payload.dependencies.every((dep) => typeof dep === "string"))) &&
     Array.isArray(payload.cells) &&
     payload.cells.every(isMarimoIslandPayloadCell)
   );
