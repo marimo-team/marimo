@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from marimo._session.model import (
         ConnectionState,
         SessionMode,
+        StartupPhase,
     )
     from marimo._session.notebook.file_manager import AppFileManager
     from marimo._session.queue import ProcessLike, QueueType
@@ -142,6 +143,7 @@ class SessionSnapshot:
     started_at: datetime
     status: Literal["starting", "running", "failed", "terminated"]
     error: KernelExitInfo | None = None
+    startup_phase: StartupPhase | None = None
 
     @classmethod
     def from_session(cls, session: Session) -> SessionSnapshot:

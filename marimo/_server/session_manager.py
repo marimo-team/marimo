@@ -20,6 +20,10 @@ from weakref import WeakValueDictionary
 
 from marimo import _loggers
 from marimo._config.manager import MarimoConfigManager
+from marimo._messaging.notification import (
+    NotificationMessage,
+    StartupProgressNotification,
+)
 from marimo._runtime.commands import (
     SerializedCLIArgs,
     SerializedQueryParams,
@@ -40,7 +44,10 @@ from marimo._server.workspace import (
 from marimo._session.app_host import AppHostContext, AppHostPool
 from marimo._session.consumer import SessionConsumer
 from marimo._session.events import SessionEventBus
-from marimo._session.extensions.types import SessionExtension
+from marimo._session.extensions.types import (
+    EventAwareExtension,
+    SessionExtension,
+)
 from marimo._session.file_change_handler import (
     FileChangeCoordinator,
     create_reload_strategy,
@@ -65,7 +72,11 @@ from marimo._utils.file_watcher import FileWatcherManager
 from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Mapping
+    from collections.abc import (
+        AsyncGenerator,
+        AsyncIterator,
+        Mapping,
+    )
 
     from marimo._session.notebook import AppFileManager
 
@@ -84,6 +95,30 @@ class _PendingSession:
     waiters: int = 0
     close_handle: asyncio.TimerHandle | None = None
     expired: bool = False
+
+
+class _SessionStateListener(EventAwareExtension):
+    def __init__(self, manager: SessionManager) -> None:
+        super().__init__()
+        self._manager = manager
+
+    async def on_session_notebook_renamed(
+        self, session: Session, old_path: str | None
+    ) -> None:
+        del old_path
+        self._manager._notify_session_changed(session.stable_id)
+
+    def on_detach(self) -> None:
+        snapshot = SessionSnapshot.from_session(self.session)
+        self._manager._retain_session(
+            replace(
+                snapshot,
+                status="failed"
+                if snapshot.status == "failed"
+                else "terminated",
+            )
+        )
+        super().on_detach()
 
 
 class SessionManager:
@@ -141,6 +176,9 @@ class SessionManager:
         self._repository = SessionRepository()
         self._pending: dict[str, _PendingSession] = {}
         self._terminal_sessions: dict[str, tuple[float, SessionSnapshot]] = {}
+        self._session_subscribers: dict[
+            str, set[asyncio.Queue[SessionSnapshot]]
+        ] = {}
         self._connection_locks: WeakValueDictionary[str, asyncio.Lock] = (
             WeakValueDictionary()
         )
@@ -251,12 +289,7 @@ class SessionManager:
         sessions = self._repository.get_all_by_file_key(
             file_key, resolved_path=self._resolve_file_key(file_key)
         )
-        live_ids = {session.stable_id for session in sessions}
-        pending = [
-            entry
-            for entry in self._pending_for_file(file_key)
-            if entry.snapshot.session_id not in live_ids
-        ]
+        pending = self._pending_for_file(file_key)
         if len(sessions) + len(pending) > 1:
             raise HTTPException(409, "Multiple sessions match this notebook")
         if sessions:
@@ -280,7 +313,6 @@ class SessionManager:
         file_key: MarimoFileKey,
         auto_instantiate: bool,
     ) -> _PendingSession:
-        startup = SessionStartup()
         snapshot = SessionSnapshot(
             session_id=new_stable_session_id(),
             initialization_id=file_key,
@@ -288,6 +320,17 @@ class SessionManager:
             started_at=datetime.now(timezone.utc),
             status="starting",
         )
+
+        def report_notification(notification: NotificationMessage) -> None:
+            if not isinstance(notification, StartupProgressNotification):
+                return
+            pending.snapshot = replace(
+                pending.snapshot, startup_phase=notification.phase
+            )
+            self._notify_session_changed(snapshot.session_id)
+
+        startup = SessionStartup(on_notification=report_notification)
+
         task = asyncio.create_task(
             self._create_session(
                 session_id,
@@ -476,7 +519,7 @@ class SessionManager:
         from marimo._runtime.commands import AppMetadata
         from marimo._runtime.patches import extract_docstring_from_header
 
-        extensions: list[SessionExtension] = []
+        extensions: list[SessionExtension] = [_SessionStateListener(self)]
         if self.watch:
             extensions.append(
                 SessionFileWatcherExtension(
@@ -539,8 +582,13 @@ class SessionManager:
                 session.close()
                 raise
 
-        # Add to repository
+        # Server-owned launches have no browser waiter to clear pending state.
+        key = self._connection_key(session_id, file_key)
+        pending = self._pending.get(key)
+        if pending is not None and pending.server_owned:
+            self._pending.pop(key)
         self._repository.add_sync(session_id, session)
+        self._notify_session_changed(session.stable_id)
 
         # Emit session created event (triggers file watcher attachment, recents, etc.)
         fire_and_forget(
@@ -645,6 +693,7 @@ class SessionManager:
         live = [
             SessionSnapshot.from_session(session)
             for session in self._repository.get_all()
+            if session.connection_state() is not ConnectionState.CLOSED
         ]
         live_ids = {snapshot.session_id for snapshot in live}
         return [
@@ -662,6 +711,45 @@ class SessionManager:
             monotonic() + _TERMINAL_RETENTION_SECONDS,
             snapshot,
         )
+        self._notify_session_changed(snapshot.session_id)
+
+    def _notify_session_changed(self, stable_id: str) -> None:
+        subscribers = self._session_subscribers.get(stable_id)
+        if not subscribers:
+            return
+        snapshot = self.get_session_snapshot(stable_id)
+        if snapshot is None:
+            return
+        for queue in subscribers:
+            if queue.full():
+                queue.get_nowait()
+            queue.put_nowait(snapshot)
+
+    async def watch_session(
+        self, stable_id: str
+    ) -> AsyncGenerator[SessionSnapshot, None]:
+        """Observe current state without owning the session's lifetime.
+
+        Registration and the initial snapshot have no intervening await.
+        Each observer retains only the latest state, including a terminal state.
+        """
+        snapshot = self.get_session_snapshot(stable_id)
+        if snapshot is None:
+            raise KeyError("Session not found")
+        queue: asyncio.Queue[SessionSnapshot] = asyncio.Queue(maxsize=1)
+        subscribers = self._session_subscribers.setdefault(stable_id, set())
+        subscribers.add(queue)
+        queue.put_nowait(snapshot)
+        try:
+            while True:
+                snapshot = await queue.get()
+                yield snapshot
+                if snapshot.status in ("failed", "terminated"):
+                    return
+        finally:
+            subscribers.remove(queue)
+            if not subscribers:
+                del self._session_subscribers[stable_id]
 
     def _discard_expired_snapshots(self) -> None:
         now = monotonic()
@@ -780,7 +868,9 @@ class SessionManager:
 
         # Capture a prior kernel failure before intentional shutdown can
         # replace its exit status with the signal used to close it.
-        snapshot = SessionSnapshot.from_session(session)
+        snapshot = self.get_session_snapshot(
+            session.stable_id
+        ) or SessionSnapshot.from_session(session)
         session.close()
         self._retain_session(
             replace(

@@ -13,7 +13,7 @@ from marimo._messaging.serde import serialize_kernel_message
 from marimo._session.state.session_view import SessionView
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from marimo._session.consumer import SessionConsumer
 
@@ -21,9 +21,13 @@ if TYPE_CHECKING:
 class SessionStartup:
     """Retain startup progress independently of the connections observing it."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        on_notification: Callable[[NotificationMessage], None] | None = None,
+    ) -> None:
         self.view = SessionView()
         self._consumers: list[SessionConsumer] = []
+        self._on_notification = on_notification
         # Producers may report from worker threads. The view and consumer
         # queues belong to the loop that owns this startup.
         try:
@@ -43,6 +47,8 @@ class SessionStartup:
                     raise
             return
         self.view.add_notification(notification)
+        if self._on_notification is not None:
+            self._on_notification(notification)
         message = serialize_kernel_message(notification)
         for consumer in self._consumers:
             consumer.notify(message)
