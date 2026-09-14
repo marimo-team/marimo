@@ -136,12 +136,12 @@ class KernelExitInfo:
 class SessionSnapshot:
     """Session identity and kernel state, without retaining runtime resources."""
 
-    session_id: str
+    session_id: StableSessionId
     initialization_id: str
     path: str | None
     started_at: datetime
-    kernel_state: KernelState
-    exitcode: int | None
+    status: Literal["starting", "running", "failed", "terminated"]
+    error: KernelExitInfo | None = None
 
     @classmethod
     def from_session(cls, session: Session) -> SessionSnapshot:
@@ -151,22 +151,23 @@ class SessionSnapshot:
             if state is KernelState.STOPPED
             else None
         )
+        status: Literal["starting", "running", "failed", "terminated"]
+        if state is KernelState.NOT_STARTED:
+            status = "starting"
+        elif state is KernelState.RUNNING:
+            status = "running"
+        elif exit_info is not None and exit_info.exitcode not in (None, 0):
+            status = "failed"
+        else:
+            status = "terminated"
         return cls(
             session_id=session.stable_id,
             initialization_id=session.initialization_id,
             path=session.app_file_manager.path,
             started_at=session.started_at,
-            kernel_state=state,
-            exitcode=exit_info.exitcode if exit_info is not None else None,
+            status=status,
+            error=exit_info if status == "failed" else None,
         )
-
-    @property
-    def status(self) -> Literal["starting", "running", "failed", "terminated"]:
-        if self.kernel_state is KernelState.NOT_STARTED:
-            return "starting"
-        if self.kernel_state is KernelState.RUNNING:
-            return "running"
-        return "failed" if self.exitcode not in (None, 0) else "terminated"
 
 
 class Session(Protocol):

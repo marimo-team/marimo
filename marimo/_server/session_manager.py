@@ -9,10 +9,13 @@ file watching, and LSP server management.
 from __future__ import annotations
 
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
+from datetime import datetime, timezone
 from pathlib import Path
 from time import monotonic
 from typing import TYPE_CHECKING
+from uuid import uuid4
 from weakref import WeakValueDictionary
 
 from marimo import _loggers
@@ -47,15 +50,21 @@ from marimo._session.file_watcher_integration import (
 )
 from marimo._session.managers.ipc import KernelStartupError
 from marimo._session.model import ConnectionState, SessionMode
-from marimo._session.session import Session, SessionImpl
+from marimo._session.requests import InstantiateNotebookRequest
+from marimo._session.session import (
+    Session,
+    SessionImpl,
+    new_stable_session_id,
+)
 from marimo._session.session_repository import SessionRepository
-from marimo._session.types import KernelState, SessionSnapshot
+from marimo._session.types import KernelExitInfo, KernelState, SessionSnapshot
 from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.asyncio_utils import fire_and_forget
 from marimo._utils.file_watcher import FileWatcherManager
+from marimo._utils.http import HTTPException
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import AsyncIterator, Mapping
 
     from marimo._session.notebook import AppFileManager
 
@@ -66,6 +75,8 @@ _TERMINAL_RETENTION_SECONDS = 300
 @dataclass
 class _PendingSession:
     task: asyncio.Task[Session]
+    snapshot: SessionSnapshot
+    server_owned: bool = False
     waiters: int = 0
 
 
@@ -187,9 +198,10 @@ class SessionManager:
             self.workspace.register_allowed_path(key)
         return self.workspace.load(key, defaults)
 
-    def connection_lock(
+    @asynccontextmanager
+    async def connection_lock(
         self, session_id: SessionId, file_key: MarimoFileKey
-    ) -> asyncio.Lock:
+    ) -> AsyncIterator[None]:
         """Serialize reconnect decisions while a notebook is starting."""
         if self._closed:
             raise KernelStartupError("Session manager is shut down")
@@ -202,7 +214,109 @@ class SessionManager:
         if lock is None:
             lock = asyncio.Lock()
             self._connection_locks[key] = lock
-        return lock
+        async with lock:
+            if self.mode is SessionMode.EDIT:
+                for pending in self._pending_for_file(file_key):
+                    await asyncio.shield(pending.task)
+            yield
+
+    def _pending_for_file(
+        self, file_key: MarimoFileKey
+    ) -> list[_PendingSession]:
+        path = self._resolve_file_key(file_key)
+        return [
+            pending
+            for pending in self._pending.values()
+            if (
+                pending.snapshot.path == path
+                if path is not None
+                else pending.snapshot.initialization_id == file_key
+            )
+        ]
+
+    def start_session(
+        self, file_key: MarimoFileKey
+    ) -> tuple[SessionSnapshot, bool]:
+        """Atomically allocate or reuse an edit session, owned by this server."""
+        if self._closed:
+            raise KernelStartupError("Session manager is shut down")
+        if self.mode is not SessionMode.EDIT:
+            raise HTTPException(
+                403, "Starting sessions requires an edit server"
+            )
+        self._cleanup_dead_sessions()
+        sessions = self._repository.get_all_by_file_key(
+            file_key, resolved_path=self._resolve_file_key(file_key)
+        )
+        live_ids = {session.stable_id for session in sessions}
+        pending = [
+            entry
+            for entry in self._pending_for_file(file_key)
+            if entry.snapshot.session_id not in live_ids
+        ]
+        if len(sessions) + len(pending) > 1:
+            raise HTTPException(409, "Multiple sessions match this notebook")
+        if sessions:
+            session = sessions[0]
+            if session.connection_state() is ConnectionState.CLOSED:
+                raise HTTPException(409, "Session is closing")
+            return SessionSnapshot.from_session(session), True
+        if pending:
+            pending[0].server_owned = True
+            return pending[0].snapshot, True
+        session_id = SessionId(str(uuid4()))
+        entry = self._begin_session(session_id, None, {}, file_key, False)
+        entry.server_owned = True
+        return entry.snapshot, False
+
+    def _begin_session(
+        self,
+        session_id: SessionId,
+        session_consumer: SessionConsumer | None,
+        query_params: SerializedQueryParams,
+        file_key: MarimoFileKey,
+        auto_instantiate: bool,
+    ) -> _PendingSession:
+        snapshot = SessionSnapshot(
+            session_id=new_stable_session_id(),
+            initialization_id=file_key,
+            path=self._resolve_file_key(file_key),
+            started_at=datetime.now(timezone.utc),
+            status="starting",
+        )
+        task = asyncio.create_task(
+            self._create_session(
+                session_id,
+                session_consumer,
+                query_params,
+                file_key,
+                auto_instantiate,
+                snapshot,
+            ),
+            name=f"session.start.{session_id}",
+        )
+        pending = _PendingSession(task, snapshot)
+        self._pending[session_id] = pending
+
+        def finished(task: asyncio.Task[Session]) -> None:
+            self._pending.pop(session_id, None)
+            if task.cancelled():
+                self._retain_session(replace(snapshot, status="terminated"))
+            elif (error := task.exception()) is not None:
+                if pending.server_owned:
+                    LOGGER.error("Session startup failed", exc_info=error)
+                self._retain_session(
+                    replace(
+                        snapshot,
+                        status="failed",
+                        error=KernelExitInfo(
+                            None, "startup_failed", "Kernel failed to start"
+                        ),
+                    )
+                )
+
+        task.add_done_callback(finished)
+        return pending
 
     async def create_session(
         self,
@@ -220,32 +334,23 @@ class SessionManager:
             return existing
         pending = self._pending.get(session_id)
         if pending is None:
-            task = asyncio.create_task(
-                self._create_session(
-                    session_id,
-                    session_consumer,
-                    query_params,
-                    file_key,
-                    auto_instantiate,
-                ),
-                name=f"session.start.{session_id}",
+            pending = self._begin_session(
+                session_id,
+                session_consumer,
+                query_params,
+                file_key,
+                auto_instantiate,
             )
-            pending = _PendingSession(task)
-            self._pending[session_id] = pending
-
-            def finished(task: asyncio.Task[Session]) -> None:
-                self._pending.pop(session_id, None)
-                # A disconnected caller may no longer be awaiting the error.
-                if not task.cancelled():
-                    task.exception()
-
-            task.add_done_callback(finished)
         pending.waiters += 1
         try:
             return await asyncio.shield(pending.task)
         finally:
             pending.waiters -= 1
-            if pending.waiters == 0 and not pending.task.done():
+            if (
+                not pending.server_owned
+                and pending.waiters == 0
+                and not pending.task.done()
+            ):
                 # The last disconnected caller releases its connection lock
                 # only after the abandoned launch has cleaned up.
                 pending.task.cancel()
@@ -257,10 +362,11 @@ class SessionManager:
     async def _create_session(
         self,
         session_id: SessionId,
-        session_consumer: SessionConsumer,
+        session_consumer: SessionConsumer | None,
         query_params: SerializedQueryParams,
         file_key: MarimoFileKey,
         auto_instantiate: bool,
+        snapshot: SessionSnapshot,
     ) -> Session:
         """Create a new session."""
         LOGGER.debug("Creating new session for id %s", session_id)
@@ -269,7 +375,9 @@ class SessionManager:
         defaults = AppDefaults.from_config_manager(self._config_manager)
         if self.mode is SessionMode.EDIT and not file_key.startswith(NEW_FILE):
             self.workspace.register_allowed_path(file_key)
-        app_file_manager = self.workspace.load(file_key, defaults)
+        app_file_manager = await asyncio.to_thread(
+            self.workspace.load, file_key, defaults
+        )
 
         # Create the session
         from marimo._runtime.commands import AppMetadata
@@ -285,6 +393,8 @@ class SessionManager:
             )
 
         session = await SessionImpl.create(
+            stable_id=snapshot.session_id,
+            started_at=snapshot.started_at,
             initialization_id=file_key,
             session_consumer=session_consumer,
             mode=self.mode,
@@ -319,6 +429,21 @@ class SessionManager:
             if self._app_host_pool
             else None,
         )
+
+        if (
+            session_consumer is None
+            or session_consumer.connection_state() is ConnectionState.CLOSED
+        ):
+            try:
+                session.instantiate(
+                    InstantiateNotebookRequest(
+                        object_ids=[], values=[], auto_run=False
+                    ),
+                    http_request=None,
+                )
+            except BaseException:
+                session.close()
+                raise
 
         # Add to repository
         self._repository.add_sync(session_id, session)
@@ -414,11 +539,35 @@ class SessionManager:
         the session, kernel, or document alive. Browser resumes preserve the ID.
         """
         self._discard_expired_snapshots()
-        for session in self._repository.get_all():
-            if session.stable_id == stable_id:
-                return SessionSnapshot.from_session(session)
+        for snapshot in self.session_snapshots:
+            if snapshot.session_id == stable_id:
+                return snapshot
         retained = self._terminal_sessions.get(stable_id)
         return retained[1] if retained is not None else None
+
+    @property
+    def session_snapshots(self) -> list[SessionSnapshot]:
+        """Observe live sessions and accepted starts without loading notebooks."""
+        live = [
+            SessionSnapshot.from_session(session)
+            for session in self._repository.get_all()
+        ]
+        live_ids = {snapshot.session_id for snapshot in live}
+        return [
+            *live,
+            *(
+                pending.snapshot
+                for pending in self._pending.values()
+                if pending.snapshot.session_id not in live_ids
+            ),
+        ]
+
+    def _retain_session(self, snapshot: SessionSnapshot) -> None:
+        self._discard_expired_snapshots()
+        self._terminal_sessions[snapshot.session_id] = (
+            monotonic() + _TERMINAL_RETENTION_SECONDS,
+            snapshot,
+        )
 
     def _discard_expired_snapshots(self) -> None:
         now = monotonic()
@@ -528,10 +677,13 @@ class SessionManager:
         # replace its exit status with the signal used to close it.
         snapshot = SessionSnapshot.from_session(session)
         session.close()
-        self._discard_expired_snapshots()
-        self._terminal_sessions[snapshot.session_id] = (
-            monotonic() + _TERMINAL_RETENTION_SECONDS,
-            replace(snapshot, kernel_state=KernelState.STOPPED),
+        self._retain_session(
+            replace(
+                snapshot,
+                status="failed"
+                if snapshot.status == "failed"
+                else "terminated",
+            )
         )
         return True
 
