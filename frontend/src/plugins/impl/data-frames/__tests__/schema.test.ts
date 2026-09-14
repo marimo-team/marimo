@@ -4,6 +4,55 @@ import { describe, expect, it } from "vitest";
 import { columnToFieldTypesSchema, TransformationsSchema } from "../schema";
 import type { ColumnId } from "../types";
 
+describe("pending transforms", () => {
+  it.each([
+    { type: "group_by", column_ids: [] },
+    {
+      type: "pivot",
+      column_ids: ["col"],
+      index_column_ids: [],
+      value_column_ids: [],
+    },
+    { type: "column_conversion", column_id: "col" },
+    { type: "explode_columns", column_ids: [] },
+    { type: "unique", column_ids: [] },
+    { type: "aggregate", column_ids: [] },
+    { type: "select_columns", column_ids: [] },
+    { type: "sample_rows" },
+    { type: "filter_rows", where: [] },
+    { type: "group_by" },
+    { type: "explode_columns" },
+    { type: "unique" },
+    { type: "aggregate" },
+    { type: "select_columns" },
+    { type: "pivot", index_column_ids: ["index"] },
+  ])("rejects incomplete $type", (transform) => {
+    expect(
+      TransformationsSchema.safeParse({ transforms: [transform] }).success,
+    ).toBe(false);
+  });
+
+  it.each([
+    { type: "group_by", column_ids: ["col"], aggregation_column_ids: [] },
+    {
+      type: "pivot",
+      column_ids: ["col"],
+      index_column_ids: ["index"],
+      value_column_ids: [],
+    },
+    {
+      type: "pivot",
+      column_ids: ["col"],
+      index_column_ids: [],
+      value_column_ids: ["value"],
+    },
+  ])("accepts configured $type", (transform) => {
+    expect(
+      TransformationsSchema.safeParse({ transforms: [transform] }).success,
+    ).toBe(true);
+  });
+});
+
 describe("columnToFieldTypesSchema", () => {
   it("keeps known field types", () => {
     const result = columnToFieldTypesSchema.parse([

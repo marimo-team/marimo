@@ -71,11 +71,7 @@ export const columnIdRenderer = <T extends FieldValues>(): FormRenderer<
             <FormControl>
               <Select
                 data-testid="marimo-plugin-data-frames-column-select"
-                value={
-                  field.value == null
-                    ? field.value
-                    : JSON.stringify(field.value)
-                }
+                value={field.value == null ? "" : JSON.stringify(field.value)}
                 onValueChange={(value) => {
                   const realValue = JSON.parse(value);
                   field.onChange(realValue);

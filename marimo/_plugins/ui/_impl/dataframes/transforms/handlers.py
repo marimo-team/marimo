@@ -132,6 +132,14 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_rename_column(
         df: DataFrame, transform: RenameColumnTransform
     ) -> DataFrame:
+        if (
+            transform.new_column_id != transform.column_id
+            and transform.new_column_id in df.collect_schema().names()
+        ):
+            raise ValueError(
+                f"Column '{transform.new_column_id}' already exists. "
+                "Choose a different new_column_id."
+            )
         return df.rename({transform.column_id: str(transform.new_column_id)})
 
     @staticmethod
@@ -400,6 +408,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_group_by(
         df: DataFrame, transform: GroupByTransform
     ) -> DataFrame:
+        if not transform.column_ids:
+            raise ValueError("column_ids must contain at least one column.")
         aggs: list[Expr] = []
         group_by_column_id_set = set(transform.column_ids)
         columns = (
@@ -480,6 +490,12 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     ) -> DataFrame:
         # Note: narwhals sample requires collecting first for shuffle with seed
         collected_df, undo = collect_and_preserve_type(df)
+        row_count = len(collected_df)
+        if not transform.replace and transform.n > row_count:
+            raise ValueError(
+                f"Cannot sample {transform.n} rows without replacement: "
+                f"the dataframe contains {row_count} rows."
+            )
         result = collected_df.sample(
             n=transform.n,
             seed=transform.seed,
@@ -491,6 +507,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
     def handle_explode_columns(
         df: DataFrame, transform: ExplodeColumnsTransform
     ) -> DataFrame:
+        if not transform.column_ids:
+            raise ValueError("column_ids must contain at least one column.")
         return df.explode(transform.column_ids)
 
     @staticmethod
@@ -591,6 +609,8 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
     @staticmethod
     def handle_unique(df: DataFrame, transform: UniqueTransform) -> DataFrame:
+        if not transform.column_ids:
+            raise ValueError("column_ids must contain at least one column.")
         keep = transform.keep
         if keep == "any" or keep == "none":
             return df.unique(subset=transform.column_ids, keep=keep)
@@ -611,7 +631,7 @@ class NarwhalsTransformHandler(TransformHandler[DataFrame]):
 
         if not transform.index_column_ids and not transform.value_column_ids:
             raise nw.exceptions.InvalidOperationError(
-                "Pivot transform requires at least one index column and or value column."
+                "index_column_ids or value_column_ids must contain at least one column."
             )
 
         columns = df.collect_schema().names()
