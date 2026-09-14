@@ -10,11 +10,28 @@ from datetime import datetime
 from typing import Annotated, Literal, TypeAlias
 from uuid import UUID
 
-from msgspec import Meta, Struct
+from msgspec import UNSET, Meta, Struct, UnsetType
 
 
 class ConsoleEvent(Struct):
     data: str
+
+
+class CreateNotebookRequest(Struct):
+    path: Annotated[
+        str,
+        Meta(
+            description="Relative .py path within the workspace, including symlink resolution.\nThe parent must exist. Absolute paths and escapes return 400.\n",
+            min_length=1,
+        ),
+    ]
+    project_id: Annotated[
+        str,
+        Meta(
+            description="Destination workspace ID from Catalog.projects.\n",
+            min_length=1,
+        ),
+    ]
 
 
 class ErrorResponse(Struct):
@@ -64,6 +81,16 @@ class OutputData(Struct):
     mimetype: str
 
 
+class SessionError(Struct):
+    code: Annotated[
+        str,
+        Meta(
+            description="Host-defined error code. Clients accept unknown codes."
+        ),
+    ]
+    message: str
+
+
 SessionMode: TypeAlias = Literal["edit", "app"]
 
 
@@ -78,19 +105,46 @@ class SessionSummary(Struct):
     session_id: Annotated[
         str,
         Meta(
-            description=(
-                "Opaque ID, unique within the instance and stable for the "
-                "session lifetime, including browser reconnects and resumes."
-            )
+            description="Opaque ID, unique within the instance and stable while listed."
         ),
     ]
     started_at: datetime
     status: SessionStatus
 
 
+class StartSessionRequest(Struct):
+    notebook_id: Annotated[str, Meta(min_length=1)]
+
+
 class DoneEvent(Struct):
     output: OutputData
     success: bool
+
+
+class Notebook(Struct):
+    id: str
+    openable: bool
+    path: (
+        Annotated[
+            str,
+            Meta(
+                description="Native path relative to the project root; null if root is null."
+            ),
+        ]
+        | None
+    )
+    project_id: str
+    sessions: list[SessionSummary]
+    title: str
+    updated_at: (
+        Annotated[
+            datetime,
+            Meta(
+                description="Best-effort activity time for display, never synchronization."
+            ),
+        ]
+        | None
+    )
 
 
 class NotebookSummary(Struct):
@@ -132,6 +186,49 @@ class ProjectSummary(Struct):
         | None
     )
     truncated: bool
+
+
+class Session(Struct):
+    marimo_version: str | None
+    mode: SessionMode
+    notebook_id: str
+    project_id: str
+    session_id: str
+    started_at: datetime
+    status: SessionStatus
+    error: SessionError | UnsetType = UNSET
+    kernel_generation: (
+        Annotated[
+            str,
+            Meta(
+                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during polling\nmeans the requested restart was superseded.\n",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
+
+
+class SessionCreateResult(Struct):
+    marimo_version: str | None
+    mode: SessionMode
+    notebook_id: str
+    project_id: str
+    reused: bool
+    session_id: str
+    started_at: datetime
+    status: SessionStatus
+    error: SessionError | UnsetType = UNSET
+    kernel_generation: (
+        Annotated[
+            str,
+            Meta(
+                description="Opaque startup attempt ID. Changes on accepted restart, remains\nstable until the next attempt. A different generation during polling\nmeans the requested restart was superseded.\n",
+                min_length=1,
+            ),
+        ]
+        | UnsetType
+    ) = UNSET
 
 
 class Catalog(Struct):
