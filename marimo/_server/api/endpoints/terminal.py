@@ -52,7 +52,7 @@ def _get_initial_terminal_size(websocket: WebSocket) -> tuple[int, int]:
     return 24, 80
 
 
-def _resize_pty(fd: int, rows: int, cols: int) -> None:
+def _resize_pty(fd: int, rows: int, cols: int, *, log: bool = True) -> None:
     """Resize the PTY to the specified dimensions."""
     try:
         # Use TIOCSWINSZ ioctl to set window size
@@ -62,9 +62,11 @@ def _resize_pty(fd: int, rows: int, cols: int) -> None:
         # Format: struct winsize { unsigned short ws_row, ws_col, ws_xpixel, ws_ypixel }
         winsize = struct.pack("HHHH", rows, cols, 0, 0)
         fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
-        LOGGER.debug(f"PTY resized to {cols}x{rows}")
+        if log:
+            LOGGER.debug(f"PTY resized to {cols}x{rows}")
     except Exception as e:
-        LOGGER.warning(f"Failed to resize PTY: {e}")
+        if log:
+            LOGGER.warning(f"Failed to resize PTY: {e}")
 
 
 def _send_sigwinch(pid: int) -> None:
@@ -413,9 +415,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         # See https://docs.python.org/3/library/pty.html
         child_pid, fd = pty.fork()
         if child_pid == 0:
-            # Resize the slave before exec so shell startup cannot race the
-            # browser's first resize message. The child fd from fork() is -1.
-            _resize_pty(0, rows, cols)
+            # Resize stdin (the PTY slave) before exec so shell startup cannot
+            # race the browser's first resize. Child logs would enter the PTY.
+            _resize_pty(0, rows, cols, log=False)
             # Child process - set up the shell environment
             shell, env = _create_shell_environment()
             cwd = env.get("PWD", os.getcwd())

@@ -2,22 +2,25 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import signal
 import sys
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._server.api.endpoints.terminal import (
+    LOGGER,
     _create_process_cleanup_handler,
     _create_shell_environment,
     _decode_pty_data,
     _manage_command_buffer,
+    _resize_pty,
     _setup_child_process,
     _should_close_on_command,
 )
@@ -101,11 +104,19 @@ def test_terminal_ws_initial_size(
     is_windows or is_mac, reason="PTY integration requires Linux"
 )
 @pytest.mark.timeout(10)
+@pytest.mark.parametrize("log_level", [logging.WARNING, logging.DEBUG])
 def test_terminal_ws_long_prompt(
     client: TestClient,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    log_level: int,
 ) -> None:
+    caplog.set_level(log_level, logger=LOGGER.name)
+    # Use the real stderr so the inherited handler writes to the PTY slave.
+    monkeypatch.setattr(
+        LOGGER, "handlers", [logging.StreamHandler(sys.__stderr__)]
+    )
     shell = tmp_path / "shell"
     shell.write_text("#!/bin/sh\nexec /bin/bash --noprofile --norc -i\n")
     shell.chmod(0o755)
@@ -160,6 +171,39 @@ def test_terminal_ws_wrong_token(client: TestClient) -> None:
 
 
 # Unit tests for terminal utility functions
+
+
+@pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.parametrize("log", [True, False])
+def test_resize_pty_logging(log: bool) -> None:
+    import pty
+
+    master, slave = pty.openpty()
+    try:
+        with patch("marimo._server.api.endpoints.terminal.LOGGER") as logger:
+            _resize_pty(slave, 30, 140, log=log)
+            assert os.get_terminal_size(slave) == (140, 30)
+            assert logger.mock_calls == (
+                [call.debug("PTY resized to 140x30")] if log else []
+            )
+    finally:
+        os.close(master)
+        os.close(slave)
+
+
+@pytest.mark.skipif(is_windows, reason="Skip on Windows")
+@pytest.mark.parametrize("log", [True, False])
+def test_resize_pty_failure_logging(log: bool) -> None:
+    with (
+        patch("fcntl.ioctl", side_effect=OSError("resize failed")),
+        patch("marimo._server.api.endpoints.terminal.LOGGER") as logger,
+    ):
+        _resize_pty(0, 30, 140, log=log)
+        assert logger.mock_calls == (
+            [call.warning("Failed to resize PTY: resize failed")]
+            if log
+            else []
+        )
 
 
 class TestCreateShellEnvironment:
