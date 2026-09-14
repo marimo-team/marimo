@@ -19,6 +19,7 @@ from marimo._server.asgi import (
     DynamicDirectoryMiddleware,
     create_asgi_app,
 )
+from tests._server.conftest import join_kernel_thread_tasks
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -412,18 +413,26 @@ class TestASGIAppBuilder(unittest.TestCase):
             path="/", root=self.app1, middleware=[AuthMiddleware]
         ).build()
 
-        client = TestClient(marimo_app)
+        auth_app = builder._app_cache[self.app1]
+        session_manager = auth_app.app.state.session_manager
+        with TestClient(marimo_app) as client:
+            try:
+                # HTTP request should succeed (middleware sets user)
+                response = client.get("/")
+                assert response.status_code == 200
+                assert "http" in invoked_for
 
-        # HTTP request should succeed (middleware sets user)
-        response = client.get("/")
-        assert response.status_code == 200
-        assert "http" in invoked_for
+                # WebSocket should also have user/meta in scope.
+                with client.websocket_connect("/ws?session_id=test123") as ws:
+                    data = ws.receive_text()
+                    assert data  # kernel-ready message
+            finally:
+                # Mounted apps do not run their own lifespan cleanup.
+                # Shut down sessions before the client's event loop closes.
+                assert client.portal is not None
+                client.portal.call(join_kernel_thread_tasks, session_manager)
 
-        # WebSocket should also have user/meta in scope.
-        with client.websocket_connect("/ws?session_id=test123") as ws:
-            data = ws.receive_text()
-            assert data  # kernel-ready message
-
+        assert not session_manager.sessions
         assert "websocket" in invoked_for
 
 

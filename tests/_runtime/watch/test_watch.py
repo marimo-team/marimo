@@ -7,6 +7,8 @@ import pytest
 from marimo._runtime.runtime import Kernel
 from tests.conftest import ExecReqProvider
 
+pytestmark = pytest.mark.usefixtures("cleanup_watchers")
+
 
 @pytest.mark.xfail(
     True, reason="Flaky in CI, can't repro locally", strict=False
