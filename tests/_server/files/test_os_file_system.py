@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sys
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from unittest.mock import Mock, patch
 
 import pytest
@@ -16,6 +17,9 @@ from marimo._server.files.os_file_system import (
 )
 from marimo._server.models.files import FileDetailsResponse, FileInfo
 from marimo._utils.files import natural_sort
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 
 @pytest.fixture
@@ -838,8 +842,20 @@ def test_search_reads_metadata_only_for_selected_matches(
     if disappears:
         entries[-1].stat.side_effect = FileNotFoundError
 
-    with patch("marimo._server.files.os_file_system.os.scandir") as scandir:
-        scandir.return_value.__enter__.return_value = iter(entries)
+    real_scandir = os.scandir
+
+    def mock_scandir(
+        path: str,
+    ) -> AbstractContextManager[Iterator[os.DirEntry[str]]]:
+        # os is shared: unrelated scans must not consume the test entries.
+        if path == str(test_dir):
+            return nullcontext(iter(entries))
+        return real_scandir(path)
+
+    with patch(
+        "marimo._server.files.os_file_system.os.scandir",
+        side_effect=mock_scandir,
+    ):
         results = fs.search("report", path=str(test_dir), limit=1)
 
     assert [result.name for result in results] == (
