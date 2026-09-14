@@ -10,8 +10,9 @@ the query result back as a Python dataframe.
 
 > For a video overview on how to use SQL in marimo, watch our [YouTube tutorial](https://youtu.be/IHEf5HwU7R0).
 
-To create a SQL cell, you first need to install additional dependencies,
-including [duckdb](https://duckdb.org/):
+SQL cells use optional dependencies. The `sql` extra installs the default
+[DuckDB](https://duckdb.org/) engine, the Polars engine, and SQL parsing
+support:
 
 /// tab | install with pip
 
@@ -83,19 +84,60 @@ interpolate Python values into the query with `{}`. In particular, this means
 your SQL queries can depend on the values of UI elements or other Python values,
 and they are fit into marimo's reactive dataflow graph.
 
+### Using the Polars engine
+
+Choose **Polars** from the SQL cell's engine selector to execute a query with
+[`polars.SQLContext`](https://docs.pola.rs/api/python/stable/reference/sql/python_api.html).
+Polars SQL cells can reference `polars.DataFrame` and `polars.LazyFrame`
+variables from other cells:
+
+```python
+import polars as pl
+
+orders = pl.scan_parquet("orders.parquet")
+```
+
+```sql
+SELECT customer_id, SUM(amount) AS revenue
+FROM orders
+GROUP BY customer_id
+```
+
+The generated Python uses the built-in engine name; no `SQLContext` setup is
+needed:
+
+```python
+revenue = mo.sql(
+    """SELECT customer_id, SUM(amount) AS revenue
+    FROM orders GROUP BY customer_id""",
+    engine="polars",
+)
+```
+
+By default, the result is a `polars.LazyFrame`, so downstream Polars operations
+remain lazy. Only referenced Polars DataFrames and LazyFrames are registered;
+other dataframe types are not supported by this engine. Polars supports a
+different SQL dialect and feature set from DuckDB, so a query accepted by one
+engine may not be accepted by the other.
+
 ## SQL Output Types
 
 marimo supports different output types for SQL queries, which is particularly useful when working with large datasets. You can configure this in your application configuration in the top right of the marimo editor.
 
-The available options are:
+The available options depend on the selected engine:
 
-- `native`: Uses DuckDB's native lazy relation (recommended for best performance)
+- `native`: Uses DuckDB's native lazy relation, or the native Polars
+  `LazyFrame` for the Polars engine
 - `lazy-polars`: Returns a lazy Polars DataFrame
-- `pandas`: Returns a Pandas DataFrame
-- `polars`: Returns an eager Polars DataFrame
-- `auto`: Automatically chooses based on installed packages (first tries `polars` then `pandas`)
+- `pandas`: Returns a Pandas DataFrame; Polars SQL results are collected first
+- `polars`: Returns an eager Polars DataFrame; Polars SQL results are collected
+- `auto`: Automatically chooses an eager dataframe for DuckDB, and preserves
+  the native `LazyFrame` for the Polars engine
 
-For best performance with large datasets, we recommend using `native` to avoid loading the entire result set into memory and to more easily chain SQL cells together. By default, only the first 10 rows are displayed in the UI to prevent memory issues.
+For DuckDB queries over large datasets, we recommend `native` to avoid loading
+the entire result set into memory and to make SQL cells easy to chain. Polars
+queries remain lazy with `auto`, `native`, or `lazy-polars`. By default, only
+the first 10 rows are displayed in the UI to prevent memory issues.
 
 ???+ tip "Set a default"
 

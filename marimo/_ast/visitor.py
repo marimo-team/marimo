@@ -17,6 +17,7 @@ from marimo._ast.sql_visitor import (
     SQLDefs,
     SQLKind,
     SQLRef,
+    find_polars_sql_refs,
     find_sql_defs,
     find_sql_refs,
     normalize_sql_f_string,
@@ -712,22 +713,66 @@ class ScopedVisitor(ast.NodeVisitor):
             "duckdb.execute",
             "duckdb.sql",
         ]
+        query_node: ast.expr | None = None
+        if len(node.args) == 1:
+            query_node = node.args[0]
+        elif not node.args:
+            query_node = next(
+                (
+                    keyword.value
+                    for keyword in node.keywords
+                    if keyword.arg == "query"
+                ),
+                None,
+            )
+
         if (
             isinstance(node.func, ast.Attribute)
             and isinstance(node.func.value, ast.Name)
             and f"{node.func.value.id}.{node.func.attr}" in valid_sql_calls
-            and len(node.args) == 1
+            and query_node is not None
         ):
             self.language = "sql"
-            first_arg = node.args[0]
             sql: str | None = None
-            if isinstance(first_arg, ast.Constant):
-                sql = first_arg.value
-            elif isinstance(first_arg, ast.JoinedStr):
-                sql = normalize_sql_f_string(first_arg)
+            if isinstance(query_node, ast.Constant):
+                sql = query_node.value
+            elif isinstance(query_node, ast.JoinedStr):
+                sql = normalize_sql_f_string(query_node)
+
+            is_polars_sql = f"{node.func.value.id}.{node.func.attr}" in (
+                "marimo.sql",
+                "mo.sql",
+            ) and any(
+                keyword.arg == "engine"
+                and isinstance(keyword.value, ast.Constant)
+                and keyword.value.value == "polars"
+                for keyword in node.keywords
+            )
+
+            if isinstance(sql, str) and sql and is_polars_sql:
+                try:
+                    for ref in find_polars_sql_refs(sql):
+                        if ref.schema is None and ref.catalog is None:
+                            self._add_ref(
+                                None,
+                                ref.table,
+                                deleted=False,
+                                sql_ref=ref,
+                            )
+                except BaseException as e:
+                    log_sql_error(
+                        LOGGER.warning,
+                        message=f"Unexpected SQL parsing error {e}",
+                        exception=e,
+                        node=node,
+                        rule_code="MF005",
+                        sql_content=sql,
+                        context="polars_sql_refs_extraction",
+                    )
 
             if (
                 isinstance(sql, str)
+                and not is_polars_sql
                 and DependencyManager.duckdb.has_at_version(
                     min_version="1.0.0"
                 )

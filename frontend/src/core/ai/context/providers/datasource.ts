@@ -16,6 +16,7 @@ import {
 } from "@/core/datasets/data-source-connections";
 import {
   type ConnectionName,
+  DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
 } from "@/core/datasets/engines";
 import type { DataSourceConnection, DataTable } from "@/core/kernel/messages";
@@ -124,8 +125,12 @@ export class DatasourceContextProvider extends AIContextProvider<DatasourceConte
     const dataframes = datasource.tables;
 
     let label = dataConnection.name;
-    if (INTERNAL_SQL_ENGINES.has(dataConnection.name as ConnectionName)) {
+    if (dataConnection.name === DUCKDB_ENGINE) {
       label = "In-Memory";
+    } else if (
+      INTERNAL_SQL_ENGINES.has(dataConnection.name as ConnectionName)
+    ) {
+      label = dataConnection.display_name;
     }
 
     return {

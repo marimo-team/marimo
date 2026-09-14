@@ -52,6 +52,26 @@ class SQLErrorMetadata(TypedDict):
 
 def is_sql_parse_error(exception: BaseException) -> bool:
     """Check if the exception is a SQL parsing error."""
+    if DependencyManager.polars.imported():
+        try:
+            import polars as pl
+
+            # Keep this global classifier limited to exceptions that are
+            # intrinsically SQL-specific. Broader Polars failures also occur
+            # in ordinary Python cells and are handled by the Polars SQL
+            # engine's execution path instead.
+            if isinstance(
+                exception,
+                (
+                    pl.exceptions.SQLInterfaceError,
+                    pl.exceptions.SQLSyntaxError,
+                    pl.exceptions.UnsuitableSQLError,
+                ),
+            ):
+                return True
+        except ImportError:
+            pass
+
     # Check for DuckDB exceptions first (most common)
     if DependencyManager.duckdb.imported():
         try:

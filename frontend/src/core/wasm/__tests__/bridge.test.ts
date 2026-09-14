@@ -6,12 +6,14 @@ import { Deferred } from "@/utils/Deferred";
 
 const {
   mockBridge,
+  mockLoadPackages,
   mockNotebookReadFile,
   mockReadNotebook,
   mockSaveNotebook,
   rpcListeners,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
+  mockLoadPackages: vi.fn(),
   mockNotebookReadFile: vi.fn(),
   mockReadNotebook: vi.fn(),
   mockSaveNotebook: vi.fn(),
@@ -43,6 +45,7 @@ vi.mock("@/core/wasm/rpc", () => ({
     proxy: {
       request: {
         bridge: mockBridge,
+        loadPackages: mockLoadPackages,
         startSession: vi.fn(),
         readFile: vi.fn(),
         readNotebook: mockReadNotebook,
@@ -72,6 +75,8 @@ vi.mock("@/core/wasm/store", () => ({
 // Import after all mocks are set up
 import { store } from "@/core/state/jotai";
 import { initialModeAtom } from "@/core/mode";
+import { appConfigAtom } from "@/core/config/config";
+import { parseAppConfig } from "@/core/config/config-schema";
 import { getWasmWorkerName, PyodideBridge } from "../bridge";
 
 // Access INSTANCE once at module level so the constructor runs (and
@@ -205,6 +210,31 @@ describe("PyodideBridge.sendSave", () => {
     expect(mockBridge).toHaveBeenCalledWith({
       functionName: "export_script",
       payload: { download: false },
+    });
+  });
+});
+
+describe("PyodideBridge.sendRun", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockLoadPackages.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    store.set(appConfigAtom, parseAppConfig({}));
+  });
+
+  it("passes the current SQL output to dependency loading", async () => {
+    store.set(appConfigAtom, parseAppConfig({ sql_output: "pandas" }));
+
+    await PyodideBridge.INSTANCE.sendRun({
+      cellIds: [cellId("cell-1")],
+      codes: ['result = mo.sql("SELECT 1", engine="polars")'],
+    });
+
+    expect(mockLoadPackages).toHaveBeenCalledWith({
+      code: 'result = mo.sql("SELECT 1", engine="polars")',
+      sqlOutput: "pandas",
     });
   });
 });

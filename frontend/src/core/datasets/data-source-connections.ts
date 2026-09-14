@@ -17,6 +17,7 @@ import {
   DEFAULT_DUCKDB_DATABASE,
   DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
+  POLARS_ENGINE,
 } from "./engines";
 import { datasetTablesAtom } from "./state";
 
@@ -28,6 +29,16 @@ const initialConnections: ConnectionsMap = new Map([
       dialect: "duckdb",
       source: "duckdb",
       display_name: "DuckDB (In-Memory)",
+      databases: [],
+    },
+  ],
+  [
+    POLARS_ENGINE,
+    {
+      name: POLARS_ENGINE,
+      dialect: "polars",
+      source: "polars",
+      display_name: "Polars",
       databases: [],
     },
   ],

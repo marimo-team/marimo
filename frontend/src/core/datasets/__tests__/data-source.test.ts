@@ -12,7 +12,11 @@ import {
   exportedForTesting,
   type SQLTableContext,
 } from "../data-source-connections";
-import { type ConnectionName, INTERNAL_SQL_ENGINES } from "../engines";
+import {
+  type ConnectionName,
+  INTERNAL_SQL_ENGINES,
+  POLARS_ENGINE,
+} from "../engines";
 
 const { reducer, initialState } = exportedForTesting;
 
@@ -29,7 +33,7 @@ function addConnection(
   });
 }
 
-const defaultConnSize = 1;
+const defaultConnSize = INTERNAL_SQL_ENGINES.size;
 
 describe("data source connections", () => {
   let state: DataSourceState;
@@ -43,6 +47,15 @@ describe("data source connections", () => {
     for (const engine of INTERNAL_SQL_ENGINES) {
       expect(initialState().connectionsMap.has(engine)).toBe(true);
     }
+  });
+
+  it("exposes Polars as a built-in SQL engine", () => {
+    expect(initialState().connectionsMap.get(POLARS_ENGINE)).toMatchObject({
+      name: POLARS_ENGINE,
+      source: "polars",
+      dialect: "polars",
+      display_name: "Polars",
+    });
   });
 
   it("can add new connections", () => {

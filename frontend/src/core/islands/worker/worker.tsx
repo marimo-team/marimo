@@ -10,7 +10,8 @@ import {
 } from "rpc-anywhere";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type { ParentSchema } from "@/core/wasm/rpc";
-import { shouldLoadDuckDBPackages } from "@/core/wasm/utils";
+import type { SqlOutputType } from "@/core/config/config-schema";
+import { getNotebookSQLOutput, getSQLPackageNeeds } from "@/core/wasm/utils";
 import { TRANSPORT_ID } from "@/core/wasm/worker/constants";
 import { getPyodideVersion } from "@/core/wasm/worker/getPyodideVersion";
 import { MessageBuffer } from "@/core/wasm/worker/message-buffer";
@@ -60,7 +61,10 @@ interface SessionRequest {
 }
 
 let activeSession:
-  | (Omit<SessionRequest, "code"> & { bridge: SerializedBridge })
+  | (Omit<SessionRequest, "code"> & {
+      bridge: SerializedBridge;
+      sqlOutput: SqlOutputType;
+    })
   | undefined;
 let sessionQueue = Promise.resolve();
 
@@ -95,6 +99,7 @@ async function startSession(
         appId: opts.appId,
         bridge: nextBridge,
         sessionGeneration: opts.sessionGeneration,
+        sqlOutput: getNotebookSQLOutput(opts.code),
       };
     }
     rpc.send.initialized({});
@@ -161,8 +166,20 @@ const requestHandler = createRPCRequestHandler({
       requireActiveBridge(opts);
 
       let { code } = opts;
+      const sqlPackageNeeds = getSQLPackageNeeds(code, {
+        sqlOutput: activeSession?.sqlOutput,
+      });
 
-      if (shouldLoadDuckDBPackages(code)) {
+      if (sqlPackageNeeds.polars) {
+        code = `import polars\n${code}`;
+        code = `import sqlglot\n${code}`;
+      }
+      if (sqlPackageNeeds.pandasForPolars) {
+        code = `import pandas\n${code}`;
+        code = `import pyarrow\n${code}`;
+      }
+
+      if (sqlPackageNeeds.duckdb) {
         // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
         code = `import pandas\n${code}`;
         code = `import duckdb\n${code}`;

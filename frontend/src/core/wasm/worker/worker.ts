@@ -7,7 +7,7 @@ import {
   createWorkerParentTransport,
   type RPCSchema,
 } from "rpc-anywhere";
-import type { UserConfig } from "@/core/config/config-schema";
+import type { SqlOutputType, UserConfig } from "@/core/config/config-schema";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import type {
   ListPackagesResponse,
@@ -34,7 +34,7 @@ import type {
   SerializedBridge,
   WasmController,
 } from "./types";
-import { shouldLoadDuckDBPackages } from "../utils";
+import { getSQLPackageNeeds } from "../utils";
 
 /**
  * Web worker responsible for running the notebook.
@@ -138,11 +138,24 @@ const requestHandler = createRPCRequestHandler({
   /**
    * Load packages
    */
-  loadPackages: async (code: string) => {
+  loadPackages: async (opts: { code: string; sqlOutput: SqlOutputType }) => {
     const span = t.startSpan("loadPackages");
     await pyodideReadyPromise; // Make sure loading is done
+    let { code } = opts;
+    const sqlPackageNeeds = getSQLPackageNeeds(code, {
+      sqlOutput: opts.sqlOutput,
+    });
 
-    if (shouldLoadDuckDBPackages(code)) {
+    if (sqlPackageNeeds.polars) {
+      code = `import polars\n${code}`;
+      code = `import sqlglot\n${code}`;
+    }
+    if (sqlPackageNeeds.pandasForPolars) {
+      code = `import pandas\n${code}`;
+      code = `import pyarrow\n${code}`;
+    }
+
+    if (sqlPackageNeeds.duckdb) {
       // Add pandas and duckdb to the code for mo.sql and for remote duckdb sources
       code = `import pandas\n${code}`;
       code = `import duckdb\n${code}`;
