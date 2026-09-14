@@ -111,6 +111,16 @@ anthropic:
     cost: {input: 3, output: 15}
 
 openai:
+  - name: GPT-6 Astra
+    model: gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 10, output: 50}
+
   - name: GPT-5.6
     model: gpt-5.6
     description: "OpenAI's GPT-5.6 flagship tier for frontier reasoning, coding, and agentic workflows"
@@ -211,6 +221,16 @@ openai:
     release_date: 2025-12-16
 
 google:
+  - name: Grok 4.6
+    model: xai/grok-4.6
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-12
+    cost: {input: 2, output: 6}
+
   - name: Gemini 3.8 Flash
     model: gemini-3.8-flash
     description: "Google's most intelligent Flash model, with gains in software engineering, agentic tasks, and multi-step reasoning"
@@ -380,6 +400,46 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: GPT-6 Astra (Global)
+    model: global.openai.gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 10, output: 50}
+
+  - name: GPT-6 Astra
+    model: openai.gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 11, output: 55}
+
+  - name: GPT-6 Astra (US)
+    model: us.openai.gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 11, output: 55}
+
+  - name: Grok 4.6 (Global)
+    model: global.xai.grok-4.6
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-12
+    cost: {input: 2, output: 6}
+
   - name: Claude Fable 5.1 (Global)
     model: global.anthropic.claude-fable-5-1
     description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
@@ -571,6 +631,16 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: GPT-6 Astra
+    model: gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 10, output: 50}
+
   - name: Claude Fable 5.1
     model: claude-fable-5-1
     description: "Anthropic's most capable generally available model for ambitious, long-running coding, agentic, research, and enterprise workflows"
@@ -781,6 +851,24 @@ azure:
     cost: {input: 1.74, output: 3.48}
 
 ollama:
+  - name: DeepSeek V4.1 Flash
+    model: deepseek-v4.1-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-10
+
+  - name: DeepSeek V4 Pro 0813
+    model: deepseek-v4-pro:0813
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text]
+    output_types: [text]
+    release_date: 2026-08-12
+
   - name: GLM-5.3-Flash
     model: glm-5.3-flash
     description: "Native multimodal model from Z.ai optimized for efficient coding and long-horizon agent tasks"
@@ -926,6 +1014,16 @@ ollama:
     release_date: 2026-02-15
 
 wandb:
+  - name: GLM 5.3 Flash
+    model: zai-org/GLM-5.3-Flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-08-26
+    cost: {input: 0.15, output: 0.5}
+
   - name: Granite 4.2 8B
     model: ibm-granite/granite-4.2-8b
     description: "Dense reasoning model from IBM for mathematics, code generation, multilingual dialogue, and multi-step agentic workflows"
@@ -1137,6 +1235,16 @@ wandb:
     cost: {input: 0.05, output: 0.1}
 
 opencode-go:
+  - name: DeepSeek V4.1 Flash
+    model: deepseek-v4.1-flash
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-10
+    cost: {input: 0.15, output: 0.6}
+
   - name: Muse Spark 1.3 Contributor
     model: muse-spark-1.3-contributor
     description: "Cost-efficient contributor tier of Meta's multimodal reasoning model for experimentation, learning, and early-stage agentic, multi-agent, and coding workflows"
