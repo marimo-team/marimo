@@ -2635,7 +2635,8 @@ class TestSetLiteralDeterminism:
         from marimo._save.hash import hash_module
 
         def fn(x: object) -> bool:
-            return x in {"A"}
+            # Keep the singleton set: this test inspects its frozenset constant.
+            return x in {"A"}  # noqa: FURB171
 
         code = fn.__code__
         singleton = next(c for c in code.co_consts if isinstance(c, frozenset))
