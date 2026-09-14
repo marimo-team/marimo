@@ -26,9 +26,10 @@ class accordion(ContainerHtml):
             This is a convenience that wraps each accordion in a `mo.lazy`
             component.
         expanded: the items to expand initially. `True` expands the first
-            item, or all items with `multiple=True`. A sequence of item keys
-            expands those items. More than one distinct key requires
-            `multiple=True`. Keys must match the original keys in `items`.
+            item, or all items with `multiple=True`. A list of item names
+            expands the corresponding items. More than one distinct name
+            requires `multiple=True`. Names must match the original names
+            in `items`.
             Users can still open and close items.
 
     Example:
