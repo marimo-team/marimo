@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from markdown import Extension, Markdown, preprocessors  # type: ignore
+from markdown.blockprocessors import HRProcessor  # type: ignore
 
 
 class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
@@ -25,11 +26,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     # Opening or closing $$ on its own line
     DOLLAR_DOLLAR_PATTERN = re.compile(r"^\s*\$\$\s*$")
 
-    # Matches an ordered/unordered list item marker: "2. ", "- ", "* ", "+ "
-    # Only "N." is recognized by python-markdown's OList processor (unlike
-    # "N)"), so that's all we match here -- treating "1)" as a marker would
-    # misidentify plain prose and push its (non-list) continuation lines to
-    # 4-space indentation, turning them into an indented code block.
+    # Python-Markdown accepts "1." markers, but not "1)".
     LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+\.|[-*+])\s+")
 
     # Matches inline RST math role: :math:`...`
@@ -147,18 +144,10 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return result
 
     def _reindent_list_continuations(self, lines: list[str]) -> list[str]:
-        """Widen indentation of a list item's $$ continuation block.
+        """Keep list continuations inside the item after adding blank lines.
 
-        We surround $$ blocks with blank lines so arithmatex treats them as
-        their own markdown block (see `_normalize_display_math_spacing`).
-        But a blank line turns a tight list item into a loose one, and
-        python-markdown's `ListIndentProcessor` only reattaches a
-        blank-line-separated block to its list item when the block is
-        indented by at least `tab_length` (4 by default) spaces -- indenting
-        it to merely match the width of the list marker (e.g. the 3 columns
-        of "2. ") is not enough. Continuation lines written under a marker
-        narrower than that would otherwise pop out of the list once we add
-        the blank lines, so widen them here first.
+        Python-Markdown requires loose list content to use `tab_length`
+        indentation, even when the list marker is narrower.
         """
         tab_length: int = getattr(self.md, "tab_length", 4)
         result = list(lines)
@@ -175,9 +164,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
             while i < n:
                 current = result[i]
                 if not current.strip():
-                    # A blank line inside an open $$...$$ block (e.g. a
-                    # multi-paragraph LaTeX environment) doesn't end the
-                    # continuation -- only a blank line outside one does.
+                    # Keep blank lines inside a math block in the same run.
                     if not in_dollar_block:
                         break
                 elif self._count_indent(current) == 0:
@@ -194,7 +181,11 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 or self.DOLLAR_DOLLAR_PATTERN.match(line_)
                 for line_ in run
             )
-            if contains_math and self.LIST_MARKER_PATTERN.match(preceding):
+            if (
+                contains_math
+                and self.LIST_MARKER_PATTERN.match(preceding)
+                and not HRProcessor.SEARCH_RE.fullmatch(preceding)
+            ):
                 self._pad_math_segments(result, start, end, tab_length)
 
         return result
@@ -202,25 +193,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     def _pad_math_segments(
         self, result: list[str], start: int, end: int, tab_length: int
     ) -> None:
-        """Independently pad each blank-line-isolated segment to tab_length.
-
-        `_normalize_display_math_spacing` inserts a blank line before/after
-        every $$ construct, which splits a tight list item's continuation
-        into separate blocks: any leading prose directly under the marker
-        (untouched -- it rides along with the marker's own block and was
-        never going to be isolated), then each $$ block, then any prose
-        that follows. Each of those *isolated* segments needs its own
-        indentation raised to exactly tab_length if it falls short.
-
-        We must not pad them as one uniform block: if a shallower segment
-        pulled a $$ block past exactly tab_length, the excess would survive
-        list-item detabbing as a residual indent, which breaks arithmatex's
-        block match just as being under-indented does. And if a deeper
-        segment (e.g. a $$ block someone indented further than the prose
-        around it, deliberately or not) were left as the reference point,
-        a shallower prose segment would be under-padded and pop out of the
-        list.
-        """
+        """Pad each block separately so deeper math keeps its indentation."""
         j = start
         seen_math = False
         while j < end:
@@ -244,9 +217,7 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                 ):
                     j += 1
                 if seg_start == start and not seen_math:
-                    # Leading prose directly under the marker: still part
-                    # of the marker's own (unsplit) block, so it needs no
-                    # padding regardless of its indentation.
+                    # Leading prose stays in the list marker's paragraph.
                     continue
 
             segment = result[seg_start:j]
