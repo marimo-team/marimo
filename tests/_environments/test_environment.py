@@ -77,7 +77,7 @@ def test_old_uv_is_rejected(
     stub.chmod(stub.stat().st_mode | stat.S_IEXEC)
     monkeypatch.setenv("UV", str(stub))
 
-    with pytest.raises(UvUnsupportedVersionError, match="0.5.0"):
+    with pytest.raises(UvUnsupportedVersionError, match=r"0\.5\.0"):
         sync(str(tmp_path / "nb.py"))
 
 
