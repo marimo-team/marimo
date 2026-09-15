@@ -13,28 +13,28 @@ async def test_lens_mount_and_rerun(expression):
     lens = pytest.importorskip("marimo_lens")
     with mocked_kernel_session() as session:
         kernel = session.kernel
-        with patch.object(lens, "Lens", wraps=lens.Lens) as create:
-            command = ExecuteCellCommand(
-                cell_id="lens", code=f"import marimo as mo\n{expression}"
-            )
-            await kernel.run([command])
-            assert not kernel.errors
-            assert create.call_count == 1
-            outputs = [
-                op.output.data
-                for op in session.streams.stream.cell_notifications
-                if op.cell_id == "lens" and op.output is not None
-            ]
-            if expression:
-                assert "hello" in outputs[-1]
-            assert "marimo-anywidget" in outputs[-1]
-            await kernel.run([command])
-            assert not kernel.errors
-            assert create.call_count == 2
-            await kernel.run(
-                [ExecuteCellCommand(cell_id="other", code="mo.md('other')")]
-            )
-            assert create.call_count == 2
+        command = ExecuteCellCommand(
+            cell_id="lens", code=f"import marimo as mo\n{expression}"
+        )
+        await kernel.run([command])
+        assert not kernel.errors
+        first_lens = kernel.graph.cells["lens"].output[1]
+        assert isinstance(first_lens, lens.Lens)
+        outputs = [
+            op.output.data
+            for op in session.streams.stream.cell_notifications
+            if op.cell_id == "lens" and op.output is not None
+        ]
+        if expression:
+            assert "hello" in outputs[-1]
+        assert "marimo-anywidget" in outputs[-1]
+        await kernel.run([command])
+        assert not kernel.errors
+        assert kernel.graph.cells["lens"].output[1] is not first_lens
+        await kernel.run(
+            [ExecuteCellCommand(cell_id="other", code="mo.md('other')")]
+        )
+        assert kernel.graph.cells["other"].output is None
 
 
 async def test_lens_absent():
@@ -72,12 +72,15 @@ async def test_broken_lens_does_not_interrupt_notebook(failure):
         broken_lens.__getattr__ = Mock(
             side_effect=ModuleNotFoundError(name="anywidget")
         )
-    elif failure == "constructor":
-        broken_lens.Lens = Mock(side_effect=RuntimeError("broken Lens"))
-    elif failure == "constructor_missing_module":
-        broken_lens.Lens = Mock(
-            side_effect=ModuleNotFoundError(name="marimo_lens")
-        )
+    elif failure in {"constructor", "constructor_missing_module"}:
+
+        class BrokenLens:
+            def __init__(self):
+                if failure == "constructor":
+                    raise RuntimeError("broken Lens")
+                raise ModuleNotFoundError(name="marimo_lens")
+
+        broken_lens.Lens = BrokenLens
 
     with mocked_kernel_session() as session:
         with (
@@ -153,3 +156,34 @@ async def test_lens_lifetime_preserves_cell_output():
         gc.collect()
         assert instances[0]() is None
         assert previous_output() is None
+
+
+async def test_lens_mounts_once_per_notebook():
+    lens = pytest.importorskip("marimo_lens")
+    from marimo._runtime.commands import DeleteCellCommand
+
+    # Separate kernels must each mount their own Lens.
+    for _ in range(2):
+        with mocked_kernel_session() as session:
+            kernel = session.kernel
+            first = ExecuteCellCommand(
+                cell_id="first", code="import marimo as mo"
+            )
+            second = ExecuteCellCommand(
+                cell_id="second", code="import marimo as other_mo"
+            )
+            await kernel.run([first])
+            mounted = kernel.graph.cells["first"].output[1]
+            assert isinstance(mounted, lens.Lens)
+
+            await kernel.run([second])
+            await kernel.run([second])
+            assert kernel.graph.cells["second"].output is None
+            assert kernel.graph.cells["first"].output[1] is mounted
+
+            await kernel.delete_cell(DeleteCellCommand(cell_id="first"))
+            await kernel.run([second])
+            replacement = kernel.graph.cells["second"].output[1]
+            assert isinstance(replacement, lens.Lens)
+            assert replacement is not mounted
+            assert not kernel.errors

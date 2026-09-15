@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 from marimo import _loggers
 from marimo._runtime import output
 from marimo._runtime.context.utils import running_in_notebook
+from marimo._utils.flatten import contains_instance
 
 if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
@@ -19,8 +20,6 @@ LOGGER = _loggers.marimo_logger()
 def mount_lens(
     cell: CellImpl, ctx: PostExecutionHookContext, result: RunResult
 ) -> None:
-    del ctx
-
     if (
         not result.success()
         or not running_in_notebook()
@@ -34,6 +33,12 @@ def mount_lens(
         except ModuleNotFoundError as exc:
             if exc.name != "marimo_lens":
                 raise
+            return
+
+        if any(
+            contains_instance(other.output, Lens)
+            for other in ctx.graph.cells.values()
+        ):
             return
 
         lens = Lens()
