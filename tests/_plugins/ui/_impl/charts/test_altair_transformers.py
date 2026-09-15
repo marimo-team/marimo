@@ -264,6 +264,29 @@ def test_to_marimo_arrow_fallback(df: IntoDataFrame):
     assert result["format"] == {"type": "csv"}
 
 
+@pytest.mark.skipif(
+    not HAS_DEPS or not DependencyManager.pyarrow.has(),
+    reason="optional dependencies not installed",
+)
+def test_to_marimo_arrow_with_duration():
+    import narwhals.stable.v2 as nw
+    import pandas as pd
+    import pyarrow as pa
+
+    df = pd.DataFrame({"a.b": [1.0, 2.0, 3.0], "n": [1, 2, 3]})
+    df["d"] = pd.to_timedelta([1, 2, 3], unit="D")
+
+    with patch(
+        "marimo._plugins.ui._impl.charts.altair_transformer.mo_data.arrow"
+    ) as export_arrow:
+        result = _to_marimo_arrow(nw.from_native(df))
+
+    assert result["format"] == {"type": "arrow"}
+    export_arrow.assert_called_once()
+    exported = pa.ipc.open_file(export_arrow.call_args.args[0]).read_all()
+    pd.testing.assert_frame_equal(exported.to_pandas(), df)
+
+
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
 @pytest.mark.parametrize(
     "df",

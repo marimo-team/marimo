@@ -349,9 +349,6 @@ export const ChartPanel: React.FC<{
         : response.format === "json"
           ? { type: "json" }
           : { type: "csv", parse: "auto" },
-      {
-        replacePeriod: true,
-      },
     );
     return chartData;
     // Re-run when the data table changes

@@ -151,7 +151,7 @@ def _maybe_sanitize_dataframe(data: Any) -> Any:
             return res.to_native()  # type: ignore[return-value]
         except Exception as e:
             LOGGER.warning(f"Failed to sanitize narwhals dataframe: {e}")
-            return data
+            return narwhals_data.to_native()
 
     return data
 
