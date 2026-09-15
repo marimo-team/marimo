@@ -120,6 +120,7 @@ from marimo._runtime.context import (
     ExecutionContext,
     get_context,
 )
+from marimo._runtime.context.filename import NOTEBOOK_FILENAME
 from marimo._runtime.context.kernel_context import (
     KernelRuntimeContext,
 )
@@ -365,12 +366,13 @@ def notebook_dir() -> pathlib.Path | None:
     try:
         ctx = get_context()
     except ContextNotInitializedError:
-        # If we are not running in a notebook (e.g. exported to Jupyter),
-        # return the current working directory
-        return pathlib.Path().cwd()
-
-    # NB: __file__ is patched by runner, so always bound to be correct.
-    filename = ctx.globals.get("__file__", None) or ctx.filename
+        filename = NOTEBOOK_FILENAME.get()
+        if filename is None:
+            # Outside a notebook (e.g. exported to Jupyter), use the cwd.
+            return pathlib.Path.cwd()
+    else:
+        # NB: __file__ is patched by runner, so always bound to be correct.
+        filename = ctx.globals.get("__file__", None) or ctx.filename
     if filename is not None:
         path = normalize_path(pathlib.Path(filename))
         while not path.is_dir():

@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, NoReturn, TypeVar, cast
 from marimo._ast.cell import Cell
 from marimo._ast.fast_stack import fast_stack
 from marimo._ast.parse import ast_parse
+from marimo._runtime.context.filename import notebook_filename
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -221,6 +222,7 @@ def _make_hook(
         tuple[Any, Mapping[str, Any]]
         | Awaitable[tuple[Any, Mapping[str, Any]]],
     ],
+    file: str,
     use_wrapped: bool = False,
     is_async: bool = False,
 ) -> Callable[..., Any]:
@@ -229,34 +231,40 @@ def _make_hook(
     if is_async:
 
         async def _async_hook(*args: Any, **kwargs: Any) -> Any:
-            res = run()
-            if isinstance(res, Awaitable):
-                _, cell_defs = await res
-            else:
-                _, cell_defs = res
+            with notebook_filename(file):
+                res = run()
+                if isinstance(res, Awaitable):
+                    _, cell_defs = await res
+                else:
+                    _, cell_defs = res
 
-            target = (
-                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-            )
-            return await target(*args, **kwargs)
+                target = (
+                    cell_defs[var].__wrapped__
+                    if use_wrapped
+                    else cell_defs[var]
+                )
+                return await target(*args, **kwargs)
 
         return _async_hook
     else:
 
         def _hook(*args: Any, **kwargs: Any) -> Any:
-            res = run()
-            if isinstance(res, Awaitable):
-                import asyncio
+            with notebook_filename(file):
+                res = run()
+                if isinstance(res, Awaitable):
+                    import asyncio
 
-                loop = asyncio.new_event_loop()
-                _, cell_defs = loop.run_until_complete(res)
-            else:
-                _, cell_defs = res
+                    loop = asyncio.new_event_loop()
+                    _, cell_defs = loop.run_until_complete(res)
+                else:
+                    _, cell_defs = res
 
-            target = (
-                cell_defs[var].__wrapped__ if use_wrapped else cell_defs[var]
-            )
-            return target(*args, **kwargs)
+                target = (
+                    cell_defs[var].__wrapped__
+                    if use_wrapped
+                    else cell_defs[var]
+                )
+                return target(*args, **kwargs)
 
         return _hook
 
@@ -271,7 +279,9 @@ def _build_hook(
 ) -> Callable[..., Any]:
     """Build hook for test or fixture function."""
     is_async = isinstance(test, ast.AsyncFunctionDef)
-    hook = _make_hook(var, run, use_wrapped=is_fixture, is_async=is_async)
+    hook = _make_hook(
+        var, run, file, use_wrapped=is_fixture, is_async=is_async
+    )
 
     stub_fn = build_stub_fn(test, file)
     functools.wraps(stub_fn)(hook)
