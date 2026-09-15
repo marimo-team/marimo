@@ -4,8 +4,11 @@ from __future__ import annotations
 import http.client
 import json
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import urlsplit
+
+from marimo._server.api.utils import format_url_host
+from marimo._server.server_registry import _servers_dir
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator, Mapping
@@ -181,3 +184,61 @@ def execute(
         )
     finally:
         response.close()
+
+
+def list_sessions(
+    *, url: str, token: str | None
+) -> dict[str, dict[str, str | None]]:
+    request_url = f"{url.rstrip('/')}/api/sessions"
+    headers = {}
+    if token is not None:
+        headers["Authorization"] = f"Bearer {token}"
+    response = open_response(
+        method="GET",
+        url=request_url,
+        headers=headers,
+        body=None,
+    )
+    try:
+        sessions = json.load(response)
+    finally:
+        response.close()
+
+    if not isinstance(sessions, dict):
+        raise PairError(f"Unexpected response from {request_url}.")
+    return cast(dict[str, dict[str, str | None]], sessions)
+
+
+def registry_urls() -> list[str]:
+    import psutil
+
+    urls: list[str] = []
+    for path in sorted(_servers_dir().glob("*.json")):
+        try:
+            with path.open(encoding="utf-8") as file:
+                entry = json.load(file)
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(entry, dict):
+            continue
+        pid = entry.get("pid")
+        host = entry.get("host")
+        port = entry.get("port")
+        base_url = entry.get("base_url")
+        if (
+            type(pid) is not int
+            or not psutil.pid_exists(pid)
+            or not isinstance(host, str)
+            or type(port) is not int
+            or not isinstance(base_url, str)
+        ):
+            continue
+
+        url_host = format_url_host(host, port, route_bind_all_to_loopback=True)
+        if port == 80:
+            urls.append(f"http://{url_host}{base_url}")
+        elif port == 443:
+            urls.append(f"https://{url_host}{base_url}")
+        else:
+            urls.append(f"http://{url_host}:{port}{base_url}")
+    return urls

@@ -4,6 +4,7 @@ from __future__ import annotations
 import http.client
 import io
 import json
+import os
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -371,3 +372,132 @@ def test_execute_closes_response_after_keyboard_interrupt(
 
     assert response.closed
     assert len(calls) == 1
+
+
+def test_list_sessions_sends_request_and_parses_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(
+        json.dumps(
+            {
+                "session-1": {
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                },
+                "session-2": {"filename": None, "path": None},
+            }
+        ).encode()
+    )
+    calls = _patch_response(monkeypatch, response)
+
+    sessions = client.list_sessions(
+        url="https://example.com/base/", token="secret-token"
+    )
+
+    assert sessions == {
+        "session-1": {
+            "filename": "analysis.py",
+            "path": "/work/analysis.py",
+        },
+        "session-2": {"filename": None, "path": None},
+    }
+    assert calls == [
+        {
+            "method": "GET",
+            "url": "https://example.com/base/api/sessions",
+            "headers": {"Authorization": "Bearer secret-token"},
+            "body": None,
+        }
+    ]
+    assert response.closed
+
+
+def test_list_sessions_omits_authorization_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(b"{}")
+    calls = _patch_response(monkeypatch, response)
+
+    assert client.list_sessions(url="http://localhost:2718", token=None) == {}
+
+    assert calls[0]["headers"] == {}
+    assert response.closed
+
+
+def test_list_sessions_rejects_non_object_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    response = io.BytesIO(b"[]")
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(
+        PairError,
+        match=(
+            r"Unexpected response from "
+            r"http://localhost:2718/api/sessions\."
+        ),
+    ):
+        client.list_sessions(url="http://localhost:2718/", token=None)
+
+    assert response.closed
+
+
+def test_registry_urls_skips_invalid_entries(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    (tmp_path / "valid.json").write_text(
+        json.dumps(
+            {
+                "pid": os.getpid(),
+                "host": "127.0.0.1",
+                "port": 2718,
+                "base_url": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "stale.json").write_text(
+        json.dumps(
+            {
+                "pid": 2**31 - 1,
+                "host": "127.0.0.1",
+                "port": 2720,
+                "base_url": "",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / "invalid.json").write_text("{", encoding="utf-8")
+    (tmp_path / "missing.json").write_text(
+        json.dumps({"port": 2719}), encoding="utf-8"
+    )
+    monkeypatch.setattr(client, "_servers_dir", lambda: tmp_path)
+
+    assert client.registry_urls() == ["http://localhost:2718"]
+
+
+def test_registry_urls_formats_prefix_and_standard_ports(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    entries = [
+        ("http.json", "0.0.0.0", 80, "/prefix"),
+        ("https.json", "::", 443, ""),
+    ]
+    for filename, host, port, base_url in entries:
+        (tmp_path / filename).write_text(
+            json.dumps(
+                {
+                    "pid": os.getpid(),
+                    "host": host,
+                    "port": port,
+                    "base_url": base_url,
+                }
+            ),
+            encoding="utf-8",
+        )
+    monkeypatch.setattr(client, "_servers_dir", lambda: tmp_path)
+
+    assert client.registry_urls() == [
+        "http://localhost/prefix",
+        "https://localhost",
+    ]

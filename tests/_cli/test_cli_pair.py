@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import sys
 from pathlib import Path
 from typing import Any
@@ -29,9 +30,28 @@ TEST_URL = "https://localhost:8000?auth=tok123"
 class TestPairGroup:
     def test_pair_help(self) -> None:
         result = _runner.invoke(cli_main, ["pair", "--help"])
+
         assert result.exit_code == 0
-        assert "pair programming" in result.output.lower()
-        assert "prompt" in result.output
+        assert result.output == snapshot("""\
+Usage: main pair [OPTIONS] COMMAND [ARGS]...
+
+  Pair with a live marimo notebook.
+
+  Read a command's --help before first use.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  docs       Read notebook guidance on demand. Run: uv run marimo pair docs
+             --help
+  execute    Run Python in a live notebook session. Run: uv run marimo pair
+             execute --help
+  notebooks  Find active notebooks and their sessions. Run: uv run marimo pair
+             notebooks --help
+  prompt     Generate pairing instructions. Run: uv run marimo pair prompt
+             --help
+""")
 
     def test_prompt_help(self) -> None:
         result = _runner.invoke(cli_main, ["pair", "prompt", "--help"])
@@ -454,6 +474,243 @@ rich-representations  Rich Representations
 
         assert result.exit_code == 2
         assert "Valid topics:" in result.output
+
+
+class TestPairNotebooks:
+    def test_notebooks_help(self) -> None:
+        result = _runner.invoke(cli_main, ["pair", "notebooks", "--help"])
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair notebooks [OPTIONS] COMMAND [ARGS]...
+
+  Find active notebooks and their sessions.
+
+Options:
+  -h, --help  Show this message and exit.
+
+Commands:
+  list  List active notebooks and their session IDs. Run: uv run marimo pair
+        notebooks list --help
+""")
+
+    def test_notebooks_list_help(self) -> None:
+        result = _runner.invoke(
+            cli_main, ["pair", "notebooks", "list", "--help"]
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Usage: main pair notebooks list [OPTIONS]
+
+  List active notebooks and their session IDs.
+
+Options:
+  --url URL          Server URL. Repeat to list more than one server.
+  --token-file PATH  Read the server token from a local file. Otherwise use
+                     MARIMO_TOKEN, if set.
+  -h, --help         Show this message and exit.
+
+  This backend lists active notebooks only. Without --url, it discovers
+  no-token servers from the local registry. For an authenticated server,
+  supply its URL and credential source explicitly.
+
+  Use the same URL and credential source for execution. Session IDs can become
+  stale; list again instead of silently switching sessions.
+""")
+
+    def test_list_groups_sessions_for_one_notebook(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            commands,
+            "list_sessions",
+            lambda **_kwargs: {
+                "session-2": {
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                },
+                "session-1": {
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                },
+            },
+        )
+
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "notebooks", "list", "--url", "http://one"],
+        )
+
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {
+            "notebooks": [
+                {
+                    "url": "http://one",
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                    "sessions": [
+                        {"session_id": "session-1"},
+                        {"session_id": "session-2"},
+                    ],
+                }
+            ],
+            "errors": [],
+        }
+
+    def test_list_keeps_same_basename_on_two_urls_separate(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_list_sessions(
+            *, url: str, token: str | None
+        ) -> dict[str, dict[str, str | None]]:
+            assert token is None
+            return {
+                f"session-{url[-1]}": {
+                    "filename": "analysis.py",
+                    "path": f"/work/{url[-1]}/analysis.py",
+                }
+            }
+
+        monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "notebooks",
+                "list",
+                "--url",
+                "http://two",
+                "--url",
+                "http://one",
+            ],
+        )
+
+        assert result.exit_code == 0
+        notebooks = json.loads(result.output)["notebooks"]
+        assert [notebook["url"] for notebook in notebooks] == [
+            "http://one",
+            "http://two",
+        ]
+        assert len(notebooks) == 2
+
+    def test_list_preserves_results_when_one_url_fails(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fake_list_sessions(
+            *, url: str, token: str | None
+        ) -> dict[str, dict[str, str | None]]:
+            assert token is None
+            if url == "http://bad":
+                raise PairError("Could not connect to http://bad.")
+            return {
+                "session-1": {
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                }
+            }
+
+        monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "notebooks",
+                "list",
+                "--url",
+                "http://bad",
+                "--url",
+                "http://good",
+            ],
+        )
+
+        assert result.exit_code == 1
+        assert json.loads(result.output) == {
+            "notebooks": [
+                {
+                    "url": "http://good",
+                    "filename": "analysis.py",
+                    "path": "/work/analysis.py",
+                    "sessions": [{"session_id": "session-1"}],
+                }
+            ],
+            "errors": [
+                {
+                    "url": "http://bad",
+                    "message": "Could not connect to http://bad.",
+                }
+            ],
+        }
+
+    def test_list_empty_registry_succeeds(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(commands, "registry_urls", list)
+        monkeypatch.setattr(
+            commands,
+            "list_sessions",
+            lambda **_kwargs: pytest.fail("No server should be queried"),
+        )
+
+        result = _runner.invoke(cli_main, ["pair", "notebooks", "list"])
+
+        assert result.exit_code == 0
+        assert json.loads(result.output) == {"notebooks": [], "errors": []}
+
+    def test_list_uses_token_only_for_explicit_urls(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        token_file = tmp_path / "token.txt"
+        load_calls: list[Path | None] = []
+        session_calls: list[tuple[str, str | None]] = []
+
+        def fake_load_token(path: Path | None, environ: Any) -> str | None:
+            del environ
+            load_calls.append(path)
+            return "secret"
+
+        def fake_list_sessions(
+            *, url: str, token: str | None
+        ) -> dict[str, dict[str, str | None]]:
+            session_calls.append((url, token))
+            return {}
+
+        monkeypatch.setattr(commands, "load_token", fake_load_token)
+        monkeypatch.setattr(commands, "list_sessions", fake_list_sessions)
+        monkeypatch.setattr(
+            commands, "registry_urls", lambda: ["http://discovered"]
+        )
+
+        discovered = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "notebooks",
+                "list",
+                "--token-file",
+                str(token_file),
+            ],
+        )
+        explicit = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "notebooks",
+                "list",
+                "--url",
+                "http://explicit",
+                "--token-file",
+                str(token_file),
+            ],
+        )
+
+        assert discovered.exit_code == 0
+        assert explicit.exit_code == 0
+        assert load_calls == [token_file]
+        assert session_calls == [
+            ("http://discovered", None),
+            ("http://explicit", "secret"),
+        ]
 
 
 class TestPairPrompt:
