@@ -172,6 +172,8 @@ export function renderArrow(
   props: React.HTMLAttributes<HTMLSpanElement>,
   { keyName }: KeyRenderResult,
 ): React.ReactNode {
+  // alpha.43's data-expanded is inverted and omits initial collapse rules.
+  // NestedOpen's transform reflects the effective state.
   const expanded = props.style?.transform === "rotate(0deg)";
   return (
     <button

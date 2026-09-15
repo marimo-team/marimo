@@ -32,10 +32,16 @@ describe("JsonOutput interactions", () => {
     expect(getAllByRole("button", { name: "... 40 more items" })).toHaveLength(
       1,
     );
-    rerender(<JsonOutput data={{ values }} />);
     expect(
-      queryByRole("button", { name: "... 40 more items" }),
+      queryByRole("button", { name: "... 10 more items" }),
     ).toBeInTheDocument();
+    rerender(<JsonOutput data={{ "a.b": values, a: { b: values } }} />);
+    expect(
+      queryByRole("button", { name: "... 10 more items" }),
+    ).not.toBeInTheDocument();
+    expect(getAllByRole("button", { name: "... 40 more items" })).toHaveLength(
+      2,
+    );
   });
 
   it("exposes expansion controls and long text as buttons", () => {
@@ -47,7 +53,14 @@ describe("JsonOutput interactions", () => {
     expect(root).toHaveAttribute("aria-expanded", "true");
     fireEvent.click(root);
     expect(queryByText("plain")).not.toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: "Expand root" }));
+    const collapsedRoot = getByRole("button", { name: "Expand root" });
+    expect(collapsedRoot).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(collapsedRoot);
+    expect(getByRole("button", { name: "Collapse root" })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    expect(queryByText("plain")).toBeInTheDocument();
     const buttons = getAllByRole("button", { name: `${"a".repeat(100)}...` });
     expect(buttons).toHaveLength(2);
     fireEvent.keyDown(buttons[0], { key: "Enter" });
@@ -63,8 +76,18 @@ describe("JsonOutput interactions", () => {
       <JsonOutput data={data} />,
     );
     expect(queryByText("leaf")).not.toBeInTheDocument();
-    fireEvent.click(getByRole("button", { name: "Expand five" }));
+    const collapsed = getByRole("button", { name: "Expand five" });
+    expect(collapsed).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(collapsed);
     expect(getByText("leaf")).toBeInTheDocument();
+    const expanded = getByRole("button", { name: "Collapse five" });
+    expect(expanded).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(expanded);
+    expect(queryByText("leaf")).not.toBeInTheDocument();
+    expect(getByRole("button", { name: "Expand five" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
   it.each([null, undefined, true, 42, Number.NaN, "text"])(
     "renders scalar %j without tree state",
