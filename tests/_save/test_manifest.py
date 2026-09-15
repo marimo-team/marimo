@@ -18,6 +18,7 @@ from marimo._save.manifest import (
     CacheManifest,
     CorruptManifestError,
     UnsupportedManifestVersionError,
+    is_manifest_name,
     load_manifest,
     manifest_name,
 )
@@ -141,6 +142,23 @@ class TestManifestFormat:
         assert manifest_name(Path("nb.py")) == manifest_name(
             Path.cwd() / "nb.py"
         )
+
+    @staticmethod
+    def test_a_notebook_path_that_is_not_utf8_gets_a_name() -> None:
+        """A filesystem hands over a name it cannot decode as surrogates."""
+        name = manifest_name(Path("/tmp/caf\udce9.py"))
+        assert is_manifest_name(name)
+        assert name != manifest_name(Path("/tmp/caf.py"))
+
+    @staticmethod
+    def test_only_a_cache_manifest_is_read_as_one() -> None:
+        from marimo._save.stores.file import export_manifest_name
+
+        assert is_manifest_name(manifest_name(Path("nb.py")))
+        # Other bookkeeping a cache directory holds, and an entry.
+        assert not is_manifest_name(export_manifest_name("nb.py"))
+        assert not is_manifest_name("nb-0123456789abcdef.json.tmp0a1b2c3d")
+        assert not is_manifest_name("C_ab12.pickle")
 
     @staticmethod
     def test_load_manifest_reads_what_flush_wrote(tmp_path: Path) -> None:
