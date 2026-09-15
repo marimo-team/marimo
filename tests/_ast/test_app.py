@@ -632,6 +632,142 @@ class TestApp:
         assert defs["y"] == 1
 
     @staticmethod
+    async def test_run_async_from_running_event_loop() -> None:
+        """An async app can be run from inside a running event loop.
+
+        Regression test for #9572 / #9646: the script runner used to call
+        `asyncio.run` unconditionally, which raises when a loop is already
+        running on the calling thread.
+        """
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0.01)
+            x = 0
+            return (
+                asyncio,
+                x,
+            )
+
+        @app.cell
+        def __(x: int) -> tuple[int]:
+            y = x + 1
+            return (y,)
+
+        _, defs = app.run()
+
+        assert defs["x"] == 0
+        assert defs["y"] == 1
+
+    @staticmethod
+    async def test_run_async_from_running_event_loop_preserves_context() -> (
+        None
+    ):
+        """The caller's thread-local runtime context survives the offload."""
+        from marimo._runtime.context.types import runtime_context_installed
+
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            x = 1
+            return (asyncio, x)
+
+        assert not runtime_context_installed()
+        _, defs = app.run()
+        assert defs["x"] == 1
+        # The script context is ephemeral; the worker thread must not leak
+        # one back onto the calling thread.
+        assert not runtime_context_installed()
+
+    @staticmethod
+    async def test_run_async_from_running_event_loop_propagates_error() -> (
+        None
+    ):
+        """Cell errors still surface unwrapped when the run is offloaded."""
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            raise ValueError("boom")
+            return (asyncio,)
+
+        with pytest.raises(ValueError, match="boom"):
+            app.run()
+
+    @staticmethod
+    async def test_embed_async_app_outside_notebook() -> None:
+        """`await app.embed()` works for an async app run as a script.
+
+        Outside a notebook `embed()` delegates to `App.run()`, so it hit the
+        same nested-event-loop failure (#9572).
+        """
+        app = App()
+
+        @app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            x = 2
+            return (asyncio, x)
+
+        result = await app.embed()
+
+        assert result.defs["x"] == 2
+
+    @staticmethod
+    async def test_run_async_app_nested_in_async_app() -> None:
+        """An async app can run another async app from one of its cells.
+
+        This is the shape reported in #9646: a notebook that runs another
+        notebook while its own event loop is live.
+        """
+        inner_app = App()
+
+        @inner_app.cell
+        async def __() -> tuple[Any, int]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            inner = 21
+            return (asyncio, inner)
+
+        parent = App()
+
+        @parent.cell
+        async def __() -> tuple[Any]:
+            import asyncio
+
+            await asyncio.sleep(0)
+            return (asyncio,)
+
+        @parent.cell
+        def __() -> tuple[Any]:
+            # Overridden below; stands in for the `import notebook` cell of
+            # a real notebook.
+            child = None
+            return (child,)
+
+        @parent.cell
+        def __(child: Any) -> tuple[int]:
+            outer = child.run()[1]["inner"] * 2
+            return (outer,)
+
+        _, defs = parent.run(defs={"child": inner_app})
+
+        assert defs["outer"] == 42
+
+    @staticmethod
     def test_run_mo_stop() -> None:
         app = App()
 
