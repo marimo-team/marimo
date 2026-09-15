@@ -27,7 +27,8 @@ class TestDataPrimitiveClassification:
     @pytest.mark.skipif(
         not DependencyManager.polars.has(), reason="polars required"
     )
-    def test_polars_series_numeric_classification(self) -> None:
+    @pytest.mark.parametrize("as_frame", [False, True])
+    def test_polars_numeric_classification(self, as_frame: bool) -> None:
         import polars as pl
 
         values = [
@@ -37,7 +38,12 @@ class TestDataPrimitiveClassification:
             pl.Series("list", [[1], [2]]),
             pl.Series("object", [object()], dtype=pl.Object),
         ]
-        assert {value.name: is_data_primitive(value) for value in values} == {
+        assert {
+            value.name: is_data_primitive(
+                value.to_frame() if as_frame else value
+            )
+            for value in values
+        } == {
             "integer": True,
             "float": True,
             "string": False,
