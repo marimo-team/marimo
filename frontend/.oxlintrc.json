@@ -64,7 +64,6 @@
     "react/jsx-no-literals": "off",
     "react/no-deriving-state-in-effects": "off",
     "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
-    "react/preserve-manual-memoization": "off",
     "react/prefer-function-component": "off",
     "react/refs": "off",
     "react/rule-suppression": "off",
