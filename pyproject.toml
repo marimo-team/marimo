@@ -375,7 +375,6 @@ ignore = [
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
-    "S112", # `try`-`except`-`continue`
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "D421", # Property docstring should not start with a verb (preview rule)
@@ -441,6 +440,7 @@ extend-select = [
     "PGH004", # Use specific rule codes when using noqa
     "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "RUF006", # Store a reference to the return value of asyncio.create_task
+    "S112", # Require intentional handling of `try`-`except`-`continue`
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
     "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
     "B006",   # Checks for uses of mutable objects as function argument defaults.
