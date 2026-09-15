@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import click
 
+from marimo import _loggers
 from marimo._cli.errors import MarimoCLIError
 from marimo._cli.help_formatter import ColoredGroup
 from marimo._config.settings import GLOBAL_SETTINGS
@@ -14,6 +15,8 @@ from marimo._config.settings import GLOBAL_SETTINGS
 if TYPE_CHECKING:
     from marimo._save.cache_dirs import CacheDirStats
     from marimo._save.prune import DirectoryPrunePlan, PrunePlan
+
+LOGGER = _loggers.marimo_logger()
 
 path_argument = click.argument(
     "path",
@@ -90,13 +93,41 @@ def report(measured: list[tuple[Path, CacheDirStats]]) -> CacheDirStats:
 
 
 def resolve_cache_dirs_or_error(path: Path, recursive: bool) -> list[Path]:
-    """Resolve PATH, reporting a resolution failure as a CLI error."""
+    """Resolve PATH, reporting a resolution failure as a CLI error.
+
+    A `cache.store` entry in the configuration replaces the resolution: the
+    kernel writes to the configured store, so the commands act there rather
+    than on the directory PATH names. PATH is still validated, and still
+    names the notebook whose manifest is read.
+    """
     from marimo._save.cache_dirs import CacheDirError, resolve_cache_dirs
 
     try:
-        return resolve_cache_dirs(path, recursive=recursive)
+        cache_dirs = resolve_cache_dirs(path, recursive=recursive)
     except CacheDirError as e:
         raise MarimoCLIError(str(e)) from e
+    configured = _configured_store_dirs(path)
+    if configured is None:
+        return cache_dirs
+    return configured
+
+
+def _configured_store_dirs(path: Path) -> list[Path] | None:
+    """Directories of the store the configuration picks, or `None`.
+
+    A configuration that cannot be read does not pick a store, so the
+    resolution falls back to PATH.
+    """
+    from marimo._save.stores import configured_cache_store
+
+    try:
+        store = configured_cache_store(current_path=str(path))
+    except Exception:
+        LOGGER.warning("Could not read the cache store from the config")
+        return None
+    if store is None:
+        return None
+    return store.local_dirs()
 
 
 @click.group(
@@ -225,8 +256,11 @@ def cache_clean(
 
     if path.is_dir():
         _clean_blocks(cache_dirs, names, yes=yes)
-    else:
-        _clean_tracked_entries(path, cache_dirs[0], names, yes=yes)
+        return
+    # A configured store can keep a copy of the manifest in several
+    # directories; each is cleaned on its own record.
+    for cache_directory in cache_dirs:
+        _clean_tracked_entries(path, cache_directory, names, yes=yes)
 
 
 def _clean_blocks(

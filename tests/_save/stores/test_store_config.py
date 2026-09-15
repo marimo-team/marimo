@@ -105,6 +105,42 @@ class TestGetStore:
         assert isinstance(store, DEFAULT_STORE)
 
 
+class TestConfiguredCacheStore:
+    """configured_cache_store tells an explicit store apart from the default."""
+
+    def _store_for(self, monkeypatch, config) -> object:
+        from marimo._save import stores as stores_mod
+
+        class _Mgr:
+            def get_config(self):
+                return config
+
+        monkeypatch.setattr(
+            "marimo._config.manager.get_default_config_manager",
+            lambda **_kwargs: _Mgr(),
+        )
+        return stores_mod.configured_cache_store()
+
+    def test_a_configured_store_is_returned(self, monkeypatch) -> None:
+        store = self._store_for(
+            monkeypatch,
+            {
+                "cache": {
+                    "store": {"type": "file", "args": {"save_path": "/tmp/a"}}
+                }
+            },
+        )
+        assert isinstance(store, FileStore)
+        assert store.save_path.as_posix() == "/tmp/a"
+
+    def test_an_unset_store_is_none(self, monkeypatch) -> None:
+        assert self._store_for(monkeypatch, {}) is None
+        assert (
+            self._store_for(monkeypatch, {"cache": {"verification": "on"}})
+            is None
+        )
+
+
 class TestCacheStoreProvenance:
     """cache_store_is_untrusted flags a store set by a project/script layer."""
 
