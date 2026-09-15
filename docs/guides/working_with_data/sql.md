@@ -103,8 +103,7 @@ FROM orders
 GROUP BY customer_id
 ```
 
-The generated Python uses the built-in engine name; no `SQLContext` setup is
-needed:
+The generated Python uses the built-in engine name:
 
 ```python
 revenue = mo.sql(
@@ -115,8 +114,8 @@ revenue = mo.sql(
 ```
 
 By default, the result is a `polars.LazyFrame`, so downstream Polars operations
-remain lazy. Only referenced Polars DataFrames and LazyFrames are registered;
-other dataframe types are not supported by this engine. Polars supports a
+remain lazy. Only referenced Polars DataFrames and LazyFrames are registered.
+Other dataframe types are not supported by this engine. Polars supports a
 different SQL dialect and feature set from DuckDB, so a query accepted by one
 engine may not be accepted by the other.
 
@@ -129,8 +128,8 @@ The available options depend on the selected engine:
 - `native`: Uses DuckDB's native lazy relation, or the native Polars
   `LazyFrame` for the Polars engine
 - `lazy-polars`: Returns a lazy Polars DataFrame
-- `pandas`: Returns a Pandas DataFrame; Polars SQL results are collected first
-- `polars`: Returns an eager Polars DataFrame; Polars SQL results are collected
+- `pandas`: Returns a Pandas DataFrame. Polars SQL results are collected first
+- `polars`: Returns an eager Polars DataFrame. Polars SQL results are collected
 - `auto`: Automatically chooses an eager dataframe for DuckDB, and preserves
   the native `LazyFrame` for the Polars engine
 
@@ -141,7 +140,11 @@ the first 10 rows are displayed in the UI to prevent memory issues.
 
 ???+ tip "Set a default"
 
-    The default output type is currently `auto`, but we recommend explicitly setting the output type to `native` for best performance with large datasets or `polars` if you need to work with the results in Python code. You can configure this in your application settings.
+    The default output type is `auto`. For DuckDB queries over large datasets,
+    set the output type to `native` to preserve DuckDB's lazy relation. With the
+    built-in Polars engine, `auto`, `native`, and `lazy-polars` all return a
+    `polars.LazyFrame`. Choose `polars` or `pandas` only when you explicitly need
+    an eager dataframe. You can configure this in your application settings.
 
 ## Reference a local dataframe
 
@@ -238,6 +241,12 @@ SELECT unnest([{{'a': 42, 'b': 84}}, {{'a': 100, 'b': NULL}}]);
 ```
 
 ## Connecting to a custom database
+
+DuckDB and Polars are built-in engines and require no connection setup. DuckDB
+is the default. Choose **Polars** from the SQL cell's engine selector to query
+local `polars.DataFrame` and `polars.LazyFrame` variables. See
+[Using the Polars engine](#using-the-polars-engine) for the supported behavior.
+The connections below are for custom or external databases.
 
 There are two ways to connect to a database in marimo:
 
