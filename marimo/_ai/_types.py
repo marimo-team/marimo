@@ -253,7 +253,8 @@ class ChatMessage(msgspec.Struct, dict=True):
                     return parse_raw(
                         part, cls=PartType, allow_unknown_keys=True
                     )
-                except Exception:
+                # Each parser is expected to reject incompatible part types.
+                except Exception:  # noqa: S112
                     continue
             return cast(ChatPart, part)
 
