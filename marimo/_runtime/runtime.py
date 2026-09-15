@@ -166,6 +166,7 @@ from marimo._sql.sql_quoting import (
 from marimo._tracer import attach_trace_context, kernel_tracer
 from marimo._types.ids import CellId_t, UIElementId, VariableName
 from marimo._types.lifespan import Lifespan
+from marimo._utils.asyncio_utils import run_on_subprocess_capable_loop
 from marimo._utils.lifespans import Lifespans
 from marimo._utils.paths import normalize_path
 from marimo._utils.platform import is_pyodide
@@ -2735,7 +2736,9 @@ def launch_kernel(
             )
             if loop_factory is not None:
                 asyncio.run(coro, loop_factory=loop_factory)
-            else:
+            elif is_subprocess:
                 asyncio.run(coro)
+            else:
+                run_on_subprocess_capable_loop(coro)
 
         streams.close(use_fd_redirect)

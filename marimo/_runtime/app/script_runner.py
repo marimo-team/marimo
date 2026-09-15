@@ -1,7 +1,6 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import asyncio
 from typing import TYPE_CHECKING, Any
 
 from marimo._ast.names import SETUP_CELL_NAME
@@ -32,6 +31,7 @@ from marimo._runtime.patches import (
 from marimo._runtime.runner.result import RunResult
 from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
+from marimo._utils.asyncio_utils import run_on_subprocess_capable_loop
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -225,7 +225,7 @@ class AppScriptRunner:
                 post_execute_hooks.append(close_figures)
 
             if is_async:
-                outputs, defs = asyncio.run(
+                outputs, defs = run_on_subprocess_capable_loop(
                     self._run_asynchronous(
                         post_execute_hooks=post_execute_hooks,
                     )
