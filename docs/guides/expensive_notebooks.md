@@ -188,6 +188,85 @@ def compute_embedding(data: str, embedding_dimension: int, model: str) -> np.nda
 See our [guide on caching](../api/caching.md) for details, including how the cache
 key is constructed, and limitations.
 
+### Manage the on-disk cache
+
+Use the `marimo cache` command group to see and reclaim the disk space
+used by [`mo.persistent_cache`][marimo.persistent_cache]. Every
+subcommand accepts an optional PATH, a notebook file or a directory.
+PATH defaults to the current directory. A notebook path resolves to the
+cache directory beside that notebook. A directory resolves its own
+`__marimo__/cache`, as if a notebook ran in that directory. Add
+`-r`/`--recursive` to instead search the directory for
+`__marimo__/cache` directories, skipping dot-folders. Every subcommand
+prints each cache directory it acts on. If your configuration sets
+`cache.store`, the kernel writes to that store instead, and every
+subcommand acts on the store's directory rather than the one PATH names.
+
+Each `mo.persistent_cache` name gets its own block, the subdirectory
+that holds its entries, for example `train` in
+`__marimo__/cache/train/`. Each cache directory also has a manifest, a
+file that records the cache keys a notebook produced.
+
+#### Find the cache directories
+
+```bash
+marimo cache dir notebook.py
+```
+
+Run `marimo cache dir` to print the cache directories that PATH resolves
+to, without changing anything on disk.
+
+#### Check disk usage
+
+```bash
+marimo cache size -r notebooks/
+```
+
+Run `marimo cache size` to print the disk usage and entry count for each
+cache directory, plus a total across all of them.
+
+#### Delete entries outright
+
+```bash
+marimo cache clean my_notebook.py train
+```
+
+Run `marimo cache clean` to delete cache entries. With a notebook PATH,
+it deletes exactly the entries listed in that notebook's manifest, then
+empties those records from the manifest. Entries the manifest does not
+list are left in place. With a directory PATH, it deletes whole blocks,
+including the blob directories that hold large entry values. If you name
+no blocks, it deletes every block. Pass one or more NAME arguments to
+limit either mode to those blocks. Each NAME must match a name you gave
+to `mo.persistent_cache`.
+
+#### Delete entries that current code can no longer produce
+
+```bash
+marimo cache prune my_notebook.py --dry-run
+```
+
+Run `marimo cache prune` to delete cache entries that current code can
+no longer produce, based on the manifest. For example, if you edit a
+cell that a cached block depends on, prune treats that block's older
+entries as dead and deletes them. The next run of the notebook records
+fresh entries under the new code.
+
+Prune never deletes an entry recorded under code that still exists.
+Deleting too much costs a recomputation, never a wrong result.
+
+`--dry-run` reports the planned deletions and deletes nothing.
+Remove the flag to delete the entries. Add `--force` (or `-y`) to skip the
+confirmation prompt, for example in an automated script.
+
+```bash
+marimo cache prune my_notebook.py --force
+```
+
+See [Managing the cache
+directory](../api/caching.md#managing-the-cache-directory) for the
+manifest, the path hash, and the guards and caveats behind prune.
+
 ## Lazy-load expensive UIs
 
 Lazily render UI elements that are expensive to compute using
