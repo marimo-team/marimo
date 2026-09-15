@@ -1,0 +1,1685 @@
+frontend/src/components/datasets/__tests__/icons.test.ts
+  s_d59f488135f600::t_41255f3fa53373 5,15-23
+marimo/AGENTS.md
+  s_d59f488135f600::t_41255f3fa53373 20,22-27,43
+frontend/src/core/run-app.tsx
+  s_d59f488135f600::t_41255f3fa53373 28,41,81-84
+frontend/src/components/dependency-graph/utils/layout.ts
+  s_d59f488135f600::t_41255f3fa53373 4,7-12,14-17,23,26-27,30-36,39-49,51,56-57,61-64,66-73,75-135
+marimo/_session/app_host/main.py
+  s_d59f488135f600::t_41255f3fa53373 253-255
+tests/_cli/test_cli_export_thumbnail.py
+  s_d59f488135f600::t_41255f3fa53373 48-49,53,55,108-109,113,115
+tests/_lint/test_snapshot.py
+  s_d59f488135f600::t_41255f3fa53373 263-278
+marimo/_utils/narwhals_utils.py
+  s_d59f488135f600::t_41255f3fa53373 6
+frontend/src/core/wasm/__tests__/bridge.test.ts
+  s_d59f488135f600::t_41255f3fa53373 25-32
+marimo/_plugins/ui/_impl/dates.py
+  s_d59f488135f600::t_41255f3fa53373 368-371,409,411-418
+marimo/_utils/background_task.py
+  s_d59f488135f600::t_41255f3fa53373 7,12-13,151-154
+frontend/src/components/editor/renderers/cells-renderer.tsx
+  s_d59f488135f600::t_41255f3fa53373 8,10,13,16,25,42-46,56,70-71,75,83
+frontend/src/components/editor/__tests__/viewer-banner.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 6
+marimo/_plugins/ui/_impl/tables/pandas_table.py
+  s_d59f488135f600::t_41255f3fa53373 20-23,54-72,236,242-244,251,253-256,281-290,294-298,324-327,329-332,336-337,360-366,407-411,413,418-420,425-440,501,587-589,637-638
+marimo/_server/files/directory_scanner.py
+  s_d59f488135f600::t_41255f3fa53373 79,142-146,168,172,180,185,195,205,223-224,263-265
+marimo/_server/workspace/_directory.py
+  s_d59f488135f600::t_41255f3fa53373 110-120
+marimo/_save/encode.py
+  s_d59f488135f600::t_41255f3fa53373 142-146
+tests/_environments/test_script_metadata.py
+  s_d59f488135f600::t_41255f3fa53373 1-505
+tests/_session/notebook/test_serializer.py
+  s_d59f488135f600::t_41255f3fa53373 10,317-373
+tests/_server/test_recents.py
+  s_d59f488135f600::t_41255f3fa53373 57
+frontend/src/components/editor/__tests__/Output.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 2-3,161-241
+docs/guides/package_management/inlining_dependencies.md
+  s_d59f488135f600::t_41255f3fa53373 54,58-96
+marimo/_plugins/stateless/tabs.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,11-13,17,23
+.github/renovate.json5
+  s_d59f488135f600::t_41255f3fa53373 4
+frontend/src/components/editor/code/readonly-diff.tsx
+  s_d59f488135f600::t_41255f3fa53373 24
+marimo/_convert/ipynb/to_ir.py
+  s_d59f488135f600::t_41255f3fa53373 19,175-178,718,989-996,1059-1108,1144-1147,1157,1174,1241-1244,1385,1410
+frontend/src/components/ai/ai-provider-icon.tsx
+  s_d59f488135f600::t_41255f3fa53373 9,24
+frontend/src/core/codemirror/markdown/completions.ts
+  s_d59f488135f600::t_41255f3fa53373 97-111
+marimo/_data/_external_storage/storage.py
+  s_d59f488135f600::t_41255f3fa53373 28,112,406
+marimo/_runtime/runner/hooks.py
+  s_d59f488135f600::t_41255f3fa53373 47,100-101,137-140,164-169,189,209-210
+packages/lsp/package.json
+  s_d59f488135f600::t_41255f3fa53373 14,18,24,26,28
+marimo/_data/data_source_discovery/plugins/postgres.py
+  s_d59f488135f600::t_41255f3fa53373 9,74
+frontend/src/components/slides/__tests__/reveal-component.test.ts
+  s_d59f488135f600::t_41255f3fa53373 4,13,28-51,53,59,70,81,90,102,111
+tests/_cli/test_cli_export_session.py
+  s_d59f488135f600::t_41255f3fa53373 173,175,227,229
+tests/_plugins/ui/_impl/tables/test_geometry.py
+  s_d59f488135f600::t_41255f3fa53373 1-963
+frontend/src/components/editor/file-tree/use-hover-expand.ts
+  s_d59f488135f600::t_41255f3fa53373 1-34
+tests/_runtime/layout/test_layout.py
+  s_d59f488135f600::t_41255f3fa53373 82-90,92-95,97
+tests/_server/api/endpoints/test_files.py
+  s_d59f488135f600::t_41255f3fa53373 65-111
+marimo/_tutorials/plots.py
+  s_d59f488135f600::t_41255f3fa53373 6
+marimo/_output/md_extensions/display_math.py
+  s_d59f488135f600::t_41255f3fa53373 67,72-73
+frontend/src/components/editor/renderers/grid-layout/__tests__/plugin.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-42
+marimo/_output/formatters/flax_formatters.py
+  s_d59f488135f600::t_41255f3fa53373 140
+frontend/src/plugins/impl/vega/utils.ts
+  s_d59f488135f600::t_41255f3fa53373 58-60
+marimo/_plugins/ui/_impl/tables/ibis_table.py
+  s_d59f488135f600::t_41255f3fa53373 193
+frontend/src/components/ai/__tests__/ai-utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 49-55,65-66,74-78,80-86,89-94,97-103,105,107-113,115-121,124-130,133-139
+frontend/src/components/slides/reveal-component.tsx
+  s_d59f488135f600::t_41255f3fa53373 59,62,65-69,72-97,197,199-200,486-487,489-491,493-494,503-508,533,545,584,607-614,635-641,667-702,705-706,708-712
+frontend/src/components/datasources/__tests__/components.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 15,29-40
+frontend/src/plugins/impl/data-editor/glide-data-editor.tsx
+  s_d59f488135f600::t_41255f3fa53373 17,31,44-52,58,63,110,164,181,222,226,241,250-257,261-266,303,310,333-334,336,338-340
+marimo/_data/data_source_discovery/plugins/mysql.py
+  s_d59f488135f600::t_41255f3fa53373 9,70
+marimo/_output/formatting.py
+  s_d59f488135f600::t_41255f3fa53373 413-417
+marimo/_save/signing.py
+  s_d59f488135f600::t_41255f3fa53373 13-25,42-68,88,96,321-380,402,411-412,424-425,427-439,442-450,452-453,455-458,460,464,472,484,486,494,504,509,516
+frontend/src/components/editor/notebook-cell.tsx
+  s_d59f488135f600::t_41255f3fa53373 842,1330
+frontend/src/utils/__tests__/id-tree.test.ts
+  s_d59f488135f600::t_41255f3fa53373 561-563,590-592,711-712,1052-1054,1079
+DESIGN.md
+  s_d59f488135f600::t_41255f3fa53373 39-67,73
+frontend/src/plugins/impl/vega/__tests__/make-selectable.test.ts
+  s_d59f488135f600::t_41255f3fa53373 5,8,11-22,1283-1344
+marimo/_ast/app.py
+  s_d59f488135f600::t_41255f3fa53373 1028-1044,1059-1062
+marimo/_convert/markdown/to_ir.py
+  s_d59f488135f600::t_41255f3fa53373 92-99,205,236
+marimo/_server/api/endpoints/assets.py
+  s_d59f488135f600::t_41255f3fa53373 4,43,145-171,449,595
+frontend/src/components/editor/renderers/vertical-layout/vertical-layout.tsx
+  s_d59f488135f600::t_41255f3fa53373 34,58-63,80-82,86-93,173
+.github/workflows/release-prod.yml
+  s_d59f488135f600::t_41255f3fa53373 33
+marimo/_templates.py
+  s_d59f488135f600::t_41255f3fa53373 28,108,126-130,149,153,408,435,521,560
+marimo/_plugins/stateless/accordion.py
+  s_d59f488135f600::t_41255f3fa53373 4-6,14-16,23,29-33,50-68,73,76-77,82-101,121
+marimo/_utils/lists.py
+  s_d59f488135f600::t_41255f3fa53373 17
+marimo/_server/api/auth.py
+  s_d59f488135f600::t_41255f3fa53373 5,20,46-50,145-164,176,185-186
+tests/_lint/snapshots/private_import_alias_errors.txt
+  s_d59f488135f600::t_41255f3fa53373 1-25
+frontend/src/core/network/requests-network.ts
+  s_d59f488135f600::t_41255f3fa53373 322-325,424-430
+tests/_plugins/ui/_impl/test_dictionary.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,37-49
+frontend/src/components/editor/connections/quick-add-data-sources.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,6-11,19-20,27,29,35-36,50,103,105-108,113-114
+frontend/src/core/datasets/__tests__/data-source-discovery.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-277
+marimo/_ai/_types.py
+  s_d59f488135f600::t_41255f3fa53373 12,98
+tests/_convert/markdown/test_markdown_from_ir.py
+  s_d59f488135f600::t_41255f3fa53373 323,388
+frontend/src/components/dependency-graph/__tests__/elements.test.ts
+  s_d59f488135f600::t_41255f3fa53373 4-41,45-149
+frontend/src/css/globals.css
+  s_d59f488135f600::t_41255f3fa53373 86-99,104-105,127,132-178
+frontend/src/components/editor/file-tree/file-tree-row.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-40
+frontend/src/components/tracing/tracing-spec.ts
+  s_d59f488135f600::t_41255f3fa53373 4
+frontend/src/utils/__tests__/arrays.test.ts
+  s_d59f488135f600::t_41255f3fa53373 109
+marimo/_output/md.py
+  s_d59f488135f600::t_41255f3fa53373 386-392,394-395,397-400,402-403,405-407,409-417,420-421,423-425,427-438,440,446
+marimo/_plugins/ui/_impl/tables/narwhals_table.py
+  s_d59f488135f600::t_41255f3fa53373 24-28,112-130,144-155,216-217,294-297,300-307,354-355,435-438,726-727
+marimo/_runtime/state.py
+  s_d59f488135f600::t_41255f3fa53373 30
+marimo/_server/api/endpoints/packages.py
+  s_d59f488135f600::t_41255f3fa53373 12-14,22-23,26,72-76,87-89,91-92,129-133,144-146,148-149,153-158,194,198,206,220-221,226-231,235-241,244-247,251-256
+marimo/_utils/uv_tree.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,8-10,20,35-69,84,102-103,128-129
+tests/_data/data_source_discovery/test_aws.py
+  s_d59f488135f600::t_41255f3fa53373 76-80
+frontend/src/components/editor/actions/export-dialog/format-notice.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,7,60-61,66-67,88-89,95-102,106,108-128,138-139,144-145,165-166,169-170,175-197
+.github/workflows/docs.yml
+  s_d59f488135f600::t_41255f3fa53373 26
+marimo/_cli/export/commands.py
+  s_d59f488135f600::t_41255f3fa53373 298,381,463,570-575,761-766,1028
+marimo/_data/get_datasets.py
+  s_d59f488135f600::t_41255f3fa53373 522-528,559-564,580-583
+marimo/_ipc/types.py
+  s_d59f488135f600::t_41255f3fa53373 11,40-44
+tests/_islands/snapshots/notebook-dependencies.txt
+  s_d59f488135f600::t_41255f3fa53373 1-9
+tests/test_tracer.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,373,376,384,387,392-500,602,605,638,641
+frontend/src/components/datasources/datasources.tsx
+  s_d59f488135f600::t_41255f3fa53373 6,24,28,67,253-258,304-311
+frontend/src/components/editor/navigation/navigation.ts
+  s_d59f488135f600::t_41255f3fa53373 15,30,555-571
+frontend/src/core/static/__tests__/files.test.ts
+  s_d59f488135f600::t_41255f3fa53373 180,279-281,597-599
+marimo/_tutorials/dataflow.py
+  s_d59f488135f600::t_41255f3fa53373 6
+tests/_plugins/ui/_impl/test_file_browser.py
+  s_d59f488135f600::t_41255f3fa53373 45-59,76-78,476-511,656-684
+tests/_save/test_cache.py
+  s_d59f488135f600::t_41255f3fa53373 1983,2398-2399,2423,2449-2451,2453-2454,2461-2462,2486-2488,2490,2522-2523,2526
+frontend/src/components/data-table/__tests__/column-explorer.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 8,28,38,43,50,80-93,168-211
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.pandas.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+frontend/src/core/websocket/transports/transport.ts
+  s_d59f488135f600::t_41255f3fa53373 18
+marimo/_ai/_pydantic_ai_utils.py
+  s_d59f488135f600::t_41255f3fa53373 5,11,32,51-72,75,77,81-91,93-94
+tests/_server/templates/utils.py
+  s_d59f488135f600::t_41255f3fa53373 3,6-17
+tests/_session/app_host/test_pool.py
+  s_d59f488135f600::t_41255f3fa53373 15,36-188
+mkdocs.yml
+  s_d59f488135f600::t_41255f3fa53373 211
+tests/_data/test_get_datasets.py
+  s_d59f488135f600::t_41255f3fa53373 629-659,716-722
+tests/_save/loaders/test_lazy_wasm.py
+  s_d59f488135f600::t_41255f3fa53373 228,230,264-265,383,407,434,462-464,493,539,606,784,794
+tests/_server/api/endpoints/test_ai.py
+  s_d59f488135f600::t_41255f3fa53373 9-17,24-27,33-34,44-113,214-216,244-280,284-286,317-319,348-350,499-501,570-572,619,651-652
+marimo/_cli/tips.py
+  s_d59f488135f600::t_41255f3fa53373 200-202
+.pre-commit-config.yaml
+  s_d59f488135f600::t_41255f3fa53373 16,42,59
+frontend/src/components/editor/file-tree/state.tsx
+  s_d59f488135f600::t_41255f3fa53373 14
+marimo/_utils/parse_dataclass.py
+  s_d59f488135f600::t_41255f3fa53373 25,27-28
+frontend/src/core/network/requests-lazy.ts
+  s_d59f488135f600::t_41255f3fa53373 29-32,45,53,101,116-118,198,203
+tests/_data/data_source_discovery/test_databricks.py
+  s_d59f488135f600::t_41255f3fa53373 1-182
+frontend/src/core/codemirror/go-to-definition/__tests__/utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 8,10,189-233
+marimo/_server/api/lifespans.py
+  s_d59f488135f600::t_41255f3fa53373 39-40,70-73,88-110,153-155,203-208,267-270,284-287
+tests/_utils/snapshots/docstring_summary.md
+  s_d59f488135f600::t_41255f3fa53373 6
+frontend/src/components/editor/actions/export-dialog/use-export-dialog.ts
+  s_d59f488135f600::t_41255f3fa53373 10-11,120-121,141-144,194-209,231-233,353,394
+frontend/src/components/editor/file-tree/__tests__/file-render-mode.test.ts
+  s_d59f488135f600::t_41255f3fa53373 11-12,14
+frontend/src/plugins/impl/code/any-language-editor.tsx
+  s_d59f488135f600::t_41255f3fa53373 30-31,48,53,59,70,96
+tests/_environments/test_environment.py
+  s_d59f488135f600::t_41255f3fa53373 1-359
+.github/workflows/test_fe.yaml
+  s_d59f488135f600::t_41255f3fa53373 25,50,129,174-177,230
+tests/_server/test_sessions.py
+  s_d59f488135f600::t_41255f3fa53373 18,61-94
+marimo/_data/data_source_discovery/plugins/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 3-5,23
+.github/workflows/test_no_build.yaml
+  s_d59f488135f600::t_41255f3fa53373 38
+tests/_save/loaders/test_pickle_untrusted_store.py
+  s_d59f488135f600::t_41255f3fa53373 1-95
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.pyarrow.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+frontend/src/core/datasets/data-source-discovery.ts
+  s_d59f488135f600::t_41255f3fa53373 3,5-7,10-97
+frontend/src/components/editor/ai/completion-handlers.tsx
+  s_d59f488135f600::t_41255f3fa53373 10-14,56-66,72,74-80,96,107,116,139,173,179,182,188,194,201
+frontend/src/core/islands/main.ts
+  s_d59f488135f600::t_41255f3fa53373 5
+frontend/src/core/ai/ids/ids.ts
+  s_d59f488135f600::t_41255f3fa53373 7
+docs/guides/editor_features/overview.md
+  s_d59f488135f600::t_41255f3fa53373 56
+frontend/src/components/editor/actions/__tests__/types.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-44
+frontend/src/components/ui/fullscreen.tsx
+  s_d59f488135f600::t_41255f3fa53373 7,30-69
+frontend/src/plugins/impl/__tests__/MatrixPlugin.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 180,201-206,304-323,344-382,452-483,511-950
+frontend/src/components/data-table/__tests__/column_formatting.test.ts
+  s_d59f488135f600::t_41255f3fa53373 8,132-135
+frontend/src/components/data-table/__tests__/filter-by-values-picker.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 13,16,30-42
+frontend/src/plugins/impl/__tests__/SliderPlugin.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 4-12,17,68,104
+frontend/src/components/ui/input.tsx
+  s_d59f488135f600::t_41255f3fa53373 20-23,127
+frontend/src/plugins/impl/data-frames/utils/operators.ts
+  s_d59f488135f600::t_41255f3fa53373 79
+frontend/src/utils/__tests__/scroll.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3-11,16,34-36,45-46
+marimo/_export/local_modules.py
+  s_d59f488135f600::t_41255f3fa53373 31,46,246-248,252
+marimo/_utils/deprecated.py
+  s_d59f488135f600::t_41255f3fa53373 6,11-12,14-15,18,20,27
+packages/openapi/src/api.ts
+  s_d59f488135f600::t_41255f3fa53373 1127-1167,1596-1630,3766,3774,3782,3857,3935-3948,4510,4637-4639,4654-4656,4687-4695,4892-4899,4906,4962-4972,5096-5105,5114-5115,5157-5169,5230,5234-5235,5251,5314-5318,5330-5332,5339-5340,5355-5356,5389-5394,5602,5922,5928,5939,6249,6319-6324,6329-6330,6746-6752,6963-6978,7181-7190,7261
+frontend/src/__tests__/mount.test.ts
+  s_d59f488135f600::t_41255f3fa53373 4-6,9,22-23,55-58,79-84,125,143-178
+frontend/src/components/storage/storage-inspector.tsx
+  s_d59f488135f600::t_41255f3fa53373 19,503,511,1013-1018,1078-1085
+marimo/_utils/env.py
+  s_d59f488135f600::t_41255f3fa53373 19
+tests/_convert/markdown/test_markdown_conversion.py
+  s_d59f488135f600::t_41255f3fa53373 466-492
+tests/_output/formatters/test_iframe.py
+  s_d59f488135f600::t_41255f3fa53373 27-40
+docs/api/markdown.md
+  s_d59f488135f600::t_41255f3fa53373 11
+frontend/src/components/editor/connections/secret-combobox.tsx
+  s_d59f488135f600::t_41255f3fa53373 71-72,89
+frontend/src/components/editor/file-tree/renderers.tsx
+  s_d59f488135f600::t_41255f3fa53373 19,42-43,45,52-71,192-193,196,204,207,212,233
+frontend/src/hooks/useDataSourceDiscovery.ts
+  s_d59f488135f600::t_41255f3fa53373 3-14,21-58
+frontend/e2e-tests/slides.spec.ts
+  s_d59f488135f600::t_41255f3fa53373 3,11-13,86-130
+frontend/src/components/editor/file-tree/__tests__/file-explorer-navigation.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-832
+marimo/_data/sql_summaries.py
+  s_d59f488135f600::t_41255f3fa53373 59-65,134-136
+frontend/e2e-tests/visual-regression.container.config.ts
+  s_d59f488135f600::t_41255f3fa53373 1-47
+marimo/_export/requests.py
+  s_d59f488135f600::t_41255f3fa53373 16,81,99
+marimo/_runtime/callbacks/packages.py
+  s_d59f488135f600::t_41255f3fa53373 18-21,63-93,99-113,118-120,128-135,233,236-238,262-265,267-269,297-299,307-314,323,328-329,331-335,337-346,349-363,374-377,383-389
+marimo/_server/ai/completion_output.py
+  s_d59f488135f600::t_41255f3fa53373 1-32
+tests/_runtime/test_primitives.py
+  s_d59f488135f600::t_41255f3fa53373 27-47
+tests/_server/api/test_opentelemetry_middleware.py
+  s_d59f488135f600::t_41255f3fa53373 64,73,97-100,103,124-127,130,142-145,148,159-162,165,225-228,256-259
+frontend/src/core/cells/cells.ts
+  s_d59f488135f600::t_41255f3fa53373 22,1923-1930
+marimo/_plugins/ui/_impl/batch.py
+  s_d59f488135f600::t_41255f3fa53373 17-23,31,207,212,220
+frontend/src/components/editor/chrome/panels/__tests__/packages-panel.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-143
+scripts/benchmarks/file_browser.py
+  s_d59f488135f600::t_41255f3fa53373 1-68
+tests/_runtime/runner/test_hooks.py
+  s_d59f488135f600::t_41255f3fa53373 61,64-65,71,75-78
+tests/_save/loaders/test_loader.py
+  s_d59f488135f600::t_41255f3fa53373 212-213,545-548,552-555,557,579-582,586-589,591,611-636,640-644,647-652,654,661,666-667,671,676-680,683-688,697,702-703,708
+tests/_data/test_sql_summaries.py
+  s_d59f488135f600::t_41255f3fa53373 137-162
+marimo/_runtime/packages/utils.py
+  s_d59f488135f600::t_41255f3fa53373 153,190-249,251,253-254,256,265-270,275,279,302
+packages/llm-info/data/models.yml
+  s_d59f488135f600::t_41255f3fa53373 3-12,25,55,65,75,85,105,114-123,166,196,206,224-273,403-462,505,525,555,565,575,605,614-642,695,715,725,775,785,805,833-836,841,843-845,850,852-854,857,859,861-863,866,868,917,962,971,997-1009,1014-1015,1017-1029,1034-1055,1087,1095,1097,1104-1105,1119,1139,1147,1155,1207,1218-1297,1360
+tests/_data/data_source_discovery/test_discover.py
+  s_d59f488135f600::t_41255f3fa53373 16,35,46,95-96,119
+.github/workflows/pages.yml
+  s_d59f488135f600::t_41255f3fa53373 27
+frontend/src/components/editor/file-tree/file-browser-row.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-82
+tests/_export/test_exporter.py
+  s_d59f488135f600::t_41255f3fa53373 70,147-166,445-489,491-496,498-510,512-516
+frontend/src/utils/json/__tests__/json-parser.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-33
+tests/_save/test_encode.py
+  s_d59f488135f600::t_41255f3fa53373 12-17,145-204
+frontend/src/components/editor/file-tree/use-file-search.ts
+  s_d59f488135f600::t_41255f3fa53373 1-142
+frontend/src/components/data-table/date-popover.tsx
+  s_d59f488135f600::t_41255f3fa53373 48-49
+frontend/src/components/dependency-graph/utils/__tests__/layout.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-78
+marimo/_lint/rules/formatting/parsing.py
+  s_d59f488135f600::t_41255f3fa53373 98,126,132
+marimo/_save/loaders/pickle.py
+  s_d59f488135f600::t_41255f3fa53373 7,14-15,22-46
+marimo/_export/exporter.py
+  s_d59f488135f600::t_41255f3fa53373 9,65,274,498,541,940-942,951-952,954-957,960,962-968,970
+marimo/_smoke_tests/tables/pandas_null_stringify.py
+  s_d59f488135f600::t_41255f3fa53373 43,56,62-74
+tests/_plugins/ui/_impl/tables/snapshots/ordinary.duckdb.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-37
+frontend/src/components/editor/connections/storage/as-code.ts
+  s_d59f488135f600::t_41255f3fa53373 46,263-288,320-321
+marimo/_utils/requests.py
+  s_d59f488135f600::t_41255f3fa53373 50
+tests/_server/ai/test_providers.py
+  s_d59f488135f600::t_41255f3fa53373 3,5-6,11,15-21,29,31,36-37,40,44-308,403-434,996-997,1379-1468
+frontend/src/plugins/impl/anywidget/__tests__/widget-binding.test.ts
+  s_d59f488135f600::t_41255f3fa53373 119
+marimo/_server/main.py
+  s_d59f488135f600::t_41255f3fa53373 15,74
+marimo/_utils/health.py
+  s_d59f488135f600::t_41255f3fa53373 75,78-79,84-86
+tests/_server/test_asgi.py
+  s_d59f488135f600::t_41255f3fa53373 22,416-435
+marimo/_tutorials/markdown_format.md
+  s_d59f488135f600::t_41255f3fa53373 12
+marimo/_data/data_source_discovery/helpers.py
+  s_d59f488135f600::t_41255f3fa53373 9,12,62-75
+marimo/_output/formatters/structures.py
+  s_d59f488135f600::t_41255f3fa53373 7,54,57,97
+frontend/src/components/data-table/row-viewer-panel/row-viewer.tsx
+  s_d59f488135f600::t_41255f3fa53373 192,204
+.github/workflows/release-dev.yml
+  s_d59f488135f600::t_41255f3fa53373 33
+.github/workflows/test_be.yaml
+  s_d59f488135f600::t_41255f3fa53373 26,45,69,136,155,174,193
+frontend/src/core/packages/toast-components.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,5,8-31,33,36,39-42,48,52-60
+packages/llm-info/data/providers.yml
+  s_d59f488135f600::t_41255f3fa53373 6-10
+marimo/_server/files/file_system.py
+  s_d59f488135f600::t_41255f3fa53373 83,92
+tests/_server/api/test_auth.py
+  s_d59f488135f600::t_41255f3fa53373 4-6,17,20,139-140,155-216
+marimo/_cli/export/_common.py
+  s_d59f488135f600::t_41255f3fa53373 4,6,8-9,19,22-24,55-65,67-68,70,72-74,76-77,79,81-88,91-101,103-115,120,125-154,157-158,160
+frontend/src/components/data-table/column-formatting/types.ts
+  s_d59f488135f600::t_41255f3fa53373 16
+marimo/_runtime/packages/pypi_package_manager.py
+  s_d59f488135f600::t_41255f3fa53373 10-13,17-25,259-315,348-358,428-445,487-490,572-574,576-583,612-614,703-717,727
+frontend/src/components/forms/form.tsx
+  s_d59f488135f600::t_41255f3fa53373 63,67-68,73,88,521
+examples/slurm/submit_notebook.py
+  s_d59f488135f600::t_41255f3fa53373 1-83
+marimo/_server/models/home.py
+  s_d59f488135f600::t_41255f3fa53373 44-45
+frontend/src/core/codemirror/markdown/commands.ts
+  s_d59f488135f600::t_41255f3fa53373 44
+frontend/src/components/editor/renderers/slides-layout/slides-layout.tsx
+  s_d59f488135f600::t_41255f3fa53373 11,42-54,69-70
+frontend/src/components/editor/renderers/types.ts
+  s_d59f488135f600::t_41255f3fa53373 40-44
+frontend/src/components/editor/chrome/panels/session-panel.tsx
+  s_d59f488135f600::t_41255f3fa53373 6,10,13,15,31,54,68-73
+marimo/_config/settings.py
+  s_d59f488135f600::t_41255f3fa53373 5,21-27,33-40
+frontend/src/plugins/impl/data-editor/__tests__/glide-data-editor.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 9,11-14,21-28,31-33,65,88,90,94-121
+tests/_server/files/test_os_file_system.py
+  s_d59f488135f600::t_41255f3fa53373 4,7,375-384,661-697,775-858
+tests/_plugins/stateless/status/test_progress.py
+  s_d59f488135f600::t_41255f3fa53373 5,17-19,189,192-194,200-204
+frontend/src/core/network/__tests__/requests-network.test.ts
+  s_d59f488135f600::t_41255f3fa53373 139-145,153-163
+pnpm-workspace.yaml
+  s_d59f488135f600::t_41255f3fa53373 6-9,14,18-22,28-29,35-38
+frontend/e2e-tests/py/visual_tokens.py
+  s_d59f488135f600::t_41255f3fa53373 1-81
+frontend/src/core/kernel/messages.ts
+  s_d59f488135f600::t_41255f3fa53373 14
+tests/_runtime/test_runtime.py
+  s_d59f488135f600::t_41255f3fa53373 1956-2006
+frontend/src/core/cells/document-changes.ts
+  s_d59f488135f600::t_41255f3fa53373 20,636-649,651-656,659-665,668-708,711-813,830-832,920-922,924-926
+tests/_save/test_hash.py
+  s_d59f488135f600::t_41255f3fa53373 1629,1695,1762,2641-2642
+frontend/tailwind.config.cjs
+  s_d59f488135f600::t_41255f3fa53373 47-50,60-69,88-89
+frontend/src/components/editor/connections/add-connection-button.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-132
+marimo/_mcp/code_server/main.py
+  s_d59f488135f600::t_41255f3fa53373 21,49,51,68,151-155
+frontend/src/components/editor/connections/storage/__tests__/__snapshots__/as-code.test.ts.snap
+  ai_agent 120-162
+marimo/_plugins/ui/_impl/tables/geometry.py
+  s_d59f488135f600::t_41255f3fa53373 1-146
+frontend/src/components/variables/__tests__/variables-table.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-110
+frontend/src/components/datasets/icons.tsx
+  s_d59f488135f600::t_41255f3fa53373 10,31,61-62
+marimo/_plugins/ui/_impl/matrix.py
+  s_d59f488135f600::t_41255f3fa53373 306-311
+frontend/src/components/data-table/charts/__tests__/schemas.test.ts
+  s_d59f488135f600::t_41255f3fa53373 17,27,35-47
+tests/_utils/test_subprocess.py
+  s_d59f488135f600::t_41255f3fa53373 194-207
+frontend/src/components/editor/ai/__tests__/staged-cell-submission.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-106
+tests/_pyodide/test_pyodide_acceptance.mjs
+  s_d59f488135f600::t_41255f3fa53373 422-451
+tests/_runtime/packages/test_package_utils.py
+  s_d59f488135f600::t_41255f3fa53373 115-120,135-206
+frontend/src/hooks/useEventListener.ts
+  s_d59f488135f600::t_41255f3fa53373 20
+marimo/_lint/rules/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 2-6
+tests/_cli/test_sandbox.py
+  s_d59f488135f600::t_41255f3fa53373 4,13,16,24-62,131-134,142-150,476-489,652-865
+frontend/src/components/data-table/renderers.tsx
+  s_d59f488135f600::t_41255f3fa53373 74,216,246,257
+frontend/src/components/editor/file-tree/tree-actions.tsx
+  s_d59f488135f600::t_41255f3fa53373 10,44-53
+docs/guides/coming_from/jupyter.md
+  s_d59f488135f600::t_41255f3fa53373 6-12
+frontend/src/components/editor/file-tree/file-explorer.tsx
+  s_d59f488135f600::t_41255f3fa53373 14,19,23,29,54,60,68-69,80-82,85-88,99-106,110-116,119-124,127-129,131-151,154-156,168,177,186-190,204-287,297-334,338-354,356-520,535-537,548-550,552,555,586-587,589-592,595,626,631-632,634,645-650,653,662,674-679,684-687,693,738-740,742,744-745,750-755,757-764,770,772-776,779-785,788,803,844-852,856-867,878,881-882,884-887,895-927,941,951-954,956-959,968,973-984,997-1003,1005,1007,1012,1014,1035-1071
+frontend/src/plugins/impl/DataEditorPlugin.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,8-11,18-20,25,49,60,68-70,74,78,81,89,98-111,124,134-135,138-139,141
+marimo/_data/data_source_discovery/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 7,10,17,20
+packages/llm-info/src/sources/merge.ts
+  s_d59f488135f600::t_41255f3fa53373 50-70,215-216,266-268
+frontend/src/components/ui/__tests__/fullscreen.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-88
+frontend/src/__tests__/__snapshots__/CellStatus.test.tsx.snap
+  ai_agent 47-49,112-114,183-185,411-412
+tests/_config/test_manager.py
+  s_d59f488135f600::t_41255f3fa53373 16,437-451,876-1038
+frontend/src/plugins/impl/vega/__tests__/__snapshots__/make-selectable.test.ts.snap
+  ai_agent 47,54,62-63,65,110,117,125-126,128,175,182,190-191,193,238,255-256,329,346-347,355-356,358,409,426-427,484,501-502,561-562,564,588-589,591,732-733,735,784,801-802,851,867-868,951,968-969,977-978,980,1029,1046-1047,1105,1122-1123,1131-1132,1134,1194,1211-1212,1261,1277-1278,1300-1301,1303,1468,1485-1486,1494-1495,1497,1523-1524,1526,1584-1585,1587,1637,1654-1655,1705,1722-1723,1775,1787-1788,1790,1843,1859-1860,1909,1931-1932,1934,2049,2066-2067,2075-2076,2078,2125,2132,2140-2141,2143,2224,2232-2233,2235,2275,2292-2293,2301-2302,2304,2344,2361-2362,2370-2371,2373,2446,2463-2464,2472-2473,2475,2549,2566-2567,2575-2576,2578,2618,2635-2636,2644-2645,2647,2705,2722-2723,2731-2732,2734,2800,2817-2818,2826-2827,2829,2934,2950-2951,2959-2960,2962,3009,3026-3027,3109-3110,3112,3205-3206,3208,3251,3268-3269,3338,3354-3355,3363-3364,3366,3420,3437-3438,3493,3510-3511
+frontend/src/core/islands/__tests__/bridge.test.ts
+  s_d59f488135f600::t_41255f3fa53373 29-36
+marimo/_convert/common/dom_traversal.py
+  s_d59f488135f600::t_41255f3fa53373 13,259,456
+frontend/src/core/codemirror/language/__tests__/sql.test.ts
+  s_d59f488135f600::t_41255f3fa53373 20,554-555,626-692
+marimo/_tutorials/markdown.py
+  s_d59f488135f600::t_41255f3fa53373 6
+marimo/_lint/rules/formatting/empty_cells.py
+  s_d59f488135f600::t_41255f3fa53373 164
+marimo/_save/loaders/lazy.py
+  s_d59f488135f600::t_41255f3fa53373 18,34,38,41-42,71,73-75,79-81,134-142,144-148,163,222-228,618-620,624-628,637-645,652-656,659-665,667-689,698,706-707,711-714,722,735,737-757,759,765,767-768,771-777,779,781,786-801,807,809,814,816-819,824-826,828,830,835,839,844,850,859-860,866,871,874-875,877-878,881-884,927,930,951,1000,1004,1022,1029-1030,1053,1059,1061-1062,1074,1078,1081-1082,1095,1098-1100,1265,1328-1329,1392,1399,1402-1404,1406,1412,1417-1418
+docs/guides/lint_rules/rules/sql_parse_error.md
+  s_d59f488135f600::t_41255f3fa53373 30
+frontend/src/plugins/plugins.ts
+  s_d59f488135f600::t_41255f3fa53373 100
+frontend/islands/vite.config.mts
+  s_d59f488135f600::t_41255f3fa53373 11,79,121-122
+frontend/src/core/codemirror/language/__tests__/utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 161
+marimo/_runtime/packages/package_manager.py
+  s_d59f488135f600::t_41255f3fa53373 7,58-62,136-166,208-216
+marimo/_environments/environment.py
+  s_d59f488135f600::t_41255f3fa53373 1-348
+tests/_ast/test_cell_manager.py
+  s_d59f488135f600::t_41255f3fa53373 218
+tests/_runtime/runner/test_cell_runner.py
+  s_d59f488135f600::t_41255f3fa53373 7,10,13-19,21,500-664
+marimo/_plugins/stateless/video.py
+  s_d59f488135f600::t_41255f3fa53373 61
+frontend/src/components/app-config/optional-features.tsx
+  s_d59f488135f600::t_41255f3fa53373 23,31-59,110-111,179
+tests/_sql/test_sqlalchemy.py
+  s_d59f488135f600::t_41255f3fa53373 13-17,117-160,355-362,447-560,1047-1050,1084-1100,1124-1125,1128,1136,1225-1263,1282-1284,1286-1287,1290-1293,1296-1299,1302,1307-1332,1334-1359,1363-1365,1367-1376,1378-1383,1387-1390,1392-1405,1407-1421,1423,1427-1436,1438-1446,1450,1454-1462,1465-1466,1609-1620
+marimo/_plugins/ui/_impl/data_editor.py
+  s_d59f488135f600::t_41255f3fa53373 8,24,28,34,54-56,59,61-75,79,82-83,87,102-414,433-438,449-451,478-479,482-483,499-502,506-512,537-538,554,564,569,578,585,588-590,594,596-598,608-609,611-623,625-629,631-638,640-642,653-654,656,661-730,736-749,751-755,781,793-795
+tests/_islands/snapshots/body-dependencies.txt
+  s_d59f488135f600::t_41255f3fa53373 1-12
+marimo/_session/notebook/file_manager.py
+  s_d59f488135f600::t_41255f3fa53373 14-16,42,237,239,418-423,428-429,457-464
+frontend/src/components/ui/button.tsx
+  s_d59f488135f600::t_41255f3fa53373 17,28,33,38,43
+.github/workflows/test_design_md.yaml
+  s_d59f488135f600::t_41255f3fa53373 29
+marimo/_server/api/endpoints/terminal.py
+  s_d59f488135f600::t_41255f3fa53373 43-55,65-66,68-69,407-408,418-420,452-453
+marimo/_lint/diagnostic.py
+  s_d59f488135f600::t_41255f3fa53373 32
+marimo/_server/models/files.py
+  s_d59f488135f600::t_41255f3fa53373 26-35,104-105
+tests/_server/ai/test_mcp.py
+  s_d59f488135f600::t_41255f3fa53373 107,116,139,148-157,502-503,516,518-523,528,530-533,542-549,565-566,570-583,942,974,979,1013,1025,1039,1103,1151,1157,1163-1165,1181,1195,1232,1234,1243,1257-1258,1274,1277,1281,1331,1345-1391,1404-1406,1413,1418,1422,1432-1433,1435-1436,1438-1461,1465-1497,1502,1505,1508-1516,1519-1521,1541-1636,1670,1672-1683,1685-1689,1711,1714,1717,1779,1798-1799,1847-1852,1854,1878-1879,1944,1949-1950,1956-1958,1963,1966,1969,1973,1975,1980,1990,1992-1995,2010,2015,2018-2019,2022,2031-2073,2094,2121
+marimo/_server/ai/skills/marimo-pair/references/rich-representations.md
+  ai_agent 65,159,185-187,220,225,279-280
+marimo/_runtime/runner/scheduler.py
+  s_d59f488135f600::t_41255f3fa53373 73,241
+marimo/_runtime/runtime.py
+  s_d59f488135f600::t_41255f3fa53373 1808,2509-2511,2711
+frontend/.storybook/main.ts
+  s_d59f488135f600::t_41255f3fa53373 4,24-32
+frontend/src/components/editor/actions/export-dialog/export-notebook.ts
+  s_d59f488135f600::t_41255f3fa53373 3-7,28,38,49
+marimo/_config/config.py
+  s_d59f488135f600::t_41255f3fa53373 11,13-14,318,326,339,363,390,402,428,432-433,439,577-602,622,628-656,702,706-707,773,776-777,809,812,841,893-898
+marimo/_config/secrets.py
+  s_d59f488135f600::t_41255f3fa53373 54-55
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.polars.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+marimo/_config/manager.py
+  s_d59f488135f600::t_41255f3fa53373 36,46,233-234,411,438,441,462-463,537-543
+examples/running_cells/multiple_definitions.py
+  s_d59f488135f600::t_41255f3fa53373 5
+frontend/src/components/data-table/filter-by-values-picker.tsx
+  s_d59f488135f600::t_41255f3fa53373 281
+marimo/_code_mode/_packages.py
+  s_d59f488135f600::t_41255f3fa53373 13,21-24,42-64,174-175,184,188,210,213-221,223,225,230,234,270-271,274,278-280,294,299,301,303-304,307,311
+tests/_data/data_source_discovery/test_pyspark.py
+  s_d59f488135f600::t_41255f3fa53373 59-62
+examples/slurm/run_marimo.sh
+  s_d59f488135f600::t_41255f3fa53373 1-11
+marimo/_mcp/dependencies.py
+  s_d59f488135f600::t_41255f3fa53373 1-22
+tests/_environments/test_uv.py
+  s_d59f488135f600::t_41255f3fa53373 1-377
+marimo/_runtime/dataflow/graph.py
+  s_d59f488135f600::t_41255f3fa53373 377
+frontend/src/plugins/impl/vega/vega-component.tsx
+  s_d59f488135f600::t_41255f3fa53373 16,233-236,238-239
+tests/_ast/test_app_typing.py
+  s_d59f488135f600::t_41255f3fa53373 245-314
+tests/_plugins/ui/_impl/test_data_editor.py
+  s_d59f488135f600::t_41255f3fa53373 6-7,12,109-209,224-530,766-783,1612,1619-1626
+frontend/src/components/dependency-graph/panels.tsx
+  s_d59f488135f600::t_41255f3fa53373 7,17,22,28,127-128,201-217
+frontend/src/stories/cell.stories.tsx
+  s_d59f488135f600::t_41255f3fa53373 25-37,39-40
+marimo/_ast/dedent.py
+  s_d59f488135f600::t_41255f3fa53373 16
+frontend/src/components/data-table/types.ts
+  s_d59f488135f600::t_41255f3fa53373 56-61
+frontend/src/components/editor/file-tree/__tests__/renderers.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 2-30,59-129
+marimo/_secrets/secrets.py
+  s_d59f488135f600::t_41255f3fa53373 4,13,19-20,25,37-51
+marimo/_cli/files/file_path.py
+  s_d59f488135f600::t_41255f3fa53373 113,251
+marimo/_session/session.py
+  s_d59f488135f600::t_41255f3fa53373 69,117-128,159-161,180,259,262,286-310,356-359,506-507
+tests/_server/templates/snapshots/export1.txt
+  s_d59f488135f600::t_41255f3fa53373 103,106,110
+frontend/src/core/ai/__tests__/staged-cells.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3-5,9,13-15,20-21,25,37-50,56-59,83,87,167-168,170-171,174,219-249,386,388-390,393-396,399-401,405-414,417-425,427,429-533,536-600,606-610,615,621-637,639-651,653-683,686-709,712-768,771-775,777-801,803-808,810-840
+frontend/src/components/editor/output/ansi-reduce.ts
+  s_d59f488135f600::t_41255f3fa53373 31-32
+marimo/_plugins/ui/_core/ui_element.py
+  s_d59f488135f600::t_41255f3fa53373 467
+tests/_server/ai/test_prompts.py
+  s_d59f488135f600::t_41255f3fa53373 426-428
+tests/_lint/test_rule_selector.py
+  s_d59f488135f600::t_41255f3fa53373 31
+frontend/src/__mocks__/requests.ts
+  s_d59f488135f600::t_41255f3fa53373 51,104-107,139-145
+frontend/src/components/data-table/__tests__/useColumnVisibility.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3-7,10-59,97-192
+frontend/src/components/pages/run-page.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,8,10,20-29,34-36
+frontend/src/components/variables/variables-table.tsx
+  s_d59f488135f600::t_41255f3fa53373 18,139
+marimo/_save/signing_policy.py
+  s_d59f488135f600::t_41255f3fa53373 1-242
+marimo/_session/app_host/host.py
+  s_d59f488135f600::t_41255f3fa53373 13,52-53,60,64,167-172,181-186,194-196
+tests/_save/stubs/test_lazy_asset_codec.py
+  s_d59f488135f600::t_41255f3fa53373 43
+marimo/_schemas/export.py
+  s_d59f488135f600::t_41255f3fa53373 4,10,23-25,28-34,39,52-61,144-145
+marimo/_smoke_tests/issues/10813_column_menu.py
+  s_d59f488135f600::t_41255f3fa53373 2-3,8,12,15,17,20,22-35,39-61,64
+frontend/src/components/editor/ai/staged-cell-submission.ts
+  s_d59f488135f600::t_41255f3fa53373 1-46
+.github/workflows/link-check.yml
+  s_d59f488135f600::t_41255f3fa53373 26
+marimo/_session/app_host/pool.py
+  s_d59f488135f600::t_41255f3fa53373 11,14-21,23,31-32,34-35,37-40,45-46,50-70,72-109,113,116
+frontend/src/components/ui/dialog.tsx
+  s_d59f488135f600::t_41255f3fa53373 45,67,74
+tests/_save/loaders/mocks.py
+  s_d59f488135f600::t_41255f3fa53373 41
+frontend/src/components/editor/renderers/vertical-layout/utils.ts
+  s_d59f488135f600::t_41255f3fa53373 3-10,12-21,24-26,28-32,34-40,42,44-57,59-60,64-67,69-72
+frontend/src/components/editor/chrome/wrapper/pending-ai-cells.tsx
+  s_d59f488135f600::t_41255f3fa53373 7-11,27,64-67,101-102,111,113
+frontend/src/css/index.css
+  s_d59f488135f600::t_41255f3fa53373 2
+tests/_data/data_source_discovery/test_mysql.py
+  s_d59f488135f600::t_41255f3fa53373 89
+frontend/src/components/data-table/show-only-column-button.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-58
+marimo/_session/state/session_view.py
+  s_d59f488135f600::t_41255f3fa53373 4,49,133,136,145-149,151,214,316-320,633-649,651-654,656-659,667-669
+frontend/src/mount.tsx
+  s_d59f488135f600::t_41255f3fa53373 30-40,215-221,330-333,338,374
+.github/actions/install/action.yaml
+  s_d59f488135f600::t_41255f3fa53373 9
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.pandas.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+tests/_plugins/ui/_impl/test_batch.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,11,50-60
+tests/_plugins/ui/_impl/test_plotly.py
+  s_d59f488135f600::t_41255f3fa53373 2863-2866
+tests/_session/managers/test_ipc.py
+  s_d59f488135f600::t_41255f3fa53373 7,150-165,212-568
+frontend/src/components/editor/file-tree/__tests__/file-explorer.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3,7,14-16,22-23,30-32,56,69,84,103,123,137,157,166
+frontend/src/components/app-config/optional-features.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-78
+frontend/src/components/data-table/hooks/use-column-visibility.ts
+  s_d59f488135f600::t_41255f3fa53373 57-132
+marimo/_server/api/endpoints/home.py
+  s_d59f488135f600::t_41255f3fa53373 156-158,176-178
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.shapely_objects.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-16
+marimo/_lint/rules/runtime/private_import_alias.py
+  s_d59f488135f600::t_41255f3fa53373 1-174
+frontend/src/components/static-html/static-banner.tsx
+  s_d59f488135f600::t_41255f3fa53373 16-18,28,66,69,71-73,89-96,98-128,160-230
+marimo/_runtime/_wasm/_concurrency/_mp_pool.py
+  s_d59f488135f600::t_41255f3fa53373 352
+frontend/src/plugins/impl/panel/__tests__/utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 22-23,34,54
+frontend/src/plugins/core/RenderHTML.tsx
+  s_d59f488135f600::t_41255f3fa53373 27-28,36,266-276,312,326,346
+marimo/_ast/app_config.py
+  s_d59f488135f600::t_41255f3fa53373 59,61,76,78
+marimo/_cli/export/thumbnail.py
+  s_d59f488135f600::t_41255f3fa53373 14,108-117,128,143,172,178,222,309-310,320
+marimo/_ast/visitor.py
+  s_d59f488135f600::t_41255f3fa53373 9,41-48,78-80,132,183,437-440,458,460,486-490,494,512,520,546,580,616-627,672-676,690-694,979-980,988
+frontend/src/components/ui/toaster.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,7,9,34,39-48,87-88
+frontend/vite.shared.mts
+  s_d59f488135f600::t_41255f3fa53373 1-36
+docs/guides/exporting/static_html.md
+  s_d59f488135f600::t_41255f3fa53373 57-58
+marimo/_cli/sandbox.py
+  s_d59f488135f600::t_41255f3fa53373 20-29,41-42,57-64,76,114-115,139,143-169,177,185,195-200,206-208,223,233,238,256-257,264,266,268,279-288,293-295,301,305-307,377,381,418-419,423,425,427-432,435,437-440,442,444-468,492,503-602,608,610,614-617,631-632
+frontend/src/components/data-table/column-summary/column-summary.tsx
+  s_d59f488135f600::t_41255f3fa53373 158
+frontend/src/components/editor/file-tree/file-search-results.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-142
+frontend/src/core/codemirror/code-lens/popover.tsx
+  s_d59f488135f600::t_41255f3fa53373 7,43-52
+frontend/src/core/islands/__tests__/parse.test.ts
+  s_d59f488135f600::t_41255f3fa53373 22-28,57,69-95,774,807-908,1124,1211
+frontend/src/utils/__tests__/waitForWs.test.ts
+  s_d59f488135f600::t_41255f3fa53373 18-21
+marimo/_plugins/ui/_impl/input.py
+  s_d59f488135f600::t_41255f3fa53373 613-616
+marimo/_utils/mime.py
+  s_d59f488135f600::t_41255f3fa53373 1-31
+frontend/src/components/editor/renderers/slides-layout/types.ts
+  s_d59f488135f600::t_41255f3fa53373 9-15,31-36,48-49
+marimo/_runtime/context/kernel_context.py
+  s_d59f488135f600::t_41255f3fa53373 167-168,186-204
+tests/_ai/test_pydantic_utils.py
+  s_d59f488135f600::t_41255f3fa53373 5,117-124,142-157,182,213,224-245
+tests/_export/test_auto_exporter.py
+  s_d59f488135f600::t_41255f3fa53373 1-43
+frontend/src/components/editor/package-alert.tsx
+  s_d59f488135f600::t_41255f3fa53373 13,36,60-65,262-265,305-307,317-324,355-356
+tests/_data/data_source_discovery/test_discovery_huggingface.py
+  s_d59f488135f600::t_41255f3fa53373 49-53
+frontend/src/components/editor/connections/storage/add-storage-form.tsx
+  s_d59f488135f600::t_41255f3fa53373 19,93-101,104-109,124
+tests/_data/data_source_discovery/test_discovery_pyiceberg.py
+  s_d59f488135f600::t_41255f3fa53373 98,132
+frontend/src/components/editor/file-tree/file-operations.tsx
+  s_d59f488135f600::t_41255f3fa53373 209
+marimo/_plugins/ui/_impl/tables/selection.py
+  s_d59f488135f600::t_41255f3fa53373 18-29
+frontend/src/components/editor/file-tree/__tests__/file-explorer-interactions.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-141
+marimo/_utils/scripts.py
+  s_d59f488135f600::t_41255f3fa53373 4-10,13-19
+tests/_environments/test_sandbox_interface.py
+  s_d59f488135f600::t_41255f3fa53373 1-744
+frontend/src/components/editor/actions/export-dialog/__tests__/export-dialog.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 16,18-19,24-25,34,36-39,46-49,82-107,115,118,291-305,309-310,316-319,322-350,357-359,361-364,374-439,441-480,482
+docs/guides/exporting/webassembly_html.md
+  s_d59f488135f600::t_41255f3fa53373 16-24,416-420,422
+frontend/src/core/wasm/bridge.ts
+  s_d59f488135f600::t_41255f3fa53373 29,423-430,652,688
+frontend/src/plugins/layout/AccordionPlugin.tsx
+  s_d59f488135f600::t_41255f3fa53373 26,35,48,51-53,55
+tests/_lint/test_files/private_import_alias.py
+  s_d59f488135f600::t_41255f3fa53373 1-68
+.github/workflows/dev_build.yaml
+  s_d59f488135f600::t_41255f3fa53373 20
+frontend/src/components/editor/chrome/panels/file-explorer-panel.tsx
+  s_d59f488135f600::t_41255f3fa53373 5-6,11,13,16-25,37-49,53-61,63-68,79-82,86-91,97-106,117,141,165-169
+frontend/src/components/editor/file-tree/file-name-input.tsx
+  s_d59f488135f600::t_41255f3fa53373 12-16
+frontend/src/core/__tests__/mode.test.ts
+  s_d59f488135f600::t_41255f3fa53373 52-59
+marimo/_data/_external_storage/huggingface.py
+  s_d59f488135f600::t_41255f3fa53373 26,236,289,354,400
+frontend/src/components/data-table/column-formatting/feature.ts
+  s_d59f488135f600::t_41255f3fa53373 217
+frontend/src/core/codemirror/copilot/getCodes.ts
+  s_d59f488135f600::t_41255f3fa53373 4,6,12-29,40-41
+CONTRIBUTING.md
+  s_d59f488135f600::t_41255f3fa53373 86
+frontend/src/plugins/impl/anywidget/__tests__/registry.test.ts
+  s_d59f488135f600::t_41255f3fa53373 102-104,153-155
+frontend/src/components/data-table/__tests__/url-detector.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 101
+frontend/src/utils/url-parser.ts
+  s_d59f488135f600::t_41255f3fa53373 3-4,23,25
+frontend/src/components/editor/connections/database/add-database-form.tsx
+  s_d59f488135f600::t_41255f3fa53373 223-226
+marimo/_server/ai/providers.py
+  s_d59f488135f600::t_41255f3fa53373 30,45,50,53,56,84-86,110-129,132,156,159,203-312,595,626,641,643,876-932,1250-1251
+marimo/_utils/uv.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,7
+tests/_runtime/test_trace.py
+  s_d59f488135f600::t_41255f3fa53373 21,485-486
+frontend/src/core/static/download-html.ts
+  s_d59f488135f600::t_41255f3fa53373 4,18
+marimo/_environments/pixi.py
+  s_d59f488135f600::t_41255f3fa53373 1-512
+marimo/_islands/_island_generator.py
+  s_d59f488135f600::t_41255f3fa53373 17,30,320,363-365,393,735,740-742,750-760
+marimo/_utils/strings.py
+  s_d59f488135f600::t_41255f3fa53373 99
+marimo/_data/data_source_discovery/plugins/aws.py
+  s_d59f488135f600::t_41255f3fa53373 9,66-68
+marimo/_cli/cli.py
+  s_d59f488135f600::t_41255f3fa53373 29,153,286-315,381,383,386-392,491-492,508,572-574,576,580-587,594-597,696,749,751,754-760,785-786,791-792,795-802,1011,1122,1124,1127-1133,1197-1198,1210-1211,1290-1293,1295-1296,1299-1305,1309-1312
+marimo/_export/local_wheels.py
+  s_d59f488135f600::t_41255f3fa53373 35,108,144,179-180,182
+tests/_convert/ipynb/test_ipynb_to_ir.py
+  s_d59f488135f600::t_41255f3fa53373 12,14,102,108,117-118,1535-1760
+marimo/_cli/errors.py
+  s_d59f488135f600::t_41255f3fa53373 4,15,21
+docs/guides/lint_rules/rules/private_import_alias.md
+  s_d59f488135f600::t_41255f3fa53373 1-73
+frontend/src/core/cells/__tests__/document-changes.test.ts
+  s_d59f488135f600::t_41255f3fa53373 36,41-42,44,46,49,707,710-716,742,748,756,762,767-768,774,780-1100
+marimo/_plugins/ui/_impl/file_browser.py
+  s_d59f488135f600::t_41255f3fa53373 69-81,91-92,95,123,125-128,131-132,135,138-139,287-288,562-569
+frontend/src/components/data-table/column-summary/chart-spec-model.tsx
+  s_d59f488135f600::t_41255f3fa53373 839
+tests/_data/_external_storage/test_storage_models.py
+  s_d59f488135f600::t_41255f3fa53373 10,255-269,1041-1053,1462,1470,1500
+tests/_plugins/ui/_impl/tables/test_geometry_fixtures.py
+  s_d59f488135f600::t_41255f3fa53373 1-289
+frontend/src/core/websocket/transports/ws.ts
+  s_d59f488135f600::t_41255f3fa53373 45
+frontend/src/components/editor/chrome/components/feedback-button.tsx
+  s_d59f488135f600::t_41255f3fa53373 9,97,147-149,159-163
+marimo/_save/cache.py
+  s_d59f488135f600::t_41255f3fa53373 45,49,80-83,85-88,592
+frontend/src/core/codemirror/lsp/__tests__/notebook-lsp.test.ts
+  s_d59f488135f600::t_41255f3fa53373 11-12,14,68-88
+frontend/src/core/codemirror/copilot/__tests__/getCodes.test.ts
+  s_d59f488135f600::t_41255f3fa53373 8,15-19,216-274
+marimo/_runtime/context/types.py
+  s_d59f488135f600::t_41255f3fa53373 80-83
+marimo/_ast/pytest.py
+  s_d59f488135f600::t_41255f3fa53373 43-44
+frontend/src/components/slides/__tests__/speaker-view.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-27
+frontend/src/core/config/__tests__/config-schema.test.ts
+  s_d59f488135f600::t_41255f3fa53373 8,50,80,126,156,217-229,336-362
+marimo/_plugins/ui/_impl/dictionary.py
+  s_d59f488135f600::t_41255f3fa53373 15,89,94,103
+frontend/src/components/data-table/row-viewer-panel/__tests__/row-viewer.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 58-73
+frontend/src/components/ui/menu-items.tsx
+  s_d59f488135f600::t_41255f3fa53373 8,19,30,34,57,67,69,71,73
+marimo/_data/preview_column.py
+  s_d59f488135f600::t_41255f3fa53373 239-241
+frontend/src/components/data-table/utils.ts
+  s_d59f488135f600::t_41255f3fa53373 157-177,181-184,189,209
+marimo/_ast/parse.py
+  s_d59f488135f600::t_41255f3fa53373 58,60-62
+marimo/_server/ai/config.py
+  s_d59f488135f600::t_41255f3fa53373 4,25-27,51-57,64,68-74,81,85-90,92-95,100-104,124,128-133,141,145-152,162,166-172,181,185-191,200-228,242,246-250,272-277,279-281,287,296-304,311,331-337,340,342,346,348,350,352,354,356,358,360-362,368-379,381-387,452,477-496
+marimo/_data/models.py
+  s_d59f488135f600::t_41255f3fa53373 20
+tests/_cli/test_cli.py
+  s_d59f488135f600::t_41255f3fa53373 112-116,120-122,124,137-138,141-142,146-187,1389-1441,1450,1453,1459,1984,1994
+docs/guides/configuration/llm_providers.md
+  s_d59f488135f600::t_41255f3fa53373 55-100,121,246,259,261,275,279-282,286-289,292-293,296,299,301-303,305-308
+frontend/src/plugins/impl/data-frames/forms/__tests__/__snapshots__/form.test.tsx.snap
+  ai_agent 35,91,158,207,340,409,542,607,663,713,815,871,927,977,1042,1220,1322,1374,1439,1610,1660,1714,1770,1821,1875
+frontend/src/components/ai/ai-model-dropdown.tsx
+  s_d59f488135f600::t_41255f3fa53373 36,88-91
+marimo/_environments/overlay.py
+  s_d59f488135f600::t_41255f3fa53373 1-126
+tests/_save/stores/test_store_config.py
+  s_d59f488135f600::t_41255f3fa53373 73-140
+tests/_server/ai/tools/test_tool_manager.py
+  s_d59f488135f600::t_41255f3fa53373 3-4,9-10,12-15,76-112
+tests/_server/templates/test_templates_api.py
+  s_d59f488135f600::t_41255f3fa53373 17,120-122,125-151
+frontend/e2e-tests/shutdown.spec.ts
+  s_d59f488135f600::t_41255f3fa53373 6,13,16-17,19-25,33-38
+frontend/src/core/codemirror/language/languages/sql/__tests__/renderers.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 12,14,19-23,34,45,49-53
+marimo/_environments/backends.py
+  s_d59f488135f600::t_41255f3fa53373 1-525
+frontend/src/core/islands/parse.ts
+  s_d59f488135f600::t_41255f3fa53373 33-34,67,241-246,383,415-421,527-529
+frontend/src/components/editor/__tests__/dynamic-favicon.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 127-134,149-156
+marimo/_data/data_source_discovery/plugins/pyiceberg.py
+  s_d59f488135f600::t_41255f3fa53373 17,285,318
+scripts/run-visual-regression.sh
+  s_d59f488135f600::t_41255f3fa53373 1-112
+tests/_server/api/endpoints/test_assets.py
+  s_d59f488135f600::t_41255f3fa53373 29,218-264
+marimo/_server/ai/mcp/transport.py
+  s_d59f488135f600::t_41255f3fa53373 6,8-10,13-14,17,22-36,51-52,58,65-66,70-72,85,91-119
+frontend/src/components/data-table/__tests__/utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 304-305,318-336
+frontend/src/components/editor/actions/types.ts
+  s_d59f488135f600::t_41255f3fa53373 48
+frontend/src/core/network/requests-static.ts
+  s_d59f488135f600::t_41255f3fa53373 70,88
+marimo/_runtime/context/script_context.py
+  s_d59f488135f600::t_41255f3fa53373 152-153,160-164
+marimo/_runtime/layout/layout.py
+  s_d59f488135f600::t_41255f3fa53373 4,27-60,105,114-120
+frontend/src/components/dependency-graph/custom-node.tsx
+  s_d59f488135f600::t_41255f3fa53373 5,8,13-14,18,34,37-46,54,61,68,70-80,82-103,110,117
+marimo/_utils/distributor.py
+  s_d59f488135f600::t_41255f3fa53373 17,20,23,26,39,55-56,62,112-114,122
+tests/_save/stores/test_rest.py
+  s_d59f488135f600::t_41255f3fa53373 1-28
+tests/_server/api/endpoints/test_sse.py
+  s_d59f488135f600::t_41255f3fa53373 90
+marimo/_save/stores/rest.py
+  s_d59f488135f600::t_41255f3fa53373 44-47
+tests/test_project_dependencies.py
+  s_d59f488135f600::t_41255f3fa53373 18-27
+marimo/_runtime/commands.py
+  s_d59f488135f600::t_41255f3fa53373 185-189,633-635,649-650
+frontend/src/core/ai/completion-output.ts
+  s_d59f488135f600::t_41255f3fa53373 1-56
+marimo/_sql/engines/sqlalchemy.py
+  s_d59f488135f600::t_41255f3fa53373 97-103,266,517-524,526,541-561,563-564,584-597,599-610,612,621,628,630,632,635,637-639,643-647,649-650,665-778,790-808,810,816,819-826,829-837
+packages/llm-info/src/__tests__/schema.test.ts
+  s_d59f488135f600::t_41255f3fa53373 99-115
+tests/_ast/test_visitor.py
+  s_d59f488135f600::t_41255f3fa53373 2046-2086
+marimo/_tracer.py
+  s_d59f488135f600::t_41255f3fa53373 219-220,259-262,264-280,282-286,288-289,307-311,328,349
+tests/_output/test_md.py
+  s_d59f488135f600::t_41255f3fa53373 4,11,38-41,669-717
+frontend/src/components/editor/renderers/slides-layout/__tests__/plugin.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3,8-9,40-69,81-95,207
+tests/_utils/test_docs.py
+  s_d59f488135f600::t_41255f3fa53373 31,53
+examples/outputs/plots.py
+  s_d59f488135f600::t_41255f3fa53373 5
+marimo/_utils/versions.py
+  s_d59f488135f600::t_41255f3fa53373 43
+frontend/plugins.openapi.yaml
+  s_d59f488135f600::t_41255f3fa53373 1-5270
+marimo/_schemas/islands.py
+  s_d59f488135f600::t_41255f3fa53373 4,7-11,29
+marimo/_server/asgi.py
+  s_d59f488135f600::t_41255f3fa53373 325-326,346,348
+tests/_config/test_secrets_config.py
+  s_d59f488135f600::t_41255f3fa53373 275-293
+examples/slurm/README.md
+  s_d59f488135f600::t_41255f3fa53373 1-47
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.pyarrow.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+frontend/src/components/editor/file-tree/__tests__/file-viewer.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 18-19,23-24,28,30,67-93,142-154
+tests/_utils/test_parse_dataclass.py
+  s_d59f488135f600::t_41255f3fa53373 20,22-23
+tests/_server/templates/snapshots/export6.txt
+  s_d59f488135f600::t_41255f3fa53373 104,107,111
+tests/conftest.py
+  s_d59f488135f600::t_41255f3fa53373 40-42,281-315,436,529-534,536
+frontend/src/components/home/components.tsx
+  s_d59f488135f600::t_41255f3fa53373 34,173,190-202
+marimo/_session/notebook/serializer.py
+  s_d59f488135f600::t_41255f3fa53373 9,134-138,143-146,152,158-179
+tests/_server/ai/snapshots/system_prompts.txt
+  s_d59f488135f600::t_41255f3fa53373 10,28,42,54,63,84,119,144,175,205,234,258,261-262
+frontend/src/core/network/__tests__/requests-toasting.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,47-68
+.github/workflows/sync-llm-info.yml
+  s_d59f488135f600::t_41255f3fa53373 32,42,48,62-64,120-124
+frontend/src/components/editor/renderers/plugins.ts
+  s_d59f488135f600::t_41255f3fa53373 4,31-36
+frontend/src/plugins/impl/data-frames/__tests__/schema.test.ts
+  s_d59f488135f600::t_41255f3fa53373 4-5,22,31-69
+marimo/_secrets/load_dotenv.py
+  s_d59f488135f600::t_41255f3fa53373 6-7,11-18,24,27-31,35-87,89-112,117-122,141,144
+development_docs/traces.md
+  s_d59f488135f600::t_41255f3fa53373 19-21
+tests/_server/test_directory_scanner.py
+  s_d59f488135f600::t_41255f3fa53373 209-283
+tests/_runtime/packages/test_package_managers.py
+  s_d59f488135f600::t_41255f3fa53373 3,11-12,24-26,65-68,70-74,76-120,122-126,138-139,145-153,155-161,163,165-179,196,200-203,217,227,242,248-251,280,303,328,352,371,622-624,626,648,666,684,702,723
+frontend/src/core/runtime/runtime.ts
+  s_d59f488135f600::t_41255f3fa53373 186-192
+package.json
+  s_d59f488135f600::t_41255f3fa53373 12,14-16,19-20,22
+frontend/src/components/ui/sheet.tsx
+  s_d59f488135f600::t_41255f3fa53373 71
+marimo/_server/ai/skills/marimo-pair/SKILL.md
+  ai_agent 44-63,184-186,194,204-205
+pyproject.toml
+  s_d59f488135f600::t_41255f3fa53373 7,96-97,120-121,228,267,382-394,470,550
+tests/_server/templates/snapshots/export3.txt
+  s_d59f488135f600::t_41255f3fa53373 103,106,110
+marimo/_environments/uv.py
+  s_d59f488135f600::t_41255f3fa53373 1-297
+tests/_server/api/endpoints/test_ws.py
+  s_d59f488135f600::t_41255f3fa53373 22,317-321,326-331
+frontend/.oxlintrc.json
+  s_d59f488135f600::t_41255f3fa53373 56-80
+frontend/src/components/ai/ai-utils.ts
+  s_d59f488135f600::t_41255f3fa53373 18,27,29-30,34,36-46,48-67,69,75
+frontend/src/components/editor/file-tree/__tests__/tree-actions.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-54
+marimo/_convert/ipynb/from_ir.py
+  s_d59f488135f600::t_41255f3fa53373 375,380,382
+frontend/src/components/editor/connections/database/__tests__/as-code.test.ts
+  s_d59f488135f600::t_41255f3fa53373 760,765,770,776,785,794,796-797
+marimo/_plugins/core/media.py
+  s_d59f488135f600::t_41255f3fa53373 14,34,37,40
+tests/_config/test_config_utils.py
+  s_d59f488135f600::t_41255f3fa53373 13,16,291-316
+frontend/src/components/pages/home-page.tsx
+  s_d59f488135f600::t_41255f3fa53373 70,200
+frontend/src/plugins/layout/__test__/AccordionPlugin.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-66
+marimo/_messaging/notification_utils.py
+  s_d59f488135f600::t_41255f3fa53373 56,58
+marimo/_config/utils.py
+  s_d59f488135f600::t_41255f3fa53373 124-152
+frontend/src/core/saving/__tests__/save-component.test.ts
+  s_d59f488135f600::t_41255f3fa53373 4-5,22-48
+frontend/src/utils/__tests__/events.test.ts
+  s_d59f488135f600::t_41255f3fa53373 182
+frontend/src/plugins/impl/matplotlib/__tests__/matplotlib-renderer.test.ts
+  s_d59f488135f600::t_41255f3fa53373 193-248,256,263,289-412
+frontend/src/plugins/impl/data-editor/data-utils.ts
+  s_d59f488135f600::t_41255f3fa53373 5,7-19,21-23,25-31,35-39,44-52,55-56,59,63-65,68-73,77,80-87,89-97,105,110,124-125,138,143-145
+frontend/src/core/packages/useInstallPackage.ts
+  s_d59f488135f600::t_41255f3fa53373 6-9,28-41
+frontend/src/plugins/impl/data-editor/editor-state.ts
+  s_d59f488135f600::t_41255f3fa53373 1-108
+.github/workflows/release-tag.yml
+  s_d59f488135f600::t_41255f3fa53373 51
+marimo/_session/managers/ipc.py
+  s_d59f488135f600::t_41255f3fa53373 11-12,14-17,20,23,27-28,49,53,65-114,188-208,222-223,233-239,279,288,293-310,321,326,331-338,391-401,403-417,419-423,425-426,430-435,437-439,441,445-450,461-463,466-486,493-516,521,524-535,541,544,550-608,617,635,644-661,663-667,669-675,684-685
+tests/_data/snapshots/charts-complex.txt
+  s_d59f488135f600::t_41255f3fa53373 256,281
+frontend/src/components/editor/connections/storage/__tests__/as-code.test.ts
+  s_d59f488135f600::t_41255f3fa53373 332-408,415,423,436,449,462,475-525
+frontend/src/plugins/impl/vega/params.ts
+  s_d59f488135f600::t_41255f3fa53373 5,55-69,81,93-95,108,122,137,143-145
+frontend/src/components/editor/renderers/__tests__/cells-renderer.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 7
+tests/snapshots/optional-dependencies-mcp.txt
+  s_d59f488135f600::t_41255f3fa53373 1-2
+frontend/src/css/app/Cell.css
+  s_d59f488135f600::t_41255f3fa53373 30-31,37,85,307-320,359-366,525
+tests/_plugins/ui/_impl/test_ui_mpl.py
+  s_d59f488135f600::t_41255f3fa53373 73
+frontend/src/core/meta/code-visibility.ts
+  s_d59f488135f600::t_41255f3fa53373 7,23,25
+marimo/_ast/codegen.py
+  s_d59f488135f600::t_41255f3fa53373 545,547
+tests/_utils/test_mime.py
+  s_d59f488135f600::t_41255f3fa53373 1-56
+tests/_islands/test_island_generator.py
+  s_d59f488135f600::t_41255f3fa53373 4,8,12-13,21,149-369
+frontend/src/components/ui/combobox.tsx
+  s_d59f488135f600::t_41255f3fa53373 204
+marimo/_data/data_source_discovery/plugins/huggingface.py
+  s_d59f488135f600::t_41255f3fa53373 8,41-44
+frontend/src/components/editor/chrome/panels/components.tsx
+  s_d59f488135f600::t_41255f3fa53373 11-13,86-116,122
+frontend/src/components/static-html/__tests__/static-banner.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-112
+frontend/src/core/ai/config.ts
+  s_d59f488135f600::t_41255f3fa53373 6,43
+frontend/src/components/ui/__tests__/menu-items.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-31
+frontend/src/plugins/impl/__tests__/DataEditorPlugin.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3-8,11-47,49-52,58,64-179
+tests/_messaging/test_enc_hook.py
+  s_d59f488135f600::t_41255f3fa53373 5,145-155
+frontend/src/components/editor/chrome/panels/packages-panel.tsx
+  s_d59f488135f600::t_41255f3fa53373 25-28,31,46,85-97,100,117-132,136-137,139-168,172,174,191,202,204,207-208,240-244,252-256,258-263,265-268,288-302,445-447,481-483,504,506,521-527,531-539,661-671
+marimo/_lint/rules/runtime/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 6-8,18,24
+frontend/src/components/editor/ai/add-cell-with-ai.tsx
+  s_d59f488135f600::t_41255f3fa53373 27,29,55-56,74,96-103,108-110,116-118,125,130,137-161,166-184,193-205,248-250,254,260
+frontend/src/components/editor/ai/ai-completion-editor.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,13,20,31-35,43,51,56,114,120-130,132-135,137-142,145,151-154,157-190,197,307,315,340,344,456,501,507
+frontend/src/components/editor/output/__tests__/ansi-reduce.test.ts
+  s_d59f488135f600::t_41255f3fa53373 104-107,334-351,385-389,462-463,504-505,585-587,651-652
+tests/_plugins/stateless/test_mpl.py
+  s_d59f488135f600::t_41255f3fa53373 3,13-30,86-104
+.github/workflows/publish-docker.yml
+  s_d59f488135f600::t_41255f3fa53373 34
+marimo/_ast/scanner.py
+  s_d59f488135f600::t_41255f3fa53373 378,616-617
+frontend/src/core/network/requests-toasting.tsx
+  s_d59f488135f600::t_41255f3fa53373 51,53,69
+Makefile
+  s_d59f488135f600::t_41255f3fa53373 101-110,128-131
+tests/_cli/test_cli_export.py
+  s_d59f488135f600::t_41255f3fa53373 31-34,159-162,166,212-227,246-256,259,273-275,670-672,684,995,1296-1298,1320
+frontend/src/core/meta/__tests__/code-visibility.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 9-14,21,28,34,140-156
+marimo/_server/api/endpoints/file_explorer.py
+  s_d59f488135f600::t_41255f3fa53373 4,20,35,48,82-103,131,217,450-451,456
+marimo/_server/api/middleware.py
+  s_d59f488135f600::t_41255f3fa53373 41,182-183,199,325-332
+frontend/src/core/hotkeys/hotkeys.ts
+  s_d59f488135f600::t_41255f3fa53373 461-465
+tests/_environments/test_pixi.py
+  s_d59f488135f600::t_41255f3fa53373 1-644
+tests/_plugins/ui/_impl/test_input.py
+  s_d59f488135f600::t_41255f3fa53373 368-380,918-919
+frontend/src/core/cells/__tests__/collapseConsoleOutputs.test.ts
+  s_d59f488135f600::t_41255f3fa53373 370-402,415-416
+tests/_pyodide/test_pyodide_session.py
+  s_d59f488135f600::t_41255f3fa53373 7,58,417-450,931-967,985-997,1149-1152,1161-1164
+marimo/_dependencies/dependencies.py
+  s_d59f488135f600::t_41255f3fa53373 248,273
+tests/_data/test_charts.py
+  s_d59f488135f600::t_41255f3fa53373 56-62
+marimo/_utils/deep_merge.py
+  s_d59f488135f600::t_41255f3fa53373 52,56,59,61
+tests/_plugins/ui/_impl/test_comm.py
+  s_d59f488135f600::t_41255f3fa53373 393-419
+.github/workflows/test_typos.yaml
+  s_d59f488135f600::t_41255f3fa53373 19
+frontend/src/components/editor/renderers/layout-select.tsx
+  s_d59f488135f600::t_41255f3fa53373 20
+tests/_plugins/ui/_impl/dataframes/test_print_code.py
+  s_d59f488135f600::t_41255f3fa53373 618-680,813,972-1031,1078
+marimo/_lint/rules/runtime/reusable_definition_order.py
+  s_d59f488135f600::t_41255f3fa53373 210
+tests/_secrets/test_secrets.py
+  s_d59f488135f600::t_41255f3fa53373 9-13,138-188
+frontend/src/core/codemirror/language/panel/sql.tsx
+  s_d59f488135f600::t_41255f3fa53373 13,18,36,42,53-91,95-96,103-107,123-133,185-203,224
+frontend/src/components/data-table/filters/types.ts
+  s_d59f488135f600::t_41255f3fa53373 10,12-13
+docs/guides/working_with_data/sql.md
+  s_d59f488135f600::t_41255f3fa53373 229,396,400,402,405-409
+frontend/src/core/kernel/handlers.ts
+  s_d59f488135f600::t_41255f3fa53373 9-10,69,71-74
+frontend/src/utils/__tests__/semaphore.test.ts
+  s_d59f488135f600::t_41255f3fa53373 8-16,212-217
+frontend/src/components/editor/chrome/wrapper/__tests__/pending-ai-cells.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-77
+frontend/src/components/editor/connections/add-connection-dialog.tsx
+  s_d59f488135f600::t_41255f3fa53373 90-94
+marimo/_convert/markdown/flavor/pymdown.py
+  s_d59f488135f600::t_41255f3fa53373 57
+marimo/_plugins/stateless/status/_progress.py
+  s_d59f488135f600::t_41255f3fa53373 27,275-280,473-478
+marimo/_server/ai/mcp/types.py
+  s_d59f488135f600::t_41255f3fa53373 4-15
+frontend/src/plugins/__tests__/plugin-schema.ts
+  s_d59f488135f600::t_41255f3fa53373 1-398
+frontend/src/core/datasets/__tests__/data-source.test.ts
+  s_d59f488135f600::t_41255f3fa53373 109,117
+marimo/_environments/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 1
+frontend/src/components/ui/badge.tsx
+  s_d59f488135f600::t_41255f3fa53373 9,14-16,18,20,22-24
+marimo/_mcp/server/main.py
+  s_d59f488135f600::t_41255f3fa53373 16,33,35,52,71-75
+packages/openapi/api.yaml
+  s_d59f488135f600::t_41255f3fa53373 126-139,255,365-383,1302,1509-1517,1524,1547-1555,1573,1619-1634,1930-1933,1948-1951,2070-2080,2341-2364,2376-2378,2460-2472,2552-2557,2570,2663-2675,2682-2684,2691-2695,2718-2722,2773,3119,3660-3661,3672-3673,3694-3695,4234-4242,4335-4346,4354-4356,4965-4978,5332-5348,5658-5677,5789,6947-6966,7132-7140
+marimo/_lint/rules/breaking/unparsable.py
+  s_d59f488135f600::t_41255f3fa53373 15,37
+tests/_ast/test_load.py
+  s_d59f488135f600::t_41255f3fa53373 454-495
+marimo/_data/data_source_discovery/plugins/trino.py
+  s_d59f488135f600::t_41255f3fa53373 9,101
+frontend/src/components/ui/navigation.tsx
+  s_d59f488135f600::t_41255f3fa53373 59
+frontend/src/components/ui/table.tsx
+  s_d59f488135f600::t_41255f3fa53373 10
+marimo/_server/templates/api.py
+  s_d59f488135f600::t_41255f3fa53373 17,86,111,166,183,213-217,234
+docs/guides/apps.md
+  s_d59f488135f600::t_41255f3fa53373 94-113
+marimo/_server/ai/prompts.py
+  s_d59f488135f600::t_41255f3fa53373 124,127-128,139,166,175,279-280,282
+tests/_data/data_source_discovery/test_postgres.py
+  s_d59f488135f600::t_41255f3fa53373 88
+tests/_data/test_preview_column.py
+  s_d59f488135f600::t_41255f3fa53373 23,604-619
+frontend/src/components/data-table/column-explorer-panel/column-explorer.tsx
+  s_d59f488135f600::t_41255f3fa53373 55,57-58,60,101,170-171,189-190,198-199,232-238,244-247,249-275
+frontend/src/components/editor/file-tree/file-viewer.tsx
+  s_d59f488135f600::t_41255f3fa53373 35,159,164,244
+marimo/_runtime/packages/sandbox_package_manager.py
+  s_d59f488135f600::t_41255f3fa53373 1-191
+tests/_mcp/code_server/test_code_server.py
+  s_d59f488135f600::t_41255f3fa53373 8,56-93
+tests/_plugins/ui/_impl/tables/snapshots/false_positives.polars.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+frontend/src/css/markdown-typography.css
+  s_d59f488135f600::t_41255f3fa53373 1-46
+tests/_secrets/test_load_dotenv.py
+  s_d59f488135f600::t_41255f3fa53373 16,104-192
+frontend/src/core/codemirror/language/languages/sql/sql.ts
+  s_d59f488135f600::t_41255f3fa53373 79-94
+tests/_runtime/packages/test_pypi_package_manager.py
+  s_d59f488135f600::t_41255f3fa53373 3,8,14-15,362-393,441-466,849-882,1279-1320
+tests/_utils/test_uv_tree.py
+  s_d59f488135f600::t_41255f3fa53373 12-16,58-73
+.github/workflows/test_schemas.yaml
+  s_d59f488135f600::t_41255f3fa53373 8,27,29,46-48,72-76,80,86,107-108,110-114,126-128,141,146,148-167
+tests/_server/api/endpoints/test_file_explorer.py
+  s_d59f488135f600::t_41255f3fa53373 12-16,48-115,476-496
+frontend/src/components/data-table/__tests__/column-visibility-dropdown.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 10,24,51-52,55-58,78-82,87-96,292,297-407
+frontend/src/components/editor/renderers/grid-layout/plugin.tsx
+  s_d59f488135f600::t_41255f3fa53373 27,30-35,37-49
+marimo/_export/file.py
+  s_d59f488135f600::t_41255f3fa53373 58-62,87-105,219,236,349,383,473,534
+frontend/src/plugins/impl/data-editor/__tests__/editor-state.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-113
+packages/llm-info/skills/SKILL.md
+  ai_agent 3,11,15-17,26-28,53-54,86-87
+marimo/_runtime/packages/_micropip_streaming.py
+  s_d59f488135f600::t_41255f3fa53373 1-195
+frontend/src/core/cells/__tests__/add-missing-import.test.ts
+  s_d59f488135f600::t_41255f3fa53373 123-142
+frontend/src/core/export/hooks.ts
+  s_d59f488135f600::t_41255f3fa53373 14,60
+frontend/src/utils/__tests__/url-parser.test.ts
+  s_d59f488135f600::t_41255f3fa53373 101-126
+marimo/_config/reader.py
+  s_d59f488135f600::t_41255f3fa53373 33-46,52-54,124-176
+tests/_server/templates/snapshots/export2.txt
+  s_d59f488135f600::t_41255f3fa53373 103,106,110
+frontend/src/components/data-table/charts/chart-spec/types.ts
+  s_d59f488135f600::t_41255f3fa53373 32,55
+frontend/src/components/ui/select.tsx
+  s_d59f488135f600::t_41255f3fa53373 128
+frontend/src/components/app-config/ai-config.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,46,57-60,582-586,879-911,918,924-927,971-1003,1555-1556,1567-1574,1591-1594,1732-1734,1777-1781,1784,1792-1805
+frontend/src/core/export/layout.ts
+  s_d59f488135f600::t_41255f3fa53373 1-9
+frontend/src/core/layout/state.ts
+  s_d59f488135f600::t_41255f3fa53373 1-121
+frontend/src/components/editor/actions/export-dialog/__tests__/export-notebook.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3,43-46,53-56,69,82,85,95
+frontend/src/components/editor/connections/__tests__/add-connection-button.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-129
+frontend/src/components/editor/file-tree/__tests__/upload.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-230
+frontend/src/core/wasm/worker/types.ts
+  s_d59f488135f600::t_41255f3fa53373 26,88
+marimo/_cli/parser_ux.py
+  s_d59f488135f600::t_41255f3fa53373 4,82,85,89,92-96,101
+marimo/_data/data_source_discovery/models.py
+  s_d59f488135f600::t_41255f3fa53373 54-81,93
+marimo/_data/charts.py
+  s_d59f488135f600::t_41255f3fa53373 124,731,835
+marimo/_runtime/packages/package_managers.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,17-20,32-36,38-44,49-66,68-70
+marimo/_runtime/virtual_file/virtual_file.py
+  s_d59f488135f600::t_41255f3fa53373 24,71
+frontend/src/components/ui/date-input.tsx
+  s_d59f488135f600::t_41255f3fa53373 32
+.github/workflows/test_marimo_lsp.yaml
+  s_d59f488135f600::t_41255f3fa53373 24,27
+frontend/src/components/editor/chrome/types.ts
+  s_d59f488135f600::t_41255f3fa53373 76
+tests/_plugins/ui/_impl/tables/snapshots/ordinary.duckdb.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+tests/_plugins/ui/_impl/test_dates.py
+  s_d59f488135f600::t_41255f3fa53373 140-157
+marimo/_server/ai/skills/marimo-pair/references/gotchas.md
+  ai_agent 14,17,33,50-54,68,91
+frontend/src/plugins/core/__test__/RenderHTML.test.ts
+  s_d59f488135f600::t_41255f3fa53373 453-516
+tests/_server/api/endpoints/test_packages.py
+  s_d59f488135f600::t_41255f3fa53373 25-72,76-77,103-107,134-138,162,199,216,230-234,250-254,458,496-511,525-528,532-567,618-622,626-686,705-709,713-737,792-796,819-823,840-844,858-859,862,897-941,974-976,1003-1036
+frontend/src/components/editor/connections/__tests__/quick-add-data-sources.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 31,56
+frontend/src/__mocks__/common.ts
+  s_d59f488135f600::t_41255f3fa53373 116-117,119-121,126-128
+frontend/src/components/editor/file-tree/upload.tsx
+  s_d59f488135f600::t_41255f3fa53373 3-7,10,12,14,20-52,54,58,83,88-93,95-102,104-157,159-265
+frontend/src/core/codemirror/rtc/extension.ts
+  s_d59f488135f600::t_41255f3fa53373 50-53,160
+marimo/_server/files/os_file_system.py
+  s_d59f488135f600::t_41255f3fa53373 5,11,13,15,22-25,99,122-123,139,183-185,190-200,351,356,365-382,384-397,399-400,402-403,405,407,409-410,412-435,475-485
+frontend/src/components/storage/storage-file-viewer.tsx
+  s_d59f488135f600::t_41255f3fa53373 240
+frontend/src/core/websocket/useMarimoKernelConnection.tsx
+  s_d59f488135f600::t_41255f3fa53373 43,63-64,215,244-246,259-264,275,326,334-336
+.github/workflows/notify-readme-owners.yml
+  s_d59f488135f600::t_41255f3fa53373 24
+docs/guides/molab.md
+  s_d59f488135f600::t_41255f3fa53373 349-356
+docs/guides/editor_features/ai_completion.md
+  s_d59f488135f600::t_41255f3fa53373 156
+marimo/_cli/development/commands.py
+  s_d59f488135f600::t_41255f3fa53373 342,364,375,838,845
+marimo/_runtime/dataflow/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 186
+scripts/generate-design-md.ts
+  s_d59f488135f600::t_41255f3fa53373 91-105,114,117,169-201,265,732-733,737-738,742-743,749-750,757-758
+tests/_runtime/watch/test_watch.py
+  s_d59f488135f600::t_41255f3fa53373 10-11
+tests/_save/test_extensionless_script.py
+  s_d59f488135f600::t_41255f3fa53373 1-59
+frontend/src/components/dependency-graph/elements.ts
+  s_d59f488135f600::t_41255f3fa53373 7,9,11-34,38-41,45-46,51-141,146-177,213,216-217,220-221,223,238,240-245,271-277,279-280,282,285,288,297-303,306-307,309,322-329,332-334,342,346,349-361,368-372,383,388-390
+marimo/_server/workspace/_base.py
+  s_d59f488135f600::t_41255f3fa53373 48-57
+frontend/src/components/data-table/columns.tsx
+  s_d59f488135f600::t_41255f3fa53373 10,17,199-216,218-220,223-241,243-249,251-260,262-265,267-279,281-284,287-288,290-340,385,388,397,399,402,418,439-442,445-452,454-459,462-463,466-472,477-481,488-509,539-540,635,694-715,739-740,742
+tests/_config/test_config.py
+  s_d59f488135f600::t_41255f3fa53373 18-28,35-47,288-314
+docs/api/media/video.md
+  s_d59f488135f600::t_41255f3fa53373 9
+marimo/_server/api/endpoints/export.py
+  s_d59f488135f600::t_b1e325d87daef7 27,46,55,57,68,72-73,92-118,135-175,177-195,197,245-248,262,307-310,319,328-331,336,347,352-355,357,359-360,585-588,601-604,606,608-609,682-685,699-702,704
+frontend/src/components/ui/__tests__/badge.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-63
+tests/_server/ai/test_ai_config.py
+  s_d59f488135f600::t_41255f3fa53373 235-247,334,336,338-339,352-374,418-437,509-520,728-767,780-811,1240-1242,1268-1279
+tests/_plugins/ui/_impl/test_table.py
+  s_d59f488135f600::t_41255f3fa53373 5,1405-1421,2063
+tests/_server/api/endpoints/test_export.py
+  s_d59f488135f600::t_41255f3fa53373 4,26-35,39,47,51-53,67-97,295-444,450-474,485-490,985,996,998,1001-1007,1011-1025,1027-1030,1032-1050,1053-1076,1078-1080
+tests/_server/test_workspace.py
+  s_d59f488135f600::t_41255f3fa53373 753-774
+frontend/src/core/datasets/data-source-connections.ts
+  s_d59f488135f600::t_41255f3fa53373 7,17,47-48,114,140-141,167-171,177,190-193,351-383
+marimo/_utils/inline_script_metadata.py
+  s_d59f488135f600::t_41255f3fa53373 13,46,104,122,284,306,413
+frontend/src/core/codemirror/go-to-definition/utils.ts
+  s_d59f488135f600::t_41255f3fa53373 13,185
+frontend/src/core/mode.ts
+  s_d59f488135f600::t_41255f3fa53373 4,102-106
+marimo/_plugins/ui/_impl/dataframes/transforms/print_code.py
+  s_d59f488135f600::t_41255f3fa53373 52,320
+pnpm-lock.yaml
+  ai_agent 8-11,23-24,29-30,32-33,35-36,41-42,47,50-51,53-54,62,68-69,71,74-75,77,80,86-87,92-93,96,99,102,105,111,114,116-117,122-123,125,131,134-135,137-138,140-141,144,147,150,159,165,174,177,179-180,183,185-186,188-189,191-192,195,197-198,201,216,218-219,221-222,228,254-255,267,272-273,275-276,284-285,290-291,296-297,302-303,305-306,308-309,311-312,314,318,320-321,323-324,332-333,335-336,338,341-342,348,350-351,354,357,359-360,363,368-369,372,375,378,381,384,387,390,392-393,396,404-405,410-411,413-414,419-420,422,429,438,441,443-444,446-447,449-450,458-459,464-465,469,472,474-475,477-478,480-481,483-484,486-487,490,501,504-505,507-508,510-511,516-517,519-520,531-532,536-538,540-541,543-544,546-547,549-550,552-553,555-556,558-559,570-571,573-574,577,579-583,591-592,594-595,597-598,603-604,610,623,628-629,634-635,656,659-660,669-670,675-676,703-704,709-710,715-716,721-722,725-726,729,778-779,794-795,811-812,819-820,831-832,846,851-852,887-888,923-924,929-930,941-945,1028-1029,1034,1039-1040,1046,1052,1057,1062-1069,1071-1072,1074-1078,1099,1115,1126,1303-1304,1324-1337,1341-1342,1346-1347,1351-1362,1364-1372,1374-1375,1377-1378,1380-1386,1388,1390-1393,1401-1402,1405-1425,1427-1481,1486-1487,1492-1498,1505-1507,1514-1516,1518-1520,1527-1528,1547,1613-1614,1619-1620,1642,1689-1690,1722,1728,1730-1731,1737-1738,1752-1753,1769,1780,1794,1816,1821-1826,1844-2156,2158-2162,2164-2168,2170-2174,2176-2180,2182-2187,2189-2194,2196-2201,2203-2208,2210-2215,2217-2222,2224-2229,2231-2236,2238-2242,2244-2248,2250-2251,2253-2254,2256-2260,2262-2263,2268-2269,2274-2275,2280-2281,2286-2287,2292-2293,2298-2299,2304-2305,2311-2312,2318-2319,2325-2326,2332-2333,2339-2340,2346-2347,2353-2354,2360-2361,2366-2367,2372-2373,2378-2379,2384-2385,2390-2391,2396-2397,2402-2403,2408-2409,2414-2415,2420-2421,2426-2427,2433-2434,2440-2441,2447-2448,2454-2455,2461-2462,2468-2469,2475-2476,2482-2483,2488-2489,2494-2495,2500-2501,2513-2515,2554-2555,2567-2568,2580-2581,2593-2594,2606-2607,2619-2620,2632-2633,2645-2646,2658-2659,2670,2680-2681,2692,2702-2703,2714,2724-2725,2737-2738,2749,2759-2760,2772-2773,2785-2786,2796,2802,2812-2813,2825-2826,2838-2839,2851-2852,2864-2865,2877-2878,2890-2891,2903-2904,2916-2917,2929-2930,2942-2943,2955-2956,2968-2969,2981-2982,2994-2995,3007-3008,3020-3021,3033-3034,3046-3047,3058,3067,3077-3078,3090-3091,3103-3104,3116-3117,3129-3130,3142-3143,3155-3156,3167,3176,3185,3194,3203,3212,3221,3230,3239,3249-3250,3263-3264,3269-3270,3275-3276,3281-3282,3287-3288,3293-3294,3299-3300,3305-3306,3311-3312,3317-3318,3323-3324,3329-3330,3335-3336,3341-3342,3347-3348,3353-3354,3359-3360,3365-3366,3371-3372,3377-3378,3383-3384,3389-3390,3398-3399,3404-3405,3410-3411,3416-3417,3422-3423,3428-3429,3434-3435,3440-3441,3446-3447,3452-3453,3458-3459,3464-3465,3471,3476-3477,3482-3483,3488-3489,3494-3495,3500-3501,3506-3507,3512-3513,3518-3519,3524-3525,3530-3531,3536-3537,3542-3543,3548-3549,3572,3577,3582,3587,3592,3597,3602,3607,3612,3617,3625,3630,3635-3636,3641,3646,3651,3656,3661,3666,3671,3676,3681,3686,3691,3696,3701,3706,3711,3716,3721-3722,3727,3732,3737,3742,3747,3752,3757,3762,3767,3772,3777,3782,3787,3792,3797,3802,3807,3812,3817,3822,3827,3832,3837,3842,3847,3852,3857,3862,3867-3868,3873-3874,3879-3880,3885-3886,3891-3892,3897-3898,3941-3945,3956-3957,3960-3967,3972-3973,3978-3979,3984-3985,3990-3991,3996-3997,4003-4004,4010-4025,4031-4032,4038-4039,4044-4045,4050-4051,4056-4057,4193-4194,4196-4200,4202-4203,4205-4207,4209-4210,4214-4215,4217-4218,4220-4221,4225-4226,4241-4242,4244,4246-4247,4249-4258,4260-4261,4263-4270,4272-4273,4275-4279,4282-4285,4289-4290,4292,4376-4377,4379-4380,4385-4386,4391-4392,4397-4398,4403-4404,4409-4410,4416-4417,4423-4424,4430-4431,4437-4438,4449-4450,4455-4456,4461-4462,4465-4466,4468-4469,4471,4477-4478,4480-4481,4483-4484,4490-4491,4493-4494,4501-4510,4518-4519,4538-4539,4541-4542,4546-4547,4551-4552,4554,4556-4557,4559,4561-4562,4566-4567,4586-4587,4610-4611,4652-4653,4670-4671,4682-4683,4795-4796,4810-4811,4816-4817,4829-4830,4835-4837,4908-4909,4911-4912,4922-4923,4927-4928,4935-4936,4942-4944,4959-4960,4963-4973,4975-4976,4978-4979,4987-4988,4990-4991,4994,5004-5005,5007-5008,5010-5011,5016-5017,5022-5023,5144-5145,5269-5270,5450-5453,5529-5530,5599-5602,5740-5741,5754-5755,5769-5770,5773,5775-5776,5779,5781-5782,5785,5808-5809,6022-6023,6036-6037,6039-6040,6103-6104,6174-6175,6244-6245,6278-6280,6289-6291,6401-6402,6457-6462,6466-6471,6543-6544,6721-6722,6769-6770,6812-6813,6830-6831,6843-6844,6847,6890-6891,6930-6932,7130-7131,7134-7135,7138-7139,7141-7142,7148,7163-7164,7235-7237,7249-7254,7296-7301,7308-7313,7320-7325,7332-7337,7344-7349,7357-7363,7371-7377,7385-7391,7399-7405,7412-7425,7434-7437,7497-7498,7513-7514,7516,7528-7529,7554-7555,7658-7659,7812-7813,7829-7831,7836-7837,7925-7928,7973-7985,7988-7995,7997-7998,8002-8003,8007-8008,8033-8034,8074-8080,8154-8155,8186-8188,8191-8193,8196-8197,8222-8223,8226,8228-8229,8232,8234-8235,8238,8240-8241,8244,8246-8247,8250,8252-8253,8256,8276-8277,8280,8282-8283,8286,8288-8289,8292,8294-8295,8298,8300-8301,8304,8306-8307,8310,8312-8313,8316,8318-8319,8322,8324-8325,8328,8330-8331,8334,8336-8337,8340,8342-8343,8346,8348-8349,8352,8354-8355,8358,8360-8361,8364,8366-8367,8370,8372-8373,8377-8378,8381,8383-8384,8387,8402-8403,8406-8407,8410,8412-8413,8416,8421-8422,8508-8509,8534-8535,8537-8538,8543-8544,8549-8550,8552-8553,8560-8561,8575,8590,8608-8609,8611,8616-8617,8619-8620,8623,8632,8638-8639,8645,8663,8668-8669,8679,8689,8697-8698,8703,8711,8718,8726-8727,8732,8737-8738,8741-8742,8744-8745,8751-8752,8754-8755,8761-8762,8815-8816,8842-8843,8893-8894,8900-8901,8903-8904,8906-8907,8951-8953,8990-8992,9090-9091,9115-9116,9118-9119,9122,9124,9126-9127,9130-9131,9139-9140,9142-9143,9148-9150,9231-9232,9235,9257-9258,9303-9304,9308-9309,9315,9334-9335,9440-9442,9444-9445,9462-9463,9511-9512,9529-9530,9576-9577,9591-9592,9638-9641,9660-9661,9663-9664,9712-9713,9720,9728-9729,9736,9744,9749-9750,9771-9772,9795-9796,9801-9802,9807-9809,9828-9829,9835-9836,9838-9839,9850-9851,9856-9857,9862-9863,9877-9878,9895-9897,9904-9905,9938-9981,9983-9985,9989-9996,9999,10003,10007-10015,10035-10037,10039-10040,10042-10043,10188-10189,10239-10240,10284-10285,10293,10308,10357,10359-10360,10362,10364,10366-10368,10370,10372,10374,10378-10379,10381,10385,10387-10392,10401-10402,10429,10432,10442,10444-10448,10450,10452-10456,10458-10460,10462-10463,10467,10470-10472,10476-10490,10496-10497,10504,10506,10511,10513,10518,10534,10549,10553,10559,10562,10566,10606,10622,10653,10658,10664,10666,10682,10727,10754,10765,10770,10776,10783,10786,10790,10797,10808,10811,10818-10819,10856,10860-10862,10864,10866,10869,10871,10873,10875,10883,10885,10887,10890,10892-10895,10898,10900-10902,10905,10907-10909,10912,10914,10919-10931,10936,10941-10946,10983,10989,10993,10995,11009,11014,11016,11018,11020,11026,11028,11123,11126-11127,11157-11163,11166,11169,11172,11175,11178-11181,11183,11185-11208,11210,11212,11216-11218,11223,11226-11231,11235,11239,11245-11247,11249-11250,11252,11255,11257-11258,11262,11264-11266,11268-11269,11272,11275,11277-11279,11281-11282,11287,11289,11291,11294,11298,11324,11328,11419,11430,11466,11473,11521,11524,11527,11532,11534,11536,11540,11543,11548,11551,11554,11556,11559-11560,11562,11564,11583,11594,11598-11600,11602,11606-11607,11609,11611-11613,11615,11618,11620,11622,11624,11632,11634-11635,11637,11640-11643,11647,11649-11651,11653,11655,11657,11660,11664,11667-11674,11676,11678-11680,11757-11758,11766-11938,11940-11950,11952,11955,11958,11961,11964,11967,11970,11973,11976,11979,11982,11985,11988,11991,11994,11997,12000,12003,12006,12009,12012,12015,12018,12021,12024,12027,12030,12033,12036,12039,12042,12045,12048,12051,12054,12057,12060,12063,12073,12075,12142,12144-12146,12148-12149,12151,12154-12163,12165-12166,12168,12171-12177,12179-12180,12182,12184-12186,12188-12189,12191,12193-12195,12197-12208,12210-12211,12213,12216-12224,12226-12227,12229,12232-12240,12242-12243,12245,12247-12252,12254-12255,12257,12259,12261,12263,12266-12272,12274-12275,12277,12279,12281,12283,12286-12296,12298-12300,12302-12303,12305,12307,12309,12311,12314-12319,12321-12322,12324,12327-12334,12336-12337,12339,12341,12343,12345,12347-12351,12353-12354,12356,12359-12365,12367-12368,12370,12373-12382,12384-12385,12387,12389,12391,12393-12394,12396,12398,12400-12402,12404-12405,12407,12410-12424,12426-12428,12430-12431,12433,12436-12446,12448-12449,12451,12454-12468,12470-12471,12473,12477-12488,12490-12491,12493,12496-12504,12506-12507,12509,12512-12523,12525-12527,12529-12542,12544-12545,12547-12548,12550,12552-12555,12557-12558,12560,12562-12565,12567-12568,12570,12572-12574,12576-12577,12579,12581-12583,12585-12586,12588,12590-12593,12595-12596,12598,12601-12611,12613-12614,12616,12619-12628,12630-12631,12633,12637-12645,12647-12648,12650,12654-12670,12672-12674,12676-12677,12679,12681-12683,12685-12686,12688,12692-12702,12704-12705,12707,12709-12710,12712,12714,12716-12717,12719,12721,12724-12731,12733-12734,12736,12739-12747,12749-12750,12752,12755-12767,12769-12770,12772,12775-12782,12784-12785,12787,12790-12793,12795-12796,12798,12801-12808,12810-12811,12813,12816-12828,12830-12831,12833,12835,12837,12839,12841-12843,12845,12847,12849-12850,12852,12854,12856-12857,12859,12861,12863-12864,12866,12868,12870,12872,12874,12876,12878,12880,12883,12885,12887,12889-12890,12892,12894,12896-12898,12900-12901,12905-12919,12921-12922,12924,12926-12930,12932-12933,12935,12937-12942,12944-12945,12947,12949-12951,12953-12957,12959-12973,12975-12976,12978,12980-12983,12985-13002,13004-13005,13007,13009-13012,13014-13024,13026-13027,13029,13031,13034-13047,13049-13050,13052,13054-13058,13060-13061,13063,13065-13068,13070-13071,13073,13076-13077,13079-13084,13086-13087,13089,13091-13093,13096-13097,13099,13101-13104,13106-13107,13109,13111-13113,13115-13122,13124-13137,13139-13140,13142,13144,13148-13150,13152-13153,13155,13157-13158,13160,13162-13163,13165,13167-13168,13170-13171,13173,13175-13176,13178-13180,13182,13184-13187,13189-13201,13203-13204,13210-13224,13226-13227,13229,13231-13233,13235-13236,13238,13240-13241,13243-13250,13252-13253,13255,13257-13262,13264-13267,13269-13270,13272,13274-13278,13280-13293,13295-13306,13308-13325,13327-13328,13330,13332-13337,13339-13340,13342,13344-13345,13347-13358,13360-13361,13363,13365,13367-13369,13371-13372,13374,13377,13379,13381-13384,13386-13387,13389,13391-13394,13396-13398,13400-13404,13406-13417,13419-13432,13434-13446,13448-13459,13461-13462,13464,13466-13470,13472-13473,13475,13477-13480,13482-13483,13485,13487-13491,13493-13504,13506-13507,13509,13511,13513-13514,13517-13518,13520,13522-13526,13528-13529,13531,13533-13535,13537-13538,13552,13554,13556,13558,13560-13563,13565,13567,13569-13572,13574,13576,13578,13580,13582,13586-13591,13593,13595,13597-13603,13605,13607,13609,13611,13613,13615,13618-13622,13624,13626,13628-13629,13631,13633,13635-13636,13638,13644,13646,13648,13650,13652-13655,13657,13659,13661-13666,13668-13669,13671,13673-13676,13678,13680,13682-13684,13686,13688,13691-13693,13695,13697,13699-13700,13702,13704,13706-13709,13711,13713,13715-13716,13718,13720,13722-13727,13729,13731,13733-13735,13737,13739,13741-13743,13745,13747,13749,13751-13756,13758,13760,13762-13764,13766,13768,13771-13772,13774,13776-13778,13780,13782,13784-13785,13787,13789,13791-13794,13796,13798,13801,13803,13805,13807-13808,13810,13812-13815,13817,13819-13821,13823,13825-13826,13828,13830-13832,13834,13836-13837,13839,13841-13843,13845,13847-13848,13850,13852-13856,13858,13860-13862,13864,13866-13867,13869,13871-13872,13874,13876-13877,13879,13881-13882,13884,13886-13888,13890,13892-13893,13895,13897-13898,13900,13902-13903,13905,13907-13908,13910,13912-13913,13915,13917-13919,13921,13923-13924,13926,13928,13930,13932-13933,13935,13937-13938,13940,13942-13944,13946,13948-13949,13951,13953-13954,13956,13958-13960,13962,13964,13966-13968,13973,13975,13977-13979,13984,13994-13996,14001,14003,14009-14011,14016,14018,14022-14024,14029,14031,14033-14035,14063,14068,14078,14086,14092-14094,14096,14100-14101,14103,14105-14107,14109,14112,14115,14118,14121,14124,14127,14130,14133,14136,14139,14142,14145,14148-14149,14151-14152,14154,14160,14235,14237-14246,14248,14254,14257,14259-14260,14262,14264-14267,14273,14275,14280-14281,14285,14287,14289,14291-14296,14298,14300,14302-14303,14306,14308,14310,14312-14314,14316-14317,14323,14326-14327,14330-14331,14333-14334,14339,14341-14342,14394,14396-14397,14406,14408,14411-14412,14416,14418,14421,14424,14427,14430,14433,14436,14439,14442,14445,14448,14451,14454,14456-14469,14472-14475,14477,14482,14485-14486,14488,14490-14492,14496,14498,14506,14518-14530,14533-14535,14537-14538,14540,14542,14544,14546-14548,14551-14553,14558,14561,14564,14567,14570,14573,14607,14616-14617,14624,14628-14629,14633,14642,14658,14681,14697,14707,14728,14742,14748,14752,14769,14854,14868,14872,14874,14878,14880,14882,14884,14890-14893,14948,14950-14951,14953,14956,14961,14963,14975,14986-14987,14989,15000,15003,15006-15007,15009-15010,15019-15023,15026,15031,15037,15039-15042,15044,15047-15056,15066,15068,15070-15073,15075,15077,15081-15082,15084,15086,15090-15091,15097,15099,15101,15103,15106,15108-15109,15117,15125,15127-15129,15285,15287-15290,15389,15573-15574,15641,15643-15648,15664,15669,15735-15736,15835,15837,15863,15866,15883,15891,15894-15931,15933,15946,15949,15951,15954,15956,15992,16194,16218,16220,16265,16267,16332,16403,16424-16427,16438-16440,16574,16652-16657,16660-16667,16674,16676,16750,16755,16801,16995,17034,17090,17150-17153,17167,17180,17183-17184,17188,17241,17274-17275,17323,17423,17425,17427-17428,17430,17434-17435,17439,17463,17479,17514-17515,17535,17539-17542,17573-17575,17579-17581,17585-17587,17591-17593,17597-17599,17603-17605,17609-17611,17615-17617,17621-17623,17627-17629,17633-17635,17652-17667,17712,17715-17716,17718,17730,17732,17744,17746-17747,17816,17831,17972,17984,18014,18016-18018,18020-18023,18026-18031,18033,18035-18037,18120,18296,18298-18300,18303-18304,18309,18312-18313,18322,18324-18326,18329-18330,18335,18338-18339,18353,18361,18376,18444-18445,18502-18571,18575-18595,18597-18615,18637,18686,18689-18690,18747,18769,18771,18773,18777,18839,18841-18842,18845,18847,18850,18853,18856,18859,18861-18862,18864,18866,18868,18870,18872,18874,18876,18880-18882,18884,18886,18888,18890,18894-18896,18898,18900,18903,18905-18907,18910,18913-18914,18917,18919-18920,18922-18923,18925,18927,18929,18931,18934,18936,18939,18941,18944,18946,18949,18951,18954,18957,18960,18962,18965,18967,18970,18972-18973,18976,18978,18980,18984,18986,18988,18993,18995,19002,19007,19009,19011,19013,19015-19016,19020,19022,19078,19108,19111-19166,19168-19169,19191,19193-19194,19196-19197,19199,19205,19207,19209-19213,19215-19230,19233-19237,19239,19242-19286,19289,19292-19293,19295-19296,19311,19318,19321,19323,19330,19333,19343,19354,19356,19359,19363-19364,19366,19371,19377,19380,19382,19387-19390,19393,19395,19407,19411,19416,19420,19425,19427-19428,19432,19434-19435,19438,19440,19442-19444,19446-19447,19449,19451,19453-19454,19456,19459-19460,19470-19500,19503,19506,19508,19514-19515,19517,19519,19521,19524-19526,19528,19530-19531,19533,19537-19538,19540,19542,19544-19551,19665,19667,19675-19676,19733,19743,19788,19792,19794,19796,19798-19799,19801-19815,19883,19932-19933,20038,20082,20084,20087-20088,20090,20095,20097-20098,20101-20104,20118,20124-20126,20132-20133,20135-20136,20142-20143,20233,20236-20237,20254,20278,20280-20281,20295,20352,20355,20357,20360,20362,20364,20367-20368,20391,20401,20407,20409,20411,20422,20426,20467,20469,20471-20472,20482,20531,20545,20563,20574,20580,20584,20598,20600-20605,20615,20657-20658,20685,20691,20696,20700,20717,20743,20746-20748,20754,20756,20759,20761,20764-20765,20767,20770,20773,20775,20777,20781,20797-20798,20800,20802-20804,20806,20814,20816,20823-20825,20838,20840,20843,20848-20849,20851,20856-20857,20864-20883,20885-20886,20894,20897,20902-20903,20907,20912-20914,20932,20939,20942,20946-20947,20949,20951,20953-20955,20961,20966,20968,20972-20973,20975,20981-20982,20989-20991,20993,20998-21000,21004,21007-21008,21014,21017,21023,21025,21029,21033,21037,21042,21044-21045,21055-21063,21069,21073-21075,21081-21083,21085-21086,21091-21092,21097-21098,21100,21105,21110,21115-21116,21120,21126,21153,21155,21157,21159-21170,21172,21174-21197,21199,21201-21202,21204-21207,21210-21211,21216-21226,21228,21230-21231,21233-21236,21240,21251,21253,21255-21256,21258,21298,21310,21322,21424,21450,21521,21523,21525,21527-21528,21530,21532-21534
+frontend/src/core/codemirror/code-lens/extension.ts
+  s_d59f488135f600::t_41255f3fa53373 32-35,40-133,144-146,160-163,165-166,197-203,206,210-213,218,221,225,228,230-236,239,241-242,356-358,365-368,389
+frontend/src/components/ui/range-slider.tsx
+  s_d59f488135f600::t_41255f3fa53373 135,145,154,170,191
+marimo/_plugins/ui/_impl/table.py
+  s_d59f488135f600::t_41255f3fa53373 316-321,1200-1202,1259-1268,1445-1456
+frontend/src/plugins/impl/data-frames/schema.ts
+  s_d59f488135f600::t_41255f3fa53373 132-136
+tests/_cli/test_export_subprocess.py
+  s_d59f488135f600::t_41255f3fa53373 1-166
+docs/guides/deploying/deploying_slurm.md
+  s_d59f488135f600::t_41255f3fa53373 137,169,210-215
+tests/_ai/test_ai_types.py
+  s_d59f488135f600::t_41255f3fa53373 529-533
+tests/_server/api/endpoints/test_terminal.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,12,18,23,57-147,176-206
+tests/_server/templates/snapshots/export4.txt
+  s_d59f488135f600::t_41255f3fa53373 103,106,110
+tests/_session/state/test_session_view.py
+  s_d59f488135f600::t_41255f3fa53373 53,1609-1648
+tests/_session/extensions/test_extensions.py
+  s_d59f488135f600::t_41255f3fa53373 71-72,89-90,93-99
+frontend/src/components/storage/__tests__/storage-file-viewer.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,5-7,9-36,39,42-43,45,47-53,55-71,73-82
+marimo/_smoke_tests/media.py
+  s_d59f488135f600::t_41255f3fa53373 114,123
+frontend/e2e-tests/visual-regression.spec.ts
+  s_d59f488135f600::t_41255f3fa53373 1-214
+frontend/src/utils/__tests__/copy.test.ts
+  s_d59f488135f600::t_41255f3fa53373 71-73
+marimo/_data/data_source_discovery/plugins/databricks.py
+  s_d59f488135f600::t_41255f3fa53373 1-72
+frontend/src/components/app-config/user-config-form.tsx
+  s_d59f488135f600::t_41255f3fa53373 37,205,1307
+frontend/src/core/ai/staged-cells.ts
+  s_d59f488135f600::t_41255f3fa53373 3-5,10-15,27-29,39-57,73-75,82-91,98,100,138-157,159-162,166-261,263-268,272-277,283,291-300,303,305-306,308-310,312,316-321,326-327,330-360,363-383,389,394-395
+marimo/_runtime/runner/hooks_post_execution.py
+  s_d59f488135f600::t_41255f3fa53373 563-567
+marimo/_server/api/endpoints/ai.py
+  s_d59f488135f600::t_41255f3fa53373 17,104-111,166,170-187,191-192,248,331
+frontend/src/components/ui/native-select.tsx
+  s_d59f488135f600::t_41255f3fa53373 9,14
+marimo/_export/dependencies.py
+  s_d59f488135f600::t_41255f3fa53373 5,19-22,29,69-103
+.github/workflows/release-marimo-base.yml
+  s_d59f488135f600::t_41255f3fa53373 34
+marimo/_save/stores/__init__.py
+  s_d59f488135f600::t_41255f3fa53373 5,8,33-43,47-56,58-61,65,86
+marimo/_plugins/ui/_impl/tables/polars_table.py
+  s_d59f488135f600::t_41255f3fa53373 287
+frontend/e2e-tests/accessibility.spec.ts
+  s_d59f488135f600::t_41255f3fa53373 1-140
+frontend/src/components/editor/actions/export-dialog/export-dialog.tsx
+  s_d59f488135f600::t_41255f3fa53373 31-32,38,41,93,126-127,134,182
+.github/workflows/playwright.yml
+  s_d59f488135f600::t_41255f3fa53373 25,38-41,54-58,71-75,104,106-107,109-114
+frontend/src/plugins/__tests__/plugin-schema.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-343
+frontend/src/components/editor/viewer-banner.tsx
+  s_d59f488135f600::t_41255f3fa53373 6
+frontend/src/core/layout/__tests__/layout.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-95
+marimo/_server/files/roots.py
+  s_d59f488135f600::t_41255f3fa53373 1-103
+tests/_plugins/ui/_impl/tables/snapshots/ordinary.pyarrow.json
+  s_d59f488135f600::t_41255f3fa53373 1-23
+frontend/src/core/codemirror/code-lens/__tests__/popover.test.ts
+  s_d59f488135f600::t_41255f3fa53373 59-71
+frontend/src/components/editor/controls/__tests__/notebook-menu-dropdown.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 3-9,16-21,23,28,34,36-64,71-74,92-99,102-104,114,122,130-134,140-200,218-229,231,233,250,252,268,270,273,276,281,283,299
+frontend/src/components/editor/cell/StagedAICell.tsx
+  s_d59f488135f600::t_41255f3fa53373 4-5,8-9,17-20,23-29,34,52-53,62-64,71-77,79-104
+frontend/src/components/editor/file-tree/__tests__/requesting-tree.test.ts
+  s_d59f488135f600::t_41255f3fa53373 6,8,17-39,41-42,45-61,68,75-93,97-108,111,113-133,137-139,141-146,148-149,152-161,164-165,167,169,173-174,176-178,182-194,197-215,218-222,225-226,228,231-234,237,241-242,244,247,249-250,253,257-258,260,263,265-266,269,273-274,276,279-282,285,288-292,294-298,300-308,310-348,350-364,367-382,384-459,461-522,524-527,529-534,537-548,555-567,569-573,575-596,598-599,601-605,608-610,612-615
+frontend/src/components/slides/speaker-view.ts
+  s_d59f488135f600::t_41255f3fa53373 1-22
+marimo/_environments/script_metadata.py
+  s_d59f488135f600::t_41255f3fa53373 1-570
+marimo/_server/api/endpoints/files.py
+  s_d59f488135f600::t_41255f3fa53373 12-14,136-143,194-201
+tests/_runtime/packages/test_micropip_streaming.py
+  s_d59f488135f600::t_41255f3fa53373 1-504
+marimo/_runtime/packages/import_error_extractors.py
+  s_d59f488135f600::t_41255f3fa53373 15
+tests/_runtime/test_context.py
+  s_d59f488135f600::t_41255f3fa53373 1-6,8,12-14,45-63
+tests/_server/files/test_roots.py
+  s_d59f488135f600::t_41255f3fa53373 1-143
+packages/llm-info/src/sources/models-dev.ts
+  s_d59f488135f600::t_41255f3fa53373 11
+frontend/src/plugins/impl/data-editor/__tests__/glide-utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 6,19-38,155,219-235
+frontend/src/components/editor/renderers/vertical-layout/__tests__/vertical-layout.test.ts
+  s_d59f488135f600::t_41255f3fa53373 3,5-67
+marimo/_code_mode/_context.py
+  s_d59f488135f600::t_41255f3fa53373 43,615,622,841,848-862
+frontend/src/components/editor/file-tree/requesting-tree.tsx
+  s_d59f488135f600::t_41255f3fa53373 8,17-26,48-50,59,69-71,74-76,80-93,102,105-113,115-116,118-120,123-138,140-148,150-154,156-189,194,198-201,204-205,210,214-216,220-221,226-230,232,234,239-241,247-249,253,265-266,269-278,282-283,286-295,299,303,307-308,313-324,326,328-409,412,414-415,417-447,450-482,484-492,494-527,530-586
+tests/_server/templates/snapshots/export5.txt
+  s_d59f488135f600::t_41255f3fa53373 115,118,122
+frontend/src/core/cells/pending-delete-service.ts
+  s_d59f488135f600::t_41255f3fa53373 132-143
+marimo/_ipc/launch_kernel.py
+  s_d59f488135f600::t_41255f3fa53373 6,33-37,51-55
+packages/smart-cells/package.json
+  s_d59f488135f600::t_41255f3fa53373 19-20,25,27
+frontend/src/components/terminal/terminal.tsx
+  s_d59f488135f600::t_41255f3fa53373 257-259,275
+tests/_environments/conftest.py
+  s_d59f488135f600::t_41255f3fa53373 1-20
+marimo/_plugins/ui/_impl/tabs.py
+  s_d59f488135f600::t_41255f3fa53373 14,57,74
+marimo/_server/ai/skills/marimo-pair/references/notebook-improvements.md
+  ai_agent 28-35,41-42,45-47,74,78
+frontend/src/components/ui/toast.tsx
+  s_d59f488135f600::t_41255f3fa53373 29-30,32,38,80-81,96-97
+marimo/_lint/rules/breaking/graph.py
+  s_d59f488135f600::t_41255f3fa53373 212-215
+development_docs/adding_backend_and_mcp_tools.md
+  s_d59f488135f600::t_41255f3fa53373 37,46,87,95,417,536,597
+marimo/_runtime/reload/module_watcher.py
+  s_d59f488135f600::t_41255f3fa53373 138-140,147-148
+marimo/_save/stores/file.py
+  s_d59f488135f600::t_41255f3fa53373 4,8,11-16,35-44,61-76
+frontend/src/core/ai/stream-completion-text.ts
+  s_d59f488135f600::t_41255f3fa53373 4-8,11,24-25,39-43,46-47,57-64
+marimo/_cli/export/session.py
+  s_d59f488135f600::t_41255f3fa53373 14,68,70,99,105,159,195-196,204,344
+frontend/src/components/ui/__tests__/button.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-61
+frontend/src/utils/__tests__/strings.test.ts
+  s_d59f488135f600::t_41255f3fa53373 23-25
+marimo/_pyodide/pyodide_session.py
+  s_d59f488135f600::t_41255f3fa53373 47,52,65,307-313,325,431-436
+marimo/_plugins/stateless/routes.py
+  s_d59f488135f600::t_41255f3fa53373 13,43-44,58
+frontend/src/plugins/impl/data-editor/glide-utils.ts
+  s_d59f488135f600::t_41255f3fa53373 13,17,28-34,36,55,64-98,105,113,115,120,171,188-197,200,211-220
+marimo/_server/api/endpoints/editing.py
+  s_d59f488135f600::t_41255f3fa53373 13,260-262
+tests/_output/formatters/test_altair_formatters.py
+  s_d59f488135f600::t_41255f3fa53373 4,7,13,17,259-261,275-379
+frontend/src/plugins/impl/MatrixPlugin.tsx
+  s_d59f488135f600::t_41255f3fa53373 57-90,117,133-142,160-260,262-267,271-273,280,284,293-300,303,305-311,318,331-334,336-382,385,411,435-438,448-451,458,465,469-488
+tests/_mcp/server/test_mcp_server.py
+  s_d59f488135f600::t_41255f3fa53373 2-3,6-7,51-132
+frontend/src/components/editor/output/Outputs.css
+  s_d59f488135f600::t_41255f3fa53373 75
+tests/_save/stores/test_file.py
+  s_d59f488135f600::t_41255f3fa53373 5-9,13-17,64-129
+tests/_server/api/endpoints/test_kiosk.py
+  s_d59f488135f600::t_41255f3fa53373 28-29,69-97
+marimo/_runtime/executor/lifecycles/strict.py
+  s_d59f488135f600::t_41255f3fa53373 172,174
+marimo/_runtime/runner/cell_runner.py
+  s_d59f488135f600::t_41255f3fa53373 65,758-784,801-803,811
+tests/_runtime/test_sandbox_lifecycle.py
+  s_d59f488135f600::t_41255f3fa53373 1-237
+marimo/_runtime/utils/set_ui_element_request_manager.py
+  s_d59f488135f600::t_41255f3fa53373 86,138,145
+frontend/src/core/config/config-schema.ts
+  s_d59f488135f600::t_41255f3fa53373 172,174,218-230,254,359
+tests/_plugins/ui/_impl/tables/snapshots/ordinary.pyarrow.field_types.json
+  s_d59f488135f600::t_41255f3fa53373 1-37
+frontend/src/core/ai/__tests__/stream-completion-text.test.ts
+  s_d59f488135f600::t_41255f3fa53373 1-74
+.github/workflows/discord-release.yml
+  s_d59f488135f600::t_41255f3fa53373 19
+tests/_code_mode/test_code_mode_context.py
+  s_d59f488135f600::t_41255f3fa53373 6,946-990
+marimo/_runtime/packages/module_name_to_pypi_name.py
+  s_d59f488135f600::t_41255f3fa53373 449,530
+marimo/_session/_venv.py
+  s_d59f488135f600::t_41255f3fa53373 22,188,193,197-199,201
+frontend/src/core/layout/layout.ts
+  s_d59f488135f600::t_41255f3fa53373 3-7,10,13-18,20-26,28-34,37-44,48-69,76-77,92
+frontend/src/core/codemirror/language/panel/sql.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-69
+tests/_save/loaders/test_lazy_signing.py
+  s_d59f488135f600::t_41255f3fa53373 93,95,97-99,101,104,106,131,244,252,262,269,320-322,334,351,360-362,373,383-385,411,441-443,467,475,510-512,620,624-626,632,634,643,645,647-649,651-653,656-657,659-660,662-664,695-698,701-707,711-713,724-727,758,764,769,772-779,783-784,791,836,843,849,856,866,878,905,922,942,953,955,967,977,987,995,1004,1008-1009,1023,1032-1035,1047,1055,1090,1094,1114,1206-1299
+marimo/_schemas/generated/notifications.yaml
+  s_d59f488135f600::t_41255f3fa53373 720-728,746,780-795,926,1658-1676
+tests/_export/test_export_availability.py
+  s_d59f488135f600::t_41255f3fa53373 5,8,20,82-125
+docs/guides/configuration/index.md
+  s_d59f488135f600::t_41255f3fa53373 97-109,144
+frontend/src/core/islands/bridge.ts
+  s_d59f488135f600::t_41255f3fa53373 347,360
+frontend/src/core/network/types.ts
+  s_d59f488135f600::t_41255f3fa53373 32-33,53-54,202,231-233
+frontend/src/components/datasources/components.tsx
+  s_d59f488135f600::t_41255f3fa53373 104,108,115,117
+docs/guides/lint_rules/index.md
+  s_d59f488135f600::t_41255f3fa53373 48
+frontend/src/core/websocket/__tests__/useMarimoKernelConnection.hook.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 8,30,34,40-44,61,72-88,91,96,112,163-188
+frontend/src/components/editor/navigation/__tests__/navigation.test.ts
+  s_d59f488135f600::t_41255f3fa53373 15,24-25,427-450
+examples/third_party/chroma/multimodal_retrieval.py
+  s_d59f488135f600::t_41255f3fa53373 7
+frontend/src/plugins/impl/matplotlib/matplotlib-renderer.ts
+  s_d59f488135f600::t_41255f3fa53373 284-285,322-323,325-327,343,353-379,392,452-453,483-484
+frontend/src/plugins/impl/vega/__tests__/vega.test.ts
+  s_d59f488135f600::t_41255f3fa53373 10,106-121,124-126,129,131,473
+marimo/_server/models/packages.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,36-58,65,71
+frontend/src/components/editor/connections/storage/schemas.ts
+  s_d59f488135f600::t_41255f3fa53373 241-302,310
+tests/_output/formatters/test_structures.py
+  s_d59f488135f600::t_41255f3fa53373 8,538-579
+tests/_plugins/stateless/test_accordion.py
+  s_d59f488135f600::t_41255f3fa53373 5-7,9-11,17-19,70-135
+tests/_save/test_signing_policy.py
+  s_d59f488135f600::t_41255f3fa53373 1-425
+tests/_server/api/test_api_utils.py
+  s_d59f488135f600::t_41255f3fa53373 4-5,8,20,86-155
+frontend/src/components/editor/connections/components.tsx
+  s_d59f488135f600::t_41255f3fa53373 24,138-144
+packages/llm-info/package.json
+  s_d59f488135f600::t_41255f3fa53373 24-26
+frontend/src/components/chat/acp/agent-panel.tsx
+  s_d59f488135f600::t_41255f3fa53373 337-340
+frontend/src/components/chat/chat-panel.tsx
+  s_d59f488135f600::t_41255f3fa53373 332,334
+frontend/src/components/editor/cell/__tests__/StagedAICell.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-64
+marimo/_utils/dataclass_to_openapi.py
+  s_d59f488135f600::t_41255f3fa53373 25,27-28,43-44
+tests/_runtime/test_manage_script_metadata.py
+  s_d59f488135f600::t_41255f3fa53373 4,22,515,532-534,596,611-613,658,678-680,741,756-758,786-831
+tests/_session/app_host/test_app_host.py
+  s_d59f488135f600::t_41255f3fa53373 67,73-81,158-161,163-165,167,169-173,175-189,191-204,210-211,213-230,233,243-245,255-256,258-261,264,267,273-277,285-286,288-289,291,293,295,298,302-303,305-306,308-310
+marimo/_messaging/notification.py
+  s_d59f488135f600::t_41255f3fa53373 6,13,53-74,115,229-232,506-507
+marimo/_metadata/opengraph.py
+  s_d59f488135f600::t_41255f3fa53373 18,143
+frontend/src/components/editor/actions/useNotebookActions.tsx
+  s_d59f488135f600::t_41255f3fa53373 69,76,85-87,142-144,157-166,210,473,477-498,503,512-536
+frontend/src/core/runtime/__tests__/runtime.test.ts
+  s_d59f488135f600::t_41255f3fa53373 279-289,712
+frontend/src/core/network/__tests__/requests-lazy.test.ts
+  s_d59f488135f600::t_41255f3fa53373 5,7,60-63,113-144
+tests/mocks.py
+  s_d59f488135f600::t_41255f3fa53373 22-50,96-99
+frontend/src/components/pages/gallery-page.tsx
+  s_d59f488135f600::t_41255f3fa53373 7,123
+frontend/src/core/codemirror/language/languages/sql/renderers.tsx
+  s_d59f488135f600::t_41255f3fa53373 44
+marimo/_server/ai/tools/tool_manager.py
+  s_d59f488135f600::t_41255f3fa53373 179,254,262-264,266
+frontend/src/components/editor/Output.tsx
+  s_d59f488135f600::t_41255f3fa53373 21,26,36,42,415-420,438-447,511-530
+frontend/src/components/dependency-graph/dependency-graph-tree.tsx
+  s_d59f488135f600::t_41255f3fa53373 3,5-10,23,35-40,43,57-74,83-85,88,95-96,115-133,137-164,166-171,173-176,184-185,201,219-229
+marimo/_plugins/ui/_impl/tables/table_manager.py
+  s_d59f488135f600::t_41255f3fa53373 128-136,141
+examples/misc/colliding_blocks_and_pi.py
+  s_d59f488135f600::t_41255f3fa53373 5
+tests/_server/api/endpoints/test_editing.py
+  s_d59f488135f600::t_41255f3fa53373 126-128,130-132,145
+marimo/_save/stubs/lazy_stub.py
+  s_d59f488135f600::t_41255f3fa53373 188-194,202,205,268-276
+frontend/src/core/config/config.ts
+  s_d59f488135f600::t_41255f3fa53373 3,14-26,37
+frontend/src/plugins/impl/data-editor/__tests__/data-utils.test.ts
+  s_d59f488135f600::t_41255f3fa53373 9,19-51,53-55,65-66,76-77,87-88,98-99,105,111,117,128,149-155,159,179-185,189,212,235,258,294,299,309,318,383
+tests/_server/api/test_api_lifespans.py
+  s_d59f488135f600::t_41255f3fa53373 1-85
+frontend/src/components/data-table/column-visibility-dropdown.tsx
+  s_d59f488135f600::t_41255f3fa53373 8-9,31-35,103-119,170,172-188,218-222,233,236-237,242-261
+frontend/e2e-tests/README.md
+  s_d59f488135f600::t_41255f3fa53373 21-63
+frontend/src/components/static-html/share-modal.tsx
+  s_d59f488135f600::t_41255f3fa53373 15,29-31,49
+.github/workflows/test_cli.yaml
+  s_d59f488135f600::t_41255f3fa53373 25,32,50,115,152,191
+frontend/playwright.config.ts
+  s_d59f488135f600::t_41255f3fa53373 48,57,83-85
+frontend/src/components/ui/links.tsx
+  s_d59f488135f600::t_41255f3fa53373 19-20
+marimo/_server/api/utils.py
+  s_d59f488135f600::t_41255f3fa53373 270,273-276,279-290,292-297
+frontend/e2e-tests/playwright-container-proxy.cjs
+  s_d59f488135f600::t_41255f3fa53373 1-25
+marimo/_utils/subprocess.py
+  s_d59f488135f600::t_41255f3fa53373 386,390-402,427-457
+marimo/_environments/errors.py
+  s_d59f488135f600::t_41255f3fa53373 1-29
+frontend/src/core/saving/state.ts
+  s_d59f488135f600::t_41255f3fa53373 7
+frontend/src/core/saving/save-component.tsx
+  s_d59f488135f600::t_41255f3fa53373 24,29-30,44-54,112-113,135,139-159,161-162
+frontend/src/plugins/impl/data-frames/utils/__tests__/operators.test.ts
+  s_d59f488135f600::t_41255f3fa53373 63-66,94-96
+frontend/src/core/codemirror/code-lens/__tests__/extension.test.ts
+  s_d59f488135f600::t_41255f3fa53373 26-30,243-245,249-319
+frontend/src/plugins/impl/data-editor/types.ts
+  s_d59f488135f600::t_41255f3fa53373 4,7-13,26,28-33,36,38-39,42-52,54
+frontend/vite.config.mts
+  s_d59f488135f600::t_41255f3fa53373 9,216,295,329-330
+frontend/src/components/markdown/markdown-renderer.css
+  s_d59f488135f600::t_41255f3fa53373 1-2
+tests/_convert/markdown/snapshots/dataflow.md.txt
+  s_d59f488135f600::t_41255f3fa53373 10
+tests/_data/data_source_discovery/test_trino.py
+  s_d59f488135f600::t_41255f3fa53373 111,184
+marimo/_data/data_source_discovery/plugins/pyspark.py
+  s_d59f488135f600::t_41255f3fa53373 8,30
+tests/_export/test_pdf_raster.py
+  s_d59f488135f600::t_41255f3fa53373 502
+frontend/src/utils/json/json-parser.ts
+  s_d59f488135f600::t_41255f3fa53373 3,6-7,132-133
+tests/_plugins/ui/_impl/tables/geometry_fixtures.py
+  s_d59f488135f600::t_41255f3fa53373 1-317
+frontend/src/core/kernel/state.ts
+  s_d59f488135f600::t_41255f3fa53373 15-16
+frontend/package.json
+  s_d59f488135f600::t_41255f3fa53373 24,26-28,31,33-37,39,41,49,51-52,54-57,70,72-74,76,83-84,95,101-102,105,107,109,111-115,117-118,121-124,127,130,133,141,145,147-148,150-151,158-160,163,165,182,197-201,206-209,211-212,216,218-225,229-230,232-233
+tests/_plugins/ui/_impl/tables/test_pandas_table.py
+  s_d59f488135f600::t_41255f3fa53373 14,70,391-406,2502-2541
+frontend/src/components/editor/code/__tests__/readonly-diff.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-65
+marimo/_secrets/env_provider.py
+  s_d59f488135f600::t_41255f3fa53373 5,13-15,20
+.github/actions/build-frontend/action.yaml
+  s_d59f488135f600::t_41255f3fa53373 21
+marimo/_session/types.py
+  s_d59f488135f600::t_41255f3fa53373 22,145-148
+packages/llm-info/src/__tests__/sync-models.test.ts
+  s_d59f488135f600::t_41255f3fa53373 565,569-582
+frontend/src/components/data-table/__tests__/columns.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 4,6,791,797,812-868,951-1069
+marimo/_messaging/msgspec_encoder.py
+  s_d59f488135f600::t_41255f3fa53373 131-132
+marimo/_environments/sandbox.py
+  s_d59f488135f600::t_41255f3fa53373 1-641
+marimo/_runtime/primitives.py
+  s_d59f488135f600::t_41255f3fa53373 79-82
+tests/_lint/test_private_import_alias.py
+  s_d59f488135f600::t_41255f3fa53373 1-186
+marimo/_server/ai/mcp/client.py
+  s_d59f488135f600::t_41255f3fa53373 25,27,35-43,47-56,71,76,97,103,132-136,231-232,241-248,250-253,258,297-301,311-312,316-317,349-351,353-358,360-365,378-383,385-387,389-391,393,395-403,405-406,408-410,466,473,479,501-502,513,515,526,537,591,598-640,664,666-669,672-676,684,692,694-697,700-705,708-709,718-719,732-734,746,750,801-805,807,861-863,866-869,873,897-902,930,939-941,943
+frontend/src/components/dependency-graph/custom-edge.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-68
+frontend/src/core/packages/__tests__/useInstallPackage.test.tsx
+  s_d59f488135f600::t_41255f3fa53373 1-169
+marimo/_save/hash.py
+  s_d59f488135f600::t_41255f3fa53373 180
+marimo/_ast/load.py
+  s_d59f488135f600::t_41255f3fa53373 126-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "855256a31b9d0951fdaf90fefbcff8443b3ace4e",
+  "prompts": {},
+  "sessions": {
+    "s_d59f488135f600": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a574-49ce-7e32-99d9-43b12910770e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
