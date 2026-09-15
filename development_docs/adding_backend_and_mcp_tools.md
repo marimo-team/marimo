@@ -34,6 +34,7 @@ from marimo._types.ids import SessionId
 @dataclass
 class YourToolArgs:
     """Arguments for your tool."""
+
     session_id: SessionId
     # Add other required parameters
     optional_param: str = "default_value"
@@ -42,6 +43,7 @@ class YourToolArgs:
 @dataclass
 class YourToolOutput(SuccessResult):
     """Output from your tool."""
+
     # Add your output fields
     data: dict = field(default_factory=dict)
     count: int = 0
@@ -82,6 +84,7 @@ if TYPE_CHECKING:
 @dataclass
 class YourToolArgs:
     """Arguments for your tool."""
+
     session_id: SessionId
     # Add parameters here
 
@@ -89,6 +92,7 @@ class YourToolArgs:
 @dataclass
 class YourToolOutput(SuccessResult):
     """Output from your tool."""
+
     # Add output fields here
     sample_dict: dict = field(default_factory=dict)
 
@@ -410,6 +414,7 @@ def test_your_tool_error_handling(mock_context: Mock) -> None:
 
     assert exc_info.value.code == "SESSION_NOT_FOUND"
 
+
 # if necessary
 def test_your_tool_with_edge_cases(mock_context: Mock) -> None:
     """Test edge cases and boundary conditions."""
@@ -528,8 +533,7 @@ def handle(self, args: Args) -> Output:
 # Good: Using context methods
 def handle(self, args: Args) -> Output:
     errors = self.context.get_notebook_errors(
-        args.session_id,
-        include_stderr=True
+        args.session_id, include_stderr=True
     )
 ```
 ---
@@ -590,6 +594,7 @@ def handle(self, args: Args) -> Output:
 # Bad: Using TypedDict for tool input/output
 from typing import TypedDict
 
+
 class YourToolArgs(TypedDict):
     session_id: str
     count: int
@@ -602,6 +607,7 @@ class YourToolArgs(TypedDict):
 ```python
 # Good: Using dataclasses as required
 from dataclasses import dataclass
+
 
 @dataclass
 class YourToolArgs:

@@ -101,18 +101,20 @@ export const ColumnPreviewContainer: React.FC<{
 export const ColumnName = ({
   columnName,
   dataType,
+  className,
 }: {
   columnName: React.ReactNode;
   dataType: DataType;
+  className?: string;
 }) => {
   const resolvedDataType = resolveDataType(dataType);
   const Icon = DATA_TYPE_ICON[resolvedDataType];
   const color = getDataTypeColor(resolvedDataType);
 
   return (
-    <div className="flex flex-row items-center gap-1.5">
+    <div className={cn("flex flex-row items-center gap-1.5", className)}>
       <Icon
-        className={`w-4 h-4 p-0.5 rounded-sm stroke-card-foreground ${color}`}
+        className={`w-4 h-4 shrink-0 p-0.5 rounded-sm stroke-card-foreground ${color}`}
       />
       {columnName}
     </div>

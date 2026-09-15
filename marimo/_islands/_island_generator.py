@@ -14,6 +14,7 @@ from marimo._ast.app_config import _AppConfig
 from marimo._ast.cell import Cell, CellConfig
 from marimo._ast.compiler import compile_cell
 from marimo._ast.load import load_notebook_ir
+from marimo._convert.script import _header_for_script
 from marimo._messaging.cell_output import CellOutput
 from marimo._output.utils import uri_encode_component
 from marimo._schemas.islands import (
@@ -26,6 +27,7 @@ from marimo._schemas.serialization import NotebookSerialization
 from marimo._session.notebook import AppFileManager, load_notebook
 from marimo._templates import json_script
 from marimo._types.ids import CellId_t
+from marimo._utils.inline_script_metadata import PyProjectReader
 from marimo._utils.marimo_path import MarimoPath
 from marimo._version import __version__
 
@@ -315,6 +317,7 @@ class MarimoIslandGenerator:
         self._app = InternalApp(App())
         self._stubs: list[MarimoIslandStub] = []
         self._config = _AppConfig()
+        self._dependencies: list[str] = []
         # When constructed via ``from_file``, this records the notebook
         # source path so cells see ``__file__`` / ``mo.notebook_dir()``
         # resolve to the notebook rather than to the host process.
@@ -357,6 +360,9 @@ class MarimoIslandGenerator:
 
         generator._stubs = stubs
         generator._config = file_manager.app.config
+        generator._dependencies = _notebook_dependencies(
+            file_manager.app.to_ir()
+        )
 
         return generator
 
@@ -384,6 +390,7 @@ class MarimoIslandGenerator:
         )
 
         generator = MarimoIslandGenerator(app_id=app_id)
+        generator._dependencies = _notebook_dependencies(notebook)
         generator._source_filename = source_filename
         internal_app = InternalApp(app)
         generator._app = internal_app
@@ -725,16 +732,32 @@ class MarimoIslandGenerator:
 
     def render_payload(self) -> MarimoIslandPayload:
         """Return the JSON payload consumed by the islands runtime."""
-        return {
+        payload: MarimoIslandPayload = {
             "schemaVersion": ISLANDS_JSON_SCHEMA_VERSION,
             "appId": self._app_id,
             "cells": [stub.to_payload() for stub in self._stubs],
         }
+        if self._dependencies:
+            payload["dependencies"] = self._dependencies.copy()
+        return payload
 
     def render_payload_script(self) -> str:
         """Render the island app payload in a JSON script tag."""
         payload = json_script(self.render_payload())
         return f'<script type="{ISLANDS_JSON_SCRIPT_TYPE}">{payload}</script>'
+
+
+def _notebook_dependencies(notebook: NotebookSerialization) -> list[str]:
+    if notebook.header is None:
+        return []
+    try:
+        reader = PyProjectReader.from_script(_header_for_script(notebook))
+        # Evaluate markers in Pyodide, whose Python version may differ
+        # from the exporter's.
+        return reader.dependencies
+    except Exception as e:
+        LOGGER.warning("Error parsing script metadata: %s", e)
+        return []
 
 
 def remove_empty_lines(text: str) -> str:

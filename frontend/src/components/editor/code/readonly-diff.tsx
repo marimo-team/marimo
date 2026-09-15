@@ -21,7 +21,7 @@ export const ReadonlyDiff = memo(
           },
         }),
       ];
-    }, [props.original, props.modified, theme]);
+    }, [props.original]);
 
     return (
       <CodeMirror
