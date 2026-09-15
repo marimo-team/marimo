@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { ExtractAtomValue } from "jotai";
+import { isValidElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
 import { userConfigAtom } from "@/core/config/config";
@@ -513,6 +515,28 @@ describe("wrapTooltipTargets", () => {
         </span>
       </Tooltip>
     `);
+  });
+
+  test.each([
+    ["CRLF", "A\r\nB", "A<br/>B"],
+    ["encoded CRLF", "A&#13;&#10;B", "A<br/>B"],
+    ["leading newline", "\nA", "A"],
+    ["trailing newline", "A\n", "A"],
+    ["boundary newlines", "\n\nA\nB\n\n", "A<br/>B"],
+    ["boundary CRLF", "&#13;&#10;A&#13;&#10;B&#13;&#10;", "A<br/>B"],
+    ["only newlines", "\n\n", ""],
+    ["only CRLF", "&#13;&#10;&#13;&#10;", ""],
+    ["internal blank line", "A\n\nB", "A<br/><br/>B"],
+    ["spaces and tabs", "\n A\t\n\tB \n", " A\t<br/>\tB "],
+    ["HTML text", "&lt;b&gt;A&lt;/b&gt;\nB", "&lt;b&gt;A&lt;/b&gt;<br/>B"],
+  ])("data-tooltip handles %s", (_, content, expected) => {
+    const result = parseHtml({
+      html: `<span data-tooltip="${content}">Hover me</span>`,
+    });
+    if (!isValidElement<{ content: ReactNode }>(result)) {
+      throw new Error("Expected a Tooltip element");
+    }
+    expect(renderToStaticMarkup(result.props.content)).toBe(expected);
   });
 
   test("data-tooltip with newline renders as line breaks", () => {
