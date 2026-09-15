@@ -13,11 +13,13 @@ import { shellQuote } from "@/utils/shell";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
+  sessionId: "s_ab12cd",
   file: "notebooks/example.py",
 };
 
 const CONNECTION_WITHOUT_FILE: ConnectionInfo = {
   url: "http://localhost:8000",
+  sessionId: "s_ab12cd",
 };
 
 describe("shellQuote", () => {
@@ -106,13 +108,13 @@ describe("getMarimoCommand", () => {
 describe("getTerminalCommand", () => {
   it("includes the url and file for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --claude)"`,
+      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --claude)"`,
     );
     expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --codex)"`,
+      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --codex)"`,
     );
     expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --opencode)"`,
+      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py --uv-project --opencode)"`,
     );
   });
 
@@ -123,13 +125,17 @@ describe("getTerminalCommand", () => {
       false,
     );
     expect(command).not.toContain("--file");
-    expect(command).not.toContain("--session");
+    expect(command).toContain("--session s_ab12cd");
   });
 
   it("shell-escapes a url containing metacharacters", () => {
     const command = getTerminalCommand(
       "claude",
-      { url: "http://host:8000?auth=a&b", file: "notebook.py" },
+      {
+        url: "http://host:8000?auth=a&b",
+        sessionId: CONNECTION.sessionId,
+        file: "notebook.py",
+      },
       false,
     );
     expect(command).toContain("--url 'http://host:8000?auth=a&b'");
@@ -150,10 +156,19 @@ describe("getTerminalCommand", () => {
   ])("shell-escapes file path %s", (file, expected) => {
     const command = getTerminalCommand(
       "claude",
-      { url: CONNECTION.url, file },
+      { url: CONNECTION.url, sessionId: CONNECTION.sessionId, file },
       false,
     );
     expect(command).toContain(expected);
+  });
+
+  it("shell-escapes the session id", () => {
+    const command = getTerminalCommand(
+      "claude",
+      { ...CONNECTION, sessionId: "session with spaces" },
+      false,
+    );
+    expect(command).toContain("--session 'session with spaces'");
   });
 
   it("adds --with-token before the agent flag when requested", () => {
@@ -169,49 +184,45 @@ describe("getTerminalCommand", () => {
 });
 
 describe("getRawPrompt", () => {
-  it("references the file-scoped execute-code command", () => {
-    const prompt = getRawPrompt(CONNECTION, null);
-    expect(prompt).toContain(
-      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py",
-    );
-    expect(prompt).toContain(
-      "Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)",
-    );
+  it("uses uvx in production", () => {
+    vi.stubEnv("DEV", false);
+    try {
+      expect(getRawPrompt(CONNECTION, null)).toContain(
+        "Start with: uvx marimo@latest pair --help",
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("omits file targeting when the page URL has no file", () => {
     const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, null);
-    expect(prompt).toContain("execute-code.sh --url http://localhost:8000");
-    expect(prompt).not.toContain("--file");
-    expect(prompt).not.toContain("--session");
+    expect(prompt).toContain("  Session: s_ab12cd");
+    expect(prompt).not.toContain("  Notebook:");
   });
 
-  it("omits the token hint when there is no token", () => {
+  it("omits the authentication hint when there is no token", () => {
     const prompt = getRawPrompt(CONNECTION, null);
-    expect(prompt).not.toContain("--token");
-    expect(prompt).not.toContain("auth token");
+    expect(prompt).not.toContain("uses authentication");
   });
 
-  it("includes a file-scoped token hint when a token is present", () => {
+  it("provides authenticated agents a private token-file path", () => {
     const prompt = getRawPrompt(CONNECTION, "secret-token");
-    expect(prompt).toContain(
-      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py --token secret-token",
-    );
-  });
-
-  it("shell-escapes a token containing a single quote", () => {
-    const prompt = getRawPrompt(CONNECTION, "tok'en");
-    expect(prompt).toContain(`--token 'tok'"'"'en'`);
+    expect(prompt).toContain("Authentication token: secret-token");
+    expect(prompt).toContain("--token-file");
+    expect(prompt).toContain("Never put the token in command arguments.");
+    expect(prompt).not.toContain("--token secret-token");
   });
 
   it("matches the CLI prompt shape", () => {
     const prompt = getRawPrompt(CONNECTION, null);
     expect(prompt).toMatchInlineSnapshot(`
-      "Use the /marimo-pair skill to pair-program on a running marimo notebook.
+      "Pair with the live marimo notebook at this target:
+        Server: http://localhost:8000
+        Session: s_ab12cd
+        Notebook: notebooks/example.py
 
-      Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)
-
-      Use \`execute-code.sh --url http://localhost:8000 --file notebooks/example.py\` from the marimo-pair skill to execute code in the notebook.
+      Start with: uv run marimo pair --help
 
       Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     `);

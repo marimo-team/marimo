@@ -16,6 +16,7 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
+import { getSessionId } from "@/core/kernel/session";
 import {
   AGENT_LABELS,
   AGENT_TABS,
@@ -53,6 +54,7 @@ export const PairWithAgentModal: React.FC<{
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
+    sessionId: getSessionId(),
     file: getFileFromURL(window.location.href),
   };
 
@@ -130,7 +132,7 @@ export const PairWithAgentModal: React.FC<{
               title="Copy this prompt into your agent"
               hint={
                 hasToken
-                  ? "Includes your auth token — keep it private."
+                  ? "Includes your auth token. Keep it private."
                   : undefined
               }
             >
