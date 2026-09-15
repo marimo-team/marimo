@@ -460,13 +460,21 @@ describe("wrapTooltipTargets", () => {
     expect(result).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
-            "Line A",
-            <br />,
-            "Line B",
-            <br />,
-            "Line C",
-          ]
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              Line A
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line B
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line C
+            </React.Fragment>
+          </span>
         }
       >
         <span
@@ -485,11 +493,17 @@ describe("wrapTooltipTargets", () => {
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
-            "Line A",
-            <br />,
-            "Line B",
-          ]
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              Line A
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line B
+            </React.Fragment>
+          </span>
         }
       >
         <span
@@ -518,17 +532,41 @@ describe("wrapTooltipTargets", () => {
   });
 
   test.each([
-    ["CRLF", "A\r\nB", "A<br/>B"],
-    ["encoded CRLF", "A&#13;&#10;B", "A<br/>B"],
+    ["CRLF", "A\r\nB", '<span class="whitespace-pre-wrap">A<br/>B</span>'],
+    [
+      "encoded CRLF",
+      "A&#13;&#10;B",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
     ["leading newline", "\nA", "A"],
     ["trailing newline", "A\n", "A"],
-    ["boundary newlines", "\n\nA\nB\n\n", "A<br/>B"],
-    ["boundary CRLF", "&#13;&#10;A&#13;&#10;B&#13;&#10;", "A<br/>B"],
+    [
+      "boundary newlines",
+      "\n\nA\nB\n\n",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
+    [
+      "boundary CRLF",
+      "&#13;&#10;A&#13;&#10;B&#13;&#10;",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
     ["only newlines", "\n\n", ""],
     ["only CRLF", "&#13;&#10;&#13;&#10;", ""],
-    ["internal blank line", "A\n\nB", "A<br/><br/>B"],
-    ["spaces and tabs", "\n A\t\n\tB \n", " A\t<br/>\tB "],
-    ["HTML text", "&lt;b&gt;A&lt;/b&gt;\nB", "&lt;b&gt;A&lt;/b&gt;<br/>B"],
+    [
+      "internal blank line",
+      "A\n\nB",
+      '<span class="whitespace-pre-wrap">A<br/><br/>B</span>',
+    ],
+    [
+      "spaces and tabs",
+      "\n A\t\n\tB \n",
+      '<span class="whitespace-pre-wrap"> A\t<br/>\tB </span>',
+    ],
+    [
+      "HTML text",
+      "&lt;b&gt;A&lt;/b&gt;\nB",
+      '<span class="whitespace-pre-wrap">&lt;b&gt;A&lt;/b&gt;<br/>B</span>',
+    ],
   ])("data-tooltip handles %s", (_, content, expected) => {
     const result = parseHtml({
       html: `<span data-tooltip="${content}">Hover me</span>`,
@@ -544,15 +582,17 @@ describe("wrapTooltipTargets", () => {
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
+          <span
+            className="whitespace-pre-wrap"
+          >
             <React.Fragment>
               Line one
-            </React.Fragment>,
+            </React.Fragment>
             <React.Fragment>
               <br />
               Line two
-            </React.Fragment>,
-          ]
+            </React.Fragment>
+          </span>
         }
       >
         <span
@@ -570,19 +610,21 @@ describe("wrapTooltipTargets", () => {
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
+          <span
+            className="whitespace-pre-wrap"
+          >
             <React.Fragment>
               A
-            </React.Fragment>,
+            </React.Fragment>
             <React.Fragment>
               <br />
               B
-            </React.Fragment>,
+            </React.Fragment>
             <React.Fragment>
               <br />
               C
-            </React.Fragment>,
-          ]
+            </React.Fragment>
+          </span>
         }
       >
         <span

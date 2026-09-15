@@ -269,14 +269,18 @@ const wrapTooltipTargets: TransformFn = (
     return (
       <Tooltip
         content={
-          tooltipContent.includes("\n")
-            ? tooltipContent.split(/\r?\n/).map((line, i) => (
+          tooltipContent.includes("\n") ? (
+            <span className="whitespace-pre-wrap">
+              {tooltipContent.split(/\r?\n/).map((line, i) => (
                 <React.Fragment key={i}>
                   {i > 0 && <br />}
                   {line}
                 </React.Fragment>
-              ))
-            : tooltipContent
+              ))}
+            </span>
+          ) : (
+            tooltipContent
+          )
         }
       >
         {reactNode as JSX.Element}
