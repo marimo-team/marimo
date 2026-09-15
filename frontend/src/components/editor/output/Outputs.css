@@ -72,6 +72,7 @@
   /* Coarse hack to stop children from overflowing; doesn't seem to affect
    * margin collapse. */
   overflow: auto;
+  overscroll-behavior: contain;
   @apply text-xs;
 
   .data-key-pair:not(:last-child) {
