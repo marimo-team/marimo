@@ -78,6 +78,12 @@ class FileStore(Store):
     def _init_save_path(self) -> None:
         self.save_path.mkdir(parents=True, exist_ok=True)
 
+    def local_dir(self) -> Path | None:
+        # NB. the already-resolved path, never `save_path`: resolving a
+        # default probes writability by creating directories, and asking a
+        # store where it keeps its entries must not create any.
+        return self._resolved_save_path
+
     def get(self, key: str) -> bytes | None:
         if not self._initialized:
             self._init_save_path()
