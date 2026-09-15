@@ -13,6 +13,14 @@ marimo automatically sends the selected data back to Python!
 
 > For a video overview of reactive plots, check out our [YouTube tutorial](https://youtu.be/KFXsm1wr408).
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/KFXsm1wr408"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## Reactive plots! ⚡
 
 !!! warning "Requirements"

@@ -9,6 +9,14 @@ refer to the variables it defines are automatically run with the latest data.
 This keeps your code and outputs consistent, and eliminates bugs before they
 happen.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/QWbWi2uJ_S0"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ??? question "Why run cells reactively?"
     marimo's "reactive" execution model makes your notebooks more reproducible
     by eliminating hidden state and providing a deterministic execution order.

@@ -9,6 +9,14 @@ creating custom Jupyter-compatible widgets. marimo supports anywidget, allowing
 you to import anywidget widgets or create your own custom widgets and use them
 in your notebooks and apps.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/mRbsvcxE9vc"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## Importing a widget
 
 You can use anywidgets that others have built, such as

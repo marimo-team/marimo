@@ -11,6 +11,14 @@ By default, apps are laid out as a concatenation of their outputs, with
 code hidden. You can customize the layout using marimo's built-in drag-and-drop
 grid editor; you can also choose to include code in the app view.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/JufgohcZJa8"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## CLI
 
 Run marimo notebooks as apps with

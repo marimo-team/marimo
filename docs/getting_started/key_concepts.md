@@ -12,6 +12,14 @@ elements in a reproducible **notebook environment**.
   marimo notebooks can be shared as as **interactive web apps** and executed as
   **Python scripts**.
 
+<div style="text-align: center">
+  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
+  src="https://www.youtube.com/embed/3dUagnSKaA8"
+  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
+  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
+</div>
+
 ## Editing notebooks
 
 marimo notebooks are **reactive**: they automatically react to your code
