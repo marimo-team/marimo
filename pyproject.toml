@@ -388,7 +388,6 @@ ignore = [
     "FURB189", # Subclassing built-in collections
     "FURB152", # Replace literal with a math constant
     "FURB110", # Replace ternary with an `or` expression
-    "FURB113", # Repeated `append` calls
     "NPY002", # Legacy NumPy random API
     "RUF100", # Unused `noqa` directive
 ]

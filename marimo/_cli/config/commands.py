@@ -94,13 +94,15 @@ def describe() -> None:
                     # Get the docstring for the nested TypedDict
                     nested_doc = inspect.getdoc(config)
                     if nested_doc:
-                        output.append(
-                            indent(
-                                muted(f"# {nested_doc}"),
-                                "  " * (indent_level + 1),
+                        output.extend(
+                            (
+                                indent(
+                                    muted(f"# {nested_doc}"),
+                                    "  " * (indent_level + 1),
+                                ),
+                                "",
                             )
                         )
-                        output.append("")
                     output.append(
                         indent(
                             format_type_docs(config, indent_level + 1),
@@ -108,16 +110,19 @@ def describe() -> None:
                         )
                     )
                 elif indent_level == 0:
-                    output.append(f"[{green(key)}]")
-                    output.append(muted(f"# {type_hint}"))
-                    output.append("")
+                    output.extend(
+                        (f"[{green(key)}]", muted(f"# {type_hint}"), "")
+                    )
                 else:
-                    output.append(
-                        indent(
-                            f"{yellow(key)}: {type_hint}", "  " * indent_level
+                    output.extend(
+                        (
+                            indent(
+                                f"{yellow(key)}: {type_hint}",
+                                "  " * indent_level,
+                            ),
+                            "",
                         )
                     )
-                    output.append("")
             else:
                 field_output = f"{yellow(key)}: {type_hint}"
                 output.append(indent(field_output, "  " * indent_level))

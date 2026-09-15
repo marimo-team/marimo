@@ -84,13 +84,15 @@ def _key_value_bullets(items: list[tuple[str, str]]) -> str:
 
     for key, desc in items:
         # "\b" tells click not to reformat our text
-        lines.append("\b")
-        lines.append(
-            "  * "
-            + light_blue(key, bold=True)
-            + _sep(desc)
-            + " " * (max_length - len(key) + 2)
-            + desc
+        lines.extend(
+            (
+                "\b",
+                "  * "
+                + light_blue(key, bold=True)
+                + _sep(desc)
+                + " " * (max_length - len(key) + 2)
+                + desc,
+            )
         )
     return "\n".join(lines)
 

@@ -214,17 +214,19 @@ def google_docstring_to_markdown(
     # Build final output
     output: list[str] = []
     if parsed_lines:
-        output.append("# Summary")
-        output.append("\n".join(parsed_lines).strip())
+        output.extend(("# Summary", "\n".join(parsed_lines).strip()))
 
     if examples_lines:
-        output.append("\n# Examples")
-        output.append("\n".join(examples_lines))
+        output.extend(("\n# Examples", "\n".join(examples_lines)))
 
     if arg_table:
-        output.append("\n# Arguments")
-        output.append("| Parameter | Type | Description |")
-        output.append("|-----------|------|-------------|")
+        output.extend(
+            (
+                "\n# Arguments",
+                "| Parameter | Type | Description |",
+                "|-----------|------|-------------|",
+            )
+        )
         for arg_name, arg_type, desc in arg_table:
             # Process code blocks in the description
             processed_desc = _process_code_block_content(desc.strip())
@@ -233,9 +235,13 @@ def google_docstring_to_markdown(
             )
 
     if attribute_table:
-        output.append("\n# Attributes")
-        output.append("| Attribute | Type | Description |")
-        output.append("|-----------|------|-------------|")
+        output.extend(
+            (
+                "\n# Attributes",
+                "| Attribute | Type | Description |",
+                "|-----------|------|-------------|",
+            )
+        )
         for arg_name, arg_type, desc in attribute_table:
             # Process code blocks in the description
             processed_desc = _process_code_block_content(desc.strip())
@@ -244,9 +250,9 @@ def google_docstring_to_markdown(
             )
 
     if returns_table:
-        output.append("\n# Returns")
-        output.append("| Type | Description |")
-        output.append("|------|-------------|")
+        output.extend(
+            ("\n# Returns", "| Type | Description |", "|------|-------------|")
+        )
         for ret_type, desc in returns_table:
             output.append(f"| `{ret_type}` | {desc.strip()} |")
 

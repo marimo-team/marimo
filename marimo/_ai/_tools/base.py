@@ -453,8 +453,7 @@ class ToolBase(ABC, Generic[ArgsT, OutT]):
             parts.extend(f"- {item}" for item in guidelines.side_effects)
 
         if guidelines.additional_info:
-            parts.append("\n## Additional info:")
-            parts.append(guidelines.additional_info)
+            parts.extend(("\n## Additional info:", guidelines.additional_info))
 
         return "\n".join(parts)
 

@@ -304,8 +304,7 @@ def _build_enum_help(cls: type) -> str:
     lines: list[str] = [f"# {cls.__name__}"]
     if original_doc:
         lines.append(original_doc.strip().split("\n")[0])
-    lines.append("")
-    lines.append("Values:")
+    lines.extend(("", "Values:"))
     for member in cls:  # type: ignore[attr-defined]
         doc = _enum_member_doc(cls, member.name)
         entry = f"  {member.name} = {member.value!r}"

@@ -255,17 +255,17 @@ def opengraph_metadata_template(
             f'<meta property="og:title" content="{_html_escape(opengraph.title)}" />'
         )
     if opengraph.description:
-        meta_tags.append(
-            f'<meta property="og:description" content="{_html_escape(opengraph.description)}" />'
+        meta_tags.extend(
+            (
+                f'<meta property="og:description" content="{_html_escape(opengraph.description)}" />',
+                f'<meta name="description" content="{_html_escape(opengraph.description)}" />',
+            )
         )
-        meta_tags.append(
-            f'<meta name="description" content="{_html_escape(opengraph.description)}" />'
+    meta_tags.extend(
+        (
+            f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />',
+            '<meta name="twitter:card" content="summary_large_image" />',
         )
-    meta_tags.append(
-        f'<meta property="og:image" content="{_html_escape(thumbnail_url)}" />'
-    )
-    meta_tags.append(
-        '<meta name="twitter:card" content="summary_large_image" />'
     )
     return "\n".join(meta_tags)
 
