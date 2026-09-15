@@ -129,17 +129,11 @@ const FilterRowsTransformSchema = z.object({
         negate: false,
       },
     ])
-    .transform((value): FilterGroupType => {
-      const validConditions = value.filter((condition) => {
-        return isConditionValueValid(condition.operator, condition.value);
-      });
-      return {
-        type: "group",
-        operator: "and",
-        children: validConditions,
-        negate: false,
-      };
-    }),
+    .transform((value) =>
+      value.filter((condition) =>
+        isConditionValueValid(condition.operator, condition.value),
+      ),
+    ),
 });
 
 const GroupByTransformSchema = z

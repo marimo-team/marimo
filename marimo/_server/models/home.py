@@ -41,7 +41,8 @@ class WorkspaceFilesRequest(msgspec.Struct, rename="camel"):
 class WorkspaceFilesResponse(msgspec.Struct, rename="camel"):
     root: str
     files: list[FileInfo]
-    # Indicates if limit was reached
+    # Indicates the listing is incomplete: a file count, depth, or time limit
+    # was reached while scanning, so some files or folders were left out
     has_more: bool = False
     # Total files found
     file_count: int = 0

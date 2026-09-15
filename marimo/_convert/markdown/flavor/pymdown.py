@@ -10,7 +10,6 @@ from marimo._convert.markdown.flavor.base import (
     MarkdownFlavor,
     _escape_attribute,
 )
-from marimo._dependencies.dependencies import DependencyManager
 
 
 class PymdownMarkdownFlavor(MarkdownFlavor):
@@ -55,11 +54,7 @@ class PymdownMarkdownFlavor(MarkdownFlavor):
     ) -> str:
         # Compatible with GitHub syntax highlighting:
         # ```python {.marimo attr=...}
-        if DependencyManager.new_superfences.has_required_version(quiet=True):
-            return f"{guard}{language} {{.marimo{attribute_str}}}"
-
-        # ```{.python.marimo attr=...}
-        return f"{guard}{{.{language}.marimo{attribute_str}}}"
+        return f"{guard}{language} {{.marimo{attribute_str}}}"
 
     def _render_code_fence(
         self,

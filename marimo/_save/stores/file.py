@@ -1,12 +1,19 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
+from marimo import _loggers
 from marimo._runtime.runtime import notebook_dir
 from marimo._save.stores.store import Store
-from marimo._utils.paths import notebook_output_dir
+from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
+
+LOGGER = _loggers.marimo_logger()
+
+# Resolves against the working directory as a fallback.
+FALLBACK_SAVE_PATH = Path(MARIMO_DIR_NAME, "cache")
 
 
 def export_manifest_name(notebook_filename: str | None) -> str:
@@ -25,6 +32,16 @@ def _valid_path(path: Path) -> bool:
     return path.exists() and path.stat().st_size > 0
 
 
+def _writable_dir(path: Path) -> bool:
+    """Whether `path` is a writable directory. Creates it if absent."""
+    try:
+        path.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return False
+    # NB. mkdir is a no-op on an existing directory, whatever its mode.
+    return os.access(path, os.W_OK | os.X_OK)
+
+
 class FileStore(Store):
     def __init__(self, save_path: str | None = None) -> None:
         # Defer default path resolution until first use so that the runtime
@@ -41,10 +58,22 @@ class FileStore(Store):
         return self._resolved_save_path
 
     def _default_save_path(self) -> Path:
-        if (root := notebook_dir()) is not None:
-            return notebook_output_dir(root) / "cache"
-        # This can happen if the notebook file is unnamed.
-        return Path("__marimo__", "cache")
+        root = notebook_dir()
+        if root is None:
+            return FALLBACK_SAVE_PATH
+
+        # Probe the write target, which `sys.pycache_prefix` can move out of
+        # the notebook's directory.
+        target = notebook_output_dir(root) / "cache"
+        if _writable_dir(target):
+            return target
+
+        LOGGER.warning(
+            "Could not write to the cache directory %s. Caching to %s instead.",
+            target,
+            FALLBACK_SAVE_PATH.resolve(),
+        )
+        return FALLBACK_SAVE_PATH
 
     def _init_save_path(self) -> None:
         self.save_path.mkdir(parents=True, exist_ok=True)

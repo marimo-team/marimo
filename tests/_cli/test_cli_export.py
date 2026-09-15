@@ -28,7 +28,10 @@ from marimo._utils import async_path
 from marimo._utils.paths import marimo_package_path
 from marimo._utils.platform import is_windows
 from marimo._utils.scripts import read_pyproject_from_script
-from tests._server.templates.utils import normalize_index_html
+from tests._server.templates.utils import (
+    normalize_index_html,
+    parse_mount_config,
+)
 from tests.mocks import (
     _sanitize_version,
     delete_lines_with_files,
@@ -153,11 +156,14 @@ async def _wait_for_file(file: str, timeout: float = 10.0) -> None:
 
 
 def _write_minimal_wasm_notebook(
-    file: Path, cell: str, metadata: str = ""
+    file: Path,
+    cell: str,
+    metadata: str = "",
+    app_args: str = "",
 ) -> None:
     file.write_text(
         f"{metadata}import marimo\n\n"
-        "app = marimo.App()\n\n"
+        f"app = marimo.App({app_args})\n\n"
         "@app.cell\n"
         "def __():\n"
         f"{cell}\n\n"
@@ -203,6 +209,22 @@ def test_ruff_import_graph_ignores_successful_stderr(tmp_path: Path) -> None:
     assert graph == {notebook.resolve(): (module.resolve(),)}
 
 
+def _supports_script_environments() -> bool:
+    from marimo._environments.environment import ensure_supported_uv
+    from marimo._environments.uv import UvError, is_uv_available
+
+    if not is_uv_available():
+        return False
+    try:
+        ensure_supported_uv()
+    except UvError:
+        return False
+    return True
+
+
+SUPPORTS_SCRIPT_ENVS = _supports_script_environments()
+
+
 class TestExportHTML:
     @staticmethod
     def test_cli_export_html(temp_marimo_file: str) -> None:
@@ -221,11 +243,20 @@ class TestExportHTML:
         assert '<marimo-code hidden=""></marimo-code>' in html
 
     @staticmethod
-    def test_cli_export_html_wasm(temp_marimo_file: str) -> None:
-        out_dir = Path(temp_marimo_file).parent / "out"
+    def test_cli_export_html_wasm(tmp_path: Path) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(
+            notebook,
+            '    "hello"\n    return\n',
+            app_args='layout_file="layouts/notebook.slides.json"',
+        )
+        layout_file = tmp_path / "layouts" / "notebook.slides.json"
+        layout_file.parent.mkdir()
+        layout_file.write_text('{"type": "slides", "data": {}}')
+        out_dir = tmp_path / "out"
         p = _run_export(
             "html-wasm",
-            temp_marimo_file,
+            str(notebook),
             "--mode",
             "edit",
             "--output",
@@ -239,6 +270,9 @@ class TestExportHTML:
         assert "<marimo-wasm" in html
         assert '"showAppCode": false' in html
         assert Path(out_dir / ".nojekyll").exists()
+        mount_config = parse_mount_config((out_dir / "index.html").read_text())
+        assert mount_config["mode"] == "edit"
+        assert mount_config["layout"] == {"type": "slides", "data": {}}
 
     @staticmethod
     def test_cli_export_html_wasm_packages_local_modules(
@@ -633,6 +667,9 @@ class TestExportHTML:
 
     @staticmethod
     @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
+    @pytest.mark.skipif(
+        not SUPPORTS_SCRIPT_ENVS, reason="uv >= 0.7.21 required"
+    )
     def test_cli_export_html_sandbox(temp_marimo_file: str) -> None:
         # Must use subprocess: sandbox re-invokes via uv using sys.argv[1:]
         p = subprocess.run(
@@ -644,7 +681,7 @@ class TestExportHTML:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "run --isolated" in output
+        assert "Using script environment" in output
         html = normalize_index_html(output)
         html = _normalize_html_path(html, temp_marimo_file)
         assert '<marimo-code hidden=""></marimo-code>' not in html
@@ -955,10 +992,7 @@ class TestExportMarkdown:
         _assert_success(p)
         assert "```{marimo .python" not in p.output
         assert "```{marimo} python" not in p.output
-        assert (
-            "```python {.marimo" in p.output
-            or "```{.python.marimo" in p.output
-        )
+        assert "```python {.marimo" in p.output
 
     @staticmethod
     def test_export_markdown_help_documents_stdout_inference() -> None:
@@ -1259,6 +1293,9 @@ class TestExportIpynb:
         not HAS_UV or not DependencyManager.nbformat.has(),
         reason="This test requires both uv and nbformat.",
     )
+    @pytest.mark.skipif(
+        not SUPPORTS_SCRIPT_ENVS, reason="uv >= 0.7.21 required"
+    )
     def test_cli_export_ipynb_sandbox(temp_marimo_file: str) -> None:
         output_file = temp_marimo_file.replace(".py", "_sandbox.ipynb")
         # Must use subprocess: sandbox re-invokes via uv using sys.argv[1:]
@@ -1280,7 +1317,7 @@ class TestExportIpynb:
         output = p.stderr.decode()
         # Check for sandbox message
         assert "Running in a sandbox" in output
-        assert "run --isolated" in output
+        assert "Using script environment" in output
 
     @staticmethod
     @pytest.mark.skipif(

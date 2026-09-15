@@ -94,6 +94,19 @@ default_sql_output = "native"
 
 You can override any user configuration setting in this way. To find these settings run `marimo config show`.
 
+### Additional file browser roots
+
+Add absolute local directories to the file browser with project configuration:
+
+```toml title="pyproject.toml"
+[tool.marimo.file_browser]
+folders = [{ path = "/absolute/path/to/data", name = "Data" }]
+```
+
+For `marimo.toml`, use `[file_browser]` instead. `name` is optional. Invalid or
+duplicate paths are ignored. Additional roots affect only the file browser and
+cannot be set through notebook script metadata.
+
 !!! note "Overridden settings"
     Settings overridden in `pyproject.toml` or script metadata cannot be changed through the marimo editor's settings menu. Any changes made to overridden settings in the editor will not take effect.
 
@@ -128,6 +141,7 @@ marimo supports the following environment variables for advanced configuration:
 | `MARIMO_SKIP_UPDATE_CHECK`    | If set to "1", marimo will skip checking for updates when starting.                                                          | Not set         |
 | `MARIMO_SQL_DEFAULT_LIMIT`    | Default limit for SQL query results. If not set, no limit is applied.                                                        | Not set         |
 | `MARIMO_SESSION_COOKIE_SECURE` | If set to `true`/`1`, marks the session cookie as `Secure` so browsers only send it over HTTPS. Enable when serving marimo behind TLS.        | `false`         |
+| `MARIMO_SESSION_SECRET` | Secret used to sign the session cookie. Defaults to a random value generated per server process, so sessions are invalidated on restart. Set to a stable value (e.g. `openssl rand -hex 32`) to keep sessions across restarts or replicas. | Random per process |
 | `MARIMO_SERVER_TRANSPORT` | Experimental. The transport for streaming kernel messages to the browser: `websocket` or `sse`. Use `sse` when deploying behind proxies or services that do not support WebSockets. | `websocket`     |
 
 ### Tips

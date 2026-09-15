@@ -1124,6 +1124,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/export/requirements/install": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: {
+        content: {
+          "application/json": components["schemas"]["InstallExportRequirementsRequest"];
+        };
+      };
+      responses: {
+        /** @description Updated readiness for server-backed exports */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["ExportAvailabilityResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/export/script": {
     parameters: {
       query?: never;
@@ -1546,6 +1587,41 @@ export interface paths {
         };
       };
     };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/files/roots": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: {
+      parameters: {
+        query?: never;
+        header?: never;
+        path?: never;
+        cookie?: never;
+      };
+      requestBody?: never;
+      responses: {
+        /** @description List roots shown in the file browser */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["FileRootsResponse"];
+          };
+        };
+      };
+    };
+    put?: never;
+    post?: never;
     delete?: never;
     options?: never;
     head?: never;
@@ -3687,6 +3763,7 @@ export interface components {
      *         - `max_tokens`: the maximum number of tokens to use in AI completions
      *         - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
      *         - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+     *         - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
      *         - `models`: the models to use for AI completions
      *         - `open_ai`: the OpenAI config
      *         - `anthropic`: the Anthropic config
@@ -3694,7 +3771,7 @@ export interface components {
      *         - `bedrock`: the Bedrock config
      *         - `azure`: the Azure config
      *         - `ollama`: the Ollama config
-     *         - `github`: the GitHub config
+     *         - `github`: the GitHub Copilot config
      *         - `openrouter`: the OpenRouter config
      *         - `wandb`: the Weights & Biases config
      *         - `opencode_go`: the OpenCode Go config
@@ -3702,6 +3779,7 @@ export interface components {
      *         - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use custom_providers)
      */
     AiConfig: {
+      allow_provider_config?: boolean;
       anthropic?: components["schemas"]["AnthropicConfig"];
       azure?: components["schemas"]["OpenAiConfig"];
       bedrock?: components["schemas"]["BedrockConfig"];
@@ -3776,7 +3854,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Anthropic API key
+     *         - `api_key`: the Anthropic API key or an `env:` reference
      */
     AnthropicConfig: {
       api_key?: string;
@@ -3853,6 +3931,20 @@ export interface components {
       bytes_freed: number;
       /** @enum {unknown} */
       op: "cache-cleared";
+    };
+    /**
+     * CacheConfig
+     * @description Configuration for caching.
+     *
+     *         `verification` is the signature-checking posture; `store` is the backing
+     *         store, or a list of stores composed into a `TieredStore`.
+     */
+    CacheConfig: {
+      store?:
+        | components["schemas"]["StoreConfig"][]
+        | components["schemas"]["StoreConfig"];
+      /** @enum {unknown} */
+      verification?: "off" | "on" | "strict";
     };
     /**
      * CacheInfoNotification
@@ -4415,6 +4507,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -4541,6 +4634,9 @@ export interface components {
     };
     /** DependencyTreeResponse */
     DependencyTreeResponse: {
+      context:
+        | components["schemas"]["SandboxPackageContext"]
+        | components["schemas"]["PackageManagerContext"];
       tree: null | components["schemas"]["DependencyTreeNode"];
     };
     /**
@@ -4555,6 +4651,9 @@ export interface components {
       confidence: "high" | "medium";
       configuration: components["schemas"]["DetectedDataSourceConfiguration"][];
       displayName: string;
+      hidesWhen:
+        | components["schemas"]["DialectHidesWhen"]
+        | components["schemas"]["StorageHidesWhen"];
       id: string;
       integration: string;
       origins: components["schemas"]["DetectedDataSourceOrigin"][];
@@ -4584,6 +4683,15 @@ export interface components {
     DiagnosticsConfig: {
       enabled?: boolean;
       sql_linter?: boolean;
+    };
+    /**
+     * DialectHidesWhen
+     * @description Hide this suggestion when a live SQL engine dialect contains a substring.
+     */
+    DialectHidesWhen: {
+      /** @enum {unknown} */
+      kind: "dialect";
+      substrings: string[];
     };
     /**
      * DiscoverDataSourcesCommand
@@ -4781,13 +4889,21 @@ export interface components {
       /** @enum {unknown} */
       type: "execute-stale-cells";
     };
-    /** ExportAsHTMLRequest */
+    /**
+     * ExportAsHTMLRequest
+     * @description Request a static HTML export.
+     *
+     *         `layout` carries the current client layout. An omitted field reads the
+     *         saved layout file, `null` selects the vertical layout, and an object uses
+     *         that serialized layout for this export.
+     */
     ExportAsHTMLRequest: {
       /** @default null */
       assetUrl?: string | null;
       download: boolean;
       files: string[];
       includeCode: boolean;
+      layout?: components["schemas"]["LayoutConfig"] | null;
     };
     /** ExportAsIPYNBRequest */
     ExportAsIPYNBRequest: {
@@ -4842,6 +4958,17 @@ export interface components {
       command: string;
       /** @enum {unknown} */
       name: "playwright-chromium";
+    };
+    /**
+     * FileBrowserConfig
+     * @description Configuration for the file browser panel.
+     *
+     *         **Keys.**
+     *
+     *         - `folders`: additional absolute folders to show in the file browser
+     */
+    FileBrowserConfig: {
+      folders?: components["schemas"]["FolderConfig"][];
     };
     /** FileCopyRequest */
     FileCopyRequest: {
@@ -4966,6 +5093,16 @@ export interface components {
       lineNumber?: number | null;
       path: string;
     };
+    /** FileRoot */
+    FileRoot: {
+      isPrimary: boolean;
+      name: string;
+      path: string;
+    };
+    /** FileRootsResponse */
+    FileRootsResponse: {
+      roots: components["schemas"]["FileRoot"][];
+    };
     /** FileSearchRequest */
     FileSearchRequest: {
       /** @default 3 */
@@ -4974,6 +5111,8 @@ export interface components {
       includeDirectories?: boolean;
       /** @default true */
       includeFiles?: boolean;
+      /** @default true */
+      includeHidden?: boolean;
       /** @default 100 */
       limit?: number;
       /** @default null */
@@ -5014,6 +5153,19 @@ export interface components {
     /** FocusCellRequest */
     FocusCellRequest: {
       cellId: components["schemas"]["CellId"];
+    };
+    /**
+     * FolderConfig
+     * @description Configuration for an additional file browser root.
+     *
+     *         **Keys.**
+     *
+     *         - `path`: the absolute path to the folder
+     *         - `name`: an optional display name for the folder
+     */
+    FolderConfig: {
+      name?: string;
+      path: string;
     };
     /** FormatCellsRequest */
     FormatCellsRequest: {
@@ -5075,12 +5227,12 @@ export interface components {
     GetCacheInfoRequest: Record<string, any>;
     /**
      * GitHubConfig
-     * @description Configuration options for GitHub.
+     * @description Configuration options for GitHub Copilot.
      *
      *         **Keys.**
      *
-     *         - `api_key`: the GitHub API token
-     *         - `base_url`: the base URL for the API
+     *         - `api_key`: a GitHub Copilot token or an `env:` reference
+     *         - `base_url`: the base URL for the GitHub Copilot API
      *         - `copilot_settings`: configuration settings for GitHub Copilot LSP.
      *             Supports settings like `http` (proxy configuration), `telemetry`,
      *             and `github-enterprise` (enterprise URI).
@@ -5096,7 +5248,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the Google AI API key
+     *         - `api_key`: the Google AI API key or an `env:` reference
      */
     GoogleAiConfig: {
       api_key?: string;
@@ -5159,6 +5311,11 @@ export interface components {
       /** @enum {unknown} */
       type: "import-star";
     };
+    /** InstallExportRequirementsRequest */
+    InstallExportRequirementsRequest: {
+      /** @enum {unknown} */
+      format: "html" | "ipynb" | "markdown" | "pdf" | "script";
+    };
     /**
      * InstallPackagesCommand
      * @description Install Python packages.
@@ -5170,12 +5327,17 @@ export interface components {
      *             manager: Package manager to use ('pip', 'conda', 'uv', etc.).
      *             versions: Package names mapped to version specifiers. Empty version
      *                       means install latest.
+     *             index_urls: Alternative package index URLs. Primary index first,
+     *                         then extras. Honored by backends that support custom
+     *                         indexes (currently micropip); other backends ignore it.
      *             source: Where to install. "kernel" (default) dispatches to the kernel
      *                     subprocess; "server" installs directly into the server's Python
      *                     environment (sys.executable), used when the server itself needs
      *                     a package (e.g. nbformat for IPYNB auto-export in sandbox mode).
      */
     InstallPackagesCommand: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5190,6 +5352,8 @@ export interface components {
     };
     /** InstallPackagesRequest */
     InstallPackagesRequest: {
+      /** @default [] */
+      indexUrls?: string[];
       manager: string;
       /**
        * @default kernel
@@ -5222,7 +5386,12 @@ export interface components {
       /** @enum {unknown} */
       op: "installing-package-alert";
       packages: {
-        [key: string]: "failed" | "installed" | "installing" | "queued";
+        [key: string]:
+          | "failed"
+          | "installed"
+          | "installing"
+          | "queued"
+          | "restart-required";
       };
       /**
        * @default kernel
@@ -5430,6 +5599,7 @@ export interface components {
         | "boolean"
         | "date"
         | "datetime"
+        | "geometry"
         | "integer"
         | "number"
         | "string"
@@ -5749,11 +5919,13 @@ export interface components {
      */
     MarimoConfig: {
       ai?: components["schemas"]["AiConfig"];
+      cache?: components["schemas"]["CacheConfig"];
       completion: components["schemas"]["CompletionConfig"];
       datasources?: components["schemas"]["DatasourcesConfig"];
       diagnostics?: components["schemas"]["DiagnosticsConfig"];
       display: components["schemas"]["DisplayConfig"];
       experimental?: Record<string, any>;
+      file_browser?: components["schemas"]["FileBrowserConfig"];
       formatting: components["schemas"]["FormattingConfig"];
       keymap: components["schemas"]["KeymapConfig"];
       language_servers?: components["schemas"]["LanguageServersConfig"];
@@ -5764,6 +5936,7 @@ export interface components {
       save: components["schemas"]["SaveConfig"];
       server: components["schemas"]["ServerConfig"];
       sharing?: components["schemas"]["SharingConfig"];
+      signing?: components["schemas"]["SigningConfig"];
       snippets?: components["schemas"]["SnippetsConfig"];
       venv?: components["schemas"]["VenvConfig"];
     };
@@ -6073,7 +6246,7 @@ export interface components {
      *
      *         **Keys.**
      *
-     *         - `api_key`: the OpenAI API key
+     *         - `api_key`: the OpenAI API key or an `env:` reference
      *         - `base_url`: the base URL for the API
      *         - `project`: the project ID for the OpenAI API
      *         - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -6143,10 +6316,18 @@ export interface components {
       /** @enum {unknown} */
       manager: "pip" | "pixi" | "poetry" | "rye" | "uv";
     };
+    /** PackageManagerContext */
+    PackageManagerContext: {
+      /** @enum {unknown} */
+      kind: "package-manager";
+      name: string;
+    };
     /** PackageOperationResponse */
     PackageOperationResponse: {
       /** @default null */
       error?: string | null;
+      /** @default false */
+      restartRequired?: boolean;
       success: boolean;
     };
     /**
@@ -6562,6 +6743,13 @@ export interface components {
       kind: "safe-literal";
       value: string;
     };
+    /** SandboxPackageContext */
+    SandboxPackageContext: {
+      /** @enum {unknown} */
+      backend: "pixi" | "uv";
+      /** @enum {unknown} */
+      kind: "sandbox";
+    };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
       config: Record<string, any>;
@@ -6772,6 +6960,22 @@ export interface components {
     ShutdownSessionRequest: {
       sessionId: components["schemas"]["SessionId"];
     };
+    /**
+     * SigningConfig
+     * @description Cache-signing trust and identity.
+     *
+     *         `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+     *         advisory label. Trusting a key allows arbitrary code execution from its
+     *         holder on this machine — a cache restore is `pickle.loads` — so there is no
+     *         lesser cache-only grant. `private_key_path` is this machine's signing
+     *         identity; it is never serialized to the frontend.
+     */
+    SigningConfig: {
+      private_key_path?: string;
+      trusted_signers?: {
+        [key: string]: string;
+      };
+    };
     /** Snippet */
     Snippet: {
       sections: components["schemas"]["SnippetSection"][];
@@ -6975,6 +7179,16 @@ export interface components {
       size: number;
     };
     /**
+     * StorageHidesWhen
+     * @description Hide this suggestion when a live storage namespace matches.
+     */
+    StorageHidesWhen: {
+      backendTypes: string[];
+      /** @enum {unknown} */
+      kind: "storage";
+      protocols: string[];
+    };
+    /**
      * StorageListEntriesCommand
      * @description List storage entries at a prefix.
      *
@@ -7044,7 +7258,7 @@ export interface components {
     };
     /**
      * StoreConfig
-     * @description Configuration for cache stores.
+     * @description Configuration for a single cache store.
      */
     StoreConfig: {
       args?: Record<string, any>;

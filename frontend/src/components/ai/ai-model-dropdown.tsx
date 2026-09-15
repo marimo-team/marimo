@@ -33,6 +33,7 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { AiProviderIcon } from "./ai-provider-icon";
+import { listModelsForAiSettings } from "./ai-utils";
 import { getCurrentRoleTooltip, getTagColour } from "./display-helpers";
 
 interface AIModelDropdownProps {
@@ -84,7 +85,10 @@ export const AIModelDropdown = ({
     ].filter(Boolean),
     displayedModels: ai?.models?.displayed_models,
   });
-  const modelsByProvider = aiModelRegistry.getListModelsByProvider();
+  const modelsByProvider = listModelsForAiSettings(
+    aiModelRegistry.getListModelsByProvider(),
+    ai,
+  );
 
   const activeModel =
     forRole === "autocomplete"

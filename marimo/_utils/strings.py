@@ -96,7 +96,7 @@ def cmd_quote(s: str) -> str:
 
 
 def standardize_annotation_quotes(annotation: str) -> str:
-    """Standardize quotes in type annotations to use double quotes.
+    r"""Standardize quotes in type annotations to use double quotes.
 
     This handles complex cases like Literal['foo', 'bar'] -> Literal["foo", "bar"]
     while preserving mixed quote scenarios where double quotes are already present.

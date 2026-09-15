@@ -48,8 +48,9 @@ export function createErrorToastingRequests(
     openFile: "Failed to open file",
     getUsageStats: "", // No toast
     getEnvironmentInfo: "", // No toast
+    getFileRoots: "", // RequestingTree surfaces this error
     sendListFiles: "Failed to list files",
-    sendSearchFiles: "Failed to search files",
+    sendSearchFiles: "", // Search callers handle errors
     sendPdb: "Failed to start debug session",
     sendSetBreakpoints: "", // No toast
     sendCreateFileOrFolder: "Failed to create file or folder",
@@ -65,6 +66,7 @@ export function createErrorToastingRequests(
     getRunningNotebooks: "Failed to get running notebooks",
     shutdownSession: "Failed to shutdown session",
     getExportAvailability: "", // No toast
+    installExportRequirements: "Failed to install export requirements",
     exportAsHTML: "Failed to export HTML",
     exportAsIPYNB: "Failed to export ipynb",
     exportAsMarkdown: "Failed to export Markdown",

@@ -5,6 +5,7 @@ import {
   prettyScientificNumber,
 } from "@/utils/numbers";
 import { applyFormat } from "../column-formatting/feature";
+import { formatOptions } from "../column-formatting/types";
 
 const locale = "en-US";
 
@@ -126,5 +127,11 @@ describe("applyFormat", () => {
     expect(
       applyFormat(123, { format: "Auto", dataType: "unknown", locale }),
     ).toBe(123);
+  });
+});
+
+describe("formatOptions", () => {
+  it("has no geometry format options", () => {
+    expect(formatOptions.geometry).toEqual([]);
   });
 });

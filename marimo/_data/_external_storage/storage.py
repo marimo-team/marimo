@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import mimetypes
 import re
 from datetime import timedelta
 from functools import cached_property
@@ -26,6 +25,7 @@ from marimo._data._external_storage.utils import (
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
 from marimo._utils.dicts import remove_none_values
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from fsspec import (  # type: ignore[import-untyped]
@@ -109,7 +109,7 @@ class Obstore(StorageBackend["ObjectStore"]):
             last_modified=last_modified.timestamp() if last_modified else None,
             kind="object",
             metadata=entry_meta,
-            mime_type=mimetypes.guess_type(path or "")[0],
+            mime_type=guess_mime_type(path or ""),
         )
 
     async def download(self, path: str) -> bytes:
@@ -403,7 +403,7 @@ class FsspecFilesystem(StorageBackend["AbstractFileSystem"]):
             last_modified=file.get("mtime"),
             kind=resolved_kind,
             metadata=entry_meta,
-            mime_type=mimetypes.guess_type(resolved_path)[0]
+            mime_type=guess_mime_type(resolved_path)
             if resolved_kind != "directory"
             else None,
         )

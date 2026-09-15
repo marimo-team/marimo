@@ -329,9 +329,9 @@ const ChatInputFooter: React.FC<ChatInputFooterProps> = memo(
       },
       {
         value: "code_mode",
-        label: "Code Mode",
+        label: "Code Mode (beta)",
         subtitle:
-          "AI with access to the notebook's kernel. Can overwrite changes.",
+          "AI with access to the notebook's kernel. Potentially destructive.",
         Icon: CodeIcon,
       },
     ];

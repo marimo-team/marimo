@@ -3,12 +3,14 @@
 
 from __future__ import annotations
 
+import re
 import time
 from typing import (
     Any,
     ClassVar,
     Literal,
 )
+from urllib.parse import urlsplit
 
 import msgspec
 
@@ -47,6 +49,28 @@ from marimo._utils.msgspec_basestruct import BaseStruct
 from marimo._utils.platform import is_pyodide, is_windows
 
 LOGGER = loggers.marimo_logger()
+
+_VIRTUAL_FILE_URL_RE = re.compile(r"^(?:\.?/)?@file/[^?#]+$")
+_JAVASCRIPT_DATA_URL_RE = re.compile(
+    r"^data:(?:text|application)/javascript(?:;[^,]*)?,[^\r\n]*$"
+)
+
+
+def _normalize_esm_url(value: str) -> str | None:
+    if _VIRTUAL_FILE_URL_RE.fullmatch(value) is not None:
+        return value
+    if _JAVASCRIPT_DATA_URL_RE.fullmatch(value) is not None:
+        return value
+    if any(character.isspace() for character in value):
+        return None
+
+    try:
+        parsed = urlsplit(value)
+    except ValueError:
+        return None
+    if parsed.scheme in ("http", "https") and parsed.netloc:
+        return parsed.geturl()
+    return None
 
 
 class Notification(msgspec.Struct, tag_field="op"):
@@ -88,7 +112,7 @@ class CellNotification(Notification, tag="cell-op"):
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
-    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -202,7 +226,10 @@ class EsmSpec(msgspec.Struct):
         import marimo._output.data.data as mo_data
         from marimo._utils.code import hash_code
 
-        return EsmSpec(url=mo_data.js(esm).url, hash=hash_code(esm))
+        url = _normalize_esm_url(esm)
+        if url is None:
+            url = mo_data.any_data(esm.encode("utf-8"), ext="js").url
+        return EsmSpec(url=url, hash=hash_code(esm))
 
 
 class ModelOpen(msgspec.Struct, tag="open", tag_field="method"):
@@ -476,7 +503,8 @@ class MissingPackageAlertNotification(
 
 # package name => installation status
 PackageStatusType = dict[
-    str, Literal["queued", "installing", "installed", "failed"]
+    str,
+    Literal["queued", "installing", "installed", "failed", "restart-required"],
 ]
 
 

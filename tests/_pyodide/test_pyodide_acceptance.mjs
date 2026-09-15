@@ -419,6 +419,36 @@ print("polars WASM I/O patches verified")
 `);
     console.log("");
 
+    // Step 8: Test the streaming micropip install engine against real micropip.
+    //
+    // The engine drives micropip's private Transaction API. Its callers catch a
+    // mismatch and fall back to sequential installs, so drift is otherwise
+    // silent. Call the engine directly to make drift fail here.
+    console.log("Step 8: Testing streaming micropip install engine...");
+
+    await pyodide.runPythonAsync(`
+from marimo._runtime.packages._micropip_streaming import (
+    stream_transaction_install,
+)
+
+# Pyodide bundles neither package, so both resolve through the Transaction
+# path rather than loadPackage. Assert on the installs, not on the private
+# names, so any future rename still surfaces here.
+results = {}
+async for name, ok in stream_transaction_install(["cowsay", "shortuuid"]):
+    results[name] = ok
+print(f"  - stream results: {results}")
+assert results == {"cowsay": True, "shortuuid": True}, f"unexpected results: {results}"
+
+# Importable now, so the wheels really installed.
+import cowsay  # noqa: F401
+import shortuuid  # noqa: F401
+print("  - both packages importable: OK")
+
+print("streaming micropip install engine verified")
+`);
+    console.log("");
+
     console.log("");
     console.log("Verification results:", result);
     console.log("");

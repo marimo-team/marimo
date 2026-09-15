@@ -15,9 +15,33 @@ def assert_config(override: MarimoConfig | PartialMarimoConfig) -> None:
     assert user_config == {**DEFAULT_CONFIG, **override}
 
 
+def test_allow_provider_config_defaults_true() -> None:
+    assert DEFAULT_CONFIG["ai"]["allow_provider_config"] is True
+
+
+def test_allow_provider_config_can_be_disabled() -> None:
+    merged = merge_default_config(
+        PartialMarimoConfig(ai={"allow_provider_config": False})
+    )
+    assert merged["ai"]["allow_provider_config"] is False
+
+
 def test_configure_partial_keymap() -> None:
     assert_config(
         PartialMarimoConfig(keymap={"preset": "vim", "overrides": {}})
+    )
+
+
+def test_configure_file_browser_folders() -> None:
+    assert_config(
+        PartialMarimoConfig(
+            file_browser={
+                "folders": [
+                    {"path": "/data", "name": "Data"},
+                    {"path": "/shared"},
+                ]
+            }
+        )
     )
 
 
@@ -102,7 +126,6 @@ def test_configure_github_with_copilot_settings() -> None:
         PartialMarimoConfig(
             ai={
                 "github": {
-                    "api_key": "test-github-key",
                     "copilot_settings": {
                         "http": {
                             "proxy": "http://proxy.example.com:8888",
@@ -119,7 +142,6 @@ def test_configure_github_with_copilot_settings() -> None:
     )
 
     github_config = config.get("ai", {}).get("github", {})
-    assert github_config.get("api_key") == "test-github-key"
     assert github_config.get("copilot_settings") is not None
     copilot_settings = github_config.get("copilot_settings", {})
     assert (
@@ -261,6 +283,35 @@ def test_merge_config_custom_providers_can_be_emptied() -> None:
 
     # custom_providers should be empty
     assert new_config.get("ai", {}).get("custom_providers", {}) == {}
+
+
+def test_merge_config_trusted_signers_replaces_for_revocation() -> None:
+    """signing.trusted_signers is replaced, not merged, so a higher-priority
+    layer can narrow or revoke trust (a deep merge would union the keys and make
+    revocation impossible)."""
+    fp_a = "SHA256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0"
+    fp_b = "SHA256:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB0"
+    prev_config = merge_default_config(
+        PartialMarimoConfig(
+            signing={"trusted_signers": {fp_a: "a", fp_b: "b"}}
+        )
+    )
+
+    # A higher-priority layer keeps only fp_a.
+    new_config = merge_config(
+        prev_config,
+        PartialMarimoConfig(signing={"trusted_signers": {fp_a: "a"}}),
+    )
+    trusted = new_config.get("signing", {}).get("trusted_signers", {})
+    assert fp_a in trusted
+    assert fp_b not in trusted
+
+    # And an empty map revokes all trust.
+    emptied = merge_config(
+        prev_config,
+        PartialMarimoConfig(signing={"trusted_signers": {}}),
+    )
+    assert emptied.get("signing", {}).get("trusted_signers", {}) == {}
 
 
 def test_merge_config_custom_providers_preserves_other_ai_settings() -> None:

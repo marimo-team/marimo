@@ -21,11 +21,13 @@ import { Label } from "../../components/ui/label";
 import { useEvent } from "../../hooks/useEvent";
 import { Logger } from "../../utils/Logger";
 import { getCellConfigs, getNotebook, useNotebook } from "../cells/cells";
+import { withDocumentSave } from "../cells/document-changes";
 import { notebookCells } from "../cells/utils";
 import { formatAll } from "../codemirror/format";
 import { autoSaveConfigAtom } from "../config/config";
 import { useAutoExport } from "../export/hooks";
-import { getSerializedLayout, layoutStateAtom } from "../layout/layout";
+import { getSerializedLayout } from "../layout/layout";
+import { layoutStateAtom } from "../layout/state";
 import { kioskModeAtom } from "../mode";
 import { connectionAtom } from "../network/connection";
 import { useRequestClient } from "../network/requests";
@@ -37,6 +39,17 @@ import { useAutoSave } from "./useAutoSave";
 
 interface SaveNotebookProps {
   kioskMode: boolean;
+}
+
+let notebookSaveQueue: Promise<void> = Promise.resolve();
+
+export function enqueueNotebookSave<T>(save: () => Promise<T>): Promise<T> {
+  const result = notebookSaveQueue.then(save);
+  notebookSaveQueue = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
 }
 
 export const SaveComponent = ({ kioskMode }: SaveNotebookProps) => {
@@ -96,8 +109,8 @@ export function useSaveNotebook() {
   const store = useStore();
 
   // Save the notebook with the given filename
-  const saveNotebook = useEvent(
-    async (filename: string, userInitiated: boolean) => {
+  const saveNotebook = useEvent((filename: string, userInitiated: boolean) =>
+    enqueueNotebookSave(async () => {
       const connection = store.get(connectionAtom);
       const autoSaveConfig = store.get(autoSaveConfigAtom);
       const kioskMode = store.get(kioskModeAtom);
@@ -119,37 +132,34 @@ export function useSaveNotebook() {
         await formatAll();
       }
 
-      // Grab the latest notebook state, after formatting
-      const notebook = getNotebook();
-      const cells = notebookCells(notebook);
-      const cellIds = cells.map((cell) => cell.id);
-      const codes = cells.map((cell) => cell.code);
-      const cellNames = cells.map((cell) => cell.name);
-      const configs = getCellConfigs(notebook);
-      const layout = store.get(layoutStateAtom);
-
-      // Don't save if there are no cells
-      if (codes.length === 0) {
+      if (notebookCells(getNotebook()).length === 0) {
         return;
       }
 
-      await sendSave({
-        cellIds: cellIds,
-        codes,
-        names: cellNames,
-        filename,
-        configs,
-        layout: getSerializedLayout(),
-        persist: true,
-      });
+      const savedNotebook = await withDocumentSave(async () => {
+        // Grab the latest notebook state after formatting and after every
+        // earlier document transaction has reached the server.
+        const notebook = getNotebook();
+        const cells = notebookCells(notebook);
+        const cellIds = cells.map((cell) => cell.id);
+        const codes = cells.map((cell) => cell.code);
+        const cellNames = cells.map((cell) => cell.name);
+        const configs = getCellConfigs(notebook);
+        const layout = store.get(layoutStateAtom);
 
-      setLastSavedNotebook({
-        names: cellNames,
-        codes,
-        configs,
-        layout,
+        await sendSave({
+          cellIds: cellIds,
+          codes,
+          names: cellNames,
+          filename,
+          configs,
+          layout: getSerializedLayout(),
+          persist: true,
+        });
+        return { names: cellNames, codes, configs, layout };
       });
-    },
+      setLastSavedNotebook(savedNotebook);
+    }),
   );
 
   // Save the notebook with the current filename, only if the filename exists

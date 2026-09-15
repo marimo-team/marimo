@@ -349,7 +349,7 @@ class AsyncPool:
         self._check_running()
         return self
 
-    def __exit__(self, *exc: Any) -> None:
+    def __exit__(self, *exc: object) -> None:
         del exc
         self.terminate()
 

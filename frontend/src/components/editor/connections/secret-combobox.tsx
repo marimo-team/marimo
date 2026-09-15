@@ -68,6 +68,8 @@ interface SecretComboboxProps {
   allowCreateSecret?: (search: string) => boolean;
 }
 
+const defaultCustomValueLabel = (custom: string) => `Use "${custom}"`;
+
 /**
  * Searchable combobox for connection fields that may reference secrets.
  *
@@ -84,7 +86,7 @@ export const SecretCombobox: React.FC<SecretComboboxProps> = ({
   onCreateSecret,
   className,
   searchPlaceholder,
-  formatCustomValueLabel = (custom) => `Use "${custom}"`,
+  formatCustomValueLabel = defaultCustomValueLabel,
   createSecretLabel = "Create a new secret",
   allowCustomValue,
   allowCreateSecret,

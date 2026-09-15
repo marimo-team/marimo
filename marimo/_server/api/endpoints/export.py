@@ -24,6 +24,7 @@ from marimo._convert.script import UnsupportedAsyncCodeError
 from marimo._export.dependencies import (
     get_missing_export_packages,
     get_missing_export_setup,
+    install_export_setup,
 )
 from marimo._export.exporter import (
     AutoExporter,
@@ -42,6 +43,7 @@ from marimo._export.requests import (
 )
 from marimo._export.serialization import serialize_notebook_snapshot
 from marimo._messaging.msgspec_encoder import asdict
+from marimo._runtime.commands import InstallPackagesCommand
 from marimo._schemas.export import (
     ExportAsHTMLRequest,
     ExportAsIPYNBRequest,
@@ -50,7 +52,9 @@ from marimo._schemas.export import (
     ExportAsScriptRequest,
     ExportAvailabilityResponse,
     ExportFormatAvailability,
+    InstallExportRequirementsRequest,
     UpdateCellOutputsRequest,
+    to_html_export_layout,
     to_html_export_options,
     to_ipynb_export_options,
     to_markdown_export_options,
@@ -61,9 +65,12 @@ from marimo._schemas.export_options import (
     IPYNBExportOptions,
     MarkdownExportOptions,
     PDFRasterizationOptions,
+    ServerExportFormat,
 )
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import (
+    enforce_consumer_capability,
+    install_packages_on_server,
     notify_server_missing_packages,
     parse_request,
 )
@@ -82,6 +89,33 @@ router = APIRouter()
 auto_exporter = AutoExporter()
 
 
+async def _get_export_format_availability(
+    export_format: ServerExportFormat,
+) -> ExportFormatAvailability:
+    missing_packages = get_missing_export_packages(export_format)
+    missing_setup = (
+        []
+        if missing_packages
+        else await get_missing_export_setup(export_format)
+    )
+    return ExportFormatAvailability(
+        format=export_format,
+        dependencies_available=not missing_packages and not missing_setup,
+        missing_packages=missing_packages,
+        missing_setup=missing_setup,
+    )
+
+
+async def _get_export_availability() -> ExportAvailabilityResponse:
+    return ExportAvailabilityResponse(
+        source="server",
+        formats=[
+            await _get_export_format_availability(export_format)
+            for export_format in SERVER_EXPORT_FORMATS
+        ],
+    )
+
+
 @router.get("/availability")
 @requires("read")
 async def get_export_availability(
@@ -98,24 +132,69 @@ async def get_export_availability(
                         $ref: "#/components/schemas/ExportAvailabilityResponse"
     """
     del request
-    formats: list[ExportFormatAvailability] = []
-    for export_format in SERVER_EXPORT_FORMATS:
-        missing_packages = get_missing_export_packages(export_format)
-        missing_setup = (
-            []
-            if missing_packages
-            else await get_missing_export_setup(export_format)
+    return await _get_export_availability()
+
+
+@router.post("/requirements/install")
+@requires("edit")
+async def install_export_requirements(
+    request: Request,
+) -> ExportAvailabilityResponse:
+    """
+    parameters:
+        - in: header
+          name: Marimo-Session-Id
+          schema:
+            type: string
+          required: true
+    requestBody:
+        content:
+            application/json:
+                schema:
+                    $ref: "#/components/schemas/InstallExportRequirementsRequest"
+    responses:
+        200:
+            description: Updated readiness for server-backed exports
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/ExportAvailabilityResponse"
+    """
+    app_state = AppState(request)
+    body = await parse_request(request, cls=InstallExportRequirementsRequest)
+    command = InstallPackagesCommand(
+        manager=app_state.app_config_manager.package_manager,
+        versions={},
+        source="server",
+    )
+    enforce_consumer_capability(app_state, command)
+
+    format_availability = await _get_export_format_availability(body.format)
+    if format_availability.missing_packages:
+        await install_packages_on_server(
+            dict.fromkeys(format_availability.missing_packages, "")
         )
-        formats.append(
-            ExportFormatAvailability(
-                format=export_format,
-                dependencies_available=not missing_packages
-                and not missing_setup,
-                missing_packages=missing_packages,
-                missing_setup=missing_setup,
-            )
+        format_availability = await _get_export_format_availability(
+            body.format
         )
-    return ExportAvailabilityResponse(source="server", formats=formats)
+
+    # Setup can only be probed after its Python packages are importable.
+    for requirement in format_availability.missing_setup:
+        await install_export_setup(requirement.name)
+
+    availability = await _get_export_availability()
+    target = next(
+        item for item in availability.formats if item.format == body.format
+    )
+    if not target.dependencies_available:
+        raise HTTPException(
+            status_code=HTTPStatus.SERVER_ERROR,
+            detail=(
+                f"Failed to install requirements for "
+                f"{body.format.upper()} export. Check the server logs."
+            ),
+        )
+    return availability
 
 
 @router.post("/html")
@@ -163,6 +242,10 @@ async def export_as_html(
 
     resolved_config = session.config_manager.get_config()
     app = session.app_file_manager.app
+    layout = to_html_export_layout(
+        body,
+        fallback=session.app_file_manager.read_layout_config,
+    )
     html, filename = Exporter().export_as_html(
         HTMLExportRequest(
             filename=session.app_file_manager.filename,
@@ -176,6 +259,7 @@ async def export_as_html(
             ),
             display_config=resolved_config["display"],
             options=to_html_export_options(body),
+            layout=layout,
             sharing_config=resolved_config.get("sharing"),
         )
     )
@@ -219,9 +303,11 @@ async def auto_export_as_html(
     body = await parse_request(request, cls=ExportAsHTMLRequest)
     session = app_state.require_current_session()
 
-    # Reload the file manager to get the latest state
-    session.app_file_manager.reload()
     session_view = session.session_view
+    layout = to_html_export_layout(
+        body,
+        fallback=session.app_file_manager.read_layout_config,
+    )
 
     if not session.app_file_manager.is_notebook_named:
         raise HTTPException(
@@ -230,7 +316,7 @@ async def auto_export_as_html(
         )
 
     # If we have already exported to HTML, don't do it again
-    if not session_view.needs_export("html"):
+    if not session_view.needs_auto_export_html(layout):
         LOGGER.debug("Already auto-exported to HTML")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
@@ -239,11 +325,15 @@ async def auto_export_as_html(
         LOGGER.info("No outputs to export")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "html")
+
     async def _background_export() -> None:
         app = session.app_file_manager.app
         html, _filename = Exporter().export_as_html(
             HTMLExportRequest(
-                filename=session.app_file_manager.filename,
+                filename=filename,
                 app_code=app.to_py(),
                 app_config=app.config,
                 snapshot=serialize_notebook_snapshot(
@@ -254,15 +344,20 @@ async def auto_export_as_html(
                 ),
                 display_config=session.config_manager.get_config()["display"],
                 options=to_html_export_options(body),
+                layout=layout,
             )
         )
 
         # Save the HTML file to disk, at `.marimo/<filename>.html`
-        await auto_exporter.save_html(
-            filename=session.app_file_manager.filename,
+        if session.app_file_manager.filename != filename:
+            return
+        committed = await auto_exporter.save_html(
+            filename=filename,
             html=html,
+            revision=revision,
         )
-        session_view.mark_auto_export_html()
+        if committed:
+            session_view.mark_auto_export_html(layout, generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),
@@ -487,6 +582,10 @@ async def auto_export_as_markdown(
         LOGGER.debug("Already auto-exported to Markdown")
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "md")
+
     async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
@@ -499,11 +598,15 @@ async def auto_export_as_markdown(
         )
 
         # Save the Markdown file to disk, at `.marimo/<filename>.md`
-        await auto_exporter.save_md(
-            filename=session.app_file_manager.filename,
+        if session.app_file_manager.filename != filename:
+            return
+        committed = await auto_exporter.save_md(
+            filename=filename,
             markdown=result.text,
+            revision=revision,
         )
-        session_view.mark_auto_export_md()
+        if committed:
+            session_view.mark_auto_export_md(generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),
@@ -576,6 +679,10 @@ async def auto_export_as_ipynb(
         session_view.mark_auto_export_ipynb()
         return PlainTextResponse(status_code=HTTPStatus.NOT_MODIFIED)
 
+    filename = session.app_file_manager.filename
+    generation = session_view.auto_export_generation
+    revision = auto_exporter.reserve_revision(filename, "ipynb")
+
     async def _background_export() -> None:
         # Reload the file manager to get the latest state
         session.app_file_manager.reload()
@@ -589,11 +696,15 @@ async def auto_export_as_ipynb(
         )
 
         # Save the IPYNB file to disk, at `.marimo/<filename>.ipynb`
-        await auto_exporter.save_ipynb(
-            filename=session.app_file_manager.filename,
+        if session.app_file_manager.filename != filename:
+            return
+        committed = await auto_exporter.save_ipynb(
+            filename=filename,
             ipynb=ipynb,
+            revision=revision,
         )
-        session_view.mark_auto_export_ipynb()
+        if committed:
+            session_view.mark_auto_export_ipynb(generation=generation)
 
     return JSONResponse(
         content=asdict(SuccessResponse()),

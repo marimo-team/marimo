@@ -42,10 +42,11 @@ if TYPE_CHECKING:
     from marimo._save.hash import HashKey
     from marimo._save.loaders import Loader
     from marimo._save.loaders.lazy import LazyLoader
+    from marimo._save.signing_policy import SigningPolicy
     from marimo._save.stores import Store
 
 # NB. Increment on cache breaking changes.
-MARIMO_CACHE_VERSION: int = 5
+MARIMO_CACHE_VERSION: int = 6
 
 CacheType = Literal[
     "ContextExecutionPath",
@@ -76,7 +77,15 @@ class CacheState:
     """
 
     store: Store
+    # True when `cache.store` was set by an untrusted layer (cloned repo's
+    # pyproject.toml / notebook header). Such a store must never redirect an
+    # unverified `pickle.loads` at attacker bytes.
+    store_from_untrusted_origin: bool = False
     hash_memo: dict[str, bytes] = field(default_factory=dict)
+    # Cache-signing policy resolved once for the session from the effective
+    # config (user/env only; project/script trust is stripped upstream). A
+    # `LazyLoader` reads it as the default trust/identity source.
+    signing_policy: SigningPolicy | None = None
     # Lazy-store session state; see `loaders/lazy.py:_cache_state`.
     active_lazy_loaders: dict[str, LazyLoader] = field(default_factory=dict)
     poisoned_keys: set[str] = field(default_factory=set)
@@ -580,7 +589,7 @@ class Cache:
         cls, *, key: HashKey, defs: set[str], stateful_refs: set[str]
     ) -> Cache:
         return Cache(
-            defs={d: None for d in defs},
+            defs=dict.fromkeys(defs),
             hash=key.hash,
             cache_type=key.cache_type,
             stateful_refs=stateful_refs,

@@ -250,7 +250,9 @@ def app_host_main(args: AppHostArgs) -> None:
 
     if sys.platform != "win32":
         os.setsid()
-        start_parent_poller(args.parent_pid)
+        # The direct parent may be a launcher such as uv; also probe
+        # the server pid so its ungraceful death is still detected.
+        start_parent_poller(os.getppid(), ancestor_pid=args.parent_pid)
 
     _loggers.set_level(args.log_level)
     LOGGER.debug(

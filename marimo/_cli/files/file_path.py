@@ -110,7 +110,7 @@ class GitHubIssueReader(FileReader):
         )
 
     def read(self, name: str) -> tuple[str, str]:
-        issue_number = name.split("/")[-1]
+        issue_number = name.rsplit("/", maxsplit=1)[-1]
         api_url = f"https://api.github.com/repos/marimo-team/marimo/issues/{issue_number}"
         response = requests.get(api_url)
         response.raise_for_status()
@@ -248,7 +248,7 @@ class GenericURLReader(FileReader):
         response.raise_for_status()
         content = response.text()
         # Remove query parameters from the URL
-        url_without_query = name.split("?")[0]
+        url_without_query = name.split("?", maxsplit=1)[0]
         return content, os.path.basename(url_without_query)
 
 

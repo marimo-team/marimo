@@ -1805,6 +1805,7 @@ class Kernel:
     async def rename_file(self, filename: str) -> None:
         self.globals["__file__"] = filename
         self.app_metadata.filename = filename
+        self.packages_callbacks.rename_file(filename)
         roots: set[CellId_t] = set()
         for cell in self.graph.cells.values():
             if "__file__" in cell.refs:
@@ -2505,7 +2506,9 @@ def _bootstrap_subprocess(
     # process (which assumes its child is in another process group).
     if sys.platform != "win32":
         os.setsid()
-        start_parent_poller(parent_pid)
+        # The direct parent may be a launcher such as uv; also probe
+        # the server pid so its ungraceful death is still detected.
+        start_parent_poller(os.getppid(), ancestor_pid=parent_pid)
     else:
         ignore_console_ctrl_c()
 
@@ -2705,7 +2708,7 @@ def launch_kernel(
                 set_ui_element_queue=set_ui_element_queue,
                 virtual_file_storage=virtual_file_storage,
             )
-        ) as (kernel, ctx):
+        ) as (kernel, _ctx):
             if is_edit_mode:
                 # out-of-band commands are only processed in edit mode
                 kernel.start_out_of_band_worker(completion_queue)

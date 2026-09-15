@@ -48,6 +48,7 @@ export const MockRequestClient = {
       getEnvironmentInfo: vi
         .fn()
         .mockRejectedValue(new Error("Environment information unavailable")),
+      getFileRoots: vi.fn().mockResolvedValue({ roots: [] }),
       sendPdb: vi.fn().mockResolvedValue({}),
       sendSetBreakpoints: vi.fn().mockResolvedValue({}),
       sendListFiles: vi.fn().mockResolvedValue({ files: [] }),
@@ -100,6 +101,10 @@ export const MockRequestClient = {
           },
         ],
       }),
+      installExportRequirements: vi.fn().mockResolvedValue({
+        source: "server",
+        formats: [],
+      }),
       exportAsHTML: vi.fn().mockResolvedValue({
         contents: "",
         filename: "notebook.html",
@@ -131,8 +136,13 @@ export const MockRequestClient = {
       updateCellOutputs: vi.fn().mockResolvedValue({}),
       addPackage: vi.fn().mockResolvedValue({}),
       removePackage: vi.fn().mockResolvedValue({}),
-      getPackageList: vi.fn().mockResolvedValue({ packages: [] }),
-      getDependencyTree: vi.fn().mockResolvedValue({}),
+      getPackageList: vi.fn().mockResolvedValue({
+        packages: [],
+      }),
+      getDependencyTree: vi.fn().mockResolvedValue({
+        tree: null,
+        context: { kind: "package-manager", name: "pip" },
+      }),
       listSecretKeys: vi.fn().mockResolvedValue({ keys: [] }),
       writeSecret: vi.fn().mockResolvedValue({}),
       invokeAiTool: vi.fn().mockResolvedValue({}),

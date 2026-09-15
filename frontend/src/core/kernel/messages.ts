@@ -11,6 +11,7 @@ export const DATA_TYPES = [
   "date",
   "datetime",
   "time",
+  "geometry",
   "unknown",
 ] as const;
 export type ModelLifecycle = NotificationMessageData<"model-lifecycle">;

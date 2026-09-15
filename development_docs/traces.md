@@ -16,6 +16,9 @@ the same packages):
 pip install "marimo[otel]"
 ```
 
+If marimo cannot import these dependencies, it logs a warning and disables
+tracing. Marimo continues to run.
+
 ### Enable Traces
 
 Set `MARIMO_TRACING=true` to turn tracing on:

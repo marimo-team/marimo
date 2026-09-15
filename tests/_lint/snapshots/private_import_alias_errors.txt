@@ -1,0 +1,25 @@
+error[private-import-alias]: Import of 'os' is aliased to the private name '_os' in multiple cells.
+ --> tests/_lint/test_files/private_import_alias.py:6:8
+   6 | with app.setup:
+   7 |     import os as _os
+     |           ^
+   8 | 
+   ...
+  12 |     # Repeated: same `os as _os` as the setup cell above
+  13 |     import os as _os
+     |           ^
+  14 | 
+hint: This private import is repeated across multiple cells: consolidate the imports and drop the underscore. Consider moving the import into a setup cell (`with app.setup:`) or an import only cell
+
+error[private-import-alias]: Import of 'OrderedDict' is aliased to the private name '_OrderedDict' in multiple cells.
+ --> tests/_lint/test_files/private_import_alias.py:28:25
+  28 | def _():
+  29 |     from collections import OrderedDict as _OrderedDict
+     |                            ^
+  30 | 
+   ...
+  36 |     # Repeated: same `OrderedDict as _OrderedDict` as the cell above
+  37 |     from collections import OrderedDict as _OrderedDict
+     |                            ^
+  38 | 
+hint: This private import is repeated across multiple cells: consolidate the imports and drop the underscore. Consider moving the import into a setup cell (`with app.setup:`) or an import only cell

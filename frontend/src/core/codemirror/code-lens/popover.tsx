@@ -4,6 +4,7 @@ import { Provider, useAtomValue } from "jotai";
 import { DatabaseZapIcon } from "lucide-react";
 import type React from "react";
 import { useEffect } from "react";
+import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { useLocale } from "react-aria";
 import { ProtocolIcon } from "@/components/storage/components";
@@ -39,11 +40,16 @@ export function mountLensPopover(
   spec: CodeLensSpec,
 ): () => void {
   const root = createRoot(dom);
-  root.render(
-    <Provider store={store}>
-      <LensPopover spec={spec} />
-    </Provider>,
-  );
+  // CodeMirror measures and positions the tooltip as soon as this function
+  // returns. Render now so it measures the popover content, not an empty
+  // container that later grows over the hovered icon.
+  flushSync(() => {
+    root.render(
+      <Provider store={store}>
+        <LensPopover spec={spec} />
+      </Provider>,
+    );
+  });
   // Defer so tearing the tooltip down from inside a React event (e.g. the
   // icon's click handler) doesn't unmount mid-render
   return () => queueMicrotask(() => root.unmount());

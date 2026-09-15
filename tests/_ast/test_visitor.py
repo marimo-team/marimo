@@ -2043,6 +2043,47 @@ def test_class_with_method_using_external_var() -> None:
     assert v.variable_data["K"][0].unbounded_refs == {"int"}
 
 
+def test_function_name_resolution_in_class_and_function_scopes() -> None:
+    code = cleandoc(
+        """
+        class C:
+            def method(self):
+                return method()
+
+        def outer():
+            def method():
+                return method()
+            return method
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    # A bare name in a method body does not resolve through the class scope.
+    assert v.refs == {"method"}
+    assert v.variable_data["C"][0].required_refs == {"method"}
+
+    # A nested function does resolve its name through its enclosing function.
+    assert v.variable_data["outer"][0].required_refs == set()
+
+
+def test_async_function_name_resolution_in_class_scope() -> None:
+    code = cleandoc(
+        """
+        class C:
+            async def method(self):
+                return method()
+        """
+    )
+    v = visitor.ScopedVisitor()
+    mod = ast.parse(code)
+    v.visit(mod)
+
+    assert v.refs == {"method"}
+    assert v.variable_data["C"][0].required_refs == {"method"}
+
+
 def test_class_with_forward_reference_to_method() -> None:
     """Test that class variables can reference methods defined earlier (valid)."""
     code = cleandoc(

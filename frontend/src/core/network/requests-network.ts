@@ -319,6 +319,10 @@ export function createNetworkRequests(): EditRequests & RunRequests {
         })
         .then(handleResponseReturnNull);
     },
+    getFileRoots: async () => {
+      await waitForConnectionOpen();
+      return getClient().GET("/api/files/roots").then(handleResponse);
+    },
     sendListFiles: async (request) => {
       await waitForConnectionOpen();
       return getClient()
@@ -416,6 +420,14 @@ export function createNetworkRequests(): EditRequests & RunRequests {
     },
     getExportAvailability: () => {
       return getClient().GET("/api/export/availability").then(handleResponse);
+    },
+    installExportRequirements: (request) => {
+      return getClient()
+        .POST("/api/export/requirements/install", {
+          body: request,
+          params: getParams(),
+        })
+        .then(handleResponse);
     },
     exportAsHTML: async (request) => {
       if (

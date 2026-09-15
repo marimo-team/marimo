@@ -344,6 +344,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   discoverDataSources = throwNotImplemented;
   validateSQL = throwNotImplemented;
   openFile = throwNotImplemented;
+  getFileRoots = throwNotImplemented;
   sendListFiles = throwNotImplemented;
   sendSearchFiles = throwNotImplemented;
   sendPdb = throwNotImplemented;
@@ -356,6 +357,7 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   sendFileDetails = throwNotImplemented;
   openTutorial = throwNotImplemented;
   getExportAvailability = throwNotImplemented;
+  installExportRequirements = throwNotImplemented;
   exportAsHTML = throwNotImplemented;
   exportAsIPYNB = throwNotImplemented;
   exportAsMarkdown = throwNotImplemented;

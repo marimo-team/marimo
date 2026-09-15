@@ -15,7 +15,7 @@ import { SquareEqualIcon, WorkflowIcon } from "lucide-react";
 import React, { memo, useMemo } from "react";
 import { useLocale } from "react-aria";
 import { CellLink } from "@/components/editor/links/cell-link";
-import { getCellEditorView, useCellNames } from "@/core/cells/cells";
+import { ensureCellEditorView, useCellNames } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
 import { goToVariableDefinition } from "@/core/codemirror/go-to-definition/commands";
@@ -135,9 +135,8 @@ const COLUMNS = [
     cell: ({ getValue }) => {
       const [declaredBy, usedBy, name] = getValue();
 
-      // Highlight the variable in the cell editor
       const highlightInCell = (cellId: CellId) => {
-        const editorView = getCellEditorView(cellId);
+        const editorView = ensureCellEditorView(cellId);
         if (editorView) {
           goToVariableDefinition(editorView, name);
         }

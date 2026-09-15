@@ -14,7 +14,7 @@ describe("ChartSchema", () => {
 
   it("normalizes an unrecognized axis column type", () => {
     const result = ChartSchema.parse({
-      general: { xColumn: { field: "geom", type: "geometry" } },
+      general: { xColumn: { field: "geom", type: "bogus_type" } },
     });
 
     expect(result.general?.xColumn?.type).toBe("unknown");
@@ -24,12 +24,27 @@ describe("ChartSchema", () => {
     const result = ChartSchema.parse({
       tooltips: {
         auto: false,
-        fields: [{ field: "geom", type: "geometry" }],
+        fields: [{ field: "geom", type: "bogus_type" }],
       },
     });
 
     expect(result.tooltips?.fields).toEqual([
       { field: "geom", type: "unknown" },
+    ]);
+  });
+
+  it("keeps geometry axis and tooltip field types", () => {
+    const result = ChartSchema.parse({
+      general: { xColumn: { field: "geom", type: "geometry" } },
+      tooltips: {
+        auto: false,
+        fields: [{ field: "geom", type: "geometry" }],
+      },
+    });
+
+    expect(result.general?.xColumn?.type).toBe("geometry");
+    expect(result.tooltips?.fields).toEqual([
+      { field: "geom", type: "geometry" },
     ]);
   });
 });

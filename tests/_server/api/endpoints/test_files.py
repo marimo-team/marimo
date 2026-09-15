@@ -62,6 +62,53 @@ def test_rename(client: TestClient) -> None:
     try_assert_n_times(5, _new_path_exists)
 
 
+@with_session(SESSION_ID)
+def test_rename_prepares_file_before_notifying_kernel(
+    client: TestClient,
+) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+    assert session.app_file_manager.path is not None
+    original = Path(session.app_file_manager.path)
+    renamed = original.with_name(f"{original.stem}_renamed.py")
+
+    def notify(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        assert renamed.exists()
+        assert not original.exists()
+        assert session.app_file_manager.path == str(renamed)
+
+    with patch.object(
+        session, "put_control_request", side_effect=notify
+    ) as put:
+        response = client.post(
+            "/api/kernel/rename",
+            headers=HEADERS,
+            json={"filename": str(renamed)},
+        )
+    assert response.json() == {"success": True}
+    put.assert_called_once()
+
+
+@with_session(SESSION_ID)
+def test_failed_rename_does_not_notify_kernel(client: TestClient) -> None:
+    session = get_session_manager(client).get_session(SESSION_ID)
+    assert session is not None
+    assert session.app_file_manager.path is not None
+    original = Path(session.app_file_manager.path)
+    occupied = original.with_name(f"{original.stem}_occupied.py")
+    occupied.write_text("# An unrelated notebook\n")
+    with patch.object(session, "put_control_request") as put:
+        response = client.post(
+            "/api/kernel/rename",
+            headers=HEADERS,
+            json={"filename": str(occupied)},
+        )
+    assert response.status_code == 400
+    put.assert_not_called()
+    assert occupied.read_text() == "# An unrelated notebook\n"
+
+
 @pytest.mark.flaky(reruns=5)
 @with_session(SESSION_ID)
 def test_read_code(client: TestClient) -> None:

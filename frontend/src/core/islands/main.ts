@@ -2,6 +2,7 @@
 import "./islands.css";
 import "../../css/common.css";
 import "../../css/globals.css";
+import "../../css/markdown-typography.css";
 import "../../css/codehilite.css";
 import "../../css/katex.min.css";
 import "../../css/md.css";

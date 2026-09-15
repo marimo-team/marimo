@@ -104,7 +104,7 @@ def create_test_server_connection(
     args: list | None = None,
     env: dict | None = None,
     status: MCPServerStatus = MCPServerStatus.DISCONNECTED,
-    session=None,
+    client=None,
     timeout: float | None = None,
 ) -> MCPServerConnection:
     """Create a test server connection with sensible defaults."""
@@ -113,7 +113,7 @@ def create_test_server_connection(
     )
     connection = MCPServerConnection(definition=server_def)
     connection.status = status
-    connection.session = session
+    connection.client = client
     return connection
 
 
@@ -136,13 +136,23 @@ def create_test_tool(
         return Tool(
             name=name,
             description=description,
-            inputSchema=input_schema,
+            input_schema=input_schema,
             _meta={
                 "server_name": server_name,
                 "namespaced_name": namespaced_name,
             },
         )
     return None
+
+
+def create_connection_task(
+    error: Exception | None = None,
+) -> asyncio.Task[None]:
+    async def lifecycle() -> None:
+        if error is not None:
+            raise error
+
+    return asyncio.create_task(lifecycle())
 
 
 # tests
@@ -489,16 +499,9 @@ class TestMCPTransportConnectors:
         not DependencyManager.mcp.has(), reason="MCP SDK not available"
     )
     @patch("mcp.client.stdio.stdio_client")
-    async def test_stdio_connector_connect(self, mock_stdio_client):
-        """Test STDIO transport connector connection."""
-        # Setup mocks
-        mock_read = AsyncMock()
-        mock_write = AsyncMock()
+    def test_stdio_connector_create(self, mock_stdio_client):
+        """Test STDIO transport creation."""
         mock_context = AsyncMock()
-        mock_context.__aenter__ = AsyncMock(
-            return_value=(mock_read, mock_write)
-        )
-        mock_context.__aexit__ = AsyncMock(return_value=None)
         mock_stdio_client.return_value = mock_context
 
         # Create connector and test connection
@@ -510,19 +513,24 @@ class TestMCPTransportConnectors:
             name="test", transport=MCPTransportType.STDIO, config=config
         )
 
-        from contextlib import AsyncExitStack
+        transport = connector.create(server_def)
 
-        async with AsyncExitStack() as exit_stack:
-            read, write = await connector.connect(server_def, exit_stack)
-            assert read == mock_read
-            assert write == mock_write
+        assert transport is mock_context
+        parameters = mock_stdio_client.call_args.args[0]
+        assert parameters.command == "python"
+        assert parameters.args == ["server.py"]
+        assert parameters.env is not None
+        assert parameters.env["TEST_VAR"] == "value"
 
     @pytest.mark.skipif(
         not DependencyManager.mcp.has(), reason="MCP SDK not available"
     )
+    @patch("httpx2.AsyncClient")
     @patch("mcp.client.streamable_http.streamable_http_client")
-    async def test_http_connector_connect(self, mock_http_client):
-        """Test HTTP transport connector connection."""
+    async def test_http_connector_create(
+        self, mock_streamable_http_client, mock_httpx_client
+    ):
+        """Test HTTP transport creation."""
         # Setup mocks
         mock_read = AsyncMock()
         mock_write = AsyncMock()
@@ -531,7 +539,14 @@ class TestMCPTransportConnectors:
             return_value=(mock_read, mock_write)
         )
         mock_context.__aexit__ = AsyncMock(return_value=None)
-        mock_http_client.return_value = mock_context
+        mock_streamable_http_client.return_value = mock_context
+
+        mock_httpx_context = AsyncMock()
+        mock_httpx_client.return_value = mock_httpx_context
+        mock_httpx_context.__aenter__ = AsyncMock(
+            return_value=mock_httpx_context
+        )
+        mock_httpx_context.__aexit__ = AsyncMock(return_value=None)
 
         # Create connector and test connection
         connector = StreamableHTTPTransportConnector()
@@ -547,59 +562,26 @@ class TestMCPTransportConnectors:
             timeout=30.0,
         )
 
-        from contextlib import AsyncExitStack
-
-        async with AsyncExitStack() as exit_stack:
-            read, write = await connector.connect(server_def, exit_stack)
+        transport = connector.create(server_def)
+        async with transport as (read, write):
             assert read == mock_read
             assert write == mock_write
 
-    @pytest.mark.skipif(
-        not DependencyManager.mcp.has(), reason="MCP SDK not available"
-    )
-    @patch("mcp.client.streamable_http.streamablehttp_client")
-    @patch.dict("sys.modules", {})
-    async def test_http_connector_connect_legacy_fallback(
-        self, mock_streamablehttp_client
-    ):
-        """Test HTTP transport connector fallback to streamablehttp_client on ImportError."""
-        mock_read = AsyncMock()
-        mock_write = AsyncMock()
-        mock_context = AsyncMock()
-        mock_context.__aenter__ = AsyncMock(
-            return_value=(mock_read, mock_write)
+        mock_httpx_client.assert_called_once()
+        http_client_kwargs = mock_httpx_client.call_args.kwargs
+        assert http_client_kwargs["headers"] == {
+            "Authorization": "Bearer token"
+        }
+        assert http_client_kwargs["follow_redirects"] is True
+        timeout = http_client_kwargs["timeout"]
+        assert timeout.connect == 30.0
+        assert timeout.read == 300.0
+        assert timeout.write == 30.0
+        assert timeout.pool == 30.0
+        mock_streamable_http_client.assert_called_once_with(
+            "https://api.example.com/mcp",
+            http_client=mock_httpx_context,
         )
-        mock_context.__aexit__ = AsyncMock(return_value=None)
-        mock_streamablehttp_client.return_value = mock_context
-
-        connector = StreamableHTTPTransportConnector()
-        config = MCPServerStreamableHttpConfig(
-            url="https://api.example.com/mcp",
-            headers={"Authorization": "Bearer token"},
-            timeout=30.0,
-        )
-        server_def = MCPServerDefinition(
-            name="test",
-            transport=MCPTransportType.STREAMABLE_HTTP,
-            config=config,
-            timeout=30.0,
-        )
-
-        from contextlib import AsyncExitStack
-
-        with patch(
-            "mcp.client.streamable_http.streamable_http_client",
-            side_effect=ImportError,
-        ):
-            async with AsyncExitStack() as exit_stack:
-                read, write = await connector.connect(server_def, exit_stack)
-                assert read == mock_read
-                assert write == mock_write
-                mock_streamablehttp_client.assert_called_once_with(
-                    "https://api.example.com/mcp",
-                    headers={"Authorization": "Bearer token"},
-                    timeout=30.0,
-                )
 
 
 class TestMCPClientConfiguration:
@@ -957,7 +939,7 @@ class TestMCPClientToolManagement:
         tool1 = Tool(
             name="create_issue",
             description="Test tool",
-            inputSchema={},
+            input_schema={"type": "object"},
             _meta={"server_name": "github", "namespaced_name": name1},
         )
         client.tool_registry[name1] = tool1
@@ -989,12 +971,12 @@ class TestMCPClientToolManagement:
             Tool(
                 name="tool1",
                 description="Test tool 1",
-                inputSchema={"type": "object"},
+                input_schema={"type": "object"},
             ),
             Tool(
                 name="tool2",
                 description="Test tool 2",
-                inputSchema={"type": "object"},
+                input_schema={"type": "object"},
             ),
         ]
 
@@ -1028,7 +1010,7 @@ class TestMCPClientToolManagement:
                 Tool(
                     name="tool1",
                     description="Test",
-                    inputSchema={},
+                    input_schema={"type": "object"},
                     _meta={
                         "server_name": "server1",
                         "namespaced_name": "mcp_server1_tool1",
@@ -1040,7 +1022,7 @@ class TestMCPClientToolManagement:
                 Tool(
                     name="tool2",
                     description="Test",
-                    inputSchema={},
+                    input_schema={"type": "object"},
                     _meta={
                         "server_name": "server1",
                         "namespaced_name": "mcp_server1_tool2",
@@ -1054,7 +1036,7 @@ class TestMCPClientToolManagement:
                 Tool(
                     name="tool3",
                     description="Test",
-                    inputSchema={},
+                    input_schema={"type": "object"},
                     _meta={
                         "server_name": "server2",
                         "namespaced_name": "mcp_server2_tool3",
@@ -1118,7 +1100,7 @@ class TestMCPClientToolManagement:
             tool = Tool(
                 name=namespaced_name.split("_")[-1],
                 description="Test",
-                inputSchema={},
+                input_schema={"type": "object"},
                 _meta={
                     "server_name": server,
                     "namespaced_name": namespaced_name,
@@ -1166,21 +1148,21 @@ class TestMCPClientToolExecution:
         [
             pytest.param(
                 None,  # No tool setup
-                {"status": MCPServerStatus.CONNECTED, "session": AsyncMock()},
+                {"status": MCPServerStatus.CONNECTED, "client": AsyncMock()},
                 "Tool 'nonexistent_tool' not found",
                 id="tool_not_found",
             ),
             pytest.param(
                 {"server_name": "test_server"},
-                {"status": MCPServerStatus.DISCONNECTED, "session": None},
+                {"status": MCPServerStatus.DISCONNECTED, "client": None},
                 "Server 'test_server' is not connected",
                 id="server_not_connected",
             ),
             pytest.param(
                 {"server_name": "test_server"},
-                {"status": MCPServerStatus.CONNECTED, "session": None},
-                "No active session for server 'test_server'",
-                id="no_active_session",
+                {"status": MCPServerStatus.CONNECTED, "client": None},
+                "No active client for server 'test_server'",
+                id="no_active_client",
             ),
         ],
     )
@@ -1196,7 +1178,7 @@ class TestMCPClientToolExecution:
             mock_tool = Tool(
                 name="test_tool",
                 description="Test tool",
-                inputSchema={},
+                input_schema={"type": "object"},
                 _meta={
                     "server_name": tool_setup["server_name"],
                     "namespaced_name": "mcp_test_server_test_tool",
@@ -1210,7 +1192,7 @@ class TestMCPClientToolExecution:
             )
             connection = MCPServerConnection(definition=server_def)
             connection.status = connection_setup["status"]
-            connection.session = connection_setup["session"]
+            connection.client = connection_setup["client"]
             client.connections["test_server"] = connection
 
             # Create params for the tool
@@ -1247,9 +1229,9 @@ class TestMCPClientToolExecution:
         mock_tool = create_test_tool()
         client.tool_registry["mcp_test_server_test_tool"] = mock_tool
 
-        # Setup connection with mock session
+        # Setup connection with mock client
         connection = create_test_server_connection(
-            status=MCPServerStatus.CONNECTED, session=AsyncMock()
+            status=MCPServerStatus.CONNECTED, client=AsyncMock()
         )
 
         # Mock successful tool result
@@ -1258,7 +1240,7 @@ class TestMCPClientToolExecution:
                 TextContent(type="text", text="Tool executed successfully")
             ]
         )
-        connection.session.call_tool = AsyncMock(return_value=expected_result)
+        connection.client.call_tool = AsyncMock(return_value=expected_result)
         client.connections["test_server"] = connection
 
         # Create params and invoke tool
@@ -1272,8 +1254,8 @@ class TestMCPClientToolExecution:
         text_contents = client.extract_text_content(result)
         assert "Tool executed successfully" in text_contents[0]
 
-        # Verify session was called correctly
-        connection.session.call_tool.assert_called_once_with(
+        # Verify client was called correctly
+        connection.client.call_tool.assert_called_once_with(
             "test_tool", {"arg1": "value1"}
         )
 
@@ -1289,14 +1271,14 @@ class TestMCPClientToolExecution:
         connection = create_test_server_connection(
             timeout=0.1,  # Very short timeout
             status=MCPServerStatus.CONNECTED,
-            session=AsyncMock(),
+            client=AsyncMock(),
         )
 
-        # Mock session to hang longer than timeout
+        # Mock client to hang longer than timeout
         async def slow_call_tool(_name, _args):
             await asyncio.sleep(1)  # Longer than timeout
 
-        connection.session.call_tool = AsyncMock(side_effect=slow_call_tool)
+        connection.client.call_tool = AsyncMock(side_effect=slow_call_tool)
         client.connections["test_server"] = connection
 
         # Create params and invoke tool
@@ -1346,7 +1328,7 @@ class TestMCPClientToolExecution:
 
         # Create result
         content = [TextContent(**item) for item in result_content]
-        result = CallToolResult(isError=expected_is_error, content=content)
+        result = CallToolResult(is_error=expected_is_error, content=content)
 
         # Test error detection
         assert client.is_error_result(result) == expected_is_error
@@ -1360,6 +1342,53 @@ class TestMCPClientToolExecution:
         ):
             assert text_contents[i] == expected_text
 
+    def test_convert_structured_tool_result(self):
+        from mcp.types import CallToolResult, TextContent
+
+        client = MCPClient()
+        result = CallToolResult(
+            content=[TextContent(type="text", text="fallback")],
+            structured_content={"rows": [{"value": 1}]},
+        )
+
+        assert client.convert_tool_result(result) == {"rows": [{"value": 1}]}
+
+    def test_convert_non_text_tool_result(self):
+        from mcp.types import CallToolResult, ImageContent
+
+        client = MCPClient()
+        result = CallToolResult(
+            content=[
+                ImageContent(
+                    type="image", data="aW1hZ2U=", mime_type="image/png"
+                )
+            ]
+        )
+
+        assert client.convert_tool_result(result) == {
+            "content": [
+                {
+                    "type": "image",
+                    "data": "aW1hZ2U=",
+                    "mimeType": "image/png",
+                }
+            ]
+        }
+
+    def test_format_structured_tool_error(self):
+        from mcp.types import CallToolResult
+
+        client = MCPClient()
+        result = CallToolResult(
+            is_error=True,
+            content=[],
+            structured_content={"reason": "denied", "code": 403},
+        )
+
+        assert client.format_tool_error(result) == (
+            '{"code": 403, "reason": "denied"}'
+        )
+
 
 @pytest.mark.skipif(
     not DependencyManager.mcp.has(), reason="MCP SDK not available"
@@ -1372,25 +1401,25 @@ class TestMCPClientConnectionManagement:
         client = MCPClient()
         from mcp.types import ListToolsResult, Tool
 
-        # Create mock connection with session
-        mock_session = AsyncMock()
-        connection = create_test_server_connection(session=mock_session)
+        # Create mock connection with a client
+        mock_client = AsyncMock()
+        connection = create_test_server_connection(client=mock_client)
 
         # Mock tools response
         mock_tools = [
             Tool(
                 name="tool1",
                 description="First tool",
-                inputSchema={"type": "object"},
+                input_schema={"type": "object"},
             ),
             Tool(
                 name="tool2",
                 description="Second tool",
-                inputSchema={"type": "object"},
+                input_schema={"type": "object"},
             ),
         ]
         mock_response = ListToolsResult(tools=mock_tools)
-        mock_session.list_tools = AsyncMock(return_value=mock_response)
+        mock_client.list_tools = AsyncMock(return_value=mock_response)
 
         # Test tool discovery
         await client._discover_tools(connection)
@@ -1400,48 +1429,96 @@ class TestMCPClientConnectionManagement:
         assert "mcp_test_server_tool1" in client.tool_registry
         assert "mcp_test_server_tool2" in client.tool_registry
 
-        # Verify session was called
-        mock_session.list_tools.assert_called_once()
+        # Verify client was called
+        mock_client.list_tools.assert_called_once_with(cursor=None)
 
-    async def test_discover_tools_no_session(self):
-        """Test tool discovery with no active session."""
+    async def test_discover_tools_follows_pagination(self):
+        from mcp.types import ListToolsResult, Tool
+
+        client = MCPClient()
+        mock_client = AsyncMock()
+        connection = create_test_server_connection(client=mock_client)
+        mock_client.list_tools.side_effect = [
+            ListToolsResult(
+                tools=[
+                    Tool(
+                        name="tool1",
+                        description="First tool",
+                        input_schema={"type": "object"},
+                    )
+                ],
+                next_cursor="page-2",
+            ),
+            ListToolsResult(
+                tools=[
+                    Tool(
+                        name="tool2",
+                        description="Second tool",
+                        input_schema={"type": "object"},
+                    )
+                ]
+            ),
+        ]
+
+        await client._discover_tools(connection)
+
+        assert set(client.tool_registry) == {
+            "mcp_test_server_tool1",
+            "mcp_test_server_tool2",
+        }
+        assert mock_client.list_tools.await_args_list == [
+            (((), {"cursor": None})),
+            (((), {"cursor": "page-2"})),
+        ]
+
+    async def test_discover_tools_is_atomic_on_failure(self):
+        client = MCPClient()
+        existing_tool = create_test_tool(name="existing")
+        connection = create_test_server_connection(client=AsyncMock())
+        connection.tools = [existing_tool]
+        client.connections["test_server"] = connection
+        client.tool_registry["mcp_test_server_existing"] = existing_tool
+        connection.client.list_tools.side_effect = RuntimeError("failed")
+
+        with pytest.raises(RuntimeError, match="failed"):
+            await client._discover_tools(connection)
+
+        assert connection.tools == [existing_tool]
+        assert set(client.tool_registry) == {"mcp_test_server_existing"}
+
+    async def test_discover_tools_no_client(self):
+        """Test tool discovery with no active client."""
         client = MCPClient()
 
-        # Create connection without session
-        connection = create_test_server_connection(session=None)
+        connection = create_test_server_connection(client=None)
 
-        # Test tool discovery (should handle gracefully)
-        await client._discover_tools(connection)
+        with pytest.raises(RuntimeError, match="No active client"):
+            await client._discover_tools(connection)
 
         # Verify no tools were added
         assert len(connection.tools) == 0
         assert len(client.tool_registry) == 0
 
-    @patch("mcp.ClientSession")
-    @patch("mcp.client.stdio.stdio_client")
+    @patch("mcp.Client")
     async def test_connect_to_server_success(
         self,
-        mock_stdio_client,
-        mock_session_class,
-        mock_stdio_setup,
-        mock_session_setup,
+        mock_client_class,
     ):
         """Test successful server connection with complete flow."""
-        # Setup stdio and session mocks using fixtures
-        mock_read, mock_write, mock_stdio_context = mock_stdio_setup()
-        mock_stdio_client.return_value = mock_stdio_context
+        mock_connection_client = AsyncMock()
+        mock_connection_client.__aenter__ = AsyncMock(
+            return_value=mock_connection_client
+        )
+        mock_connection_client.__aexit__ = AsyncMock(return_value=None)
+        mock_connection_client.list_tools.return_value.tools = []
+        mock_connection_client.list_tools.return_value.next_cursor = None
+        mock_client_class.return_value = mock_connection_client
+        transport = AsyncMock()
 
-        _mock_session, mock_session_context = mock_session_setup()
-        mock_session_class.return_value = mock_session_context
-
-        # Mock AsyncExitStack
         with patch(
-            "marimo._server.ai.mcp.StdioTransportConnector.connect"
-        ) as mock_connector_connect:
-            # Mock connector.connect to return the expected streams
-            mock_connector_connect.return_value = (mock_read, mock_write)
-
-            # Create client with test config
+            "marimo._server.ai.mcp.StdioTransportConnector.create",
+            return_value=transport,
+        ):
             config = MCPConfig(
                 mcpServers={
                     "test_server": MCPServerStdioConfig(
@@ -1461,6 +1538,102 @@ class TestMCPClientConnectionManagement:
                 client.connections["test_server"].status
                 == MCPServerStatus.CONNECTED
             )
+            mock_client_class.assert_called_once_with(
+                transport,
+                mode="auto",
+                read_timeout_seconds=30.0,
+            )
+            await client.disconnect_from_server("test_server")
+
+    @patch("mcp.Client")
+    async def test_connect_to_server_fails_when_discovery_fails(
+        self, mock_client_class
+    ):
+        mock_connection_client = AsyncMock()
+        mock_connection_client.__aenter__.return_value = mock_connection_client
+        mock_connection_client.list_tools.side_effect = RuntimeError(
+            "discovery failed"
+        )
+        mock_client_class.return_value = mock_connection_client
+        client = MCPClient()
+        client.servers["test_server"] = create_test_server_definition()
+
+        with patch(
+            "marimo._server.ai.mcp.StdioTransportConnector.create",
+            return_value=AsyncMock(),
+        ):
+            result = await client.connect_to_server("test_server")
+
+        assert result is False
+        connection = client.connections["test_server"]
+        assert connection.status == MCPServerStatus.ERROR
+        assert connection.tools == []
+        assert connection.error_message is not None
+        assert "discovery failed" in connection.error_message
+
+    @patch("mcp.Client")
+    async def test_connect_to_server_cancels_timed_out_lifecycle(
+        self, mock_client_class
+    ):
+        async def wait_forever():
+            await asyncio.Event().wait()
+
+        mock_connection_client = AsyncMock()
+        mock_connection_client.__aenter__.side_effect = wait_forever
+        mock_client_class.return_value = mock_connection_client
+        client = MCPClient()
+        client.servers["test_server"] = create_test_server_definition(
+            timeout=0.01
+        )
+
+        with patch(
+            "marimo._server.ai.mcp.StdioTransportConnector.create",
+            return_value=AsyncMock(),
+        ):
+            result = await client.connect_to_server("test_server")
+
+        assert result is False
+        connection = client.connections["test_server"]
+        assert connection.status == MCPServerStatus.ERROR
+        assert connection.connection_task is not None
+        assert connection.connection_task.cancelled()
+        assert await client.disconnect_from_server("test_server") is True
+
+    @patch("mcp.Client")
+    async def test_cancelling_connection_closes_lifecycle(
+        self, mock_client_class
+    ):
+        discovery_started = asyncio.Event()
+
+        async def wait_forever(*, cursor):
+            assert cursor is None
+            discovery_started.set()
+            await asyncio.Event().wait()
+
+        mock_connection_client = AsyncMock()
+        mock_connection_client.__aenter__.return_value = mock_connection_client
+        mock_connection_client.list_tools.side_effect = wait_forever
+        mock_client_class.return_value = mock_connection_client
+        client = MCPClient()
+        client.servers["test_server"] = create_test_server_definition()
+
+        with patch(
+            "marimo._server.ai.mcp.StdioTransportConnector.create",
+            return_value=AsyncMock(),
+        ):
+            connect_task = asyncio.create_task(
+                client.connect_to_server("test_server")
+            )
+            await asyncio.wait_for(discovery_started.wait(), timeout=1)
+            connect_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await connect_task
+
+        connection = client.connections["test_server"]
+        assert connection.status == MCPServerStatus.DISCONNECTED
+        assert connection.connection_task is not None
+        assert connection.connection_task.cancelled()
+        mock_connection_client.__aexit__.assert_awaited_once()
 
     @pytest.mark.parametrize(
         ("server_exists", "already_connected", "expected_result"),
@@ -1494,48 +1667,28 @@ class TestMCPClientConnectionManagement:
         result = await client.connect_to_server("test_server")
         assert result == expected_result
 
-    @pytest.mark.xfail(reason="Flaky test")
-    @patch("mcp.ClientSession")
-    async def test_connect_to_all_servers_mixed_results(
-        self, mock_session_class
-    ):
+    async def test_connect_to_all_servers_mixed_results(self):
         """Test connecting to multiple servers with mixed success/failure."""
-        # Setup session mock for successful connections
-        mock_session = AsyncMock()
-        mock_session.initialize = AsyncMock()
-        mock_session.list_tools = AsyncMock()
-        mock_session.list_tools.return_value.tools = []
+        config = MCPConfig(
+            mcpServers={
+                "server1": MCPServerStdioConfig(
+                    command="python", args=["test1.py"]
+                ),
+                "server2": MCPServerStdioConfig(
+                    command="python", args=["test2.py"]
+                ),
+            }
+        )
+        client = MCPClient()
+        client.servers = client._parse_config(config)
 
-        mock_session_context = AsyncMock()
-        mock_session_context.__aenter__ = AsyncMock(return_value=mock_session)
-        mock_session_context.__aexit__ = AsyncMock(return_value=None)
-        mock_session_class.return_value = mock_session_context
-
-        with patch(
-            "marimo._server.ai.mcp.StdioTransportConnector.connect"
-        ) as mock_connector_connect:
-            # Simulate success for server1, failure for server2
-            mock_connector_connect.side_effect = [
-                (AsyncMock(), AsyncMock()),  # server1 success
-                Exception("Connection failed"),  # server2 failure
-            ]
-
-            config = MCPConfig(
-                mcpServers={
-                    "server1": MCPServerStdioConfig(
-                        command="python", args=["test1.py"]
-                    ),
-                    "server2": MCPServerStdioConfig(
-                        command="python", args=["test2.py"]
-                    ),
-                }
-            )
-            client = MCPClient()
-            await client.configure(config)
-
+        with patch.object(
+            client,
+            "connect_to_server",
+            new=AsyncMock(side_effect=[True, False]),
+        ):
             results = await client.connect_to_all_servers()
 
-            # Verify mixed results
             assert len(results) == 2
             assert results["server1"] is True
             assert results["server2"] is False
@@ -1555,15 +1708,13 @@ class TestMCPClientDisconnectionManagement:
         connection = create_test_server_connection(
             name="test_server",
             status=MCPServerStatus.CONNECTED,
-            session=AsyncMock(),
+            client=AsyncMock(),
         )
 
-        # Create mock task that simulates running connection task
-        mock_task = AsyncMock()
-        mock_task.done.return_value = False  # Task is still running
+        connection_task = create_connection_task()
         disconnect_event = asyncio.Event()
 
-        connection.connection_task = mock_task
+        connection.connection_task = connection_task
         connection.disconnect_event = disconnect_event
         client.connections["test_server"] = connection
 
@@ -1573,7 +1724,6 @@ class TestMCPClientDisconnectionManagement:
         # Verify successful disconnection
         assert result is True
         assert disconnect_event.is_set()  # Event was signaled
-        # Note: mock_task should be awaited since done() returns False
 
     async def test_disconnect_from_server_already_disconnected(self):
         """Test disconnection from server that's already disconnected."""
@@ -1626,7 +1776,7 @@ class TestMCPClientDisconnectionManagement:
         connection = create_test_server_connection(
             name="test_server",
             status=MCPServerStatus.CONNECTED,
-            session=AsyncMock(),
+            client=AsyncMock(),
         )
 
         # Add tools to verify they get cleaned up
@@ -1645,9 +1795,8 @@ class TestMCPClientDisconnectionManagement:
         health_task = AsyncMock()
         client.health_check_tasks["test_server"] = health_task
 
-        # Setup connection task
-        connection.connection_task = AsyncMock()
-        connection.connection_task.done.return_value = True  # Already done
+        connection_task = create_connection_task()
+        connection.connection_task = connection_task
         connection.disconnect_event = asyncio.Event()
         client.connections["test_server"] = connection
 
@@ -1695,16 +1844,14 @@ class TestMCPClientDisconnectionManagement:
                 name=setup["name"], status=MCPServerStatus.CONNECTED
             )
 
-            # Setup task behavior based on should_succeed
-            if setup["should_succeed"]:
-                mock_task = AsyncMock()
-                mock_task.done.return_value = False
-            else:
-                mock_task = AsyncMock()
-                mock_task.done.return_value = False
-                mock_task.side_effect = Exception("Simulated failure")
+            error = (
+                None
+                if setup["should_succeed"]
+                else Exception("Simulated failure")
+            )
+            connection_task = create_connection_task(error)
 
-            connection.connection_task = mock_task
+            connection.connection_task = connection_task
             connection.disconnect_event = asyncio.Event()
             client.connections[setup["name"]] = connection
 
@@ -1728,8 +1875,8 @@ class TestMCPClientDisconnectionManagement:
             connection = create_test_server_connection(
                 name=name, status=MCPServerStatus.CONNECTED
             )
-            connection.connection_task = AsyncMock()
-            connection.connection_task.done.return_value = True
+            connection_task = create_connection_task()
+            connection.connection_task = connection_task
             connection.disconnect_event = asyncio.Event()
             client.connections[name] = connection
 
@@ -1794,41 +1941,43 @@ class TestMCPClientHealthMonitoring:
         """Test successful health check."""
         client = MCPClient()
 
-        # Create connection with mock session
+        # Create connection with mock client
         server_def = MCPServerDefinitionFactory.from_config(
             "test", MCPServerStdioConfig(command="test", args=[])
         )
         connection = MCPServerConnection(definition=server_def)
-        connection.session = AsyncMock()
-        connection.session.send_ping = AsyncMock()
+        connection.client = AsyncMock()
+        connection.client.list_tools = AsyncMock()
         client.connections["test"] = connection
 
         result = await client._perform_health_check("test")
 
         assert result is True
-        connection.session.send_ping.assert_called_once()
+        connection.client.list_tools.assert_called_once_with(
+            cache_mode="refresh"
+        )
         # Note: last_health_check is updated by the caller (_monitor_server_health), not _perform_health_check
         assert connection.last_health_check == 0  # Should remain unchanged
 
     @pytest.mark.parametrize(
-        ("session_setup", "ping_behavior", "expected_result"),
+        ("client_setup", "discovery_behavior", "expected_result"),
         [
             pytest.param(
-                None,  # No session
+                None,  # No client
                 None,
                 False,
-                id="no_session",
+                id="no_client",
             ),
             pytest.param(
                 AsyncMock(),  # Valid session
-                Exception("Ping failed"),  # Exception during ping
+                Exception("Discovery failed"),
                 False,
-                id="ping_exception",
+                id="discovery_exception",
             ),
         ],
     )
     async def test_perform_health_check_failure_cases(
-        self, session_setup, ping_behavior, expected_result
+        self, client_setup, discovery_behavior, expected_result
     ):
         """Test health check failure scenarios."""
         client = MCPClient()
@@ -1838,10 +1987,12 @@ class TestMCPClientHealthMonitoring:
             "test", MCPServerStdioConfig(command="test", args=[])
         )
         connection = MCPServerConnection(definition=server_def)
-        connection.session = session_setup
+        connection.client = client_setup
 
-        if session_setup and ping_behavior:
-            connection.session.send_ping = AsyncMock(side_effect=ping_behavior)
+        if client_setup and discovery_behavior:
+            connection.client.list_tools = AsyncMock(
+                side_effect=discovery_behavior
+            )
 
         client.connections["test"] = connection
 
@@ -1856,18 +2007,19 @@ class TestMCPClientHealthMonitoring:
         client = MCPClient()
         client.health_check_timeout = 0.1  # Very short timeout
 
-        # Create connection with session that hangs
+        # Create connection with a client that hangs
         server_def = MCPServerDefinitionFactory.from_config(
             "test", MCPServerStdioConfig(command="test", args=[])
         )
         connection = MCPServerConnection(definition=server_def)
-        connection.session = AsyncMock()
+        connection.client = AsyncMock()
 
         # Create a coroutine that sleeps longer than timeout
-        async def slow_ping():
+        async def slow_discovery(*, cache_mode):
+            assert cache_mode == "refresh"
             await asyncio.sleep(1)
 
-        connection.session.send_ping = AsyncMock(side_effect=slow_ping)
+        connection.client.list_tools = AsyncMock(side_effect=slow_discovery)
         client.connections["test"] = connection
 
         result = await client._perform_health_check("test")
@@ -1875,6 +2027,49 @@ class TestMCPClientHealthMonitoring:
         assert result is False
         # Note: _perform_health_check doesn't update connection status directly
         # Status updates happen in the calling code (_monitor_server_health)
+
+    async def test_health_monitor_closes_after_failure_threshold(self):
+        client = MCPClient()
+        client.health_check_interval = 0
+        client.health_check_failure_threshold = 3
+        connection = create_test_server_connection(
+            name="test", status=MCPServerStatus.CONNECTED, client=AsyncMock()
+        )
+        connection.disconnect_event = asyncio.Event()
+        client.connections["test"] = connection
+        client._perform_health_check = AsyncMock(return_value=False)
+
+        task = asyncio.create_task(client._monitor_server_health("test"))
+        client.health_check_tasks["test"] = task
+        await asyncio.wait_for(task, timeout=1)
+
+        assert client._perform_health_check.await_count == 3
+        assert connection.status == MCPServerStatus.ERROR
+        assert connection.disconnect_event.is_set()
+        assert "test" not in client.health_check_tasks
+
+    async def test_health_monitor_exits_when_server_is_not_connected(self):
+        client = MCPClient()
+        connection = create_test_server_connection(
+            name="test", status=MCPServerStatus.DISCONNECTED
+        )
+        client.connections["test"] = connection
+        client._perform_health_check = AsyncMock()
+
+        await client._monitor_server_health("test")
+
+        client._perform_health_check.assert_not_awaited()
+
+    async def test_cancel_health_monitoring_removes_task_once(self):
+        client = MCPClient()
+        client.health_check_interval = 60
+        task = asyncio.create_task(client._monitor_server_health("test"))
+        client.health_check_tasks["test"] = task
+
+        await client._cancel_health_monitoring("test")
+
+        assert task.done()
+        assert "test" not in client.health_check_tasks
 
 
 class TestMCPServerConnection:
@@ -1896,7 +2091,7 @@ class TestMCPServerConnection:
         assert connection.definition.config.get("args") == ["test.py"]
         assert connection.definition.config.get("env") == {"TEST": "value"}
         assert connection.status == MCPServerStatus.DISCONNECTED
-        assert connection.session is None
+        assert connection.client is None
         assert len(connection.tools) == 0
         assert connection.last_health_check == 0
         assert connection.error_message is None
@@ -1923,7 +2118,7 @@ class TestMCPUtilities:
         # Reset global client for this test
         import marimo._server.ai.mcp.client as client_module
 
-        client_module._MCP_CLIENT = None
+        client_module._mcp_client = None
 
         custom_config = MCPConfig(
             mcpServers={

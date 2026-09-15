@@ -123,16 +123,20 @@ components:
         \ the maximum number of tokens to use in AI completions\n    - `mode`: the\
         \ mode to use for AI completions. Can be one of: `\"ask\"` or `\"manual\"\
         `\n    - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions\n\
-        \    - `models`: the models to use for AI completions\n    - `open_ai`: the\
-        \ OpenAI config\n    - `anthropic`: the Anthropic config\n    - `google`:\
-        \ the Google AI config\n    - `bedrock`: the Bedrock config\n    - `azure`:\
-        \ the Azure config\n    - `ollama`: the Ollama config\n    - `github`: the\
-        \ GitHub config\n    - `openrouter`: the OpenRouter config\n    - `wandb`:\
-        \ the Weights & Biases config\n    - `opencode_go`: the OpenCode Go config\n\
-        \    - `custom_providers`: a dict of custom OpenAI-compatible providers\n\
-        \    - `open_ai_compatible`: the OpenAI-compatible config (deprecated, use\
-        \ custom_providers)"
+        \    - `allow_provider_config`: if `False`, lock provider setup in the settings\
+        \ UI, making them read-only. Users cannot bring their own credentials or add\
+        \ custom providers. Default `True`.\n    - `models`: the models to use for\
+        \ AI completions\n    - `open_ai`: the OpenAI config\n    - `anthropic`: the\
+        \ Anthropic config\n    - `google`: the Google AI config\n    - `bedrock`:\
+        \ the Bedrock config\n    - `azure`: the Azure config\n    - `ollama`: the\
+        \ Ollama config\n    - `github`: the GitHub Copilot config\n    - `openrouter`:\
+        \ the OpenRouter config\n    - `wandb`: the Weights & Biases config\n    -\
+        \ `opencode_go`: the OpenCode Go config\n    - `custom_providers`: a dict\
+        \ of custom OpenAI-compatible providers\n    - `open_ai_compatible`: the OpenAI-compatible\
+        \ config (deprecated, use custom_providers)"
       properties:
+        allow_provider_config:
+          type: boolean
         anthropic:
           $ref: '#/components/schemas/AnthropicConfig'
         azure:
@@ -248,7 +252,7 @@ components:
       type: object
     AnthropicConfig:
       description: "Configuration options for Anthropic.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Anthropic API key"
+        \ `api_key`: the Anthropic API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -357,6 +361,25 @@ components:
       - op
       - bytes_freed
       title: CacheClearedNotification
+      type: object
+    CacheConfig:
+      description: "Configuration for caching.\n\n    `verification` is the signature-checking\
+        \ posture; `store` is the backing\n    store, or a list of stores composed\
+        \ into a `TieredStore`."
+      properties:
+        store:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/StoreConfig'
+            type: array
+          - $ref: '#/components/schemas/StoreConfig'
+        verification:
+          enum:
+          - 'off'
+          - 'on'
+          - strict
+      required: []
+      title: CacheConfig
       type: object
     CacheInfoNotification:
       description: "Execution cache statistics.\n\n    Attributes:\n        hits:\
@@ -1276,6 +1299,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -1482,12 +1506,22 @@ components:
       type: object
     DependencyTreeResponse:
       properties:
+        context:
+          anyOf:
+          - $ref: '#/components/schemas/SandboxPackageContext'
+          - $ref: '#/components/schemas/PackageManagerContext'
+          discriminator:
+            mapping:
+              package-manager: '#/components/schemas/PackageManagerContext'
+              sandbox: '#/components/schemas/SandboxPackageContext'
+            propertyName: kind
         tree:
           anyOf:
           - type: 'null'
           - $ref: '#/components/schemas/DependencyTreeNode'
       required:
       - tree
+      - context
       title: DependencyTreeResponse
       type: object
     DetectedDataSource:
@@ -1510,6 +1544,15 @@ components:
           type: array
         displayName:
           type: string
+        hidesWhen:
+          anyOf:
+          - $ref: '#/components/schemas/DialectHidesWhen'
+          - $ref: '#/components/schemas/StorageHidesWhen'
+          discriminator:
+            mapping:
+              dialect: '#/components/schemas/DialectHidesWhen'
+              storage: '#/components/schemas/StorageHidesWhen'
+            propertyName: kind
         id:
           type: string
         integration:
@@ -1527,6 +1570,7 @@ components:
       - origins
       - configuration
       - code
+      - hidesWhen
       title: DetectedDataSource
       type: object
     DetectedDataSourceConfiguration:
@@ -1571,6 +1615,22 @@ components:
           type: boolean
       required: []
       title: DiagnosticsConfig
+      type: object
+    DialectHidesWhen:
+      description: Hide this suggestion when a live SQL engine dialect contains a
+        substring.
+      properties:
+        kind:
+          enum:
+          - dialect
+        substrings:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - substrings
+      title: DialectHidesWhen
       type: object
     DiscoverDataSourcesCommand:
       description: "Discover datasource connections from the live kernel environment\
@@ -1867,6 +1927,10 @@ components:
       title: ExecuteStaleCellsCommand
       type: object
     ExportAsHTMLRequest:
+      description: "Request a static HTML export.\n\n    `layout` carries the current\
+        \ client layout. An omitted field reads the\n    saved layout file, `null`\
+        \ selects the vertical layout, and an object uses\n    that serialized layout\
+        \ for this export."
       properties:
         assetUrl:
           anyOf:
@@ -1881,6 +1945,10 @@ components:
           type: array
         includeCode:
           type: boolean
+        layout:
+          anyOf:
+          - $ref: '#/components/schemas/LayoutConfig'
+          - type: 'null'
       required:
       - download
       - files
@@ -1998,6 +2066,17 @@ components:
       - name
       - command
       title: ExportSetupRequirement
+      type: object
+    FileBrowserConfig:
+      description: "Configuration for the file browser panel.\n\n    **Keys.**\n\n\
+        \    - `folders`: additional absolute folders to show in the file browser"
+      properties:
+        folders:
+          items:
+            $ref: '#/components/schemas/FolderConfig'
+          type: array
+      required: []
+      title: FileBrowserConfig
       type: object
     FileCopyRequest:
       properties:
@@ -2259,6 +2338,30 @@ components:
       - path
       title: FileOpenRequest
       type: object
+    FileRoot:
+      properties:
+        isPrimary:
+          type: boolean
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      - name
+      - isPrimary
+      title: FileRoot
+      type: object
+    FileRootsResponse:
+      properties:
+        roots:
+          items:
+            $ref: '#/components/schemas/FileRoot'
+          type: array
+      required:
+      - roots
+      title: FileRootsResponse
+      type: object
     FileSearchRequest:
       properties:
         depth:
@@ -2268,6 +2371,9 @@ components:
           default: true
           type: boolean
         includeFiles:
+          default: true
+          type: boolean
+        includeHidden:
           default: true
           type: boolean
         limit:
@@ -2351,6 +2457,19 @@ components:
       - cellId
       title: FocusCellRequest
       type: object
+    FolderConfig:
+      description: "Configuration for an additional file browser root.\n\n    **Keys.**\n\
+        \n    - `path`: the absolute path to the folder\n    - `name`: an optional\
+        \ display name for the folder"
+      properties:
+        name:
+          type: string
+        path:
+          type: string
+      required:
+      - path
+      title: FolderConfig
+      type: object
     FormatCellsRequest:
       properties:
         codes:
@@ -2430,11 +2549,12 @@ components:
       title: GetCacheInfoRequest
       type: object
     GitHubConfig:
-      description: "Configuration options for GitHub.\n\n    **Keys.**\n\n    - `api_key`:\
-        \ the GitHub API token\n    - `base_url`: the base URL for the API\n    -\
-        \ `copilot_settings`: configuration settings for GitHub Copilot LSP.\n   \
-        \     Supports settings like `http` (proxy configuration), `telemetry`,\n\
-        \        and `github-enterprise` (enterprise URI)."
+      description: "Configuration options for GitHub Copilot.\n\n    **Keys.**\n\n\
+        \    - `api_key`: a GitHub Copilot token or an `env:` reference\n    - `base_url`:\
+        \ the base URL for the GitHub Copilot API\n    - `copilot_settings`: configuration\
+        \ settings for GitHub Copilot LSP.\n        Supports settings like `http`\
+        \ (proxy configuration), `telemetry`,\n        and `github-enterprise` (enterprise\
+        \ URI)."
       properties:
         api_key:
           type: string
@@ -2447,7 +2567,7 @@ components:
       type: object
     GoogleAiConfig:
       description: "Configuration options for Google AI.\n\n    **Keys.**\n\n    -\
-        \ `api_key`: the Google AI API key"
+        \ `api_key`: the Google AI API key or an `env:` reference"
       properties:
         api_key:
           type: string
@@ -2540,18 +2660,39 @@ components:
       - msg
       title: ImportStarError
       type: object
+    InstallExportRequirementsRequest:
+      properties:
+        format:
+          enum:
+          - html
+          - ipynb
+          - markdown
+          - pdf
+          - script
+      required:
+      - format
+      title: InstallExportRequirementsRequest
+      type: object
     InstallPackagesCommand:
       description: "Install Python packages.\n\n    Installs missing packages using\
         \ the specified package manager. Triggered\n    automatically on import errors\
         \ or manually by the user.\n\n    Attributes:\n        manager: Package manager\
         \ to use ('pip', 'conda', 'uv', etc.).\n        versions: Package names mapped\
         \ to version specifiers. Empty version\n                  means install latest.\n\
+        \        index_urls: Alternative package index URLs. Primary index first,\n\
+        \                    then extras. Honored by backends that support custom\n\
+        \                    indexes (currently micropip); other backends ignore it.\n\
         \        source: Where to install. \"kernel\" (default) dispatches to the\
         \ kernel\n                subprocess; \"server\" installs directly into the\
         \ server's Python\n                environment (sys.executable), used when\
         \ the server itself needs\n                a package (e.g. nbformat for IPYNB\
         \ auto-export in sandbox mode)."
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:
@@ -2574,6 +2715,11 @@ components:
       type: object
     InstallPackagesRequest:
       properties:
+        indexUrls:
+          default: []
+          items:
+            type: string
+          type: array
         manager:
           type: string
         source:
@@ -2624,6 +2770,7 @@ components:
             - installed
             - installing
             - queued
+            - restart-required
           type: object
         source:
           default: kernel
@@ -2969,6 +3116,7 @@ components:
           - boolean
           - date
           - datetime
+          - geometry
           - integer
           - number
           - string
@@ -3509,6 +3657,8 @@ components:
       properties:
         ai:
           $ref: '#/components/schemas/AiConfig'
+        cache:
+          $ref: '#/components/schemas/CacheConfig'
         completion:
           $ref: '#/components/schemas/CompletionConfig'
         datasources:
@@ -3519,6 +3669,8 @@ components:
           $ref: '#/components/schemas/DisplayConfig'
         experimental:
           type: object
+        file_browser:
+          $ref: '#/components/schemas/FileBrowserConfig'
         formatting:
           $ref: '#/components/schemas/FormattingConfig'
         keymap:
@@ -3539,6 +3691,8 @@ components:
           $ref: '#/components/schemas/ServerConfig'
         sharing:
           $ref: '#/components/schemas/SharingConfig'
+        signing:
+          $ref: '#/components/schemas/SigningConfig'
         snippets:
           $ref: '#/components/schemas/SnippetsConfig'
         venv:
@@ -4077,15 +4231,15 @@ components:
       type: object
     OpenAiConfig:
       description: "Configuration options for OpenAI or OpenAI-compatible services.\n\
-        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key\n    - `base_url`:\
-        \ the base URL for the API\n    - `project`: the project ID for the OpenAI\
-        \ API\n    - `ssl_verify` : Boolean argument for httpx passed to open ai client.\
-        \ httpx defaults to true, but some use cases to let users override to False\
-        \ in some testing scenarios\n    - `ca_bundle_path`: custom ca bundle to be\
-        \ used for verifying SSL certificates. Used to create custom SSL context for\
-        \ httpx client\n    - `client_pem` : custom path of a client .pem cert used\
-        \ for verifying identity of client server\n    - `extra_headers`: extra headers\
-        \ to be passed to the OpenAI client"
+        \n    **Keys.**\n\n    - `api_key`: the OpenAI API key or an `env:` reference\n\
+        \    - `base_url`: the base URL for the API\n    - `project`: the project\
+        \ ID for the OpenAI API\n    - `ssl_verify` : Boolean argument for httpx passed\
+        \ to open ai client. httpx defaults to true, but some use cases to let users\
+        \ override to False in some testing scenarios\n    - `ca_bundle_path`: custom\
+        \ ca bundle to be used for verifying SSL certificates. Used to create custom\
+        \ SSL context for httpx client\n    - `client_pem` : custom path of a client\
+        \ .pem cert used for verifying identity of client server\n    - `extra_headers`:\
+        \ extra headers to be passed to the OpenAI client"
       properties:
         api_key:
           type: string
@@ -4178,6 +4332,18 @@ components:
       - manager
       title: PackageManagementConfig
       type: object
+    PackageManagerContext:
+      properties:
+        kind:
+          enum:
+          - package-manager
+        name:
+          type: string
+      required:
+      - kind
+      - name
+      title: PackageManagerContext
+      type: object
     PackageOperationResponse:
       properties:
         error:
@@ -4185,6 +4351,9 @@ components:
           - type: string
           - type: 'null'
           default: null
+        restartRequired:
+          default: false
+          type: boolean
         success:
           type: boolean
       required:
@@ -4793,6 +4962,20 @@ components:
       - value
       title: SafeLiteralDiscoveryValue
       type: object
+    SandboxPackageContext:
+      properties:
+        backend:
+          enum:
+          - pixi
+          - uv
+        kind:
+          enum:
+          - sandbox
+      required:
+      - kind
+      - backend
+      title: SandboxPackageContext
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -5146,6 +5329,23 @@ components:
       - sessionId
       title: ShutdownSessionRequest
       type: object
+    SigningConfig:
+      description: "Cache-signing trust and identity.\n\n    `trusted_signers` maps\
+        \ a key fingerprint (`\"SHA256:<base64>\"`) to an\n    advisory label. Trusting\
+        \ a key allows arbitrary code execution from its\n    holder on this machine\
+        \ \u2014 a cache restore is `pickle.loads` \u2014 so there is no\n    lesser\
+        \ cache-only grant. `private_key_path` is this machine's signing\n    identity;\
+        \ it is never serialized to the frontend."
+      properties:
+        private_key_path:
+          type: string
+        trusted_signers:
+          additionalProperties:
+            type: string
+          type: object
+      required: []
+      title: SigningConfig
+      type: object
     Snippet:
       properties:
         sections:
@@ -5455,6 +5655,26 @@ components:
       - lastModified
       title: StorageEntry
       type: object
+    StorageHidesWhen:
+      description: Hide this suggestion when a live storage namespace matches.
+      properties:
+        backendTypes:
+          items:
+            type: string
+          type: array
+        kind:
+          enum:
+          - storage
+        protocols:
+          items:
+            type: string
+          type: array
+      required:
+      - kind
+      - protocols
+      - backendTypes
+      title: StorageHidesWhen
+      type: object
     StorageListEntriesCommand:
       description: "List storage entries at a prefix.\n\n    Navigates storage like\
         \ a folder tree using delimiter-based listing.\n    Returns entries (files/objects)\
@@ -5566,7 +5786,7 @@ components:
       title: StorageNamespacesNotification
       type: object
     StoreConfig:
-      description: Configuration for cache stores.
+      description: Configuration for a single cache store.
       properties:
         args:
           type: object
@@ -6724,6 +6944,26 @@ paths:
           description: File must be saved before downloading
         500:
           description: Export failed or dependencies missing
+  /api/export/requirements/install:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InstallExportRequirementsRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportAvailabilityResponse'
+          description: Updated readiness for server-backed exports
   /api/export/script:
     post:
       parameters:
@@ -6889,6 +7129,15 @@ paths:
               schema:
                 $ref: '#/components/schemas/BaseResponse'
           description: Open a file in the system editor
+  /api/files/roots:
+    get:
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileRootsResponse'
+          description: List roots shown in the file browser
   /api/files/search:
     post:
       requestBody:

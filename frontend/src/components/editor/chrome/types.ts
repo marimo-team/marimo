@@ -73,7 +73,7 @@ export const PANELS: PanelDescriptor[] = [
     type: "files",
     Icon: FolderTreeIcon,
     label: "Files",
-    tooltip: "View files",
+    tooltip: "View files and remote storage",
     defaultSection: "sidebar",
     additionalKeywords: ["explorer", "browser", "directory"],
   },

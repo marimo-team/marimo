@@ -176,7 +176,7 @@ class ToolManager:
         return ToolDefinition(
             name=namespaced_name or mcp_tool.name,
             description=mcp_tool.description or "No description available",
-            parameters=mcp_tool.inputSchema,
+            parameters=mcp_tool.input_schema,
             source="mcp",
             # MCP tools available in ask mode and agent mode
             # TODO: Determine which tools to support in agent mode
@@ -251,15 +251,7 @@ class ToolManager:
                 mcp_client = get_mcp_client()
 
                 if mcp_client.is_error_result(call_result):
-                    # Extract error message from the result content
-                    error_messages = mcp_client.extract_text_content(
-                        call_result
-                    )
-                    error_text = (
-                        " ".join(error_messages)
-                        if error_messages
-                        else "Unknown MCP tool error"
-                    )
+                    error_text = mcp_client.format_tool_error(call_result)
                     LOGGER.error(
                         f"MCP tool '{tool_name}' returned error: {error_text}"
                     )
@@ -267,15 +259,11 @@ class ToolManager:
                         tool_name=tool_name, result=None, error=error_text
                     )
 
-                # For successful results, extract text content from CallToolResult
-                success_messages = mcp_client.extract_text_content(call_result)
-                result_text = (
-                    " ".join(success_messages)
-                    if success_messages
-                    else "MCP tool completed successfully with no text output"
-                )
+                result = mcp_client.convert_tool_result(call_result)
+                if result is None:
+                    result = "MCP tool completed successfully with no output"
                 return ToolCallResult(
-                    tool_name=tool_name, result=result_text, error=None
+                    tool_name=tool_name, result=result, error=None
                 )
 
             else:

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import abc
-import mimetypes
 from dataclasses import asdict, dataclass, is_dataclass
 from typing import TYPE_CHECKING, Any, Literal, TypedDict, cast
 
@@ -10,6 +9,7 @@ import msgspec
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._utils.mime import guess_mime_type
 from marimo._utils.parse_dataclass import parse_raw
 
 LOGGER = _loggers.marimo_logger()
@@ -95,7 +95,7 @@ class ChatAttachment:
 
     def __post_init__(self) -> None:
         if self.content_type is None:
-            self.content_type = mimetypes.guess_type(self.url)[0]
+            self.content_type = guess_mime_type(self.url)
 
 
 # AI SDK part type definitions (based on actual frontend structure)

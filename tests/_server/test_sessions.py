@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -57,6 +57,41 @@ from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
+
+
+@pytest.mark.parametrize("inherited_mode", ["single", None])
+def test_single_sandbox_edit_uses_notebook_bound_kernel(
+    inherited_mode: str | None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._cli.sandbox import SandboxMode
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", inherited_mode)
+    # Inspect the factory without starting a process or attaching consumers.
+    with patch.object(
+        SessionImpl, "__init__", return_value=None
+    ) as initialize:
+        SessionImpl.create(
+            initialization_id="sandbox-restart",
+            session_consumer=MagicMock(),
+            mode=SessionMode.EDIT,
+            app_metadata=app_metadata,
+            app_file_manager=AppFileManager.from_app(InternalApp(App())),
+            config_manager=get_default_config_manager(current_path=None),
+            virtual_file_storage="shared_memory",
+            redirect_console_to_browser=False,
+            ttl_seconds=None,
+            auto_instantiate=False,
+            sandbox_mode=None if inherited_mode else SandboxMode.SINGLE,
+        )
+    manager = initialize.call_args.kwargs["kernel_manager"]
+    try:
+        assert isinstance(manager, IPCKernelManagerImpl)
+        assert manager.sandbox_mode is SandboxMode.SINGLE
+    finally:
+        manager.queue_manager.close_queues()
+
 
 app_metadata = AppMetadata(
     query_params={"some_param": "some_value"},

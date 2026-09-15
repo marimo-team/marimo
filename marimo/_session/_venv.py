@@ -14,33 +14,18 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
 from marimo._cli.print import echo
-from marimo._utils.uv import find_uv_bin
+from marimo._environments.uv import UvCommandError, uv
 from marimo._version import __version__
 
 if TYPE_CHECKING:
     from marimo._config.config import VenvConfig
 
 LOGGER = _loggers.marimo_logger()
-
-
-def get_ipc_kernel_deps() -> list[str]:
-    """Get dependencies required for IPC kernel communication.
-
-    Returns pyzmq pinned to the currently installed version to ensure
-    compatibility between host and sandbox environments.
-    """
-    try:
-        pyzmq_version = version("pyzmq")
-        return [f"pyzmq=={pyzmq_version}"]
-    except Exception:
-        # Fallback if pyzmq not installed
-        return ["pyzmq>=27.1.0"]
 
 
 def _find_python_in_venv(venv_path: str) -> str | None:
@@ -200,25 +185,18 @@ def check_python_version_compatibility(venv_python: str) -> bool:
 
 
 def install_marimo_into_venv(venv_python: str) -> None:
-    """Install marimo and IPC dependencies into a venv.
-
-    Installs marimo and IPC dependencies (pyzmq) into the specified venv.
+    """Install marimo into a venv.
 
     Args:
         venv_python: Path to the venv's Python interpreter.
     """
-    uv_bin = find_uv_bin()
-
-    packages = [f"marimo=={__version__}"] + get_ipc_kernel_deps()
+    packages = [f"marimo=={__version__}"]
 
     echo("Installing marimo into configured venv...", err=True)
 
-    result = subprocess.run(
-        [uv_bin, "pip", "install", "--python", venv_python] + packages,
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
+    try:
+        uv(["pip", "install", "--python", venv_python] + packages)
+    except UvCommandError as e:
         LOGGER.warning(
-            f"Failed to install marimo into configured venv: {result.stderr}"
+            f"Failed to install marimo into configured venv: {e.stderr}"
         )

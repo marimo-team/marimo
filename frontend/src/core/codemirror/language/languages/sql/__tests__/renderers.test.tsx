@@ -9,11 +9,16 @@ import type {
 } from "@/core/kernel/messages";
 import { renderColumnInfo, renderTableInfo } from "../renderers";
 
-const geometryColumn = {
+const bogusColumn = {
   name: "geom",
-  type: "geometry" as DataType,
+  type: "bogus_type" as DataType,
   external_type: "geometry",
   sample_values: [],
+} as DataTableColumn;
+
+const geometryColumn = {
+  ...bogusColumn,
+  type: "geometry" as DataType,
 } as DataTableColumn;
 
 describe("SQL renderers", () => {
@@ -26,7 +31,7 @@ describe("SQL renderers", () => {
       num_rows: null,
       num_columns: 1,
       variable_name: null,
-      columns: [geometryColumn],
+      columns: [bogusColumn],
       primary_keys: [],
       indexes: [],
     };
@@ -37,8 +42,14 @@ describe("SQL renderers", () => {
   });
 
   it("renders column information with an unrecognized column type", () => {
-    const result = render(renderColumnInfo(geometryColumn));
+    const result = render(renderColumnInfo(bogusColumn));
 
     expect(result.container.querySelector("svg")).not.toBeNull();
+  });
+
+  it("renders geometry column information with the map pin icon", () => {
+    const result = render(renderColumnInfo(geometryColumn));
+
+    expect(result.container.querySelector(".lucide-map-pin")).not.toBeNull();
   });
 });

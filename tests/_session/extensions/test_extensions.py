@@ -68,7 +68,8 @@ class TestHeartbeatExtension:
 
         task = extension.heartbeat_task
         extension.on_detach()
-        await asyncio.sleep(0.1)
+        with pytest.raises(asyncio.CancelledError):
+            await task
 
         assert task.cancelled()
 
@@ -85,9 +86,17 @@ class TestHeartbeatExtension:
             ),
         )
         extension = HeartbeatExtension()
+        closed = asyncio.Event()
+        mock_session.close.side_effect = closed.set
         extension.on_attach(mock_session, event_bus)
 
-        await asyncio.sleep(1.5)
+        try:
+            await asyncio.wait_for(closed.wait(), timeout=10)
+        finally:
+            extension.on_detach()
+            assert extension.heartbeat_task is not None
+            with pytest.raises(asyncio.CancelledError):
+                await extension.heartbeat_task
 
         mock_session.close.assert_called_once()
         # A persistent banner is broadcast before the session closes, so the
@@ -99,7 +108,6 @@ class TestHeartbeatExtension:
         assert banner.action == "restart"
         assert "out of memory" in banner.description
         assert "restart" in banner.description.lower()
-        extension.on_detach()
 
 
 class TestCachingExtension:

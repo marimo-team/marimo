@@ -134,3 +134,29 @@ def test_get_sql_summary_datetime(setup_test_db: Any):
     assert summary.nulls == 0
     assert summary.min == datetime.datetime(2024, 1, 1, 12, 30)
     assert summary.max == datetime.datetime(2024, 5, 5, 16, 30)
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+def test_geometry_column_type_and_stats():
+    import duckdb
+
+    try:
+        duckdb.execute("INSTALL spatial")
+        duckdb.execute("LOAD spatial")
+    except duckdb.Error as e:
+        pytest.skip(f"duckdb spatial extension unavailable: {e}")
+
+    duckdb.execute(
+        "CREATE OR REPLACE TABLE geo_stats_table AS "
+        "SELECT 1 AS id, ST_Point(1.0, 2.0) AS geom "
+        "UNION ALL SELECT 2, NULL"
+    )
+    try:
+        assert get_column_type("geo_stats_table", "geom") == "geometry"
+
+        summary = get_sql_stats("geo_stats_table", "geom", "geometry")
+        assert summary.total == 2
+        assert summary.nulls == 1
+        assert summary.unique is None
+    finally:
+        duckdb.execute("DROP TABLE geo_stats_table")

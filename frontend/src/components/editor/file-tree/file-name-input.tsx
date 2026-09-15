@@ -9,7 +9,11 @@ import type { FileInfo } from "@/core/network/types";
  * is true. Auto-focuses and selects everything except the extension so a
  * user can type straight into the name.
  */
-export const FileNameInput = ({ node }: { node: NodeApi<FileInfo> }) => {
+export const FileNameInput = <T extends FileInfo>({
+  node,
+}: {
+  node: NodeApi<T>;
+}) => {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     ref.current?.focus();

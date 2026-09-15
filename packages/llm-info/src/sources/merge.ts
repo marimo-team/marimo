@@ -20,7 +20,6 @@ export const PROVIDER_MAP = {
   "google-vertex": "google",
   "amazon-bedrock": "bedrock",
   azure: "azure",
-  "github-models": "github",
   "ollama-cloud": "ollama",
   wandb: "wandb",
   "opencode-go": "opencode-go",
@@ -48,6 +47,27 @@ export const MODEL_DENYLIST: Readonly<Record<string, ReadonlySet<string>>> = {
   openai: new Set([
     // Surfaced inside ChatGPT only; not exposed via the OpenAI API.
     "gpt-5.3-codex-spark",
+    // Listed upstream but does not work with marimo's OpenAI integration.
+    "gpt-realtime-2.1",
+  ]),
+  azure: new Set([
+    // This ChatGPT alias is not exposed in Azure's current model catalog.
+    "gpt-5.3-chat",
+  ]),
+  bedrock: new Set([
+    // Provider-specific aliases are redundant with the global catalog entry.
+    "anthropic.claude-fable-5-1",
+    "us.anthropic.claude-fable-5-1",
+    "anthropic.claude-opus-5",
+    "au.anthropic.claude-opus-5",
+    "eu.anthropic.claude-opus-5",
+    "jp.anthropic.claude-opus-5",
+  ]),
+  "opencode-go": new Set([
+    // Older models intentionally omitted from marimo's curated catalog.
+    "glm-5.1",
+    "hy3",
+    "minimax-m2.7",
   ]),
 };
 
@@ -192,8 +212,8 @@ export interface MergeOptions {
  * Merge models.dev data into existing per-provider entries.
  *
  * Pipeline per provider:
- *   1. Collect upstream candidates, dropping anything above the cost ceilings
- *      or explicitly listed in `MODEL_DENYLIST`.
+ *   1. Collect upstream candidates, dropping deprecated models, anything above
+ *      the cost ceilings, or entries explicitly listed in `MODEL_DENYLIST`.
  *   2. Sort newest-first and trim to `maxPerProvider` — this is what `-n N`
  *      means: "the N freshest models upstream is exposing right now."
  *   3. Of that top-N, drop ids we already have locally; the remainder is what
@@ -243,6 +263,9 @@ export function mergeModels(
       candidatesByProvider.get(marimoProviderId) ?? new Map<string, AiModel>();
 
     for (const model of Object.values(provider.models)) {
+      if (model.status === "deprecated") {
+        continue;
+      }
       if (!isWithinCostBudget(model)) {
         continue;
       }

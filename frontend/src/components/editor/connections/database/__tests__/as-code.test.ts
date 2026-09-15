@@ -757,19 +757,23 @@ describe("generateDatabaseCode", () => {
         () =>
           // @ts-expect-error - Testing invalid input
           generateDatabaseCode(basePostgres, "polars"),
+        "Unsupported library: polars",
       ],
       [
         "throws for invalid port",
         () => generateDatabaseCode({ ...basePostgres, port: -1 }, "sqlmodel"),
+        /port/i,
       ],
       [
         "throws for invalid host",
         () => generateDatabaseCode({ ...basePostgres, host: "" }, "sqlmodel"),
+        /host/i,
       ],
       [
         "throws for port out of range",
         () =>
           generateDatabaseCode({ ...basePostgres, port: 65_536 }, "sqlmodel"),
+        /port/i,
       ],
       [
         "throws for invalid snowflake account",
@@ -778,6 +782,7 @@ describe("generateDatabaseCode", () => {
             { ...snowflakeConnection, account: "" },
             "sqlmodel",
           ),
+        /account/i,
       ],
       [
         "throws for invalid bigquery project",
@@ -786,9 +791,10 @@ describe("generateDatabaseCode", () => {
             { ...bigqueryConnection, project: "" },
             "sqlmodel",
           ),
+        /project/i,
       ],
-    ])("%s", (_name, fn) => {
-      expect(fn).toThrow();
+    ])("%s", (_name, fn, error) => {
+      expect(fn).toThrow(error);
     });
   });
 });

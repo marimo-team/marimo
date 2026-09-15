@@ -1,18 +1,59 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import type { DetectedDataSource } from "@/core/datasets/data-source-discovery";
-import { DiscoverDataSources } from "@/core/datasets/request-registry";
+import { useAtomValue } from "jotai";
+import { useMemo } from "react";
+import { dataConnectionsMapAtom } from "@/core/datasets/data-source-connections";
+import {
+  dataSourceDiscoveryEpochAtom,
+  type DataSourceDiscoveryGroup,
+  type DetectedDataSource,
+  fetchDataSourceDiscovery,
+  isDetectedSourceConnected,
+  matchesDiscoveryGroup,
+} from "@/core/datasets/data-source-discovery";
+import { storageNamespacesAtom } from "@/core/storage/state";
 import { useAsyncData } from "./useAsyncData";
-
-export async function loadDataSourceDiscovery(): Promise<DetectedDataSource[]> {
-  const result = await DiscoverDataSources.request({});
-  return result.sources;
-}
 
 /**
  * Reusable UI-facing hook for kernel-managed datasource discovery.
- * Consumers decide how to render, filter, or act on the detected model.
  */
 export function useDataSourceDiscovery() {
-  return useAsyncData(loadDataSourceDiscovery, []);
+  const epoch = useAtomValue(dataSourceDiscoveryEpochAtom);
+  return useAsyncData(fetchDataSourceDiscovery, [epoch]);
+}
+
+/**
+ * Detected sources from the kernel environment that are not already backed
+ * by a live connection, optionally narrowed to "database" or "storage".
+ */
+export function useDetectedDataSources(
+  group?: DataSourceDiscoveryGroup,
+): DetectedDataSource[] {
+  const { data } = useDataSourceDiscovery();
+  const connections = useAtomValue(dataConnectionsMapAtom);
+  const storageNamespaces = useAtomValue(storageNamespacesAtom);
+
+  return useMemo(() => {
+    if (!data) {
+      return [];
+    }
+
+    const snapshot = {
+      dialects: [...connections.values()].map((connection) =>
+        connection.dialect.toLowerCase(),
+      ),
+      storageProtocols: storageNamespaces.map((namespace) =>
+        namespace.protocol.toLowerCase(),
+      ),
+      storageBackendTypes: storageNamespaces.map((namespace) =>
+        namespace.backendType.toLowerCase(),
+      ),
+    };
+
+    return data.filter(
+      (source) =>
+        matchesDiscoveryGroup(source, group) &&
+        !isDetectedSourceConnected(source, snapshot),
+    );
+  }, [connections, data, group, storageNamespaces]);
 }

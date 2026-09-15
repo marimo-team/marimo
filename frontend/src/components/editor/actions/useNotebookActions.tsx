@@ -66,13 +66,14 @@ import { disabledCellIds } from "@/core/cells/utils";
 import { capabilitiesAtom } from "@/core/config/capabilities";
 import { aiEnabledAtom, useResolvedMarimoConfig } from "@/core/config/config";
 import { Constants } from "@/core/constants";
-import { useLayoutActions, useLayoutState } from "@/core/layout/layout";
+import { useLayoutActions, useLayoutState } from "@/core/layout/state";
 import { useTogglePresenting } from "@/core/layout/useTogglePresenting";
 import { kioskModeAtom, viewStateAtom } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import { useFilename } from "@/core/saving/filename";
 import { createShareableLink } from "@/core/wasm/share";
 import { isWasm } from "@/core/wasm/utils";
+import { useDetectedDataSources } from "@/hooks/useDataSourceDiscovery";
 import { copyToClipboard } from "@/utils/copy";
 import { Objects } from "@/utils/objects";
 import { Strings } from "@/utils/strings";
@@ -81,6 +82,9 @@ import { useRunAllCells } from "../cell/useRunCells";
 import { useChromeActions, useChromeState } from "../chrome/state";
 import { isPanelHidden, PANELS } from "../chrome/types";
 import { AddConnectionDialogContent } from "../connections/add-connection-dialog";
+import { useAddDetectedDataSource } from "../connections/components";
+import { DATABASE_CONNECTION_KEYWORDS } from "../connections/database/add-database-form";
+import { STORAGE_CONNECTION_KEYWORDS } from "../connections/storage/add-storage-form";
 import { keyboardShortcutsAtom } from "../controls/keyboard-shortcuts";
 import { commandPaletteAtom } from "../controls/state";
 import { displayLayoutName, getLayoutIcon } from "../renderers/layout-select";
@@ -135,6 +139,9 @@ export function useNotebookActions({
   const setKeyboardShortcutsOpen = useSetAtom(keyboardShortcutsAtom);
   const setExportOptions = useSetAtom(exportOptionsAtom);
   const { readCode, saveCellConfig } = useRequestClient();
+  const detectedDatabaseSources = useDetectedDataSources("database");
+  const detectedStorageSources = useDetectedDataSources("storage");
+  const addDetectedDataSource = useAddDetectedDataSource();
 
   const hasDisabledCells = useAtomValue(hasDisabledCellsAtom);
   const canUndoDeletes = useAtomValue(canUndoDeletesAtom);
@@ -147,6 +154,16 @@ export function useNotebookActions({
   const sharingWasmEnabled = resolvedConfig.sharing?.wasm ?? true;
   const sharingMolabEnabled = resolvedConfig.sharing?.molab ?? true;
   const isSlidesLayout = selectedLayout === "slides";
+  const databaseConnectionKeywords = [
+    "db",
+    "sql",
+    ...DATABASE_CONNECTION_KEYWORDS,
+  ];
+  const storageConnectionKeywords = [
+    "bucket",
+    "object storage",
+    ...STORAGE_CONNECTION_KEYWORDS,
+  ];
 
   const renderCheckboxElement = (checked: boolean) => (
     <div className="w-8 flex justify-end">
@@ -190,6 +207,7 @@ export function useNotebookActions({
     {
       icon: <DownloadIcon size={14} strokeWidth={1.5} />,
       label: "Download",
+      redundant: true,
       handle: NOOP_HANDLER,
       dropdown: [
         {
@@ -452,13 +470,37 @@ export function useNotebookActions({
     {
       icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
       label: "Add database connection",
+      additionalKeywords: databaseConnectionKeywords,
       handle: () => {
         openModal(<AddConnectionDialogContent onClose={closeModal} />);
       },
+      dropdown:
+        detectedDatabaseSources.length === 0
+          ? undefined
+          : [
+              ...detectedDatabaseSources.map((source) => ({
+                icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+                label: `Add ${source.displayName}`,
+                description: "Detected in your environment",
+                handle: () => addDetectedDataSource(source),
+              })),
+              {
+                divider: true,
+                icon: <DatabaseIcon size={14} strokeWidth={1.5} />,
+                label: "Browse all connections",
+                additionalKeywords: databaseConnectionKeywords,
+                handle: () => {
+                  openModal(
+                    <AddConnectionDialogContent onClose={closeModal} />,
+                  );
+                },
+              },
+            ],
     },
     {
       icon: <HardDrive size={14} strokeWidth={1.5} />,
       label: "Add remote storage",
+      additionalKeywords: storageConnectionKeywords,
       handle: () => {
         openModal(
           <AddConnectionDialogContent
@@ -467,6 +509,31 @@ export function useNotebookActions({
           />,
         );
       },
+      dropdown:
+        detectedStorageSources.length === 0
+          ? undefined
+          : [
+              ...detectedStorageSources.map((source) => ({
+                icon: <SparklesIcon size={14} strokeWidth={1.5} />,
+                label: `Add ${source.displayName}`,
+                description: "Detected in your environment",
+                handle: () => addDetectedDataSource(source),
+              })),
+              {
+                divider: true,
+                icon: <HardDrive size={14} strokeWidth={1.5} />,
+                label: "Browse all connections",
+                additionalKeywords: storageConnectionKeywords,
+                handle: () => {
+                  openModal(
+                    <AddConnectionDialogContent
+                      defaultTab="storage"
+                      onClose={closeModal}
+                    />,
+                  );
+                },
+              },
+            ],
     },
     {
       icon: <Undo2Icon size={14} strokeWidth={1.5} />,

@@ -9,15 +9,15 @@
     "dev": "pnpm run --filter @marimo-team/frontend dev"
   },
   "devDependencies": {
-    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/jest-dom": "^7.0.1",
     "@typescript/native-preview": "7.0.0-dev.20260324.1",
-    "oxfmt": "^0.42.0",
-    "turbo": "^2.8.0",
-    "vitest": "^3.2.4"
+    "oxfmt": "^0.64.0",
+    "turbo": "^2.10.12",
+    "vitest": "^4.1.11"
   },
   "engines": {
-    "node": ">=22",
-    "pnpm": ">=10.0.0"
+    "node": ">=22.12.0",
+    "pnpm": ">=10.34.5"
   },
-  "packageManager": "pnpm@10.28.2"
+  "packageManager": "pnpm@10.34.5"
 }

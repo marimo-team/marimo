@@ -6,23 +6,32 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { showCodeInRunModeAtom } from "@/core/meta/state";
 import { type AppMode, kioskModeAtom, viewStateAtom } from "@/core/mode";
+import {
+  remoteAdapter,
+  runtimeAdapterAtom,
+  staticAdapter,
+  type RuntimeAdapter,
+} from "@/core/runtime/adapter";
 import { useNotebookCodeAvailable } from "../code-visibility";
 
 interface StoreOpts {
   mode?: AppMode;
   kiosk?: boolean;
   showInRunMode?: boolean;
+  runtime?: RuntimeAdapter;
 }
 
 function makeStore({
   mode = "read",
   kiosk = false,
   showInRunMode = true,
+  runtime = remoteAdapter,
 }: StoreOpts = {}) {
   const store = createStore();
   store.set(viewStateAtom, { mode, cellAnchor: null });
   store.set(kioskModeAtom, kiosk);
   store.set(showCodeInRunModeAtom, showInRunMode);
+  store.set(runtimeAdapterAtom, runtime);
   return store;
 }
 
@@ -126,6 +135,25 @@ describe("useNotebookCodeAvailable", () => {
       { wrapper: wrap(store) },
     );
     expect(result.current).toBe(true);
+  });
+
+  it("checks embedded code in a static kiosk", () => {
+    const store = makeStore({
+      mode: "read",
+      kiosk: true,
+      runtime: staticAdapter,
+    });
+
+    const withoutCode = renderHook(
+      () => useNotebookCodeAvailable(cellsWithoutCode),
+      { wrapper: wrap(store) },
+    );
+    const withCode = renderHook(() => useNotebookCodeAvailable(cellsWithCode), {
+      wrapper: wrap(store),
+    });
+
+    expect(withoutCode.result.current).toBe(false);
+    expect(withCode.result.current).toBe(true);
   });
 
   it("returns false for non-edit/non-read modes (home, gallery)", () => {

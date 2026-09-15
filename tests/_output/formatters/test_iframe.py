@@ -24,6 +24,20 @@ def test_maybe_wrap_in_iframe_with_inline_script():
     )
 
 
+def test_maybe_wrap_in_iframe_preserves_inline_script_newlines():
+    html = """<script>
+// This comment must not consume the next line.
+console.log("hello")
+</script>"""
+    assert (
+        maybe_wrap_in_iframe(html)
+        == """<iframe srcdoc='&lt;script&gt;
+// This comment must not consume the next line.
+console.log(&quot;hello&quot;)
+&lt;/script&gt;' width='100%' height='400px' onload='__resizeIframe(this)' frameborder='0'></iframe>"""
+    )
+
+
 def test_has_script_tag_without_src_no_script():
     html = "<div>Hello world</div>"
     assert not _has_script_tag_without_src(html)

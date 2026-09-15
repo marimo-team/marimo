@@ -94,23 +94,21 @@ const getLucideIconList = once(async (): Promise<Completion[]> => {
     return `https://cdn.jsdelivr.net/npm/lucide-static@0.452.0/icons/${iconName}.svg`;
   };
 
-  return Object.entries(iconList).map(
-    ([iconName, aliases]): Completion => ({
-      label: `::${iconName}`,
-      displayLabel: iconName,
-      type: "lucide-icon",
-      boost: 10,
-      apply: `::lucide:${iconName}::`,
-      detail: aliases.join(", "),
-      info: () => {
-        const img = document.createElement("img");
-        img.src = asSvg(iconName);
-        img.style.width = "24px";
-        img.style.height = "24px";
-        return img;
-      },
-    }),
-  );
+  return Object.entries(iconList).map(([iconName, aliases]): Completion => ({
+    label: `::${iconName}`,
+    displayLabel: iconName,
+    type: "lucide-icon",
+    boost: 10,
+    apply: `::lucide:${iconName}::`,
+    detail: aliases.join(", "),
+    info: () => {
+      const img = document.createElement("img");
+      img.src = asSvg(iconName);
+      img.style.width = "24px";
+      img.style.height = "24px";
+      return img;
+    },
+  }));
 });
 
 // Completion provider for LaTeX-style UTF-8 symbols

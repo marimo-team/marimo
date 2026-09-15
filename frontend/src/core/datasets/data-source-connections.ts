@@ -4,6 +4,7 @@ import { atom } from "jotai";
 import { isSchemaless } from "@/components/datasources/utils";
 import { createReducerAndAtoms } from "@/utils/createReducer";
 import { Logger } from "@/utils/Logger";
+import { sortBy } from "@/utils/arrays";
 import type {
   DatabaseSchema,
   DataSourceConnection as DataSourceConnectionType,
@@ -13,6 +14,7 @@ import { store } from "../state/jotai";
 import type { VariableName } from "../variables/types";
 import {
   type ConnectionName,
+  DEFAULT_DUCKDB_DATABASE,
   DUCKDB_ENGINE,
   INTERNAL_SQL_ENGINES,
 } from "./engines";
@@ -42,7 +44,8 @@ export interface DataSourceConnection extends Omit<
 export type ConnectionsMap = ReadonlyMap<ConnectionName, DataSourceConnection>;
 
 export interface DataSourceState {
-  latestEngineSelected: ConnectionName;
+  // Null permits automatic selection; DuckDB can also be an explicit choice.
+  latestEngineSelected: ConnectionName | null;
   connectionsMap: ConnectionsMap;
 }
 
@@ -108,7 +111,7 @@ function tableSchemaPath(sqlTableContext: SQLTableContext): string[] {
 
 function initialState(): DataSourceState {
   return {
-    latestEngineSelected: DUCKDB_ENGINE,
+    latestEngineSelected: null,
     connectionsMap: initialConnections,
   };
 }
@@ -134,6 +137,8 @@ const {
     // Backend will dedupe by connection name & keep the latest, so we use this as the key
     const newMap = new Map(connectionsMap);
     for (const conn of opts.connections) {
+      // Refresh insertion order so automatic selection follows discovery recency.
+      newMap.delete(conn.name);
       newMap.set(conn.name, conn);
     }
 
@@ -159,16 +164,17 @@ const {
       }),
     );
     return {
-      // If the latest engine selected is not in the new map, use the default engine
-      latestEngineSelected: newMap.has(latestEngineSelected)
-        ? latestEngineSelected
-        : DUCKDB_ENGINE,
+      // Allow automatic selection again when the selected connection disappears.
+      latestEngineSelected:
+        latestEngineSelected && newMap.has(latestEngineSelected)
+          ? latestEngineSelected
+          : null,
       connectionsMap: newMap,
     };
   },
 
   clearDataSourceConnections: (): DataSourceState => ({
-    latestEngineSelected: DUCKDB_ENGINE,
+    latestEngineSelected: null,
     connectionsMap: new Map(),
   }),
 
@@ -181,9 +187,10 @@ const {
     const newMap = new Map(connectionsMap);
     newMap.delete(connectionName);
     return {
-      latestEngineSelected: newMap.has(latestEngineSelected)
-        ? latestEngineSelected
-        : DUCKDB_ENGINE,
+      latestEngineSelected:
+        latestEngineSelected && newMap.has(latestEngineSelected)
+          ? latestEngineSelected
+          : null,
       connectionsMap: newMap,
     };
   },
@@ -340,6 +347,40 @@ export { dataSourceConnectionsAtom, useDataSourceActions };
 export const dataConnectionsMapAtom = atom(
   (get) => get(dataSourceConnectionsAtom).connectionsMap,
 );
+
+/**
+ * Get the data connections that are available to the user.
+ * Filters out internal engines if it has no databases or if it has only the in-memory database and no schemas.
+ */
+export const connectionsAtom = atom((get) => {
+  const dataConnections = new Map(get(dataConnectionsMapAtom));
+
+  // Filter out the internal engines if it has no databases
+  // Or if it has only the in-memory database and no schemas
+  for (const engine of INTERNAL_SQL_ENGINES) {
+    const connection = dataConnections.get(engine);
+    if (!connection) {
+      continue;
+    }
+
+    if (connection.databases.length === 0) {
+      dataConnections.delete(engine);
+    }
+
+    if (
+      connection.databases.length === 1 &&
+      connection.databases[0].name === DEFAULT_DUCKDB_DATABASE &&
+      connection.databases[0].schemas.length === 0
+    ) {
+      dataConnections.delete(engine);
+    }
+  }
+
+  // Put internal engines last to prioritize user-defined connections
+  return sortBy([...dataConnections.values()], (connection) =>
+    INTERNAL_SQL_ENGINES.has(connection.name) ? 1 : 0,
+  );
+});
 
 export function setLatestEngineSelected(engine: ConnectionName) {
   const existing = store.get(dataSourceConnectionsAtom);

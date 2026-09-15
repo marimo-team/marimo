@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import asyncio
-import mimetypes
 import os
 import tempfile
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from marimo._data._external_storage.utils import (
 )
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._utils.assert_never import log_never
+from marimo._utils.mime import guess_mime_type
 from marimo._utils.typing import override
 
 if TYPE_CHECKING:
@@ -233,7 +233,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                         last_modified=_last_modified_from_commit(
                             item.last_commit
                         ),
-                        mime_type=mimetypes.guess_type(full_path)[0],
+                        mime_type=guess_mime_type(full_path),
                     )
                 )
             elif isinstance(item, RepoFolder):
@@ -286,7 +286,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                         last_modified=_last_modified_from_bucket_item(
                             item.uploaded_at
                         ),
-                        mime_type=mimetypes.guess_type(full_path)[0],
+                        mime_type=guess_mime_type(full_path),
                     )
                 )
             elif isinstance(item, BucketFolder):
@@ -351,7 +351,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 kind="file",
                 size=item.size or 0,
                 last_modified=_last_modified_from_commit(item.last_commit),
-                mime_type=mimetypes.guess_type(full_path)[0],
+                mime_type=guess_mime_type(full_path),
             )
         elif isinstance(item, RepoFolder):
             folder_path = item.path.rstrip("/")
@@ -397,7 +397,7 @@ class HuggingfaceApi(StorageBackend["HfApi"]):
                 last_modified=_last_modified_from_bucket_item(
                     item.uploaded_at
                 ),
-                mime_type=mimetypes.guess_type(full_path)[0],
+                mime_type=guess_mime_type(full_path),
             )
 
         # get_bucket_paths_info only resolves files (nonexistent paths are

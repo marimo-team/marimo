@@ -32,7 +32,7 @@ export const MAX_FILE_PREVIEW_BYTES = 10 * 1024 * 1024;
 
 interface Props {
   file: FileInfo;
-  onOpenNotebook: (
+  onOpenNotebook?: (
     evt: Pick<Event, "stopPropagation" | "preventDefault">,
   ) => void;
 }
@@ -156,11 +156,12 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       onDownload={disableFileDownloads ? undefined : handleDownload}
       actions={
         <>
-          {file.isMarimoFile && !isWasm() && (
+          {data.file.isMarimoFile && onOpenNotebook && !isWasm() && (
             <Tooltip content="Open notebook">
               <Button
                 variant="text"
                 size="xs"
+                aria-label="Open notebook"
                 onClick={(evt) => onOpenNotebook(evt)}
               >
                 <ExternalLinkIcon className="h-3.5 w-3.5" />
@@ -240,6 +241,7 @@ export const FileViewer: React.FC<Props> = ({ file, onOpenNotebook }) => {
       {warningBanner}
       <FileContentRenderer
         mimeType={mimeType}
+        filename={data.file.name}
         contents={
           isText
             ? internalValue

@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import type { ExportedFile } from "@/core/network/types";
 import { exportNotebook } from "../export-notebook";
 import { DEFAULT_EXPORT_OPTIONS, type ExportOptions } from "../state";
@@ -40,15 +40,20 @@ function makeRequests(): Requests {
 
 describe("exportNotebook", () => {
   let requests: Requests;
-  let captureOutputs: ReturnType<typeof vi.fn>;
-  let capturePNG: ReturnType<typeof vi.fn>;
-  let downloadFile: ReturnType<typeof vi.fn>;
+  let captureOutputs: Mock<() => Promise<void>>;
+  let capturePNG: Mock<() => Promise<void>>;
+  let downloadFile: Mock<(file: ExportedFile) => void>;
+  let getLayout: Mock;
 
   beforeEach(() => {
     requests = makeRequests();
     captureOutputs = vi.fn().mockResolvedValue(undefined);
     capturePNG = vi.fn().mockResolvedValue(undefined);
     downloadFile = vi.fn();
+    getLayout = vi.fn().mockResolvedValue({
+      type: "slides",
+      data: { deck: { transition: "fade" } },
+    });
   });
 
   const run = (
@@ -61,6 +66,7 @@ describe("exportNotebook", () => {
       requests,
       sourceFilename: "notebook.py",
       htmlFiles: ["data.csv"],
+      getLayout,
       captureOutputs,
       capturePNG,
       downloadFile,
@@ -73,8 +79,10 @@ describe("exportNotebook", () => {
       download: false,
       files: ["data.csv"],
       includeCode: false,
+      layout: { type: "slides", data: { deck: { transition: "fade" } } },
     });
     expect(downloadFile).toHaveBeenCalledWith(FILE);
+    expect(getLayout).toHaveBeenCalledOnce();
   });
 
   it("passes the selected Markdown flavor through the session API", async () => {
@@ -84,6 +92,7 @@ describe("exportNotebook", () => {
       download: false,
       flavor: "qmd",
     });
+    expect(getLayout).not.toHaveBeenCalled();
     expect(downloadFile).toHaveBeenCalledWith(FILE);
   });
 

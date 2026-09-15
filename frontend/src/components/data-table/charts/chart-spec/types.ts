@@ -29,6 +29,7 @@ export function convertDataTypeToVega(
       return "quantitative";
     case "string":
     case "boolean":
+    case "geometry":
     case "unknown":
       return "nominal";
     case "date":
@@ -51,6 +52,7 @@ export function convertDataTypeToSelectable(
       return "number";
     case "string":
     case "boolean":
+    case "geometry":
     case "unknown":
       return "string";
     case "date":

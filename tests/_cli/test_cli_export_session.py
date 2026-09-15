@@ -170,9 +170,9 @@ def test_export_sessions_continue_on_error_processes_remaining(
         marimo_path: session_module.MarimoPath,
         *,
         notebook_args: tuple[str, ...],
-        venv_python: str | None = None,
+        sandbox: object | None = None,
     ) -> tuple[dict[str, str], bool]:
-        del notebook_args, venv_python
+        del notebook_args, sandbox
         called.append(marimo_path.short_name)
         if marimo_path.short_name == "second.py":
             raise click.ClickException("boom")
@@ -224,9 +224,9 @@ def test_export_sessions_no_continue_on_error_stops_at_first_error(
         marimo_path: session_module.MarimoPath,
         *,
         notebook_args: tuple[str, ...],
-        venv_python: str | None = None,
+        sandbox: object | None = None,
     ) -> tuple[dict[str, str], bool]:
-        del notebook_args, venv_python
+        del notebook_args, sandbox
         called.append(marimo_path.short_name)
         if marimo_path.short_name == "first.py":
             raise click.ClickException("first failed")

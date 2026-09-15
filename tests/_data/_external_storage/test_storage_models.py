@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from dirty_equals import IsDatetime, IsPositiveFloat
+from dirty_equals import IsDatetime, IsPositiveFloat, IsStr
 from inline_snapshot import snapshot
 
 from marimo._data._external_storage.models import (
@@ -251,6 +251,21 @@ class TestObstore:
                 mime_type="text/csv",
             )
         )
+
+    def test_create_storage_entry_with_toml(self) -> None:
+        backend = self._make_backend(MagicMock())
+
+        entry = backend._create_storage_entry(
+            {
+                "path": "pyproject.toml",
+                "size": 100,
+                "last_modified": None,
+                "e_tag": None,
+                "version": None,
+            }
+        )
+
+        assert entry.mime_type == "application/toml"
 
     async def test_get_entry(self) -> None:
         now = datetime(2025, 6, 15, 12, 0, 0, tzinfo=timezone.utc)
@@ -1023,6 +1038,19 @@ class TestFsspecFilesystem:
             )
         )
 
+    def test_create_storage_entry_with_toml(self) -> None:
+        backend = self._make_backend(MagicMock())
+
+        entry = backend._create_storage_entry(
+            {
+                "name": "pyproject.toml",
+                "size": 100,
+                "type": "file",
+            }
+        )
+
+        assert entry.mime_type == "application/toml"
+
     def test_create_storage_entry_includes_id(self) -> None:
         # Backends such as Google Drive allow duplicate paths, so the stable
         # id must flow through to disambiguate entries on the client.
@@ -1431,7 +1459,7 @@ class TestObstoreIntegration:
                     kind="object",
                     size=5,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                    metadata={"e_tag": "0"},
+                    metadata={"e_tag": IsStr()},
                     mime_type="text/plain",
                 ),
                 StorageEntry(
@@ -1439,7 +1467,7 @@ class TestObstoreIntegration:
                     kind="object",
                     size=6,
                     last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                    metadata={"e_tag": "1"},
+                    metadata={"e_tag": IsStr()},
                     mime_type="text/plain",
                 ),
             ]
@@ -1469,7 +1497,7 @@ class TestObstoreIntegration:
                 kind="object",
                 size=12,
                 last_modified=IsPositiveFloat(),  # pyright: ignore[reportArgumentType]
-                metadata={"e_tag": "0"},
+                metadata={"e_tag": IsStr()},
                 mime_type="text/plain",
             )
         )

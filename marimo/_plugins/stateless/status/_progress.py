@@ -6,7 +6,6 @@ import time
 from collections.abc import AsyncIterable, Iterable, Sized
 from typing import (
     TYPE_CHECKING,
-    Any,
     Generic,
     Literal,
     TypeVar,
@@ -25,6 +24,7 @@ from marimo._utils.debounce import debounce
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Collection, Iterator
+    from types import TracebackType
 
 S = TypeVar("S")
 T = TypeVar("T")
@@ -272,7 +272,12 @@ class spinner:
         output.append(self.spinner)
         return self.spinner
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         if self.remove_on_exit:
             self.spinner.clear()
         # TODO(akshayka): else consider transitioning to a done state
@@ -465,7 +470,12 @@ class progress_bar(Generic[S]):
     def __enter__(self) -> ProgressBar:
         return self.progress
 
-    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self._finish()
 
     def _finish(self) -> None:

@@ -52,6 +52,52 @@ rules = """
 max_tokens = 1000
 ```
 
+## API keys from environment variables
+
+Some providers use a default environment variable when `api_key` is not set.
+
+| Provider | Environment variable |
+| --- | --- |
+| OpenAI | `OPENAI_API_KEY` |
+| GitHub Copilot | `GITHUB_COPILOT_API_KEY` |
+| Anthropic | `ANTHROPIC_API_KEY` |
+| Google AI | `GEMINI_API_KEY`, then `GOOGLE_API_KEY` |
+| Azure OpenAI | `AZURE_API_KEY` |
+| OpenRouter | `OPENROUTER_API_KEY` |
+| Weights & Biases | `WANDB_API_KEY` |
+| OpenCode Go | `OPENCODE_API_KEY` |
+
+For example, you can configure OpenAI without an `api_key` value:
+
+```bash
+export OPENAI_API_KEY="sk-proj-..."
+marimo edit notebook.py
+```
+
+You can also use a different environment variable. Set `api_key` to an
+`env:` reference:
+
+```toml title="marimo.toml"
+[ai.custom_providers.enterprise_gateway]
+api_key = "env:ENTERPRISE_AI_API_KEY"
+base_url = "https://gateway.example.com/v1"
+```
+
+The `env:` syntax works with each provider that accepts `api_key`. This
+includes custom providers. marimo returns a configuration error when the
+referenced variable is empty or absent.
+
+The `env:` prefix is reserved for environment variable references. A literal
+API key cannot start with this prefix.
+
+!!! warning "Use trusted configuration"
+    Use `env:` references only in configuration files that you trust. A provider
+    sends the resolved value to its configured endpoint.
+
+marimo first reads the environment of the server process. Then marimo reads
+the configured [`.env` files](runtime_configuration.md#env-files) in order.
+The first value takes precedence.
+
 ## Supported providers
 
 <div align="center">
@@ -65,7 +111,6 @@ You can configure the following providers:
 
 * Anthropic
 * AWS Bedrock
-* GitHub
 * Google AI
 * DeepSeek
 * xAI
@@ -73,6 +118,7 @@ You can configure the following providers:
 * Mistral
 * Ollama
 * OpenAI
+* GitHub Copilot
 * OpenCode Go
 * OpenRouter
 * Weights & Biases
@@ -197,7 +243,7 @@ For details and advanced configuration, see the `google-genai` Python client doc
 
 There are two offerings for serving LLMs on Azure
 
-**Azure OpenAI**
+#### Azure OpenAI
 
 ```toml title="marimo.toml"
 [ai.models]
@@ -210,9 +256,9 @@ base_url = "https://<your-resource-name>.openai.azure.com/openai/deployments/<de
 
 The deployment name is typically the model name.
 
-**Azure AI Foundry**
+#### Microsoft Foundry
 
-AI Foundry uses OpenAI-compatible models. You can configure it as a custom provider:
+Microsoft Foundry uses OpenAI-compatible models. You can configure it as a custom provider:
 
 ```toml title="marimo.toml"
 [ai.models]
@@ -226,33 +272,40 @@ base_url = "https://<your-resource-name>.services.ai.azure.com/openai/v1"
 
 ### GitHub Copilot
 
-Use Copilot for code refactoring or the chat panel (Copilot subscription required).
+You can use models from your Copilot subscription in marimo's AI assistant.
 
 **Requirements**
 
-* Install the [gh CLI](https://cli.github.com/)
-* Get a token: `gh auth token`
+* Install `pydantic-ai-slim[openai]>=2.42.0`.
+* Install the [GitHub CLI](https://cli.github.com/).
+* Sign in with `gh auth login`.
+* Get your OAuth token with `gh auth token`.
 
 **Configuration**
 
+The available models depend on your Copilot subscription.
+
+Add an available model to `custom_models`. Use the `github/` prefix.
+
 ```toml title="marimo.toml"
 [ai.models]
-chat_model = "github/gpt-4o-mini"
+custom_models = ["github/gpt-5.4"]
+chat_model = "github/gpt-5.4"
 
 [ai.github]
-api_key = "gho_..."
+api_key = "env:GITHUB_COPILOT_API_KEY"
 ```
 
-??? question "My token starts with `ghp_` instead of `gho_`?"
+Set the token before you start marimo:
 
-    This usually happens when you previously authenticated `gh` by pasting a _personal_ access token (`ghp_...`). However, GitHub Copilot is not available through `ghp_...`, and you will encounter errors such as:
+```bash
+export GITHUB_COPILOT_API_KEY="$(gh auth token)"
+```
 
-    > bad request: Personal Access Tokens are not supported for this endpoint
-
-    To resolve this issue, you could switch to an _OAuth_ access token (`gho_...`):
-
-    1. Re-authenticate by running `gh auth login`.
-    2. Choose _Login with a web browser_ (instead of _Paste an authentication token_) this time.
+You can also set `GITHUB_COPILOT_API_TOKEN` or `COPILOT_GITHUB_TOKEN`.
+GitHub Copilot supports chat completions only. See the
+[Pydantic AI GitHub Copilot guide](https://pydantic.dev/docs/ai/models/github-copilot/)
+for authentication details and current limitations.
 
 ### OpenRouter
 

@@ -61,7 +61,7 @@ def _setup_tracing() -> tuple[Any, _CollectingExporter]:
     return tracer, exporter
 
 
-def _make_app(tracing: bool = True) -> Starlette:
+def _make_app() -> Starlette:
     """Build a minimal Starlette app with OpenTelemetryMiddleware."""
     from marimo._server.api.middleware import OpenTelemetryMiddleware
 
@@ -70,8 +70,7 @@ def _make_app(tracing: bool = True) -> Starlette:
 
     app = Starlette(routes=[Route("/", homepage)])
 
-    with patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", tracing):
-        app.add_middleware(OpenTelemetryMiddleware)
+    app.add_middleware(OpenTelemetryMiddleware)
 
     return app
 
@@ -95,10 +94,13 @@ class TestOpenTelemetryMiddleware:
         traceparent = f"00-{parent_trace_id}-{parent_span_id}-01"
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
-            app = _make_app(tracing=True)
+            app = _make_app()
             client = TestClient(app)
             response = client.get("/", headers={"traceparent": traceparent})
 
@@ -119,10 +121,13 @@ class TestOpenTelemetryMiddleware:
         tracer, exporter = _setup_tracing()
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
-            app = _make_app(tracing=True)
+            app = _make_app()
             client = TestClient(app)
             response = client.get("/")
 
@@ -134,10 +139,13 @@ class TestOpenTelemetryMiddleware:
         tracer, exporter = _setup_tracing()
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", False),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=False,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
-            app = _make_app(tracing=False)
+            app = _make_app()
             client = TestClient(app)
             response = client.get("/")
 
@@ -148,10 +156,13 @@ class TestOpenTelemetryMiddleware:
         tracer, exporter = _setup_tracing()
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
-            app = _make_app(tracing=True)
+            app = _make_app()
             client = TestClient(app)
             client.get("/")
 
@@ -211,7 +222,10 @@ class TestTracePropagationThroughRealApp:
         traceparent = f"00-{parent_trace_id}-{parent_span_id}-01"
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
             app = self._create_real_app()
@@ -239,7 +253,10 @@ class TestTracePropagationThroughRealApp:
         tracer, exporter = _setup_tracing()
 
         with (
-            patch("marimo._config.settings.GLOBAL_SETTINGS.TRACING", True),
+            patch(
+                "marimo._server.api.middleware.is_tracing_enabled",
+                return_value=True,
+            ),
             patch("marimo._server.api.middleware.server_tracer", tracer),
         ):
             app = self._create_real_app()

@@ -12,9 +12,8 @@ from typing import TYPE_CHECKING
 
 from marimo._ai._tools.base import ToolContext
 from marimo._ai._tools.tools_registry import SUPPORTED_BACKEND_AND_MCP_TOOLS
-from marimo._cli.errors import MarimoCLIMissingDependencyError
-from marimo._dependencies.dependencies import DependencyManager
 from marimo._loggers import marimo_logger
+from marimo._mcp.dependencies import require_mcp_dependencies
 
 LOGGER = marimo_logger()
 
@@ -31,13 +30,9 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
         app: Starlette application instance for accessing marimo state
         allow_remote: If True, disable DNS rebinding protection to allow remote access behind proxies.
     """
-    if not DependencyManager.mcp.has():
-        raise MarimoCLIMissingDependencyError(
-            "MCP dependencies not available.",
-            "marimo[mcp]",
-        )
+    require_mcp_dependencies()
 
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server import MCPServer
     from starlette.middleware.base import BaseHTTPMiddleware
     from starlette.responses import JSONResponse
     from starlette.routing import Mount
@@ -54,13 +49,9 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
             enable_dns_rebinding_protection=False,
         )
 
-    mcp = FastMCP(
+    mcp = MCPServer(
         "marimo-mcp-server",
-        stateless_http=True,
         log_level="WARNING",
-        # Change base path from /mcp to /server
-        streamable_http_path="/server",
-        transport_security=transport_security,
     )
 
     # Create context for tools and prompts
@@ -77,7 +68,11 @@ def setup_mcp_server(app: Starlette, allow_remote: bool = False) -> None:
         mcp.prompt()(prompt_with_context.as_mcp_prompt_fn())
 
     # Initialize streamable HTTP app
-    mcp_app = mcp.streamable_http_app()
+    mcp_app = mcp.streamable_http_app(
+        stateless_http=True,
+        streamable_http_path="/server",
+        transport_security=transport_security,
+    )
 
     # Middleware to require edit scope
     class RequiresEditMiddleware(BaseHTTPMiddleware):

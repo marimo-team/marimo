@@ -22,9 +22,59 @@ HEADERS = {
 }
 
 
+@pytest.mark.parametrize("operation", ["add", "remove"])
+@pytest.mark.parametrize("restart_required", [True, False])
+def test_sandbox_failure_returns_actionable_message(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    operation: str,
+    restart_required: bool,
+) -> None:
+    from marimo._environments.errors import SandboxRestartRequired
+    from marimo._environments.pixi import PixiError
+    from marimo._environments.sandbox import NotebookSandbox
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+
+    message = (
+        "Your dependency changes are saved, but Pixi installed them in a new "
+        "environment. Restart the kernel to use the updated dependencies. "
+        "Restarting clears in-memory variables."
+    )
+    sandbox = MagicMock(spec=NotebookSandbox)
+    sandbox.backend = "pixi"
+    sandbox.environment = None
+    getattr(sandbox, operation).side_effect = (
+        SandboxRestartRequired(message)
+        if restart_required
+        else PixiError(message)
+    )
+    manager = SandboxPackageManager(sandbox)
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages._get_package_manager",
+        lambda _request: manager,
+    )
+
+    response = client.post(
+        f"/api/packages/{operation}",
+        headers=HEADERS,
+        json={"package": "boltons"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "success": False,
+        "error": None if restart_required else message,
+        "restartRequired": restart_required,
+    }
+
+
 @pytest.fixture
 def mock_package_manager(monkeypatch: pytest.MonkeyPatch) -> PackageManager:
     mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.restart_required = False
+    mock_manager.name = "pip"
     mock_manager.install = AsyncMock(return_value=True)
     mock_manager.uninstall = AsyncMock(return_value=True)
     mock_manager.list_packages = MagicMock(
@@ -50,7 +100,11 @@ def test_add_package(client: TestClient, mock_package_manager: Mock) -> None:
         json={"package": "test-package"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=False, group=None
     )
@@ -77,7 +131,11 @@ def test_remove_package(
         json={"package": "test-package"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.uninstall.assert_called_once_with(
         "test-package", group=None
     )
@@ -101,9 +159,7 @@ def test_list_packages(client: TestClient, mock_package_manager: Mock) -> None:
         headers=HEADERS,
     )
     assert response.status_code == 200
-    assert response.json() == {
-        "packages": ["package1", "package2"],
-    }
+    assert response.json() == {"packages": ["package1", "package2"]}
     mock_package_manager.list_packages.assert_called_once()
 
 
@@ -140,6 +196,7 @@ def test_add_package_failure(
     assert response.json() == {
         "success": False,
         "error": "Failed to install test-package. See terminal for error logs.",
+        "restartRequired": False,
     }
 
 
@@ -156,6 +213,7 @@ def test_remove_package_failure(
     assert response.json() == {
         "success": False,
         "error": "Failed to uninstall test-package. See terminal for error logs.",
+        "restartRequired": False,
     }
 
 
@@ -169,7 +227,11 @@ def test_add_package_with_upgrade(
         json={"package": "test-package", "upgrade": True},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=True, group=None
     )
@@ -185,7 +247,11 @@ def test_add_package_without_upgrade(
         json={"package": "test-package", "upgrade": False},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=False, group=None
     )
@@ -389,6 +455,7 @@ def mock_package_manager_with_tree(
 ) -> PackageManager:
     """Mock package manager with dependency tree support."""
     mock_manager = MagicMock(spec=PackageManager)
+    mock_manager.name = "uv"
     mock_manager.is_manager_installed.return_value = True
     from marimo._server.models.packages import DependencyTreeNode
 
@@ -426,15 +493,22 @@ def test_dependency_tree(
         headers=HEADERS,
     )
     assert response.status_code == 200
-    result = response.json()
-    assert "tree" in result
-    tree = result["tree"]
-    assert tree is not None
-    assert tree["name"] == "root"
-    assert tree["version"] == "1.0.0"
-    assert len(tree["dependencies"]) == 1
-    assert tree["dependencies"][0]["name"] == "child"
-    assert tree["dependencies"][0]["version"] == "0.1.0"
+    assert response.json() == {
+        "tree": {
+            "name": "root",
+            "version": "1.0.0",
+            "tags": [],
+            "dependencies": [
+                {
+                    "name": "child",
+                    "version": "0.1.0",
+                    "tags": [{"kind": "extra", "value": "dev"}],
+                    "dependencies": [],
+                }
+            ],
+        },
+        "context": {"kind": "package-manager", "name": "uv"},
+    }
     mock_package_manager_with_tree.dependency_tree.assert_called_once()
 
 
@@ -448,9 +522,47 @@ def test_dependency_tree_no_tree(
         headers=HEADERS,
     )
     assert response.status_code == 200
-    result = response.json()
-    assert result["tree"] is None
+    assert response.json() == {
+        "tree": None,
+        "context": {"kind": "package-manager", "name": "pip"},
+    }
     mock_package_manager.dependency_tree.assert_called_once()
+
+
+def test_dependency_tree_uses_sandbox_context(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments.sandbox import PackageState
+    from marimo._runtime.packages.sandbox_package_manager import (
+        SandboxPackageManager,
+    )
+    from marimo._utils.uv_tree import DependencyTreeNode
+
+    tree = DependencyTreeNode(
+        name="<root>", version=None, tags=[], dependencies=[]
+    )
+    sandbox = MagicMock()
+    sandbox.backend = "pixi"
+    sandbox.environment = None
+    sandbox.packages.return_value = PackageState(packages=(), tree=tree)
+    manager = SandboxPackageManager(sandbox)
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages._get_package_manager",
+        lambda _request: manager,
+    )
+
+    response = client.get("/api/packages/tree", headers=HEADERS)
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "tree": {
+            "name": "<root>",
+            "version": None,
+            "tags": [],
+            "dependencies": [],
+        },
+        "context": {"kind": "sandbox", "backend": "pixi"},
+    }
 
 
 def test_dependency_tree_without_session(client: TestClient) -> None:
@@ -503,8 +615,73 @@ def test_add_package_with_metadata_update(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+
+
+def test_add_package_with_spaced_extras_updates_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    package = "pydantic-ai[duckduckgo, web-fetch]"
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": package, "upgrade": True},
+        )
+
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
+    mock_package_manager_with_metadata.install.assert_awaited_once_with(
+        package, version=None, upgrade=True, group=None
+    )
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once_with(
+        filepath="test.py",
+        packages_to_add=[package],
+        upgrade=True,
+    )
+
+
+def test_add_package_failure_does_not_update_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    mock_package_manager_with_metadata.install.return_value = False
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/add",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+
+    assert response.json()["success"] is False
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
 
 
 def test_remove_package_with_metadata_update(
@@ -525,8 +702,37 @@ def test_remove_package_with_metadata_update(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
+
+
+def test_remove_package_failure_does_not_update_metadata(
+    client: TestClient, mock_package_manager_with_metadata: Mock
+) -> None:
+    mock_package_manager_with_metadata.uninstall.return_value = False
+
+    with (
+        patch(
+            "marimo._config.settings.GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA",
+            True,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages._get_filename",
+            return_value="test.py",
+        ),
+    ):
+        response = client.post(
+            "/api/packages/remove",
+            headers=HEADERS,
+            json={"package": "test-package"},
+        )
+
+    assert response.json()["success"] is False
+    mock_package_manager_with_metadata.update_notebook_script_metadata.assert_not_called()
 
 
 def test_add_package_no_metadata_update_when_disabled(
@@ -583,7 +789,11 @@ def test_add_package_with_git_dependency(
             )
             assert response.status_code == 200
             result = response.json()
-            assert result == {"success": True, "error": None}
+            assert result == {
+                "success": True,
+                "error": None,
+                "restartRequired": False,
+            }
 
             # Verify metadata update was called with the git dependency
             mock_package_manager_with_metadata.update_notebook_script_metadata.assert_called_once()
@@ -606,7 +816,11 @@ def test_add_package_with_dev_dependency(
         json={"package": "test-package", "upgrade": True, "group": "dev"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.install.assert_called_once_with(
         "test-package", version=None, upgrade=True, group="dev"
     )
@@ -623,7 +837,11 @@ def test_remove_package_with_dev_dependency(
         json={"package": "test-package", "group": "dev"},
     )
     assert response.status_code == 200
-    assert response.json() == {"success": True, "error": None}
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+    }
     mock_package_manager.uninstall.assert_called_once_with(
         "test-package", group="dev"
     )
@@ -637,8 +855,11 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     mock_kernel_manager = MagicMock()
     mock_kernel_manager.venv_python = "/custom/venv/python"
 
+    mock_kernel_manager.script_environment = None
+
     mock_session = MagicMock()
     mock_session._kernel_manager = mock_kernel_manager
+    mock_session.notebook_sandbox = None
 
     # Mock app state
     mock_app_state = MagicMock()
@@ -673,7 +894,51 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
 
     # Verify create_package_manager was called with python_exe
     mock_create_pm.assert_called_once_with(
-        "pip", python_exe="/custom/venv/python"
+        "pip",
+        python_exe="/custom/venv/python",
+        script_path=None,
+        sandbox_environment=None,
+    )
+
+
+def test_get_package_manager_with_script_environment() -> None:
+    """A kernel synchronized into a script environment routes package
+    changes through it."""
+    from marimo._server.api.endpoints.packages import _get_package_manager
+
+    mock_kernel_manager = MagicMock()
+    mock_kernel_manager.venv_python = "/env/bin/python"
+    mock_kernel_manager.script_environment = object()
+
+    mock_session = MagicMock()
+    mock_session._kernel_manager = mock_kernel_manager
+    mock_session.notebook_sandbox = None
+    mock_session.app_file_manager.filename = "/nb/notebook.py"
+
+    mock_app_state = MagicMock()
+    mock_app_state.get_current_session.return_value = mock_session
+    mock_app_state.app_config_manager.package_manager = "uv"
+
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=mock_app_state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as mock_create_pm,
+        patch(
+            "marimo._server.api.endpoints.packages.isinstance",
+            side_effect=lambda _obj, cls: cls.__name__ != "NotebookSandbox",
+        ),
+    ):
+        _get_package_manager(MagicMock())
+
+    mock_create_pm.assert_called_once_with(
+        "uv",
+        python_exe="/env/bin/python",
+        script_path="/nb/notebook.py",
+        sandbox_environment=mock_kernel_manager.script_environment,
     )
 
 
@@ -706,7 +971,9 @@ def test_get_package_manager_without_ipc_session() -> None:
         _get_package_manager(mock_request)
 
     # Verify create_package_manager was called with python_exe=None
-    mock_create_pm.assert_called_once_with("uv", python_exe=None)
+    mock_create_pm.assert_called_once_with(
+        "uv", python_exe=None, script_path=None, sandbox_environment=None
+    )
 
 
 def test_get_package_manager_no_session() -> None:
@@ -733,3 +1000,37 @@ def test_get_package_manager_no_session() -> None:
 
     # Verify create_package_manager was called without python_exe
     mock_create_pm.assert_called_once_with("pip")
+
+
+@pytest.mark.parametrize("mode", ["single", None])
+def test_package_manager_binding_for_inprocess_kernel(
+    monkeypatch: pytest.MonkeyPatch, mode: str | None
+) -> None:
+    from marimo._config.settings import GLOBAL_SETTINGS
+    from marimo._server.api.endpoints.packages import _get_package_manager
+    from marimo._session.session import SessionImpl
+
+    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", mode)
+    session = MagicMock(spec=SessionImpl)
+    session.notebook_sandbox = None
+    session._kernel_manager = MagicMock(spec=[])
+    session.app_file_manager = MagicMock(filename="/nb/notebook.py")
+    state = MagicMock()
+    state.get_current_session.return_value = session
+    state.app_config_manager.package_manager = "uv"
+    with (
+        patch(
+            "marimo._server.api.endpoints.packages.AppState",
+            return_value=state,
+        ),
+        patch(
+            "marimo._server.api.endpoints.packages.create_package_manager"
+        ) as create,
+    ):
+        _get_package_manager(MagicMock())
+    create.assert_called_once_with(
+        "uv",
+        python_exe=None,
+        script_path="/nb/notebook.py" if mode == "single" else None,
+        sandbox_environment=None,
+    )

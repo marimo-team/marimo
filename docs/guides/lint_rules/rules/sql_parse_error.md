@@ -27,5 +27,5 @@ SQL parsing failures can lead to:
 ## References
 
 - [Understanding Errors](https://docs.marimo.io/guides/understanding_errors/)
-- [SQL Support](https://docs.marimo.io/guides/sql/)
+- [SQL Support](https://docs.marimo.io/guides/working_with_data/sql/)
 

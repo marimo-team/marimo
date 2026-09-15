@@ -128,8 +128,8 @@ def enc_hook(obj: Any) -> Any:
         ):
             return str(obj)
 
-    # Handle shapely geometry objects from geopandas
-    if DependencyManager.geopandas.imported():
+    # Handle shapely geometry objects
+    if DependencyManager.shapely.imported():
         try:
             # Check if it's a shapely geometry object
             # shapely.geometry.base.BaseGeometry is the base class

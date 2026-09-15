@@ -22,11 +22,14 @@ const {
 vi.stubGlobal("crossOriginIsolated", false);
 vi.stubGlobal(
   "Worker",
-  vi.fn(() => ({
-    addEventListener: vi.fn(),
-    postMessage: vi.fn(),
-    terminate: vi.fn(),
-  })),
+  // vitest 4 requires a `function` (not an arrow) for mocks called with `new`
+  vi.fn(function () {
+    return {
+      addEventListener: vi.fn(),
+      postMessage: vi.fn(),
+      terminate: vi.fn(),
+    };
+  }),
 );
 
 class MockURL extends URL {

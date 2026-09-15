@@ -562,10 +562,24 @@ describe("mergeModels", () => {
       release_date: date,
     });
 
-    it("seeds the denylist with gpt-5.3-codex-spark under openai", () => {
+    it("seeds the denylist with unsupported and redundant models", () => {
       // Changing this set is a deliberate product decision — when a model is
       // added or removed here, leave a comment next to it explaining why.
       expect(MODEL_DENYLIST["openai"]?.has("gpt-5.3-codex-spark")).toBe(true);
+      expect(MODEL_DENYLIST["openai"]?.has("gpt-realtime-2.1")).toBe(true);
+      expect(MODEL_DENYLIST["bedrock"]).toEqual(
+        new Set([
+          "anthropic.claude-fable-5-1",
+          "us.anthropic.claude-fable-5-1",
+          "anthropic.claude-opus-5",
+          "au.anthropic.claude-opus-5",
+          "eu.anthropic.claude-opus-5",
+          "jp.anthropic.claude-opus-5",
+        ]),
+      );
+      expect(MODEL_DENYLIST["opencode-go"]).toEqual(
+        new Set(["glm-5.1", "hy3", "minimax-m2.7"]),
+      );
     });
 
     it("drops upstream models that match the per-provider denylist", () => {

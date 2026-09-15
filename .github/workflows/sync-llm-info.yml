@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: 🔐 Fetch Doppler secrets
-        uses: dopplerhq/secrets-fetch-action@cd2efbf9a404504316435873eff298b82f7e0562 # v1.3.0
+        uses: dopplerhq/secrets-fetch-action@451892f16195f9ac360e1a5bcbf0b5fd0e957534 # v2.0.0
         id: secrets
         with:
           auth-method: oidc
@@ -39,13 +39,13 @@ jobs:
 
       - name: Generate app token
         id: app-token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ steps.secrets.outputs.RELEASE_APP_PRIVATE_KEY }}
 
       - name: ⬇️ Checkout repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
@@ -53,14 +53,14 @@ jobs:
       - name: 📥 Install repo
         uses: ./.github/actions/install
 
-      - name: 🔄 Sync models (5 newest per provider)
-        run: pnpm --dir packages/llm-info sync-models -n 5
-
       - name: 🛠️ Generate llm-info data
         run: pnpm --dir packages/llm-info codegen
 
       - name: 🧪 Test llm-info
         run: pnpm --dir packages/llm-info test
+
+      - name: 🔄 Sync models (5 newest per provider)
+        run: pnpm --dir packages/llm-info sync-models -n 5
 
       - name: 🔎 Check for model catalog changes
         id: changes
@@ -116,6 +116,12 @@ jobs:
           ## Summary
           - Syncs `packages/llm-info/data/models.yml` from `models.dev`.
           - Runs llm-info code generation and tests.
+
+          ## Human review required
+          - Replace every empty model description with clear, user-facing prose.
+          - Review related models for descriptions that became outdated after this sync.
+          - Prefer concrete capabilities and intended uses.
+          - Remove redundant aliases and models that do not belong in marimo's catalog.
 
           ## Test plan
           - `pnpm --dir packages/llm-info test`

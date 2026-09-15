@@ -8,10 +8,10 @@ from dataclasses import dataclass
 from marimo._config.packages import infer_package_manager
 from marimo._config.utils import deep_copy
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import (
     TYPE_CHECKING,
@@ -315,6 +315,7 @@ class AiConfig(TypedDict, total=False):
     - `max_tokens`: the maximum number of tokens to use in AI completions
     - `mode`: the mode to use for AI completions. Can be one of: `"ask"` or `"manual"`
     - `inline_tooltip`: if `True`, enable inline AI tooltip suggestions
+    - `allow_provider_config`: if `False`, lock provider setup in the settings UI, making them read-only. Users cannot bring their own credentials or add custom providers. Default `True`.
     - `models`: the models to use for AI completions
     - `open_ai`: the OpenAI config
     - `anthropic`: the Anthropic config
@@ -322,7 +323,7 @@ class AiConfig(TypedDict, total=False):
     - `bedrock`: the Bedrock config
     - `azure`: the Azure config
     - `ollama`: the Ollama config
-    - `github`: the GitHub config
+    - `github`: the GitHub Copilot config
     - `openrouter`: the OpenRouter config
     - `wandb`: the Weights & Biases config
     - `opencode_go`: the OpenCode Go config
@@ -335,6 +336,7 @@ class AiConfig(TypedDict, total=False):
     max_tokens: NotRequired[int]
     mode: NotRequired[CopilotMode]
     inline_tooltip: NotRequired[bool]
+    allow_provider_config: NotRequired[bool]
     models: AiModelConfig
     # providers
     open_ai: OpenAiConfig
@@ -358,7 +360,7 @@ class OpenAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the OpenAI API key
+    - `api_key`: the OpenAI API key or an `env:` reference
     - `base_url`: the base URL for the API
     - `project`: the project ID for the OpenAI API
     - `ssl_verify` : Boolean argument for httpx passed to open ai client. httpx defaults to true, but some use cases to let users override to False in some testing scenarios
@@ -385,7 +387,7 @@ class AnthropicConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Anthropic API key
+    - `api_key`: the Anthropic API key or an `env:` reference
     """
 
     api_key: str
@@ -397,7 +399,7 @@ class GoogleAiConfig(TypedDict, total=False):
 
     **Keys.**
 
-    - `api_key`: the Google AI API key
+    - `api_key`: the Google AI API key or an `env:` reference
     """
 
     api_key: str
@@ -423,18 +425,18 @@ class BedrockConfig(TypedDict, total=False):
 
 @dataclass
 class GitHubConfig(TypedDict, total=False):
-    """Configuration options for GitHub.
+    """Configuration options for GitHub Copilot.
 
     **Keys.**
 
-    - `api_key`: the GitHub API token
-    - `base_url`: the base URL for the API
+    - `api_key`: a GitHub Copilot token or an `env:` reference
+    - `base_url`: the base URL for the GitHub Copilot API
     - `copilot_settings`: configuration settings for GitHub Copilot LSP.
         Supports settings like `http` (proxy configuration), `telemetry`,
         and `github-enterprise` (enterprise URI).
     """
 
-    api_key: str
+    api_key: NotRequired[str]
     base_url: NotRequired[str]
     copilot_settings: NotRequired[dict[str, Any]]
 
@@ -572,6 +574,32 @@ class DatasourcesConfig(TypedDict):
     auto_discover_columns: NotRequired[bool | Literal["auto"]]
 
 
+@dataclass
+class FolderConfig(TypedDict):
+    """Configuration for an additional file browser root.
+
+    **Keys.**
+
+    - `path`: the absolute path to the folder
+    - `name`: an optional display name for the folder
+    """
+
+    path: str
+    name: NotRequired[str]
+
+
+@dataclass
+class FileBrowserConfig(TypedDict):
+    """Configuration for the file browser panel.
+
+    **Keys.**
+
+    - `folders`: additional absolute folders to show in the file browser
+    """
+
+    folders: NotRequired[list[FolderConfig]]
+
+
 @mddoc
 @dataclass
 class SharingConfig(TypedDict):
@@ -591,13 +619,41 @@ class SharingConfig(TypedDict):
 
 @dataclass
 class StoreConfig(TypedDict, total=False):
-    """Configuration for cache stores."""
+    """Configuration for a single cache store."""
 
     type: StoreKey
     args: dict[str, Any]
 
 
-CacheConfig = list[StoreConfig] | StoreConfig
+# One store, or a list composed into a TieredStore.
+CacheStoreConfig = list[StoreConfig] | StoreConfig
+
+CacheVerification = Literal["off", "on", "strict"]
+
+
+class CacheConfig(TypedDict, total=False):
+    """Configuration for caching.
+
+    `verification` is the signature-checking posture; `store` is the backing
+    store, or a list of stores composed into a `TieredStore`.
+    """
+
+    verification: CacheVerification
+    store: CacheStoreConfig
+
+
+class SigningConfig(TypedDict, total=False):
+    """Cache-signing trust and identity.
+
+    `trusted_signers` maps a key fingerprint (`"SHA256:<base64>"`) to an
+    advisory label. Trusting a key allows arbitrary code execution from its
+    holder on this machine — a cache restore is `pickle.loads` — so there is no
+    lesser cache-only grant. `private_key_path` is this machine's signing
+    identity; it is never serialized to the frontend.
+    """
+
+    trusted_signers: dict[str, str]
+    private_key_path: str
 
 
 class ExperimentalConfig(TypedDict, total=False):
@@ -615,7 +671,6 @@ class ExperimentalConfig(TypedDict, total=False):
     line_timing: bool  # Active-line highlight + per-line timer (sys.settrace)
 
     # Internal features
-    cache: CacheConfig
     execution_type: ExecutionType
 
 
@@ -644,9 +699,12 @@ class MarimoConfig(TypedDict):
     experimental: NotRequired[ExperimentalConfigType]
     snippets: NotRequired[SnippetsConfig]
     datasources: NotRequired[DatasourcesConfig]
+    file_browser: NotRequired[FileBrowserConfig]
     sharing: NotRequired[SharingConfig]
     mcp: NotRequired[MCPConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 @mddoc
@@ -712,8 +770,11 @@ class PartialMarimoConfig(TypedDict, total=False):
     experimental: NotRequired[ExperimentalConfigType]
     snippets: SnippetsConfig
     datasources: NotRequired[DatasourcesConfig]
+    file_browser: NotRequired[FileBrowserConfig]
     sharing: NotRequired[SharingConfig]
     venv: NotRequired[VenvConfig]
+    cache: NotRequired[CacheConfig]
+    signing: NotRequired[SigningConfig]
 
 
 DEFAULT_CONFIG: MarimoConfig = {
@@ -745,10 +806,10 @@ DEFAULT_CONFIG: MarimoConfig = {
         "on_cell_change": "autorun",
         "watcher_on_save": "lazy",
         "output_max_bytes": int(
-            os.getenv("MARIMO_OUTPUT_MAX_BYTES", 8_000_000)
+            os.getenv("MARIMO_OUTPUT_MAX_BYTES", "8000000")
         ),
         "std_stream_max_bytes": int(
-            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", 1_000_000)
+            os.getenv("MARIMO_STD_STREAM_MAX_BYTES", "1000000")
         ),
         "default_sql_output": "auto",
         "default_csv_encoding": "utf-8",
@@ -777,6 +838,7 @@ DEFAULT_CONFIG: MarimoConfig = {
     },
     "ai": {
         "enabled": True,
+        "allow_provider_config": True,
         "models": {
             "displayed_models": [],
             "custom_models": [],
@@ -828,7 +890,12 @@ def merge_config(
     # Fields that should be replaced instead of merged.
     # These are "record" types where keys can be added/removed,
     # as opposed to config objects where you only set specific fields.
-    replace_paths = frozenset({"ai.custom_providers"})
+    # NB. `signing.trusted_signers` is replaced, not deep-merged. A deep merge
+    # unions the fingerprints from every layer. Then no layer can remove a
+    # signer that a lower-priority one anchored.
+    replace_paths = frozenset(
+        {"ai.custom_providers", "signing.trusted_signers"}
+    )
 
     merged = cast(
         MarimoConfig,

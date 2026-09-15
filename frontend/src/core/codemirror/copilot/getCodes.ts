@@ -1,12 +1,31 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { atom } from "jotai";
-import { getAllEditorViews, notebookAtom } from "@/core/cells/cells";
+import { notebookAtom } from "@/core/cells/cells";
 import type { CellId } from "@/core/cells/ids";
+import { store } from "@/core/state/jotai";
 import { variablesAtom } from "@/core/variables/state";
 import type { Variables } from "@/core/variables/types";
 import { Objects } from "@/utils/objects";
 import { getEditorCodeAsPython } from "../language/utils";
+
+const notebookCellCodes = atom((get) => {
+  const notebook = get(notebookAtom);
+  const codes = Objects.fromEntries(
+    notebook.cellIds.inOrderIds.map((id) => {
+      // A cell editor mounts progressively, so the notebook store is the only
+      // complete source of code until every editor is built.
+      const editorView = notebook.cellHandles[id]?.current?.editorViewOrNull;
+      return [
+        id,
+        editorView
+          ? getEditorCodeAsPython(editorView)
+          : (notebook.cellData[id]?.code ?? ""),
+      ];
+    }),
+  );
+  return codes;
+});
 
 export function getCodes(otherCode: string) {
   const codes = getOtherCellsCode(otherCode);
@@ -18,15 +37,8 @@ export function getOtherCellsCode(otherCode: string) {
   // Get all other cells' code
   // Put `import` statements at the top, as it can help copilot give better suggestions
   // TODO: we should sort this topologically
-  const codes = getAllEditorViews()
-    .map((editorView) => {
-      const code = getEditorCodeAsPython(editorView);
-      if (code === otherCode) {
-        return null;
-      }
-      return code;
-    })
-    .filter(Boolean)
+  const codes = Object.values(store.get(notebookCellCodes))
+    .filter((code) => code !== "" && code !== otherCode)
     .toSorted((a, b) => {
       if (a.startsWith("import") && !b.startsWith("import")) {
         return -1;
@@ -40,21 +52,6 @@ export function getOtherCellsCode(otherCode: string) {
   return codes;
 }
 
-const notebookCellCodes = atom((get) => {
-  const notebook = get(notebookAtom);
-  const codes = Objects.fromEntries(
-    notebook.cellIds.inOrderIds.map((id) => {
-      const handle = notebook.cellHandles[id];
-      return [
-        id,
-        handle?.current?.editorView
-          ? getEditorCodeAsPython(handle.current.editorView)
-          : "",
-      ];
-    }),
-  );
-  return codes;
-});
 const inOrderCellIdsAtom = atom((get) => {
   const notebook = get(notebookAtom);
   return notebook.cellIds.inOrderIds;

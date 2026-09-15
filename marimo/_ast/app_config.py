@@ -56,9 +56,9 @@ class _AppConfig:
         # internal)
         other_allowed = {"_filename"}
         config = _AppConfig()
-        for key in updates:
+        for key, value in updates.items():
             if hasattr(config, key):
-                config.__setattr__(key, updates[key])
+                config.__setattr__(key, value)
             elif key not in other_allowed and not silent:
                 LOGGER.warning(
                     f"Unrecognized key '{key}' in app config. Ignoring."
@@ -73,9 +73,9 @@ class _AppConfig:
 
     def update(self, updates: dict[str, Any]) -> _AppConfig:
         config_dict = asdict(self)
-        for key in updates:
+        for key, value in updates.items():
             if key in config_dict:
-                self.__setattr__(key, updates[key])
+                self.__setattr__(key, value)
 
         return self
 

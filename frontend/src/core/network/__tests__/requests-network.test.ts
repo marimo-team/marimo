@@ -136,11 +136,31 @@ describe("createNetworkRequests", () => {
       expect(mockClient.GET).toHaveBeenCalledWith("/api/environment");
     });
 
+    it("getFileRoots should GET /api/files/roots", async () => {
+      const requests = createNetworkRequests();
+      await requests.getFileRoots();
+
+      expect(mockClient.GET).toHaveBeenCalledWith("/api/files/roots");
+    });
+
     it("getExportAvailability should GET /api/export/availability", async () => {
       const requests = createNetworkRequests();
       await requests.getExportAvailability();
 
       expect(mockClient.GET).toHaveBeenCalledWith("/api/export/availability");
+    });
+
+    it("installExportRequirements should POST the export format", async () => {
+      const requests = createNetworkRequests();
+      await requests.installExportRequirements({ format: "pdf" });
+
+      expect(mockClient.POST).toHaveBeenCalledWith(
+        "/api/export/requirements/install",
+        expect.objectContaining({
+          body: { format: "pdf" },
+          params: expect.anything(),
+        }),
+      );
     });
 
     it("discoverDataSources should POST to the discovery endpoint", async () => {

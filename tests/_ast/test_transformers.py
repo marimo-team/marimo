@@ -13,82 +13,12 @@ from marimo._ast.transformers import (
     DeprivateVisitor,
     ExtractWithBlock,
     MangleArguments,
-    NameTransformer,
     RemoveImportTransformer,
     RemoveReturns,
     clean_to_modules,
     compiled_ast,
     get_hashable_ast,
 )
-
-
-def test_name_transformer() -> None:
-    # Name transformer should naively remap all occurrences of names in an AST,
-    # without taking scoping into account.
-    #
-    # It does not transform attributes.
-    code = """
-def old_function():
-    old_variable = 42
-    return old_variable
-
-class OldClass:
-    def __init__(self):
-        self.old_attribute = "hello"
-
-old_global = "world"
-    """
-
-    # Create an AST from the code
-    tree = ast.parse(code)
-
-    # Define name substitutions
-    name_substitutions = {
-        "old_function": "new_function",
-        "old_variable": "new_variable",
-        "OldClass": "NewClass",
-        "old_attribute": "new_attribute",
-        "old_global": "new_global",
-    }
-
-    # Apply the NameTransformer
-    transformer = NameTransformer(name_substitutions)
-    new_tree = transformer.visit(tree)
-
-    # Convert the new AST back to code
-    new_code = ast.unparse(new_tree)
-
-    # Expected transformed code
-    expected_code = """
-def new_function():
-    new_variable = 42
-    return new_variable
-
-class NewClass:
-
-    def __init__(self):
-        self.old_attribute = 'hello'
-new_global = 'world'
-"""
-
-    # Remove leading/trailing whitespace and normalize line endings
-    new_code = new_code.strip()
-    expected_code = expected_code.strip()
-
-    # Assert that the transformation was successful
-    assert new_code == expected_code
-    assert transformer.made_changes
-
-
-def test_name_transformer_no_changes() -> None:
-    code = "x = 1"
-    tree = ast.parse(code)
-    transformer = NameTransformer({"y": "z"})
-    new_tree = transformer.visit(tree)
-    new_code = ast.unparse(new_tree)
-
-    assert new_code.strip() == code.strip()
-    assert not transformer.made_changes
 
 
 def test_import_transformer_strip() -> None:
@@ -630,81 +560,3 @@ with cache: x = 1  # All on one line
     pre_module, with_module = extractor.generic_visit(tree.body)
     assert isinstance(pre_module, ast.Module)
     assert isinstance(with_module, ast.Module)
-
-
-def test_name_transformer_assign_targets() -> None:
-    """Test NameTransformer with assignment targets."""
-    code = """
-old_var = 42
-old_var, other_var = 1, 2
-"""
-    tree = ast.parse(code)
-
-    transformer = NameTransformer({"old_var": "new_var"})
-    result = transformer.visit(tree)
-
-    code_result = ast.unparse(result)
-    assert "new_var = 42" in code_result
-    assert (
-        "new_var, other_var" in code_result
-    )  # AST unparses tuples with parentheses
-    assert "old_var" not in code_result
-    assert transformer.made_changes
-
-
-def test_name_transformer_class_def() -> None:
-    """Test NameTransformer with class definitions."""
-    code = """
-class OldClass:
-    pass
-"""
-    tree = ast.parse(code)
-
-    transformer = NameTransformer({"OldClass": "NewClass"})
-    result = transformer.visit(tree)
-
-    code_result = ast.unparse(result)
-    assert "class NewClass:" in code_result
-    assert "class OldClass:" not in code_result
-    assert transformer.made_changes
-
-
-def test_name_transformer_no_substitutions() -> None:
-    """Test NameTransformer when no substitutions are made."""
-    code = """
-def func():
-    x = 1
-    return x
-"""
-    tree = ast.parse(code)
-
-    transformer = NameTransformer({})
-    result = transformer.visit(tree)
-
-    code_result = ast.unparse(result)
-    assert code_result.strip() == code.strip()
-    assert not transformer.made_changes
-
-
-def test_name_transformer_function_def() -> None:
-    """Test NameTransformer with function definitions."""
-    code = """
-def old_func():
-    pass
-
-async def old_async_func():
-    pass
-"""
-    tree = ast.parse(code)
-
-    transformer = NameTransformer(
-        {"old_func": "new_func", "old_async_func": "new_async_func"}
-    )
-    result = transformer.visit(tree)
-
-    code_result = ast.unparse(result)
-    assert "def new_func():" in code_result
-    assert "async def new_async_func():" in code_result
-    assert "def old_func():" not in code_result
-    assert "async def old_async_func():" not in code_result
-    assert transformer.made_changes

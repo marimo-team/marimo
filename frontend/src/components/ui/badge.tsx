@@ -6,20 +6,22 @@ import * as React from "react";
 import { cn } from "@/utils/cn";
 
 const badgeVariants = cva(
-  "inline-flex items-center border rounded-full px-2 py-0.5 text-xs font-semibold transition-colors focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center border rounded-full px-2 py-0.5 text-xs font-semibold transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 forced-color-adjust-none",
   {
     variants: {
       variant: {
         default:
-          "bg-primary hover:bg-primary/60 border-transparent text-primary-foreground",
-        defaultOutline: "bg-(--blue-2) border-(--blue-8) text-(--blue-11)",
+          "bg-primary hover:bg-primary/60 border-transparent text-primary-foreground forced-colors:bg-[Highlight] forced-colors:border-[Highlight] forced-colors:text-[HighlightText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
+        defaultOutline:
+          "bg-(--blue-2) border-(--blue-8) text-(--blue-11) forced-colors:bg-[Canvas] forced-colors:border-[Highlight] forced-colors:text-[CanvasText]",
         secondary:
-          "bg-secondary hover:bg-secondary/80 border-transparent text-secondary-foreground",
+          "bg-secondary hover:bg-secondary/80 border-transparent text-secondary-foreground forced-colors:bg-[ButtonFace] forced-colors:border-[ButtonText] forced-colors:text-[ButtonText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         destructive:
-          "bg-(--red-2) border-(--red-6) text-(--red-9) hover:bg-(--red-3)",
+          "bg-(--red-2) border-(--red-6) text-(--red-9) hover:bg-(--red-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
         success:
-          "bg-(--grass-2) border-(--grass-5) text-(--grass-9) hover:bg-(--grass-3)",
-        outline: "text-foreground",
+          "bg-(--grass-2) border-(--grass-5) text-(--grass-9) hover:bg-(--grass-3) forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText] forced-colors:hover:bg-[Highlight] forced-colors:hover:text-[HighlightText]",
+        outline:
+          "text-foreground forced-colors:bg-[Canvas] forced-colors:border-[ButtonText] forced-colors:text-[CanvasText]",
       },
     },
     defaultVariants: {

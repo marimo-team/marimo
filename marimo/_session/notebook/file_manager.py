@@ -11,6 +11,9 @@ from marimo._ast import load
 from marimo._ast.app import App, InternalApp
 from marimo._ast.app_config import overloads_from_env
 from marimo._ast.cell import CellConfig
+from marimo._environments.script_metadata import (
+    with_python_version_requirement,
+)
 from marimo._messaging.notebook.changes import (
     Transaction,
 )
@@ -32,12 +35,11 @@ from marimo._utils.generated_with import (
 )
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.scripts import with_python_version_requirement
 
 LOGGER = _loggers.marimo_logger()
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from marimo._messaging.notebook.document import NotebookCell
     from marimo._server.models.models import (
@@ -232,11 +234,9 @@ class AppFileManager:
                 from marimo._config.settings import GLOBAL_SETTINGS
 
                 if GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
-                    from marimo._utils.scripts import (
-                        write_pyproject_to_script,
-                    )
+                    from marimo._environments import script_metadata
 
-                    header = write_pyproject_to_script(
+                    header = script_metadata.dumps(
                         with_python_version_requirement(
                             {
                                 "dependencies": ["marimo"],
@@ -415,11 +415,18 @@ class AppFileManager:
                 )
             return ""
 
-    def save(self, request: SaveNotebookRequest) -> str:
+    def save(
+        self,
+        request: SaveNotebookRequest,
+        *,
+        on_document_transaction: Callable[[Transaction], None] | None = None,
+    ) -> str:
         """Save the notebook.
 
         Args:
             request: Save request with cell data and options
+            on_document_transaction: Called with the applied in-memory
+                document transaction before the file is persisted.
 
         Returns:
             Serialized notebook content
@@ -439,14 +446,6 @@ class AppFileManager:
         filename_path = Path(canonicalize_filename(filename))
 
         with self._save_lock:
-            # Update app with new cell data
-            self.app.with_data(
-                cell_ids=cell_ids,
-                codes=codes,
-                names=names,
-                configs=configs,
-            )
-
             if self.is_notebook_named and not self._is_same_path(
                 filename_path
             ):
@@ -454,6 +453,15 @@ class AppFileManager:
                     status_code=HTTPStatus.BAD_REQUEST,
                     detail="Save handler cannot rename files.",
                 )
+
+            transaction = self.app.apply_data(
+                cell_ids=cell_ids,
+                codes=codes,
+                names=names,
+                configs=configs,
+            )
+            if on_document_transaction is not None and transaction.changes:
+                on_document_transaction(transaction)
 
             # Save layout if provided
             if layout is not None:

@@ -1,19 +1,8 @@
+/* Tailwind scans Streamdown's compiled output for utility classes. */
+/* stylelint-disable-next-line at-rule-no-unknown */
 @source "../../../node_modules/streamdown/dist/index.js";
 
 .mo-markdown-renderer {
-  /* Make headers a bit smaller */
-  --text-2xl: 1rem;
-  --text-3xl: 1.2rem;
-
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    margin-top: 10px;
-  }
-
   hr {
     margin-top: 8px;
     margin-bottom: 12px;

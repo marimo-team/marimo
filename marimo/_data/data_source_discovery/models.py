@@ -51,6 +51,34 @@ class DetectedDataSourceOrigin(msgspec.Struct, frozen=True, rename="camel"):
     label: str
 
 
+class DialectHidesWhen(
+    msgspec.Struct,
+    frozen=True,
+    tag="dialect",
+    tag_field="kind",
+    rename="camel",
+):
+    """Hide this suggestion when a live SQL engine dialect contains a substring."""
+
+    substrings: tuple[str, ...]
+
+
+class StorageHidesWhen(
+    msgspec.Struct,
+    frozen=True,
+    tag="storage",
+    tag_field="kind",
+    rename="camel",
+):
+    """Hide this suggestion when a live storage namespace matches."""
+
+    protocols: tuple[str, ...]
+    backend_types: tuple[str, ...]
+
+
+DetectedDataSourceHidesWhen = DialectHidesWhen | StorageHidesWhen
+
+
 class DetectedDataSource(msgspec.Struct, frozen=True, rename="camel"):
     """A secret-free datasource suggestion produced by the kernel."""
 
@@ -62,3 +90,4 @@ class DetectedDataSource(msgspec.Struct, frozen=True, rename="camel"):
     origins: tuple[DetectedDataSourceOrigin, ...]
     configuration: tuple[DetectedDataSourceConfiguration, ...]
     code: str
+    hides_when: DetectedDataSourceHidesWhen

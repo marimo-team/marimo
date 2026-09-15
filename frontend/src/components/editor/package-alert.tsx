@@ -10,6 +10,7 @@ import {
   PackageCheckIcon,
   PackageXIcon,
   PlusIcon,
+  RotateCwIcon,
   XIcon,
 } from "lucide-react";
 import type React from "react";
@@ -32,6 +33,7 @@ import {
 import { useResolvedMarimoConfig } from "@/core/config/config";
 import type { PackageInstallationStatus } from "@/core/kernel/messages";
 import { useRequestClient } from "@/core/network/requests";
+import { RESTART_REQUIRED_DESCRIPTION } from "@/core/packages/toast-components";
 import { isWasm } from "@/core/wasm/utils";
 import { usePackageMetadata } from "@/hooks/usePackageMetadata";
 import { Banner } from "@/plugins/impl/common/error-banner";
@@ -55,6 +57,12 @@ import {
 import { ExternalLink } from "../ui/links";
 import { NativeSelect } from "../ui/native-select";
 import { Tooltip } from "../ui/tooltip";
+import { useRestartKernel } from "./actions/useRestartKernel";
+
+const RestartKernelButton = () => {
+  const restartKernel = useRestartKernel();
+  return <Button onClick={restartKernel}>Restart Kernel</Button>;
+};
 
 function parsePackageSpecifier(spec: string): {
   name: string;
@@ -251,6 +259,10 @@ export const PackageAlert: React.FC = () => {
             )}
           >
             <p>{description}</p>
+            {status !== "installing" &&
+              Object.values(packageAlert.packages).includes(
+                "restart-required",
+              ) && <RestartKernelButton />}
             <ul className="list-disc ml-2 mt-1">
               {Object.entries(packageAlert.packages).map(([pkg, st], index) => (
                 <li
@@ -290,7 +302,9 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
       ? "installing"
       : statuses.has("failed")
         ? "failed"
-        : "installed";
+        : statuses.has("restart-required")
+          ? "restart-required"
+          : "installed";
 
   if (status === "installing") {
     return {
@@ -298,6 +312,14 @@ function getInstallationStatusElements(packages: PackageInstallationStatus) {
       title: "Installing packages",
       titleIcon: <DownloadCloudIcon className="w-5 h-5 inline-block mr-2" />,
       description: "Installing packages:",
+    };
+  }
+  if (status === "restart-required") {
+    return {
+      status,
+      title: "Changes saved — restart required",
+      titleIcon: <RotateCwIcon className="w-5 h-5 inline-block mr-2" />,
+      description: RESTART_REQUIRED_DESCRIPTION,
     };
   }
   if (status === "installed") {
@@ -330,6 +352,8 @@ const ProgressIcon = ({
       return <CheckIcon size="1rem" />;
     case "failed":
       return <XIcon size="1rem" />;
+    case "restart-required":
+      return <RotateCwIcon size="1rem" />;
     default:
       logNever(status);
       return null;

@@ -7,7 +7,8 @@ import {
   updateCellOutputsWithScreenshots,
   useEnrichCellOutputs,
 } from "@/core/export/hooks";
-import { runDuringPresentMode } from "@/core/mode";
+import { getExportLayout } from "@/core/export/layout";
+import { runDuringPresentMode, useInstallAllowed } from "@/core/mode";
 import { useRequestClient } from "@/core/network/requests";
 import type { ExportAvailabilityResponse } from "@/core/network/types";
 import { useFilename } from "@/core/saving/filename";
@@ -116,6 +117,8 @@ function useExportDialogState(initialFormat?: ExportFormat) {
   );
   const runtime = isWasm() ? "wasm" : "server";
   const requests = useRequestClient();
+  const installAllowed = useInstallAllowed();
+  const [isInstalling, setIsInstalling] = useState(false);
 
   const availabilityRequest =
     useAsyncData<ExportAvailabilityResponse | null>(async () => {
@@ -135,6 +138,10 @@ function useExportDialogState(initialFormat?: ExportFormat) {
       availability,
     });
   const status = statusFor(format);
+  const canInstall =
+    installAllowed &&
+    (status.reason?.type === "missing-packages" ||
+      status.reason?.type === "missing-setup");
   const formats = EXPORT_FORMATS.map((candidate) => ({
     format: candidate,
     status: statusFor(candidate),
@@ -184,6 +191,22 @@ function useExportDialogState(initialFormat?: ExportFormat) {
     });
   };
 
+  const installRequirements = async () => {
+    if (!canInstall || isInstalling || format === "png") {
+      return;
+    }
+
+    setIsInstalling(true);
+    try {
+      const availability = await requests.installExportRequirements({ format });
+      availabilityRequest.setData(availability);
+    } catch {
+      // Request failures are surfaced by the shared toast layer.
+    } finally {
+      setIsInstalling(false);
+    }
+  };
+
   return {
     formats,
     options,
@@ -205,6 +228,9 @@ function useExportDialogState(initialFormat?: ExportFormat) {
     },
     selectFormat,
     updateOptions,
+    canInstall,
+    isInstalling,
+    installRequirements,
   };
 }
 
@@ -324,6 +350,7 @@ function useExportDialogAction({
             requests,
             sourceFilename,
             htmlFiles: VirtualFileTracker.INSTANCE.filenames(),
+            getLayout: getExportLayout,
             captureOutputs: () => captureOutputs(progress),
             capturePNG,
             downloadFile: downloadExportedFile,
@@ -364,7 +391,7 @@ export function useExportDialog({
     ...state,
     ...action,
     selectFormat: (value: string) => {
-      if (!action.isExporting) {
+      if (!action.isExporting && !state.isInstalling) {
         selectFormat(value);
       }
     },

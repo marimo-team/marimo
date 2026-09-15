@@ -68,7 +68,9 @@ describe("copyImageToClipboard", () => {
     });
 
     // ClipboardItem is not available in jsdom, so we mock it
-    clipboardItemSpy = vi.fn().mockImplementation((data) => ({ data }));
+    clipboardItemSpy = vi.fn().mockImplementation(function (data) {
+      return { data };
+    });
     vi.stubGlobal("ClipboardItem", clipboardItemSpy);
   });
 

@@ -96,4 +96,21 @@ describe("Data Validation", () => {
     expect(Array.isArray(data)).toBe(false);
     expect(() => ModelsByProviderSchema.parse(data)).not.toThrow();
   });
+
+  it("requires a non-empty description for every model", () => {
+    const modelsPath = join(__dirname, "../../data/models.yml");
+    const modelsYaml = readFileSync(modelsPath, "utf-8");
+    const data = ModelsByProviderSchema.parse(parse(modelsYaml));
+    const modelsWithoutDescriptions = Object.entries(data).flatMap(
+      ([provider, models]) =>
+        models
+          .filter((model) => model.description.trim().length === 0)
+          .map((model) => `${provider}/${model.model}`),
+    );
+
+    expect(
+      modelsWithoutDescriptions,
+      "Every model must have a non-empty description",
+    ).toEqual([]);
+  });
 });

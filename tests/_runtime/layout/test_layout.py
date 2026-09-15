@@ -79,11 +79,19 @@ def test_read_layout_config_invalid_data_uri():
     assert config is None
 
 
-def test_read_layout_config_invalid_json(temp_dir: str):
-    # Create an invalid JSON file
-    path = Path(temp_dir) / "layouts" / "invalid.grid.json"
+@pytest.mark.parametrize(
+    "contents",
+    ["invalid json", b"\xff\xfe", "[]", '{"type": 1, "data": []}'],
+    ids=["json", "encoding", "root", "fields"],
+)
+def test_read_layout_config_invalid_contents(
+    temp_dir: str, contents: str | bytes
+) -> None:
+    path = Path(temp_dir) / "layouts" / "invalid.slides.json"
     path.parent.mkdir(exist_ok=True)
-    path.write_text("invalid json")
+    if isinstance(contents, bytes):
+        path.write_bytes(contents)
+    else:
+        path.write_text(contents)
 
-    with pytest.raises(json.JSONDecodeError):
-        read_layout_config(temp_dir, "layouts/invalid.grid.json")
+    assert read_layout_config(temp_dir, "layouts/invalid.slides.json") is None

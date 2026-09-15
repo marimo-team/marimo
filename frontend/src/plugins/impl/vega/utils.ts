@@ -55,6 +55,9 @@ export function getVegaFieldTypes(
   // the correct formatting. For example, a date like '2024-01-01' will
   // be formatted to '2024-01-01T00:00:00.000Z'.
   return Objects.mapValues(types, (type): VegaDataType => {
+    if (type === "geometry") {
+      return "string";
+    }
     if (type === "date") {
       return "string";
     }

@@ -1626,6 +1626,7 @@ class TestSideEffects:
         assert hashes[0] != hashes[1]
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_file(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
@@ -1691,6 +1692,7 @@ class TestSideEffects:
         assert non_primitive[1] == 1 == v
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_directory(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
@@ -1757,6 +1759,7 @@ class TestSideEffects:
         assert non_primitive[1] == 1 == v
 
     @staticmethod
+    @pytest.mark.usefixtures("cleanup_watchers")
     async def test_side_effect_file_ref(
         k: Kernel, exec_req: ExecReqProvider, tmp_path
     ) -> None:
@@ -2635,7 +2638,8 @@ class TestSetLiteralDeterminism:
         from marimo._save.hash import hash_module
 
         def fn(x: object) -> bool:
-            return x in {"A"}
+            # Keep the singleton set: this test inspects its frozenset constant.
+            return x in {"A"}  # noqa: FURB171
 
         code = fn.__code__
         singleton = next(c for c in code.co_consts if isinstance(c, frozenset))

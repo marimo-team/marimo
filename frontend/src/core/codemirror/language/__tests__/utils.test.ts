@@ -158,7 +158,7 @@ Hello,
   });
 
   // f-strings not currently supported
-  it.skip("handles markdown with variables", () => {
+  it.fails("handles markdown with variables", () => {
     const mockEditor = createEditor('mo.md(f"""{a}\n{b}!""")');
     // Set to markdown
     switchLanguage(mockEditor, { language: "markdown" });

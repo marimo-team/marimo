@@ -24,8 +24,9 @@ import {
   SparklesIcon,
   XIcon,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useEvent from "react-use-event-hook";
+import { DefaultChatTransport } from "ai";
 import { z } from "zod";
 import { AIModelDropdown } from "@/components/ai/ai-model-dropdown";
 import {
@@ -37,7 +38,6 @@ import {
 import {
   buildCompletionRequestBody,
   convertToFileUIPart,
-  handleToolCall,
   PROVIDERS_THAT_SUPPORT_ATTACHMENTS,
   useFileState,
 } from "@/components/chat/chat-utils";
@@ -52,13 +52,11 @@ import {
 import { toast } from "@/components/ui/use-toast";
 import { AiModelId } from "@/core/ai/ids/ids";
 import { AI_SDK_UI_THROTTLE_MS } from "@/core/ai/constants";
-import { stagedAICellsAtom, useStagedCells } from "@/core/ai/staged-cells";
-import type { ToolNotebookContext } from "@/core/ai/tools/base";
-import { useCellActions } from "@/core/cells/cells";
+import type { CompletionUIMessage } from "@/core/ai/completion-output";
+import { useStagedCellGeneration } from "@/core/ai/staged-cells";
 import { resourceExtension } from "@/core/codemirror/ai/resources";
 import { aiAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL } from "@/core/config/config-schema";
-import { useRequestClient } from "@/core/network/requests";
 import type { AiCompletionRequest } from "@/core/network/types";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { useTheme } from "@/theme/useTheme";
@@ -73,7 +71,7 @@ import {
   CONTEXT_TRIGGER,
   mentionsCompletionSource,
 } from "./completion-utils";
-import { StreamingChunkTransport } from "./transport/chat-transport";
+import { StagedCellSubmissionController } from "./staged-cell-submission";
 
 // Persist across sessions
 const languageAtom = atomWithStorage<"python" | "sql">(
@@ -95,78 +93,95 @@ export const AddCellWithAI: React.FC<{
   const store = useStore();
   const [input, setInput] = useState("");
 
-  const { deleteAllStagedCells, clearStagedCells, onStream, addStagedCell } =
-    useStagedCells(store);
+  const {
+    acceptOwnedStagedCells,
+    beginStagedCellGeneration,
+    discardOwnedStagedCells,
+    finishStagedCellGeneration,
+    hasOwnedStagedCells,
+    onData,
+  } = useStagedCellGeneration(store);
   const [language, setLanguage] = useAtom(languageAtom);
   const runtimeManager = useRuntimeManager();
-  const { invokeAiTool, sendRun } = useRequestClient();
 
-  const stagedAICells = useAtomValue(stagedAICellsAtom);
   const inputRef = useRef<ReactCodeMirrorRef>(null);
+  const submissionController = useRef(
+    new StagedCellSubmissionController(),
+  ).current;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { files, addFiles, removeFile } = useFileState();
   const aiConfig = useAtomValue(aiAtom);
 
-  const { createNewCell, prepareForRun } = useCellActions();
-  const toolContext: ToolNotebookContext = {
-    store,
-    addStagedCell,
-    createNewCell,
-    prepareForRun,
-    sendRun,
-  };
-
-  const { sendMessage, stop, status, addToolOutput } = useChat({
-    throttle: AI_SDK_UI_THROTTLE_MS,
-    transport: new StreamingChunkTransport(
-      {
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport<CompletionUIMessage>({
         api: runtimeManager.getAiURL("completion").toString(),
         headers: () => runtimeManager.headers(),
         prepareSendMessagesRequest: async (options) => {
           const completionBody = await buildCompletionRequestBody(
             options.messages,
           );
-          const body: AiCompletionRequest = {
-            ...options,
+          const body = {
             ...completionBody,
             code: "",
             prompt: "", // Don't need prompt since we are using messages
             language: language,
-          };
+          } satisfies AiCompletionRequest;
 
           return {
             api: runtimeManager.getAiURL("completion").toString(),
             body: body,
           };
         },
-      },
-      (chunk) => {
-        onStream(chunk);
-      },
-    ),
-    onToolCall: async ({ toolCall }) => {
-      await handleToolCall({
-        invokeAiTool,
-        addToolOutput,
-        toolCall: {
-          toolName: toolCall.toolName,
-          toolCallId: toolCall.toolCallId,
-          input: toolCall.input as Record<string, never>,
-        },
-        toolContext,
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Generate with AI failed",
-        description: prettyError(error),
-      });
+      }),
+    [language, runtimeManager],
+  );
+
+  const handleGenerationError = useEvent((error: unknown) => {
+    finishStagedCellGeneration(false);
+    toast({
+      title: "Generate with AI failed",
+      description: prettyError(error),
+    });
+  });
+
+  const {
+    sendMessage,
+    stop: stopChat,
+    status,
+  } = useChat<CompletionUIMessage>({
+    throttle: AI_SDK_UI_THROTTLE_MS,
+    transport,
+    onData,
+    onError: handleGenerationError,
+    onFinish: ({ isAbort, isDisconnect, isError, finishReason }) => {
+      finishStagedCellGeneration(
+        !isAbort && !isDisconnect && !isError && finishReason === "stop",
+      );
     },
   });
 
   const isLoading = status === "streaming" || status === "submitted";
-  const hasCompletion = stagedAICells.size > 0;
+  const hasCompletion = hasOwnedStagedCells();
+  const stop = useEvent(() => {
+    submissionController.cancel();
+    finishStagedCellGeneration(false);
+    void stopChat();
+  });
+
+  const reject = useEvent(() => {
+    submissionController.cancel();
+    discardOwnedStagedCells();
+    void stopChat();
+  });
+
+  // Parent-driven unmounts bypass the close handlers, so cancel in-flight work here.
+  useEffect(() => {
+    return () => {
+      stop();
+    };
+  }, [stop]);
 
   const currentModel = aiConfig?.models?.edit_model || DEFAULT_AI_MODEL;
   const currentProvider = AiModelId.parse(currentModel).providerId;
@@ -175,14 +190,19 @@ export const AddCellWithAI: React.FC<{
 
   const submit = async () => {
     if (!isLoading) {
-      if (inputRef.current?.view) {
-        storePrompt(inputRef.current.view);
-      }
-      // TODO: When we have conversations, don't delete existing cells
-      deleteAllStagedCells();
-
-      const fileParts = files ? await convertToFileUIPart(files) : undefined;
-      sendMessage({ text: input, files: fileParts });
+      await submissionController.run({
+        prepare: async () => {
+          if (inputRef.current?.view) {
+            storePrompt(inputRef.current.view);
+          }
+          return files ? await convertToFileUIPart(files) : undefined;
+        },
+        submit: async (fileParts) => {
+          beginStagedCellGeneration();
+          await sendMessage({ text: input, files: fileParts });
+        },
+        onError: handleGenerationError,
+      });
     }
   };
 
@@ -225,18 +245,19 @@ export const AddCellWithAI: React.FC<{
   );
 
   const handleAcceptCompletion = () => {
-    clearStagedCells();
-    onClose();
+    if (acceptOwnedStagedCells()) {
+      onClose();
+    }
   };
 
   const handleDeclineCompletion = () => {
-    deleteAllStagedCells();
+    reject();
     // Focus the input so the user can refine the prompt.
     inputRef.current?.view?.focus();
   };
 
   const handleClose = () => {
-    deleteAllStagedCells();
+    reject();
     onClose();
   };
 

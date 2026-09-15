@@ -22,10 +22,10 @@ from typing import (
 
 from marimo._utils.case import to_camel_case
 
-if sys.version_info < (3, 11):
-    from typing_extensions import NotRequired
-else:
+if sys.version_info >= (3, 11):
     from typing import NotRequired
+else:
+    from typing_extensions import NotRequired
 
 from typing import Sequence  # noqa: UP035
 
@@ -40,7 +40,8 @@ class PythonTypeToOpenAPI:
         self.name_overrides = name_overrides
         self.camel_case = camel_case
         self.optional_name_overrides = {
-            Optional[arg]: name for arg, name in name_overrides.items()
+            Optional[arg]: name  # noqa: UP045 - runtime type construction
+            for arg, name in name_overrides.items()
         }
 
     def convert(

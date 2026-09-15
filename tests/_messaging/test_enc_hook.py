@@ -2,6 +2,7 @@
 
 import decimal
 import json
+import sys
 
 import pytest
 
@@ -141,3 +142,14 @@ def test_serialize_decimal() -> None:
     decimal_obj = decimal.Decimal("-0")
     result = enc_hook(decimal_obj)
     assert result == "-0"
+
+
+@pytest.mark.requires("shapely")
+def test_serialize_shapely_without_geopandas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from shapely.geometry import Point
+
+    monkeypatch.delitem(sys.modules, "geopandas", raising=False)
+
+    assert enc_hook(Point(1, 2)) == "POINT (1 2)"

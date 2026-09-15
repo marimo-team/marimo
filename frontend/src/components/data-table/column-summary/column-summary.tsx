@@ -155,6 +155,7 @@ export const TableColumnSummary = <TData, TValue>({
           );
         }
         return null;
+      case "geometry":
       case "unknown":
         return (
           <div className="flex flex-col whitespace-pre">

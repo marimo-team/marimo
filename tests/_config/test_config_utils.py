@@ -10,8 +10,10 @@ from unittest import mock
 import pytest
 
 from marimo._config.utils import (
+    CONFIG_FILENAME,
     get_or_create_user_config_path,
     get_user_config_path,
+    is_trusted_user_config_path,
 )
 from marimo._utils.xdg import marimo_config_path
 
@@ -286,3 +288,29 @@ class TestGetConfigPathParentTraversal:
         ):
             found_config_path = get_user_config_path()
             assert found_config_path == expected_path
+
+
+class TestIsTrustedUserConfigPath:
+    """`get_user_config_path` returns both user-owned and project-origin files.
+
+    Only the first kind may carry security-sensitive settings, so the predicate
+    that separates them is load-bearing.
+    """
+
+    def test_xdg_config_path_is_trusted(self) -> None:
+        assert is_trusted_user_config_path(str(marimo_config_path()))
+
+    def test_home_marimo_toml_is_trusted(self) -> None:
+        home = os.path.expanduser("~")
+        assert is_trusted_user_config_path(os.path.join(home, CONFIG_FILENAME))
+
+    def test_workspace_marimo_toml_is_untrusted(self, tmp_path: Path) -> None:
+        # Found by the cwd-walk, so it lives inside a project an attacker can
+        # commit to — not user-owned.
+        assert not is_trusted_user_config_path(str(tmp_path / CONFIG_FILENAME))
+
+    def test_subdir_marimo_toml_under_home_is_untrusted(self) -> None:
+        # Under the home tree, but not the home directory itself.
+        home = os.path.expanduser("~")
+        nested = os.path.join(home, "some_repo", CONFIG_FILENAME)
+        assert not is_trusted_user_config_path(nested)

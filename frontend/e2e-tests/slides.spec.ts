@@ -1,5 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { getAppUrl } from "../playwright.config";
@@ -7,6 +8,9 @@ import { openCommandPalette, takeScreenshot } from "./helper";
 import { waitForMarimoApp } from "./test-utils";
 
 const __filename = fileURLToPath(import.meta.url);
+const staticRoot = fileURLToPath(
+  new URL("../../marimo/_static/", import.meta.url),
+);
 
 const appUrl = getAppUrl("slides.py");
 test.beforeEach(async ({ page }, info) => {
@@ -78,4 +82,50 @@ test("slides fullscreen", async ({ page }) => {
 
   // Slides container should still be visible after exiting fullscreen
   await expect(slidesContainer).toBeVisible();
+});
+
+test("slides static HTML export", async ({ page }, testInfo) => {
+  await openCommandPalette({ page, command: "Download as HTML" });
+
+  const [download] = await Promise.all([
+    page.waitForEvent("download"),
+    page.getByRole("button", { name: "Export HTML" }).click(),
+  ]);
+  const outputPath = testInfo.outputPath("slides.html");
+  await download.saveAs(outputPath);
+
+  const exportPage = await page.context().newPage();
+  await exportPage.route("http://slides.test/slides.html", async (route) => {
+    await route.fulfill({ path: outputPath });
+  });
+  await exportPage.route(
+    "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@*/dist/**",
+    async (route) => {
+      const pathname = new URL(route.request().url()).pathname;
+      const assetPath = pathname.slice(pathname.indexOf("/dist/") + 6);
+      await route.fulfill({ path: path.join(staticRoot, assetPath) });
+    },
+  );
+  await exportPage.goto("http://slides.test/slides.html#/1/0", {
+    waitUntil: "domcontentloaded",
+  });
+
+  const slidesContainer = exportPage.locator(".reveal.mo-slides-theme");
+  await expect(slidesContainer).toBeVisible();
+  const slides = slidesContainer.locator(".slides > section");
+  await expect(slides).toHaveCount(2);
+  await expect(slides.nth(1)).toHaveClass(/present/);
+  await expect(exportPage.getByTestId("static-notebook-banner")).toHaveCount(0);
+  await expect(exportPage.getByTestId("watermark")).toHaveCount(0);
+
+  await slidesContainer.click();
+  await exportPage.keyboard.press("ArrowLeft");
+  await expect(slides.nth(0)).toHaveClass(/present/);
+  await expect
+    .poll(() =>
+      exportPage
+        .locator("#App")
+        .evaluate((app) => app.scrollHeight <= app.clientHeight),
+    )
+    .toBe(true);
 });

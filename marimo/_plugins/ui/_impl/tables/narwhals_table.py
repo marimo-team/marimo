@@ -21,6 +21,11 @@ from marimo._plugins.ui._impl.tables.format import (
     FormatMapping,
     format_value,
 )
+from marimo._plugins.ui._impl.tables.geometry import (
+    GeometryColumnInfo,
+    find_geometry_columns,
+    format_geometry_cell,
+)
 from marimo._plugins.ui._impl.tables.selection import INDEX_COLUMN_NAME
 from marimo._plugins.ui._impl.tables.table_manager import (
     ColumnName,
@@ -104,10 +109,25 @@ class NarwhalsTableManager(
         ensure_ascii: bool = True,
     ) -> str:
         del strict_json
-        frame = self.apply_formatting(format_mapping).as_frame()
-        return sanitize_json_bigint(
-            frame.rows(named=True), ensure_ascii=ensure_ascii
-        )
+        formatted_manager = self.apply_formatting(format_mapping)
+        frame = formatted_manager.as_frame()
+        rows = frame.rows(named=True)
+        geometry_columns = formatted_manager._geometry_columns
+        if geometry_columns:
+            rows = [
+                {
+                    col: (
+                        format_geometry_cell(
+                            value, geometry_columns[col].encoding
+                        )
+                        if col in geometry_columns
+                        else value
+                    )
+                    for col, value in row.items()
+                }
+                for row in rows
+            ]
+        return sanitize_json_bigint(rows, ensure_ascii=ensure_ascii)
 
     def to_parquet(self) -> bytes:
         stream = io.BytesIO()
@@ -121,15 +141,18 @@ class NarwhalsTableManager(
             return self
 
         frame = self.as_frame()
-        _data = frame.to_dict(as_series=False).copy()
-        for col in _data:
-            if col in format_mapping:
-                _data[col] = [
-                    format_value(col, x, format_mapping) for x in _data[col]
-                ]
-        return NarwhalsTableManager(
-            nw.from_dict(_data, backend=nw.get_native_namespace(frame))
-        )
+        for col in frame.columns:
+            if col not in format_mapping or col in self._geometry_columns:
+                continue
+            formatted = [
+                format_value(col, x, format_mapping)
+                for x in frame.get_column(col).to_list()
+            ]
+            series = nw.new_series(
+                col, formatted, backend=frame.implementation
+            )
+            frame = frame.with_columns(series.alias(col))
+        return NarwhalsTableManager(frame)
 
     def supports_filters(self) -> bool:
         return True
@@ -190,6 +213,8 @@ class NarwhalsTableManager(
     ) -> list[tuple[Any, int]]:
         if column not in self.get_column_names():
             raise ValueError(f"Column {column} not found in table.")
+        if column in self._geometry_columns:
+            return []
 
         frame = self.as_lazy_frame()
         _unique_name = "__len_count__"
@@ -266,7 +291,19 @@ class NarwhalsTableManager(
     def nw_schema(self) -> nw.Schema:
         return cast(nw.Schema, self.data.collect_schema())
 
+    @cached_property
+    def _geometry_columns(self) -> dict[str, GeometryColumnInfo]:
+        return find_geometry_columns(self.data)
+
     def get_field_type(
+        self, column_name: str
+    ) -> tuple[FieldType, ExternalDataType]:
+        info = self._geometry_columns.get(column_name)
+        if info is not None:
+            return ("geometry", info.external_type)
+        return self._get_field_type_from_dtype(column_name)
+
+    def _get_field_type_from_dtype(
         self, column_name: str
     ) -> tuple[FieldType, ExternalDataType]:
         dtype = self.nw_schema[column_name]
@@ -313,6 +350,8 @@ class NarwhalsTableManager(
         expressions: list[Any] = []
         for column, dtype in self.nw_schema.items():
             if column == INDEX_COLUMN_NAME:
+                continue
+            if column in self._geometry_columns:
                 continue
             if is_narwhals_string_type(dtype):
                 # Cast to string as pandas may fail for certain values
@@ -393,7 +432,10 @@ class NarwhalsTableManager(
             # As of Oct 2025, DuckDB does not support "nearest" interpolation
             quantile_interpolation = "linear"
 
-        if is_narwhals_string_type(dtype):
+        if column in self._geometry_columns:
+            # Geometry columns report only total and nulls.
+            pass
+        elif is_narwhals_string_type(dtype):
             exprs["unique"] = col.n_unique()
         elif dtype == nw.Boolean:
             exprs.update(
@@ -681,6 +723,8 @@ class NarwhalsTableManager(
         return column_names
 
     def get_unique_column_values(self, column: str) -> list[str | int | float]:
+        if column in self._geometry_columns:
+            return []
         frame = self.data.select(nw.col(column))
         if is_narwhals_lazyframe(frame):
             frame = frame.collect()

@@ -1,0 +1,505 @@
+# Copyright 2026 Marimo. All rights reserved.
+from __future__ import annotations
+
+import platform
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+from marimo._environments import script_metadata
+from marimo._environments.uv import UvNotFoundError, is_uv_available
+
+HAS_UV = is_uv_available()
+
+BLOCK_WITH_TOOL_TABLES = """\
+# /// script
+# requires-python = ">=3.11"
+# dependencies = ["numpy"]
+#
+# [tool.uv.sources]
+# numpy = { path = "../numpy" }
+#
+# [tool.marimo.export]
+# lock_kind = "resolved"
+# ///
+"""
+
+
+def test_loads_returns_none_without_block() -> None:
+    assert script_metadata.loads("print('hi')\n") is None
+
+
+@pytest.mark.parametrize("separator", ["", "\n"])
+def test_loads_rejects_multiple_blocks(separator: str) -> None:
+    block = "# /// script\n# dependencies = []\n# ///\n"
+    with pytest.raises(ValueError, match="Multiple"):
+        script_metadata.loads(block + separator + block)
+
+
+def test_loads_ignores_other_block_types() -> None:
+    script = (
+        "# /// script\n# dependencies = []\n# ///\n"
+        '# /// other\n# value = "other metadata"\n# ///\n'
+    )
+    assert script_metadata.loads(script) == {"dependencies": []}
+
+
+def test_dumps_round_trips_tool_tables() -> None:
+    project = script_metadata.loads(BLOCK_WITH_TOOL_TABLES)
+    assert project is not None
+    assert project["tool"]["uv"]["sources"]["numpy"] == {"path": "../numpy"}
+    assert script_metadata.loads(script_metadata.dumps(project)) == project
+
+
+def test_replace_block_keeps_backslashes_literal() -> None:
+    code = BLOCK_WITH_TOOL_TABLES + "\nimport marimo\n"
+    block = (
+        '# /// script\n# dependencies = ["pkg @ file://C:\\\\wheels"]\n# ///'
+    )
+    replaced = script_metadata.replace_block(code, block)
+    assert "C:\\\\wheels" in replaced
+    assert "import marimo" in replaced
+
+
+def test_wrap_block() -> None:
+    assert script_metadata.wrap_block('dependencies = ["numpy"]') == (
+        '# /// script\n# dependencies = ["numpy"]\n# ///'
+    )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        UvNotFoundError(),
+        subprocess.TimeoutExpired(["uv", "add"], timeout=60),
+        FileNotFoundError(
+            2, "No such file or directory", "/missing/notebooks"
+        ),
+    ],
+)
+def test_edit_normalizes_invocation_failures(
+    monkeypatch: pytest.MonkeyPatch,
+    error: Exception,
+) -> None:
+    def fail(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise error
+
+    monkeypatch.setattr(script_metadata, "uv", fail)
+
+    with pytest.raises(script_metadata.ScriptMetadataError) as exc_info:
+        script_metadata.add_dependencies("notebook.py", ["idna"])
+
+    assert exc_info.value.__cause__ is error
+    assert str(error) in str(exc_info.value)
+
+
+def test_failed_frontmatter_edit_preserves_notebook_and_removes_carrier(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    original = """---
+title: Test
+pyproject: |
+  dependencies = []
+---
+
+# Hello
+"""
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(original)
+    error = UvNotFoundError("uv disappeared")
+
+    def fail(*args: object, **kwargs: object) -> None:
+        del args, kwargs
+        raise error
+
+    monkeypatch.setattr(script_metadata, "uv", fail)
+
+    with pytest.raises(script_metadata.ScriptMetadataError) as exc_info:
+        script_metadata.add_dependencies(str(notebook), ["idna"])
+
+    assert exc_info.value.__cause__ is error
+    assert str(error) in str(exc_info.value)
+    assert notebook.read_text() == original
+    assert [path.name for path in tmp_path.iterdir()] == ["notebook.md"]
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_ensure_marimo_adds_marimo(tmp_path: Path) -> None:
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = ["numpy"]
+# ///
+import marimo
+"""
+    )
+
+    script_metadata.ensure_marimo(str(script_path))
+
+    content = script_path.read_text()
+    assert "marimo" in content
+    assert "numpy" in content
+
+
+def test_ensure_noop_when_present(tmp_path: Path) -> None:
+    original = """# /// script
+# requires-python = ">=3.10"
+# dependencies = ["marimo", "numpy"]
+# ///
+import marimo
+"""
+    script_path = tmp_path / "test.py"
+    script_path.write_text(original)
+
+    script_metadata.ensure_marimo(str(script_path))
+    script_metadata.ensure_requires_python(str(script_path))
+
+    assert script_path.read_text() == original
+
+
+def test_ensure_marimo_noop_for_missing_or_empty_file(
+    tmp_path: Path,
+) -> None:
+    script_metadata.ensure_marimo(str(tmp_path / "missing.py"))
+    empty = tmp_path / "empty.py"
+    empty.write_text("")
+    script_metadata.ensure_marimo(str(empty))
+    assert empty.read_text() == ""
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_ensure_adds_when_no_metadata(tmp_path: Path) -> None:
+    script_path = tmp_path / "test.py"
+    script_path.write_text("import marimo\napp = marimo.App()\n")
+
+    script_metadata.ensure_marimo(str(script_path))
+    script_metadata.ensure_requires_python(str(script_path))
+
+    content = script_path.read_text()
+    assert "# /// script" in content
+    assert "marimo" in content
+    assert "requires-python" in content
+
+
+def test_ensure_requires_python_only_touches_the_header(
+    tmp_path: Path,
+) -> None:
+    """Regression test for #8054.
+
+    The multi-line deps list must not be reformatted, and similar-looking
+    text elsewhere in the file (e.g. docstrings) must not be modified.
+    """
+    original = '''# /// script
+# dependencies = [
+#     "polars",
+#     "marimo>=0.8.0",
+# ]
+# ///
+import marimo
+
+app = marimo.App()
+
+@app.cell
+def __():
+    """
+    Example of PEP 723 metadata:
+
+    # /// script
+    # requires-python = ">=3.11"
+    # ///
+    """
+    return ()
+'''
+    script_path = tmp_path / "test.py"
+    script_path.write_text(original)
+
+    script_metadata.ensure_requires_python(str(script_path))
+
+    major, minor = platform.python_version_tuple()[:2]
+    expected = original.replace(
+        "# /// script\n",
+        f'# /// script\n# requires-python = ">={major}.{minor}"\n',
+        1,
+    )
+    assert script_path.read_text() == expected
+
+
+@pytest.mark.network
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_add_and_remove_dependencies(tmp_path: Path) -> None:
+    script_path = tmp_path / "test.py"
+    script_path.write_text(
+        """# /// script
+# dependencies = []
+# ///
+"""
+    )
+
+    script_metadata.add_dependencies(str(script_path), ["idna"])
+    project = script_metadata.loads(script_path.read_text())
+    assert project is not None
+    assert any(dep.startswith("idna") for dep in project["dependencies"])
+
+    script_metadata.remove_dependencies(str(script_path), ["idna"])
+    project = script_metadata.loads(script_path.read_text())
+    assert project is not None
+    assert project["dependencies"] == []
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_frontmatter_edit_resolves_relative_sources(tmp_path: Path) -> None:
+    """Relative `[tool.uv.sources]` paths resolve against the notebook's
+    directory: the carrier lives next to the notebook, so uv anchors them
+    natively and the round-trip leaves them untouched."""
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    (lib / "pyproject.toml").write_text(
+        '[project]\nname = "mylib"\nversion = "0.1.0"\n'
+    )
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        """---
+pyproject: |
+  requires-python = ">=3.11"
+  dependencies = []
+
+  [tool.uv.sources]
+  mylib = { path = "./lib" }
+---
+
+# Hello
+"""
+    )
+
+    script_metadata.add_dependencies(str(notebook), ["mylib"])
+
+    content = notebook.read_text()
+    assert "mylib" in content
+    assert 'path = "./lib"' in content
+    # The carrier is deleted when the edit finishes.
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["lib", "notebook.md"]
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+@pytest.mark.parametrize(
+    ("suffix", "key", "separator"),
+    [
+        (".md", "pyproject", "\n"),
+        (".md", "header", "\n\n\n"),
+        (".qmd", "pyproject", "\r\n\r\n"),
+        (".qmd", "header", " \n\n"),
+    ],
+)
+def test_frontmatter_edit_preserves_body(
+    tmp_path: Path, suffix: str, key: str, separator: str
+) -> None:
+    from marimo._convert.markdown.to_ir import extract_frontmatter
+    from marimo._utils import yaml
+
+    notebook = tmp_path / f"notebook{suffix}"
+    metadata = 'dependencies = ["numpy"]'
+    if key == "header":
+        metadata = script_metadata.wrap_block(metadata)
+    header = yaml.marimo_compat_dump(
+        {"title": "Test", key: metadata}, sort_keys=False
+    )
+    body = separator + "    indented code\r\n\r\n# Hello\n\n"
+    notebook.write_bytes(f"---\n{header}---{body}".encode())
+
+    script_metadata.remove_dependencies(str(notebook), ["numpy"])
+
+    content = notebook.read_bytes().decode()
+    assert content.endswith("---" + body)
+    frontmatter, _ = extract_frontmatter(content)
+    assert frontmatter["title"] == "Test"
+    updated = frontmatter[key]
+    if key == "pyproject":
+        updated = script_metadata.wrap_block(updated)
+    project = script_metadata.loads(updated)
+    assert project is not None
+    assert project["dependencies"] == []
+
+
+@pytest.mark.skipif(not HAS_UV, reason="uv required")
+def test_edits_accept_relative_notebook_paths(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """uv runs from the notebook's directory, so a relative target with a
+    directory component must not be re-resolved against that directory."""
+    notebooks = tmp_path / "notebooks"
+    notebooks.mkdir()
+    (notebooks / "nb.py").write_text(
+        """# /// script
+# dependencies = ["numpy"]
+# ///
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    script_metadata.remove_dependencies("notebooks/nb.py", ["numpy"])
+
+    project = script_metadata.loads((notebooks / "nb.py").read_text())
+    assert project is not None
+    assert project["dependencies"] == []
+
+
+def test_materialize_python_notebook_is_itself(tmp_path: Path) -> None:
+    script = tmp_path / "nb.py"
+    script.write_text("# /// script\n# dependencies = []\n# ///\n")
+
+    with script_metadata.materialized_for_environment(
+        str(script)
+    ) as materialized:
+        assert materialized.path == str(script)
+        assert materialized.directory == str(tmp_path)
+    assert script.exists()
+
+
+def test_materialize_markdown_carrier_is_adjacent_and_stable(
+    tmp_path: Path,
+) -> None:
+    """The carrier sits next to the notebook under a versioned,
+    deterministic name, carries the header verbatim, and is deleted on
+    exit."""
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text(
+        """---
+pyproject: |
+  dependencies = []
+
+  [tool.uv.sources]
+  mylib = { path = "./lib" }
+---
+
+# Hello
+"""
+    )
+
+    with script_metadata.materialized_for_environment(str(notebook)) as first:
+        assert first.directory == str(tmp_path)
+        carrier = Path(first.path)
+        assert carrier.parent == tmp_path
+        assert carrier.name == ".marimo-v1-notebook.md.py"
+        # The header is verbatim: relative paths are uv's to anchor.
+        assert 'path = "./lib"' in carrier.read_text()
+    assert not carrier.exists()
+
+    with script_metadata.materialized_for_environment(str(notebook)) as second:
+        assert second.path == first.path
+
+
+def _enter_carrier(notebook, attempting, entered):
+    attempting.set()
+    with script_metadata.materialized_for_environment(notebook):
+        entered.set()
+
+
+@pytest.mark.parametrize("separate_process", [False, True])
+def test_stable_carrier_lifetime_is_serialized(
+    tmp_path: Path, separate_process: bool
+) -> None:
+    import multiprocessing
+    import threading
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    context = (
+        multiprocessing.get_context("spawn") if separate_process else threading
+    )
+    attempting = context.Event()
+    entered = context.Event()
+    worker_type = context.Process if separate_process else threading.Thread
+    worker = worker_type(
+        target=_enter_carrier, args=(str(notebook), attempting, entered)
+    )
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        worker.start()
+        assert attempting.wait(timeout=10)
+        assert not entered.wait(timeout=0.2)
+        assert Path(materialized.path).exists()
+    worker.join(timeout=10)
+    assert not worker.is_alive()
+    assert entered.is_set()
+    assert not Path(materialized.path).exists()
+
+
+def test_old_active_carriers_are_preserved(tmp_path: Path) -> None:
+    import os
+    import time
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        carrier = Path(materialized.path)
+        old = time.time() - 3600
+        os.utime(carrier, (old, old))
+        with script_metadata._carrier(str(notebook), "# editing"):
+            assert carrier.exists()
+
+
+def test_stranded_stable_carrier_is_reclaimed(tmp_path: Path) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    stranded = tmp_path / ".marimo-v1-notebook.md.py"
+    stranded.write_text("stranded")
+    with script_metadata.materialized_for_environment(
+        str(notebook)
+    ) as materialized:
+        assert "dependencies = []" in Path(materialized.path).read_text()
+    assert not stranded.exists()
+
+
+@pytest.mark.parametrize("suffix", [".py", ".lock"])
+def test_carrier_symlinks_do_not_modify_target(
+    tmp_path: Path, suffix: str
+) -> None:
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    target = tmp_path / "precious.txt"
+    target.write_text("do not touch")
+    link = tmp_path / f".marimo-v1-notebook.md{suffix}"
+    try:
+        link.symlink_to(target)
+    except OSError:
+        pytest.skip("symlinks unavailable")
+    with pytest.raises(script_metadata.ScriptMetadataError, match="symlink"):
+        with script_metadata.materialized_for_environment(str(notebook)):
+            pytest.fail("must reject the symlink")
+    assert target.read_text() == "do not touch"
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="requires POSIX permissions"
+)
+@pytest.mark.parametrize("stable", [False, True])
+def test_readonly_notebook_directory_fails_clearly(
+    tmp_path: Path, stable: bool
+) -> None:
+    import os
+
+    notebook = tmp_path / "notebook.md"
+    notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
+    carrier = (
+        script_metadata.materialized_for_environment(str(notebook))
+        if stable
+        else script_metadata._carrier(str(notebook), "# edit")
+    )
+    os.chmod(tmp_path, 0o500)
+    try:
+        with pytest.raises(
+            script_metadata.ScriptMetadataError, match="directory writable"
+        ):
+            with carrier:
+                pytest.fail("must preserve adjacent path semantics")
+    finally:
+        os.chmod(tmp_path, 0o700)

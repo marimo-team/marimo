@@ -5,6 +5,7 @@ import { expect, test } from "vitest";
 import {
   configOverridesAtom,
   connectionTransportTypeAtom,
+  mergeConfig,
   resolvedMarimoConfigAtom,
   userConfigAtom,
 } from "../config";
@@ -46,6 +47,7 @@ test("default UserConfig - empty", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
@@ -75,6 +77,7 @@ test("default UserConfig - empty", () => {
         "theme": "light",
       },
       "experimental": {},
+      "file_browser": {},
       "formatting": {
         "line_length": 79,
       },
@@ -120,6 +123,7 @@ test("default UserConfig - one level", () => {
   expect(defaultConfig).toMatchInlineSnapshot(`
     {
       "ai": {
+        "allow_provider_config": true,
         "custom_providers": {},
         "enabled": true,
         "inline_tooltip": false,
@@ -149,6 +153,7 @@ test("default UserConfig - one level", () => {
         "theme": "light",
       },
       "experimental": {},
+      "file_browser": {},
       "formatting": {
         "line_length": 79,
       },
@@ -207,6 +212,19 @@ test("default UserConfig with additional information", () => {
       },
     }),
   );
+});
+
+test("UserConfig with file browser folders", () => {
+  const config = UserConfigSchema.parse({
+    file_browser: {
+      folders: [{ path: "/data", name: "Data" }, { path: "/shared" }],
+    },
+  });
+
+  expect(config.file_browser?.folders).toEqual([
+    { path: "/data", name: "Data" },
+    { path: "/shared" },
+  ]);
 });
 
 test("UserConfig with custom_providers", () => {
@@ -314,4 +332,32 @@ test("connectionTransportTypeAtom reads server.transport", () => {
     server: { ...config.server, transport: "sse" },
   });
   expect(store.get(connectionTransportTypeAtom)).toBe("sse");
+});
+
+test("mergeConfig replaces arrays instead of merging by index", () => {
+  const prev = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a", "wandb/b", "wandb/c"],
+        custom_models: ["wandb/custom"],
+      },
+    },
+  };
+  const patch = {
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  };
+
+  expect(mergeConfig(prev, patch)).toEqual({
+    ai: {
+      models: {
+        displayed_models: ["wandb/a"],
+        custom_models: [],
+      },
+    },
+  });
 });

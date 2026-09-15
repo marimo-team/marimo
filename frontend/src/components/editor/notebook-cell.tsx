@@ -839,8 +839,8 @@ const EditableCellComponent = ({
               />
             )}
             <PendingDeleteConfirmation cellId={cellId} />
+            {!isPresenting && <StagedAICellFooter cellId={cellId} />}
           </div>
-          {!isPresenting && <StagedAICellFooter cellId={cellId} />}
           {isCollapsed && !isPresenting && (
             <CollapsedCellBanner
               onClick={() => actions.expandCell({ cellId })}
@@ -1327,8 +1327,8 @@ const SetupCellComponent = ({
               cellId={cellId}
               debuggerActive={cellRuntime.debuggerActive}
             />
+            <StagedAICellFooter cellId={cellId} />
           </div>
-          <StagedAICellFooter cellId={cellId} />
         </div>
       </CellActionsContextMenu>
     </TooltipProvider>

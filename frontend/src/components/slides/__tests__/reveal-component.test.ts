@@ -1,7 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
 import { act, renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { cellId } from "@/__tests__/branded";
 import type { CellId } from "@/core/cells/ids";
 import type { RuntimeCell } from "@/core/cells/types";
@@ -10,6 +10,7 @@ import {
   deckSlideType,
   parkedRendersSource,
   shouldShowCode,
+  syncCodeToggleKeyBinding,
   useParkedPreview,
 } from "../reveal-component";
 
@@ -24,14 +25,38 @@ const cells = (
 // to this test helper (see `@/__tests__/branded` for the same rationale).
 const cell = (id: CellId): RuntimeCell => ({ id }) as RuntimeCell;
 
+describe("syncCodeToggleKeyBinding", () => {
+  it("tracks whether code is available after Reveal is ready", () => {
+    const deck = {
+      addKeyBinding: vi.fn(),
+      removeKeyBinding: vi.fn(),
+    };
+    const onToggle = vi.fn();
+
+    syncCodeToggleKeyBinding({ deck, enabled: false, onToggle });
+    expect(deck.removeKeyBinding).toHaveBeenLastCalledWith(67);
+    expect(deck.addKeyBinding).not.toHaveBeenCalled();
+
+    syncCodeToggleKeyBinding({ deck, enabled: true, onToggle });
+    expect(deck.addKeyBinding).toHaveBeenCalledWith(
+      {
+        keyCode: 67,
+        key: "C",
+        description: "Toggle code editor",
+      },
+      onToggle,
+    );
+  });
+});
+
 describe("shouldShowCode", () => {
-  it("is off when the code toggle is unavailable, regardless of config/override", () => {
+  it("is off when code is unavailable, regardless of config/override", () => {
     expect(
       shouldShowCode({
         cells: cells([A, { showCode: true }]),
         cellId: A,
         showCodeOverrides: new Set([A]),
-        codeToggleEnabled: false,
+        codeAvailable: false,
       }),
     ).toBe(false);
   });
@@ -42,7 +67,7 @@ describe("shouldShowCode", () => {
         cells: cells([A, { showCode: true }]),
         cellId: undefined,
         showCodeOverrides: new Set(),
-        codeToggleEnabled: true,
+        codeAvailable: true,
       }),
     ).toBe(false);
   });
@@ -53,7 +78,7 @@ describe("shouldShowCode", () => {
         cells: cells([A, { showCode: true }]),
         cellId: A,
         showCodeOverrides: new Set(),
-        codeToggleEnabled: true,
+        codeAvailable: true,
       }),
     ).toBe(true);
     // Missing config entry defaults to off.
@@ -62,7 +87,7 @@ describe("shouldShowCode", () => {
         cells: cells(),
         cellId: A,
         showCodeOverrides: new Set(),
-        codeToggleEnabled: true,
+        codeAvailable: true,
       }),
     ).toBe(false);
   });
@@ -74,7 +99,7 @@ describe("shouldShowCode", () => {
         cells: cells(),
         cellId: A,
         showCodeOverrides: new Set([A]),
-        codeToggleEnabled: true,
+        codeAvailable: true,
       }),
     ).toBe(true);
     // Configured + override present -> still shown; the override never hides.
@@ -83,7 +108,7 @@ describe("shouldShowCode", () => {
         cells: cells([A, { showCode: true }]),
         cellId: A,
         showCodeOverrides: new Set([A]),
-        codeToggleEnabled: true,
+        codeAvailable: true,
       }),
     ).toBe(true);
   });

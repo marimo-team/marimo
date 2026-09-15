@@ -3,24 +3,26 @@
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@playwright/test";
 import { getAppUrl, startServer } from "../playwright.config";
-import { takeScreenshot } from "./helper";
+import { maybeRestartKernel, takeScreenshot } from "./helper";
 
 const _filename = fileURLToPath(import.meta.url);
 
 test("can resume a session", async ({ page }) => {
   const appUrl = getAppUrl("shutdown.py");
   await page.goto(appUrl);
+  await maybeRestartKernel(page);
 
   await expect(page.getByText("'None'", { exact: true })).toBeVisible();
-  // type in the form
-  await page.locator("#output-Hbol").getByRole("textbox").fill("12345");
-  // shift enter to run the form
-  await page.keyboard.press("Meta+Enter");
+  await page.getByTestId("marimo-plugin-text-input").fill("12345");
+  await page.getByTestId("marimo-plugin-form-submit-button").click();
 
-  // wait for the output to appear
-  let secondCell = await page.locator(".marimo-cell").nth(1);
-  await expect(secondCell.getByText("12345")).toBeVisible();
-  await expect(secondCell.getByText("54321")).toBeVisible();
+  const secondCell = page.locator(".marimo-cell").nth(1);
+  await expect(
+    secondCell.getByText("'12345'", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    secondCell.getByText("54321", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
 
   // Refresh the page
   await page.reload();
@@ -28,9 +30,12 @@ test("can resume a session", async ({ page }) => {
   await expect(
     page.getByText("You have reconnected to an existing session."),
   ).toBeVisible();
-  secondCell = await page.locator(".marimo-cell").nth(1);
-  await expect(page.getByText("12345")).toBeVisible();
-  await expect(page.getByText("54321")).toBeVisible();
+  await expect(
+    secondCell.getByText("'12345'", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
+  await expect(
+    secondCell.getByText("54321", { exact: true }),
+  ).toBeVisible({ timeout: 15_000 });
 });
 
 test("restart kernel", async ({ page }) => {

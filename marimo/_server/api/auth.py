@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import hmac
 import secrets
 import typing
@@ -16,6 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.responses import JSONResponse
 
 from marimo import _loggers
+from marimo._config.settings import GLOBAL_SETTINGS
 
 if TYPE_CHECKING:
     from starlette.authentication import AuthenticationError
@@ -41,8 +43,11 @@ def validate_auth(
     # Check for session cookie
     cookie_session = CookieSession(conn.session)
 
-    # Validate the cookie
-    if hmac.compare_digest(cookie_session.get_access_token(), auth_token):
+    # Validate the cookie. The cookie stores a keyed hash of the token,
+    # never the token itself.
+    if hmac.compare_digest(
+        cookie_session.get_access_token(), hash_access_token(auth_token)
+    ):
         return True  # Success
 
     # Check for access_token
@@ -137,8 +142,26 @@ def on_auth_error(
     )
 
 
-# This is random/new for each server instance
-RANDOM_SECRET = Secret(secrets.token_hex(32))
+# Random/new for each server process unless overridden via
+# MARIMO_SESSION_SECRET. Used both to sign the session cookie and to hash the
+# auth token stored inside it.
+SESSION_SECRET = Secret(
+    GLOBAL_SETTINGS.SESSION_SECRET or secrets.token_hex(32)
+)
+
+
+def hash_access_token(token: str) -> str:
+    """Keyed hash of the auth token, safe to store in the session cookie.
+
+    The session cookie is signed by starlette (tamper-proof) but not
+    encrypted, so its contents are readable by anyone holding the cookie.
+    Storing `HMAC(secret, token)` rather than the token means a leaked
+    cookie does not leak the token itself and cannot be replayed as a
+    bearer token or `?access_token=` query param.
+    """
+    return hmac.new(
+        str(SESSION_SECRET).encode(), token.encode(), hashlib.sha256
+    ).hexdigest()
 
 
 class CookieSession:
@@ -150,6 +173,7 @@ class CookieSession:
         self.session_state = session_state
 
     def get_access_token(self) -> str:
+        """Returns the hashed access token stored in the session, or ""."""
         access_token: str = self.session_state.get("access_token", "")
         return access_token
 
@@ -158,7 +182,8 @@ class CookieSession:
         return username
 
     def set_access_token(self, token: str) -> None:
-        self.session_state["access_token"] = token
+        """Stores a keyed hash of `token`; the raw token never hits the cookie."""
+        self.session_state["access_token"] = hash_access_token(token)
 
     def set_username(self, username: str) -> None:
         self.session_state["username"] = username

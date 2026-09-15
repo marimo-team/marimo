@@ -226,6 +226,7 @@ Click a suggestion to insert a ready-to-run cell.
 | PostgreSQL | `PGHOST`, `PGUSER`, `PGDATABASE` (plus `PGPORT`, `PGPASSWORD`) |
 | MySQL | `MYSQL_HOST`, `MYSQL_USER`, `MYSQL_DATABASE`, and `MYSQL_PASSWORD`/`MYSQL_PWD` (plus `MYSQL_TCP_PORT`) |
 | Trino | `TRINO_HOST`, `TRINO_USER`, `TRINO_CATALOG` (plus `TRINO_PORT`, `TRINO_PASSWORD`, `TRINO_SCHEMA`) |
+| Databricks SQL warehouse | `DATABRICKS_SQL_WAREHOUSE_ID` (plus `DATABRICKS_CONFIG_PROFILE`) |
 | PySpark (Spark Connect) | `SPARK_REMOTE` |
 | PyIceberg catalogs | `PYICEBERG_CATALOG__<name>__*` environment variables, or catalogs resolved from a `.pyiceberg.yaml` file |
 
@@ -392,14 +393,20 @@ marimo will automatically discover the database connection and display the datab
 
 ???+ note
 
-    By default, marimo auto-discovers databases and schemas, but not tables and columns (to avoid performance issues with large databases). You can configure this behavior in your `pyproject.toml` file. Options are `true`, `false`, or `"auto"`. `"auto"` will determine whether to auto-discover based on the type of database (e.g. when the value is `"auto"`, Snowflake and BigQuery will not auto-discover tables and columns while SQLite, Postgres, and MySQL will):
+    By default, marimo auto-discovers databases but may not discover tables, columns and schemas (to avoid performance issues with large databases). You can configure this behavior in your `pyproject.toml` file. Options are `true`, `false`, or `"auto"`. `"auto"` will determine whether to discover based on the type of database: databases that are cheap to introspect (e.g. SQLite, Postgres, MySQL) are discovered, while data warehouses (e.g. Snowflake, BigQuery) are not:
 
     ```toml title="pyproject.toml"
     [tool.marimo.datasources]
-    auto_discover_schemas = true   # Default: true
+    auto_discover_schemas = "auto"  # Default: "auto"
     auto_discover_tables = "auto"   # Default: "auto"
-    auto_discover_columns = "auto"  # Default: false
+    auto_discover_columns = false   # Default: false
     ```
+
+    SQL cell autocompletion relies on discovery so it may not work if the schema has not been discovered. You can either use the Data Sources panel and expand the schemas and tables you want which will register the autocompletion semantics, or change the config set above.
+
+    You can also change these settings through the notebook settings menu (gear icon), under **Packages & Data**:
+
+    <img width="700" src="/_static/docs-sql-discovery-settings.png" alt="Database schema discovery settings" />
 
 ## Catalogs
 

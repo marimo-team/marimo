@@ -5,6 +5,7 @@ import sys
 from collections import defaultdict
 from typing import Any, cast
 
+import pytest
 from inline_snapshot import snapshot
 
 from marimo._dependencies.dependencies import DependencyManager
@@ -531,6 +532,51 @@ def test_format_structure_dict_bigint_key_encoded_as_int() -> None:
     _, data = get_and_format({2**64: "v"})
     assert json.loads(data) == snapshot(
         {"text/plain+int:18446744073709551616": "v"}
+    )
+
+
+@pytest.mark.parametrize(
+    "dtype", ["int16", "int32", "int64", "uint8", "uint16", "uint32", "uint64"]
+)
+def test_format_structure_dict_numpy_integer_key_order(dtype: str) -> None:
+    """Integer keys must be encoded so JavaScript preserves insertion order."""
+    np = pytest.importorskip("numpy")
+    StructuresFormatter().register()
+
+    int_dict = {42: "First", 1: "Second", 128: "Third", 2: "Fourth"}
+    numpy_dict = {getattr(np, dtype)(k): v for k, v in int_dict.items()}
+    _, data = get_and_format((int_dict, numpy_dict))
+
+    for parsed in json.loads(data):
+        assert list(parsed.items()) == snapshot(
+            [
+                ("text/plain+int:42", "First"),
+                ("text/plain+int:1", "Second"),
+                ("text/plain+int:128", "Third"),
+                ("text/plain+int:2", "Fourth"),
+            ]
+        )
+
+
+def test_format_structure_dict_numpy_integer_keys_do_not_collide() -> None:
+    np = pytest.importorskip("numpy")
+    StructuresFormatter().register()
+
+    _, data = get_and_format(
+        {
+            np.int64(-42): "negative",
+            "-42": "negative string",
+            np.uint64(2**64 - 1): "bigint",
+            str(2**64 - 1): "bigint string",
+        }
+    )
+    assert json.loads(data) == snapshot(
+        {
+            "text/plain+int:-42": "negative",
+            "-42": "negative string",
+            "text/plain+int:18446744073709551615": "bigint",
+            "18446744073709551615": "bigint string",
+        }
     )
 
 

@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
     from starlette.applications import Starlette
 
+    from marimo._server.ai.mcp import MCPClient
+
 LOGGER = _loggers.marimo_logger()
 
 background_tasks: set[asyncio.Task[Any]] = set()
@@ -65,9 +67,10 @@ async def lsp(app: Starlette) -> AsyncIterator[None]:
         registry=background_tasks,
     )
 
-    yield
-
-    await cancel_and_wait(task)
+    try:
+        yield
+    finally:
+        await cancel_and_wait(task)
 
 
 @contextlib.asynccontextmanager
@@ -82,11 +85,31 @@ async def tool_manager(app: Starlette) -> AsyncIterator[None]:
     yield
 
 
+async def _cleanup_mcp_task(
+    task: asyncio.Task[MCPClient | None],
+) -> None:
+    try:
+        await cancel_and_wait(task)
+        if task.cancelled():
+            return
+        mcp_client = task.result()
+    except Exception:
+        LOGGER.exception("MCP connection task failed during cleanup")
+        return
+
+    if mcp_client is None:
+        return
+
+    try:
+        LOGGER.info("Disconnecting from all MCP servers")
+        await mcp_client.disconnect_from_all_servers()
+        LOGGER.info("Successfully disconnected from all MCP servers")
+    except Exception:
+        LOGGER.exception("Failed to disconnect from MCP servers")
+
+
 @contextlib.asynccontextmanager
 async def mcp(app: Starlette) -> AsyncIterator[None]:
-    if TYPE_CHECKING:
-        from marimo._server.ai.mcp import MCPClient
-
     state = AppState.from_app(app)
     session_mgr = state.session_manager
     user_config = state.config_manager.get_config()
@@ -126,22 +149,10 @@ async def mcp(app: Starlette) -> AsyncIterator[None]:
         on_exception=lambda _exc: None,
     )
 
-    yield
-
-    await cancel_and_wait(task)
-    if task.cancelled():
-        return
-
-    mcp_client = task.result()
-    if not mcp_client:
-        return
-
     try:
-        LOGGER.info("Disconnecting from all MCP servers")
-        await mcp_client.disconnect_from_all_servers()
-        LOGGER.info("Successfully disconnected from all MCP servers")
-    except Exception as e:
-        LOGGER.error(f"Error during MCP disconnect: {e}")
+        yield
+    finally:
+        await _cleanup_mcp_task(task)
 
 
 @contextlib.asynccontextmanager
@@ -189,11 +200,12 @@ async def logging(app: Starlette) -> AsyncIterator[None]:
                 server_token = str(state.session_manager.skew_protection_token)
             print_mcp_server(mcp_url, server_token)
 
-    yield
-
-    # Shutdown message
-    if not quiet:
-        print_shutdown()
+    try:
+        yield
+    finally:
+        # Shutdown message
+        if not quiet:
+            print_shutdown()
 
 
 @contextlib.asynccontextmanager
@@ -252,9 +264,10 @@ async def server_registry(app: Starlette) -> AsyncIterator[None]:
     except Exception as e:
         LOGGER.warning("Failed to register server: %s", e)
 
-    yield
-
-    writer.deregister()
+    try:
+        yield
+    finally:
+        writer.deregister()
 
 
 @contextlib.asynccontextmanager
@@ -268,8 +281,10 @@ async def etc(app: Starlette) -> AsyncIterator[None]:
 @contextlib.asynccontextmanager
 async def reap_subprocesses(app: Starlette) -> AsyncIterator[None]:
     del app
-    yield
-    await cancel_pending_reaps()
+    try:
+        yield
+    finally:
+        await cancel_pending_reaps()
 
 
 def _startup_url(state: AppStateBase) -> str:

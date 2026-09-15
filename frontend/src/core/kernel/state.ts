@@ -12,6 +12,8 @@ export const kernelStateAtom = atom<KernelState>({
   error: null,
 });
 
+export const initialRunCompletedAtom = atom(false);
+
 export function waitForKernelToBeInstantiated(): Promise<KernelState> {
   return waitFor(kernelStateAtom, (value) => value.isInstantiated);
 }

@@ -7,6 +7,7 @@ import {
   vegaLoadData,
   vegaLoader,
 } from "../loader";
+import { getVegaFieldTypes } from "../utils";
 
 const { ZERO_WIDTH_SPACE, replacePeriodsInColumnNames, uniquifyColumnNames } =
   exportedForTesting;
@@ -102,15 +103,32 @@ yield_error,yield_center
     `);
   });
 
-  it.each(DATA_TYPES)("should handle %s data-type", async (type) => {
-    const csvData = "name,value_column\nAlice,1";
+  it.each(DATA_TYPES.filter((type) => type !== "geometry"))(
+    "should handle %s data-type",
+    async (type) => {
+      const csvData = "name,value_column\nAlice,1";
+      vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+      const result = await vegaLoadData(csvData, {
+        type: "csv",
+        parse: { value_column: type },
+      });
+      expect(result.length).toEqual(1);
+    },
+  );
+
+  it("should parse geometry as a WKT string", async () => {
+    const csvData = "name,value_column\nAlice,POINT (0 0)";
     vi.spyOn(vegaLoader, "load").mockReturnValue(Promise.resolve(csvData));
+
+    const fieldTypes = getVegaFieldTypes({ value_column: "geometry" });
+    expect(fieldTypes).toEqual({ value_column: "string" });
 
     const result = await vegaLoadData(csvData, {
       type: "csv",
-      parse: { value_column: type },
+      parse: fieldTypes,
     });
-    expect(result.length).toEqual(1);
+    expect(result).toEqual([{ name: "Alice", value_column: "POINT (0 0)" }]);
   });
 
   it("should parse csv data with out of bound integers", async () => {
@@ -452,7 +470,7 @@ Bob.Jones,25
     `);
   });
 
-  it.skip("should handle arrow files", async () => {
+  it.fails("should handle arrow files", async () => {
     // Create a small arrow file with schema and one empty record batch
     const arrowData = new Uint8Array([
       0x41,

@@ -1,0 +1,37 @@
+[
+  [
+    "int",
+    [
+      "integer",
+      "Int64"
+    ]
+  ],
+  [
+    "float",
+    [
+      "number",
+      "Float64"
+    ]
+  ],
+  [
+    "str",
+    [
+      "string",
+      "String"
+    ]
+  ],
+  [
+    "bool",
+    [
+      "boolean",
+      "Boolean"
+    ]
+  ],
+  [
+    "datetime",
+    [
+      "datetime",
+      "Datetime(time_unit='us', time_zone=None)"
+    ]
+  ]
+]

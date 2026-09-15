@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from dataclasses import dataclass
 
 from marimo._utils.env import is_env_true
@@ -17,11 +18,26 @@ class GlobalSettings:
     PROFILE_DIR: str | None = None
     LOG_LEVEL: int = logging.WARNING
     MANAGE_SCRIPT_METADATA: bool = is_env_true("MARIMO_MANAGE_SCRIPT_METADATA")
+    # "single" or "multi" when this process belongs to a sandbox whose
+    # dependencies live in script environments; None otherwise.
+    SANDBOX_MODE: str | None = os.environ.get("MARIMO_SANDBOX_MODE") or None
+    # The environment manager behind SANDBOX_MODE: "uv" or "pixi".
+    SANDBOX_BACKEND: str | None = (
+        os.environ.get("MARIMO_SANDBOX_BACKEND") or None
+    )
     IN_SECURE_ENVIRONMENT: bool = is_env_true("MARIMO_IN_SECURE_ENVIRONMENT")
     # Mark the session cookie as `Secure` so browsers only send it over HTTPS.
     # Enable when serving marimo behind TLS / a TLS-terminating proxy. Default
     # "false" to preserve local (plain-HTTP) development.
     SESSION_COOKIE_SECURE: bool = is_env_true("MARIMO_SESSION_COOKIE_SECURE")
+    # Secret used to sign the session cookie and to hash the auth token stored
+    # in it. Defaults to a random value generated once per server process, so
+    # cookies are invalidated on restart. Set this to a stable value (e.g.
+    # `openssl rand -hex 32`) when cookies must survive restarts or be shared
+    # across replicas.
+    SESSION_SECRET: str | None = (
+        os.environ.get("MARIMO_SESSION_SECRET") or None
+    )
     # Disable authentication on the virtual file endpoint (`/@file/...`).
     # Useful in sandboxed/embedded deployments where virtual file URLs need
     # to be fetched in trusted contexts. Default "false", meaning auth is required.

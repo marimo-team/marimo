@@ -12,6 +12,7 @@ import { MockRequestClient } from "@/__mocks__/requests";
 import { aiCompletionCellAtom } from "@/core/ai/state";
 import type { CellActions } from "@/core/cells/cells";
 import { notebookAtom } from "@/core/cells/cells";
+import { LanguageAdapters } from "@/core/codemirror/language/LanguageAdapters";
 import { signatureHintField } from "@/core/codemirror/completion/signature-hint";
 import {
   configOverridesAtom,
@@ -20,6 +21,8 @@ import {
 } from "@/core/config/config";
 import { requestClientAtom } from "@/core/network/requests";
 import { store } from "@/core/state/jotai";
+import { variablesAtom } from "@/core/variables/state";
+import type { Variables } from "@/core/variables/types";
 import type { CellActionsDropdownHandle } from "../../cell/cell-actions";
 import {
   useCellEditorNavigationProps,
@@ -418,6 +421,33 @@ describe("useCellNavigationProps", () => {
         cellId: mockCellId,
         before: false,
         autoFocus: true,
+      });
+    });
+
+    it("should add an import before and a SQL cell after when 'q' is pressed", () => {
+      store.set(variablesAtom, {} as Variables);
+
+      const { result } = renderWithProvider(() =>
+        useCellNavigationProps(mockCellId, options),
+      );
+
+      act(() => {
+        result.current.onKeyDown?.(Mocks.keyboardEvent({ key: "q" }));
+      });
+
+      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          cellId: mockCellId,
+          before: true,
+          code: "import marimo as mo",
+        }),
+      );
+      expect(mockCellActions.createNewCell).toHaveBeenNthCalledWith(2, {
+        cellId: mockCellId,
+        before: false,
+        autoFocus: true,
+        code: LanguageAdapters.sql.defaultCode,
       });
     });
 

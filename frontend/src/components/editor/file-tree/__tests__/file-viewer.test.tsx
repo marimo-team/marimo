@@ -15,13 +15,19 @@ vi.mock("@/plugins/impl/code/LazyAnyLanguageCodeMirror", () => ({
   LazyAnyLanguageCodeMirror: ({
     value,
     onChange,
+    language,
+    readOnly,
   }: {
     value?: string;
     onChange?: (value: string) => void;
+    language?: string;
+    readOnly?: boolean;
   }) => (
     <textarea
       data-testid="code-editor"
+      data-language={language}
       value={value ?? ""}
+      readOnly={readOnly}
       onChange={(evt) => onChange?.(evt.target.value)}
     />
   ),
@@ -56,6 +62,33 @@ function renderViewer(response: FileDetailsResponse) {
 describe("FileViewer bounded previews", () => {
   beforeEach(() => {
     store.set(requestClientAtom, null);
+  });
+
+  it("uses fetched metadata to offer opening a notebook from a search result", async () => {
+    const notebook = {
+      ...file,
+      id: "/workspace/app.py",
+      path: "/workspace/app.py",
+      name: "app.py",
+    };
+    const onOpenNotebook = vi.fn();
+    const client = MockRequestClient.create({
+      sendFileDetails: vi.fn().mockResolvedValue({
+        file: { ...notebook, isMarimoFile: true },
+        contents: "import marimo",
+        mimeType: "text/plain",
+        isBase64: false,
+        isTooLarge: false,
+      }),
+    });
+    store.set(requestClientAtom, client);
+    render(<FileViewer file={notebook} onOpenNotebook={onOpenNotebook} />, {
+      wrapper,
+    });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Open notebook" }),
+    );
+    expect(onOpenNotebook).toHaveBeenCalledOnce();
   });
 
   it("requests a bounded preview and shows oversized metadata", async () => {
@@ -104,6 +137,21 @@ describe("FileViewer bounded previews", () => {
       expect(screen.getByTestId("code-editor")).toBeInTheDocument();
     });
     expect(screen.queryByText(/too large to preview/i)).not.toBeInTheDocument();
+  });
+
+  it("renders TOML files as editable TOML", async () => {
+    renderViewer({
+      file: { ...file, name: "pyproject.toml", size: 20 },
+      contents: '[project]\nname = "demo"',
+      mimeType: "application/toml",
+      isBase64: false,
+      isTooLarge: false,
+    });
+
+    const editor =
+      await screen.findByTestId<HTMLTextAreaElement>("code-editor");
+    expect(editor).toHaveAttribute("data-language", "toml");
+    expect(editor).not.toHaveAttribute("readonly");
   });
 
   it("preserves edits to an initially empty text file across remount", async () => {

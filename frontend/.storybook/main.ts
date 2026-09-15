@@ -1,6 +1,7 @@
 import * as mod from "node:module";
 import * as path from "node:path";
 import type { StorybookConfig } from "@storybook/react-vite";
+import { mergeConfig } from "vite";
 
 function absolutePath(value: string) {
   const require = mod.createRequire(import.meta.url);
@@ -20,4 +21,13 @@ export default {
   docs: {
     docsMode: false,
   },
+  // `resolve.tsconfigPaths` only applies to files matched by tsconfig's
+  // `include`, which does not cover `.mdx` stories, so alias `@` explicitly.
+  // `mergeConfig` handles both the array and object forms of `resolve.alias`.
+  viteFinal: (config) =>
+    mergeConfig(config, {
+      resolve: {
+        alias: { "@": path.resolve(import.meta.dirname, "../src") },
+      },
+    }),
 } satisfies StorybookConfig;

@@ -29,6 +29,8 @@ export type ExportAsIPYNBRequest = schemas["ExportAsIPYNBRequest"];
 export type ExportAsScriptRequest = schemas["ExportAsScriptRequest"];
 export type ExportAsPDFRequest = schemas["ExportAsPDFRequest"];
 export type ExportAvailabilityResponse = schemas["ExportAvailabilityResponse"];
+export type InstallExportRequirementsRequest =
+  schemas["InstallExportRequirementsRequest"];
 export type UpdateCellOutputsRequest = schemas["UpdateCellOutputsRequest"];
 
 export interface ExportedFile<T extends BlobPart = BlobPart> {
@@ -48,6 +50,8 @@ export type FileDetailsResponse = schemas["FileDetailsResponse"];
 export type FileInfo = schemas["FileInfo"];
 export type FileListRequest = schemas["FileListRequest"];
 export type FileListResponse = schemas["FileListResponse"];
+export type FileRoot = schemas["FileRoot"];
+export type FileRootsResponse = schemas["FileRootsResponse"];
 export type FileSearchRequest = schemas["FileSearchRequest"];
 export type FileSearchResponse = schemas["FileSearchResponse"];
 export type FileMoveRequest = schemas["FileMoveRequest"];
@@ -195,6 +199,7 @@ export interface EditRequests {
   sendPdb: (request: DebugCellRequest) => Promise<null>;
   sendSetBreakpoints: (request: SetBreakpointsRequest) => Promise<null>;
   // File explorer requests
+  getFileRoots: () => Promise<FileRootsResponse>;
   sendListFiles: (request: FileListRequest) => Promise<FileListResponse>;
   sendSearchFiles: (request: FileSearchRequest) => Promise<FileSearchResponse>;
   sendCreateFileOrFolder: (
@@ -223,6 +228,9 @@ export interface EditRequests {
   ) => Promise<RunningNotebooksResponse>;
   // Export requests
   getExportAvailability: () => Promise<ExportAvailabilityResponse>;
+  installExportRequirements: (
+    request: InstallExportRequirementsRequest,
+  ) => Promise<ExportAvailabilityResponse>;
   exportAsHTML: (request: ExportAsHTMLRequest) => Promise<ExportedFile<string>>;
   exportAsIPYNB: (
     request: ExportAsIPYNBRequest,

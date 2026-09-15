@@ -109,12 +109,19 @@ def _check_shutdown(
 
 
 def _try_fetch(
-    port: int, host: str = "localhost", token: str | None = None
+    port: int,
+    host: str = "localhost",
+    token: str | None = None,
+    *,
+    timeout: float = 60,
 ) -> bytes | None:
     import http.cookiejar
 
+    # Cold sandbox installs and remote notebooks can take longer than the
+    # usual server startup, especially on macOS CI runners.
+    deadline = time.monotonic() + timeout
     err: Exception | None = None
-    for _ in range(20):
+    while (remaining := deadline - time.monotonic()) > 0:
         try:
             url = f"http://{host}:{port}"
             if token is not None:
@@ -127,12 +134,55 @@ def _try_fetch(
             opener = urllib.request.build_opener(
                 urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar())
             )
-            return opener.open(url).read()
+            with opener.open(url, timeout=min(5, remaining)) as response:
+                return response.read()
         except Exception as e:
             err = e
-            time.sleep(0.6)
-    print(f"Failed to fetch contents: {err}")
+            time.sleep(min(0.6, max(0, deadline - time.monotonic())))
+    print(f"Failed to fetch contents within {timeout}s: {err}")
     return None
+
+
+@pytest.mark.parametrize(
+    ("ready_after", "request_duration"),
+    [(0, 0), (15, 0), (None, 0), (None, 5)],
+)
+def test_try_fetch_waits_for_startup(
+    monkeypatch: pytest.MonkeyPatch,
+    ready_after: int | None,
+    request_duration: int,
+) -> None:
+    elapsed = 0.0
+
+    def sleep(seconds: float) -> None:
+        nonlocal elapsed
+        elapsed += seconds
+
+    def open_url(url: str, *, timeout: float = 5) -> Any:
+        assert url == "http://localhost:2718?access_token=secret"
+        assert 0 < timeout <= 5
+        if request_duration:
+            sleep(min(request_duration, timeout))
+            raise TimeoutError("Request timed out")
+        if ready_after is None or elapsed < ready_after:
+            raise urllib.error.URLError("Connection refused")
+        return response
+
+    monkeypatch.setattr(time, "monotonic", lambda: elapsed)
+    monkeypatch.setattr(time, "sleep", sleep)
+    with patch("urllib.request.build_opener") as build_opener:
+        response = build_opener.return_value.open.return_value
+        response.__enter__.return_value = response
+        response.read.return_value = b"ready"
+        build_opener.return_value.open.side_effect = open_url
+        contents = _try_fetch(2718, token="secret")
+
+    if ready_after is None:
+        assert contents is None
+        assert elapsed == 60
+    else:
+        assert contents == b"ready"
+        assert ready_after <= elapsed < ready_after + 0.6
 
 
 def _check_started(port: int, host: str = "localhost") -> bytes | None:
@@ -405,50 +455,6 @@ def test_cli_missing_argument_uses_compact_error() -> None:
     assert "Usage: main run [OPTIONS] NAME [ARGS]..." in result.output
     assert "For more information, try '--help'." in result.output
     assert "Options:" not in result.output
-
-
-def test_cli_edit_sandbox_missing_zmq_skips_update_check() -> None:
-    from click.testing import CliRunner
-
-    from marimo._cli.cli import main
-
-    runner = CliRunner()
-    captured_packages: dict[str, str | list[str]] = {}
-
-    def _capture_install_commands(
-        packages: str | list[str] | tuple[str, ...],
-    ) -> list[str]:
-        captured_packages["value"] = (
-            packages if isinstance(packages, str) else list(packages)
-        )
-        return ["python -m pip install 'marimo[sandbox]'"]
-
-    with (
-        patch(
-            "marimo._cli.cli.prompt_run_in_docker_container",
-            return_value=False,
-        ),
-        patch(
-            "marimo._dependencies.dependencies.DependencyManager.zmq.has",
-            return_value=False,
-        ),
-        patch(
-            "marimo._cli.errors.get_install_commands",
-            side_effect=_capture_install_commands,
-        ),
-        patch("marimo._cli.cli.check_for_updates") as mock_check_for_updates,
-    ):
-        result = runner.invoke(main, ["edit", "--sandbox"])
-
-    assert result.exit_code == 1
-    mock_check_for_updates.assert_not_called()
-    assert captured_packages["value"] == "marimo[sandbox]"
-    assert (
-        "pyzmq is required when running the marimo edit server on a directory with --sandbox."
-        in result.output
-    )
-    assert "python -m pip install 'marimo[sandbox]'" in result.output
-    assert "'marimo[sandbox]' pyzmq" not in result.output
 
 
 def test_cli_edit_checks_for_updates_after_preflight() -> None:
@@ -1380,6 +1386,59 @@ def test_cli_sandbox_edit_no_prompt(temp_marimo_file: str) -> None:
     _check_contents(p, b"edit", contents)
 
 
+@pytest.mark.parametrize("command", ["edit", "run"])
+@pytest.mark.parametrize(
+    ("option", "backend"), [("--sandbox=pixi", "pixi"), ("--sandbox", "uv")]
+)
+@pytest.mark.parametrize("directory", ["pixi", "uv"])
+def test_cli_sandbox_records_backend_and_preserves_paths(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: str,
+    option: str,
+    backend: str,
+    directory: str,
+) -> None:
+    """Kernel launches read the backend from GLOBAL_SETTINGS; `run` must
+    record it or `run --sandbox=pixi` launches uv kernels."""
+    from marimo._cli.sandbox import SandboxMode
+    from marimo._config.settings import GLOBAL_SETTINGS
+
+    monkeypatch.chdir(tmp_path)
+    notebook_dir = tmp_path / directory
+    notebook_dir.mkdir()
+    (notebook_dir / "nb.py").write_text(
+        codegen.generate_filecontents(
+            codes=["import marimo as mo"],
+            names=["one"],
+            cell_configs=[CellConfig()],
+        ),
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+    captured: dict[str, object] = {}
+
+    def _capture_start(**kwargs: object) -> None:
+        captured["backend"] = GLOBAL_SETTINGS.SANDBOX_BACKEND
+        captured["sandbox_mode"] = kwargs["sandbox_mode"]
+
+    with (
+        patch.dict(os.environ),
+        patch.object(GLOBAL_SETTINGS, "SANDBOX_BACKEND", None),
+        patch.object(GLOBAL_SETTINGS, "SANDBOX_MODE", None),
+        patch.object(GLOBAL_SETTINGS, "MANAGE_SCRIPT_METADATA", False),
+        patch("marimo._cli.cli.start", side_effect=_capture_start),
+    ):
+        result = runner.invoke(
+            cli_main,
+            [command, option, directory, "--headless"],
+        )
+
+    assert result.exit_code == 0, result.output
+    assert captured["sandbox_mode"] is SandboxMode.MULTI
+    assert captured["backend"] == backend
+
+
 @pytest.mark.skipif(not HAS_UV, reason="uv is required for sandbox tests")
 def test_cli_sandbox_edit_new_file() -> None:
     with tempfile.TemporaryDirectory() as d:
@@ -1388,15 +1447,16 @@ def test_cli_sandbox_edit_new_file() -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
-                ["edit", path, "--headless", "--no-token", "--sandbox"],
+                ["edit", "--sandbox", path, "--headless", "--no-token"],
             )
         assert result.exit_code == 0, result.output
         mock_run_in_sandbox.assert_called_once()
         call_kwargs = mock_run_in_sandbox.call_args
         assert call_kwargs.kwargs["name"] == path
-        assert call_kwargs.kwargs["additional_features"] == ["lsp"]
+        assert call_kwargs.kwargs["extras"] == ["lsp"]
 
 
 @pytest.mark.skipif(
@@ -1921,6 +1981,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
         with patch(
             "marimo._cli.sandbox.run_in_sandbox"
         ) as mock_run_in_sandbox:
+            mock_run_in_sandbox.return_value = 0
             result = runner.invoke(
                 cli_main,
                 ["new", "--sandbox", "--headless", "--no-token"],
@@ -1930,7 +1991,7 @@ def test_cli_with_custom_pyproject_config_no_file(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     mock_run_in_sandbox.assert_called_once()
     call_kwargs = mock_run_in_sandbox.call_args
-    assert call_kwargs.kwargs["additional_features"] == ["lsp"]
+    assert call_kwargs.kwargs["extras"] == ["lsp"]
 
 
 # shell-completion has 1 input (value of $SHELL) & 3 outputs (return code, stdout, & stderr)

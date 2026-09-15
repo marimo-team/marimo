@@ -5,12 +5,24 @@ import json
 import os
 import subprocess
 import sys
-import tempfile
 from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator, Callable
 
 from marimo import _loggers
 from marimo._dependencies.dependencies import DependencyManager
+from marimo._environments import script_metadata
+from marimo._environments.uv import (
+    UvCommandError,
+    find_uv_bin,
+    uv,
+)
+from marimo._runtime.packages._micropip_streaming import (
+    stream_transaction_install,
+)
 from marimo._runtime.packages.module_name_to_pypi_name import (
     module_name_to_pypi_name,
 )
@@ -25,7 +37,6 @@ from marimo._runtime.packages.utils import (
     split_packages,
 )
 from marimo._utils.platform import is_pyodide
-from marimo._utils.uv import find_uv_bin
 from marimo._utils.uv_tree import DependencyTreeNode, parse_uv_tree
 from marimo._utils.versions import (
     extract_extras,
@@ -245,6 +256,63 @@ class MicropipPackageManager(PypiPackageManager):
                 log_callback(f"Failed to install {package}: {e}\n")
             return False
 
+    async def stream_install(
+        self,
+        packages: list[str],
+        *,
+        versions: dict[str, str | None] | None = None,
+        index_urls: list[str] | None = None,
+        log_callback_factory: Callable[[str], LogCallback] | None = None,
+    ) -> AsyncIterator[tuple[str, bool]]:
+        """Batch-install via micropip Transaction internals, streaming progress.
+
+        Wraps `stream_transaction_install` with marimo bookkeeping
+        (`_attempted_packages`) and log-callback glue.  Falls back to the
+        base sequential path if micropip's internal API has shifted.
+        """
+        assert is_pyodide()
+
+        if log_callback_factory:
+            for pkg in packages:
+                log_callback_factory(pkg)(f"Resolving {pkg}...\n")
+
+        yielded: set[str] = set()
+        try:
+            async for pkg, success in stream_transaction_install(
+                packages,
+                versions=versions,
+                index_urls=index_urls,
+            ):
+                # Mark only as the engine resolves each package — if the
+                # engine raises before any yields, the fallback path needs
+                # to start clean (it will mark via `install()`).
+                self._attempted_packages.add(pkg)
+                yielded.add(pkg)
+                if log_callback_factory:
+                    msg = (
+                        f"Successfully installed {pkg}\n"
+                        if success
+                        else f"Failed to install {pkg}\n"
+                    )
+                    log_callback_factory(pkg)(msg)
+                yield (pkg, success)
+        except (AttributeError, ImportError, TypeError):
+            # micropip's private Transaction API shifted; fall back to the
+            # base sequential path.  Narrow catch: install errors should
+            # surface, only API-shape mismatches trigger the fallback.
+            LOGGER.warning(
+                "micropip Transaction API unavailable, falling back to sequential installs",
+                exc_info=True,
+            )
+            remaining = [p for p in packages if p not in yielded]
+            async for result in super().stream_install(
+                remaining,
+                versions=versions,
+                index_urls=index_urls,
+                log_callback_factory=log_callback_factory,
+            ):
+                yield result
+
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         # The `group` parameter is accepted for interface compatibility, but is ignored.
         del group
@@ -277,6 +345,17 @@ class UvPackageManager(PypiPackageManager):
     docs_url = "https://docs.astral.sh/uv/"
 
     SCRIPT_METADATA_MARKER = "# /// script"
+    _use_project = True
+
+    def __init__(self, python_exe: str | None = None) -> None:
+        super().__init__(python_exe)
+
+    @classmethod
+    def for_pip_install(cls, python_exe: str) -> UvPackageManager:
+        """Target an interpreter without changing its uv project."""
+        manager = cls(python_exe=python_exe)
+        manager._use_project = False
+        return manager
 
     @cached_property
     def _uv_bin(self) -> str:
@@ -346,7 +425,24 @@ class UvPackageManager(PypiPackageManager):
                 log_callback=log_callback,
             )
 
-        # For uv pip install, try with output capture to enable fallback
+        import asyncio
+
+        return await asyncio.to_thread(
+            self._install_with_cache_fallback,
+            package,
+            upgrade=upgrade,
+            group=group,
+            log_callback=log_callback,
+        )
+
+    def _install_with_cache_fallback(
+        self,
+        package: str,
+        *,
+        upgrade: bool,
+        group: str | None,
+        log_callback: LogCallback | None,
+    ) -> bool:
         cmd = self.install_command(package, upgrade=upgrade, group=group)
 
         LOGGER.info(f"Running command: {cmd}")
@@ -388,9 +484,10 @@ class UvPackageManager(PypiPackageManager):
                     "\nRetrying with --no-cache due to cache write permission error...\n"
                 )
 
-            # Retry with --no-cache flag
-            cmd_with_no_cache = cmd + ["--no-cache"]
-            return await self.run(cmd_with_no_cache, log_callback=log_callback)
+            return self._run_sync(
+                cmd + ["--no-cache"],
+                log_callback=log_callback,
+            )
 
         return False
 
@@ -471,99 +568,19 @@ class UvPackageManager(PypiPackageManager):
             if _is_direct_reference(im) or _is_installed(im)
         ]
 
-        if filepath.endswith((".md", ".qmd")):
-            # md and qmd require writing to a faux python file first.
-            return self._process_md_changes(
-                filepath, packages_to_add, packages_to_remove, upgrade=upgrade
-            )
-        return self._process_changes_for_script_metadata(
-            filepath, packages_to_add, packages_to_remove, upgrade=upgrade
-        )
-
-    def _process_md_changes(
-        self,
-        filepath: str,
-        packages_to_add: list[str],
-        packages_to_remove: list[str],
-        upgrade: bool,
-    ) -> bool:
-        from marimo._convert.markdown.to_ir import extract_frontmatter
-        from marimo._utils import yaml
-        from marimo._utils.inline_script_metadata import (
-            get_headers_from_frontmatter,
-        )
-
-        # Get script metadata
-        with open(filepath, encoding="utf-8") as f:
-            frontmatter, body = extract_frontmatter(f.read())
-        headers = get_headers_from_frontmatter(frontmatter)
-        pyproject = bool(headers.get("pyproject", ""))
-        header = (
-            headers.get("pyproject", "")
-            if pyproject
-            else headers.get("header", "")
-        )
-        pyproject = pyproject or not bool(header)
-
-        # Write out and process the header
-        with tempfile.NamedTemporaryFile(
-            mode="w", delete=False, suffix=".py", encoding="utf-8"
-        ) as temp_file:
-            temp_file.write(header)
-            temp_file.flush()
-        # Have UV modify it
-        result = self._process_changes_for_script_metadata(
-            temp_file.name,
-            packages_to_add,
-            packages_to_remove,
-            upgrade=upgrade,
-        )
-        with open(temp_file.name, encoding="utf-8") as f:
-            header = f.read()
-        # Clean up the temporary file
-        os.unlink(temp_file.name)
-
-        # Write back the changes to the original file
-        if pyproject:
-            # Strip '# '
-            # and leading/trailing ///
-            header = "\n".join(
-                [line[2:] for line in header.strip().splitlines()[1:-1]]
-            )
-            frontmatter["pyproject"] = header
-        else:
-            frontmatter["header"] = header
-
-        header = yaml.marimo_compat_dump(
-            frontmatter,
-            sort_keys=False,
-        )
-        document = ["---", header.strip(), "---", body]
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write("\n".join(document))
-
-        return result
-
-    def _process_changes_for_script_metadata(
-        self,
-        filepath: str,
-        packages_to_add: list[str],
-        packages_to_remove: list[str],
-        upgrade: bool,
-    ) -> bool:
         success = True
-        if packages_to_add:
-            cmd = [self._uv_bin, "--quiet", "add", "--script", filepath]
-            if upgrade:
-                cmd.append("--upgrade")
-            cmd.extend(packages_to_add)
-            success &= self._run_sync(cmd, log_callback=None)
-        if packages_to_remove:
-            success &= self._run_sync(
-                [self._uv_bin, "--quiet", "remove", "--script", filepath]
-                + packages_to_remove,
-                log_callback=None,
+        try:
+            script_metadata.add_dependencies(
+                filepath, packages_to_add, upgrade=upgrade
             )
+        except script_metadata.ScriptMetadataError as e:
+            LOGGER.warning("%s", e)
+            success = False
+        try:
+            script_metadata.remove_dependencies(filepath, packages_to_remove)
+        except script_metadata.ScriptMetadataError as e:
+            LOGGER.warning("%s", e)
+            success = False
         return success
 
     def _get_version_map(self) -> VersionMap:
@@ -592,6 +609,9 @@ class UvPackageManager(PypiPackageManager):
         we are in a temporary virtual environment (e.g. `uvx marimo edit` or `uv --with=marimo run marimo edit`)
         or in the currently activated virtual environment (e.g. `uv venv`).
         """
+        if not self._use_project:
+            return False
+
         # Check we have a virtual environment
         venv_path = os.environ.get("VIRTUAL_ENV", None)
         if not venv_path:
@@ -679,18 +699,22 @@ class UvPackageManager(PypiPackageManager):
         if filename is None and not self.is_in_uv_project:
             return None
 
-        tree_cmd = [self._uv_bin, "tree", "--no-dedupe"]
-        if filename:
-            tree_cmd += ["--script", filename]
-
         try:
-            result = run_package_command(
-                tree_cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                check=True,
-            )
+            tree_cmd = ["tree", "--no-dedupe"]
+            if filename is not None:
+                from marimo._environments.script_metadata import (
+                    materialized_for_environment,
+                )
+                from marimo._environments.uv import script_command_env
+
+                with materialized_for_environment(filename) as target:
+                    result = uv(
+                        [*tree_cmd, "--script", target.path],
+                        env=script_command_env(),
+                        cwd=target.directory,
+                    )
+            else:
+                result = uv(tree_cmd)
             tree = parse_uv_tree(result.stdout)
 
             # If in a uv project and the only top-level item is the project itself,
@@ -700,7 +724,7 @@ class UvPackageManager(PypiPackageManager):
 
             return tree
 
-        except subprocess.CalledProcessError:
+        except UvCommandError:
             # Only log error if the script has dependency metadata
             if filename and self._has_script_metadata(filename):
                 LOGGER.error(f"Failed to get dependency tree for {filename}")

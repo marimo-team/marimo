@@ -610,6 +610,10 @@ class checkbox(UIElement[bool, bool]):
         disabled: bool = False,
         on_change: Callable[[bool], None] | None = None,
     ) -> None:
+        if not isinstance(value, bool):
+            raise ValueError(
+                f"Invalid type: `value` must be a bool, but got {type(value)}"
+            )
         super().__init__(
             component_name=checkbox._name,
             initial_value=value,

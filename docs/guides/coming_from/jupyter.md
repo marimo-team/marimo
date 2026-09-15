@@ -3,6 +3,13 @@
 If you're coming from Jupyter, here are a few tips to help you adapt to marimo
 notebooks.
 
+!!! tip "AI-assisted conversion"
+
+    If you use an AI coding agent, the
+    [Jupyter-to-marimo skill](https://github.com/marimo-team/skills/tree/main/skills/jupyter-to-marimo)
+    can perform the conversion and help review dependencies, inputs, reactive
+    execution, and outputs.
+
 ## How marimo runs cells
 
 The biggest difference between marimo and Jupyter is the [execution model](../reactivity.md).

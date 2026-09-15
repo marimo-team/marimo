@@ -13,6 +13,15 @@ marimo export html-wasm notebook.py -o output_dir --mode run
 marimo export html-wasm notebook.py -o output_dir --mode edit
 ```
 
+With `--mode run`, a notebook that uses the slides layout opens as a reveal.js
+deck. The export preserves slide types, fragments, speaker notes, and deck
+settings. Python runs in the browser, so notebook controls remain interactive.
+
+`--mode edit` opens the notebook editor instead of the slides layout. Speaker
+view is not available in WebAssembly HTML exports.
+
+Speaker notes are embedded in the HTML file and readable by anyone who receives it.
+
 The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
 
 Options:
@@ -404,9 +413,13 @@ Any relevant `.html` that gets generated can be run through the [`development.md
 
 ### Island payloads
 
-`MarimoIslandGenerator.render_html(include_payload=True)` and `render_body(include_payload=True)` include a JSON payload. The payload stores each cell's code, rendered output HTML, output MIME type, and display settings.
+Use `render_html(include_payload=True)` or `render_body(include_payload=True)` to include a JSON payload. For custom layouts, include `render_payload_script()` alongside the rendered islands.
 
-The islands runtime uses this payload to hydrate the page. The DOM still provides the visible island slots, and the payload provides the runtime cell code and output metadata.
+The payload supplies cell code, output HTML, MIME types, and display settings for the island elements. For notebooks loaded with `from_file`, it also carries declared dependencies. Pyodide evaluates dependency markers in its own Python environment and installs applicable packages before it runs the cells.
+
+Declare PyPI packages such as `cowsay` in the notebook's PEP 723 block. Imports alone do not add PyPI packages to the payload.
+
+Markdown and QMD notebooks can declare dependencies in the `pyproject` or `header` frontmatter field. When both fields define metadata, `pyproject` takes precedence.
 
 An emitted payload looks like this. HTML-sensitive characters inside JSON strings are escaped before marimo writes the script tag.
 

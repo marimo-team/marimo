@@ -1,7 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-import mimetypes
+import asyncio
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -17,6 +17,7 @@ from marimo._server.files.os_file_system import (
     OSFileSystem,
     UploadTooLargeError,
 )
+from marimo._server.files.roots import resolve_file_roots
 from marimo._server.models.files import (
     FileCopyRequest,
     FileCopyResponse,
@@ -31,6 +32,7 @@ from marimo._server.models.files import (
     FileMoveRequest,
     FileMoveResponse,
     FileOpenRequest,
+    FileRootsResponse,
     FileSearchRequest,
     FileSearchResponse,
     FileUpdateRequest,
@@ -43,6 +45,7 @@ from marimo._server.models.models import (
 )
 from marimo._server.router import APIRouter
 from marimo._utils.http import HTTPException as MarimoHTTPException
+from marimo._utils.mime import guess_mime_type
 
 if TYPE_CHECKING:
     from starlette.requests import Request
@@ -76,6 +79,28 @@ router = APIRouter()
 file_system = OSFileSystem()
 
 
+@router.get("/roots")
+@requires("edit")
+def file_roots(*, request: Request) -> FileRootsResponse:
+    """
+    responses:
+        200:
+            description: List roots shown in the file browser
+            content:
+                application/json:
+                    schema:
+                        $ref: "#/components/schemas/FileRootsResponse"
+    """
+    app_state = AppState(request)
+    primary_root = (
+        app_state.session_manager.workspace.directory or file_system.get_root()
+    )
+    config = app_state.config_manager.get_config().get("file_browser")
+    return FileRootsResponse(
+        roots=resolve_file_roots(primary_root, config),
+    )
+
+
 @router.post("/list_files")
 @requires("edit")
 async def list_files(
@@ -103,7 +128,7 @@ async def list_files(
     # for the browser.
     directory = app_state.session_manager.workspace.directory
     root = body.path or directory or file_system.get_root()
-    files = file_system.list_files(root)
+    files = await asyncio.to_thread(file_system.list_files, root)
     return FileListResponse(files=files, root=root)
 
 
@@ -189,9 +214,7 @@ def download_file(
     if not file_path.is_file():
         raise MarimoHTTPException(status_code=404, detail="File not found")
 
-    media_type = (
-        mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    )
+    media_type = guess_mime_type(file_path.name) or "application/octet-stream"
     return FileResponse(
         file_path,
         media_type=media_type,
@@ -424,11 +447,13 @@ async def search_files(
                         $ref: "#/components/schemas/FileSearchResponse"
     """
     body = await parse_request(request, cls=FileSearchRequest)
-    files = file_system.search(
+    files = await asyncio.to_thread(
+        file_system.search,
         query=body.query,
         path=body.path,
         include_directories=body.include_directories,
         include_files=body.include_files,
+        include_hidden=body.include_hidden,
         depth=body.depth,
         limit=body.limit,
     )

@@ -5,7 +5,7 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ColumnExplorerPanel } from "../column-explorer-panel/column-explorer";
@@ -25,6 +25,7 @@ const FIELD_TYPES: FieldTypesWithExternalType = [
 ];
 
 type Row = Record<string, unknown>;
+const EMPTY_HIDDEN_COLUMNS: readonly string[] = [];
 
 const TEST_COLUMNS: ColumnDef<Row>[] = [
   { id: "customer_name", accessorKey: "customer_name" },
@@ -34,19 +35,19 @@ const TEST_COLUMNS: ColumnDef<Row>[] = [
 
 interface HarnessProps {
   totalColumns?: number;
-  initiallyHidden?: string[];
+  initiallyHidden?: readonly string[];
 }
 
 function PanelHarness({
   totalColumns = 3,
-  initiallyHidden = [],
+  initiallyHidden = EMPTY_HIDDEN_COLUMNS,
 }: HarnessProps) {
   const table = useReactTable<Row>({
     data: [],
     columns: TEST_COLUMNS,
     getCoreRowModel: getCoreRowModel(),
     locale: "en-US",
-    state: {
+    initialState: {
       columnVisibility: Object.fromEntries(
         initiallyHidden.map((id) => [id, false]),
       ),
@@ -74,6 +75,20 @@ function renderPanel(props?: HarnessProps) {
 
 function getSearchInput() {
   return screen.getByPlaceholderText("Search columns...");
+}
+
+function getColumnRow(columnName: string): HTMLElement {
+  const row = screen.getByText(columnName).closest('[role="option"]');
+  if (!row) {
+    throw new Error(`No row for column ${columnName}`);
+  }
+  return row as HTMLElement;
+}
+
+function getShowOnlyButton(columnName: string): HTMLElement {
+  return within(getColumnRow(columnName)).getByRole("button", {
+    name: "Show only this column",
+  });
 }
 
 describe("ColumnExplorerPanel search", () => {
@@ -149,5 +164,50 @@ describe("ColumnExplorerPanel visibility actions", () => {
     renderPanel({ initiallyHidden: ["cust_age"] });
     expect(showAll()).toBeEnabled();
     expect(hideAll()).toBeEnabled();
+  });
+
+  it("show-only icon isolates one column", () => {
+    renderPanel();
+    fireEvent.click(getShowOnlyButton("customer_name"));
+
+    expect(
+      within(getColumnRow("customer_name")).getByRole("button", {
+        name: "Hide column",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(getColumnRow("cust_age")).getByRole("button", {
+        name: "Show column",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(getColumnRow("order_total")).getByRole("button", {
+        name: "Show column",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("disables show-only icon when the column is already alone", () => {
+    renderPanel({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    expect(getShowOnlyButton("customer_name")).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+
+  it("disabled show-only icon does not toggle explorer row expansion", () => {
+    renderPanel({
+      initiallyHidden: ["cust_age", "order_total"],
+    });
+    const row = getColumnRow("customer_name");
+    expect(row.querySelector(".lucide-chevron-down")).not.toBeNull();
+
+    const button = getShowOnlyButton("customer_name");
+    fireEvent.pointerDown(button, { pointerId: 1, bubbles: true });
+    fireEvent.click(button, { bubbles: true });
+
+    expect(row.querySelector(".lucide-chevron-down")).not.toBeNull();
   });
 });

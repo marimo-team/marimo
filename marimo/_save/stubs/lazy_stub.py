@@ -184,12 +184,14 @@ def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
     # type_hint is the fq class name written by to_item() at save time.
     # Using it (rather than schema metadata inspection) is explicit and
     # version-stable across pyarrow/polars/pandas releases.
-    DependencyManager.pyarrow.require("to load cached Arrow IPC blobs.")
-    import pyarrow as pa
-
-    reader = pa.ipc.open_file(io.BytesIO(data))
-    table = reader.read_all()
     if type_hint and type_hint.startswith("pandas."):
+        DependencyManager.pyarrow.require(
+            "to load cached pandas Arrow IPC blobs."
+        )
+        import pyarrow as pa
+
+        reader = pa.ipc.open_file(io.BytesIO(data))
+        table = reader.read_all()
         df = table.to_pandas()
         if type_hint in ("pandas.Series", "pandas.core.series.Series"):
             # Stored as a single-column DataFrame; recover as a Series.
@@ -197,12 +199,10 @@ def _arrow_load(data: bytes, type_hint: str | None = None) -> Any:
         return df
     import polars as pl
 
-    result = pl.from_arrow(table)
+    result = pl.read_ipc(io.BytesIO(data))
     if type_hint == "polars.series.series.Series":
         # Stored as a single-column DataFrame; recover as a Series.
-        if isinstance(result, pl.DataFrame):
-            return result.to_series(0)
-        return result
+        return result.to_series(0)
     return result
 
 
@@ -265,27 +265,15 @@ def _pandas_to_arrow_ipc(df: Any) -> bytes:
 
 
 def _arrow_dump(obj: Any) -> bytes:
-    # Duck-type dispatch:
-    #   polars DataFrame  → write_ipc()
-    #   pandas DataFrame  → Arrow IPC via pyarrow.ipc
-    #   Series (either)   → to_frame() first, then the appropriate DataFrame method
-    # Fall back to pickle when pyarrow is absent so the cache write never fails.
-    if not DependencyManager.pyarrow.has():
-        return pickle.dumps(obj)
-    if hasattr(obj, "write_ipc"):  # polars DataFrame
-        buf = io.BytesIO()
-        obj.write_ipc(buf)
-        return buf.getvalue()
-    if hasattr(obj, "to_feather"):  # pandas DataFrame
-        return _pandas_to_arrow_ipc(obj)
-    # Series — promote to single-column DataFrame, then detect library
-    frame = obj.to_frame()
-    if hasattr(frame, "write_ipc"):  # polars Series → polars DataFrame
-        buf = io.BytesIO()
-        frame.write_ipc(buf)
-        return buf.getvalue()
-    # pandas Series → pandas DataFrame
-    return _pandas_to_arrow_ipc(frame)
+    # Inspect class methods because pandas columns also appear as attributes.
+    if not callable(getattr(type(obj), "write_ipc", None)):
+        if callable(getattr(type(obj), "to_frame", None)):
+            obj = obj.to_frame()
+        if not callable(getattr(type(obj), "write_ipc", None)):
+            return _pandas_to_arrow_ipc(obj)
+    buf = io.BytesIO()
+    obj.write_ipc(buf)
+    return buf.getvalue()
 
 
 def _pt_dump(obj: Any) -> bytes:

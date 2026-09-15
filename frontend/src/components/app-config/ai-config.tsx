@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { useAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import {
   BotIcon,
   BrainIcon,
@@ -43,6 +43,7 @@ import {
 } from "@/core/ai/ids/ids";
 import { type AiModel, AiModelRegistry } from "@/core/ai/model-registry";
 import { CopilotConfig } from "@/core/codemirror/copilot/copilot-config";
+import { resolvedMarimoConfigAtom } from "@/core/config/config";
 import { DEFAULT_AI_MODEL, type UserConfig } from "@/core/config/config-schema";
 import { isWasm } from "@/core/wasm/utils";
 import { cn } from "@/utils/cn";
@@ -53,6 +54,10 @@ import {
   AiProviderIcon,
   type AiProviderIconProps,
 } from "../ai/ai-provider-icon";
+import {
+  listConfiguredProviders,
+  listModelsForAiSettings,
+} from "../ai/ai-utils";
 import { getTagColour } from "../ai/display-helpers";
 import {
   Accordion,
@@ -60,7 +65,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "../ui/accordion";
-import { Alert, AlertDescription } from "../ui/alert";
 import { Button } from "../ui/button";
 import { Checkbox } from "../ui/checkbox";
 import { DropdownMenuSeparator } from "../ui/dropdown-menu";
@@ -575,6 +579,11 @@ export const AiCodeCompletionConfig: React.FC<AiConfigProps> = ({
   );
 };
 
+function useAllowProviderConfig(): boolean {
+  const ai = useAtomValue(resolvedMarimoConfigAtom).ai;
+  return ai?.allow_provider_config !== false;
+}
+
 const AccordionFormItem = ({
   title,
   triggerClassName,
@@ -867,16 +876,54 @@ export const CustomProvidersConfig: React.FC<AiConfigProps> = ({
   );
 };
 
+const LockedProvidersList: React.FC = () => {
+  const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+  const providers = listConfiguredProviders(resolvedAi);
+
+  return (
+    <SettingGroup>
+      <p className="text-sm text-muted-secondary">
+        AI providers are configured for this environment. You cannot add your
+        own keys or custom providers.
+      </p>
+      {providers.length === 0 ? (
+        <p className="text-sm text-muted-foreground">
+          No AI providers are configured.
+        </p>
+      ) : (
+        <div className="flex flex-col divide-y border rounded-md">
+          {providers.map((provider) => (
+            <div key={provider} className="flex items-center gap-2 px-3 py-2">
+              <AiProviderIcon provider={provider} className="h-4 w-4" />
+              <span className="text-sm font-medium">
+                {getProviderLabel(provider)}
+              </span>
+              <span className="ml-auto px-1 rounded bg-muted text-xs font-medium border">
+                Configured
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </SettingGroup>
+  );
+};
+
 export const AiProvidersConfig: React.FC<AiConfigProps> = ({
   form,
   config,
   onSubmit,
 }) => {
   const isWasmRuntime = isWasm();
+  const allowProviderConfig = useAllowProviderConfig();
 
   const hasValue = (name: FieldPath<UserConfig>) => {
     return !!form.getValues(name);
   };
+
+  if (!allowProviderConfig) {
+    return <LockedProvidersList />;
+  }
 
   return (
     <SettingGroup>
@@ -918,6 +965,39 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             placeholder="https://api.openai.com/v1"
             testId="ai-base-url-input"
             disabled={isWasmRuntime}
+          />
+        </AccordionFormItem>
+
+        <AccordionFormItem
+          title="GitHub Copilot"
+          provider="github"
+          isConfigured={hasValue("ai.github.api_key")}
+        >
+          <ApiKey
+            form={form}
+            config={config}
+            name="ai.github.api_key"
+            placeholder="gho_..."
+            testId="ai-github-copilot-api-key-input"
+            description={
+              <>
+                Your GitHub OAuth token. Run{" "}
+                <Kbd className="inline">gh auth token</Kbd> after you sign in
+                with the GitHub CLI. A GitHub Copilot subscription is required.
+                See the{" "}
+                <ExternalLink href="https://pydantic.dev/docs/ai/models/github-copilot/">
+                  authentication guide
+                </ExternalLink>
+                .
+              </>
+            }
+          />
+          <BaseUrl
+            form={form}
+            config={config}
+            name="ai.github.base_url"
+            placeholder="https://api.githubcopilot.com"
+            testId="ai-github-copilot-base-url-input"
           />
         </AccordionFormItem>
 
@@ -978,42 +1058,6 @@ export const AiProvidersConfig: React.FC<AiConfigProps> = ({
             name="ai.ollama.base_url"
             placeholder="http://localhost:11434/v1"
             testId="ollama-base-url-input"
-          />
-        </AccordionFormItem>
-
-        <AccordionFormItem
-          title="GitHub"
-          provider="github"
-          isConfigured={hasValue("ai.github.api_key")}
-        >
-          <Alert variant="warning" className="py-1.5 px-3 text-xs">
-            <AlertDescription>
-              Free tier models have low token limits which can cause errors with
-              larger prompts.{" "}
-              <ExternalLink href="https://docs.github.com/en/github-models/prototyping-with-ai-models#rate-limits">
-                Learn more
-              </ExternalLink>
-            </AlertDescription>
-          </Alert>
-          <ApiKey
-            form={form}
-            config={config}
-            name="ai.github.api_key"
-            placeholder="gho_..."
-            testId="ai-github-api-key-input"
-            description={
-              <>
-                Your GitHub API token from{" "}
-                <Kbd className="inline">gh auth token</Kbd>.
-              </>
-            }
-          />
-          <BaseUrl
-            form={form}
-            config={config}
-            name="ai.github.base_url"
-            placeholder="https://models.github.ai/inference"
-            testId="ai-github-base-url-input"
           />
         </AccordionFormItem>
 
@@ -1508,6 +1552,8 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   form,
   onSubmit,
 }) => {
+  const resolvedAi = useAtomValue(resolvedMarimoConfigAtom).ai;
+
   const customModels = useWatch({
     control: form.control,
     name: "ai.models.custom_models",
@@ -1518,10 +1564,14 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
     name: "ai.custom_providers",
   }) as Record<string, CustomProviderConfig> | undefined;
 
-  const customProviderNames = useMemo(
-    () => Object.keys(customProviders || {}),
-    [customProviders],
-  );
+  const customProviderNames = useMemo(() => {
+    return [
+      ...new Set([
+        ...Object.keys(customProviders || {}),
+        ...Object.keys(resolvedAi?.custom_providers || {}),
+      ]),
+    ];
+  }, [customProviders, resolvedAi]);
 
   const aiModelRegistry = useMemo(
     () =>
@@ -1538,7 +1588,10 @@ export const AiModelDisplayConfig: React.FC<AiConfigProps> = ({
   }) as QualifiedModelId[];
   const currentDisplayedModelsSet = new Set(currentDisplayedModels);
   const modelsByProvider = aiModelRegistry.getGroupedModelsByProvider();
-  const listModelsByProvider = aiModelRegistry.getListModelsByProvider();
+  const listModelsByProvider = listModelsForAiSettings(
+    aiModelRegistry.getListModelsByProvider(),
+    resolvedAi,
+  );
 
   const toggleModelDisplay = useEvent((modelId: QualifiedModelId) => {
     const newModels = currentDisplayedModelsSet.has(modelId)
@@ -1676,6 +1729,9 @@ export const AddModelForm: React.FC<{
   };
 
   const providerClassName = "w-40 truncate";
+  const knownProviders = KNOWN_PROVIDERS.filter(
+    (p) => p !== "marimo" && !customProviderNames.includes(p),
+  );
 
   const providerSelect = (
     <div className="flex flex-col gap-2">
@@ -1718,14 +1774,14 @@ export const AddModelForm: React.FC<{
                       </div>
                     </SelectItem>
                   ))}
-                  <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
-                    Built-in Providers
-                  </p>
+                  {knownProviders.length > 0 && (
+                    <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                      Built-in Providers
+                    </p>
+                  )}
                 </>
               )}
-              {KNOWN_PROVIDERS.filter(
-                (p) => p !== "marimo" && !customProviderNames.includes(p),
-              ).map((p) => (
+              {knownProviders.map((p) => (
                 <SelectItem key={p} value={p}>
                   <div className="flex items-center gap-2">
                     <AiProviderIcon provider={p} className="h-4 w-4" />
@@ -1733,18 +1789,20 @@ export const AddModelForm: React.FC<{
                   </div>
                 </SelectItem>
               ))}
-              <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
-                Other
-              </p>
-              <SelectItem value="custom">
-                <div className="flex items-center gap-2">
-                  <AiProviderIcon
-                    provider="openai-compatible"
-                    className="h-4 w-4"
-                  />
-                  <span>Enter provider name</span>
-                </div>
-              </SelectItem>
+              <>
+                <p className="px-2 py-1 text-xs text-muted-secondary font-medium mt-1">
+                  Other
+                </p>
+                <SelectItem value="custom">
+                  <div className="flex items-center gap-2">
+                    <AiProviderIcon
+                      provider="openai-compatible"
+                      className="h-4 w-4"
+                    />
+                    <span>Enter provider name</span>
+                  </div>
+                </SelectItem>
+              </>
             </SelectGroup>
           </SelectContent>
         </Select>

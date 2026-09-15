@@ -41,6 +41,7 @@ const DATA_TYPE_COLORS: Record<DataType, string> = {
   number: "bg-(--purple-4) text-(--purple-11)",
   integer: "bg-(--purple-4) text-(--purple-11)",
   string: "bg-(--blue-4) text-(--blue-11)",
+  geometry: "bg-(--cyan-4) text-(--cyan-11)",
   unknown: "bg-(--slate-4) text-(--slate-11)",
 };
 

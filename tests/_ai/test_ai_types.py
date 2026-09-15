@@ -526,6 +526,11 @@ class TestChatMessagePostInit:
 class TestChatMessageDict:
     """Tests for ChatMessage serialization via dict()."""
 
+    def test_attachment_infers_content_type_from_data_url(self):
+        attachment = ChatAttachment(url="data:image/png;base64,AAAA")
+
+        assert attachment.content_type == "image/png"
+
     def test_parts_and_attachments_serialized_to_dict(self):
         """Parts and attachments are converted to dicts via asdict."""
         message = ChatMessage(

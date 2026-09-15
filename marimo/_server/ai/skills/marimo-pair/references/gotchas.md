@@ -11,10 +11,10 @@ This matters when building notebooks programmatically. A common mistake:
 
 ```python
 # Cell A
-_df = pd.DataFrame(results)   # _df is private to this cell
+_df = pd.DataFrame(results)  # _df is private to this cell
 
 # Cell B — FAILS
-mo.ui.table(_df)               # NameError: name '_df' is not defined
+mo.ui.table(_df)  # NameError: name '_df' is not defined
 ```
 
 **Fix:** Either merge both into one cell, or use a non-private name (`df`).
@@ -30,7 +30,7 @@ incrementally — a second cell reassigns `df`, `results`, `data`, etc.
 df = pd.read_csv("data.csv")
 
 # Cell B — FAILS: df already defined in Cell A
-df = df.dropna()               # Multiply-defined names: df
+df = df.dropna()  # Multiply-defined names: df
 ```
 
 **Fix — pick one:**
@@ -47,8 +47,11 @@ The same single-definition rule applies to imports: a public name (like `pd`)
 can only be defined in one cell. If two cells both `import pandas as pd`, you
 get a `Multiply-defined names` error at validation.
 
-**Fix:** Use a `_` prefix on the second import (`import pandas as _pd`) or
-consolidate imports into a shared cell.
+**Fix:** Reuse the existing import — reference `pd` directly, or edit the
+owning cell (`ctx.edit_cell`) if the import belongs there instead. If several
+cells need the import, consolidate it into the setup cell or a shared
+import-only cell. Load the `notebook-improvements` capability for setup-cell
+guidance.
 
 ## `inspect.getsource()` on methods is indented
 
@@ -62,6 +65,7 @@ tree = ast.parse(src)  # IndentationError: unexpected indent
 
 # FIX
 import textwrap
+
 src = textwrap.dedent(inspect.getsource(SomeClass.some_method))
 tree = ast.parse(src)
 ```
@@ -84,6 +88,7 @@ persist in the notebook.
 ```python
 import pyarrow as _pa
 import polars.dataframe.frame as _frame_mod
+
 _frame_mod.pa = _pa
 ```
 

@@ -11,7 +11,7 @@ from marimo._plugins.stateless.lazy import lazy as lazy_ui
 from marimo._plugins.ui._core.ui_element import UIElement
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
 
 @mddoc
@@ -54,7 +54,7 @@ class tabs(UIElement[str, str]):
         value (str): The name of the selected tab.
 
     Args:
-        tabs (dict[str, object]): A dictionary of tab names to tab content; strings
+        tabs (Mapping[str, object]): A mapping of tab names to tab content; strings
             are interpreted as markdown.
         value (str, optional): The name of the tab to open. Defaults to the first tab.
         lazy (bool, optional): Whether to lazily load the tab content.
@@ -71,7 +71,7 @@ class tabs(UIElement[str, str]):
 
     def __init__(
         self,
-        tabs: dict[str, object],
+        tabs: Mapping[str, object],
         value: str | None = None,
         lazy: bool = False,
         *,

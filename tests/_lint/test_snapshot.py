@@ -260,6 +260,22 @@ def test_branch_expression_snapshot():
     snapshot("branch_expression_errors.txt", "\n".join(error_output))
 
 
+def test_private_import_alias_snapshot():
+    """Test snapshot for private import alias error."""
+    file = "tests/_lint/test_files/private_import_alias.py"
+    with open(file) as f:
+        code = f.read()
+
+    notebook = parse_notebook(code, filepath=file)
+    errors = lint_notebook(notebook)
+
+    error_output = []
+    for error in errors:
+        error_output.append(error.format())
+
+    snapshot("private_import_alias_errors.txt", "\n".join(error_output))
+
+
 def test_reusable_definition_order_snapshot():
     """Test snapshot for reusable definition ordering error."""
     file = "tests/_lint/test_files/reusable_definition_order.py"

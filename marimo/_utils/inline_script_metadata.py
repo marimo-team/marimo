@@ -10,9 +10,9 @@ from typing import TYPE_CHECKING, Any, cast
 from marimo import _loggers
 from marimo._cli.files.file_path import FileContentReader
 from marimo._cli.print import echo
+from marimo._environments import script_metadata
 from marimo._utils.code import hash_code
 from marimo._utils.paths import normalize_path
-from marimo._utils.scripts import read_pyproject_from_script
 
 if TYPE_CHECKING:
     from marimo._utils.marimo_path import MarimoPath
@@ -43,7 +43,7 @@ class PyProjectReader:
     @staticmethod
     def from_script(script: str) -> PyProjectReader:
         return PyProjectReader(
-            project=read_pyproject_from_script(script) or {},
+            project=script_metadata.loads(script) or {},
             config_path=None,
             name=None,
         )
@@ -101,7 +101,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
     try:
         contents, _ = FileContentReader().read_file(name)
         if name.endswith(".py"):
-            return read_pyproject_from_script(contents)
+            return script_metadata.loads(contents)
 
         if not (name.endswith((".md", ".qmd"))):
             raise ValueError(
@@ -119,7 +119,7 @@ def _get_pyproject_from_filename(name: str) -> dict[str, Any] | None:
                     "Both header and pyproject provide dependencies. "
                     "Preferring pyproject."
                 )
-        return read_pyproject_from_script(header)
+        return script_metadata.loads(header)
     except FileNotFoundError:
         return None
     except Exception:
@@ -281,13 +281,7 @@ def with_pinned_dependencies(
     rewritten. If the script has no PEP 723 block, `code` is returned
     unchanged.
     """
-    from marimo._utils.scripts import (
-        REGEX,
-        read_pyproject_from_script,
-        write_pyproject_to_script,
-    )
-
-    project = read_pyproject_from_script(code)
+    project = script_metadata.loads(code)
     if project is None:
         return code
 
@@ -309,8 +303,7 @@ def with_pinned_dependencies(
         marimo_tool["export"] = export_section
     export_section["lock_kind"] = lock_kind
 
-    new_block = write_pyproject_to_script(project)
-    return re.sub(REGEX, new_block, code, count=1)
+    return script_metadata.replace_block(code, script_metadata.dumps(project))
 
 
 def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
@@ -411,15 +404,13 @@ def get_headers_from_markdown(contents: str) -> dict[str, str]:
 def get_headers_from_frontmatter(
     frontmatter: dict[str, Any],
 ) -> dict[str, str]:
-    from marimo._utils.scripts import wrap_script_metadata
-
     headers = {"pyproject": "", "header": ""}
 
     pyproject = frontmatter.get("pyproject", "")
     if pyproject:
         if not pyproject.startswith("#"):
             # Wrap raw TOML content in PEP 723 format
-            pyproject = wrap_script_metadata(pyproject)
+            pyproject = script_metadata.wrap_block(pyproject)
         headers["pyproject"] = pyproject
     headers["header"] = frontmatter.get("header", "")
     return headers

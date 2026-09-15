@@ -32,17 +32,13 @@ from typing import TYPE_CHECKING
 from urllib.parse import quote, unquote, urlparse
 from urllib.request import url2pathname
 
+from marimo._environments import script_metadata
 from marimo._export.local_modules import (
     LocalModule,
     LocalWheelError,
     module_python_files,
 )
 from marimo._utils.inline_script_metadata import PyProjectReader
-from marimo._utils.scripts import (
-    REGEX,
-    read_pyproject_from_script,
-    write_pyproject_to_script,
-)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator, Sequence
@@ -109,9 +105,7 @@ def resolve_metadata_wheel_dependencies(
     """
     if not file_path.is_python():
         return ()
-    project = read_pyproject_from_script(
-        file_path.path.read_text(encoding="utf-8")
-    )
+    project = script_metadata.loads(file_path.path.read_text(encoding="utf-8"))
     return (
         ()
         if project is None
@@ -147,7 +141,7 @@ def with_wheel_dependencies(
     if not wheel_dependencies:
         return code
 
-    project = read_pyproject_from_script(code) or {}
+    project = script_metadata.loads(code) or {}
     dependencies = project.get("dependencies")
     if not isinstance(dependencies, list):
         dependencies = []
@@ -182,10 +176,10 @@ def with_wheel_dependencies(
     project["dependencies"] = dependencies
     _remove_uv_sources(project, set(replacements))
 
-    metadata = write_pyproject_to_script(project)
-    if read_pyproject_from_script(code) is None:
+    metadata = script_metadata.dumps(project)
+    if script_metadata.loads(code) is None:
         return f"{metadata}\n\n{code}"
-    return re.sub(REGEX, metadata, code, count=1)
+    return script_metadata.replace_block(code, metadata)
 
 
 @contextmanager

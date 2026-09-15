@@ -9,6 +9,9 @@ from starlette.authentication import requires
 from marimo._config.settings import GLOBAL_SETTINGS
 from marimo._runtime.packages.package_manager import PackageManager
 from marimo._runtime.packages.package_managers import create_package_manager
+from marimo._runtime.packages.sandbox_package_manager import (
+    SandboxPackageManager,
+)
 from marimo._runtime.packages.utils import split_packages
 from marimo._server.api.deps import AppState
 from marimo._server.api.utils import parse_request
@@ -16,8 +19,11 @@ from marimo._server.models.packages import (
     AddPackageRequest,
     DependencyTreeResponse,
     ListPackagesResponse,
+    PackageInstallationContext,
+    PackageManagerContext,
     PackageOperationResponse,
     RemovePackageRequest,
+    SandboxPackageContext,
 )
 from marimo._server.router import APIRouter
 
@@ -63,7 +69,11 @@ async def add_package(request: Request) -> PackageOperationResponse:
 
     # Update the script metadata
     filename = _get_filename(request)
-    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+    if (
+        success
+        and filename is not None
+        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    ):
         await asyncio.to_thread(
             package_manager.update_notebook_script_metadata,
             filepath=filename,
@@ -74,8 +84,12 @@ async def add_package(request: Request) -> PackageOperationResponse:
     if success:
         return PackageOperationResponse.of_success()
 
+    if package_manager.restart_required:
+        return PackageOperationResponse(success=False, restart_required=True)
+
     return PackageOperationResponse.of_failure(
-        f"Failed to install {body.package}. See terminal for error logs."
+        _failure_message(package_manager)
+        or f"Failed to install {body.package}. See terminal for error logs."
     )
 
 
@@ -112,7 +126,11 @@ async def remove_package(request: Request) -> PackageOperationResponse:
 
     # Update the script metadata
     filename = _get_filename(request)
-    if filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA:
+    if (
+        success
+        and filename is not None
+        and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+    ):
         await asyncio.to_thread(
             package_manager.update_notebook_script_metadata,
             filepath=filename,
@@ -123,9 +141,19 @@ async def remove_package(request: Request) -> PackageOperationResponse:
     if success:
         return PackageOperationResponse.of_success()
 
+    if package_manager.restart_required:
+        return PackageOperationResponse(success=False, restart_required=True)
+
     return PackageOperationResponse.of_failure(
-        f"Failed to uninstall {body.package}. See terminal for error logs."
+        _failure_message(package_manager)
+        or f"Failed to uninstall {body.package}. See terminal for error logs."
     )
+
+
+def _failure_message(package_manager: PackageManager) -> str | None:
+    if isinstance(package_manager, SandboxPackageManager):
+        return package_manager.last_error
+    return None
 
 
 @router.get("/list")
@@ -163,12 +191,11 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
                         $ref: "#/components/schemas/DependencyTreeResponse"
     """
     package_manager = _get_package_manager(request)
+    context = _get_package_installation_context(package_manager)
 
     filename = _get_filename(request)
-    # TODO(manzt): Same as check below when installing packages. If we are
-    # managing script metadata, we are in sandbox mode.
     is_sandbox = (
-        filename is not None and GLOBAL_SETTINGS.MANAGE_SCRIPT_METADATA
+        filename is not None and GLOBAL_SETTINGS.SANDBOX_MODE is not None
     )
     if is_sandbox:
         tree = await asyncio.to_thread(
@@ -176,7 +203,7 @@ async def dependency_tree(request: Request) -> DependencyTreeResponse:
         )
     else:
         tree = await asyncio.to_thread(package_manager.dependency_tree)
-    return DependencyTreeResponse(tree=tree)
+    return DependencyTreeResponse(tree=tree, context=context)
 
 
 def _get_package_manager(request: Request) -> PackageManager:
@@ -190,17 +217,43 @@ def _get_package_manager(request: Request) -> PackageManager:
 
     # Check if IPC mode - use kernel's venv Python
     python_exe: str | None = None
+    script_path: str | None = None
+    sandbox_environment = None
     from marimo._session.managers.ipc import IPCKernelManagerImpl
     from marimo._session.session import SessionImpl
 
     if isinstance(session, SessionImpl):
+        from marimo._environments.sandbox import NotebookSandbox
+
+        sandbox = session.notebook_sandbox
+        if isinstance(sandbox, NotebookSandbox):
+            return SandboxPackageManager(sandbox)
+
         kernel_manager = session._kernel_manager
         if isinstance(kernel_manager, IPCKernelManagerImpl):
             python_exe = kernel_manager.venv_python
+            if kernel_manager.script_environment is not None:
+                # The kernel runs in the notebook's script environment;
+                # package changes edit the manifest and synchronize it.
+                script_path = session.app_file_manager.filename
+                sandbox_environment = kernel_manager.script_environment
+        elif GLOBAL_SETTINGS.SANDBOX_MODE == "single":
+            script_path = session.app_file_manager.filename
 
     return create_package_manager(
-        config_manager.package_manager, python_exe=python_exe
+        config_manager.package_manager,
+        python_exe=python_exe,
+        script_path=script_path,
+        sandbox_environment=sandbox_environment,
     )
+
+
+def _get_package_installation_context(
+    package_manager: PackageManager,
+) -> PackageInstallationContext:
+    if isinstance(package_manager, SandboxPackageManager):
+        return SandboxPackageContext(backend=package_manager.backend)
+    return PackageManagerContext(name=package_manager.name)
 
 
 def _get_filename(request: Request) -> str | None:

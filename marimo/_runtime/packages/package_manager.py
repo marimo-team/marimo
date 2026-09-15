@@ -4,7 +4,7 @@ from __future__ import annotations
 import abc
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import TYPE_CHECKING
 
 import msgspec
@@ -54,6 +54,11 @@ class PackageManager(abc.ABC):
 
     def __init__(self) -> None:
         self._attempted_packages: set[str] = set()
+
+    @property
+    def restart_required(self) -> bool:
+        """Whether the last mutation was saved but needs a kernel restart."""
+        return False
 
     @abc.abstractmethod
     def module_to_package(self, module_name: str) -> str:
@@ -128,6 +133,37 @@ class PackageManager(abc.ABC):
             log_callback=log_callback,
         )
 
+    async def stream_install(
+        self,
+        packages: list[str],
+        *,
+        versions: dict[str, str | None] | None = None,
+        index_urls: list[str] | None = None,
+        log_callback_factory: Callable[[str], LogCallback] | None = None,
+    ) -> AsyncIterator[tuple[str, bool]]:
+        """Install packages and yield (name, success) as each completes.
+
+        The default implementation installs sequentially. Subclasses (e.g.
+        `MicropipPackageManager`) may override to batch installs and stream
+        real progress. `index_urls` is honored by backends that support it
+        (currently only micropip); other backends ignore it.
+        """
+        # `index_urls` honored by overriding subclasses (micropip);
+        # the sequential default ignores it.
+        del index_urls
+        for pkg in packages:
+            if self.attempted_to_install(package=pkg):
+                yield (pkg, False)
+                continue
+            version = (versions or {}).get(pkg)
+            cb = log_callback_factory(pkg) if log_callback_factory else None
+            success = await self.install(
+                pkg,
+                version=version,
+                log_callback=cb,
+            )
+            yield (pkg, success)
+
     @abc.abstractmethod
     async def uninstall(self, package: str, group: str | None = None) -> bool:
         """Attempt to uninstall a package
@@ -169,9 +205,15 @@ class PackageManager(abc.ABC):
 
         if proc.stdout:
             for line in iter(proc.stdout.readline, b""):
-                # Send to terminal (original behavior)
-                sys.stdout.buffer.write(line)
-                sys.stdout.buffer.flush()
+                # The terminal tee is best effort: a kernel replaces
+                # sys.stdout with a redirect whose buffer may be None.
+                try:
+                    buffer = getattr(sys.stdout, "buffer", None)
+                    if buffer is not None:
+                        buffer.write(line)
+                        buffer.flush()
+                except Exception:
+                    pass
                 # Send to callback for streaming
                 log_callback(line.decode("utf-8", errors="replace"))
             proc.stdout.close()

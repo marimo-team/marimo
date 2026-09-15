@@ -13,6 +13,7 @@ export const formatOptions = {
   number: ["Auto", "Percent", "Scientific", "Engineering", "Integer"],
   string: ["Uppercase", "Lowercase", "Capitalize", "Title"],
   boolean: ["Yes/No", "On/Off"],
+  geometry: [],
   unknown: [],
 } as const satisfies Record<DataType, string[]>;
 

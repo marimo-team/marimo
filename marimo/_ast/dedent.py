@@ -13,7 +13,7 @@ _NEWLINE_RE = re.compile(r"\r\n|\r|\n")
 
 
 def split_source_lines(text: str, keepends: bool = False) -> list[str]:
-    """Split source into lines the way `ast`/`tokenize` count them.
+    r"""Split source into lines the way `ast`/`tokenize` count them.
 
     Unlike `str.splitlines()`, this only treats `\n`, `\r`, and `\r\n` as
     line breaks. `str.splitlines()` additionally splits on `\f`, `\v`, the

@@ -7,8 +7,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
-import topLevelAwait from "vite-plugin-top-level-await";
 import wasm from "vite-plugin-wasm";
+import { createViteLogger, reactCompilerConfig } from "../vite.shared.mts";
 import packageJson from "../package.json";
 
 const execFileAsync = promisify(execFile);
@@ -66,10 +66,6 @@ window.$RefreshSig$ = () => (type) => type;</script>
   };
 };
 
-const ReactCompilerConfig = {
-  target: "19",
-};
-
 function getMarimoVersion(): string {
   try {
     return execFileSync("uv", ["run", "marimo", "--version"]).toString().trim();
@@ -80,6 +76,7 @@ function getMarimoVersion(): string {
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  customLogger: createViteLogger(),
   resolve: {
     tsconfigPaths: true,
     dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
@@ -97,9 +94,6 @@ export default defineConfig({
         ),
       },
     ],
-  },
-  experimental: {
-    enableNativePlugin: true,
   },
   worker: {
     format: "es",
@@ -124,16 +118,10 @@ export default defineConfig({
   plugins: [
     htmlDevPlugin(),
     react({
-      babel: {
-        presets: ["@babel/preset-typescript"],
-        plugins: [
-          ["@babel/plugin-proposal-decorators", { legacy: true }],
-          ["babel-plugin-react-compiler", ReactCompilerConfig],
-        ],
-      },
+      // React Compiler backed by Oxc (oxc-transform-react)
+      compiler: reactCompilerConfig,
     }),
     wasm(),
-    topLevelAwait(),
   ],
   build: {
     emptyOutDir: true,

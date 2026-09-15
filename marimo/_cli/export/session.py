@@ -11,6 +11,7 @@ import click
 
 from marimo._cli.errors import MarimoCLIMissingDependencyError
 from marimo._cli.export._common import (
+    SandboxTarget,
     SandboxVenvPool,
     collect_notebooks,
     is_multi_target,
@@ -64,9 +65,9 @@ async def _export_session_snapshot(
     marimo_path: MarimoPath,
     *,
     notebook_args: tuple[str, ...],
-    venv_python: str | None = None,
+    sandbox: SandboxTarget | None = None,
 ) -> tuple[NotebookSessionV1, bool]:
-    if venv_python is None:
+    if sandbox is None:
         cli_args = parse_args(notebook_args) if notebook_args else {}
 
         file_manager = load_notebook(marimo_path.absolute_name)
@@ -95,13 +96,13 @@ async def _export_session_snapshot(
     }
     return await asyncio.to_thread(
         _export_session_snapshot_in_subprocess,
-        venv_python,
+        sandbox,
         payload,
     )
 
 
 def _export_session_snapshot_in_subprocess(
-    venv_python: str, payload: dict[str, Any]
+    sandbox: SandboxTarget, payload: dict[str, Any]
 ) -> tuple[NotebookSessionV1, bool]:
     script = r"""
 import asyncio
@@ -155,7 +156,7 @@ sys.stdout.write(
 """
 
     output = run_python_subprocess(
-        venv_python=venv_python,
+        sandbox=sandbox,
         script=script,
         payload=payload,
         action="export session",
@@ -191,8 +192,8 @@ async def _export_session_for_notebook(
         return
 
     echo(f"Running {notebook.short_name}...")
-    venv_python = (
-        sandbox_pool.get_python(str(notebook.path))
+    sandbox = (
+        sandbox_pool.get_target(str(notebook.path))
         if sandbox_pool is not None
         else None
     )
@@ -200,7 +201,7 @@ async def _export_session_for_notebook(
     session_snapshot, did_error = await _export_session_snapshot(
         notebook,
         notebook_args=notebook_args,
-        venv_python=venv_python,
+        sandbox=sandbox,
     )
 
     output = write_session_snapshot(
@@ -340,8 +341,7 @@ def session(
             notebook, force_overwrite=force_overwrite
         ):
             return
-        run_in_sandbox(sys.argv[1:], name=str(name))
-        return
+        sys.exit(run_in_sandbox(sys.argv[1:], name=str(name)))
 
     asyncio_run(
         _export_sessions(

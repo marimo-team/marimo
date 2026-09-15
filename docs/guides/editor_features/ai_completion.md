@@ -153,10 +153,10 @@ your `marimo.toml` configuration file. **Prefer going through the notebook setti
 You can configure the following providers:
 
 * OpenAI
+* GitHub Copilot
 * Anthropic
 * AWS Bedrock
 * Google AI
-* GitHub
 * Ollama
 * and any OpenAI-compatible provider
 

@@ -91,6 +91,26 @@ If you prefer a slideshow-like experience, you can use the slides layout. Enable
 - Add speaker notes at the bottom of each slide and launch speaker view by pressing `S`.
 - Powered by [reveal.js](https://revealjs.com/), so you can use most of its features like keyboard shortcuts, navigation, etc.
 
+#### Export slides
+
+Export a notebook that uses the slides layout as static HTML or WebAssembly HTML:
+
+```bash
+marimo export html presentation.py -o presentation.html
+marimo export html-wasm presentation.py -o presentation --mode run
+```
+
+WebAssembly exports (html-wasm) require an HTTP server. Serve the output directory
+locally with `python -m http.server --directory presentation`.
+
+Both formats preserve slide types, fragments, speaker notes, and deck settings.
+Static HTML includes the outputs generated during export and supports speaker
+view. WebAssembly HTML runs Python in the browser, so notebook controls remain
+interactive. Speaker view is not available in WebAssembly HTML exports.
+
+Speaker notes are embedded in the HTML file and readable by anyone who
+receives it.
+
 #### Styling slides
 
 The slides layout is rendered with [reveal.js](https://revealjs.com/), so you

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/use-toast";
 import { Constants } from "@/core/constants";
+import { getExportLayout } from "@/core/export/layout";
 import { useRequestClient } from "@/core/network/requests";
 import { VirtualFileTracker } from "@/core/static/virtual-file-tracker";
 import { copyToClipboard } from "@/utils/copy";
@@ -20,13 +21,14 @@ import { Input } from "../ui/input";
 import { Tooltip } from "../ui/tooltip";
 
 const BASE_URL = "https://static.marimo.app";
-
 export const ShareStaticNotebookModal: React.FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
   const [slug, setSlug] = useState("");
   const { exportAsHTML } = useRequestClient();
-  // 4 character random string
+
+  // Keep one random suffix for the lifetime of the modal.
+  // oxlint-disable-next-line react/purity
   const randomHash = useMemo(() => Math.random().toString(36).slice(2, 6), []);
 
   // Globally unique path
@@ -44,6 +46,7 @@ export const ShareStaticNotebookModal: React.FC<{
             download: false,
             includeCode: true,
             files: VirtualFileTracker.INSTANCE.filenames(),
+            layout: await getExportLayout(),
           });
 
           const prevToast = toast({
