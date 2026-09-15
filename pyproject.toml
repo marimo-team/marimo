@@ -143,7 +143,7 @@ dev = [
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
-    "ruff>=0.16.7",
+    "ruff>=0.16.6",
     # For AI
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",
 ]
@@ -272,7 +272,7 @@ typecheck = [
 
 docs = [
     "marimo_docs",
-    "ruff>=0.16.7",
+    "ruff>=0.16.6",
     "mkdocs>=1.6.1",
     # `mkdocs serve` silently loses live reload on click 8.3.x: MkDocs declares
     # --no-livereload/--livereload as a feature switch group, and click 8.3
@@ -307,8 +307,6 @@ docs = [
 # Mirror CI's dependency window (UV_EXCLUDE_NEWER in .github/workflows) so local
 # resolution reproduces what CI resolves at setup time, including the ruff version.
 exclude-newer = "7 days"
-# Ruff is pinned separately by pre-commit, so keep the uv environment in sync.
-exclude-newer-package = { ruff = "0 days" }
 
 [tool.uv.sources]
 marimo_docs = { path = "./docs", editable = true }
