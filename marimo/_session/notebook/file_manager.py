@@ -657,7 +657,8 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     """Read the contents of a CSS file.
 
     Args:
-        css_file: The path to the CSS file.
+        css_file: The path to the CSS file. Supports `~` for the home
+            directory and relative paths resolved from the notebook directory.
         filename: The filename of the notebook.
 
     Returns:
@@ -666,7 +667,7 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
     if not css_file:
         return None
 
-    filepath = Path(css_file)
+    filepath = Path(css_file).expanduser()
 
     # If not an absolute path, make it absolute using the filename
     if not filepath.is_absolute():
