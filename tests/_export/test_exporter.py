@@ -2738,6 +2738,87 @@ class TestPDFExport:
                 sys.modules.pop("playwright.async_api", None)
 
 
+@pytest.mark.skipif(not HAS_NBFORMAT, reason="nbformat not installed")
+async def test_export_as_slides_pdf_inlines_images_and_png_fallbacks(
+    session_view: SessionView,
+) -> None:
+    app = App()
+
+    @app.cell()
+    def image_slide():
+        return "image"
+
+    @app.cell()
+    def interactive_slide():
+        return "interactive"
+
+    internal_app = InternalApp(app)
+    image_id, interactive_id = internal_app.cell_manager.cell_ids()
+    image_data = {
+        "text/html": '<img src="./@file/4-plot.png">',
+        "text/plain": "literal ./@file/4-plot.png",
+        "image/png": "bmF0aXZl",
+    }
+    session_view.add_notification(
+        CellNotification(
+            cell_id=image_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="application/vnd.marimo+mimebundle",
+                data=image_data,
+            ),
+            console=[CellOutput.stdout("console ./@file/4-plot.png")],
+        )
+    )
+    session_view.add_notification(
+        CellNotification(
+            cell_id=interactive_id,
+            output=CellOutput(
+                channel=CellChannel.OUTPUT,
+                mimetype="text/html",
+                data="<marimo-slider></marimo-slider>",
+            ),
+        )
+    )
+
+    with (
+        patch.object(DependencyManager.nbconvert, "has", return_value=True),
+        patch.object(DependencyManager.playwright, "has", return_value=True),
+        patch(
+            "marimo._convert.common.dom_traversal.read_virtual_file",
+            return_value=b"plot",
+        ),
+        patch.object(
+            Exporter, "_export_slides_as_pdf", new_callable=AsyncMock
+        ) as render,
+    ):
+        render.return_value = b"pdf"
+        result = await Exporter().export_as_slides_pdf(
+            _pdf_export_request(
+                app=internal_app,
+                session_view=session_view,
+                png_fallbacks={
+                    interactive_id: "data:image/png;base64,Y2FwdHVyZWQ=",
+                },
+                preset="slides",
+            )
+        )
+
+    assert result == b"pdf"
+    notebook = render.await_args.args[0]
+    assert notebook.cells[0].id == image_id
+    assert notebook.cells[0].outputs[1].data == {
+        **image_data,
+        "text/html": '<img src="data:image/png;base64,cGxvdA==">',
+    }
+    assert notebook.cells[0].outputs[0].text == "console ./@file/4-plot.png"
+    assert notebook.cells[1].id == interactive_id
+    assert notebook.cells[1].outputs[0].data == {
+        "image/png": "Y2FwdHVyZWQ=",
+    }
+    assert session_view.cell_notifications[image_id].output.data == image_data
+
+
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="Unix permission bits not supported on Windows",
