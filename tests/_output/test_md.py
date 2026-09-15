@@ -998,6 +998,48 @@ def test_md_display_math_deeper_indent_than_continuation() -> None:
     assert "Next" in result
 
 
+@pytest.mark.parametrize(("first_indent", "second_indent"), [(2, 4), (4, 2)])
+@pytest.mark.parametrize("multiline", [False, True])
+def test_md_display_math_multiple_list_blocks(
+    first_indent: int, second_indent: int, multiline: bool
+) -> None:
+    first_padding = " " * first_indent
+    second_padding = " " * second_indent
+    if multiline:
+        first_math = f"{first_padding}$$\n{first_padding}x\n{first_padding}$$"
+        second_math = (
+            f"{second_padding}$$\n{second_padding}y\n{second_padding}$$"
+        )
+        rendered_x = "\nx\n"
+        rendered_y = "\ny\n"
+    else:
+        first_math = f"{first_padding}$$x$$"
+        second_math = f"{second_padding}$$y$$"
+        rendered_x = "x"
+        rendered_y = "y"
+    text = (
+        f"- Item\n  continuation\n{first_math}\n"
+        f"  after\n{second_math}\n  end\n- Next"
+    )
+    assert _md(text, apply_markdown_class=False).text == (
+        "<ul>\n<li>\n"
+        '<span class="paragraph">Item\n  continuation</span>\n'
+        f'<marimo-tex class="arithmatex">||[{rendered_x}||]</marimo-tex>'
+        '<span class="paragraph">after</span>\n'
+        f'<marimo-tex class="arithmatex">||[{rendered_y}||]</marimo-tex>'
+        '<span class="paragraph">end</span>\n'
+        "</li>\n<li>Next</li>\n</ul>"
+    )
+
+
+def test_md_list_continuation_without_math() -> None:
+    text = "- Item\n  continuation\n- Next\n\n$$x$$"
+    assert _md(text, apply_markdown_class=False).text == snapshot(
+        "<ul>\n<li>Item\n  continuation</li>\n<li>Next</li>\n</ul>\n"
+        '<marimo-tex class="arithmatex">||[x||]</marimo-tex>'
+    )
+
+
 @pytest.mark.parametrize("marker", ["-", "*", "+"])
 def test_md_display_math_bullet_markers(marker: str) -> None:
     text = (

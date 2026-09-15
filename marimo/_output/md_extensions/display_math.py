@@ -149,7 +149,6 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         Python-Markdown requires loose list content to use `tab_length`
         indentation, even when the list marker is narrower.
         """
-        tab_length: int = getattr(self.md, "tab_length", 4)
         result = list(lines)
         n = len(result)
         i = 0
@@ -175,18 +174,10 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
             end = i
 
             preceding = result[start - 1] if start > 0 else ""
-            run = result[start:end]
-            contains_math = any(
-                self.SINGLE_LINE_PATTERN.match(line_)
-                or self.DOLLAR_DOLLAR_PATTERN.match(line_)
-                for line_ in run
-            )
-            if (
-                contains_math
-                and self.LIST_MARKER_PATTERN.match(preceding)
-                and not HRProcessor.SEARCH_RE.fullmatch(preceding)
-            ):
-                self._pad_math_segments(result, start, end, tab_length)
+            if self.LIST_MARKER_PATTERN.match(
+                preceding
+            ) and not HRProcessor.SEARCH_RE.fullmatch(preceding):
+                self._pad_math_segments(result, start, end, self.md.tab_length)
 
         return result
 
@@ -195,12 +186,10 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
     ) -> None:
         """Pad each block separately so deeper math keeps its indentation."""
         j = start
-        seen_math = False
         while j < end:
             seg_start = j
             if self.SINGLE_LINE_PATTERN.match(result[j]):
                 j += 1
-                seen_math = True
             elif self.DOLLAR_DOLLAR_PATTERN.match(result[j]):
                 j += 1
                 while j < end and not self.DOLLAR_DOLLAR_PATTERN.match(
@@ -209,22 +198,25 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
                     j += 1
                 if j < end:
                     j += 1  # include the closing "$$" line
-                seen_math = True
             else:
                 while j < end and not (
                     self.SINGLE_LINE_PATTERN.match(result[j])
                     or self.DOLLAR_DOLLAR_PATTERN.match(result[j])
                 ):
                     j += 1
-                if seg_start == start and not seen_math:
+                if seg_start == start:
                     # Leading prose stays in the list marker's paragraph.
                     continue
 
             segment = result[seg_start:j]
-            non_blank = [line_ for line_ in segment if line_.strip()]
-            if not non_blank:
-                continue
-            min_indent = min(self._count_indent(line_) for line_ in non_blank)
+            min_indent = min(
+                (
+                    self._count_indent(line_)
+                    for line_ in segment
+                    if line_.strip()
+                ),
+                default=0,
+            )
             if 0 < min_indent < tab_length:
                 padding = " " * (tab_length - min_indent)
                 result[seg_start:j] = [
