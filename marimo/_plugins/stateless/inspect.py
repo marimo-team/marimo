@@ -443,7 +443,7 @@ def _format_method(name: str, method: object, docs: bool) -> str:
 
 def _render_value_inline(value: object) -> str:
     if isinstance(value, str):
-        # Colors match the JSON viewer string theme (see JsonOutput.tsx)
+        # Colors match the JSON viewer string theme in json-output/themes.ts.
         # Light mode: #cb4b16, Dark mode: #dc9656
         return h.span(
             f'"{html.escape(value)}"',

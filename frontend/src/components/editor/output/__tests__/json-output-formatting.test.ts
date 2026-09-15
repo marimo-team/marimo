@@ -1,15 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import {
-  decodeShowMore,
-  determineMaxDisplayLength,
-  encodeShowMore,
-  estimateExpandedLines,
-  getCopyValue,
-  jsonCopyValue,
-  stripSentinels,
-  truncateNode,
-} from "../JsonOutput";
+import { getCopyValue } from "../json-output/formatting";
 
 describe("getCopyValue", () => {
   it("should handle strings without MIME prefixes", () => {
@@ -187,7 +178,6 @@ describe("getCopyValue", () => {
   });
 
   it("should handle empty set", () => {
-    // Empty set literal in Python is `set()`, not `{}` (which is a dict).
     expect(getCopyValue("text/plain+set:[]")).toMatchInlineSnapshot(`"set()"`);
   });
 
@@ -221,7 +211,7 @@ describe("getCopyValue", () => {
   it("should handle tuples", () => {
     const value = "text/plain+tuple:[1,2,3]";
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"(1,2,3)"`);
+    expect(result).toMatchInlineSnapshot(`"(1, 2, 3)"`);
   });
 
   it("should handle tuples in mixed types", () => {
@@ -235,7 +225,7 @@ describe("getCopyValue", () => {
       `
       "{
         "key1": 42,
-        "key2": (1,2,3),
+        "key2": (1, 2, 3),
         "key3": True
       }"
     `,
@@ -249,8 +239,8 @@ describe("getCopyValue", () => {
     expect(result).toMatchInlineSnapshot(`"18446744073709551616"`);
 
     const nestedBigInt = {
-      key1: bigint, // this will be just a string
-      key2: `text/plain+bigint:${bigint}`, // this will convert to number
+      key1: bigint,
+      key2: `text/plain+bigint:${bigint}`,
       key3: true,
     };
     const nestedResult = getCopyValue(nestedBigInt);
@@ -269,7 +259,7 @@ describe("getCopyValue", () => {
     expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
 
     const nestedBigIntRaw = {
-      key1: bigintRaw, // raw number
+      key1: bigintRaw,
       key2: `text/plain+bigint:${bigintRaw}`,
       key3: true,
     };
@@ -284,85 +274,10 @@ describe("getCopyValue", () => {
       `,
     );
   });
-  it("should strip sentinels from data with show-more markers", () => {
-    const sentinel = encodeShowMore(10, "$.foo");
-    // Array: sentinel → undefined → null in JSON → None in Python copy
-    expect(getCopyValue([1, 2, sentinel])).toMatchInlineSnapshot(`
-      "[
-        1,
-        2,
-        null
-      ]"
-    `);
-    // Object: sentinel key is fully omitted
-    const obj: Record<string, unknown> = { a: 1 };
-    obj[sentinel] = sentinel;
-    expect(getCopyValue(obj)).toMatchInlineSnapshot(`
-      "{
-        "a": 1
-      }"
-    `);
-  });
-});
-
-describe("determineMaxDisplayLength", () => {
-  const sample2DArray = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9],
-    [10, 11, 12],
-    [13, 14, 15],
-    [16, 17, 18],
-    [19, 20, 21],
-    [22, 23, 24],
-    [25, 26, 27],
-    [28, 29, 30],
-  ];
-
-  it("should return undefined for 1 level arrays", () => {
-    const value = [1, 2, 3];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBeUndefined();
-  });
-
-  it("should return undefined for 2 level arrays with less than 20 items", () => {
-    const value = sample2DArray;
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBeUndefined();
-  });
-
-  it("should return 10 for 2 level arrays with more than 20 items", () => {
-    const longArray = Array.from({ length: 21 }, (_, i) => i);
-    const value = [...sample2DArray, longArray];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(10);
-  });
-
-  it("should return 5 for 2 level arrays with more than 50 items", () => {
-    const longArray = Array.from({ length: 51 }, (_, i) => i);
-    const value = [...sample2DArray, longArray];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(5);
-  });
-
-  it("should return 5 for 3 level arrays with more than 20 items", () => {
-    const longArray = Array.from({ length: 21 }, (_, i) => i);
-    const value = [[...sample2DArray], [...sample2DArray, longArray]];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(5);
-  });
 });
 
 describe("getCopyValue with encoded non-string keys", () => {
-  // Keys are encoded by _key_formatter in
-  // marimo/_output/formatters/structures.py. Frontend must round-trip them
-  // to Python literals in the copy output.
-
   it("decodes int keys unquoted", () => {
-    // JS reorders integer-like string keys to the front of object iteration
-    // (spec-mandated), so `"2"` appears before `"text/plain+int:2"` here.
-    // This is pre-existing and unrelated to the encoding — both entries
-    // survive, which is the regression this guards.
     const value = { "text/plain+int:2": "no", "2": "oh" };
     expect(getCopyValue(value)).toMatchInlineSnapshot(`
       "{
@@ -403,7 +318,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("emits 1-element tuple keys with a trailing comma (Python syntax)", () => {
-    // `(1)` is just `1` in Python — a 1-tuple needs `(1,)`.
     const value = {
       "text/plain+tuple:[1]": "one",
       "text/plain+tuple:[]": "empty",
@@ -417,7 +331,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("emits empty frozenset keys as `frozenset()` not `frozenset({})`", () => {
-    // `frozenset({})` reads like it's constructing from an empty dict.
     const value = {
       "text/plain+frozenset:[]": "empty",
       "text/plain+frozenset:[1]": "single",
@@ -446,12 +359,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("parses tuple/frozenset payloads containing bare NaN/Infinity", () => {
-    // Python's json.dumps emits bare `NaN`/`Infinity` inside the embedded
-    // tuple/frozenset payload strings (JSON spec violation, but ECMA-262-
-    // friendly via the fallback in jsonParseWithSpecialChar). The outer
-    // JSON stays strict because those tokens live inside a JSON string
-    // key/value. Regression for tuple-key payloads that previously broke
-    // the frontend's `JSON.parse` and threw.
     const value = {
       "text/plain+tuple:[NaN]": "tn",
       "text/plain+tuple:[Infinity, -Infinity]": "ti",
@@ -467,10 +374,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("falls back to the raw payload for malformed tuple/frozenset", () => {
-    // `jsonParseWithSpecialChar` returns `{}` on parse failure rather
-    // than throwing; without an `Array.isArray` guard, the formatters
-    // would crash on `.length`/`.map`. Pass the raw payload through so
-    // a malformed wire form doesn't break the whole render.
     const value = {
       "text/plain+tuple:not a json list": "t",
       k: "text/plain+frozenset:also broken",
@@ -542,173 +445,109 @@ describe("getCopyValue with application/ mimetypes", () => {
   });
 });
 
-describe("estimateExpandedLines", () => {
-  it("scalars count as 1", () => {
-    expect(estimateExpandedLines(42, 100)).toBe(1);
-    expect(estimateExpandedLines(null, 100)).toBe(1);
+describe("Python copy fidelity", () => {
+  it.each([
+    "<marimo-replace>True</marimo-replace>",
+    "\u0000show_more\u000042|$",
+    'quotes " backslash \\ newline\n',
+  ])("preserves literal text %j", (value) => {
+    expect(getCopyValue(value)).toBe(JSON.stringify(value));
   });
 
-  it("flat containers = child count", () => {
-    expect(estimateExpandedLines({ a: 1, b: 2, c: 3 }, 100)).toBe(3);
-    expect(estimateExpandedLines([1, 2, 3, 4], 100)).toBe(4);
-  });
-
-  it("small nested children expand recursively", () => {
-    expect(estimateExpandedLines({ a: { x: 1, y: 2 }, b: 3 }, 100)).toBe(3);
-  });
-
-  it("large children count as 1 collapsed line", () => {
-    const big = Array.from({ length: 20 }, (_, i) => i);
-    expect(estimateExpandedLines({ a: big, b: 1 }, 100)).toBe(2);
-  });
-
-  it("bails at cap", () => {
-    const big = Array.from({ length: 500 }, (_, i) => i);
-    expect(estimateExpandedLines(big, 50)).toBe(50);
-  });
-
-  it("bails at max depth", () => {
-    // 6 levels deep, each 1 child — should bail at depth 4
-    const data = { a: { b: { c: { d: { e: { f: 1 } } } } } };
-    expect(estimateExpandedLines(data, 100)).toBe(1);
-  });
-});
-
-describe("truncateNode", () => {
-  const wm = () => new WeakMap<object, object>();
-
-  it("passes through primitives", () => {
-    expect(truncateNode(42, {}, "$", 0, wm())).toBe(42);
-    expect(truncateNode("hi", {}, "$", 0, wm())).toBe("hi");
-    expect(truncateNode(null, {}, "$", 0, wm())).toBe(null);
-  });
-
-  it("truncates arrays > PAGE_SIZE and appends sentinel", () => {
-    const arr = Array.from({ length: 60 }, (_, i) => i);
-    const originals = wm();
-    const result = truncateNode(arr, {}, "$", 0, originals) as unknown[];
-    expect(result).toHaveLength(31); // 30 items + 1 sentinel
-    expect(result.slice(0, 30)).toEqual(arr.slice(0, 30));
-    expect(decodeShowMore(result[30])).toEqual({
-      remaining: "30",
-      path: "$",
-    });
-    // originals map points back to the full array
-    expect(originals.get(result)).toBe(arr);
-  });
-
-  it("truncates objects > PAGE_SIZE and appends sentinel key", () => {
-    const obj: Record<string, number> = {};
-    for (let i = 0; i < 60; i++) {
-      obj[`k${i}`] = i;
-    }
-    const originals = wm();
-    const result = truncateNode(obj, {}, "$", 0, originals) as Record<
-      string,
-      unknown
-    >;
-    const keys = Object.keys(result);
-    expect(keys).toHaveLength(31); // 30 keys + 1 sentinel key
-    const lastVal = result[keys[keys.length - 1]];
-    expect(decodeShowMore(lastVal)).toEqual({ remaining: "30", path: "$" });
-    // originals map points back to the full object
-    expect(originals.get(result)).toBe(obj);
-  });
-
-  it("respects custom limits", () => {
-    const arr = Array.from({ length: 20 }, (_, i) => i);
-    const result = truncateNode(arr, { $: 5 }, "$", 0, wm()) as unknown[];
-    expect(result).toHaveLength(6); // 5 + sentinel
-    expect(decodeShowMore(result[5])).toEqual({ remaining: "15", path: "$" });
-  });
-
-  it("does not truncate small containers", () => {
-    expect(truncateNode([1, 2, 3], {}, "$", 0, wm())).toEqual([1, 2, 3]);
-  });
-
-  it("registers parent containers so copying includes truncated descendants", () => {
-    const arr = [{ rows: Array.from({ length: 70 }, (_, i) => i) }];
-    const originals = wm();
-    const result = truncateNode(arr, {}, "$", 0, originals);
-    expect(originals.get(result as object)).toBe(arr);
-  });
-  it("keeps pagination paths distinct for dotted keys and nested keys", () => {
-    const values = Array.from({ length: 70 }, (_, i) => i);
-    const data = { "a.b": values, a: { b: values } };
-    const result = truncateNode(data, { '$."a.b"': 100 }, "$", 0, wm());
-    expect(result).toEqual({
-      "a.b": values,
-      a: { b: [...values.slice(0, 30), encodeShowMore(40, '$."a"."b"')] },
-    });
-  });
-
-  it("preserves own __proto__ keys", () => {
-    const data = JSON.parse('{"__proto__":{"value":1}}');
-    expect(JSON.stringify(truncateNode(data, {}, "$", 0, wm()))).toBe(
-      JSON.stringify(data),
+  it("preserves keys which used to collide after decoding", () => {
+    const data = JSON.parse(
+      '{"__proto__":1,"<marimo-replace>2</marimo-replace>":2,"text/plain+int:2":3}',
+    );
+    expect(getCopyValue(data)).toBe(
+      '{\n  "__proto__": 1,\n  "<marimo-replace>2</marimo-replace>": 2,\n  2: 3\n}',
     );
   });
 
-  it("uses smaller page sizes throughout a matrix", () => {
-    const matrix = Array.from({ length: 30 }, () =>
-      Array.from({ length: 60 }, (_, i) => i),
+  it.each([
+    ["text/plain+tuple:[42]", "(42,)"],
+    ["text/plain+tuple:[]", "()"],
+    [
+      'text/plain+tuple:["quote\\\"","back\\\\slash",true,null]',
+      '("quote\\\"", "back\\\\slash", True, None)',
+    ],
+    [
+      'text/plain+set:[true,null,"text/plain:literal"]',
+      '{True, None, "text/plain:literal"}',
+    ],
+    ['text/plain+tuple:["text/plain+int:2"]', '("text/plain+int:2",)'],
+    ["text/plain+float:nan", "float('nan')"],
+    ["text/plain+float:inf", "float('inf')"],
+    ["text/plain+float:-inf", "-float('inf')"],
+    ["text/plain+float:1.0", "1.0"],
+  ])("copies %s as valid Python", (data, expected) => {
+    expect(getCopyValue(data)).toBe(expected);
+  });
+
+  it("distinguishes shared references from cycles", () => {
+    const shared = { x: true };
+    expect(getCopyValue([shared, shared])).toBe(
+      '[\n  {\n    "x": True\n  },\n  {\n    "x": True\n  }\n]',
     );
-    const result = truncateNode(matrix, {}, "$", 0, wm(), 5);
-    expect(result).toEqual([
-      ...Array.from({ length: 5 }, (_, i) => [
-        0,
-        1,
-        2,
-        3,
-        4,
-        encodeShowMore(55, `$.${i}`),
-      ]),
-      encodeShowMore(25, "$"),
-    ]);
+    const cyclic: unknown[] = [];
+    cyclic.push(cyclic);
+    expect(() => getCopyValue(cyclic)).toThrow("Cannot copy circular data");
+  });
+
+  it("copies sparse arrays and non-finite numbers as Python literals", () => {
+    const values = [0, Number.NaN, Infinity, -Infinity];
+    Reflect.deleteProperty(values, "0");
+    expect(getCopyValue(values)).toBe(
+      "[\n  None,\n  float('nan'),\n  float('inf'),\n  -float('inf')\n]",
+    );
   });
 });
 
-describe("sentinel encode/decode round-trip", () => {
-  it("round-trips", () => {
-    const encoded = encodeShowMore(42, "$.foo.bar");
-    const decoded = decodeShowMore(encoded);
-    expect(decoded).toEqual({ remaining: "42", path: "$.foo.bar" });
+describe("Python copy negative cases", () => {
+  it.each([
+    "text/plain+unknown:payload",
+    "text/plain+tuple",
+    "not-text/plain:payload",
+    "https://example.com:a:b",
+  ])("does not decode unrecognized leaf %j", (value) => {
+    expect(getCopyValue(value)).toBe(JSON.stringify(value));
+    expect(getCopyValue({ [value]: "literal" })).toBe(
+      `{\n  ${JSON.stringify(value)}: "literal"\n}`,
+    );
   });
 
-  it("returns null for non-sentinels", () => {
-    expect(decodeShowMore("hello")).toBeNull();
-    expect(decodeShowMore(42)).toBeNull();
-    expect(decodeShowMore(null)).toBeNull();
-  });
-});
+  it.each(["tuple", "set", "frozenset"])(
+    "does not invent a %s from malformed or non-array JSON",
+    (kind) => {
+      for (const payload of ["[broken", "null", "42", '{"x":1}']) {
+        expect(getCopyValue(`text/plain+${kind}:${payload}`)).toBe(payload);
+      }
+    },
+  );
 
-describe("stripSentinels", () => {
-  it("strips sentinel keys", () => {
-    const key = encodeShowMore(5, "$.x");
-    expect(stripSentinels(key, "anything")).toBeUndefined();
-  });
-
-  it("strips sentinel values", () => {
-    const val = encodeShowMore(5, "$.x");
-    expect(stripSentinels("normalKey", val)).toBeUndefined();
-  });
-
-  it("passes through normal data", () => {
-    expect(stripSentinels("key", "value")).toBe("value");
-    expect(stripSentinels("key", 42)).toBe(42);
-  });
-});
-
-describe("jsonCopyValue", () => {
-  it("strips sentinels from arrays (replaced with null per JSON spec)", () => {
-    const sentinel = encodeShowMore(10, "$");
-    expect(JSON.parse(jsonCopyValue([1, 2, sentinel]))).toEqual([1, 2, null]);
+  it("decodes escaped keys and text exactly once", () => {
+    const data = {
+      "text/plain+str:text/plain+str:text/plain+int:2":
+        "text/plain:text/plain+tuple:[42]",
+    };
+    expect(getCopyValue(data)).toBe(
+      '{\n  "text/plain+str:text/plain+int:2": "text/plain+tuple:[42]"\n}',
+    );
   });
 
-  it("strips sentinel keys from objects", () => {
-    const sentinel = encodeShowMore(10, "$");
-    const obj: Record<string, unknown> = { a: 1 };
-    obj[sentinel] = sentinel;
-    expect(JSON.parse(jsonCopyValue(obj))).toEqual({ a: 1 });
+  it("does not decode dictionary keys inside raw tuple payloads", () => {
+    expect(
+      getCopyValue(
+        'text/plain+tuple:[{"text/plain+int:2":"text/plain:literal"}]',
+      ),
+    ).toBe('({"text/plain+int:2": "text/plain:literal"},)');
+  });
+
+  it("rejects indirect cycles without poisoning later copies", () => {
+    const data: Record<string, unknown> = { child: [] };
+    data.child = [data];
+    expect(() => getCopyValue(data)).toThrow("Cannot copy circular data");
+    expect(getCopyValue({ child: [true] })).toBe(
+      '{\n  "child": [\n    True\n  ]\n}',
+    );
   });
 });
