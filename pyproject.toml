@@ -415,8 +415,6 @@ extend-select = [
     "ANN202", # missing-return-type-private-function
     "ANN205", # missing-return-type-static-method
     "ANN206", # missing-return-type-class-method
-    # isort
-    "I001",
     # Enable entire ruff rule section
     "ASYNC", # subset of flake8-async rules
     "TCH",   # Rules around TYPE_CHECKING blocks
@@ -433,22 +431,10 @@ extend-select = [
     "D3",
     # "D400", # First line should end with a period
     # "D401", # First line of docstring should be in imperative mood
-    "D402",
-    "D403",
-    "D412",
-    "D419",
     "PGH004", # Use specific rule codes when using noqa
-    "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "RUF006", # Store a reference to the return value of asyncio.create_task
-    "S112", # Require intentional handling of `try`-`except`-`continue`
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
-    "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
-    "B006",   # Checks for uses of mutable objects as function argument defaults.
-    "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
-    "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
-    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "T201",   # No print statements
-    "D3",  # pydocstyle Quotes Issues
     "D4",  # pydocstyle Docstring Content Issues
     "D207",  # Docstring is under-indented
     "D208",  # Docstring is over-indented
