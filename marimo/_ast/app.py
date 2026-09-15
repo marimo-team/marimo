@@ -50,6 +50,7 @@ from marimo._runtime.commands import (
     InvokeFunctionCommand,
     UpdateUIElementCommand,
 )
+from marimo._runtime.context.filename import notebook_filename
 from marimo._runtime.context.types import (
     ContextNotInitializedError,
     get_context,
@@ -780,9 +781,10 @@ class App:
         from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = await by_refs.run_cell_async(
-            self._graph, cell._cell.cell_id, kwargs
-        )
+        with notebook_filename(self._filename):
+            output, defs = await by_refs.run_cell_async(
+                self._graph, cell._cell.cell_id, kwargs
+            )
         return output, _Namespace(defs, owner=self)
 
     def _run_cell_sync(
@@ -791,9 +793,10 @@ class App:
         from marimo._runtime.runner import by_refs
 
         self._maybe_initialize()
-        output, defs = by_refs.run_cell_sync(
-            self._graph, cell._cell.cell_id, kwargs
-        )
+        with notebook_filename(self._filename):
+            output, defs = by_refs.run_cell_sync(
+                self._graph, cell._cell.cell_id, kwargs
+            )
         return output, _Namespace(defs, owner=self)
 
     async def _set_ui_element_value(
