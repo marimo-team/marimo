@@ -5,17 +5,23 @@ import asyncio
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from starlette.websockets import WebSocketDisconnect
 
 from marimo._config.config import ExperimentalConfig
 from marimo._config.manager import UserConfigManager
-from marimo._messaging.notification import KernelReadyNotification
+from marimo._messaging.notification import (
+    KernelReadyNotification,
+    StartupProgressNotification,
+)
+from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
     ConnectionParams,
 )
+from marimo._server.api.endpoints.ws.ws_session_connector import ConnectionType
+from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
 from marimo._server.codes import WebSocketCodes
 from marimo._server.session_manager import SessionManager
 from marimo._session.model import ConnectionState, SessionMode
@@ -49,6 +55,63 @@ def test_ws(client: TestClient) -> None:
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
+
+
+@pytest.mark.parametrize("failure", ["disconnect", "cancel"])
+async def test_failed_startup_progress_delivery_detaches_session(
+    failure: str,
+) -> None:
+    websocket = MagicMock()
+    websocket.accept = AsyncMock()
+    websocket.close = AsyncMock()
+    sending = asyncio.Event()
+
+    async def send(_text: str) -> None:
+        sending.set()
+        await asyncio.sleep(0)
+        if failure == "disconnect":
+            raise WebSocketDisconnect(1006)
+        await asyncio.Event().wait()
+
+    websocket.send_text = send
+    manager = MagicMock()
+    session = manager.get_session.return_value
+    session.ttl_seconds = 120
+    session.disconnect_consumer.side_effect = lambda consumer: (
+        consumer.on_detach()
+    )
+    handler = WebSocketHandler(
+        websocket=websocket,
+        manager=manager,
+        params=ConnectionParams(
+            session_id=SessionId("s1"),
+            file_key="test.py",
+            kiosk=False,
+            auto_instantiate=False,
+            rtc_enabled=False,
+        ),
+        mode=SessionMode.RUN,
+    )
+
+    async def connect(_connection: Any) -> tuple[Any, ConnectionType]:
+        handler.on_attach(session, MagicMock())
+        handler.status = ConnectionState.OPEN
+        handler.notify(
+            serialize_kernel_message(
+                StartupProgressNotification(phase="starting-kernel")
+            )
+        )
+        return session, ConnectionType.NEW
+
+    with patch.object(handler, "_connect_session", side_effect=connect):
+        task = asyncio.create_task(handler.start())
+        await asyncio.wait_for(sending.wait(), timeout=5)
+        if failure == "cancel":
+            task.cancel()
+        await asyncio.wait_for(task, timeout=5)
+
+    session.disconnect_consumer.assert_called_once_with(handler)
+    assert handler.connection_state() == ConnectionState.CLOSED
 
 
 def test_without_session(client: TestClient) -> None:
@@ -577,68 +640,6 @@ async def test_ttl_close_does_not_kill_session_owned_by_new_consumer(
             ws_a.__exit__(None, None, None)
 
 
-def test_ttl_close_skips_when_session_has_active_consumer() -> None:
-    """Unit test: _close() must not kill session when another consumer has taken over.
-
-    Patches call_later to fire the TTL callback immediately after setup,
-    simulating the bug scenario where Consumer A's timer fires while
-    Consumer B owns the session.
-    """
-    from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
-
-    captured_callback: list[tuple[float, Callable[[], None]]] = []
-
-    def capture_call_later(
-        delay: float, callback: Callable[[], None]
-    ) -> MagicMock:
-        captured_callback.append((delay, callback))
-        return MagicMock()
-
-    # Session with active consumer (Consumer B has taken over)
-    session_with_consumer = MagicMock()
-    session_with_consumer.connection_state.return_value = ConnectionState.OPEN
-    session_with_consumer.ttl_seconds = 0.1
-
-    manager = MagicMock(spec=SessionManager)
-    manager.ttl_seconds = 120
-    manager.get_session.return_value = session_with_consumer
-    manager.close_session = MagicMock()
-
-    params = ConnectionParams(
-        session_id="123",
-        file_key="test.py",
-        kiosk=False,
-        auto_instantiate=False,
-        rtc_enabled=False,
-    )
-
-    handler = WebSocketHandler(
-        websocket=MagicMock(),
-        manager=manager,
-        params=params,
-        mode=SessionMode.RUN,
-    )
-    handler.status = ConnectionState.CLOSED  # Consumer A disconnected
-
-    cleanup_fn = MagicMock()
-
-    with patch(
-        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop"
-    ) as mock_loop:
-        mock_loop.return_value.call_later = capture_call_later
-        handler._on_disconnect(Exception("disconnect"), cleanup_fn)
-
-    assert len(captured_callback) == 1
-    _, ttl_callback = captured_callback[0]
-
-    # Fire the TTL callback (simulates timer firing)
-    ttl_callback()
-
-    # With the fix: session has active consumer, so close_session must NOT be called
-    manager.close_session.assert_not_called()
-    cleanup_fn.assert_not_called()
-
-
 @pytest.mark.parametrize(
     ("mode", "manager_ttl"),
     [
@@ -683,67 +684,6 @@ async def test_session_ttl_expiration(
         # is restored correctly.
         for task in kernel_tasks:
             task.join()
-
-
-def test_run_mode_ttl_close_with_manager_ttl_none() -> None:
-    """Unit test: RUN mode must schedule TTL cleanup even when
-    manager.ttl_seconds is None (the default for create_asgi_app).
-
-    This was a regression from #7863 where the condition only checked
-    manager.ttl_seconds, causing ASGI sessions to never be cleaned up.
-    """
-    from marimo._server.api.endpoints.ws_endpoint import WebSocketHandler
-
-    captured_callback: list[tuple[float, Callable[[], None]]] = []
-
-    def capture_call_later(
-        delay: float, callback: Callable[[], None]
-    ) -> MagicMock:
-        captured_callback.append((delay, callback))
-        return MagicMock()
-
-    # Session exists but no active consumer (disconnected)
-    session = MagicMock()
-    session.connection_state.return_value = ConnectionState.ORPHANED
-    session.ttl_seconds = 120
-
-    manager = MagicMock(spec=SessionManager)
-    manager.ttl_seconds = None  # ASGI default
-    manager.get_session.return_value = session
-
-    params = ConnectionParams(
-        session_id="123",
-        file_key="test.py",
-        kiosk=False,
-        auto_instantiate=False,
-        rtc_enabled=False,
-    )
-
-    handler = WebSocketHandler(
-        websocket=MagicMock(),
-        manager=manager,
-        params=params,
-        mode=SessionMode.RUN,
-    )
-    handler.status = ConnectionState.CLOSED
-
-    cleanup_fn = MagicMock()
-
-    with patch(
-        "marimo._server.api.endpoints.ws_endpoint.asyncio.get_running_loop"
-    ) as mock_loop:
-        mock_loop.return_value.call_later = capture_call_later
-        handler._on_disconnect(Exception("disconnect"), cleanup_fn)
-
-    # Must schedule TTL cleanup even though manager.ttl_seconds is None
-    assert len(captured_callback) == 1
-    delay, ttl_callback = captured_callback[0]
-    assert delay == 120  # session.ttl_seconds
-
-    # Fire the callback — session has no active consumer, so it should close
-    ttl_callback()
-    manager.close_session.assert_called_once_with("123")
-    cleanup_fn.assert_called_once()
 
 
 async def test_edit_mode_without_session_ttl_no_delayed_cleanup(
@@ -870,3 +810,67 @@ async def test_websocket_message_queue_delivery(client: TestClient) -> None:
 
         messages = flush_messages(websocket, at_least=1)
         assert len(messages) >= 1
+
+
+def test_disconnect_cancels_pending_startup(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import asyncio
+    import threading
+
+    from marimo._session.session import SessionImpl
+
+    started = threading.Event()
+    cleaned_up = threading.Event()
+
+    async def create(**_kwargs: object) -> None:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaned_up.set()
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+    with client.websocket_connect(WS_URL) as websocket:
+        assert started.wait(timeout=5)
+        websocket.close()
+        # Stay in the client context: its teardown cancels the server task,
+        # which would hide a failure to notice the actual disconnect.
+        assert cleaned_up.wait(timeout=5)
+    assert not get_session_manager(client).sessions
+
+
+def test_sandbox_progress_before_preparation_failure(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from marimo._environments.errors import EnvironmentManagerError
+    from marimo._environments.sandbox import NotebookSandbox
+
+    release = asyncio.Event()
+
+    async def prepare(*_args: object, **_kwargs: object) -> None:
+        try:
+            await asyncio.wait_for(release.wait(), timeout=5)
+        except asyncio.TimeoutError:
+            pass
+        raise EnvironmentManagerError("Could not resolve dependencies")
+
+    monkeypatch.setattr(NotebookSandbox, "launch_async", prepare)
+    get_session_manager(client).sandbox = True
+
+    with client.websocket_connect(WS_URL) as websocket:
+        assert websocket.receive_json() == {
+            "op": "startup-progress",
+            "data": {
+                "op": "startup-progress",
+                "phase": "preparing-environment",
+            },
+        }
+        assert not get_session_manager(client).sessions
+        websocket.portal.call(release.set)
+        error = websocket.receive_json()
+        assert error["op"] == "kernel-startup-error"
+        assert "Could not resolve dependencies" in error["data"]["error"]
+        with pytest.raises(WebSocketDisconnect) as closed:
+            websocket.receive_json()
+        assert closed.value.reason == "MARIMO_KERNEL_STARTUP_ERROR"

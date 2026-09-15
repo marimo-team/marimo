@@ -177,6 +177,8 @@ jobs:
         env:
           UV_FIND_LINKS: ${{ github.workspace }}
         run: |
+          # Each run builds a different wheel under the same version and path.
+          uv cache clean marimo
           uv venv
           uv pip install --group=test-optional --group=dev marimo*.whl
           uv run --no-project pytest -v tests/_cli/test_cli* -p no:xdist --maxfail=2

@@ -16,6 +16,7 @@ so directory-scoped configuration applies.
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import errno
 import os
@@ -39,12 +40,13 @@ from marimo._environments.uv import (
     UvError,
     script_command_env,
     uv,
+    uv_async,
     uv_stream,
 )
 from marimo._utils.toml import toml_reader
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import AsyncIterator, Callable, Iterator, Sequence
 
 LOGGER = _loggers.marimo_logger()
 
@@ -295,6 +297,24 @@ def ensure_marimo(
     _edit(path, edit)
 
 
+async def ensure_marimo_async(
+    path: str,
+    *,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> None:
+    if not should_add_marimo(path):
+        return
+    ensure_metadata_block(path)
+    with materialized_for_edit(path) as target:
+        await uv_async(
+            ["add", "--script", target.path, "marimo"],
+            env=script_command_env(),
+            timeout=30,
+            cwd=target.directory,
+            on_command=on_command,
+        )
+
+
 def ensure_requires_python(path: str) -> None:
     """Add `requires-python` to existing script metadata if not present.
 
@@ -388,7 +408,9 @@ def _carrier_prefix(path: str) -> str:
 
 
 @contextlib.contextmanager
-def _stable_carrier_lock(path: str) -> Iterator[None]:
+def _stable_carrier_lock(
+    path: str, *, blocking: bool = True
+) -> Iterator[None]:
     """Hold an OS lock through creation, use, and removal of the carrier.
 
     The lock file stays in place: unlinking it would let a new caller lock
@@ -415,6 +437,8 @@ def _stable_carrier_lock(path: str) -> Iterator[None]:
                 except OSError as error:
                     if error.errno not in (errno.EACCES, errno.EDEADLK):
                         raise
+                    if not blocking:
+                        raise BlockingIOError from error
                     time.sleep(0.05)
             try:
                 yield
@@ -423,7 +447,10 @@ def _stable_carrier_lock(path: str) -> Iterator[None]:
         else:
             import fcntl
 
-            fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
+            fcntl.flock(
+                lock.fileno(),
+                fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB),
+            )
             try:
                 yield
             finally:
@@ -547,6 +574,32 @@ def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
     place across sessions. An OS lock serializes carrier lifetimes across
     threads and processes.
     """
+    with _materialized_for_environment(path, blocking=True) as target:
+        yield target
+
+
+@contextlib.asynccontextmanager
+async def materialized_for_environment_async(
+    path: str,
+) -> AsyncIterator[MaterializedScript]:
+    """Wait cancellably for the same carrier lock used by synchronous callers."""
+    with contextlib.ExitStack() as stack:
+        while True:
+            try:
+                target = stack.enter_context(
+                    _materialized_for_environment(path, blocking=False)
+                )
+                break
+            except BlockingIOError:
+                # OS file locks have no portable readiness notification.
+                await asyncio.sleep(0.05)
+        yield target
+
+
+@contextlib.contextmanager
+def _materialized_for_environment(
+    path: str, *, blocking: bool
+) -> Iterator[MaterializedScript]:
     absolute = os.path.abspath(path)
     directory = os.path.dirname(absolute)
     if not path.endswith((".md", ".qmd")):
@@ -555,7 +608,11 @@ def materialized_for_environment(path: str) -> Iterator[MaterializedScript]:
 
     with contextlib.ExitStack() as stack:
         try:
-            stack.enter_context(_stable_carrier_lock(absolute))
+            stack.enter_context(
+                _stable_carrier_lock(absolute, blocking=blocking)
+            )
+        except BlockingIOError:
+            raise
         except OSError as error:
             raise ScriptMetadataError(
                 f"Cannot lock a metadata carrier beside {path}. "

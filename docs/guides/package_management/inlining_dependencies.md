@@ -30,8 +30,14 @@ When running with `--sandbox`, marimo:
 
 1. tracks the packages and versions used by your notebook, saving
    them in the notebook file;
-2. runs in an isolated virtual environment ("sandbox") that only
+2. executes the notebook in an isolated virtual environment ("sandbox") that only
    contains the notebook dependencies.
+
+For `edit` and `new`, the editor server starts in your current Python
+environment. Each notebook gets its own sandboxed kernel when you open it,
+whether you start with a single file or a folder. The editor can therefore
+start before the notebook's dependencies are installed. Editor features such
+as language servers use packages installed alongside the server.
 
 marimo's sandbox provides two key benefits. (1) Notebooks that carry their own
 dependencies are easy to share — just send the `.py` file. (2) Isolating a
@@ -60,7 +66,8 @@ uv run notebook.py
 If your notebook needs conda packages, use Pixi as the sandbox backend.
 [Install Pixi](https://pixi.prefix.dev/latest/installation/) with support for
 `pixi install --script` (available in Pixi 0.80.0). marimo checks this capability
-at startup; use `pixi self-update` if your installation predates it.
+when preparing a notebook's environment; use `pixi self-update` if your
+installation predates it.
 
 ```bash
 marimo edit --sandbox=pixi notebook.py
@@ -91,8 +98,8 @@ notebook also runs standalone with `pixi run --script notebook.py`.
       [Pyodide](https://pyodide.org)'s package set, which has no conda
       equivalent: notebooks that rely on `[tool.pixi.dependencies]`
       cannot be exported to WASM.
-    - The `--sandbox` flag on `marimo export` commands always uses uv,
-      so conda dependencies are not available during export.
+    - Session and thumbnail exports support `--sandbox=pixi`. Other export
+      commands still use uv, so conda dependencies are not available there.
 
 !!! tip "Solving the notebook reproducibility crisis"
 

@@ -3171,6 +3171,7 @@ components:
           - $ref: '#/components/schemas/MissingPackageAlertNotification'
           - $ref: '#/components/schemas/InstallingPackageAlertNotification'
           - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/StartupProgressNotification'
           - $ref: '#/components/schemas/KernelStartupErrorNotification'
           - $ref: '#/components/schemas/VariablesNotification'
           - $ref: '#/components/schemas/VariableValuesNotification'
@@ -3233,6 +3234,7 @@ components:
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
+              startup-progress: '#/components/schemas/StartupProgressNotification'
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
@@ -5473,6 +5475,21 @@ components:
       - content
       - status
       title: StartupLogsNotification
+      type: object
+    StartupProgressNotification:
+      description: Progress reported before a session's kernel is ready.
+      properties:
+        op:
+          enum:
+          - startup-progress
+        phase:
+          enum:
+          - preparing-environment
+          - starting-kernel
+      required:
+      - op
+      - phase
+      title: StartupProgressNotification
       type: object
     StdinRequest:
       properties:

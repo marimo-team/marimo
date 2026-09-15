@@ -13,10 +13,12 @@ from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from marimo import _loggers
-from marimo._cli.sandbox import SandboxMode
 from marimo._config.manager import MarimoConfigManager, ScriptConfigManager
 from marimo._messaging.notebook.document import NotebookDocument
-from marimo._messaging.notification import NotificationMessage
+from marimo._messaging.notification import (
+    NotificationMessage,
+    StartupProgressNotification,
+)
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._messaging.types import KernelMessage
 from marimo._runtime import commands
@@ -86,7 +88,7 @@ class SessionImpl(Session):
     """
 
     @classmethod
-    def create(
+    async def create(
         cls,
         *,
         initialization_id: str,
@@ -100,7 +102,7 @@ class SessionImpl(Session):
         auto_instantiate: bool,
         ttl_seconds: int | None,
         extensions: list[SessionExtension] | None = None,
-        sandbox_mode: SandboxMode | None = None,
+        sandbox: bool = False,
         app_host_context: AppHostContext | None = None,
     ) -> Session:
         """
@@ -114,21 +116,9 @@ class SessionImpl(Session):
 
         configs = app_file_manager.app.cell_manager.config_map()
 
-        from marimo._config.settings import GLOBAL_SETTINGS
-
-        # The single-file launcher strips --sandbox before starting the
-        # server. Edit kernels must still relaunch from the current manifest,
-        # not inherit the server's original interpreter after a rename.
-        if (
-            mode == SessionMode.EDIT
-            and sandbox_mode is None
-            and GLOBAL_SETTINGS.SANDBOX_MODE == "single"
-        ):
-            sandbox_mode = SandboxMode.SINGLE
-
         # Create kernel manager
         # AppHost path handles multi-app run mode (both sandbox and non-sandbox).
-        # SandboxMode.MULTI falls through to IPC kernels only in edit mode.
+        # Sandboxed edit sessions use IPC kernels.
         queue_manager: QueueManager
         kernel_manager: KernelManager
         if app_host_context is not None and mode == SessionMode.RUN:
@@ -156,9 +146,7 @@ class SessionImpl(Session):
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
             )
-        elif sandbox_mode is SandboxMode.MULTI or (
-            sandbox_mode is SandboxMode.SINGLE and mode == SessionMode.EDIT
-        ):
+        elif sandbox:
             # IPC kernel path — edit mode with sandbox
             # (AppHostPool is never created in edit mode)
             from marimo._ipc import QueueManager as IPCQueueManager
@@ -177,7 +165,11 @@ class SessionImpl(Session):
                 app_metadata=app_metadata,
                 config_manager=config_manager,
                 redirect_console_to_browser=redirect_console_to_browser,
-                sandbox_mode=sandbox_mode,
+                on_progress=lambda phase: session_consumer.notify(
+                    serialize_kernel_message(
+                        StartupProgressNotification(phase=phase)
+                    )
+                ),
             )
         else:
             # Original kernel: Process for edit, Thread for run
@@ -220,6 +212,12 @@ class SessionImpl(Session):
             SessionViewExtension(),
         ]
 
+        try:
+            await kernel_manager.start_kernel()
+        except BaseException:
+            queue_manager.close_queues()
+            raise
+
         return cls(
             initialization_id=initialization_id,
             session_consumer=session_consumer,
@@ -258,7 +256,6 @@ class SessionImpl(Session):
         self.scratchpad_lock = asyncio.Lock()
         self._notebook_sandbox: NotebookSandbox | None = None
 
-        self._kernel_manager.start_kernel()
         self._bind_notebook_sandbox()
         self._event_bus = SessionEventBus()
 

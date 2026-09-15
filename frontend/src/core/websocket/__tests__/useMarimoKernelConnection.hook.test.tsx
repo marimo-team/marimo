@@ -188,3 +188,53 @@ describe("useMarimoKernelConnection messages", () => {
     expect(store.get(initialRunCompletedAtom)).toBe(true);
   });
 });
+
+it.each(["kernel-ready", "reconnected"])(
+  "waits for %s before marking the session connected",
+  async (op) => {
+    const store = createStore();
+    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    vi.mocked(useConnectionTransport).mockClear();
+    vi.mocked(useConnectionTransport).mockReturnValue(
+      makeTransport(WebSocket.OPEN),
+    );
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    renderConnectionHook(store);
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+
+    await act(async () => {
+      await options.onOpen(new Event("open"));
+    });
+    expect(store.get(connectionAtom).state).toBe(WebSocketState.CONNECTING);
+
+    act(() => {
+      options.onMessage(
+        new MessageEvent("message", {
+          data: JSON.stringify({
+            op,
+            data: {
+              op,
+              cell_ids: [],
+              codes: [],
+              names: [],
+              configs: [],
+              layout: null,
+              resumed: true,
+              ui_values: {},
+              last_executed_code: {},
+              last_execution_time: {},
+              app_config: { width: "normal" },
+              kiosk: false,
+              capabilities: { terminal: false },
+              auto_instantiated: false,
+              consumer_capabilities: { edit: true, interact: true },
+            },
+          }),
+        }),
+      );
+    });
+    expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
+  },
+);

@@ -37,6 +37,7 @@ from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._session.model import StartupPhase
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
@@ -565,6 +566,13 @@ class BannerNotification(Notification, tag="banner"):
     action: Literal["restart"] | None = None
 
 
+class StartupProgressNotification(Notification, tag="startup-progress"):
+    """Progress reported before a session's kernel is ready."""
+
+    name: ClassVar[str] = "startup-progress"
+    phase: StartupPhase
+
+
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
     """Kernel failed to start.
 
@@ -1018,6 +1026,7 @@ NotificationMessage = (
     | MissingPackageAlertNotification
     | InstallingPackageAlertNotification
     | StartupLogsNotification
+    | StartupProgressNotification
     | KernelStartupErrorNotification
     # Variables
     | VariablesNotification

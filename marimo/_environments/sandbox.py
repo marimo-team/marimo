@@ -99,7 +99,19 @@ class BackendAdapter(Protocol):
 
     def ensure_available(self) -> None: ...
 
+    async def ensure_available_async(self) -> None: ...
+
     def prepare_source(self, source: str) -> None: ...
+
+    async def prepare_source_async(self, source: str) -> None: ...
+
+    async def sync_async(
+        self,
+        target: MaterializedScript,
+        *,
+        python_override: str | None,
+        on_output: LogCallback | None,
+    ) -> Environment: ...
 
     def add(
         self,
@@ -292,6 +304,38 @@ class NotebookSandbox:
         environment = self._sync(
             python_override=python_override, on_output=on_output
         )
+        return self._launch_plan(environment, args, overlay, base_env)
+
+    async def launch_async(
+        self,
+        args: Sequence[str],
+        *,
+        overlay: RuntimeOverlay,
+        base_env: Mapping[str, str] | None = None,
+        python_override: str | None = None,
+        on_output: LogCallback | None = None,
+    ) -> ProcessPlan:
+        """Prepare cancellably; publish the environment only after success."""
+        await self._adapter.ensure_available_async()
+        script_metadata.ensure_metadata_block(self._source)
+        await self._adapter.prepare_source_async(self._source)
+        async with script_metadata.materialized_for_environment_async(
+            self._source
+        ) as target:
+            environment = await self._adapter.sync_async(
+                target, python_override=python_override, on_output=on_output
+            )
+        self._environment = environment
+        self._environment_source = self._source
+        return self._launch_plan(environment, args, overlay, base_env)
+
+    def _launch_plan(
+        self,
+        environment: Environment,
+        args: Sequence[str],
+        overlay: RuntimeOverlay,
+        base_env: Mapping[str, str] | None,
+    ) -> ProcessPlan:
         plan = self._adapter.launch(
             environment,
             args,

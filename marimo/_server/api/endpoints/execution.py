@@ -557,8 +557,8 @@ async def shutdown(
     session_manager = app_state.session_manager
     workspace = session_manager.workspace
 
-    def shutdown_server() -> None:
-        app_state.session_manager.shutdown()
+    async def shutdown_server() -> None:
+        await app_state.session_manager.shutdown()
         close_uvicorn(app_state.server)
 
     # If we are only operating on a single file (new or explicit file),
@@ -566,18 +566,18 @@ async def shutdown(
     # from the file explorer) then we should shutdown the whole server
     key = workspace.get_unique_file_key()
     if key and len(session_manager.sessions) <= 1:
-        shutdown_server()
+        await shutdown_server()
         return SuccessResponse()
 
     # Otherwise, get the session
     session_id = app_state.get_current_session_id()
     if not session_id:
-        shutdown_server()
+        await shutdown_server()
         return SuccessResponse()
 
     was_shutdown = session_manager.close_session(session_id)
     if not was_shutdown:
-        shutdown_server()
+        await shutdown_server()
 
     return SuccessResponse()
 

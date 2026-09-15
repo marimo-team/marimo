@@ -434,7 +434,8 @@ def kill_subprocess(
     Use SIGKILL for an isolated group so a descendant ignoring SIGTERM
     cannot keep captured pipes open after the launcher exits.
     """
-    if process.poll() is not None:
+    # A launcher may have exited while its descendants still hold the pipes.
+    if process.poll() is not None and (is_windows() or not start_new_session):
         return
     if is_windows():
         try:
@@ -448,10 +449,38 @@ def kill_subprocess(
         process.kill()
     else:
         try:
-            if start_new_session:
+            if start_new_session or os.getpgid(process.pid) == process.pid:
                 os.killpg(process.pid, signal.SIGKILL)
             else:
                 process.kill()
         except ProcessLookupError:
             pass
     process.wait()
+
+
+async def stop_subprocess(
+    process: subprocess.Popen[Any],
+    *,
+    start_new_session: bool,
+    drain: asyncio.Future[Any] | None = None,
+) -> None:
+    """Finish failed-command cleanup before the caller re-raises its error.
+
+    Killing and reaping run off the event loop. Further cancellation cannot
+    abandon the process or the pipe readers supplied by its owner.
+    """
+
+    async def cleanup() -> None:
+        await asyncio.to_thread(
+            kill_subprocess, process, start_new_session=start_new_session
+        )
+        if drain is not None:
+            await asyncio.gather(drain, return_exceptions=True)
+
+    task = asyncio.create_task(cleanup())
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            continue
+    task.result()

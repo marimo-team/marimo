@@ -65,9 +65,18 @@ By default, thumbnails are generated without executing the notebook (fast; no ou
     marimo export thumbnail --execute --sandbox notebook.py 
     ```
 
-    !!! note "Requires uv"
+    !!! note "Choose a sandbox backend"
 
-        `--sandbox` runs the notebook in an isolated environment and installs dependencies from inline script metadata (PEP 723). See [Inlining dependencies](../package_management/inlining_dependencies.md).
+        `--sandbox` defaults to uv. Use `--sandbox=uv` or `--sandbox=pixi` to
+        select the backend explicitly; only the selected tool needs to be
+        installed. Use `--no-sandbox` to disable sandboxing and dependency prompts.
+
+        Sandboxed execution installs dependencies from inline script metadata
+        (PEP 723). See [Inlining dependencies](../package_management/inlining_dependencies.md).
+
+        Each notebook executes in its own process using its inline dependencies.
+        Playwright is installed for the renderer without adding it to notebook
+        dependencies.
 
 !!! note "Sandbox only applies with execution"
 

@@ -240,7 +240,11 @@ export function useMarimoKernelConnection(opts: {
       case "reload":
         reloadSafe();
         return;
+      case "startup-progress":
+        // Startup progress does not imply that the session is ready.
+        return;
       case "kernel-ready": {
+        setConnection({ state: WebSocketState.OPEN });
         setInitialRunCompleted(
           Boolean(msg.data.resumed || msg.data.auto_instantiated),
         );
@@ -439,6 +443,7 @@ export function useMarimoKernelConnection(opts: {
         return;
 
       case "reconnected":
+        setConnection({ state: WebSocketState.OPEN });
         return;
 
       case "focus-cell":
@@ -513,17 +518,11 @@ export function useMarimoKernelConnection(opts: {
     headers: () => runtimeManager.headers(),
 
     /**
-     * Open callback. Set the connection status to open.
+     * The transport is open; kernel-ready establishes session readiness.
      */
     onOpen: async () => {
       // If we are open, we can reset our reconnecting flag.
       shouldTryReconnecting.current = true;
-
-      // DO NOT COMMIT THIS UNCOMMENTED
-      // Uncomment to emulate a slow connection
-      // await new Promise((resolve) => setTimeout(resolve, 10_000));
-
-      setConnection({ state: WebSocketState.OPEN });
     },
 
     /**
