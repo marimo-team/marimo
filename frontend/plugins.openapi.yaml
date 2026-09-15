@@ -2766,15 +2766,14 @@ components:
       type: object
       properties:
         index:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         height:
-          anyOf:
-            - anyOf:
-                - type: string
-                - type: number
-            - type: "null"
+          type:
+            - string
+            - number
+            - "null"
     marimo-chatbot.data:
       type: object
       properties:
@@ -2791,29 +2790,29 @@ components:
           type: object
           properties:
             max_tokens:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             temperature:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             top_p:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             top_k:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             frequency_penalty:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             presence_penalty:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
           required:
             - max_tokens
             - temperature
@@ -2877,9 +2876,9 @@ components:
                   - user
                   - assistant
               content:
-                anyOf:
-                  - type: string
-                  - type: "null"
+                type:
+                  - string
+                  - "null"
               parts:
                 type: array
                 items: {}
@@ -2914,9 +2913,9 @@ components:
                   - user
                   - assistant
               content:
-                anyOf:
-                  - type: string
-                  - type: "null"
+                type:
+                  - string
+                  - "null"
               parts:
                 type: array
                 items: {}
@@ -2934,29 +2933,29 @@ components:
           type: object
           properties:
             max_tokens:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             temperature:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             top_p:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             top_k:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             frequency_penalty:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
             presence_penalty:
-              anyOf:
-                - type: number
-                - type: "null"
+              type:
+                - number
+                - "null"
           required:
             - max_tokens
             - temperature
@@ -2975,9 +2974,9 @@ components:
         initialValue:
           type: boolean
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         disabled:
           type: boolean
       required:
@@ -2999,9 +2998,9 @@ components:
             - light
             - dark
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         disabled:
           type: boolean
         minHeight:
@@ -3012,9 +3011,9 @@ components:
           type: boolean
         debounce:
           default: false
-          anyOf:
-            - type: boolean
-            - type: number
+          type:
+            - boolean
+            - number
       required:
         - initialValue
         - placeholder
@@ -3042,9 +3041,9 @@ components:
           required:
             - edits
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         data:
           anyOf:
             - type: string
@@ -3075,6 +3074,12 @@ components:
                           - geometry
                           - unknown
                       - type: string
+                    items: false
+                    minItems: 2
+                    maxItems: 2
+                items: false
+                minItems: 2
+                maxItems: 2
             - type: "null"
         columnNames:
           default: []
@@ -3103,9 +3108,9 @@ components:
       type: object
       properties:
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         data:
           type: string
       required:
@@ -3114,9 +3119,9 @@ components:
       type: object
       properties:
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         pageSize:
           default: 5
           type: number
@@ -3130,11 +3135,14 @@ components:
           items:
             type: array
             prefixItems:
-              - anyOf:
-                  - type: string
-                  - type: number
+              - type:
+                  - string
+                  - number
               - type: string
               - type: string
+            items: false
+            minItems: 3
+            maxItems: 3
         lazy:
           default: false
           type: boolean
@@ -3160,9 +3168,9 @@ components:
         filename:
           type: string
         error:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         missing_packages:
           anyOf:
             - type: array
@@ -3221,6 +3229,12 @@ components:
                       - geometry
                       - unknown
                   - type: string
+                items: false
+                minItems: 2
+                maxItems: 2
+            items: false
+            minItems: 2
+            maxItems: 2
         field_types:
           type: array
           items:
@@ -3242,6 +3256,12 @@ components:
                       - geometry
                       - unknown
                   - type: string
+                items: false
+                minItems: 2
+                maxItems: 2
+            items: false
+            minItems: 2
+            maxItems: 2
         column_types_per_step:
           type: array
           items:
@@ -3265,14 +3285,20 @@ components:
                         - geometry
                         - unknown
                     - type: string
+                  items: false
+                  minItems: 2
+                  maxItems: 2
+              items: false
+              minItems: 2
+              maxItems: 2
         python_code:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         sql_code:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
       required:
         - url
         - total_rows
@@ -3286,9 +3312,9 @@ components:
       type: object
       properties:
         size_bytes:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
     marimo-dataframe.search.input:
       type: object
       properties:
@@ -3403,9 +3429,9 @@ components:
         initialValue:
           type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
           type: string
         stop:
@@ -3430,10 +3456,13 @@ components:
           prefixItems:
             - type: string
             - type: string
+          items: false
+          minItems: 2
+          maxItems: 2
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
           type: string
         stop:
@@ -3456,9 +3485,9 @@ components:
         initialValue:
           type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
           type: string
         stop:
@@ -3486,9 +3515,9 @@ components:
       type: object
       properties:
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         elementIds:
           type: object
           propertyNames:
@@ -3507,13 +3536,13 @@ components:
           default: false
           type: boolean
         filename:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         lazy:
           default: false
           type: boolean
@@ -3528,9 +3557,9 @@ components:
         data:
           type: string
         filename:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
       required:
         - data
     marimo-dropdown.data:
@@ -3541,9 +3570,9 @@ components:
           items:
             type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         options:
           type: array
           items:
@@ -3579,9 +3608,9 @@ components:
             - button
             - area
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         max_size:
           type: number
       required:
@@ -3604,9 +3633,9 @@ components:
         multiple:
           type: boolean
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         restrictNavigation:
           type: boolean
       required:
@@ -3656,9 +3685,9 @@ components:
       type: object
       properties:
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         elementId:
           type: string
         bordered:
@@ -3698,9 +3727,9 @@ components:
       required:
         - value
     marimo-form.validate.output:
-      anyOf:
-        - type: string
-        - type: "null"
+      type:
+        - string
+        - "null"
     marimo-image-comparison.data:
       type: object
       properties:
@@ -3730,9 +3759,9 @@ components:
       type: object
       properties:
         name:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         jsonData: {}
         valueTypes:
           default: python
@@ -3768,11 +3797,17 @@ components:
           prefixItems:
             - type: number
             - type: number
+          items: false
+          minItems: 2
+          maxItems: 2
         yBounds:
           type: array
           prefixItems:
             - type: number
             - type: number
+          items: false
+          minItems: 2
+          maxItems: 2
         axesPixelBounds:
           type: array
           prefixItems:
@@ -3780,6 +3815,9 @@ components:
             - type: number
             - type: number
             - type: number
+          items: false
+          minItems: 4
+          maxItems: 4
         width:
           type: number
         height:
@@ -3825,9 +3863,9 @@ components:
             items:
               type: number
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         minValue:
           anyOf:
             - type: array
@@ -3904,9 +3942,9 @@ components:
       type: object
       properties:
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
     marimo-mime-renderer.data:
       type: object
       properties:
@@ -3956,9 +3994,9 @@ components:
           items:
             type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         options:
           type: array
           items:
@@ -3989,9 +4027,9 @@ components:
                   href:
                     type: string
                   description:
-                    anyOf:
-                      - type: string
-                      - type: "null"
+                    type:
+                      - string
+                      - "null"
                 required:
                   - label
                   - href
@@ -4009,9 +4047,9 @@ components:
                         href:
                           type: string
                         description:
-                          anyOf:
-                            - type: string
-                            - type: "null"
+                          type:
+                            - string
+                            - "null"
                       required:
                         - label
                         - href
@@ -4030,21 +4068,21 @@ components:
       type: object
       properties:
         initialValue:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
         stop:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
         step:
           type: number
         debounce:
@@ -4066,9 +4104,9 @@ components:
       type: object
       properties:
         extensionUrl:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         docs_json:
           type: object
           propertyNames:
@@ -4125,9 +4163,9 @@ components:
         subtitle:
           type: string
         progress:
-          anyOf:
-            - type: number
-            - type: boolean
+          type:
+            - number
+            - boolean
         total:
           type: number
         eta:
@@ -4140,16 +4178,16 @@ components:
       type: object
       properties:
         initialValue:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         inline:
           default: false
           type: boolean
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         options:
           type: array
           items:
@@ -4168,9 +4206,9 @@ components:
           items:
             type: number
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
           type: number
         stop:
@@ -4223,9 +4261,9 @@ components:
             - type: number
               minimum: 0.1
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
       required:
         - label
     marimo-routes.data:
@@ -4243,9 +4281,9 @@ components:
         initialValue:
           type: number
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         start:
           type: number
         stop:
@@ -4288,10 +4326,10 @@ components:
       type: object
       properties:
         value:
-          anyOf:
-            - type: string
-            - type: number
-            - type: boolean
+          type:
+            - string
+            - number
+            - boolean
         label:
           type: string
         caption:
@@ -4317,9 +4355,9 @@ components:
         initialValue:
           type: boolean
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         disabled:
           type: boolean
       required:
@@ -4345,9 +4383,9 @@ components:
                   - rowId
                   - columnName
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         data:
           anyOf:
             - type: string
@@ -4440,6 +4478,12 @@ components:
                       - geometry
                       - unknown
                   - type: string
+                items: false
+                minItems: 2
+                maxItems: 2
+            items: false
+            minItems: 2
+            maxItems: 2
         freezeColumnsLeft:
           type: array
           items:
@@ -4502,6 +4546,12 @@ components:
                           - geometry
                           - unknown
                       - type: string
+                    items: false
+                    minItems: 2
+                    maxItems: 2
+                items: false
+                minItems: 2
+                maxItems: 2
             - type: "null"
         totalColumns:
           type: number
@@ -4539,9 +4589,9 @@ components:
             propertyNames:
               type: string
             additionalProperties:
-              anyOf:
-                - type: string
-                - type: "null"
+              type:
+                - string
+                - "null"
         lazy:
           default: false
           type: boolean
@@ -4575,6 +4625,9 @@ components:
             prefixItems:
               - {}
               - type: number
+            items: false
+            minItems: 2
+            maxItems: 2
       required:
         - data
     marimo-table.download_as.input:
@@ -4597,9 +4650,9 @@ components:
         filename:
           type: string
         error:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         missing_packages:
           anyOf:
             - type: array
@@ -4634,88 +4687,70 @@ components:
             type: object
             properties:
               total:
-                anyOf:
-                  - type: number
-                  - type: "null"
+                type:
+                  - number
+                  - "null"
               nulls:
-                anyOf:
-                  - type: number
-                  - type: "null"
+                type:
+                  - number
+                  - "null"
               unique:
-                anyOf:
-                  - type: number
-                  - type: "null"
+                type:
+                  - number
+                  - "null"
               "true":
-                anyOf:
-                  - type: number
-                  - type: "null"
+                type:
+                  - number
+                  - "null"
               "false":
-                anyOf:
-                  - type: number
-                  - type: "null"
+                type:
+                  - number
+                  - "null"
               min:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               max:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               std:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               mean:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               median:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               p5:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               p25:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               p75:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
               p95:
-                anyOf:
-                  - anyOf:
-                      - type: number
-                      - type: number
-                      - type: string
-                  - type: "null"
+                type:
+                  - number
+                  - string
+                  - "null"
             required:
               - total
               - nulls
@@ -4822,9 +4857,9 @@ components:
         all_rows:
           type: boolean
         error:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
       required:
         - row_ids
         - all_rows
@@ -4836,9 +4871,9 @@ components:
       type: object
       properties:
         size_bytes:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
     marimo-table.preview_column.input:
       type: object
       properties:
@@ -4850,17 +4885,17 @@ components:
       type: object
       properties:
         chart_spec:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         chart_code:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         error:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         missing_packages:
           anyOf:
             - type: array
@@ -4872,88 +4907,70 @@ components:
             - type: object
               properties:
                 total:
-                  anyOf:
-                    - type: number
-                    - type: "null"
+                  type:
+                    - number
+                    - "null"
                 nulls:
-                  anyOf:
-                    - type: number
-                    - type: "null"
+                  type:
+                    - number
+                    - "null"
                 unique:
-                  anyOf:
-                    - type: number
-                    - type: "null"
+                  type:
+                    - number
+                    - "null"
                 "true":
-                  anyOf:
-                    - type: number
-                    - type: "null"
+                  type:
+                    - number
+                    - "null"
                 "false":
-                  anyOf:
-                    - type: number
-                    - type: "null"
+                  type:
+                    - number
+                    - "null"
                 min:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 max:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 std:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 mean:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 median:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 p5:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 p25:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 p75:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
                 p95:
-                  anyOf:
-                    - anyOf:
-                        - type: number
-                        - type: number
-                        - type: string
-                    - type: "null"
+                  type:
+                    - number
+                    - string
+                    - "null"
               required:
                 - total
                 - nulls
@@ -5000,9 +5017,9 @@ components:
         page_size:
           type: number
         max_columns:
-          anyOf:
-            - type: number
-            - type: "null"
+          type:
+            - number
+            - "null"
       required:
         - page_number
         - page_size
@@ -5112,9 +5129,9 @@ components:
                 propertyNames:
                   type: string
                 additionalProperties:
-                  anyOf:
-                    - type: string
-                    - type: "null"
+                  type:
+                    - string
+                    - "null"
             - type: "null"
         raw_data:
           anyOf:
@@ -5138,9 +5155,9 @@ components:
           items:
             type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         orientation:
           default: horizontal
           type: string
@@ -5161,9 +5178,9 @@ components:
         placeholder:
           type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         kind:
           default: text
           type: string
@@ -5182,9 +5199,9 @@ components:
         disabled:
           type: boolean
         debounce:
-          anyOf:
-            - type: boolean
-            - type: number
+          type:
+            - boolean
+            - number
         passwordHasValue:
           type: boolean
       required:
@@ -5199,9 +5216,9 @@ components:
         placeholder:
           type: string
         label:
-          anyOf:
-            - type: string
-            - type: "null"
+          type:
+            - string
+            - "null"
         maxLength:
           type: number
         minLength:
@@ -5209,9 +5226,9 @@ components:
         disabled:
           type: boolean
         debounce:
-          anyOf:
-            - type: boolean
-            - type: number
+          type:
+            - boolean
+            - number
         rows:
           default: 4
           type: number
