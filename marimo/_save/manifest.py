@@ -103,8 +103,25 @@ class CacheManifest:
                 evicted.update((block, key) for key in keys)
         return evicted
 
+    def discard(self, entries: Collection[tuple[str, str]]) -> None:
+        """Drop `entries` from every path hash that lists them.
+
+        A path hash left listing nothing is dropped too. It says only that
+        a cell once ran. Liveness is read off the source instead.
+        """
+        doomed = set(entries)
+        for node, blocks in list(self.nodes.items()):
+            for block, keys in list(blocks.items()):
+                keys.difference_update(
+                    key for other, key in doomed if other == block
+                )
+                if not keys:
+                    del blocks[block]
+            if not blocks:
+                del self.nodes[node]
+
     def entries(self) -> set[tuple[str, str]]:
-        """Every `(block, key)` this manifest attests."""
+        """Every `(block, key)` this manifest lists."""
         return {
             (block, key)
             for blocks in self.nodes.values()

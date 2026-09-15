@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 from pathlib import Path
 
 from marimo import _loggers
@@ -85,6 +86,9 @@ class FileStore(Store):
         # store where it keeps its entries must not create any.
         return self._resolved_save_path
 
+    def clearable_root(self) -> Path | None:
+        return self.local_dir()
+
     def get(self, key: str) -> bytes | None:
         if not self._initialized:
             self._init_save_path()
@@ -115,6 +119,11 @@ class FileStore(Store):
     def clear(self, key: str) -> bool:
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
+        # A value stored in parts is a directory of them, which unlinking
+        # cannot remove and whose reported size holds no bytes of its own.
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path, ignore_errors=True)
+            return not path.exists()
         if not _valid_path(path):
             return False
         path.unlink()
