@@ -1,0 +1,22 @@
+marimo/_runtime/primitives.py
+  s_1283f788b11e11::t_49fc8e186b7b78 92-94,98
+  s_1283f788b11e11::t_ef5fd9bb783098 79,81,86
+marimo/_save/cache.py
+  s_1283f788b11e11::t_49fc8e186b7b78 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "129e1d7fd9f89363e5bc39cb86e5ba84af8c5755",
+  "prompts": {},
+  "sessions": {
+    "s_1283f788b11e11": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a09b1a-6754-7883-9791-7f82ac07e126",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
