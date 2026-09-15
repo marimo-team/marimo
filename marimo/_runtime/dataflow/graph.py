@@ -374,7 +374,7 @@ class DirectedGraph(GraphTopology):
             return processed | refs
         return processed - refs
 
-    def copy(self, filename: None | str = None) -> DirectedGraph:
+    def copy(self, filename: str | None = None) -> DirectedGraph:
         """Return a deep copy of the graph by recompiling all cells.
 
         This is mainly useful in the case where recompilation must be done
