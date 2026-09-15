@@ -111,6 +111,7 @@ class BackendAdapter(Protocol):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment: ...
 
     def add(
@@ -329,6 +330,21 @@ class NotebookSandbox:
         self._environment_source = self._source
         return self._launch_plan(environment, args, overlay, base_env)
 
+    async def sync_async(self) -> None:
+        """Apply the saved manifest to the environment used by this kernel."""
+        await self._adapter.ensure_available_async()
+        async with script_metadata.materialized_for_environment_async(
+            self._source
+        ) as target:
+            environment = await self._adapter.sync_async(
+                target,
+                python_override=None,
+                on_output=None,
+                active_environment=self._environment,
+            )
+        self._environment = environment
+        self._environment_source = self._source
+
     def _launch_plan(
         self,
         environment: Environment,
@@ -470,20 +486,7 @@ class NotebookSandbox:
         with script_metadata.materialized_for_environment(
             self._source
         ) as target:
-            state = self._adapter.packages(target, self._environment)
-        packages = tuple(
-            package
-            for package in state.packages
-            if _normalize_dependency_name(package.name) != "marimo"
-        )
-        tree = state.tree
-        if tree is not None:
-            tree.dependencies = [
-                dependency
-                for dependency in tree.dependencies
-                if _normalize_dependency_name(dependency.name) != "marimo"
-            ]
-        return PackageState(packages=packages, tree=tree)
+            return self._adapter.packages(target, self._environment)
 
     def _reopened_requirement(
         self, bare: _BareRequirement

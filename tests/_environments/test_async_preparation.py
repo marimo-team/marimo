@@ -122,3 +122,46 @@ async def test_waiting_for_carrier_lock_is_cancellable(markdown: Path) -> None:
         str(markdown)
     ) as next_owner:
         assert next_owner.path == owner.path
+
+
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+async def test_sync_running_sandbox_retains_active_environment(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, backend: str
+) -> None:
+    from unittest.mock import AsyncMock
+
+    from marimo._environments.backends import (
+        PixiBackendAdapter,
+        UvBackendAdapter,
+    )
+    from marimo._environments.environment import Environment
+    from marimo._environments.errors import SandboxRestartRequired
+    from marimo._environments.sandbox import NotebookSandbox
+
+    source = tmp_path / "notebook.py"
+    source.write_text("# /// script\n# dependencies = []\n# ///\n")
+    active = Environment(
+        python="/active/bin/python", root="/active", action="unchanged"
+    )
+    moved = Environment(
+        python="/other/bin/python", root="/other", action="updated"
+    )
+    adapter = UvBackendAdapter() if backend == "uv" else PixiBackendAdapter()
+    monkeypatch.setattr(adapter, "ensure_available_async", AsyncMock())
+    sync = AsyncMock(return_value=active if backend == "uv" else moved)
+    target = (
+        "marimo._environments.environment.sync_async"
+        if backend == "uv"
+        else "marimo._environments.pixi.sync_async"
+    )
+    monkeypatch.setattr(target, sync)
+    sandbox = NotebookSandbox(
+        str(source), backend, environment=active, adapter=adapter
+    )
+    if backend == "pixi":
+        with pytest.raises(SandboxRestartRequired):
+            await sandbox.sync_async()
+    else:
+        await sandbox.sync_async()
+        assert sync.call_args.kwargs["active_environment"] == active
+    assert sandbox.environment == active

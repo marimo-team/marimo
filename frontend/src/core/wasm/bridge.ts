@@ -640,6 +640,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
     return response;
   };
 
+  getSandbox: EditRequests["getSandbox"] = async () => ({
+    backend: null,
+    manifest: null,
+    filename: null,
+  });
+  updateManifest: EditRequests["updateManifest"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
+  syncSandbox: EditRequests["syncSandbox"] = async () => {
+    throw new Error("Sandboxes are not supported in WebAssembly");
+  };
   getDependencyTree: EditRequests["getDependencyTree"] = async () => {
     // WASM doesn't support dependency trees yet
     return {

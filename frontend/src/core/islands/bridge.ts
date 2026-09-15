@@ -370,6 +370,9 @@ export class IslandsPyodideBridge implements RunRequests, EditRequests {
   addPackage = throwNotImplemented;
   removePackage = throwNotImplemented;
   getPackageList = throwNotImplemented;
+  getSandbox = throwNotImplemented;
+  updateManifest = throwNotImplemented;
+  syncSandbox = throwNotImplemented;
   getDependencyTree = throwNotImplemented;
   getRecentFiles = throwNotImplemented;
   getWorkspaceFiles = throwNotImplemented;

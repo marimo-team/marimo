@@ -405,6 +405,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment:
         from marimo._environments.environment import sync_async
 
@@ -412,6 +413,7 @@ class UvBackendAdapter(_ReportingBackendAdapter):
             target.path,
             cwd=target.directory,
             python_override=python_override,
+            active_environment=active_environment,
             on_output=on_output,
             on_command=lambda argv: self._report("sync", argv),
         )
@@ -469,6 +471,7 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
         *,
         python_override: str | None,
         on_output: LogCallback | None,
+        active_environment: Environment | None = None,
     ) -> Environment:
         from marimo._environments import pixi
 
@@ -476,12 +479,15 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
             raise pixi.PixiError(
                 "pixi sandboxes do not support a Python version override"
             )
-        return await pixi.sync_async(
+        environment = await pixi.sync_async(
             target.path,
             cwd=target.directory,
             on_output=on_output,
             on_command=lambda command: self._report("sync", command),
         )
+
+        self._check_active_environment(environment, active_environment)
+        return environment
 
     def prepare_source(self, source: str) -> None:
         import subprocess
@@ -558,6 +564,13 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
             on_output=on_output,
             on_command=lambda command: self._report("sync", command),
         )
+        self._check_active_environment(environment, active_environment)
+        return environment
+
+    @staticmethod
+    def _check_active_environment(
+        environment: Environment, active_environment: Environment | None
+    ) -> None:
         if active_environment is not None and os.path.realpath(
             environment.root
         ) != os.path.realpath(active_environment.root):
@@ -574,7 +587,6 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
                 "in a new environment. Restart the kernel to use the updated "
                 "dependencies. Restarting clears in-memory variables."
             )
-        return environment
 
     def packages(
         self,

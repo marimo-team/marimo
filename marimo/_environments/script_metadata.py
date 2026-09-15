@@ -51,13 +51,73 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 REGEX = (
-    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)$\s"
-    r"(?P<content>(^#(?! ///$)(| .*)$\s)+)^# ///$"
+    r"(?m)^# /// (?P<type>[a-zA-Z0-9-]+)\r?$\n"
+    r"(?P<content>(^#(?! ///\r?$)(| .*)\r?$\n)+)^# ///(?=\r?$)"
 )
 
 
 class ScriptMetadataError(EnvironmentManagerError):
     """A script metadata edit could not be completed."""
+
+
+class ManifestConflictError(ScriptMetadataError):
+    """The manifest changed after it was opened for editing."""
+
+
+def _manifest_text(script: str) -> tuple[re.Match[str] | None, str]:
+    matches = [
+        match
+        for match in re.finditer(REGEX, script)
+        if match.group("type") == "script"
+    ]
+    if len(matches) > 1:
+        raise ScriptMetadataError("Multiple script metadata blocks found")
+    if not matches:
+        return None, ""
+    match = matches[0]
+    contents = "".join(
+        line[2:] if line.startswith("# ") else line[1:]
+        for line in match.group("content").splitlines(keepends=True)
+    )
+    return match, contents.replace("\r\n", "\n")
+
+
+def read_manifest(path: str) -> str:
+    """Read the original TOML, including malformed TOML that needs repair."""
+    if path.endswith((".md", ".qmd")):
+        return _manifest_text(_read_frontmatter(path).header)[1]
+    with open(path, encoding="utf-8", newline="") as file:
+        return _manifest_text(file.read())[1]
+
+
+def write_manifest(path: str, contents: str, *, previous: str) -> str:
+    """Replace only metadata, rejecting stale edits and invalid TOML."""
+    toml_reader.reads(contents)
+    if any(line == "///" for line in contents.splitlines()):
+        raise ScriptMetadataError("The manifest cannot contain script markers")
+    with _stable_carrier_lock(path), materialized_for_edit(path) as target:
+        file = Path(target.path)
+        with file.open(encoding="utf-8", newline="") as source:
+            script = source.read()
+        match, current = _manifest_text(script)
+        if current != previous:
+            raise ManifestConflictError(
+                "The manifest changed on disk. Reopen it before saving."
+            )
+        newline = "\r\n" if "\r\n" in script else "\n"
+        block = wrap_block(contents.replace("\r\n", "\n")).replace(
+            "\n", newline
+        )
+        if match is not None:
+            updated = script[: match.start()] + block + script[match.end() :]
+        elif script.startswith("#!"):
+            shebang, _, rest = script.partition("\n")
+            updated = f"{shebang}\n{block}{newline}{rest}"
+        else:
+            updated = f"{block}{newline}{script}"
+        with file.open("w", encoding="utf-8", newline="") as destination:
+            destination.write(updated)
+    return read_manifest(path)
 
 
 def loads(script: str) -> dict[str, Any] | None:
