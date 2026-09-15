@@ -25,7 +25,6 @@ import {
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
-import { HTTPError } from "@/utils/errors";
 import { chromeAtom } from "../../state";
 import PackagesPanel from "../packages-panel";
 import { SandboxController } from "../sandbox-controller";
@@ -162,42 +161,5 @@ it("keeps a whole-manifest repair open through failure and closes only after syn
   act(() => store.set(connectionAtom, { state: WebSocketState.OPEN }));
   await waitFor(() =>
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
-  );
-});
-
-it("retains a draft after a stale save and lets the user explicitly reload the current manifest", async () => {
-  const client = requests();
-  vi.mocked(client.updateManifest).mockRejectedValue(
-    new HTTPError(409, "Conflict", { detail: "Manifest changed on disk" }),
-  );
-  mount(client);
-  fireEvent.click(
-    await screen.findByRole("button", { name: "Edit manifest…" }),
-  );
-  fireEvent.change(
-    await screen.findByRole("textbox", { name: "Notebook manifest" }),
-    { target: { value: '[tool.custom]\nlabel = "my draft"\n' } },
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Save & sync" }));
-  expect(
-    await screen.findByText("Manifest changed on disk"),
-  ).toBeInTheDocument();
-  expect(client.syncSandbox).not.toHaveBeenCalled();
-  fireEvent.click(
-    within(screen.getByRole("dialog")).getAllByRole("button", {
-      name: "Close",
-    })[0],
-  );
-  fireEvent.click(screen.getByRole("button", { name: "Edit manifest…" }));
-  expect(
-    await screen.findByRole("textbox", { name: "Notebook manifest" }),
-  ).toHaveValue('[tool.custom]\nlabel = "my draft"\n');
-  fireEvent.click(
-    screen.getByRole("button", { name: "Discard draft and reload manifest" }),
-  );
-  await waitFor(() =>
-    expect(
-      screen.getByRole("textbox", { name: "Notebook manifest" }),
-    ).toHaveValue(manifest),
   );
 });

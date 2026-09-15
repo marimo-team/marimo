@@ -21,24 +21,17 @@ import {
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "@/components/ui/use-toast";
-import { useResolvedMarimoConfig } from "@/core/config/config";
 import { isConnectedAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
 import type {
   DependencyTreeNode,
   DependencyTreeResponse,
 } from "@/core/network/types";
-import { packageDataVersionAtom } from "@/core/packages/package-data";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { stripPackageManagerPrefix } from "@/core/packages/package-input-utils";
-import {
-  showPackageRestartToast,
-  showRemovePackageToast,
-  showUpgradePackageToast,
-} from "@/core/packages/toast-components";
+import { usePackageAction } from "@/core/packages/usePackageAction";
+import { usePackageDependencies } from "@/core/packages/usePackageDependencies";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { isWasm } from "@/core/wasm/utils";
-import { useAsyncData } from "@/hooks/useAsyncData";
 import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
@@ -112,36 +105,8 @@ const PackagesPanel: React.FC = () => {
 
 const PackageContents: React.FC = () => {
   const { pending: syncing } = useAtomValue(sandboxSyncAtom);
-  const packageDataVersion = useAtomValue(packageDataVersionAtom);
-  const [config] = useResolvedMarimoConfig();
-  const packageManager = config.package_management.manager;
-  const { getDependencyTree, getPackageList } = useRequestClient();
-
   const [userViewMode, setUserViewMode] = React.useState<ViewMode | null>(null);
-  const {
-    data: dependencies,
-    error,
-    isPending,
-  } = useAsyncData(async () => {
-    // A sandbox's list and tree both inspect the same environment. Wait for
-    // the context before issuing the list request so sandboxes do that work
-    // only once; non-sandbox managers still need both views.
-    const dependencyTreeResponse = await getDependencyTree();
-    if (dependencyTreeResponse.context.kind === "sandbox") {
-      return {
-        list: [],
-        context: dependencyTreeResponse.context,
-        tree: dependencyTreeResponse.tree,
-      };
-    }
-
-    const listPackagesResponse = await getPackageList();
-    return {
-      list: listPackagesResponse.packages,
-      context: dependencyTreeResponse.context,
-      tree: dependencyTreeResponse.tree,
-    };
-  }, [packageManager, packageDataVersion]);
+  const { data: dependencies, error, isPending } = usePackageDependencies();
 
   // Only show on the first load
   if (isPending) {
@@ -452,37 +417,13 @@ const UpgradeButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
 }> = ({ packageName, tags }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { addPackage } = useRequestClient();
-
-  // Hide upgrade button in WASM
+  const { loading, run } = usePackageAction("upgrade", packageName, tags);
   if (isWasm()) {
     return null;
   }
 
-  const handleUpgradePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await addPackage({
-        package: packageName,
-        upgrade: true,
-        group,
-      });
-      if (response.restartRequired) {
-        showPackageRestartToast();
-      } else if (response.success) {
-        showUpgradePackageToast(packageName);
-      } else {
-        showUpgradePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <PackageActionButton onClick={handleUpgradePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Upgrade
     </PackageActionButton>
   );
@@ -492,35 +433,13 @@ const RemoveButton: React.FC<{
   packageName: string;
   tags?: { kind: string; value: string }[];
 }> = ({ packageName, tags }) => {
-  const [loading, setLoading] = React.useState(false);
-  const { removePackage } = useRequestClient();
-
+  const { loading, run } = usePackageAction("remove", packageName, tags);
   if (packageName.toLowerCase() === "marimo") {
     return null;
   }
 
-  const handleRemovePackage = async () => {
-    try {
-      setLoading(true);
-      const group = tags?.find((tag) => tag.kind === "group")?.value;
-      const response = await removePackage({
-        package: packageName,
-        group,
-      });
-      if (response.restartRequired) {
-        showPackageRestartToast();
-      } else if (response.success) {
-        showRemovePackageToast(packageName);
-      } else {
-        showRemovePackageToast(packageName, response.error);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
-    <PackageActionButton onClick={handleRemovePackage} loading={loading}>
+    <PackageActionButton onClick={run} loading={loading}>
       Remove
     </PackageActionButton>
   );
