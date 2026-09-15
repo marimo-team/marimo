@@ -411,3 +411,33 @@ def test_pytest_result_summary_omits_zero_xfail() -> None:
     result = MarimoPytestResult(passed=5, failed=0, errors=0, skipped=0)
     assert "XFailed" not in result.summary
     assert "XPassed" not in result.summary
+
+
+@pytest.mark.parametrize("failure", [None, "cell", "test"])
+def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
+    from marimo._ast.pytest import _make_hook
+
+    loop = asyncio.new_event_loop()
+    monkeypatch.setattr(asyncio, "new_event_loop", lambda: loop)
+
+    def test_function():
+        if failure == "test":
+            raise ValueError("test failed")
+        return "test result"
+
+    async def run_cell():
+        await asyncio.sleep(0)
+        if failure == "cell":
+            raise ValueError("cell failed")
+        return None, {"test_function": test_function}
+
+    hook = _make_hook("test_function", run_cell, __file__)
+    try:
+        if failure:
+            with pytest.raises(ValueError, match=f"{failure} failed"):
+                hook()
+        else:
+            assert hook() == "test result"
+        assert loop.is_closed()
+    finally:
+        loop.close()

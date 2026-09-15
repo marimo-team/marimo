@@ -24,7 +24,7 @@ def test_filename_preserves_symlinks(tmp_path: Path) -> None:
     alias = tmp_path / "alias"
     try:
         alias.symlink_to(directory, target_is_directory=True)
-    except OSError:
+    except (OSError, NotImplementedError):
         pytest.skip("Creating symlinks is not supported")
 
     with notebook_filename(str(alias / "notebook.py")):

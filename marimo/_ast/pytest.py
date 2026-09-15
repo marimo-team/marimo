@@ -255,7 +255,10 @@ def _make_hook(
                     import asyncio
 
                     loop = asyncio.new_event_loop()
-                    _, cell_defs = loop.run_until_complete(res)
+                    try:
+                        _, cell_defs = loop.run_until_complete(res)
+                    finally:
+                        loop.close()
                 else:
                     _, cell_defs = res
 
