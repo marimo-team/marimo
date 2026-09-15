@@ -55,6 +55,21 @@ def test_discovers_motherduck_environment() -> None:
     )
 
 
+def test_discovers_motherduck_md_prefix_in_duckdb_database() -> None:
+    detected = discover(
+        DiscoveryContext(
+            environment={
+                "MOTHERDUCK_TOKEN": "secret-md-token",
+                "DUCKDB_DATABASE": "md:production_analytics",
+            }
+        )
+    )
+
+    assert len(detected) == 1
+    assert detected[0].id == "motherduck-environment"
+    assert 'con = duckdb.connect(os.environ["DUCKDB_DATABASE"])' in detected[0].code
+
+
 def test_discovers_motherduck_without_database() -> None:
     detected = discover(
         DiscoveryContext(
@@ -68,7 +83,6 @@ def test_discovers_motherduck_without_database() -> None:
     assert detected[0].id == "motherduck-environment"
     assert detected[0].display_name == "MotherDuck"
     assert 'con = duckdb.connect("md:")' in detected[0].code
-
 
 def test_discovers_quack_protocol_token() -> None:
     detected = discover(
