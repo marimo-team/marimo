@@ -180,6 +180,7 @@ class CachedLifecycle:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
+                self._record(cell_id, attempt)
                 return Skip(
                     result=RunResult(
                         output=attempt.meta.get("return"), exception=None
@@ -236,10 +237,17 @@ class CachedLifecycle:
                 self._restored_keys[cell_id] = str(
                     self._loader.build_path(attempt.key)
                 )
+                self._record(cell_id, attempt)
         except BaseException as e:
             # Best-effort: save failures (incl. CacheException, which
             # extends BaseException) must never break the teardown chain.
             LOGGER.warning("Cache save failed for %s: %s", cell_id, e)
+
+    def _record(self, cell_id: CellId_t, attempt: Cache) -> None:
+        """Record the entry under the cell it caches."""
+        from marimo._save.manifest import record_cache_event
+
+        record_cache_event(self._loader, attempt.key, cell_id, self._graph)
 
     @staticmethod
     def _defines_stub(cell: CellImpl, glbls: MutableGlobals) -> bool:

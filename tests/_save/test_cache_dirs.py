@@ -16,6 +16,7 @@ from marimo._save.cache_dirs import (
     directory_cache_dir,
     entry_bytes,
     notebook_cache_dir,
+    partial_write_name,
     resolve_cache_dirs,
 )
 
@@ -303,6 +304,21 @@ def test_cache_dir_stats_counts_an_entry_and_its_blobs_once(
 
     assert cache_dir_stats(cache_dir) == CacheDirStats(
         total_bytes=105, entries=2
+    )
+
+
+def test_cache_dir_stats_does_not_count_an_interrupted_write(
+    tmp_path: Path,
+) -> None:
+    """A killed kernel leaves the sibling of a rename. It is not an entry."""
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    leftover = cache_dir / "train" / partial_write_name("C_77e0.pickle")
+    leftover.write_bytes(b"p" * 8)
+
+    # The bytes are on disk and reported as such. The value is not.
+    assert cache_dir_stats(cache_dir) == CacheDirStats(
+        total_bytes=113, entries=2
     )
 
 
