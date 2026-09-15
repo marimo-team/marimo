@@ -262,18 +262,30 @@ const wrapTooltipTargets: TransformFn = (
     if (tagName.startsWith("marimo-")) {
       return undefined;
     }
-    const tooltipContent = domNode.attribs["data-tooltip"];
-    // Convert literal newlines to <br/> elements so the tooltip renders
-    // multiline content.  &#10; is decoded to \n by html-react-parser
-    // before this transform runs.
-    const lines = tooltipContent.split("\n");
-    const content: ReactNode =
-      lines.length === 1
-        ? tooltipContent
-        : lines.flatMap((line, i) =>
-            i === 0 ? [line] : [<br key={i} />, line],
-          );
-    return <Tooltip content={content}>{reactNode as JSX.Element}</Tooltip>;
+    const tooltipContent = domNode.attribs["data-tooltip"].replace(
+      /^[\r\n]+|[\r\n]+$/g,
+      "",
+    );
+    return (
+      <Tooltip
+        content={
+          tooltipContent.includes("\n") ? (
+            <span className="whitespace-pre-wrap">
+              {tooltipContent.split(/\r?\n/).map((line, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </React.Fragment>
+              ))}
+            </span>
+          ) : (
+            tooltipContent
+          )
+        }
+      >
+        {reactNode as JSX.Element}
+      </Tooltip>
+    );
   }
 };
 

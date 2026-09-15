@@ -1,5 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import type { ExtractAtomValue } from "jotai";
+import { isValidElement, type ReactNode } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { hasRunAnyCellAtom } from "@/components/editor/cell/useRunCells";
 import { userConfigAtom } from "@/core/config/config";
@@ -458,13 +460,21 @@ describe("wrapTooltipTargets", () => {
     expect(result).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
-            "Line A",
-            <br />,
-            "Line B",
-            <br />,
-            "Line C",
-          ]
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              Line A
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line B
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line C
+            </React.Fragment>
+          </span>
         }
       >
         <span
@@ -483,11 +493,17 @@ describe("wrapTooltipTargets", () => {
     expect(parseHtml({ html })).toMatchInlineSnapshot(`
       <Tooltip
         content={
-          [
-            "Line A",
-            <br />,
-            "Line B",
-          ]
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              Line A
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line B
+            </React.Fragment>
+          </span>
         }
       >
         <span
@@ -510,6 +526,113 @@ describe("wrapTooltipTargets", () => {
           data-tooltip="Single line"
         >
           hover
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test.each([
+    ["CRLF", "A\r\nB", '<span class="whitespace-pre-wrap">A<br/>B</span>'],
+    [
+      "encoded CRLF",
+      "A&#13;&#10;B",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
+    ["leading newline", "\nA", "A"],
+    ["trailing newline", "A\n", "A"],
+    [
+      "boundary newlines",
+      "\n\nA\nB\n\n",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
+    [
+      "boundary CRLF",
+      "&#13;&#10;A&#13;&#10;B&#13;&#10;",
+      '<span class="whitespace-pre-wrap">A<br/>B</span>',
+    ],
+    ["only newlines", "\n\n", ""],
+    ["only CRLF", "&#13;&#10;&#13;&#10;", ""],
+    [
+      "internal blank line",
+      "A\n\nB",
+      '<span class="whitespace-pre-wrap">A<br/><br/>B</span>',
+    ],
+    [
+      "spaces and tabs",
+      "\n A\t\n\tB \n",
+      '<span class="whitespace-pre-wrap"> A\t<br/>\tB </span>',
+    ],
+    [
+      "HTML text",
+      "&lt;b&gt;A&lt;/b&gt;\nB",
+      '<span class="whitespace-pre-wrap">&lt;b&gt;A&lt;/b&gt;<br/>B</span>',
+    ],
+  ])("data-tooltip handles %s", (_, content, expected) => {
+    const result = parseHtml({
+      html: `<span data-tooltip="${content}">Hover me</span>`,
+    });
+    if (!isValidElement<{ content: ReactNode }>(result)) {
+      throw new Error("Expected a Tooltip element");
+    }
+    expect(renderToStaticMarkup(result.props.content)).toBe(expected);
+  });
+
+  test("data-tooltip with newline renders as line breaks", () => {
+    const html = '<span data-tooltip="Line one\nLine two">Hover me</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              Line one
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              Line two
+            </React.Fragment>
+          </span>
+        }
+      >
+        <span
+          data-tooltip="Line one
+      Line two"
+        >
+          Hover me
+        </span>
+      </Tooltip>
+    `);
+  });
+
+  test("data-tooltip with multiple newlines renders all as line breaks", () => {
+    const html = '<span data-tooltip="A\nB\nC">Hover me</span>';
+    expect(parseHtml({ html })).toMatchInlineSnapshot(`
+      <Tooltip
+        content={
+          <span
+            className="whitespace-pre-wrap"
+          >
+            <React.Fragment>
+              A
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              B
+            </React.Fragment>
+            <React.Fragment>
+              <br />
+              C
+            </React.Fragment>
+          </span>
+        }
+      >
+        <span
+          data-tooltip="A
+      B
+      C"
+        >
+          Hover me
         </span>
       </Tooltip>
     `);
