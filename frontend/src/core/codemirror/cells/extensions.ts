@@ -23,7 +23,7 @@ import { store } from "@/core/state/jotai";
 import { createObservable } from "@/core/state/observable";
 import { formatKeymapExtension } from "../extensions";
 import { formattingChangeEffect } from "../format";
-import { goToDefinitionAtCursorPosition } from "../go-to-definition/utils";
+import { marimoGoToDefinitionKeymap } from "../go-to-definition/utils";
 import { getEditorCodeAsPython } from "../language/utils";
 import { isAtEndOfEditor, isAtStartOfEditor } from "../utils";
 import {
@@ -117,9 +117,7 @@ function cellKeymaps({
     keybindings.push(
       {
         key: hotkeys.getHotkey("cell.goToDefinition").key,
-        run: (ev) => {
-          return goToDefinitionAtCursorPosition(ev);
-        },
+        run: marimoGoToDefinitionKeymap,
       },
       {
         key: hotkeys.getHotkey("cell.delete").key,
