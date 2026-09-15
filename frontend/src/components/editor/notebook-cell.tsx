@@ -452,7 +452,10 @@ const EditableCellComponent = ({
     !cellRuntime.interrupted;
 
   // Callback to get the editor view.
-  const getEditorView = useCallback(() => editorView.current, [editorView]);
+  const getEditorView = useCallback(
+    () => editorView.current,
+    [editorView.current],
+  );
 
   // Use the extracted hooks
   const { closeCompletionHandler, resumeCompletionHandler } = useCellCompletion(
@@ -1097,7 +1100,10 @@ const SetupCellComponent = ({
     !cellRuntime.interrupted;
 
   // Callback to get the editor view.
-  const getEditorView = useCallback(() => editorView.current, [editorView]);
+  const getEditorView = useCallback(
+    () => editorView.current,
+    [editorView.current],
+  );
 
   const { isCellCodeShown, showHiddenCode } = useCellHiddenLogic({
     cellId,
