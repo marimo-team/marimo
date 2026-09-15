@@ -49,6 +49,7 @@ from marimo._runtime.control_flow import MarimoInterrupt, MarimoStopError
 from marimo._runtime.runner import cell_runner
 from marimo._runtime.runner.hook_context import PostExecutionHookContext
 from marimo._runtime.runner.hooks import PostExecutionHook
+from marimo._runtime.runner.hooks_lens import mount_lens
 from marimo._runtime.side_effect import SideEffect
 from marimo._sql.engines.duckdb import (
     INTERNAL_DUCKDB_ENGINE,
@@ -560,6 +561,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
     _broadcast_outputs,
     _reset_matplotlib_context,
     _delete_local_variables,
+    mount_lens,
 ]
 
 
