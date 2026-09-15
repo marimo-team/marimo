@@ -1,24 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { render } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { JsonOutput } from "../JsonOutput";
-
-// Mock window.matchMedia for JsonViewer
-beforeAll(() => {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  });
-});
 
 describe("JsonOutput with enhanced mimetype handling", () => {
   it("should render data with various mimetypes without crashing", () => {
@@ -104,8 +87,8 @@ describe("JsonOutput with enhanced mimetype handling", () => {
   });
 
   it("quotes integer-like string keys to distinguish them from int keys", () => {
-    // Without this, `"2"` and the decoded int `2` look identical — the
-    // textea viewer drops quotes from integer-like string keys by default.
+    // The string `"2"` must stay quoted while the decoded int `2` renders
+    // bare, so the two are visually distinct.
     const data = {
       "2": "string_two",
       "text/plain+int:2": "int_two",

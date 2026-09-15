@@ -1,6 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { determineMaxDisplayLength, getCopyValue } from "../JsonOutput";
+import {
+  decodeShowMore,
+  determineMaxDisplayLength,
+  encodeShowMore,
+  estimateExpandedLines,
+  getCopyValue,
+  jsonCopyValue,
+  stripSentinels,
+  truncateNode,
+} from "../JsonOutput";
 
 describe("getCopyValue", () => {
   it("should handle strings without MIME prefixes", () => {
@@ -275,6 +284,25 @@ describe("getCopyValue", () => {
       `,
     );
   });
+  it("should strip sentinels from data with show-more markers", () => {
+    const sentinel = encodeShowMore(10, "$.foo");
+    // Array: sentinel → undefined → null in JSON → None in Python copy
+    expect(getCopyValue([1, 2, sentinel])).toMatchInlineSnapshot(`
+      "[
+        1,
+        2,
+        null
+      ]"
+    `);
+    // Object: sentinel key is fully omitted
+    const obj: Record<string, unknown> = { a: 1 };
+    obj[sentinel] = sentinel;
+    expect(getCopyValue(obj)).toMatchInlineSnapshot(`
+      "{
+        "a": 1
+      }"
+    `);
+  });
 });
 
 describe("determineMaxDisplayLength", () => {
@@ -511,5 +539,176 @@ describe("getCopyValue with application/ mimetypes", () => {
     expect(result).toContain('"appMime": "data"');
     expect(result).toContain('"plainText": "hello"');
     expect(result).toContain('"number": 42');
+  });
+});
+
+describe("estimateExpandedLines", () => {
+  it("scalars count as 1", () => {
+    expect(estimateExpandedLines(42, 100)).toBe(1);
+    expect(estimateExpandedLines(null, 100)).toBe(1);
+  });
+
+  it("flat containers = child count", () => {
+    expect(estimateExpandedLines({ a: 1, b: 2, c: 3 }, 100)).toBe(3);
+    expect(estimateExpandedLines([1, 2, 3, 4], 100)).toBe(4);
+  });
+
+  it("small nested children expand recursively", () => {
+    expect(estimateExpandedLines({ a: { x: 1, y: 2 }, b: 3 }, 100)).toBe(3);
+  });
+
+  it("large children count as 1 collapsed line", () => {
+    const big = Array.from({ length: 20 }, (_, i) => i);
+    expect(estimateExpandedLines({ a: big, b: 1 }, 100)).toBe(2);
+  });
+
+  it("bails at cap", () => {
+    const big = Array.from({ length: 500 }, (_, i) => i);
+    expect(estimateExpandedLines(big, 50)).toBe(50);
+  });
+
+  it("bails at max depth", () => {
+    // 6 levels deep, each 1 child — should bail at depth 4
+    const data = { a: { b: { c: { d: { e: { f: 1 } } } } } };
+    expect(estimateExpandedLines(data, 100)).toBe(1);
+  });
+});
+
+describe("truncateNode", () => {
+  const wm = () => new WeakMap<object, object>();
+
+  it("passes through primitives", () => {
+    expect(truncateNode(42, {}, "$", 0, wm())).toBe(42);
+    expect(truncateNode("hi", {}, "$", 0, wm())).toBe("hi");
+    expect(truncateNode(null, {}, "$", 0, wm())).toBe(null);
+  });
+
+  it("truncates arrays > PAGE_SIZE and appends sentinel", () => {
+    const arr = Array.from({ length: 60 }, (_, i) => i);
+    const originals = wm();
+    const result = truncateNode(arr, {}, "$", 0, originals) as unknown[];
+    expect(result).toHaveLength(31); // 30 items + 1 sentinel
+    expect(result.slice(0, 30)).toEqual(arr.slice(0, 30));
+    expect(decodeShowMore(result[30])).toEqual({
+      remaining: "30",
+      path: "$",
+    });
+    // originals map points back to the full array
+    expect(originals.get(result)).toBe(arr);
+  });
+
+  it("truncates objects > PAGE_SIZE and appends sentinel key", () => {
+    const obj: Record<string, number> = {};
+    for (let i = 0; i < 60; i++) {
+      obj[`k${i}`] = i;
+    }
+    const originals = wm();
+    const result = truncateNode(obj, {}, "$", 0, originals) as Record<
+      string,
+      unknown
+    >;
+    const keys = Object.keys(result);
+    expect(keys).toHaveLength(31); // 30 keys + 1 sentinel key
+    const lastVal = result[keys[keys.length - 1]];
+    expect(decodeShowMore(lastVal)).toEqual({ remaining: "30", path: "$" });
+    // originals map points back to the full object
+    expect(originals.get(result)).toBe(obj);
+  });
+
+  it("respects custom limits", () => {
+    const arr = Array.from({ length: 20 }, (_, i) => i);
+    const result = truncateNode(arr, { $: 5 }, "$", 0, wm()) as unknown[];
+    expect(result).toHaveLength(6); // 5 + sentinel
+    expect(decodeShowMore(result[5])).toEqual({ remaining: "15", path: "$" });
+  });
+
+  it("does not truncate small containers", () => {
+    expect(truncateNode([1, 2, 3], {}, "$", 0, wm())).toEqual([1, 2, 3]);
+  });
+
+  it("registers parent containers so copying includes truncated descendants", () => {
+    const arr = [{ rows: Array.from({ length: 70 }, (_, i) => i) }];
+    const originals = wm();
+    const result = truncateNode(arr, {}, "$", 0, originals);
+    expect(originals.get(result as object)).toBe(arr);
+  });
+  it("keeps pagination paths distinct for dotted keys and nested keys", () => {
+    const values = Array.from({ length: 70 }, (_, i) => i);
+    const data = { "a.b": values, a: { b: values } };
+    const result = truncateNode(data, { '$."a.b"': 100 }, "$", 0, wm());
+    expect(result).toEqual({
+      "a.b": values,
+      a: { b: [...values.slice(0, 30), encodeShowMore(40, '$."a"."b"')] },
+    });
+  });
+
+  it("preserves own __proto__ keys", () => {
+    const data = JSON.parse('{"__proto__":{"value":1}}');
+    expect(JSON.stringify(truncateNode(data, {}, "$", 0, wm()))).toBe(
+      JSON.stringify(data),
+    );
+  });
+
+  it("uses smaller page sizes throughout a matrix", () => {
+    const matrix = Array.from({ length: 30 }, () =>
+      Array.from({ length: 60 }, (_, i) => i),
+    );
+    const result = truncateNode(matrix, {}, "$", 0, wm(), 5);
+    expect(result).toEqual([
+      ...Array.from({ length: 5 }, (_, i) => [
+        0,
+        1,
+        2,
+        3,
+        4,
+        encodeShowMore(55, `$.${i}`),
+      ]),
+      encodeShowMore(25, "$"),
+    ]);
+  });
+});
+
+describe("sentinel encode/decode round-trip", () => {
+  it("round-trips", () => {
+    const encoded = encodeShowMore(42, "$.foo.bar");
+    const decoded = decodeShowMore(encoded);
+    expect(decoded).toEqual({ remaining: "42", path: "$.foo.bar" });
+  });
+
+  it("returns null for non-sentinels", () => {
+    expect(decodeShowMore("hello")).toBeNull();
+    expect(decodeShowMore(42)).toBeNull();
+    expect(decodeShowMore(null)).toBeNull();
+  });
+});
+
+describe("stripSentinels", () => {
+  it("strips sentinel keys", () => {
+    const key = encodeShowMore(5, "$.x");
+    expect(stripSentinels(key, "anything")).toBeUndefined();
+  });
+
+  it("strips sentinel values", () => {
+    const val = encodeShowMore(5, "$.x");
+    expect(stripSentinels("normalKey", val)).toBeUndefined();
+  });
+
+  it("passes through normal data", () => {
+    expect(stripSentinels("key", "value")).toBe("value");
+    expect(stripSentinels("key", 42)).toBe(42);
+  });
+});
+
+describe("jsonCopyValue", () => {
+  it("strips sentinels from arrays (replaced with null per JSON spec)", () => {
+    const sentinel = encodeShowMore(10, "$");
+    expect(JSON.parse(jsonCopyValue([1, 2, sentinel]))).toEqual([1, 2, null]);
+  });
+
+  it("strips sentinel keys from objects", () => {
+    const sentinel = encodeShowMore(10, "$");
+    const obj: Record<string, unknown> = { a: 1 };
+    obj[sentinel] = sentinel;
+    expect(JSON.parse(jsonCopyValue(obj))).toEqual({ a: 1 });
   });
 });
