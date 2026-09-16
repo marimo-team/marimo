@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { Provider } from "jotai";
-import { type PropsWithChildren, useState } from "react";
+import { type PropsWithChildren, lazy, Suspense, useState } from "react";
 import {
   type FallbackProps,
   ErrorBoundary as ReactErrorBoundary,
@@ -8,8 +8,14 @@ import {
 import { store } from "@/core/state/jotai";
 import { Button } from "../../ui/button";
 import { Dialog, DialogTrigger } from "../../ui/dialog";
+import { Toaster } from "../../ui/toaster";
 import { TooltipProvider } from "../../ui/tooltip";
-import { FeedbackModal } from "../chrome/components/feedback-button";
+
+const FeedbackModal = lazy(() =>
+  import("../chrome/components/feedback-button").then((mod) => ({
+    default: mod.FeedbackModal,
+  })),
+);
 
 export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
   return (
@@ -36,7 +42,10 @@ const FallbackComponent: React.FC<FallbackProps> = (props) => {
           {open && (
             <Provider store={store}>
               <TooltipProvider>
-                <FeedbackModal onClose={() => setOpen(false)} />
+                <Suspense fallback={null}>
+                  <FeedbackModal />
+                </Suspense>
+                <Toaster />
               </TooltipProvider>
             </Provider>
           )}

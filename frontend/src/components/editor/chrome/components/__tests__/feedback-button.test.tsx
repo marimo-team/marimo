@@ -244,6 +244,7 @@ describe("FeedbackModal issue reporting", () => {
       "marimo:issue-report:include-code",
       JSON.stringify(true),
     );
+    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
     store.set(requestClientAtom, null);
     render(<FeedbackModal onClose={vi.fn()} />, { wrapper });
 
@@ -254,6 +255,9 @@ describe("FeedbackModal issue reporting", () => {
     expect(
       screen.getByText("Notebook source is unavailable."),
     ).toBeInTheDocument();
+    expect(
+      screen.queryByText("Connect the notebook to include its source."),
+    ).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Open GitHub issue" });
     expect(link.getAttribute("href") ?? "").not.toContain("reproduction-code=");
   });

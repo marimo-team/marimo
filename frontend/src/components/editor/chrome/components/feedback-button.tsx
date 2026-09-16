@@ -85,7 +85,7 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 };
 
 export const FeedbackModal: React.FC<{
-  onClose: () => void;
+  onClose?: () => void;
 }> = () => {
   const requestClient = useAtomValue(requestClientAtom);
   const environmentRequest = useAsyncData(async () => {
@@ -112,13 +112,13 @@ export const FeedbackModal: React.FC<{
 
   const notebookSourceReason = notebookSourceAvailable
     ? undefined
-    : filename === null
-      ? "Save the notebook first."
-      : !codeAvailable
-        ? "Notebook source is hidden in this view."
-        : connection.state !== WebSocketState.OPEN
-          ? "Connect the notebook to include its source."
-          : "Notebook source is unavailable.";
+    : requestClient == null
+      ? "Notebook source is unavailable."
+      : filename === null
+        ? "Save the notebook first."
+        : !codeAvailable
+          ? "Notebook source is hidden in this view."
+          : "Connect the notebook to include its source.";
 
   const [includeErrors, setIncludeErrors] = useLocalStorage(
     "marimo:issue-report:include-errors",

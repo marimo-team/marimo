@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { ModalProvider } from "@/components/modal/ImperativeModal";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { clearToasts } from "@/components/ui/use-toast";
 import { initialNotebookState, notebookAtom } from "@/core/cells/cells";
 import { viewStateAtom } from "@/core/mode";
 import { connectionAtom } from "@/core/network/connection";
@@ -139,6 +140,7 @@ async function expectRealReportModal() {
 
 function resetSharedState() {
   localStorage.clear();
+  clearToasts();
   store.set(requestClientAtom, null);
   store.set(notebookAtom, initialNotebookState());
   store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
@@ -291,5 +293,19 @@ describe("ErrorBoundary report dialog", () => {
     await expectRealReportModal();
 
     expect(readCode).not.toHaveBeenCalled();
+  });
+
+  it("renders the copy toast after the ancestor toaster is gone", async () => {
+    setRequestClient({
+      getEnvironmentInfo: vi.fn().mockResolvedValue(environment),
+    });
+    renderCrashedBoundary();
+    await expectRealReportModal();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Copy environment JSON" }),
+    );
+
+    expect(await screen.findByText("Environment details copied")).toBeVisible();
   });
 });
