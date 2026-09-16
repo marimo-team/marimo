@@ -397,7 +397,7 @@ Options:
             ),
             (
                 "KeyError: \"Cell 'KBiG' not found. Available cell IDs: [Hbol]\"",
-                'cell = ctx.cells["KBiG"]',
+                "cell = ctx.cells['KBiG']",
             ),
             (
                 "AttributeError: '_CellsView' object has no attribute 'get'",
@@ -438,6 +438,39 @@ Options:
             "--session s_ab12cd" in payload["next"]
             or "top level" in (payload["next"])
         )
+
+    def test_execute_next_quotes_shell_arguments(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def fail_execution(**kwargs: Any) -> ExecutionResult:
+            del kwargs
+            return ExecutionResult(
+                success=False,
+                output=None,
+                stdout="",
+                stderr='KeyError: "Cell \'a"b\' not found"',
+            )
+
+        monkeypatch.setattr(commands, "execute_code", fail_execution)
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "execute",
+                "--url",
+                "http://one/a b",
+                "--session",
+                "s'1",
+                "-c",
+                "x",
+            ],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.output)
+        assert "--url 'http://one/a b'" in payload["next"]
+        assert "--session 's'\"'\"'1'" in payload["next"]
+        assert "ctx.cells['a\"b']" in payload["next"]
 
     def test_execute_stream_failure_prints_next_lines(
         self, monkeypatch: pytest.MonkeyPatch

@@ -256,7 +256,15 @@ def execute(
                         stdout="".join(stdout_parts),
                         stderr="".join(stderr_parts),
                     )
-        except (OSError, http.client.HTTPException) as error:
+        except (
+            OSError,
+            http.client.HTTPException,
+            ValueError,
+            KeyError,
+            TypeError,
+        ) as error:
+            # A malformed event means the outcome is unknown. The code may
+            # have run, so the caller must inspect rather than retry.
             raise PairError(
                 "The execution response ended before completion was confirmed."
             ) from error
@@ -388,6 +396,8 @@ def registry_urls() -> list[str]:
         url_host = format_url_host(host, port, route_bind_all_to_loopback=True)
         if port == 80:
             urls.append(f"http://{url_host}{base_url}")
+        elif port == 443:
+            urls.append(f"https://{url_host}{base_url}")
         else:
             urls.append(f"http://{url_host}:{port}{base_url}")
     return urls

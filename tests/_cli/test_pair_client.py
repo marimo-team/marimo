@@ -352,6 +352,33 @@ def test_execute_rejects_missing_done(
     assert len(calls) == 1
 
 
+@pytest.mark.parametrize(
+    "body",
+    [
+        b"event: stdout\ndata: not json\n\n",
+        b'event: done\ndata: {"output":null}\n\n',
+        b"event: stdout\ndata: []\n\n",
+    ],
+    ids=["non_json", "done_without_success", "wrong_shape"],
+)
+def test_execute_treats_malformed_events_as_unconfirmed(
+    monkeypatch: pytest.MonkeyPatch, body: bytes
+) -> None:
+    response = io.BytesIO(body)
+    _patch_response(monkeypatch, response)
+
+    with pytest.raises(PairError, match="ended before completion"):
+        client.execute(
+            url="http://localhost:2718",
+            session_id="session-1",
+            token=None,
+            code="print(1)",
+            stdout=io.StringIO(),
+            stderr=io.StringIO(),
+            stream=False,
+        )
+
+
 def test_execute_keeps_buffered_output_after_read_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -597,7 +624,7 @@ def test_registry_urls_formats_prefix_and_standard_ports(
 
     assert client.registry_urls() == [
         "http://localhost/prefix",
-        "http://localhost:443",
+        "https://localhost",
     ]
 
 

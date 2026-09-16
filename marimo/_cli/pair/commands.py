@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import sys
 from pathlib import Path
 
@@ -252,10 +253,17 @@ _HEADLESS_NEXT = (
 )
 
 
+def _execute_prefix(url: str, session_id: str) -> str:
+    """Shell-safe start of an execute command that targets one session."""
+    return (
+        "marimo pair execute "
+        f"--url {shlex.quote(url)} --session {shlex.quote(session_id)}"
+    )
+
+
 def _inspect_command(url: str, session_id: str) -> str:
     return (
-        f"marimo pair execute --url {url} --session {session_id} "
-        "--code-file - <<'PY'\n"
+        f"{_execute_prefix(url, session_id)} --code-file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
         "    for cell in ctx.cells.values():\n"
@@ -266,11 +274,10 @@ def _inspect_command(url: str, session_id: str) -> str:
 
 def _read_cell_command(url: str, session_id: str, cell_id: str) -> str:
     return (
-        f"marimo pair execute --url {url} --session {session_id} "
-        "--code-file - <<'PY'\n"
+        f"{_execute_prefix(url, session_id)} --code-file - <<'PY'\n"
         "import marimo._code_mode as cm\n"
         "async with cm.get_context() as ctx:\n"
-        f'    cell = ctx.cells["{cell_id}"]\n'
+        f"    cell = ctx.cells[{cell_id!r}]\n"
         "    print(cell.status, cell.errors, "
         "[o.data for o in cell.console_outputs])\n"
         "PY"
@@ -279,7 +286,7 @@ def _read_cell_command(url: str, session_id: str, cell_id: str) -> str:
 
 def _help_cm_command(url: str, session_id: str) -> str:
     return (
-        f"marimo pair execute --url {url} --session {session_id} "
+        f"{_execute_prefix(url, session_id)} "
         "-c 'import marimo._code_mode as cm; help(cm)'"
     )
 
