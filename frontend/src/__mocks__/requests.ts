@@ -139,6 +139,13 @@ export const MockRequestClient = {
       getPackageList: vi.fn().mockResolvedValue({
         packages: [],
       }),
+      getSandbox: vi
+        .fn()
+        .mockResolvedValue({ backend: null, manifest: null, filename: null }),
+      updateManifest: vi
+        .fn()
+        .mockResolvedValue({ backend: null, manifest: null, filename: null }),
+      syncSandbox: vi.fn().mockResolvedValue({ success: true }),
       getDependencyTree: vi.fn().mockResolvedValue({
         tree: null,
         context: { kind: "package-manager", name: "pip" },

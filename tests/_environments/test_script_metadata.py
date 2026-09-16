@@ -392,9 +392,14 @@ pyproject: |
 
     with script_metadata.materialized_for_environment(str(notebook)) as second:
         assert second.path == first.path
+    assert list(tmp_path.iterdir()) == [notebook]
 
 
-def _enter_carrier(notebook, attempting, entered):
+def _enter_carrier(notebook, attempting, entered, temporary_directory):
+    if temporary_directory is not None:
+        import tempfile
+
+        tempfile.tempdir = temporary_directory
     attempting.set()
     with script_metadata.materialized_for_environment(notebook):
         entered.set()
@@ -415,8 +420,16 @@ def test_stable_carrier_lifetime_is_serialized(
     attempting = context.Event()
     entered = context.Event()
     worker_type = context.Process if separate_process else threading.Thread
+    temporary_directory = tmp_path / "worker-tmp"
+    temporary_directory.mkdir()
     worker = worker_type(
-        target=_enter_carrier, args=(str(notebook), attempting, entered)
+        target=_enter_carrier,
+        args=(
+            str(notebook),
+            attempting,
+            entered,
+            str(temporary_directory) if separate_process else None,
+        ),
     )
     with script_metadata.materialized_for_environment(
         str(notebook)
@@ -447,35 +460,78 @@ def test_old_active_carriers_are_preserved(tmp_path: Path) -> None:
             assert carrier.exists()
 
 
+@pytest.mark.timeout(15)
 def test_stranded_stable_carrier_is_reclaimed(tmp_path: Path) -> None:
     notebook = tmp_path / "notebook.md"
     notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
-    stranded = tmp_path / ".marimo-v1-notebook.md.py"
-    stranded.write_text("stranded")
+    worker = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys, time\n"
+                "from marimo._environments import script_metadata\n"
+                "with script_metadata.materialized_for_environment(sys.argv[1]) as target:\n"
+                "    print(target.path, flush=True)\n"
+                "    time.sleep(60)\n"
+            ),
+            str(notebook),
+        ],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    try:
+        assert worker.stdout is not None
+        stranded = Path(worker.stdout.readline().strip())
+        assert stranded.is_file()
+    finally:
+        worker.kill()
+        worker.wait(timeout=5)
+        if worker.stdout is not None:
+            worker.stdout.close()
+    assert stranded.exists()
+    notebook.write_text(
+        '---\npyproject: |\n  dependencies = ["requests"]\n---\n'
+    )
     with script_metadata.materialized_for_environment(
         str(notebook)
     ) as materialized:
-        assert "dependencies = []" in Path(materialized.path).read_text()
+        assert (
+            'dependencies = ["requests"]'
+            in Path(materialized.path).read_text()
+        )
     assert not stranded.exists()
 
 
-@pytest.mark.parametrize("suffix", [".py", ".lock"])
+@pytest.mark.parametrize("kind", ["carrier", "lock"])
 def test_carrier_symlinks_do_not_modify_target(
-    tmp_path: Path, suffix: str
+    tmp_path: Path,
+    kind: str,
 ) -> None:
     notebook = tmp_path / "notebook.md"
     notebook.write_text("---\npyproject: |\n  dependencies = []\n---\n")
     target = tmp_path / "precious.txt"
     target.write_text("do not touch")
-    link = tmp_path / f".marimo-v1-notebook.md{suffix}"
+    link = (
+        tmp_path / ".marimo-v1-notebook.md.py"
+        if kind == "carrier"
+        else script_metadata._notebook_lock_path(str(notebook)).with_suffix(
+            ".carrier.lock"
+        )
+    )
     try:
         link.symlink_to(target)
     except OSError:
         pytest.skip("symlinks unavailable")
-    with pytest.raises(script_metadata.ScriptMetadataError, match="symlink"):
-        with script_metadata.materialized_for_environment(str(notebook)):
-            pytest.fail("must reject the symlink")
-    assert target.read_text() == "do not touch"
+    try:
+        with pytest.raises(
+            script_metadata.ScriptMetadataError, match="symlink"
+        ):
+            with script_metadata.materialized_for_environment(str(notebook)):
+                pytest.fail("must reject the symlink")
+        assert target.read_text() == "do not touch"
+    finally:
+        link.unlink()
 
 
 @pytest.mark.skipif(
@@ -503,3 +559,90 @@ def test_readonly_notebook_directory_fails_clearly(
                 pytest.fail("must preserve adjacent path semantics")
     finally:
         os.chmod(tmp_path, 0o700)
+
+
+@pytest.mark.parametrize("suffix", [".py", ".md", ".qmd"])
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_replace_whole_manifest_preserves_custom_tables_and_notebook(
+    tmp_path: Path, suffix: str, newline: str
+) -> None:
+    path = tmp_path / f"notebook{suffix}"
+    original = 'dependencies = ["numpy==0.0.0"]\n'
+    replacement = '''# Keep this comment and the user's table order.
+notes = """
+/// example
+"""
+
+[tool.custom]
+label = "my experiment"
+
+[tool.uv.sources]
+numpy = { path = "../numpy", editable = true }
+
+[tool.pixi.dependencies]
+python = ">=3.12"
+'''
+    body = "\n# Notebook content\nprint('unchanged')\n"
+    if suffix == ".py":
+        source = script_metadata.wrap_block(original) + "\n" + body
+    else:
+        source = (
+            "---\ntitle: My notebook\npyproject: |\n"
+            '  dependencies = ["numpy==0.0.0"]\n---\n' + body
+        )
+    path.write_bytes(source.replace("\n", newline).encode())
+    previous = script_metadata.read_manifest(str(path))
+    saved = script_metadata.write_manifest(
+        str(path), replacement, previous=previous
+    )
+    assert saved == replacement
+    assert path.read_bytes().endswith(body.replace("\n", newline).encode())
+    if suffix != ".py":
+        assert "title: My notebook" in path.read_text()
+
+
+def test_manifest_repair_rejects_stale_edits_but_preserves_new_code(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "notebook.py"
+    broken = "dependencies = [\n"
+    path.write_text(script_metadata.wrap_block(broken) + "\nprint('old')\n")
+    previous = script_metadata.read_manifest(str(path))
+    path.write_text(path.read_text().replace("print('old')", "print('new')"))
+    script_metadata.write_manifest(
+        str(path), "[tool.custom]\nvalue = 1\n", previous=previous
+    )
+    saved = path.read_text()
+    with pytest.raises(script_metadata.ManifestConflictError):
+        script_metadata.write_manifest(
+            str(path), "dependencies = []\n", previous=previous
+        )
+    with pytest.raises(ValueError):
+        script_metadata.write_manifest(str(path), broken, previous=previous)
+    with pytest.raises(
+        script_metadata.ScriptMetadataError, match="script markers"
+    ):
+        script_metadata.write_manifest(
+            str(path),
+            'value = """\n///\n"""\n',
+            previous=script_metadata.read_manifest(str(path)),
+        )
+    assert path.read_text() == saved
+    assert saved.endswith("print('new')\n")
+
+
+def test_manifest_replacement_preserves_crlf_notebook_code(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "notebook.py"
+    path.write_bytes(
+        b'# /// script\r\n# dependencies = []\r\n# ///\r\nprint("keep")\r\n'
+    )
+    previous = script_metadata.read_manifest(str(path))
+    script_metadata.write_manifest(
+        str(path), "[tool.custom]\nvalue = 1\n", previous=previous
+    )
+    assert (
+        path.read_bytes()
+        == b'# /// script\r\n# [tool.custom]\r\n# value = 1\r\n# ///\r\nprint("keep")\r\n'
+    )

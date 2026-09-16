@@ -1,11 +1,25 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+} from "@testing-library/react";
 import { createStore, Provider as JotaiProvider } from "jotai";
 import type React from "react";
 import { ErrorBoundary } from "react-error-boundary";
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type Mock,
+  vi,
+} from "vitest";
 
 vi.mock("@/core/websocket/useWebSocket", async () => {
   const actual =
@@ -26,6 +40,13 @@ vi.mock("@/core/runtime/config", async () => {
   };
 });
 
+import { MockNotebook } from "@/__mocks__/notebook";
+import { cellId } from "@/__tests__/branded";
+import { notebookAtom } from "@/core/cells/cells";
+import { AppConfigSchema } from "@/core/config/config-schema";
+import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
+import { kernelStartupErrorAtom } from "@/core/errors/state";
+import type { NotificationPayload } from "@/core/kernel/messages";
 import { useRuntimeManager } from "@/core/runtime/config";
 import { initialRunCompletedAtom } from "../../kernel/state";
 import { connectionAtom } from "../../network/connection";
@@ -238,3 +259,142 @@ it.each(["kernel-ready", "reconnected"])(
     expect(store.get(connectionAtom).state).toBe(WebSocketState.OPEN);
   },
 );
+
+describe("connection notice", () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  function renderNotice() {
+    const store = createStore();
+    store.set(connectionAtom, { state: WebSocketState.CONNECTING });
+    const transport = makeTransport(WebSocket.OPEN);
+    vi.mocked(useConnectionTransport).mockReturnValue(transport);
+    vi.mocked(useRuntimeManager).mockReturnValue(
+      makeRuntimeManager() as unknown as ReturnType<typeof useRuntimeManager>,
+    );
+    const Connection = () => {
+      const { reconnect } = useMarimoKernelConnection({
+        sessionId: "test-session" as SessionId,
+        autoInstantiate: false,
+        setCells: () => {},
+      });
+      return (
+        <ConnectionNotice
+          appConfig={AppConfigSchema.parse({})}
+          onRetry={reconnect}
+        />
+      );
+    };
+    render(
+      <JotaiProvider store={store}>
+        <ErrorBoundary fallback={null}>
+          <Connection />
+        </ErrorBoundary>
+      </JotaiProvider>,
+    );
+    const options = vi.mocked(useConnectionTransport).mock.calls.at(-1)![0];
+    const send = (data: NotificationPayload["data"]) =>
+      act(() => {
+        options.onMessage(
+          new MessageEvent("message", {
+            data: JSON.stringify({ op: data.op, data }),
+          }),
+        );
+      });
+    return { store, transport, options, send };
+  }
+
+  it("keeps elapsed time across startup phases and leaves reconnection to the footer once cells are available", () => {
+    const { store, options, send } = renderNotice();
+    send({ op: "startup-progress", phase: "preparing-environment" });
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Preparing environment",
+    );
+    act(() => vi.advanceTimersByTime(35_000));
+    expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
+    act(() =>
+      store.set(
+        notebookAtom,
+        MockNotebook.notebookState({
+          cellData: { [cellId("test")]: { code: "answer = 42" } },
+        }),
+      ),
+    );
+    send({ op: "startup-progress", phase: "starting-kernel" });
+    expect(screen.getByRole("status")).toHaveTextContent("Starting notebook");
+    expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
+    send({ op: "reconnected" });
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+    act(() => options.onClose(new CloseEvent("close")));
+    act(() => vi.advanceTimersByTime(500));
+    expect(store.get(connectionAtom)).toEqual({
+      state: WebSocketState.CONNECTING,
+      phase: "reconnecting",
+    });
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not flash a notice when startup finishes within the delay", () => {
+    const { send } = renderNotice();
+    send({ op: "startup-progress", phase: "preparing-environment" });
+    act(() => vi.advanceTimersByTime(200));
+    send({ op: "startup-progress", phase: "starting-kernel" });
+    act(() => vi.advanceTimersByTime(200));
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+    send({ op: "reconnected" });
+    act(() => vi.advanceTimersByTime(500));
+    expect(
+      screen.queryByRole("region", { name: "Notebook startup" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["preparing-environment", "Sandbox setup failed"],
+    ["starting-kernel", "Kernel failed to start"],
+  ] as const)(
+    "keeps a %s failure available until the user retries",
+    async (phase, title) => {
+      const { store, transport, options, send } = renderNotice();
+      send({ op: "startup-progress", phase });
+      const error = "A full diagnostic\nwith <stderr> details";
+      send({ op: "kernel-startup-error", error });
+      transport.readyState = WebSocket.CLOSED;
+      act(() =>
+        options.onClose(
+          new CloseEvent("close", { reason: "MARIMO_KERNEL_STARTUP_ERROR" }),
+        ),
+      );
+      expect(screen.getByRole("status")).toHaveTextContent(title);
+      act(() => vi.advanceTimersByTime(30_000));
+      expect(screen.getByRole("status")).toHaveTextContent(title);
+      expect(screen.getByLabelText("Error details")).toHaveTextContent(error, {
+        normalizeWhitespace: false,
+      });
+      expect(transport.reconnect).not.toHaveBeenCalled();
+      await act(async () =>
+        fireEvent.click(screen.getByRole("button", { name: "Try again" })),
+      );
+      expect(transport.reconnect).toHaveBeenCalledOnce();
+      expect(store.get(kernelStartupErrorAtom)).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "Try again" }),
+      ).not.toBeInTheDocument();
+      send({ op: "startup-progress", phase: "preparing-environment" });
+      act(() => vi.advanceTimersByTime(500));
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Preparing environment",
+      );
+      expect(screen.getByText("Elapsed 0s")).toBeInTheDocument();
+    },
+  );
+});

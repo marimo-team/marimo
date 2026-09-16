@@ -1,5 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import type { NotificationMessageData } from "../kernel/messages";
+
+type ConnectionPhase =
+  | NotificationMessageData<"startup-progress">["phase"]
+  | "reconnecting";
+
 // TODO: rename to ConnectionState
 export const WebSocketState = {
   NOT_STARTED: "NOT_STARTED",
@@ -28,10 +34,14 @@ export type ConnectionStatus =
        * Human-readable reason for closing the connection.
        */
       reason: string;
+      phase?: ConnectionPhase;
+    }
+  | {
+      state: typeof WebSocketState.CONNECTING;
+      phase?: ConnectionPhase;
     }
   | {
       state:
-        | typeof WebSocketState.CONNECTING
         | typeof WebSocketState.OPEN
         | typeof WebSocketState.CLOSING
         | typeof WebSocketState.NOT_STARTED;

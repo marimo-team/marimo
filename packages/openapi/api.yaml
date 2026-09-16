@@ -4978,6 +4978,38 @@ components:
       - backend
       title: SandboxPackageContext
       type: object
+    SandboxRequest:
+      properties:
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: SandboxRequest
+      type: object
+    SandboxResponse:
+      properties:
+        backend:
+          anyOf:
+          - enum:
+            - pixi
+            - uv
+          - type: 'null'
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+        manifest:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - backend
+      - manifest
+      - filename
+      title: SandboxResponse
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -5857,6 +5889,25 @@ components:
       - deleteIds
       title: SyncGraphCommand
       type: object
+    SyncSandboxResponse:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        reconnect:
+          default: false
+          type: boolean
+        restartRequired:
+          default: false
+          type: boolean
+        success:
+          type: boolean
+      required:
+      - success
+      title: SyncSandboxResponse
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -6055,6 +6106,22 @@ components:
       required:
       - cellIdsToOutput
       title: UpdateCellOutputsRequest
+      type: object
+    UpdateManifestRequest:
+      properties:
+        contents:
+          type: string
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        previous:
+          type: string
+      required:
+      - contents
+      - previous
+      title: UpdateManifestRequest
       type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
@@ -7786,6 +7853,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListPackagesResponse'
           description: List installed packages
+  /api/packages/manifest:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateManifestRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Save notebook metadata without changing its cells
   /api/packages/remove:
     post:
       requestBody:
@@ -7800,6 +7888,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/packages/sandbox:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Sandbox manifest, available before kernel startup
+  /api/packages/sync:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSandboxResponse'
+          description: Apply the saved manifest, or reconnect to retry startup
   /api/packages/tree:
     get:
       responses:
