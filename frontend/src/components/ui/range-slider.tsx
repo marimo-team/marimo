@@ -177,7 +177,10 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[0]}>
-                {prettyScientificNumber(valueMap(props.value[0]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[0]), {
+                  shouldRound: true,
+                  locale,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>
@@ -198,7 +201,10 @@ const RangeSlider = React.forwardRef<
           <TooltipPortal>
             {props.value != null && props.value.length === 2 && (
               <TooltipContent key={props.value[1]}>
-                {prettyScientificNumber(valueMap(props.value[1]), { locale })}
+                {prettyScientificNumber(valueMap(props.value[1]), {
+                  shouldRound: true,
+                  locale,
+                })}
               </TooltipContent>
             )}
           </TooltipPortal>

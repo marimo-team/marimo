@@ -155,8 +155,12 @@ const RangeSliderComponent = ({
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
             {`${prettyScientificNumber(valueMap(internalValue[0]), {
+              shouldRound: true,
               locale,
-            })}, ${prettyScientificNumber(valueMap(internalValue[1]), { locale })}`}
+            })}, ${prettyScientificNumber(valueMap(internalValue[1]), {
+              shouldRound: true,
+              locale,
+            })}`}
           </div>
         )}
       </div>
