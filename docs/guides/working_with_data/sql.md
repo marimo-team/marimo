@@ -8,14 +8,6 @@ marimo lets you mix and match **Python and SQL**: Use SQL to query
 Python dataframes (or databases like SQLite and Postgres), and get
 the query result back as a Python dataframe.
 
-<div style="text-align: center">
-  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
-  src="https://www.youtube.com/embed/IHEf5HwU7R0"
-  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
-  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
-</div>
-
 To create a SQL cell, you first need to install additional dependencies,
 including [duckdb](https://duckdb.org/):
 
