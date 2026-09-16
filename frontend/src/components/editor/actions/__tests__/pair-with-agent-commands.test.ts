@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   type ConnectionInfo,
   getFileFromURL,
@@ -9,18 +9,54 @@ import {
   getTerminalCommand,
   maskToken,
 } from "../pair-with-agent-commands";
-import type { SessionId } from "@/core/kernel/session";
+import { shellQuote } from "@/utils/shell";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
-  sessionId: "s_ab12cd" as SessionId,
   file: "notebooks/example.py",
 };
 
 const CONNECTION_WITHOUT_FILE: ConnectionInfo = {
   url: "http://localhost:8000",
-  sessionId: "s_ab12cd" as SessionId,
 };
+
+describe("shellQuote", () => {
+  it("quotes an empty string", () => {
+    expect(shellQuote("")).toBe("''");
+  });
+
+  it("leaves shell-safe values untouched", () => {
+    expect(shellQuote("http://localhost:8000")).toBe("http://localhost:8000");
+    expect(shellQuote("notebooks/example.py")).toBe("notebooks/example.py");
+  });
+
+  it("quotes values with shell metacharacters", () => {
+    expect(shellQuote("http://host:8000?a=1&b=2")).toBe(
+      "'http://host:8000?a=1&b=2'",
+    );
+    expect(shellQuote("has space")).toBe("'has space'");
+    expect(shellQuote("$(rm -rf /)")).toBe("'$(rm -rf /)'");
+  });
+
+  it("escapes embedded single quotes without breaking out", () => {
+    // Closes the quote, emits a literal ' via "'", then reopens: '"'"'
+    expect(shellQuote("a'b")).toBe(`'a'"'"'b'`);
+  });
+
+  it.each([
+    ["/tmp/my notebook.py", "'/tmp/my notebook.py'"],
+    [
+      String.raw`C:\Users\Jane Doe\notebook.py`,
+      String.raw`'C:\Users\Jane Doe\notebook.py'`,
+    ],
+    [
+      String.raw`\\server\share\my notebook.py`,
+      String.raw`'\\server\share\my notebook.py'`,
+    ],
+  ])("quotes non-portable path %s as one argument", (path, expected) => {
+    expect(shellQuote(path)).toBe(expected);
+  });
+});
 
 describe("getFileFromURL", () => {
   it("returns undefined when the file query parameter is absent or empty", () => {
@@ -52,21 +88,31 @@ describe("getFileFromURL", () => {
 });
 
 describe("getMarimoCommand", () => {
-  it("uses the current project environment", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("uses the local checkout in dev", () => {
+    vi.stubEnv("DEV", true);
     expect(getMarimoCommand()).toBe("uv run marimo");
+  });
+
+  it("uses uvx outside of dev", () => {
+    vi.stubEnv("DEV", false);
+    expect(getMarimoCommand()).toBe("uvx marimo@latest");
   });
 });
 
 describe("getTerminalCommand", () => {
   it("includes the url and file for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
-      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py)"`,
+      `claude "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --claude)"`,
     );
     expect(getTerminalCommand("codex", CONNECTION, false)).toBe(
-      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py)"`,
+      `codex "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --codex)"`,
     );
     expect(getTerminalCommand("opencode", CONNECTION, false)).toBe(
-      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --session s_ab12cd --file notebooks/example.py)"`,
+      `opencode --prompt "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --opencode)"`,
     );
   });
 
@@ -77,17 +123,13 @@ describe("getTerminalCommand", () => {
       false,
     );
     expect(command).not.toContain("--file");
-    expect(command).toContain("--session s_ab12cd");
+    expect(command).not.toContain("--session");
   });
 
   it("shell-escapes a url containing metacharacters", () => {
     const command = getTerminalCommand(
       "claude",
-      {
-        url: "http://host:8000?auth=a&b",
-        sessionId: CONNECTION.sessionId,
-        file: "notebook.py",
-      },
+      { url: "http://host:8000?auth=a&b", file: "notebook.py" },
       false,
     );
     expect(command).toContain("--url 'http://host:8000?auth=a&b'");
@@ -108,15 +150,15 @@ describe("getTerminalCommand", () => {
   ])("shell-escapes file path %s", (file, expected) => {
     const command = getTerminalCommand(
       "claude",
-      { url: CONNECTION.url, sessionId: CONNECTION.sessionId, file },
+      { url: CONNECTION.url, file },
       false,
     );
     expect(command).toContain(expected);
   });
 
-  it("adds --with-token when requested", () => {
+  it("adds --with-token before the agent flag when requested", () => {
     const command = getTerminalCommand("claude", CONNECTION, true);
-    expect(command).toContain("--with-token)");
+    expect(command).toContain("--with-token --claude");
   });
 
   it("omits --with-token when not requested", () => {
@@ -127,49 +169,51 @@ describe("getTerminalCommand", () => {
 });
 
 describe("getRawPrompt", () => {
-  it("does not prefix the bootstrap with a launcher", () => {
-    const prompt = getRawPrompt(CONNECTION, false);
-    expect(prompt).toContain("Start with: marimo pair --help");
+  it("references the file-scoped execute-code command", () => {
+    const prompt = getRawPrompt(CONNECTION, null);
     expect(prompt).toContain(
-      "If marimo is not on your PATH, run it the same way this notebook server was started.",
+      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py",
     );
-    expect(prompt).not.toContain("uvx marimo@latest pair --help");
-    expect(prompt).not.toContain("uv run marimo pair --help");
+    expect(prompt).toContain(
+      "Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)",
+    );
   });
 
   it("omits file targeting when the page URL has no file", () => {
-    const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, false);
-    expect(prompt).toContain("  Session: s_ab12cd");
-    expect(prompt).not.toContain("  Notebook:");
+    const prompt = getRawPrompt(CONNECTION_WITHOUT_FILE, null);
+    expect(prompt).toContain("execute-code.sh --url http://localhost:8000");
+    expect(prompt).not.toContain("--file");
+    expect(prompt).not.toContain("--session");
   });
 
-  it("matches the unauthenticated CLI prompt shape", () => {
-    expect(getRawPrompt(CONNECTION, false)).toMatchInlineSnapshot(`
-      "Pair with the live marimo notebook at this target:
-        Server: http://localhost:8000
-        Session: s_ab12cd
-        Notebook: notebooks/example.py
-
-      Start with: marimo pair --help
-      If marimo is not on your PATH, run it the same way this notebook server was started.
-
-      Once connected, run \`import marimo as mo; mo.status.toast("Ready to pair")\` to let the user know you are ready."
-    `);
+  it("omits the token hint when there is no token", () => {
+    const prompt = getRawPrompt(CONNECTION, null);
+    expect(prompt).not.toContain("--token");
+    expect(prompt).not.toContain("auth token");
   });
 
-  it("directs authenticated users to the token-safe terminal flow", () => {
-    expect(getRawPrompt(CONNECTION, true)).toMatchInlineSnapshot(`
-      "Pair with the live marimo notebook at this target:
-        Server: http://localhost:8000
-        Session: s_ab12cd
-        Notebook: notebooks/example.py
+  it("includes a file-scoped token hint when a token is present", () => {
+    const prompt = getRawPrompt(CONNECTION, "secret-token");
+    expect(prompt).toContain(
+      "execute-code.sh --url http://localhost:8000 --file notebooks/example.py --token secret-token",
+    );
+  });
 
-      Start with: marimo pair --help
-      If marimo is not on your PATH, run it the same way this notebook server was started.
+  it("shell-escapes a token containing a single quote", () => {
+    const prompt = getRawPrompt(CONNECTION, "tok'en");
+    expect(prompt).toContain(`--token 'tok'"'"'en'`);
+  });
 
-      This notebook uses authentication. Run the terminal command with --with-token and paste its output here instead.
+  it("matches the CLI prompt shape", () => {
+    const prompt = getRawPrompt(CONNECTION, null);
+    expect(prompt).toMatchInlineSnapshot(`
+      "Use the /marimo-pair skill to pair-program on a running marimo notebook.
 
-      Once connected, run \`import marimo as mo; mo.status.toast("Ready to pair")\` to let the user know you are ready."
+      Connect to the notebook at: http://localhost:8000 (file notebooks/example.py)
+
+      Use \`execute-code.sh --url http://localhost:8000 --file notebooks/example.py\` from the marimo-pair skill to execute code in the notebook.
+
+      Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair."
     `);
   });
 });
