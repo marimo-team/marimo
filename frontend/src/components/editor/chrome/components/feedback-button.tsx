@@ -36,7 +36,7 @@ import {
 import { useNotebookCodeAvailable } from "@/core/meta/code-visibility";
 import { getMarimoVersion } from "@/core/meta/globals";
 import { connectionAtom } from "@/core/network/connection";
-import { useRequestClient } from "@/core/network/requests";
+import { requestClientAtom } from "@/core/network/requests";
 import { filenameAtom } from "@/core/saving/file-state";
 import { store } from "@/core/state/jotai";
 import { WebSocketState } from "@/core/websocket/types";
@@ -87,11 +87,13 @@ export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
 export const FeedbackModal: React.FC<{
   onClose: () => void;
 }> = () => {
-  const { getEnvironmentInfo, readCode } = useRequestClient();
-  const environmentRequest = useAsyncData(
-    async () => getEnvironmentInfo(),
-    [getEnvironmentInfo],
-  );
+  const requestClient = useAtomValue(requestClientAtom);
+  const environmentRequest = useAsyncData(async () => {
+    if (requestClient == null) {
+      return undefined;
+    }
+    return requestClient.getEnvironmentInfo();
+  }, [requestClient]);
 
   const notebook = useAtomValue(notebookAtom);
   const errors = getCellErrorEntries(store);
@@ -105,7 +107,8 @@ export const FeedbackModal: React.FC<{
   const notebookSourceAvailable =
     filename !== null &&
     codeAvailable &&
-    connection.state === WebSocketState.OPEN;
+    connection.state === WebSocketState.OPEN &&
+    requestClient != null;
 
   const notebookSourceReason = notebookSourceAvailable
     ? undefined
@@ -113,7 +116,9 @@ export const FeedbackModal: React.FC<{
       ? "Save the notebook first."
       : !codeAvailable
         ? "Notebook source is hidden in this view."
-        : "Connect the notebook to include its source.";
+        : connection.state !== WebSocketState.OPEN
+          ? "Connect the notebook to include its source."
+          : "Notebook source is unavailable.";
 
   const [includeErrors, setIncludeErrors] = useLocalStorage(
     "marimo:issue-report:include-errors",
@@ -127,7 +132,7 @@ export const FeedbackModal: React.FC<{
   const environment: EnvironmentDiagnostics | undefined =
     environmentRequest.data
       ? enrichEnvironment(environmentRequest.data, navigator.userAgent)
-      : environmentRequest.status === "error"
+      : environmentRequest.status === "error" || requestClient == null
         ? createPartialEnvironment(
             getMarimoVersion(),
             navigator.userAgent,
@@ -137,12 +142,12 @@ export const FeedbackModal: React.FC<{
         : undefined;
 
   const codeRequest = useAsyncData(async () => {
-    if (!includeCode || !notebookSourceAvailable) {
+    if (!includeCode || !notebookSourceAvailable || requestClient == null) {
       return undefined;
     }
-    const { contents } = await readCode();
+    const { contents } = await requestClient.readCode();
     return contents;
-  }, [includeCode, notebookSourceAvailable, readCode]);
+  }, [includeCode, notebookSourceAvailable, requestClient]);
 
   let githubIssueUrl = Constants.bugReportUrl;
   let omitted: string[] = [];
@@ -255,7 +260,7 @@ export const FeedbackModal: React.FC<{
           )}
         </div>
 
-        {environmentRequest.status === "pending" && (
+        {environmentRequest.status === "pending" && requestClient != null && (
           <div className="flex flex-col gap-2">
             <span className="text-sm text-muted-foreground">
               Loading environment details…
@@ -266,18 +271,20 @@ export const FeedbackModal: React.FC<{
           </div>
         )}
 
-        {environmentRequest.status === "error" && (
+        {(environmentRequest.status === "error" || requestClient == null) && (
           <div className="flex items-center gap-2 text-sm">
             <TriangleAlertIcon className="w-4 h-4 text-(--yellow-11) shrink-0" />
             <span>Server environment information unavailable</span>
-            <Button
-              type="button"
-              variant="link"
-              size="xs"
-              onClick={() => environmentRequest.refetch()}
-            >
-              Retry
-            </Button>
+            {requestClient != null && (
+              <Button
+                type="button"
+                variant="link"
+                size="xs"
+                onClick={() => environmentRequest.refetch()}
+              >
+                Retry
+              </Button>
+            )}
           </div>
         )}
 
