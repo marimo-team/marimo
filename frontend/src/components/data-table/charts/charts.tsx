@@ -286,6 +286,7 @@ export const TablePanel: React.FC<TablePanelProps> = ({
               saveChart={saveChart}
               saveChartType={saveChartType}
               getDataUrl={getDataUrl}
+              hasSchema={Boolean(fieldTypes?.length)}
               fieldTypes={mergeIndexFields(
                 fieldTypes ?? inferFieldTypes(dataTable.props.data),
                 rowHeaders,
@@ -309,6 +310,7 @@ export const ChartPanel: React.FC<{
   saveChartType: (chartType: ChartType) => void;
   getDataUrl?: GetDataUrl;
   fieldTypes?: FieldTypesWithExternalType | null;
+  hasSchema?: boolean;
   isLargeDataset: boolean;
 }> = ({
   tableData,
@@ -318,6 +320,7 @@ export const ChartPanel: React.FC<{
   saveChartType,
   getDataUrl,
   fieldTypes,
+  hasSchema = Boolean(fieldTypes?.length),
   isLargeDataset,
 }) => {
   const { theme } = useTheme();
@@ -333,6 +336,8 @@ export const ChartPanel: React.FC<{
   const [renderLargeCharts, setRenderLargeCharts] = useState(!isLargeDataset);
 
   const { ref: chartContainerRef } = useResizeObserver();
+  // Sample-inferred types are useful for controls, but not full CSV parsing.
+  const csvFieldTypes = useDeepCompareMemoize(hasSchema ? fieldTypes : null);
 
   const { data, isPending, error } = useAsyncData(async () => {
     if (!getDataUrl || tableData.length === 0 || !renderLargeCharts) {
@@ -353,9 +358,9 @@ export const ChartPanel: React.FC<{
       format = {
         type: "csv",
         parse: getVegaFieldTypes(
-          fieldTypes &&
+          csvFieldTypes &&
             Object.fromEntries(
-              fieldTypes.map(([name, [type]]) => [name, type]),
+              csvFieldTypes.map(([name, [type]]) => [name, type]),
             ),
           { parseDates: true },
         ),
@@ -363,7 +368,7 @@ export const ChartPanel: React.FC<{
     }
     return vegaLoadData(response.data_url, format);
     // Re-run when the data table changes
-  }, [tableData, renderLargeCharts, useDeepCompareMemoize(fieldTypes)]);
+  }, [tableData, renderLargeCharts, csvFieldTypes]);
 
   const formValues = form.watch();
 

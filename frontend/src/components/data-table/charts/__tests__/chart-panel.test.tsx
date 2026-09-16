@@ -1,13 +1,16 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, waitFor } from "@testing-library/react";
+import { createStore, Provider } from "jotai";
 import { Tooltip } from "radix-ui";
 import type { ComponentProps } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
+import { cellId } from "@/__tests__/branded";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
 import { vegaLoader } from "@/plugins/impl/vega/loader";
-import { ChartPanel } from "../charts";
+import { ChartPanel, TablePanel, type TablePanelProps } from "../charts";
+import { getChartTabName, tabsStorageAtom } from "../storage";
 import { ChartType, NONE_VALUE } from "../types";
 
 vi.mock("@/components/charts/lazy", () => ({
@@ -19,6 +22,77 @@ beforeAll(() => {
 });
 
 describe("ChartPanel", () => {
+  it.each([undefined, null, []] as const)(
+    "infers the full CSV through TablePanel without backend metadata (%s)",
+    async (fieldTypes) => {
+      vi.spyOn(vegaLoader, "load").mockResolvedValue(
+        "value,index\n,0\n2.5,1\n",
+      );
+      const store = createStore();
+      const id = cellId("csv-inference");
+      const tabName = getChartTabName(0, ChartType.BAR);
+      store.set(
+        tabsStorageAtom,
+        new Map([
+          [
+            id,
+            [
+              {
+                tabName,
+                chartType: ChartType.BAR,
+                config: {
+                  general: {
+                    xColumn: { field: "value", type: "number" },
+                    yColumn: {
+                      field: "index",
+                      type: "integer",
+                      aggregate: NONE_VALUE,
+                    },
+                  },
+                },
+              },
+            ],
+          ],
+        ]),
+      );
+      const sample = [{ value: null }];
+      const SampleTable = (_props: { data: typeof sample }) => null;
+      const props: TablePanelProps = {
+        cellId: id,
+        data: sample,
+        dataTable: <SampleTable data={sample} />,
+        totalRows: 2,
+        columns: 1,
+        displayHeader: true,
+        fieldTypes: fieldTypes == null ? fieldTypes : [...fieldTypes],
+        rowHeaders: [["index", ["integer", "int64"]]],
+        getDataUrl: vi
+          .fn()
+          .mockResolvedValue({ data_url: "chart.csv", format: "csv" }),
+      };
+      const { getByRole } = render(
+        <Provider store={store}>
+          <Tooltip.Provider>
+            <TablePanel {...props} />
+          </Tooltip.Provider>
+        </Provider>,
+      );
+      fireEvent.click(getByRole("tab", { name: tabName }));
+      await waitFor(() => {
+        expect(vi.mocked(LazyVegaEmbed).mock.lastCall?.[0].spec).toEqual(
+          expect.objectContaining({
+            data: {
+              values: [
+                { value: null, index: 0 },
+                { value: 2.5, index: 1 },
+              ],
+            },
+          }),
+        );
+      });
+    },
+  );
+
   it("reloads CSV only when column types change, not their array identity", async () => {
     vi.spyOn(vegaLoader, "load").mockResolvedValue("value\n001\n");
     const getDataUrl = vi.fn().mockResolvedValue({
