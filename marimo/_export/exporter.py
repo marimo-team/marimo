@@ -688,6 +688,10 @@ class Exporter:
         import nbformat
 
         notebook = nbformat.reads(ipynb_json_str, as_version=4)  # type: ignore[no-untyped-call]
+
+        # Playwright loads temporary HTML without access to virtual file URLs.
+        self._inline_virtual_files_in_notebook(notebook)
+
         if request.png_fallbacks:
             from marimo._export._nbformat_png_fallbacks import (
                 inject_png_fallbacks_into_notebook,
@@ -705,6 +709,24 @@ class Exporter:
         return await self._export_slides_as_pdf(
             notebook, request.options.include_inputs
         )
+
+    @staticmethod
+    def _inline_virtual_files_in_notebook(notebook: Any) -> None:
+        """Inline virtual files in code-cell HTML outputs before PDF rendering."""
+        for cell in notebook.cells:
+            if cell.cell_type != "code":
+                continue
+            for output in cell.outputs:
+                data = output.get("data", {})
+                content = data.get("text/html")
+                if not isinstance(content, str) or "./@file/" not in content:
+                    continue
+                data["text/html"], _ = replace_virtual_files_with_data_uris(
+                    content,
+                    allowed_tags=VIRTUAL_FILE_ALLOWED_TAGS,
+                    allowed_attributes=VIRTUAL_FILE_ALLOWED_ATTRIBUTES,
+                    max_inline_bytes=MAX_VIRTUAL_FILE_INLINE_BYTES,
+                )
 
     @staticmethod
     def _to_file_uri(path: str) -> str:
