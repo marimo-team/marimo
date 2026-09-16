@@ -13,7 +13,7 @@ dependencies = [
     # For maintainable cli
     "click>=8.0,<9; sys_platform != 'emscripten'",
     # code completion (upper bound applied temporarily for resolution)
-    "jedi>=0.18.0,<0.20.0",
+    "jedi>=0.18.0,<0.21.0",
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
