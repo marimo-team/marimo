@@ -190,7 +190,6 @@ class PyodideSession:
         try:
             from marimo._runtime.packages.utils import (
                 filter_requirements_for_emscripten,
-                strip_requirement_name,
             )
 
             reader = PyProjectReader.from_script(code)
@@ -199,7 +198,14 @@ class PyodideSession:
             )
 
             if len(script_deps) > 0:
-                return [strip_requirement_name(dep) for dep in script_deps]
+                # Returned as written, version specifiers included. These are
+                # handed to micropip, which resolves them; dropping the
+                # specifier does not merely lose precision, it can select a
+                # different release. A pin is the only thing that selects a
+                # pre-release, so an unpinned name resolves to the newest
+                # *stable* version instead -- the opposite of what the notebook
+                # asked for.
+                return [dep.strip() for dep in script_deps]
         except Exception as e:
             LOGGER.warning("Error parsing script metadata: %s", e)
 

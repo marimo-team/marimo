@@ -30,6 +30,17 @@ type SessionResources = [
 //   3.b Install from micropip
 // 4. Initialize the notebook
 
+/**
+ * The distribution name of a PEP 508 requirement: "pandas>=2" -> "pandas".
+ *
+ * Extras, markers and URL forms are all cut at their first delimiter, which is
+ * enough for the "already installed" lookups this is used for.
+ */
+export function requirementName(requirement: string): string {
+  // Trim first: a leading space would otherwise split into an empty name.
+  return requirement.trim().split(/[[<>=!~;@\s]/)[0];
+}
+
 export class DefaultWasmController implements WasmController {
   protected pyodide: PyodideInterface | null = null;
   private packageLoadQueue = Promise.resolve();
@@ -301,18 +312,26 @@ export class DefaultWasmController implements WasmController {
     });
     loadSpan.end();
 
-    // Load from micropip
+    // Load from micropip.
+    //
+    // `imports` are PEP 508 requirements and may carry a version specifier
+    // ("pandas>=2", "nltools==0.6.0.dev2"). micropip wants them whole, but the
+    // "do we already have this?" checks below are keyed by name, so compare on
+    // the name and install the requirement.
     loadSpan = t.startSpan("micropip.install");
     const missingPackages = imports.filter(
-      (pkg) => !pyodide.loadedPackages[pkg],
+      (pkg) => !pyodide.loadedPackages[requirementName(pkg)],
     );
     if (missingPackages.length > 0) {
+      const byName = missingPackages.map(
+        (pkg) => [requirementName(pkg), pkg] as const,
+      );
       await pyodide
         .runPythonAsync(`
         import micropip
         import sys
         # Filter out builtins
-        missing = [p for p in ${JSON.stringify(missingPackages)} if p not in sys.modules]
+        missing = [req for name, req in ${JSON.stringify(byName)} if name not in sys.modules]
         if len(missing) > 0:
           print("Loading from micropip:", missing)
           await micropip.install(missing)
