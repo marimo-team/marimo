@@ -1,11 +1,15 @@
 /* Copyright 2026 Marimo. All rights reserved. */
-import type { PropsWithChildren } from "react";
+import { Provider } from "jotai";
+import { type PropsWithChildren, useState } from "react";
 import {
   type FallbackProps,
   ErrorBoundary as ReactErrorBoundary,
 } from "react-error-boundary";
-import { Constants } from "@/core/constants";
+import { store } from "@/core/state/jotai";
 import { Button } from "../../ui/button";
+import { Dialog, DialogTrigger } from "../../ui/dialog";
+import { TooltipProvider } from "../../ui/tooltip";
+import { FeedbackModal } from "../chrome/components/feedback-button";
 
 export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
   return (
@@ -16,26 +20,35 @@ export const ErrorBoundary: React.FC<PropsWithChildren> = (props) => {
 };
 
 const FallbackComponent: React.FC<FallbackProps> = (props) => {
+  const [open, setOpen] = useState(false);
+
   return (
-    <div className="flex-1 flex items-center justify-center flex-col space-y-4 max-w-2xl mx-auto px-6">
+    <div className="flex-1 flex items-center justify-center flex-col space-y-4 max-w-2xl mx-auto px-6 pb-6">
       <h1 className="text-2xl font-bold">Something went wrong</h1>
       <pre className="text-xs bg-muted/40 border rounded-md p-4 max-w-[80%] whitespace-normal">
         {props.error?.message}
       </pre>
-      <div>
-        If this is an issue with marimo, please report it on{" "}
-        <a href={Constants.issuesPage} target="_blank" className="underline">
-          GitHub
-        </a>
-        .
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild={true}>
+            <Button variant="outline">Report an issue</Button>
+          </DialogTrigger>
+          {open && (
+            <Provider store={store}>
+              <TooltipProvider>
+                <FeedbackModal onClose={() => setOpen(false)} />
+              </TooltipProvider>
+            </Provider>
+          )}
+        </Dialog>
+        <Button
+          data-testid="reset-error-boundary-button"
+          onClick={props.resetErrorBoundary}
+          variant="outline"
+        >
+          Try again
+        </Button>
       </div>
-      <Button
-        data-testid="reset-error-boundary-button"
-        onClick={props.resetErrorBoundary}
-        variant="outline"
-      >
-        Try again
-      </Button>
     </div>
   );
 };
