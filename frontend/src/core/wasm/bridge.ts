@@ -733,8 +733,8 @@ export function getWasmWorkerName(): string {
         pyodideIndexURL: mountConfig.wasm.pyodideIndexURL
           ? new URL(mountConfig.wasm.pyodideIndexURL, document.baseURI).href
           : undefined,
-        pypiIndexURLs: (mountConfig.wasm.pypiIndexURLs ?? []).map((value) =>
-          new URL(value, document.baseURI).href,
+        pypiIndexURLs: (mountConfig.wasm.pypiIndexURLs ?? []).map(
+          (value) => new URL(value, document.baseURI).href,
         ),
       }
     : undefined;

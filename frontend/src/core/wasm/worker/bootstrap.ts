@@ -79,8 +79,7 @@ export class DefaultWasmController implements WasmController {
         runtimeConfig.pyodideIndexURL ||
         `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`;
       const packageIndexURLs = runtimeConfig.pypiIndexURLs ?? [];
-      const isStandardLockfile =
-        runtimeConfig.standardLockfile === true;
+      const isStandardLockfile = runtimeConfig.standardLockfile === true;
       const pyodide = await loadPyodide({
         // Perf: These get loaded while pyodide is being bootstrapped
         packages: isStandardLockfile
