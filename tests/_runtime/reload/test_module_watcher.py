@@ -616,6 +616,126 @@ async def test_reload_function_in_import_block(
     assert k.globals["y"] == y
 
 
+@pytest.mark.flaky(reruns=3)
+async def test_reload_self_import_cycle(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+
+    py_function_file = tmp_path / pathlib.Path(py_modname + "_helper" + ".py")
+    py_function_file.write_text(
+        textwrap.dedent(
+            f"""
+            from {py_modname} import func
+
+            def foo():
+                return func()*2
+            """
+        )
+    )
+
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            def func():
+                return 5
+            """
+        )
+    )
+    k.app_metadata.filename = str(py_file)
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname}_helper import foo"),
+            er_2 := exec_req.get("x = foo()"),
+        ]
+    )
+    assert k.globals["x"] == 10
+    update_file(py_file, "def func(): return 2")
+
+    # wait for the watcher to pick up the change
+    retries = 0
+    while retries < 15:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    await k.run_stale_cells()
+    assert k.globals["x"] == 4
+
+
+@pytest.mark.flaky(reruns=3)
+async def test_reload_self_import_cycle_race_with_other_cell(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+):
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+
+    py_function_file = tmp_path / pathlib.Path(py_modname + "_helper" + ".py")
+    py_function_file.write_text(
+        textwrap.dedent(
+            f"""
+            from {py_modname} import func
+
+            def foo():
+                return func()*2
+            """
+        )
+    )
+
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text(
+        textwrap.dedent(
+            """
+            def func():
+                return 5
+            """
+        )
+    )
+    k.app_metadata.filename = str(py_file)
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "autorun"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname}_helper import foo"),
+            er_2 := exec_req.get("x = foo()"),
+            er_3 := exec_req.get("pass"),
+        ]
+    )
+    assert k.globals["x"] == 10
+    update_file(py_file, "def func(): return 2")
+    await k.run([exec_req.get_with_id(er_3.cell_id, "pass")])
+
+    # wait for the watcher to pick up the change
+    retries = 0
+    while retries < 15:
+        await asyncio.sleep(INTERVAL)
+        retries += 1
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+
+    assert k.graph.cells[er_1.cell_id].stale
+    assert k.graph.cells[er_2.cell_id].stale
+    await k.run_stale_cells()
+    assert k.globals["x"] == 4
+
+
 class TestIsSubmodule:
     """Unit tests for the is_submodule utility function"""
 
