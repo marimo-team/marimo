@@ -26,6 +26,7 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
+import { getVegaFieldTypes } from "@/plugins/impl/vega/utils";
 import { useTheme } from "@/theme/useTheme";
 import { uniqueBy } from "@/utils/arrays";
 import { inferFieldTypes } from "../columns";
@@ -342,17 +343,26 @@ export const ChartPanel: React.FC<{
       return response.data_url;
     }
 
-    const chartData = await vegaLoadData(
-      response.data_url,
-      response.format === "arrow"
-        ? { type: "arrow" }
-        : response.format === "json"
-          ? { type: "json" }
-          : { type: "csv", parse: "auto" },
-    );
-    return chartData;
+    let format: Parameters<typeof vegaLoadData>[1];
+    if (response.format === "arrow") {
+      format = { type: "arrow" };
+    } else if (response.format === "json") {
+      format = { type: "json" };
+    } else {
+      format = {
+        type: "csv",
+        parse: getVegaFieldTypes(
+          fieldTypes &&
+            Object.fromEntries(
+              fieldTypes.map(([name, [type]]) => [name, type]),
+            ),
+          { parseDates: true },
+        ),
+      };
+    }
+    return vegaLoadData(response.data_url, format);
     // Re-run when the data table changes
-  }, [tableData, renderLargeCharts]);
+  }, [tableData, renderLargeCharts, fieldTypes]);
 
   const formValues = form.watch();
 
