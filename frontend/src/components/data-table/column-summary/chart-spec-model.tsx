@@ -573,7 +573,7 @@ export class ColumnChartSpecModel<T> {
         };
       }
       case "boolean": {
-        if (!stats?.true || !stats?.false) {
+        if (stats?.true == null || stats?.false == null) {
           return getLegacyBooleanSpec(column, base, MAX_BAR_HEIGHT);
         }
 
