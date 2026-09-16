@@ -268,14 +268,6 @@ def test_launch_layers_over_the_activated_environment() -> None:
     assert plan.start_new_session
 
 
-def test_isolated_launcher_plan_starts_a_new_session() -> None:
-    isolated = environment.launch_isolated(
-        ["-m", "marimo"], requirements=["marimo"], python="3.13"
-    )
-
-    assert isolated.start_new_session
-
-
 @pytest.mark.network
 @pytest.mark.skipif(not SUPPORTS_SYNC, reason="uv >= 0.7.21 required")
 def test_launch_overlay_chains_without_mutating(

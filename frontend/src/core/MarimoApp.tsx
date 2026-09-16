@@ -12,7 +12,6 @@ import { getInitialAppMode } from "@/core/mode";
 import { CssVariables } from "@/theme/ThemeProvider";
 import { reactLazyWithPreload } from "@/utils/lazy";
 import { ErrorBoundary } from "../components/editor/boundary/ErrorBoundary";
-import { KernelStartupErrorModal } from "../components/editor/KernelStartupErrorModal";
 import { TracebackModalContainer } from "../components/editor/TracebackModalContainer";
 import { ModalProvider } from "../components/modal/ImperativeModal";
 import { Toaster } from "../components/ui/toaster";
@@ -105,7 +104,6 @@ const Providers = memo(({ children }: PropsWithChildren) => {
                 {children}
                 <Toaster />
                 <TailwindIndicator />
-                <KernelStartupErrorModal />
                 <TracebackModalContainer />
               </ModalProvider>
             </LocaleProvider>

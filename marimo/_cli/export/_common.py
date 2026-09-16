@@ -4,28 +4,22 @@ from __future__ import annotations
 import contextlib
 import json
 import signal
-import subprocess
 import threading
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._environments.process import run_command
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.workspace import flatten_files
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from marimo._environments.environment import Environment
-
-
-def is_multi_target(paths: list[Path]) -> bool:
-    return len(paths) > 1 or any(path.is_dir() for path in paths)
+    from marimo._environments.sandbox import Backend
 
 
 def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
@@ -52,46 +46,6 @@ def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
     return [notebooks[k] for k in sorted(notebooks)]
 
 
-@dataclass(frozen=True)
-class SandboxTarget:
-    """Where a sandboxed export runs.
-
-    `environment` is the notebook's script environment, or None for a
-    notebook without a metadata block, which runs ephemerally.
-    """
-
-    environment: Environment | None
-
-
-class SandboxVenvPool:
-    """Caches synchronized script environments by notebook path."""
-
-    def __init__(self) -> None:
-        self._targets: dict[str, SandboxTarget] = {}
-
-    def get_target(self, notebook_path: str) -> SandboxTarget:
-        from marimo._environments.backends import sync_notebook
-        from marimo._environments.uv import UvMissingScriptMetadataError
-
-        key = str(Path(notebook_path).resolve())
-        existing = self._targets.get(key)
-        if existing is not None:
-            return existing
-
-        try:
-            target = SandboxTarget(
-                environment=sync_notebook(key, backend="uv")
-            )
-        except UvMissingScriptMetadataError:
-            target = SandboxTarget(environment=None)
-        self._targets[key] = target
-        return target
-
-    def close(self) -> None:
-        # uv owns the environments; there is nothing to remove.
-        self._targets.clear()
-
-
 @contextlib.contextmanager
 def _export_termination_signals() -> Iterator[None]:
     """Let termination unwind the runner so its isolated child is reaped."""
@@ -115,39 +69,40 @@ def _export_termination_signals() -> Iterator[None]:
             signal.signal(signum, handler)
 
 
-def run_python_subprocess(
+async def run_python_subprocess(
     *,
-    sandbox: SandboxTarget,
+    notebook_path: str,
+    backend: Backend,
     script: str,
     payload: dict[str, Any],
     action: str,
 ) -> str:
-    from marimo._environments.backends import launch_fallback
-    from marimo._environments.environment import launch
+    from marimo._environments.backends import (
+        launch,
+        launch_fallback,
+        sync_notebook_async,
+    )
+    from marimo._environments.errors import MissingScriptMetadataError
     from marimo._environments.overlay import runtime_overlay
 
     args = ["-c", script, json.dumps(payload)]
-    if sandbox.environment is not None:
-        plan = launch(sandbox.environment, args, overlay=runtime_overlay())
-    else:
-        plan = launch_fallback(args)
-    with (
-        _export_termination_signals(),
-        subprocess.Popen(
-            list(plan.argv),
-            env=plan.env,
-            start_new_session=plan.start_new_session,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        ) as process,
-    ):
+    with _export_termination_signals():
         try:
-            stdout, stderr = process.communicate()
-        except BaseException:
-            kill_subprocess(process, start_new_session=plan.start_new_session)
-            raise
-    if process.returncode != 0:
+            environment = await sync_notebook_async(
+                str(Path(notebook_path).resolve()),  # noqa: ASYNC240
+                backend=backend,
+            )
+        except MissingScriptMetadataError:
+            plan = launch_fallback(args)
+        else:
+            plan = launch(
+                environment, args, backend=backend, overlay=runtime_overlay()
+            )
+        completed = await run_command(
+            plan.argv,
+            env=plan.env,
+        )
+    if completed.returncode != 0:
         # Identify the real launcher without exposing requirement URLs,
         # credentials, notebook code, or the serialized request payload.
         launcher = Path(plan.argv[0]).name
@@ -155,6 +110,6 @@ def run_python_subprocess(
         raise click.ClickException(
             f"Failed to {action} in sandbox.\n\n"
             f"Command:\n\n  {command}\n\n"
-            f"Stderr:\n\n{stderr.strip()}"
+            f"Stderr:\n\n{completed.stderr.strip()}"
         )
-    return stdout
+    return completed.stdout

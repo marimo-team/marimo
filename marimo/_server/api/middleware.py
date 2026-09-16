@@ -719,15 +719,15 @@ class TimeoutMiddleware(BaseHTTPMiddleware):
             now = time.time()
             if now >= timeout_at:
                 print_tabbed("Timeout due to inactivity")
-                self.shutdown()
+                await self.shutdown()
                 break
 
             # Sleep until 1s after the next potential activity timeout
             await asyncio.sleep(timeout_at - now + 1)
 
-    def shutdown(self) -> None:
+    async def shutdown(self) -> None:
         manager = self.app_state.session_manager
 
-        manager.shutdown()
+        await manager.shutdown()
         if self.app_state.server:
             close_uvicorn(self.app_state.server)

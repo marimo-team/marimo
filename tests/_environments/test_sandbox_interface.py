@@ -115,7 +115,7 @@ class FakeBackend:
         del python_override, on_output, active_environment
         self.sync_targets.append(target.path)
         return Environment(
-            python=str(self.root / "bin" / "python"),
+            python=sys.executable,
             root=str(self.root),
             action="updated",
         )
@@ -578,7 +578,7 @@ def test_runtime_dependency_cannot_be_removed(tmp_path: Path) -> None:
     assert adapter.sync_targets == []
 
 
-def test_package_view_hides_runtime_dependency(tmp_path: Path) -> None:
+def test_package_view_includes_runtime_dependency(tmp_path: Path) -> None:
     notebook = tmp_path / "notebook.py"
     notebook.write_text("# /// script\n# dependencies = []\n# ///\n")
     adapter = FakeBackend(tmp_path / "environment")
@@ -607,9 +607,14 @@ def test_package_view_hides_runtime_dependency(tmp_path: Path) -> None:
 
     state = sandbox.packages()
 
-    assert [package.name for package in state.packages] == ["obstore"]
+    assert [(package.name, package.version) for package in state.packages] == [
+        ("obstore", "0.8.2"),
+        ("marimo", "0.24.0"),
+    ]
     assert state.tree is not None
-    assert [node.name for node in state.tree.dependencies] == []
+    assert [(node.name, node.version) for node in state.tree.dependencies] == [
+        ("marimo", "0.24.0")
+    ]
 
 
 def test_pixi_launch_layers_the_runtime_overlay_through_uv(

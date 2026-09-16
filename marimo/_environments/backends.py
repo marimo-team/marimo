@@ -13,9 +13,6 @@ Both managers honor the runtime overlay: uv layers it directly via
 prefix's site-packages. Either way the manifest carries only a loose
 `marimo` (for standalone runs) and the overlay supplies the running
 version.
-
-SINGLE and MULTI sandbox modes are topologies, not engines: they differ
-in which process gets launched, not in how environments are made.
 """
 
 from __future__ import annotations
@@ -110,6 +107,98 @@ def launch(
     )
 
 
+async def sync_notebook_async(
+    path: str,
+    *,
+    backend: Backend,
+    python_override: str | None = None,
+    on_output: Callable[[str], None] | None = None,
+) -> Environment:
+    """Synchronize cancellably, keeping the carrier until the command exits."""
+    from marimo._environments import script_metadata
+
+    adapter = adapter_for(backend)
+    await adapter.ensure_available_async()
+    async with script_metadata.materialized_for_environment_async(
+        path
+    ) as target:
+        return await adapter.sync_async(
+            target, python_override=python_override, on_output=on_output
+        )
+
+
+def _uv_launcher(backend: Backend) -> tuple[str, ...]:
+    if backend == "pixi":
+        from marimo._environments.pixi import UV_OVERLAY_SPEC, require_pixi_bin
+
+        return (
+            require_pixi_bin(),
+            "exec",
+            "--spec",
+            UV_OVERLAY_SPEC,
+            "uv",
+        )
+    from marimo._environments.uv import require_uv_bin
+
+    return (require_uv_bin(),)
+
+
+def launch_server(
+    args: Sequence[str],
+    *,
+    backend: Backend,
+    base_env: Mapping[str, str] | None = None,
+) -> ProcessPlan:
+    """Layer editor tools over the host Python, independently of notebooks."""
+    from marimo._environments import environment
+    from marimo._environments.overlay import runtime_overlay
+
+    return environment.launch(
+        environment.Environment(sys.executable, sys.prefix, "unchanged"),
+        args,
+        overlay=runtime_overlay(["lsp"]),
+        base_env=base_env,
+        launcher=_uv_launcher(backend),
+    )
+
+
+def launch_isolated(
+    args: Sequence[str],
+    *,
+    requirements: Sequence[str],
+    python: str,
+    backend: Backend = "uv",
+    base_env: Mapping[str, str] | None = None,
+) -> ProcessPlan:
+    """Plan an ephemeral Python environment using the selected backend.
+
+    Used for command dependencies and constrained interpreter overrides,
+    independently of any notebook's environment or metadata.
+    """
+    from marimo._environments.environment import ProcessPlan, _with_args
+
+    env = dict(os.environ if base_env is None else base_env)
+    env.pop("VIRTUAL_ENV", None)
+    env.pop("UV_PROJECT_ENVIRONMENT", None)
+    return ProcessPlan(
+        argv=(
+            *_uv_launcher(backend),
+            "run",
+            "--isolated",
+            "--no-project",
+            "--compile-bytecode",
+            "--python",
+            python,
+            *_with_args(requirements),
+            "--",
+            "python",
+            *args,
+        ),
+        env=env,
+        start_new_session=True,
+    )
+
+
 def launch_fallback(
     args: Sequence[str],
     *,
@@ -167,6 +256,24 @@ class UvBackendAdapter(_ReportingBackendAdapter):
         from marimo._environments.environment import ensure_supported_uv
 
         ensure_supported_uv()
+
+    async def ensure_available_async(self) -> None:
+        from marimo._environments.environment import ensure_supported_uv_async
+
+        await ensure_supported_uv_async()
+
+    async def prepare_source_async(self, source: str) -> None:
+        from marimo._environments import script_metadata
+
+        try:
+            await script_metadata.ensure_marimo_async(
+                source,
+                on_command=lambda command: self._report("prepare", command),
+            )
+        except Exception as error:
+            LOGGER.warning(
+                "Failed to add marimo to script metadata: %s", error
+            )
 
     def prepare_source(self, source: str) -> None:
         import subprocess
@@ -292,6 +399,25 @@ class UvBackendAdapter(_ReportingBackendAdapter):
         tree = parse_uv_tree(completed.stdout)
         return PackageState(packages=_flatten_tree(tree), tree=tree)
 
+    async def sync_async(
+        self,
+        target: MaterializedScript,
+        *,
+        python_override: str | None,
+        on_output: LogCallback | None,
+        active_environment: Environment | None = None,
+    ) -> Environment:
+        from marimo._environments.environment import sync_async
+
+        return await sync_async(
+            target.path,
+            cwd=target.directory,
+            python_override=python_override,
+            active_environment=active_environment,
+            on_output=on_output,
+            on_command=lambda argv: self._report("sync", argv),
+        )
+
     def launch(
         self,
         environment: Environment,
@@ -320,6 +446,48 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
 
         pixi.require_pixi_bin()
         pixi.ensure_supported_pixi()
+
+    async def ensure_available_async(self) -> None:
+        from marimo._environments import pixi
+
+        await pixi.ensure_supported_pixi_async()
+
+    async def prepare_source_async(self, source: str) -> None:
+        from marimo._environments import pixi
+
+        try:
+            await pixi.ensure_marimo_async(
+                source,
+                on_command=lambda command: self._report("prepare", command),
+            )
+        except Exception as error:
+            LOGGER.warning(
+                "Failed to add marimo to script metadata: %s", error
+            )
+
+    async def sync_async(
+        self,
+        target: MaterializedScript,
+        *,
+        python_override: str | None,
+        on_output: LogCallback | None,
+        active_environment: Environment | None = None,
+    ) -> Environment:
+        from marimo._environments import pixi
+
+        if python_override is not None:
+            raise pixi.PixiError(
+                "pixi sandboxes do not support a Python version override"
+            )
+        environment = await pixi.sync_async(
+            target.path,
+            cwd=target.directory,
+            on_output=on_output,
+            on_command=lambda command: self._report("sync", command),
+        )
+
+        self._check_active_environment(environment, active_environment)
+        return environment
 
     def prepare_source(self, source: str) -> None:
         import subprocess
@@ -396,6 +564,13 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
             on_output=on_output,
             on_command=lambda command: self._report("sync", command),
         )
+        self._check_active_environment(environment, active_environment)
+        return environment
+
+    @staticmethod
+    def _check_active_environment(
+        environment: Environment, active_environment: Environment | None
+    ) -> None:
         if active_environment is not None and os.path.realpath(
             environment.root
         ) != os.path.realpath(active_environment.root):
@@ -412,7 +587,6 @@ class PixiBackendAdapter(_ReportingBackendAdapter):
                 "in a new environment. Restart the kernel to use the updated "
                 "dependencies. Restarting clears in-memory variables."
             )
-        return environment
 
     def packages(
         self,
