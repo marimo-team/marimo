@@ -8,8 +8,6 @@ marimo lets you mix and match **Python and SQL**: Use SQL to query
 Python dataframes (or databases like SQLite and Postgres), and get
 the query result back as a Python dataframe.
 
-> For a video overview on how to use SQL in marimo, watch our [YouTube tutorial](https://youtu.be/IHEf5HwU7R0).
-
 <div style="text-align: center">
   <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
   src="https://www.youtube.com/embed/IHEf5HwU7R0"

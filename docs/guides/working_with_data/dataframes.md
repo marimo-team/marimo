@@ -11,9 +11,6 @@
 _marimo integrates with [Pandas](https://pandas.pydata.org/) and
 [Polars](https://pola.rs) dataframes natively_.
 
-For a video overview on interactive dataframes,
-check out our [YouTube tutorial](https://www.youtube.com/watch?v=ZTs7vHzsqlQ).
-
 <div style="text-align: center">
   <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
   src="https://www.youtube.com/embed/ZTs7vHzsqlQ"
