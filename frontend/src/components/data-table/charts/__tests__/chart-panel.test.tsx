@@ -2,6 +2,7 @@
 
 import { render, waitFor } from "@testing-library/react";
 import { Tooltip } from "radix-ui";
+import type { ComponentProps } from "react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { SetupMocks } from "@/__mocks__/common";
 import { LazyVegaEmbed } from "@/components/charts/lazy";
@@ -18,6 +19,54 @@ beforeAll(() => {
 });
 
 describe("ChartPanel", () => {
+  it("reloads CSV only when column types change, not their array identity", async () => {
+    vi.spyOn(vegaLoader, "load").mockResolvedValue("value\n001\n");
+    const getDataUrl = vi.fn().mockResolvedValue({
+      data_url: "chart.csv",
+      format: "csv",
+    });
+    const props: ComponentProps<typeof ChartPanel> = {
+      tableData: [{ value: "001" }],
+      chartConfig: {
+        general: {
+          xColumn: { field: "value", type: "string" },
+          yColumn: { field: "value", type: "integer", aggregate: NONE_VALUE },
+        },
+      },
+      chartType: ChartType.BAR,
+      saveChart: vi.fn(),
+      saveChartType: vi.fn(),
+      getDataUrl,
+      isLargeDataset: false,
+    };
+    const panel = (
+      fieldTypes: ComponentProps<typeof ChartPanel>["fieldTypes"],
+    ) => (
+      <Tooltip.Provider>
+        <ChartPanel {...props} fieldTypes={fieldTypes} />
+      </Tooltip.Provider>
+    );
+    const expectValues = async (value: string | number) => {
+      await waitFor(() => {
+        expect(vi.mocked(LazyVegaEmbed).mock.lastCall?.[0].spec).toEqual(
+          expect.objectContaining({ data: { values: [{ value }] } }),
+        );
+      });
+    };
+
+    const { rerender } = render(panel([["value", ["string", "object"]]]));
+    await expectValues("001");
+    expect(getDataUrl).toHaveBeenCalledTimes(1);
+
+    rerender(panel([["value", ["string", "object"]]]));
+    await expectValues("001");
+    expect(getDataUrl).toHaveBeenCalledTimes(1);
+
+    rerender(panel([["value", ["integer", "int64"]]]));
+    await expectValues(1);
+    expect(getDataUrl).toHaveBeenCalledTimes(2);
+  });
+
   it("uses column types to parse numeric CSV values without coercing text", async () => {
     vi.spyOn(vegaLoader, "load").mockResolvedValue(
       "a.b,n,label,day,timestamp,active,duration\ninf,1,inf,2024-01-01,2024-01-01T12:00:00Z,True,1 days\n-inf,2,001,2024-01-02,2024-01-02T12:00:00Z,False,2 days\n2.5,3,2024-01-03,2024-01-03,2024-01-03T12:00:00Z,True,3 days\n,4,,,,,\n",

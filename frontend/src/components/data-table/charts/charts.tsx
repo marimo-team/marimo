@@ -23,6 +23,7 @@ import { Form } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { CellId } from "@/core/cells/ids";
 import { useAsyncData } from "@/hooks/useAsyncData";
+import { useDeepCompareMemoize } from "@/hooks/useDeepCompareMemoize";
 import { useDebouncedCallback } from "@/hooks/useDebounce";
 import type { GetDataUrl } from "@/plugins/impl/DataTablePlugin";
 import { vegaLoadData } from "@/plugins/impl/vega/loader";
@@ -362,7 +363,7 @@ export const ChartPanel: React.FC<{
     }
     return vegaLoadData(response.data_url, format);
     // Re-run when the data table changes
-  }, [tableData, renderLargeCharts, fieldTypes]);
+  }, [tableData, renderLargeCharts, useDeepCompareMemoize(fieldTypes)]);
 
   const formValues = form.watch();
 
