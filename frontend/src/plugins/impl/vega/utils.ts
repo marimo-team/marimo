@@ -52,9 +52,9 @@ export function getVegaFieldTypes(
     // Otherwise, infer the data types
     return "auto";
   }
-  // Preserve date strings by default, because dates don't format back to
-  // the correct formatting. For example, a date like '2024-01-01' will
-  // be formatted to '2024-01-01T00:00:00.000Z'.
+  // Preserve date-only strings for callers such as the data editor.
+  // Parsing creates Date objects that JSON serializes as full timestamps.
+  // Charts opt into date parsing for temporal axes.
   return Objects.mapValues(types, (type): VegaDataType => {
     if (type === "geometry") {
       return "string";
