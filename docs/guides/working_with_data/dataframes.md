@@ -11,14 +11,6 @@
 _marimo integrates with [Pandas](https://pandas.pydata.org/) and
 [Polars](https://pola.rs) dataframes natively_.
 
-<div style="text-align: center">
-  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
-  src="https://www.youtube.com/embed/ZTs7vHzsqlQ"
-  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
-  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
-</div>
-
 ## Displaying dataframes
 
 marimo lets you page through, search, sort, and filter dataframes, making it

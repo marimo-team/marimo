@@ -10,14 +10,6 @@ your plot in [`mo.ui.matplotlib`][marimo.ui.matplotlib],
 [`mo.ui.plotly`][marimo.ui.plotly], then select and filter with your mouse —
 marimo automatically sends the selected data back to Python!
 
-<div style="text-align: center">
-  <iframe width="100%" style="aspect-ratio: 16/9; max-width: 800px"
-  src="https://www.youtube.com/embed/KFXsm1wr408"
-  title="YouTube video player" frameborder="0" allow="accelerometer; autoplay;
-  clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-  referrerpolicy="strict-origin-when-cross-origin" loading="lazy" allowfullscreen></iframe>
-</div>
-
 ## Reactive plots! ⚡
 
 !!! warning "Requirements"
