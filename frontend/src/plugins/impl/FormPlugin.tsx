@@ -219,6 +219,7 @@ const Form = ({
   // The Form may be rendered before the child plugin is, so after mount
   // we lookup the plugin once again.
   useEffect(() => {
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- The child registry entry may not exist until after the parent mounts.
     setInternalValue(UI_ELEMENT_REGISTRY.lookupValue(elementId));
   }, [elementId]);
 

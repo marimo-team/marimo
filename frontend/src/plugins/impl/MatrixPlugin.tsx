@@ -126,6 +126,7 @@ const MatrixComponent = ({
   // which avoids stale-state bugs when the matrix shape changes.
   const [draft, setDraft] = useState(value);
   useEffect(() => {
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable draft when the controlled value changes.
     setDraft(value);
   }, [value]);
   const displayValue = activeCell == null ? value : draft;

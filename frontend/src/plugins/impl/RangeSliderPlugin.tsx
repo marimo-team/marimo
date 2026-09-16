@@ -90,6 +90,7 @@ const RangeSliderComponent = ({
 
   // Update internal value on prop change
   useEffect(() => {
+    // oxlint-disable-next-line react/no-deriving-state-in-effects -- Synchronize the editable buffer when the controlled value changes.
     setInternalValue(value);
   }, [value]);
 
