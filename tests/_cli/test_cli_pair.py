@@ -33,6 +33,7 @@ class TestPairGroup:
         result = _runner.invoke(cli_main, ["pair", "--help"])
 
         assert result.exit_code == 0
+        assert "ctx.packages.add" in result.output
         assert result.output == snapshot("""\
 Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
@@ -44,7 +45,8 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
-        cid = ctx.create_cell("x = 1")
+        ctx.packages.add("pandas")
+        cid = ctx.create_cell("import pandas as pd")
         ctx.run_cell(cid)
     PY
     marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
@@ -58,6 +60,10 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     Cells are the unit of work. The scratchpad is temporary; only cm edits persist.
     Cells do not run on creation. Call run_cell after create_cell or edit_cell.
     Use async with. Do not await ctx methods.
+    Install packages with ctx.packages.add, not uv add or pip. Installs change
+    the project; confirm when the user did not ask.
+    If an empty cell exists, edit_cell it instead of creating one.
+    delete_cell drops the cell's variables. Ask before deleting.
     Session IDs change when the page reloads. If execute reports a stale
     session, run notebook list again.
 
@@ -67,6 +73,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     ctx.edit_cell(cid, code)
     ctx.run_cell(cid)
     ctx.delete_cell(cid)
+    ctx.packages.add("pandas>=2")  # queued, installs on exit
     If a cm call fails, run help(cm):
       marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
 
