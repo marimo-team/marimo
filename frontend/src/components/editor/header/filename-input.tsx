@@ -53,6 +53,7 @@ export const FilenameInput = ({
   const skipReset = useRef<boolean>(false);
 
   useEffect(() => {
+    // TODO: Reset the editable draft without synchronizing state in an effect.
     // oxlint-disable-next-line react/no-deriving-state-in-effects -- Reset the editable draft when the external filename changes.
     setSearchValue(initialValue);
   }, [initialValue]);
