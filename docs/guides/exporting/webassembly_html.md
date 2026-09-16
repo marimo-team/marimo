@@ -32,6 +32,45 @@ Options:
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
 - `--execute/--no-execute`: Run the notebook before exporting and embed its outputs as a preview. Where possible, this uses an isolated environment pinned to WASM-compatible packages
+- `--pyodide-index-url`: Use a standard Pyodide `full/` directory from another CDN or an internal mirror
+- `--pypi-index-url`: Use a PyPI-compatible package index; repeat the option for extra indexes
+- `--offline-bundle`: Copy the Pyodide runtime and required wheels into the export directory
+
+The default export path preserves marimo's standard runtime behavior. The URL and
+offline options opt into the standard Pyodide lockfile and install `marimo-base`
+and `pyodide-http` through `micropip`.
+
+For a corporate mirror, pass the same index URLs that are reachable by the browser:
+
+```bash
+marimo export html-wasm notebook.py -o output_dir \
+  --pyodide-index-url https://pypi-wasm.example/pyodide/v314.0.0/full/ \
+  --pypi-index-url https://pypi.example/simple/ \
+  --pypi-index-url https://pypi-backup.example/simple/
+```
+
+To produce a self-contained static export:
+
+```bash
+marimo export html-wasm notebook.py -o output_dir --offline-bundle
+```
+
+`--offline-bundle` cannot be combined with `--watch`; the dependency bundle is
+generated once for the exported notebook.
+
+Offline bundles must still be served over HTTP. Static hosts such as GitHub Pages,
+GitLab Pages, and blob storage should serve `.wasm` files with a WebAssembly MIME
+type and preserve the generated `pyodide/` and `packages/` directories. The bundle
+contains the runtime and the transitive Pyodide package closure required by the
+notebook, plus pure-Python wheels resolved from the configured indexes.
+
+The repository's optional browser smoke test accepts URLs for prepared exports:
+
+```bash
+MARIMO_WASM_MIRROR_URL=http://127.0.0.1:8780 \
+MARIMO_WASM_OFFLINE_URL=http://127.0.0.1:8781 \
+pnpm playwright test e2e-tests/wasm-export.spec.ts
+```
 
 Note that WebAssembly notebooks have [limitations](../wasm.md#limitations); in particular,
 [many but not all packages work](../wasm.md#packages). If your notebook runs both

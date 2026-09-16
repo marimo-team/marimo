@@ -106,6 +106,7 @@ def _get_mount_config(
     notebook_snapshot: NotebookV1 | None = None,
     runtime_config: list[dict[str, Any]] | None = None,
     layout: LayoutConfig | None = None,
+    wasm_config: dict[str, Any] | None = None,
 ) -> str:
     """
     Return a JSON string with custom indentation and sorting.
@@ -135,6 +136,11 @@ def _get_mount_config(
         "session": session_snapshot,
         "runtime_config": runtime_config,
     }
+    wasm_config_line = (
+        f',\n            "wasm": {json_script(wasm_config)}'
+        if wasm_config is not None
+        else ""
+    )
 
     return """{{
             "filename": {filename},
@@ -150,9 +156,12 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}
+            "runtimeConfig": {runtime_config}{wasm_config_line}
         }}
-""".format(**{k: json_script(v) for k, v in options.items()}).strip()
+""".format(
+        **{k: json_script(v) for k, v in options.items()},
+        wasm_config_line=wasm_config_line,
+    ).strip()
 
 
 def home_page_template(
@@ -522,6 +531,7 @@ def wasm_notebook_template(
     asset_url: str | None = None,
     session_snapshot: NotebookSessionV1 | None = None,
     notebook_snapshot: NotebookV1 | None = None,
+    wasm_config: dict[str, Any] | None = None,
 ) -> str:
     """Template for WASM notebooks."""
     import re
@@ -558,6 +568,7 @@ def wasm_notebook_template(
             session_snapshot=session_snapshot,
             notebook_snapshot=notebook_snapshot,
             layout=layout,
+            wasm_config=wasm_config,
         ),
     )
 

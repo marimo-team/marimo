@@ -257,6 +257,59 @@ class TestExportHTML:
         mount_config = parse_mount_config((out_dir / "index.html").read_text())
         assert mount_config["mode"] == "edit"
         assert mount_config["layout"] == {"type": "slides", "data": {}}
+        assert "wasm" not in mount_config
+
+    @staticmethod
+    def test_cli_export_html_wasm_custom_runtime_config(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+
+        p = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(out_dir),
+            "--pyodide-index-url",
+            "https://pyodide.example/full/",
+            "--pypi-index-url",
+            "https://pypi.example/simple",
+            "--pypi-index-url",
+            "https://pypi-backup.example/simple",
+        )
+
+        _assert_success(p)
+        mount_config = parse_mount_config((out_dir / "index.html").read_text())
+        assert mount_config["wasm"] == {
+            "offlineBundle": False,
+            "pypiIndexURLs": [
+                "https://pypi.example/simple",
+                "https://pypi-backup.example/simple",
+            ],
+            "pyodideIndexURL": "https://pyodide.example/full/",
+            "standardLockfile": True,
+        }
+
+    @staticmethod
+    def test_cli_export_html_wasm_offline_bundle_disallows_watch(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+
+        result = _run_export(
+            "html-wasm",
+            str(notebook),
+            "--output",
+            str(tmp_path / "out"),
+            "--offline-bundle",
+            "--watch",
+        )
+
+        _assert_failure(result)
+        assert "--offline-bundle and --watch" in result.output
 
     @staticmethod
     def test_cli_export_html_wasm_packages_local_modules(

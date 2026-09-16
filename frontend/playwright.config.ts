@@ -211,48 +211,51 @@ const config: PlaywrightTestConfig = {
   ],
 
   // Run marimo servers before starting the tests, one for each app/test
-  webServer: [
-    ...Object.entries(appToOptions).flatMap(([app, opts]) => {
-      const options = opts as ServerOptions;
-      app = app.replace("//edit", "").replace("//run", "");
+  webServer:
+    process.env.MARIMO_WASM_MIRROR_URL || process.env.MARIMO_WASM_OFFLINE_URL
+      ? []
+      : [
+          ...Object.entries(appToOptions).flatMap(([app, opts]) => {
+            const options = opts as ServerOptions;
+            app = app.replace("//edit", "").replace("//run", "");
 
-      const { command, port } = options;
-      if (!port) {
-        return [];
-      }
+            const { command, port } = options;
+            if (!port) {
+              return [];
+            }
 
-      const baseUrl = command === "run" ? options.baseUrl : undefined;
+            const baseUrl = command === "run" ? options.baseUrl : undefined;
 
-      const pathToApp = path.join(pydir, app);
-      let marimoCmd = `uv run marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
-      if (baseUrl) {
-        marimoCmd += ` --base-url=${baseUrl}`;
-      }
+            const pathToApp = path.join(pydir, app);
+            let marimoCmd = `uv run marimo -q ${command} ${pathToApp} -p ${port} --headless --no-token`;
+            if (baseUrl) {
+              marimoCmd += ` --base-url=${baseUrl}`;
+            }
 
-      return {
-        command: marimoCmd,
-        url: getUrl({ port, baseUrl }),
-        reuseExistingServer: true,
-        timeout: 30 * 1000,
-        ignoreHTTPSErrors: true,
-        // Use "ignore" to prevent child processes from inheriting pipe FDs.
-        // With "pipe", orphan kernel workers keep the FDs open after the
-        // parent is killed, causing Playwright's webServer teardown to hang.
-        stdout: "ignore" as const,
-        stderr: "ignore" as const,
-      };
-    }),
-    {
-      command: `uv run marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
-      url: getUrl({ port: EDIT_PORT }),
-      reuseExistingServer: true,
-      timeout: 30 * 1000,
-      ignoreHTTPSErrors: true,
-      stdout: "ignore" as const,
-      stderr: "ignore" as const,
-    },
-    // WASM_SERVER,
-  ],
+            return {
+              command: marimoCmd,
+              url: getUrl({ port, baseUrl }),
+              reuseExistingServer: true,
+              timeout: 30 * 1000,
+              ignoreHTTPSErrors: true,
+              // Use "ignore" to prevent child processes from inheriting pipe FDs.
+              // With "pipe", orphan kernel workers keep the FDs open after the
+              // parent is killed, causing Playwright's webServer teardown to hang.
+              stdout: "ignore" as const,
+              stderr: "ignore" as const,
+            };
+          }),
+          {
+            command: `uv run marimo -q edit -p ${EDIT_PORT} --headless --no-token`,
+            url: getUrl({ port: EDIT_PORT }),
+            reuseExistingServer: true,
+            timeout: 30 * 1000,
+            ignoreHTTPSErrors: true,
+            stdout: "ignore" as const,
+            stderr: "ignore" as const,
+          },
+          // WASM_SERVER,
+        ],
 };
 
 export default config;

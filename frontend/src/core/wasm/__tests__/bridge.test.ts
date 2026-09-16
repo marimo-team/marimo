@@ -213,6 +213,7 @@ describe("getWasmWorkerName", () => {
   afterEach(() => {
     delete (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__;
+    delete window.__MARIMO_MOUNT_CONFIG__;
   });
 
   it("returns the version without suffix by default", () => {
@@ -231,5 +232,22 @@ describe("getWasmWorkerName", () => {
       window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: unknown }
     ).__MARIMO_HAS_WASM_CONTROLLER__ = "true";
     expect(getWasmWorkerName()).toBe("0.0.0-test");
+  });
+
+  it("encodes standard-lockfile runtime configuration", () => {
+    window.__MARIMO_MOUNT_CONFIG__ = {
+      wasm: {
+        standardLockfile: true,
+        pyodideIndexURL: "./pyodide/",
+        pypiIndexURLs: ["./packages/simple"],
+      },
+    };
+
+    const workerName = getWasmWorkerName();
+
+    expect(workerName).toContain("::config=");
+    expect(decodeURIComponent(workerName.split("::config=")[1])).toContain(
+      '"standardLockfile":true',
+    );
   });
 });

@@ -47,6 +47,7 @@ import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
+import type { WasmRuntimeConfig } from "./worker/types";
 
 type SaveWorker = ReturnType<
   typeof getWorkerRPC<SaveWorkerSchema>
@@ -723,5 +724,23 @@ export function getWasmWorkerName(): string {
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__ === true;
-  return getMarimoVersion() + (hasCustomController ? "::controller" : "");
+  const mountConfig = (window.__MARIMO_MOUNT_CONFIG__ ?? {}) as {
+    wasm?: WasmRuntimeConfig;
+  };
+  const config = mountConfig.wasm
+    ? {
+        ...mountConfig.wasm,
+        pyodideIndexURL: mountConfig.wasm.pyodideIndexURL
+          ? new URL(mountConfig.wasm.pyodideIndexURL, document.baseURI).href
+          : undefined,
+        pypiIndexURLs: (mountConfig.wasm.pypiIndexURLs ?? []).map((value) =>
+          new URL(value, document.baseURI).href,
+        ),
+      }
+    : undefined;
+  const suffixes = [
+    hasCustomController ? "controller" : null,
+    config ? `config=${encodeURIComponent(JSON.stringify(config))}` : null,
+  ].filter((value): value is string => value !== null);
+  return [getMarimoVersion(), ...suffixes].join("::");
 }

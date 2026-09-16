@@ -33,6 +33,7 @@ import type {
   RawBridge,
   SerializedBridge,
   WasmController,
+  WasmRuntimeConfig,
 } from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
 
@@ -47,6 +48,22 @@ declare const self: Window & {
 
 const workerInitSpan = t.startSpan("worker:init");
 
+function getRuntimeConfig(): WasmRuntimeConfig {
+  const value = self.name
+    .split("::")
+    .find((part) => part.startsWith("config="))
+    ?.slice("config=".length);
+  if (!value) {
+    return {};
+  }
+  try {
+    return JSON.parse(decodeURIComponent(value)) as WasmRuntimeConfig;
+  } catch {
+    Logger.warn("Invalid WASM runtime configuration");
+    return {};
+  }
+}
+
 // Initialize pyodide
 async function loadPyodideAndPackages() {
   try {
@@ -60,6 +77,7 @@ async function loadPyodideAndPackages() {
     self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
+      runtimeConfig: getRuntimeConfig(),
     });
   } catch (error) {
     Logger.error("Error bootstrapping", error);

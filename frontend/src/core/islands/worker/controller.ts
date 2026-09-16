@@ -4,7 +4,10 @@ import { defaultUserConfig } from "@/core/config/config-schema";
 import type { NotificationPayload } from "@/core/kernel/messages";
 import { DefaultWasmController } from "@/core/wasm/worker/bootstrap";
 import { WasmFileSystem } from "@/core/wasm/worker/fs";
-import type { SerializedBridge } from "@/core/wasm/worker/types";
+import type {
+  SerializedBridge,
+  WasmRuntimeConfig,
+} from "@/core/wasm/worker/types";
 import type { JsonString } from "@/utils/json/base64";
 import { Logger } from "../../../utils/Logger";
 
@@ -12,6 +15,7 @@ export class ReadonlyWasmController extends DefaultWasmController {
   override async bootstrap(opts: {
     version: string;
     pyodideVersion: string;
+    runtimeConfig?: WasmRuntimeConfig;
   }): Promise<PyodideInterface> {
     const pyodide = await super.bootstrap(opts);
     return pyodide;

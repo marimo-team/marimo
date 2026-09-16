@@ -527,6 +527,15 @@ class Exporter:
         # Remove autosave
         config["save"]["autosave"] = "off"
 
+        wasm_config = None
+        if request.options.standard_lockfile:
+            wasm_config = {
+                "standardLockfile": True,
+                "pyodideIndexURL": request.options.pyodide_index_url,
+                "pypiIndexURLs": list(request.options.pypi_index_urls),
+                "offlineBundle": request.options.offline_bundle,
+            }
+
         html = wasm_notebook_template(
             html=index_html,
             version=__version__,
@@ -541,6 +550,7 @@ class Exporter:
             layout=request.layout,
             session_snapshot=request.session_snapshot,
             notebook_snapshot=request.notebook_snapshot,
+            wasm_config=wasm_config,
         )
 
         download_filename = get_download_filename(filename, "wasm.html")

@@ -65,6 +65,15 @@ from marimo._export.requests import (
     ScriptFileExportRequest,
     WASMFileExportRequest,
 )
+from marimo._export.wasm_bundle import (
+    add_wasm_dependencies,
+    build_offline_bundle,
+    notebook_wasm_dependencies,
+)
+from marimo._export.wasm_runtime import (
+    public_pypi_index_urls,
+    resolve_pypi_index_urls,
+)
 from marimo._pyodide.pyodide_constraints import PYODIDE_PYTHON_VERSION
 from marimo._schemas.export_options import (
     ExportPDFPreset,
@@ -968,6 +977,32 @@ and cannot be opened directly from the file system (e.g. file://).
         "packages when possible."
     ),
 )
+@click.option(
+    "--pyodide-index-url",
+    default=None,
+    help=(
+        "Base URL for the standard Pyodide distribution directory. "
+        "The directory must contain pyodide-lock.json."
+    ),
+)
+@click.option(
+    "--pypi-index-url",
+    "pypi_index_urls",
+    multiple=True,
+    help=(
+        "PyPI-compatible package index URL. May be repeated; the first URL "
+        "is primary and later URLs are extra indexes."
+    ),
+)
+@click.option(
+    "--offline-bundle",
+    is_flag=True,
+    default=False,
+    help=(
+        "Bundle Pyodide assets and required Python wheels into the export "
+        "directory so it does not need network access at runtime."
+    ),
+)
 @click.argument(
     "name",
     required=True,
@@ -984,12 +1019,19 @@ def html_wasm(
     sandbox: bool | None,
     force: bool,
     execute: bool,
+    pyodide_index_url: str | None,
+    pypi_index_urls: tuple[str, ...],
+    offline_bundle: bool,
     args: tuple[str, ...],
 ) -> None:
     """Export a notebook as a WASM-powered standalone HTML file."""
     if execute and watch:
         raise click.UsageError(
             "--execute and --watch cannot be used together."
+        )
+    if offline_bundle and watch:
+        raise click.UsageError(
+            "--offline-bundle and --watch cannot be used together."
         )
 
     # When --execute is set, take ownership of sandboxing so we can layer
@@ -1037,6 +1079,26 @@ def html_wasm(
         filename = output.name
 
     marimo_file = MarimoPath(name)
+    use_standard_lockfile = bool(
+        pyodide_index_url or pypi_index_urls or offline_bundle
+    )
+    resolved_pypi_index_urls: tuple[str, ...] = ()
+    wasm_dependencies: tuple[str, ...] = ()
+
+    if use_standard_lockfile:
+        resolved_pypi_index_urls = resolve_pypi_index_urls(
+            marimo_file, pypi_index_urls
+        )
+        wasm_dependencies = notebook_wasm_dependencies(marimo_file)
+        if offline_bundle:
+            wasm_bundle = build_offline_bundle(
+                path=marimo_file,
+                output_directory=out_dir,
+                pyodide_index_url=pyodide_index_url,
+                pypi_index_urls=resolved_pypi_index_urls,
+            )
+            pyodide_index_url = wasm_bundle.pyodide_index_url
+            resolved_pypi_index_urls = wasm_bundle.pypi_index_urls
 
     def export_with_local_wheels(
         file_path: MarimoPath,
@@ -1068,8 +1130,8 @@ def html_wasm(
                     *auto_wheel_dependencies(local_wheels),
                 )
                 result = export_callback(
-                    code_transform=partial(
-                        with_wheel_dependencies,
+                    code_transform=lambda code: with_wheel_dependencies(
+                        add_wasm_dependencies(code, wasm_dependencies),
                         wheel_dependencies=wheel_dependencies,
                     )
                 )
@@ -1084,7 +1146,14 @@ def html_wasm(
         except LocalWheelError as error:
             raise click.UsageError(str(error)) from error
 
-    wasm_options = WASMExportOptions(mode=mode, show_code=show_code)
+    wasm_options = WASMExportOptions(
+        mode=mode,
+        show_code=show_code,
+        standard_lockfile=use_standard_lockfile,
+        pyodide_index_url=pyodide_index_url,
+        pypi_index_urls=public_pypi_index_urls(resolved_pypi_index_urls),
+        offline_bundle=offline_bundle,
+    )
 
     if execute:
         cli_args = parse_args(args)

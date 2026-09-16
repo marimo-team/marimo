@@ -1206,8 +1206,31 @@ class TestWasmNotebookTemplate(unittest.TestCase):
         assert "__MARIMO_EXPORT_CONTEXT__" in result
         assert '<marimo-code hidden="">' in result
         assert '"showAppCode": false' in result
+        assert '"wasm":' not in result
         assert "<title>notebook</title>" in result
         _assert_no_leftover_replacements(result)
+
+    def test_wasm_notebook_template_custom_runtime_config(self) -> None:
+        result = templates.wasm_notebook_template(
+            html=self.html,
+            version=self.version,
+            filename=str(self.filename),
+            mode=self.mode,
+            user_config=self.user_config,
+            config_overrides=self.config_overrides,
+            app_config=self.app_config,
+            code=self.code,
+            show_code=False,
+            wasm_config={
+                "standardLockfile": True,
+                "pyodideIndexURL": "./pyodide/",
+                "pypiIndexURLs": ["./packages/simple"],
+            },
+        )
+
+        assert '"standardLockfile": true' in result
+        assert '"pyodideIndexURL": "./pyodide/"' in result
+        assert '"pypiIndexURLs": ["./packages/simple"]' in result
 
     def test_wasm_notebook_template_custom_css_and_assets(self) -> None:
         # Create css file

@@ -4,6 +4,13 @@ import { chromium, type FullConfig } from "@playwright/test";
 import { type ApplicationNames, getAppUrl } from "../playwright.config";
 
 async function globalSetup(_config: FullConfig) {
+  if (
+    process.env.MARIMO_WASM_MIRROR_URL ||
+    process.env.MARIMO_WASM_OFFLINE_URL
+  ) {
+    return;
+  }
+
   // Start a browser to test server connectivity
   const browser = await chromium.launch();
   const page = await browser.newPage();

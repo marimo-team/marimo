@@ -35,6 +35,7 @@ async function loadPyodideAndPackages() {
     self.pyodide = await self.controller.bootstrap({
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
+      runtimeConfig: {},
     });
   } catch (error) {
     Logger.error("Error bootstrapping", error);

@@ -9,7 +9,11 @@ import { Logger } from "../../../utils/Logger";
 import { WasmFileSystem } from "./fs";
 import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
-import type { SerializedBridge, WasmController } from "./types";
+import type {
+  SerializedBridge,
+  WasmController,
+  WasmRuntimeConfig,
+} from "./types";
 import { shouldLoadDuckDBPackages } from "../utils";
 
 const MAKE_SNAPSHOT = false;
@@ -44,6 +48,7 @@ export class DefaultWasmController implements WasmController {
   async bootstrap(opts: {
     version: string;
     pyodideVersion: string;
+    runtimeConfig?: WasmRuntimeConfig;
   }): Promise<PyodideInterface> {
     const pyodide = await this.loadPyodideAndPackages(opts);
 
@@ -58,6 +63,7 @@ export class DefaultWasmController implements WasmController {
   private async loadPyodideAndPackages(opts: {
     version: string;
     pyodideVersion: string;
+    runtimeConfig?: WasmRuntimeConfig;
   }): Promise<PyodideInterface> {
     if (!loadPyodide) {
       throw new Error("loadPyodide is not defined");
@@ -68,20 +74,30 @@ export class DefaultWasmController implements WasmController {
       // Without this, this fails in Firefox with
       // `Could not extract indexURL path from pyodide module`
       // This fixes for Firefox and does not break Chrome/others
-      const indexURL = `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`;
+      const runtimeConfig = opts.runtimeConfig ?? {};
+      const indexURL =
+        runtimeConfig.pyodideIndexURL ||
+        `https://cdn.jsdelivr.net/pyodide/${opts.pyodideVersion}/full/`;
+      const packageIndexURLs = runtimeConfig.pypiIndexURLs ?? [];
+      const isStandardLockfile =
+        runtimeConfig.standardLockfile === true;
       const pyodide = await loadPyodide({
         // Perf: These get loaded while pyodide is being bootstrapped
-        packages: [
-          "micropip",
-          "msgspec",
-          getMarimoWheel(opts.version),
-          "Markdown",
-          "pymdown-extensions",
-          "narwhals",
-          "packaging",
-        ],
+        packages: isStandardLockfile
+          ? ["micropip", "msgspec", "narwhals", "packaging"]
+          : [
+              "micropip",
+              "msgspec",
+              getMarimoWheel(opts.version),
+              "Markdown",
+              "pymdown-extensions",
+              "narwhals",
+              "packaging",
+            ],
         _makeSnapshot: MAKE_SNAPSHOT,
-        lockFileURL: `https://wasm.marimo.app/pyodide-lock.json?v=${opts.version}&pyodide=${opts.pyodideVersion}`,
+        lockFileURL: isStandardLockfile
+          ? new URL("pyodide-lock.json", indexURL).href
+          : `https://wasm.marimo.app/pyodide-lock.json?v=${opts.version}&pyodide=${opts.pyodideVersion}`,
         indexURL,
         // Since Pyodide 0.28.0, when lockFileURL is set, the package base URL
         // defaults to the lockfile's URL (wasm.marimo.app) instead of indexURL.
@@ -92,6 +108,24 @@ export class DefaultWasmController implements WasmController {
         convertNullToNone: true,
       });
       this.pyodide = pyodide;
+      if (!isStandardLockfile) {
+        span.end("ok");
+        return pyodide;
+      }
+      const packageIndexArgument = packageIndexURLs.length
+        ? `, index_urls=${JSON.stringify(packageIndexURLs)}`
+        : "";
+      await pyodide.runPythonAsync(`
+        import micropip
+        ${
+          packageIndexURLs.length > 0
+            ? `micropip.set_index_urls(${JSON.stringify(packageIndexURLs)})`
+            : ""
+        }
+        await micropip.install(
+          ["marimo-base", "pyodide-http"]${packageIndexArgument}
+        )
+      `);
       span.end("ok");
       return pyodide;
     } catch (error) {

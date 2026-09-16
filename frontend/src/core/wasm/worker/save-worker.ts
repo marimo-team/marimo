@@ -16,6 +16,7 @@ import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
 import { getPyodideVersion } from "./getPyodideVersion";
+import type { WasmRuntimeConfig } from "./types";
 
 /**
  * Web worker responsible for saving the notebook.
@@ -24,6 +25,22 @@ import { getPyodideVersion } from "./getPyodideVersion";
 declare const self: Window & {
   pyodide: PyodideInterface;
 };
+
+function getRuntimeConfig(): WasmRuntimeConfig {
+  const value = self.name
+    .split("::")
+    .find((part) => part.startsWith("config="))
+    ?.slice("config=".length);
+  if (!value) {
+    return {};
+  }
+  try {
+    return JSON.parse(decodeURIComponent(value)) as WasmRuntimeConfig;
+  } catch {
+    Logger.warn("Invalid WASM runtime configuration");
+    return {};
+  }
+}
 
 // Initialize
 async function loadPyodideAndPackages() {
@@ -38,6 +55,7 @@ async function loadPyodideAndPackages() {
     self.pyodide = await controller.bootstrap({
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
+      runtimeConfig: getRuntimeConfig(),
     });
 
     // Mount the filesystem

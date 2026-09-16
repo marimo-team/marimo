@@ -46,6 +46,10 @@ class WASMExportOptions:
     mode: WASMMode
     show_code: bool
     asset_url: str | None = None
+    standard_lockfile: bool = False
+    pyodide_index_url: str | None = None
+    pypi_index_urls: tuple[str, ...] = ()
+    offline_bundle: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)

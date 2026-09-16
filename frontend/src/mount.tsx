@@ -230,6 +230,19 @@ const mountOptionsSchema = z.object({
     .transform((val) => val ?? { showAppCode: true }),
 
   /**
+   * Pyodide and package sources for WASM notebooks.
+   */
+  wasm: z
+    .looseObject({
+      standardLockfile: z.boolean().default(false),
+      pyodideIndexURL: z.string().nullish(),
+      pypiIndexURLs: z.array(z.string()).default([]),
+      offlineBundle: z.boolean().default(false),
+    })
+    .nullish()
+    .transform((val) => val ?? {}),
+
+  /**
    * server token
    */
   serverToken: z

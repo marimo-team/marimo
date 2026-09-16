@@ -46,6 +46,7 @@ export interface WasmController {
   bootstrap(opts: {
     version: string;
     pyodideVersion: string;
+    runtimeConfig?: WasmRuntimeConfig;
   }): Promise<PyodideInterface>;
   /**
    * Mount the filesystem
@@ -69,6 +70,13 @@ export interface WasmController {
     userConfig: UserConfig;
     onMessage: (message: JsonString<NotificationPayload>) => void;
   }): Promise<SerializedBridge>;
+}
+
+export interface WasmRuntimeConfig {
+  standardLockfile?: boolean;
+  pyodideIndexURL?: string | null;
+  pypiIndexURLs?: string[];
+  offlineBundle?: boolean;
 }
 
 export interface RawBridge {
