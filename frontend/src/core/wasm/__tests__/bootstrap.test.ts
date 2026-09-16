@@ -3,7 +3,7 @@
 import { loadPyodide } from "pyodide";
 import type { PyodideInterface } from "pyodide";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DefaultWasmController } from "../worker/bootstrap";
+import { DefaultWasmController, requirementName } from "../worker/bootstrap";
 
 vi.mock("pyodide", () => ({ loadPyodide: vi.fn() }));
 vi.mock("../worker/getMarimoWheel", () => ({
@@ -59,5 +59,37 @@ describe("WASM runtime sources", () => {
     );
     expect(micropip.destroy).toHaveBeenCalledOnce();
     expect(controller.requirePyodide).toBe(pyodide);
+  });
+});
+
+describe("requirementName", () => {
+  it("returns the distribution name for a bare requirement", () => {
+    expect(requirementName("pandas")).toBe("pandas");
+  });
+
+  it.each([
+    ["pandas==2.1.0", "pandas"],
+    ["pandas>=2", "pandas"],
+    ["pandas<=2", "pandas"],
+    ["pandas~=2.1", "pandas"],
+    ["pandas!=2.0", "pandas"],
+    ["nltools===0.6.0.dev2", "nltools"],
+  ])("cuts the specifier off %s", (requirement, expected) => {
+    expect(requirementName(requirement)).toBe(expected);
+  });
+
+  it("cuts extras and markers", () => {
+    expect(requirementName("rich[jupyter]>=13")).toBe("rich");
+    expect(requirementName('cowsay==6.1; sys_platform == "emscripten"')).toBe(
+      "cowsay",
+    );
+  });
+
+  it("cuts a URL requirement at the name", () => {
+    expect(requirementName("pkg @ https://example.com/pkg.whl")).toBe("pkg");
+  });
+
+  it("tolerates surrounding whitespace", () => {
+    expect(requirementName("  pandas >= 2  ")).toBe("pandas");
   });
 });
