@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, expect, it } from "vitest";
 import {
+  exportedForTesting,
   getCellConfigs,
   initialNotebookState,
   type NotebookState,
@@ -172,6 +173,151 @@ describe("getCellConfigs", () => {
       { hide_code: true, disabled: false, column: null },
       { hide_code: false, disabled: true, column: 1 },
       { hide_code: true, disabled: true, column: null },
+    ]);
+  });
+
+  it("should snapshot column metadata into cellData when mergeAllColumns reducer runs during a live session", () => {
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+    const cellId3 = CellId.create();
+    const cellId4 = CellId.create();
+
+    const { reducer } = exportedForTesting;
+    const initialState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: MultiColumn.from([
+        [cellId1, cellId2],
+        [cellId3, cellId4],
+      ]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: null },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: null },
+        } as CellData,
+        [cellId3]: {
+          id: cellId3,
+          config: { hide_code: false, disabled: true, column: null },
+        } as CellData,
+        [cellId4]: {
+          id: cellId4,
+          config: { hide_code: true, disabled: true, column: null },
+        } as CellData,
+      },
+      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    };
+
+    const collapsedState = reducer(initialState, {
+      type: "mergeAllColumns",
+      payload: undefined,
+    });
+
+    // The reducer should snapshot the pre-collapse column layout into cellData
+    expect(collapsedState.cellData[cellId1].config.column).toBe(0);
+    expect(collapsedState.cellData[cellId2].config.column).toBeNull();
+    expect(collapsedState.cellData[cellId3].config.column).toBe(1);
+    expect(collapsedState.cellData[cellId4].config.column).toBeNull();
+
+    // getCellConfigs reads the snapshotted values correctly
+    expect(getCellConfigs(collapsedState)).toEqual([
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: null },
+      { hide_code: false, disabled: true, column: 1 },
+      { hide_code: true, disabled: true, column: null },
+    ]);
+  });
+
+  it("should snapshot column metadata when deleteColumn collapses to a single column", () => {
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+    const cellId3 = CellId.create();
+    const cellId4 = CellId.create();
+
+    const { reducer } = exportedForTesting;
+    const initialState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: MultiColumn.from([
+        [cellId1, cellId2],
+        [cellId3, cellId4],
+      ]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: null },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: null },
+        } as CellData,
+        [cellId3]: {
+          id: cellId3,
+          config: { hide_code: false, disabled: true, column: null },
+        } as CellData,
+        [cellId4]: {
+          id: cellId4,
+          config: { hide_code: true, disabled: true, column: null },
+        } as CellData,
+      },
+      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    };
+
+    const columnId = initialState.cellIds.atOrThrow(1).id;
+    const collapsedState = reducer(initialState, {
+      type: "deleteColumn",
+      payload: { columnId },
+    });
+
+    // [c3, c4] are moved into column 0; only the first cell keeps the index
+    expect(collapsedState.cellIds.getColumns().length).toBe(1);
+    expect(collapsedState.cellData[cellId1].config.column).toBe(0);
+    expect(collapsedState.cellData[cellId2].config.column).toBeNull();
+    expect(collapsedState.cellData[cellId3].config.column).toBeNull();
+    expect(collapsedState.cellData[cellId4].config.column).toBeNull();
+
+    expect(getCellConfigs(collapsedState)).toEqual([
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: null },
+      { hide_code: false, disabled: true, column: null },
+      { hide_code: true, disabled: true, column: null },
+    ]);
+  });
+
+  it("should snapshot column metadata when compactColumns collapses to a single column", () => {
+    const cellId1 = CellId.create();
+    const cellId2 = CellId.create();
+
+    const { reducer } = exportedForTesting;
+    const initialState: NotebookState = {
+      ...initialNotebookState(),
+      cellIds: MultiColumn.from([[cellId1, cellId2], []]),
+      cellData: {
+        [cellId1]: {
+          id: cellId1,
+          config: { hide_code: false, disabled: false, column: null },
+        } as CellData,
+        [cellId2]: {
+          id: cellId2,
+          config: { hide_code: true, disabled: false, column: null },
+        } as CellData,
+      },
+      cellRuntime: {} as Record<CellId, CellRuntimeState>,
+    };
+
+    const compactedState = reducer(initialState, {
+      type: "compactColumns",
+      payload: undefined,
+    });
+
+    expect(compactedState.cellIds.getColumns().length).toBe(1);
+    expect(compactedState.cellData[cellId1].config.column).toBe(0);
+    expect(compactedState.cellData[cellId2].config.column).toBeNull();
+
+    expect(getCellConfigs(compactedState)).toEqual([
+      { hide_code: false, disabled: false, column: 0 },
+      { hide_code: true, disabled: false, column: null },
     ]);
   });
 
