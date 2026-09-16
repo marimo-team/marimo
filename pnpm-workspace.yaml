@@ -45,7 +45,6 @@ trustPolicyExclude:
   - "@octokit/endpoint@9.0.6"
   - "@octokit/plugin-paginate-rest@9.2.2"
   - "@swc/core@1.12.14"
-  - "@textea/json-viewer@4.0.1"
   - "chokidar@4.0.3"
   - "semver@5.7.2 || 6.3.1"
   - "tailwind-merge@2.6.0"
