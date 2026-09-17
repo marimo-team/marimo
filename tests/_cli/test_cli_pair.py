@@ -1515,7 +1515,9 @@ class TestPairPromptPreview:
             )
 
         assert result.exit_code == 0
-        assert "Auth token:" in result.stderr
+        assert (
+            "Auth token (leave empty if MARIMO_TOKEN is set):" in result.stderr
+        )
         assert "my-secret-token" not in result.output
         token_file = next(token_dir.iterdir())
         assert token_file.read_text() == "my-secret-token"
@@ -1632,6 +1634,33 @@ Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as
 
 
 class TestPairPromptWithToken:
+    @pytest.mark.parametrize("preview", ["0", "1"])
+    @pytest.mark.parametrize("existing_file", [False, True])
+    def test_empty_token_skips_file(
+        self, tmp_path: Path, preview: str, existing_file: bool
+    ) -> None:
+        token_dir = tmp_path / "tokens"
+        url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
+        token_file = token_dir / f"{url_hash}-token.txt"
+        if existing_file:
+            token_dir.mkdir()
+            token_file.write_text("previous-token", encoding="utf-8")
+        env = {"MARIMO_PAIR_NEXT": preview, "MARIMO_TOKEN": "env-secret"}
+        args = ["pair", "prompt", "--url", TEST_URL]
+        with patch.object(commands, "_token_dir", return_value=token_dir):
+            result = _runner.invoke(
+                cli_main, [*args, "--with-token"], input="\n", env=env
+            )
+            without_token = _runner.invoke(cli_main, args, env=env)
+
+        assert result.exit_code == 0
+        assert result.stdout == without_token.stdout
+        assert "env-secret" not in result.output
+        if existing_file:
+            assert token_file.read_text(encoding="utf-8") == "previous-token"
+        else:
+            assert not token_dir.exists()
+
     def test_with_token_writes_file_and_outputs_prompt(
         self, tmp_path: Path
     ) -> None:

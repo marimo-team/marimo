@@ -631,7 +631,7 @@ def docs(topic: str | None) -> None:
     "--with-token",
     is_flag=True,
     default=False,
-    help="Prompt for an auth token and store it in a temp file.",
+    help="Prompt for an auth token and store it in a temp file. Leave empty if MARIMO_TOKEN is set.",
 )
 def prompt(
     url: str,
@@ -690,22 +690,28 @@ def prompt(
                     err=True,
                 )
 
-    # Prompt for token and write it to a temp file if --with-token is set
     token_file: Path | None = None
     if with_token:
-        token_dir = _token_dir()
-        url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
-        token_file = token_dir / f"{url_hash}-token.txt"
-        token = click.prompt("Auth token", hide_input=True, err=True)
-        token_dir.mkdir(parents=True, exist_ok=True)
-        # Open the token file for writing, creating it with restrictive
-        # permissions if needed and truncating it if it already exists.
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-        fd = os.open(token_file, flags, 0o600)
-        try:
-            os.write(fd, token.encode())
-        finally:
-            os.close(fd)
+        token = click.prompt(
+            "Auth token (leave empty if MARIMO_TOKEN is set)",
+            default="",
+            show_default=False,
+            hide_input=True,
+            err=True,
+        )
+        if token:
+            token_dir = _token_dir()
+            url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
+            token_file = token_dir / f"{url_hash}-token.txt"
+            token_dir.mkdir(parents=True, exist_ok=True)
+            # Open the token file for writing, creating it with restrictive
+            # permissions if needed and truncating it if it already exists.
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+            fd = os.open(token_file, flags, 0o600)
+            try:
+                os.write(fd, token.encode())
+            finally:
+                os.close(fd)
 
     if preview:
         click.echo(
