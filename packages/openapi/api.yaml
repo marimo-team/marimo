@@ -664,6 +664,12 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
+        chatId:
+          anyOf:
+          - pattern: \A[A-Za-z0-9._-]{1,128}\Z
+            type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         model:

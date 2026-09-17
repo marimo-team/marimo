@@ -1,10 +1,11 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 import msgspec
 
+from marimo._ai._opencode import SESSION_ID_PATTERN
 from marimo._server.ai.tools.types import ToolDefinition
 
 
@@ -80,3 +81,9 @@ class ChatRequest(msgspec.Struct, rename="camel"):
     model: str | None = None
     variables: list[VariableContext | str] | None = None
     options: ChatOptions = msgspec.field(default_factory=ChatOptions)
+    # Client-side conversation ID, forwarded to providers that need a stable
+    # session for routing and prompt caching (e.g. OpenCode Go). It is sent as
+    # an HTTP header, so it is validated at the API boundary.
+    chat_id: (
+        Annotated[str, msgspec.Meta(pattern=SESSION_ID_PATTERN)] | None
+    ) = None

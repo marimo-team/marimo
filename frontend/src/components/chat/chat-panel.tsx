@@ -606,6 +606,8 @@ const ChatPanelBody = () => {
             uiMessages: options.messages,
             includeOtherCode: getCodes(""),
             options: store.get(chatOptionsAtom),
+            // Stable per-conversation ID, used as the provider session ID.
+            chatId: chatControllerId,
           };
 
           // Call this here to ensure the value is not stale

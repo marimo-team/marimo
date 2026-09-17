@@ -1401,6 +1401,26 @@ def test_get_openai_client_default_skips_custom_http_client() -> None:
 
 
 @pytest.mark.requires("openai")
+def test_get_openai_client_forwards_extra_headers() -> None:
+    """Extra headers, including OpenCode Go session identity, reach the SDK."""
+    with patch("openai.AsyncOpenAI") as mock_openai:
+        OpenAIClientMixin().get_openai_client(
+            _openai_ssl_config(
+                extra_headers={
+                    "User-Agent": "marimo/1.2.3",
+                    "x-opencode-session": "session-123",
+                }
+            )
+        )
+
+    assert mock_openai.call_args.kwargs["default_headers"] == {
+        "api-key": "test-key",
+        "User-Agent": "marimo/1.2.3",
+        "x-opencode-session": "session-123",
+    }
+
+
+@pytest.mark.requires("openai")
 def test_get_openai_client_ssl_verify_false() -> None:
     """ssl_verify=False builds DefaultAsyncHttpxClient(verify=False)."""
     fake_client = MagicMock(name="http_client")

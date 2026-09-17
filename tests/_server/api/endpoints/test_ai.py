@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import msgspec
 import pytest
 from starlette.exceptions import HTTPException
 
@@ -109,6 +110,71 @@ def test_get_provider_config_resolves_default_dotenv_key(
     provider_config = get_provider_config("openai/gpt-4o", config)
 
     assert provider_config.api_key == "dotenv-key"
+
+
+@with_session(SESSION_ID)
+def test_chat_rejects_header_unsafe_chat_id(client: TestClient) -> None:
+    """A conversation ID that cannot be sent as a header is rejected.
+
+    `handle_error` maps the `msgspec.ValidationError` to a 400; see
+    `tests/_server/test_errors.py`."""
+    with pytest.raises(msgspec.ValidationError):
+        client.post(
+            "/api/ai/chat",
+            headers=HEADERS,
+            json={
+                "uiMessages": _create_messages("Hello"),
+                "model": "opencode-go/kimi-k2.6",
+                "includeOtherCode": "",
+                "chatId": "bad\r\nheader",
+            },
+        )
+
+
+@pytest.mark.requires("openai", "pydantic_ai")
+@with_session(SESSION_ID)
+def test_chat_forwards_chat_id_as_opencode_session(
+    client: TestClient,
+) -> None:
+    """The /chat endpoint forwards the conversation ID to the provider."""
+    from starlette.responses import StreamingResponse
+
+    user_config_manager = get_session_config_manager(client)
+    config = {
+        "ai": {
+            "opencode_go": {"api_key": "test-opencode-key"},
+        }
+    }
+
+    async def mock_stream():
+        yield b""
+
+    with (
+        patch.object(user_config_manager, "get_config", return_value=config),
+        patch(
+            "marimo._server.api.endpoints.ai.get_completion_provider"
+        ) as mock_get_provider,
+    ):
+        mock_get_provider.return_value.stream_completion = AsyncMock(
+            return_value=StreamingResponse(
+                content=mock_stream(), media_type="text/event-stream"
+            )
+        )
+        response = client.post(
+            "/api/ai/chat",
+            headers=HEADERS,
+            json={
+                "uiMessages": _create_messages("Hello"),
+                "model": "opencode-go/kimi-k2.6",
+                "includeOtherCode": "",
+                "chatId": "chat-789",
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    provider_config = mock_get_provider.call_args.args[0]
+    assert provider_config.extra_headers is not None
+    assert provider_config.extra_headers["x-opencode-session"] == "chat-789"
 
 
 # Anthropic

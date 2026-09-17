@@ -25,6 +25,7 @@ from marimo._server.ai.config import (
 from marimo._server.ai.constants import DEFAULT_MODEL
 from marimo._server.ai.tools.types import ToolDefinition
 from marimo._utils.http import HTTPStatus
+from marimo._version import __version__
 
 
 class TestAnyProviderConfig:
@@ -214,7 +215,9 @@ class TestAnyProviderConfig:
             }
         }
 
-        provider_config = AnyProviderConfig.for_opencode_go(config)
+        provider_config = AnyProviderConfig.for_opencode_go(
+            config, session_id="session-1"
+        )
 
         assert provider_config.api_key == "test-opencode-key"
         assert provider_config.base_url == "https://opencode.ai/zen/go/v1/"
@@ -227,10 +230,46 @@ class TestAnyProviderConfig:
             }
         }
 
-        provider_config = AnyProviderConfig.for_opencode_go(config)
+        provider_config = AnyProviderConfig.for_opencode_go(
+            config, session_id="session-1"
+        )
 
         assert provider_config.api_key == "test-opencode-key"
         assert provider_config.base_url == "https://opencode.ai/zen/go/v1/"
+
+    @pytest.mark.parametrize(
+        "extra_headers",
+        [None, {"x-opencode-session": "custom"}],
+    )
+    def test_for_opencode_go_headers(
+        self,
+        extra_headers: dict[str, str] | None,
+    ) -> None:
+        """OpenCode Go headers identify marimo and carry the session ID."""
+        opencode_config: dict[str, Any] = {"api_key": "test-opencode-key"}
+        if extra_headers:
+            opencode_config["extra_headers"] = extra_headers
+        config: AiConfig = {"opencode_go": opencode_config}
+
+        provider_config = AnyProviderConfig.for_opencode_go(
+            config, session_id="session-123"
+        )
+
+        # User-configured headers win over marimo's defaults.
+        expected = {
+            "User-Agent": f"marimo/{__version__}",
+            "x-opencode-client": "marimo",
+            "x-opencode-session": "session-123",
+        }
+        expected.update(extra_headers or {})
+        assert provider_config.extra_headers == expected
+
+    def test_for_model_opencode_go_requires_session_id(self) -> None:
+        """OpenCode rejects requests without a session ID, so fail loud."""
+        config: AiConfig = {"opencode_go": {"api_key": "test-opencode-key"}}
+
+        with pytest.raises(ValueError):
+            AnyProviderConfig.for_model("opencode-go/kimi-k2.6", config)
 
     def test_for_github(self) -> None:
         config: AiConfig = {
@@ -380,6 +419,30 @@ class TestAnyProviderConfig:
 
         assert provider_config.api_key == "test-wandb-key"
         assert provider_config.base_url == "https://api.inference.wandb.ai/v1/"
+
+    def test_for_model_opencode_go_threads_session_id(self) -> None:
+        """for_model passes the session ID through to OpenCode Go."""
+        config: AiConfig = {"opencode_go": {"api_key": "test-opencode-key"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "opencode-go/kimi-k2.6", config, session_id="session-123"
+        )
+
+        assert provider_config.extra_headers == {
+            "User-Agent": f"marimo/{__version__}",
+            "x-opencode-client": "marimo",
+            "x-opencode-session": "session-123",
+        }
+
+    def test_for_model_ignores_session_id_for_other_providers(self) -> None:
+        """Providers other than OpenCode Go don't receive session headers."""
+        config: AiConfig = {"open_ai": {"api_key": "test-openai-key"}}
+
+        provider_config = AnyProviderConfig.for_model(
+            "openai/gpt-4o", config, session_id="session-123"
+        )
+
+        assert provider_config.extra_headers is None
 
     def test_for_model_unknown_defaults_to_ollama(self) -> None:
         """Test for_model with unknown provider defaults to Ollama."""
@@ -701,7 +764,9 @@ class TestProviderConfigWithFallback:
     def test_for_opencode_go_with_fallback_key(self) -> None:
         """Test OpenCode Go config uses fallback key when config is missing api_key."""
         config: AiConfig = {"opencode_go": {}}
-        provider_config = AnyProviderConfig.for_opencode_go(config)
+        provider_config = AnyProviderConfig.for_opencode_go(
+            config, session_id="session-1"
+        )
         assert provider_config.api_key == "env-opencode-token"
 
     @patch.dict(os.environ, {"OPENCODE_API_KEY": "env-opencode-token"})
@@ -710,7 +775,9 @@ class TestProviderConfigWithFallback:
         config: AiConfig = {
             "opencode_go": {"api_key": "config-opencode-token"}
         }
-        provider_config = AnyProviderConfig.for_opencode_go(config)
+        provider_config = AnyProviderConfig.for_opencode_go(
+            config, session_id="session-1"
+        )
         assert provider_config.api_key == "config-opencode-token"
 
     @patch.dict(os.environ, {}, clear=True)
@@ -718,7 +785,7 @@ class TestProviderConfigWithFallback:
         """Test OpenCode Go config fails when no config key and no env var."""
         config: AiConfig = {"opencode_go": {}}
         with pytest.raises(HTTPException) as exc_info:
-            AnyProviderConfig.for_opencode_go(config)
+            AnyProviderConfig.for_opencode_go(config, session_id="session-1")
 
         assert exc_info.value.status_code == HTTPStatus.BAD_REQUEST
         assert "OpenCode Go API key not configured" in str(

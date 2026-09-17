@@ -4262,6 +4262,8 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
+      /** @default null */
+      chatId?: string | null;
       includeOtherCode: string;
       /** @default null */
       model?: string | null;

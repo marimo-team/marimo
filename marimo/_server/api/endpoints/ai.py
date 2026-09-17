@@ -101,11 +101,17 @@ def get_ai_config(config: MarimoConfig) -> AiConfig:
     return ai_config
 
 
-def get_provider_config(model: str, config: MarimoConfig) -> AnyProviderConfig:
+def get_provider_config(
+    model: str,
+    config: MarimoConfig,
+    *,
+    session_id: str | None = None,
+) -> AnyProviderConfig:
     return AnyProviderConfig.for_model(
         model,
         get_ai_config(config),
         secret_resolver=lambda key: get_secret_value(key, config),
+        session_id=session_id,
     )
 
 
@@ -163,7 +169,7 @@ async def ai_completion(
 
     model = get_edit_model(ai_config)
     provider = get_completion_provider(
-        get_provider_config(model, config),
+        get_provider_config(model, config, session_id=session_id),
         model=model,
     )
 
@@ -245,7 +251,11 @@ async def ai_chat(
 
     model = body.model or get_chat_model(ai_config)
     provider = get_completion_provider(
-        get_provider_config(model, config),
+        # The conversation ID when the client sends one, otherwise the
+        # notebook session that one-shot requests use.
+        get_provider_config(
+            model, config, session_id=body.chat_id or session_id
+        ),
         model=model,
     )
     additional_tools = body.tools or []
@@ -328,7 +338,7 @@ async def ai_inline_completion(
     INLINE_COMPLETION_MAX_TOKENS = 1024
 
     model = get_autocomplete_model(config)
-    provider_config = get_provider_config(model, config)
+    provider_config = get_provider_config(model, config, session_id=session_id)
     # Inline completion never uses tools
     if provider_config.tools:
         provider_config.tools.clear()

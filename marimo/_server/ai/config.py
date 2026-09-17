@@ -10,6 +10,7 @@ from typing import (
 
 from starlette.exceptions import HTTPException
 
+from marimo._ai._opencode import opencode_headers, require_session_id
 from marimo._config.config import (
     AiConfig,
     CopilotMode,
@@ -187,6 +188,7 @@ class AnyProviderConfig:
         config: AiConfig,
         *,
         secret_resolver: SecretResolver | None = None,
+        session_id: str,
     ) -> AnyProviderConfig:
         fallback_key = cls._resolve_secret("OPENCODE_API_KEY", secret_resolver)
         return cls._for_openai_like(
@@ -198,6 +200,7 @@ class AnyProviderConfig:
             fallback_base_url="https://opencode.ai/zen/go/v1/",
             require_key=True,
             secret_resolver=secret_resolver,
+            default_extra_headers=opencode_headers(session_id),
         )
 
     @classmethod
@@ -240,6 +243,7 @@ class AnyProviderConfig:
         require_key: bool = False,
         ai_config: dict[str, Any] | None = None,
         secret_resolver: SecretResolver | None = None,
+        default_extra_headers: dict[str, str] | None = None,
     ) -> AnyProviderConfig:
         ai_config = ai_config or _get_ai_config(config, key)
         key = _get_key(
@@ -254,6 +258,10 @@ class AnyProviderConfig:
         ca_bundle_path = ai_config.get("ca_bundle_path") or cls.os_key(
             "SSL_CERT_FILE"
         )
+        extra_headers = {
+            **(default_extra_headers or {}),
+            **(ai_config.get("extra_headers") or {}),
+        }
 
         kwargs: dict[str, Any] = {
             "base_url": _get_base_url(ai_config) or fallback_base_url,
@@ -262,7 +270,7 @@ class AnyProviderConfig:
             "ssl_verify": ai_config.get("ssl_verify", True),
             "ca_bundle_path": ca_bundle_path,
             "client_pem": ai_config.get("client_pem", None),
-            "extra_headers": ai_config.get("extra_headers", None),
+            "extra_headers": extra_headers or None,
             "tools": _get_tools(config.get("mode", "manual")),
         }
 
@@ -334,6 +342,7 @@ class AnyProviderConfig:
         config: AiConfig,
         *,
         secret_resolver: SecretResolver | None = None,
+        session_id: str | None = None,
     ) -> AnyProviderConfig:
         model_id = AiModelId.from_model(model)
         if model_id.provider == "anthropic":
@@ -355,7 +364,11 @@ class AnyProviderConfig:
         elif model_id.provider == "wandb":
             return cls.for_wandb(config, secret_resolver=secret_resolver)
         elif model_id.provider == "opencode-go":
-            return cls.for_opencode_go(config, secret_resolver=secret_resolver)
+            return cls.for_opencode_go(
+                config,
+                secret_resolver=secret_resolver,
+                session_id=require_session_id(session_id),
+            )
         elif model_id.provider == "openai_compatible":
             return cls.for_openai_compatible(
                 config, secret_resolver=secret_resolver
