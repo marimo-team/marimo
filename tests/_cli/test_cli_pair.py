@@ -54,6 +54,11 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Pair with a live marimo notebook.
 
+  Authentication:
+    If a token-file path is supplied, add --token-file <PATH> to every
+    execute and notebook list command. Pass the path, not the file contents.
+    Otherwise, these commands use MARIMO_TOKEN when set.
+
   Workflow:
     If you do not have the server URL or notebook file:
       marimo pair notebook list
