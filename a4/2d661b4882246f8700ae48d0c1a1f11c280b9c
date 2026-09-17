@@ -1,0 +1,23 @@
+frontend/src/core/wasm/__tests__/runtime-config.test.ts
+  s_2c333f0b4f0f1f::t_d6c79e3a5a3ba2 33-44,47-51,54-57
+  s_2c333f0b4f0f1f::t_ec16da3bd9bc6d 52-53
+  s_2c333f0b4f0f1f::t_9800f122b1b605 3,45-46
+frontend/src/core/wasm/runtime-config.ts
+  s_2c333f0b4f0f1f::t_9800f122b1b605 11-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a42d661b4882246f8700ae48d0c1a1f11c280b9c",
+  "prompts": {},
+  "sessions": {
+    "s_2c333f0b4f0f1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8b-c65a-7413-ac32-d43ded98cf77",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
