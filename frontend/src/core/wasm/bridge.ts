@@ -9,6 +9,7 @@ import { throwNotImplemented } from "@/utils/functions";
 import { Logger } from "@/utils/Logger";
 import { reloadSafe } from "@/utils/reload-safe";
 import { generateUUID } from "@/utils/uuid";
+import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
 import type { CommandMessage } from "../kernel/messages";
 import { getMarimoVersion } from "../meta/globals";
@@ -45,6 +46,8 @@ import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
+import saveWorkerUrl from "./worker/save-worker.ts?worker&url";
+import workerUrl from "./worker/worker.ts?worker&url";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -82,13 +85,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
 
     // Create save worker
-    const saveWorker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/save-worker.ts", import.meta.url),
+    const saveWorker = createModuleWorker(
+      new URL(saveWorkerUrl, import.meta.url),
       {
-        type: "module",
         // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
         name: getWasmWorkerName(),
       },
     );
@@ -102,16 +102,10 @@ export class PyodideBridge implements RunRequests, EditRequests {
     }
 
     // Create a worker
-    const worker = new Worker(
-      // oxlint-disable-next-line unicorn/relative-url-style
-      new URL("./worker/worker.ts", import.meta.url),
-      {
-        type: "module",
-        // Pass the version (and optional capability suffix) to the worker
-        /* @vite-ignore */
-        name: getWasmWorkerName(),
-      },
-    );
+    const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
+      // Pass the version (and optional capability suffix) to the worker
+      name: getWasmWorkerName(),
+    });
 
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);

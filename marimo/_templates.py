@@ -524,12 +524,7 @@ def wasm_notebook_template(
     notebook_snapshot: NotebookV1 | None = None,
 ) -> str:
     """Template for WASM notebooks."""
-    import re
-
-    body = html
-
-    if asset_url is not None:
-        body = re.sub(r'="./assets/', f'="{asset_url}/assets/', body)
+    body = _replace_asset_urls(html, asset_url)
 
     body = body.replace("{{ base_url }}", "")
     body = body.replace(
@@ -572,7 +567,8 @@ def wasm_notebook_template(
         }
     </script>
     """
-    body = body.replace("</head>", f"{warning_script}</head>")
+    if asset_url is None:
+        body = body.replace("</head>", f"{warning_script}</head>")
 
     # Hide save button in WASM mode
     wasm_styles = """

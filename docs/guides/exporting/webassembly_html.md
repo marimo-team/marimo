@@ -28,6 +28,7 @@ Options:
 
 - `--mode`: Choose between `run` (read-only) or `edit` (allows editing)
 - `--output`: Directory to save the HTML and required assets
+- `--single-file`: Write one HTML file that loads assets from a CDN and opens directly in a browser
 - `--show-code/--no-show-code`: Whether to initially show or hide the code in the notebook
 - `--watch/--no-watch`: Watch the notebook for changes and automatically export
 - `--include-cloudflare`: Write configuration files necessary for deploying to Cloudflare
@@ -48,12 +49,31 @@ incompatibilities early:
 
 !!! note "Note"
 
-    The exported file must be served over HTTP to function correctly - it
+    By default, the exported file must be served over HTTP to function correctly. It
     cannot be opened directly from the filesystem (`file://`). Your server must
     also serve the assets in the `assets` directory, next to the HTML file. For
     a simpler publishing experience, use [molab](../molab.md), publish to [GitHub
     Pages](../publishing/github.md#publish-to-github-pages), [Cloudflare](../publishing/cloudflare.md), or
     [self-host](../publishing/self_host_wasm.md).
+
+## Sharing a single file
+
+Export a notebook to share as an HTML attachment:
+
+```bash
+marimo export html-wasm notebook.py --single-file -o notebook.html
+```
+
+Recipients can open `notebook.html` directly in their browser. Internet access
+is required to load marimo, Pyodide, and Python packages. The notebook code is
+embedded in the HTML and runs in the recipient's browser. Use `--mode edit` to
+let recipients edit the code.
+
+Keep data in the notebook or load it from URLs that allow cross-origin access.
+Single-file exports do not bundle the `public/` directory, local modules,
+local wheels, or execution caches. Use the default directory export for these
+resources. `--execute` embeds a preview of outputs, but cells run again in the
+browser. `--include-cloudflare` requires a directory export.
 
 ??? note "Deploying to Cloudflare"
 
