@@ -5,7 +5,10 @@ import { type JSX, useEffect, useId, useState } from "react";
 import { useLocale } from "react-aria";
 import { z } from "zod";
 import { cn } from "@/utils/cn";
-import { prettyScientificNumber } from "@/utils/numbers";
+import {
+  fractionDigitsForSlider,
+  prettyScientificNumber,
+} from "@/utils/numbers";
 import { RangeSlider } from "../../components/ui/range-slider";
 import type { IPlugin, IPluginProps, Setter } from "../types";
 import { Labeled } from "./common/labeled";
@@ -84,6 +87,7 @@ const RangeSliderComponent = ({
 }: RangeSliderProps): JSX.Element => {
   const id = useId();
   const { locale } = useLocale();
+  const fractionDigits = fractionDigitsForSlider(step, steps);
 
   // Hold internal value
   const [internalValue, setInternalValue] = useState(value);
@@ -122,6 +126,7 @@ const RangeSliderComponent = ({
           min={start}
           max={stop}
           step={step}
+          steps={steps ?? undefined}
           orientation={orientation}
           disabled={disabled}
           // Triggered on all value changes
@@ -155,10 +160,10 @@ const RangeSliderComponent = ({
         {showValue && (
           <div className="text-xs text-muted-foreground min-w-[16px]">
             {`${prettyScientificNumber(valueMap(internalValue[0]), {
-              shouldRound: true,
+              maximumFractionDigits: fractionDigits,
               locale,
             })}, ${prettyScientificNumber(valueMap(internalValue[1]), {
-              shouldRound: true,
+              maximumFractionDigits: fractionDigits,
               locale,
             })}`}
           </div>

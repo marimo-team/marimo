@@ -64,4 +64,55 @@ describe("RangeSlider", () => {
     expect(getAllByText("1.5")).toHaveLength(1);
     expect(queryByText("1.500000000000001")).toBeNull();
   });
+
+  it("keeps the legacy precision when no step is supplied", () => {
+    const { getAllByText, queryByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0}
+        max={10}
+        value={[1.2, 1.500000000000001]}
+        valueMap={(value) => value}
+      />,
+    );
+
+    expect(getAllByText("1.2")).toHaveLength(1);
+    expect(getAllByText("1.5")).toHaveLength(1);
+    expect(queryByText("1.500000000000001")).toBeNull();
+  });
+
+  it("preserves precision from finer-grained steps", () => {
+    const { getAllByText, queryByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0}
+        max={10}
+        step={0.001}
+        value={[1.234, 1.235000000000001]}
+        valueMap={(value) => value}
+      />,
+    );
+
+    expect(getAllByText("1.234")).toHaveLength(1);
+    expect(getAllByText("1.235")).toHaveLength(1);
+    expect(queryByText("1.23")).toBeNull();
+  });
+
+  it("infers precision from custom mapped steps", () => {
+    const steps = [1, 1.234, 2];
+    const { getAllByText } = render(
+      <RangeSlider
+        aria-label="Range"
+        min={0}
+        max={steps.length - 1}
+        step={1}
+        steps={steps}
+        value={[0, 1]}
+        valueMap={(value) => steps[value]}
+      />,
+    );
+
+    expect(getAllByText("1")).toHaveLength(1);
+    expect(getAllByText("1.234")).toHaveLength(1);
+  });
 });
