@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import inspect
 import io
+import sys
 import threading
 import time
 import webbrowser
@@ -538,6 +539,9 @@ class TestWebbrowserStartup:
         monkeypatch.setattr(
             webbrowser, "register_standard_browsers", _discovery_finds_nothing
         )
+        # antigravity opens the browser only on first import per process.
+        # Drop any cached module so the cell import runs the side effect.
+        monkeypatch.delitem(sys.modules, "antigravity", raising=False)
 
         with mocked_kernel_session() as tk:
             await tk.kernel.run([exec_req.get("import antigravity")])
