@@ -12,12 +12,15 @@ exported [WebAssembly notebooks](../wasm.md):
 ## Exporting for offline use
 
 Use `--offline` to download the Python runtime and notebook packages alongside
-the exported HTML:
+the exported HTML.
+
+Offline export requires [Playwright for Python and its Chromium browser](https://playwright.dev/python/docs/library#installation).
+Use the Python environment where marimo is installed for all three commands:
 
 ```bash
-pip install playwright
-playwright install chromium
-marimo export html-wasm notebook.py -o dist --offline
+python -m pip install playwright
+python -m playwright install chromium
+python -m marimo export html-wasm notebook.py -o dist --offline
 ```
 
 The export requires internet access. Playwright runs Pyodide to resolve
