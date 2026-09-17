@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -34,6 +36,11 @@ from marimo._cli.pair.commands import (
 _runner = CliRunner()
 
 TEST_URL = "https://localhost:8000?auth=tok123"
+
+
+@pytest.fixture(autouse=True)
+def _isolate_pair_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
 
 
 class TestPairGroup:
@@ -103,7 +110,7 @@ Commands:
         assert "--codex" in result.output
         assert "--opencode" in result.output
         assert "--file" in result.output
-        assert "--session" not in result.output
+        assert "--session" in result.output
 
 
 class TestPairExecute:
@@ -1321,14 +1328,23 @@ class TestPairPrompt:
         result = _runner.invoke(cli_main, ["pair", "prompt"])
         assert result.exit_code != 0
 
-    def test_prompt_outputs_url(self) -> None:
+    @pytest.mark.parametrize("flag", [None, "0", "false", ""])
+    def test_prompt_outputs_url(self, flag: str | None) -> None:
         result = _runner.invoke(
-            cli_main, ["pair", "prompt", "--url", TEST_URL]
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL],
+            env={"MARIMO_PAIR_NEXT": flag},
         )
         assert result.exit_code == 0
-        assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "marimo-pair" in result.output
+        assert result.output == snapshot("""\
+Use the /marimo-pair skill to pair-program on a running marimo notebook.
+
+Connect to the notebook at: https://localhost:8000?auth=tok123
+
+Use `execute-code.sh --url 'https://localhost:8000?auth=tok123'` from the marimo-pair skill to execute code in the notebook.
+
+Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+""")
 
     def test_prompt_with_file(self) -> None:
         result = _runner.invoke(
@@ -1355,13 +1371,21 @@ class TestPairPrompt:
         assert "--file" not in result.output
         assert "--session" not in result.output
 
-    def test_prompt_rejects_removed_session_option(self) -> None:
+    def test_prompt_with_session(self) -> None:
         result = _runner.invoke(
             cli_main,
             ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
         )
-        assert result.exit_code != 0
-        assert "--session" in result.output
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Use the /marimo-pair skill to pair-program on a running marimo notebook.
+
+Connect to the notebook at: https://localhost:8000?auth=tok123
+
+Use `execute-code.sh --url 'https://localhost:8000?auth=tok123' --session s_ab12cd` from the marimo-pair skill to execute code in the notebook.
+
+Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+""")
 
     def test_prompt_shell_quotes_file_paths(self) -> None:
         cases = [
@@ -1453,6 +1477,142 @@ class TestPairPrompt:
 
         assert result.exit_code == 0
         assert "could not be found" not in result.output
+
+
+class TestPairPromptPreview:
+    def test_with_token_uses_private_file(self, tmp_path: Path) -> None:
+        token_dir = tmp_path / "tokens ' {command}"
+        with patch.object(commands, "_token_dir", return_value=token_dir):
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    "http://localhost:2718",
+                    "--session",
+                    "s_ab12cd",
+                    "--with-token",
+                ],
+                env={"MARIMO_PAIR_NEXT": "1"},
+                input="my-secret-token\n",
+            )
+
+        assert result.exit_code == 0
+        assert "Auth token:" in result.stderr
+        assert "my-secret-token" not in result.output
+        token_file = next(token_dir.iterdir())
+        assert token_file.read_text() == "my-secret-token"
+        if sys.platform != "win32":
+            assert token_file.stat().st_mode & 0o777 == 0o600
+
+        token_command = re.search(r"`(--token-file .+)`", result.stdout)
+        assert token_command is not None
+        assert shlex.split(token_command.group(1)) == [
+            "--token-file",
+            str(token_file),
+        ]
+        assert result.stdout.replace(
+            shlex.quote(str(token_file)), "<TOKEN_FILE>"
+        ) == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+Session: s_ab12cd
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+
+For authenticated Pair commands, pass `--token-file <TOKEN_FILE>`.
+""")
+
+    @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])
+    def test_prompt_needs_no_skill(
+        self,
+        agent: str,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", "http://localhost:2718", agent],
+            env={"MARIMO_PAIR_NEXT": "1"},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
+
+    def test_prompt_preserves_connection_details(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                "http://localhost:2718/{session}",
+                "--file",
+                "{command}/it's notebook.py",
+                "--session",
+                "{file}",
+            ],
+            env={"MARIMO_PAIR_NEXT": "1"},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718/{session}
+File: {command}/it's notebook.py
+Session: {file}
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
+
+    @pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
+    def test_prompt_uses_cli(self, flag: str) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                "http://localhost:2718",
+                "--file",
+                "notebook.py",
+            ],
+            env={"MARIMO_PAIR_NEXT": flag},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+File: notebook.py
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
 
 
 class TestPairPromptWithToken:

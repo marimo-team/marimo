@@ -26,7 +26,9 @@ from marimo._cli.pair.client import (
     registry_urls,
     resolve_session,
 )
+from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
+from marimo._utils.env import is_env_true
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
@@ -583,6 +585,13 @@ def docs(topic: str | None) -> None:
     help="Notebook path or file key from the page URL.",
 )
 @click.option(
+    "--session",
+    "session_id",
+    default=None,
+    type=str,
+    help="Current session ID to include in the prompt.",
+)
+@click.option(
     "--claude",
     is_flag=True,
     default=False,
@@ -609,6 +618,7 @@ def docs(topic: str | None) -> None:
 def prompt(
     url: str,
     file_path: str | None,
+    session_id: str | None,
     claude: bool,
     codex: bool,
     opencode: bool,
@@ -634,30 +644,36 @@ def prompt(
     # Shell-quote dynamic values because this command is copy-pasted into a
     # shell and paths may contain spaces or metacharacters.
     file_flag = f" --file {shlex.quote(file_path)}" if file_path else ""
-    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{file_flag}"
-    # Validate that the selected agents have the required skills
-    selected_agents = {
-        "claude": claude,
-        "codex": codex,
-        "opencode": opencode,
-    }
-    for key, agent in pair_agents().items():
-        if not selected_agents[key]:
-            continue
-        if not agent.has_skill():
-            click.echo(
-                f"The marimo-pair skill for {agent.name} could not be found.\n\n"
-                "Please install it with:\n\n"
-                "  npx skills add marimo-team/marimo-pair\n\n"
-                "or\n\n"
-                "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
-                "More instructions at "
-                "https://github.com/marimo-team/marimo-pair",
-                err=True,
-            )
+    session_flag = (
+        f" --session {shlex.quote(session_id)}" if session_id else ""
+    )
+    execute_cmd = (
+        f"execute-code.sh --url {shlex.quote(url)}{file_flag}{session_flag}"
+    )
+    preview = is_env_true("MARIMO_PAIR_NEXT")
+    if not preview:
+        selected_agents = {
+            "claude": claude,
+            "codex": codex,
+            "opencode": opencode,
+        }
+        for key, agent in pair_agents().items():
+            if not selected_agents[key]:
+                continue
+            if not agent.has_skill():
+                click.echo(
+                    f"The marimo-pair skill for {agent.name} could not be found.\n\n"
+                    "Please install it with:\n\n"
+                    "  npx skills add marimo-team/marimo-pair\n\n"
+                    "or\n\n"
+                    "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
+                    "More instructions at "
+                    "https://github.com/marimo-team/marimo-pair",
+                    err=True,
+                )
 
     # Prompt for token and write it to a temp file if --with-token is set
-    token_hint = ""
+    token_file: Path | None = None
     if with_token:
         token_dir = _token_dir()
         url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
@@ -673,6 +689,19 @@ def prompt(
         finally:
             os.close(fd)
 
+    if preview:
+        click.echo(
+            render_prompt(
+                url=url,
+                file_path=file_path,
+                session_id=session_id,
+                token_file=token_file,
+            )
+        )
+        return
+
+    token_hint = ""
+    if token_file is not None:
         token_hint = (
             f"\n\nAn auth token is stored at {token_file}. "
             f"Pass it via `{execute_cmd} "
