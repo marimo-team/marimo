@@ -72,7 +72,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     PY
 
   Target selection:
-    Prefer --file <FILE> without --session.
+    If the notebook file is known, use --file <FILE> without --session.
     This resolves the notebook's current session after a page reload.
     If no file is known, use the supplied --session <SESSION>.
     If --file matches multiple sessions, use the supplied session for the intended notebook.
@@ -92,7 +92,8 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     If an empty cell exists, edit_cell it instead of creating one.
     delete_cell drops the cell's variables. Ask before deleting.
 
-  Code-mode API (prefer this API for notebook interactions):
+  Code-mode API:
+    Prefer marimo._code_mode to inspect, create, edit, run, and delete notebook cells.
     ctx.cells                 # each has .id .code .status .errors .console_outputs
     ctx.create_cell(code)     # returns the new cell id
     ctx.edit_cell(cid, code)
