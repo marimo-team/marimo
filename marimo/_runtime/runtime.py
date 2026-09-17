@@ -651,8 +651,8 @@ class Kernel:
 
         getpass.getpass = getpass_override
         # Route webbrowser.open() to an iframe in the cell output when the
-        # machine has no browser (containers) or a stub module (Pyodide).
-        # The check runs on first use, never at startup.
+        # browser cannot launch or the module is a stub (Pyodide).
+        # Browser discovery runs on first use, never at startup.
         patches.patch_webbrowser()
         # micropip only patched in non-pyodide environments.
         if not is_pyodide():

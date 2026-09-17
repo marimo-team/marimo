@@ -1,6 +1,7 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import inspect
 import io
 import threading
 import time
@@ -464,7 +465,7 @@ def _reset_webbrowser(monkeypatch: pytest.MonkeyPatch) -> None:
     # restore the real module functions on teardown.
     monkeypatch.setattr(webbrowser, "_tryorder", None)
     monkeypatch.setattr(webbrowser, "_browsers", {})
-    monkeypatch.setattr(webbrowser, "open", webbrowser.open)
+    monkeypatch.setattr(webbrowser, "open", inspect.unwrap(webbrowser.open))
 
 
 def _discovery_finds_nothing() -> None:
@@ -500,13 +501,20 @@ class TestWebbrowserStartup:
             assert probes == []
 
     @staticmethod
+    @pytest.mark.parametrize("discovered", [False, True])
+    @pytest.mark.parametrize("method", ["open", "open_new", "open_new_tab"])
     async def test_no_browser_renders_iframe(
-        monkeypatch: pytest.MonkeyPatch, exec_req: ExecReqProvider
+        monkeypatch: pytest.MonkeyPatch,
+        exec_req: ExecReqProvider,
+        method: str,
+        discovered: bool,
     ) -> None:
         _reset_webbrowser(monkeypatch)
         monkeypatch.setattr(
             webbrowser, "register_standard_browsers", _discovery_finds_nothing
         )
+        if discovered:
+            _discovery_finds_nothing()
 
         with mocked_kernel_session() as tk:
             await tk.kernel.run(
@@ -514,7 +522,7 @@ class TestWebbrowserStartup:
                     exec_req.get(
                         # The trailing semicolon suppresses the True return
                         # value, so the iframe stays the cell output.
-                        "import webbrowser; webbrowser.open('https://marimo.io');"
+                        f"import webbrowser; webbrowser.{method}('https://marimo.io');"
                     )
                 ]
             )
@@ -539,19 +547,21 @@ class TestWebbrowserStartup:
         assert "<iframe" not in outputs[-1]
 
     @staticmethod
-    async def test_real_browser_is_used_when_found(
-        monkeypatch: pytest.MonkeyPatch, exec_req: ExecReqProvider
+    @pytest.mark.parametrize("launch_succeeds", [False, True])
+    async def test_real_browser_falls_back_only_when_launch_fails(
+        monkeypatch: pytest.MonkeyPatch,
+        exec_req: ExecReqProvider,
+        launch_succeeds: bool,
     ) -> None:
         _reset_webbrowser(monkeypatch)
-        opened: list[str] = []
+        opened: list[tuple[str, int, bool]] = []
 
         class FakeBrowser(webbrowser.BaseBrowser):
             def open(
                 self, url: str, new: int = 0, autoraise: bool = True
             ) -> bool:
-                del new, autoraise
-                opened.append(url)
-                return True
+                opened.append((url, new, autoraise))
+                return launch_succeeds
 
         def discovery_finds_fake() -> None:
             # CPython resets the order before it registers what it found.
@@ -566,38 +576,51 @@ class TestWebbrowserStartup:
             await tk.kernel.run(
                 [
                     exec_req.get(
-                        "import webbrowser; webbrowser.open('https://marimo.io')"
+                        "import webbrowser; "
+                        "webbrowser.open('https://marimo.io', new=2, autoraise=False);"
                     )
                 ]
             )
             outputs = _cell_outputs(tk.stream)
 
-        assert opened == ["https://marimo.io"]
-        assert all("<iframe" not in output for output in outputs)
+        assert opened == [("https://marimo.io", 2, False)]
+        assert any("<iframe" in output for output in outputs) is (
+            not launch_succeeds
+        )
 
     @staticmethod
-    def test_warm_registry_without_browser_registers_now(
+    def test_get_keeps_standard_behavior(
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         _reset_webbrowser(monkeypatch)
-        probes: list[int] = []
         monkeypatch.setattr(
-            webbrowser, "register_standard_browsers", lambda: probes.append(1)
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
         )
-        # Discovery already ran in this process and found nothing.
-        webbrowser._tryorder = []
 
         patch_webbrowser()
 
-        assert probes == []
-        assert webbrowser._tryorder == ["marimo-output"]
+        with pytest.raises(webbrowser.Error):
+            webbrowser.get()
+
+    @staticmethod
+    def test_no_browser_without_cell_returns_false(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
+        )
+
+        patch_webbrowser()
+
+        assert webbrowser.open("https://marimo.io") is False
 
     @staticmethod
     def test_pyodide_stub_replaces_open(
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         _reset_webbrowser(monkeypatch)
-        monkeypatch.delattr(webbrowser, "register_standard_browsers")
+        monkeypatch.delattr(webbrowser, "get")
 
         patch_webbrowser()
 
@@ -644,10 +667,6 @@ class TestWebbrowserStartup:
             discovery.join(timeout=5)
 
         assert elapsed < 1.0
-        for thread in threading.enumerate():
-            if thread.name == "marimo-webbrowser-fallback":
-                thread.join(timeout=5)
-
         assert webbrowser._tryorder == ["real"]
         assert "marimo-output" not in webbrowser._browsers
 
@@ -659,9 +678,7 @@ class TestWebbrowserStartup:
         )
 
         patch_webbrowser()
-        first = webbrowser.register_standard_browsers
+        first = webbrowser.open
         patch_webbrowser()
 
-        assert webbrowser.register_standard_browsers is first
-        webbrowser.get()
-        assert webbrowser._tryorder == ["marimo-output"]
+        assert webbrowser.open is first

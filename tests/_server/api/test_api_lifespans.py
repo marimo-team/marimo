@@ -1,12 +1,55 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
+import threading
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from marimo._server.api import lifespans
 from marimo._session.model import SessionMode
+
+
+async def test_browser_launch_does_not_block_event_loop_or_lifespan() -> None:
+    state = MagicMock()
+    state.headless = False
+    state.config_manager.get_config.return_value = {
+        "server": {"browser": "default"}
+    }
+    loop = asyncio.get_running_loop()
+    started = asyncio.Event()
+    finished = asyncio.Event()
+    release = threading.Event()
+    threads: list[threading.Thread] = []
+
+    def blocked_launch(_browser: str, _url: str) -> None:
+        threads.append(threading.current_thread())
+        loop.call_soon_threadsafe(started.set)
+        release.wait(timeout=5)
+        loop.call_soon_threadsafe(finished.set)
+
+    with (
+        patch.object(lifespans.AppState, "from_app", return_value=state),
+        patch.object(
+            lifespans, "_startup_url", return_value="http://localhost:2718"
+        ),
+        patch.object(
+            lifespans, "open_url_in_browser", side_effect=blocked_launch
+        ) as launch,
+    ):
+        try:
+            async with lifespans.open_browser(MagicMock()):
+                await asyncio.wait_for(started.wait(), timeout=1)
+                assert not finished.is_set()
+                assert threads[0].daemon
+            assert not finished.is_set()
+        finally:
+            release.set()
+            await asyncio.wait_for(finished.wait(), timeout=1)
+            threads[0].join(timeout=1)
+
+    launch.assert_called_once_with("default", "http://localhost:2718")
 
 
 async def test_cleanup_mcp_task_disconnects_client() -> None:

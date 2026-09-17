@@ -6,7 +6,6 @@ import contextlib
 import functools
 import sys
 import textwrap
-import threading
 import types
 from typing import TYPE_CHECKING, Any
 
@@ -35,70 +34,32 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
 
 
 def patch_webbrowser() -> None:
-    """Route webbrowser.open() to notebook output when no browser exists.
-
-    The decision is attached to CPython's own lazy discovery hook. Nothing
-    here touches the desktop until a cell calls webbrowser.open(), get(),
-    or register(). Discovery runs a subprocess that can block for a long
-    time on a stalled desktop, so it must never run at kernel start.
-    """
+    """Fall back to notebook output when `webbrowser.open()` fails."""
     import webbrowser
 
-    # Pyodide ships a stub module with no discovery at all.
-    discover = getattr(webbrowser, "register_standard_browsers", None)
-    if discover is None:
+    # Pyodide ships a stub module without browser controllers.
+    if not hasattr(webbrowser, "get"):
         webbrowser.open = marimo_browser.browser_open_fallback
         return
 
-    if getattr(discover, "_marimo_patched", False):
+    if getattr(webbrowser.open, "_marimo_patched", False):
         return
 
-    def register_fallback_if_no_browser() -> None:
-        # CPython leaves _tryorder empty when it found nothing runnable.
-        tryorder = getattr(webbrowser, "_tryorder", None)
-        if tryorder is not None and len(tryorder) == 0:
-            MarimoBrowser = marimo_browser.build_browser_fallback()
-            webbrowser.register(
-                "marimo-output", None, MarimoBrowser(), preferred=True
-            )
+    original_open = webbrowser.open
 
-    def register_standard_browsers() -> None:
-        discover()
-        register_fallback_if_no_browser()
+    # Discovery can block on a stalled desktop, so defer it until use.
+    @functools.wraps(original_open)
+    def open_with_fallback(
+        url: str, new: int = 0, autoraise: bool = True
+    ) -> bool:
+        if original_open(url, new=new, autoraise=autoraise):
+            return True
+        return marimo_browser.browser_open_fallback(
+            url, new=new, autoraise=autoraise
+        )
 
-    register_standard_browsers._marimo_patched = True  # type: ignore[attr-defined]
-    webbrowser.register_standard_browsers = (  # type: ignore[attr-defined]
-        register_standard_browsers
-    )
-
-    # Discovery may already have run in this process, for example in
-    # thread-based run mode after the server opened the browser. An empty
-    # _tryorder is ambiguous: CPython sets it to [] before the probes, so
-    # only a lock-guarded read separates "completed, found nothing" from
-    # "another thread is probing right now".
-    lock = getattr(webbrowser, "_lock", None)
-    if lock is None:
-        register_fallback_if_no_browser()
-        return
-
-    if lock.acquire(blocking=False):
-        try:
-            register_fallback_if_no_browser()
-        finally:
-            lock.release()
-        return
-
-    # Discovery is in flight on another thread. Decide after it finishes,
-    # off this thread, so kernel start never waits for the probe.
-    def decide_after_discovery() -> None:
-        with lock:
-            register_fallback_if_no_browser()
-
-    threading.Thread(
-        target=decide_after_discovery,
-        name="marimo-webbrowser-fallback",
-        daemon=True,
-    ).start()
+    open_with_fallback._marimo_patched = True  # type: ignore[attr-defined]
+    webbrowser.open = open_with_fallback
 
 
 def patch_sys_module(module: types.ModuleType) -> None:
