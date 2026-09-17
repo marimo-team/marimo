@@ -55,34 +55,44 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Pair with a live marimo notebook.
 
   Workflow:
-    If you do not have the server URL and session id:
+    If you do not have the server URL or notebook target:
       marimo pair notebook list
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         ctx.packages.add("pandas")
         cid = ctx.create_cell("import pandas as pd")
         ctx.run_cell(cid)
     PY
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         cell = ctx.cells["<CELL_ID>"]
         print(cell.status, cell.errors, [o.data for o in cell.console_outputs])
     PY
 
+  Target selection:
+    Prefer --file <FILE> without --session.
+    This resolves the notebook's current session after a page reload.
+    If no file is known, use the supplied --session <SESSION>.
+    If --file matches multiple sessions, use the supplied session for the intended notebook.
+    If the intended session is unclear, run marimo pair notebook list again.
+    Session IDs change when the page reloads. If execute reports a stale
+    session, run marimo pair notebook list again.
+    If both options are supplied, --session takes precedence over --file.
+    Do not switch sessions after authentication or connection errors,
+    or when execution is unconfirmed.
+
   Rules:
-    Cells are the unit of work. The scratchpad is temporary; only cm edits persist.
+    Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
     Cells do not run on creation. Call run_cell after create_cell or edit_cell.
     Use async with. Do not await ctx methods.
     Install packages with ctx.packages.add, not uv add or pip. Installs change
     the project; confirm when the user did not ask.
     If an empty cell exists, edit_cell it instead of creating one.
     delete_cell drops the cell's variables. Ask before deleting.
-    Session IDs change when the page reloads. If execute reports a stale
-    session, run notebook list again.
 
-  Code-mode API (this marimo version):
+  Code-mode API (prefer this API for notebook interactions):
     ctx.cells                 # each has .id .code .status .errors .console_outputs
     ctx.create_cell(code)     # returns the new cell id
     ctx.edit_cell(cid, code)
@@ -90,7 +100,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     ctx.delete_cell(cid)
     ctx.packages.add("pandas>=2")  # queued, installs on exit
     If a cm call fails, run help(cm):
-      marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
+      marimo pair execute --url <URL> --file <FILE> -c 'import marimo._code_mode as cm; help(cm)'
 
 Options:
   -h, --help  Show this message and exit.
