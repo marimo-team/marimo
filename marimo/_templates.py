@@ -700,9 +700,31 @@ def _replace_asset_urls(html: str, asset_url: str | None) -> str:
     if "{version}" in asset_url:
         asset_url = asset_url.replace("{version}", __version__)
 
-    return (
-        html.replace("href='./", f"crossorigin='anonymous' href='{asset_url}/")
-        .replace("src='./", f"crossorigin='anonymous' src='{asset_url}/")
-        .replace('href="./', f'crossorigin="anonymous" href="{asset_url}/')
-        .replace('src="./', f'crossorigin="anonymous" src="{asset_url}/')
+    def replace_tag(match: re.Match[str]) -> str:
+        tag = match.group()
+        relative_url = re.search(r"\s(?:href|src)=([\"'])\./", tag)
+        if relative_url is None:
+            return tag
+        # Ignore attribute values when checking for an existing attribute.
+        attributes = re.sub(r"([\"']).*?\1", "", tag, flags=re.DOTALL)
+        if not re.search(
+            r"\scrossorigin(?=\s|=|/?>)", attributes, re.IGNORECASE
+        ):
+            quote = relative_url[1]
+            start = relative_url.start()
+            tag = (
+                tag[:start]
+                + f" crossorigin={quote}anonymous{quote}"
+                + tag[start:]
+            )
+        return re.sub(
+            r"(\s(?:href|src)=[\"'])\./",
+            lambda url: f"{url[1]}{asset_url}/",
+            tag,
+        )
+
+    return re.sub(
+        r"""<[a-zA-Z](?:[^>"']|"[^"]*"|'[^']*')*>""",
+        replace_tag,
+        html,
     )
