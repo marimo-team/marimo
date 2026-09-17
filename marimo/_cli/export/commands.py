@@ -55,7 +55,10 @@ from marimo._export.local_wheels import (
     wheel_dependency_names,
     with_wheel_dependencies,
 )
-from marimo._export.offline import OfflineExportError
+from marimo._export.offline import (
+    OfflineExportError,
+    check_offline_export_browser,
+)
 from marimo._export.requests import (
     ExportResult,
     HTMLFileExportRequest,
@@ -1066,6 +1069,14 @@ def html_wasm(
                 "playwright",
                 followup_commands=get_playwright_chromium_setup_commands(),
             )
+        try:
+            asyncio_run(check_offline_export_browser())
+        except Exception as error:
+            setup_command = get_playwright_chromium_setup_commands()[0]
+            raise click.ClickException(
+                "Chromium could not start for offline WASM export.\n"
+                f"Install the browser with: {setup_command}\n\n{error}"
+            ) from error
         echo("Downloading the Python runtime and notebook packages...")
 
     out_dir = output

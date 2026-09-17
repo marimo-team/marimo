@@ -316,6 +316,10 @@ class TestExportHTML:
                 "marimo._export.offline.bundle_wasm_runtime",
                 side_effect=bundle,
             ) as bundler,
+            mock.patch(
+                "marimo._cli.export.commands.check_offline_export_browser",
+                new_callable=mock.AsyncMock,
+            ) as browser_check,
             mock.patch.object(
                 DependencyManager.playwright, "has", return_value=True
             ),
@@ -328,11 +332,57 @@ class TestExportHTML:
                 "--offline",
             )
         _assert_success(result)
+        browser_check.assert_awaited_once_with()
         bundler.assert_called_once()
         html = (out_dir / "index.html").read_text()
         assert 'data-pyodide-index-url="./pyodide/"' in html
         assert 'data-pyodide-lockfile-url="./lockfile/test.json"' in html
         assert 'data-pypi-index-url="./packages/index/"' in html
+
+    @staticmethod
+    @pytest.mark.parametrize("playwright_installed", [False, True])
+    def test_cli_offline_requires_browser_before_export(
+        tmp_path: Path, playwright_installed: bool
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        out_dir = tmp_path / "out"
+        with (
+            mock.patch.object(
+                DependencyManager.playwright,
+                "has",
+                return_value=playwright_installed,
+            ),
+            mock.patch(
+                "marimo._cli.export.commands.check_offline_export_browser",
+                new_callable=mock.AsyncMock,
+                side_effect=RuntimeError("Executable doesn't exist"),
+            ) as browser_check,
+            mock.patch(
+                "marimo._cli.export.commands.get_playwright_chromium_setup_commands",
+                return_value=["python -m playwright install chromium"],
+            ),
+            mock.patch("marimo._cli.export.commands.export_wasm") as export,
+        ):
+            result = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--output",
+                str(out_dir),
+                "--offline",
+                "--no-sandbox",
+            )
+        assert result.exit_code == 1
+        assert "python -m playwright install chromium" in result.output
+        assert not out_dir.exists()
+        export.assert_not_called()
+        if playwright_installed:
+            browser_check.assert_awaited_once_with()
+            assert "Chromium could not start" in result.output
+            assert "Executable doesn't exist" in result.output
+        else:
+            browser_check.assert_not_awaited()
+            assert "Playwright is required" in result.output
 
     @staticmethod
     def test_failed_wasm_export_preserves_existing_wheels(

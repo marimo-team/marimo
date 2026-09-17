@@ -147,6 +147,15 @@ def _rewrite_requirements(code: str, packages: dict[str, _Package]) -> str:
     return script_metadata.replace_block(code, script_metadata.dumps(project))
 
 
+async def check_offline_export_browser() -> None:
+    """Verify the resolver's browser can start before downloading assets."""
+    from playwright.async_api import async_playwright  # type: ignore[import-not-found]
+
+    async with async_playwright() as playwright:
+        browser = await playwright.chromium.launch()
+        await browser.close()
+
+
 async def _resolve_packages(
     code: str,
     *,
