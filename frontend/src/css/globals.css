@@ -407,6 +407,23 @@
 
 @custom-variant fullscreen (&:fullscreen);
 
+/* Full width with side padding, capped only on very wide screens. */
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 2rem;
+
+  /* Cancel the responsive max-widths that the built-in utility adds. */
+  @media (width >= 40rem) {
+    max-width: none;
+  }
+
+  /* stylelint-disable-next-line unit-allowed-list */
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
 @utility increase-pointer-area-x {
   border: none;
 
