@@ -1,0 +1,19 @@
+frontend/src/utils/worker.ts
+  s_46ac0af93de73f::t_b652390a75659b 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "234ac0c2c47908d0c1ebc6b28791feae52e56632",
+  "prompts": {},
+  "sessions": {
+    "s_46ac0af93de73f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8e-679a-7332-8b0d-fa1156b75f88",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
