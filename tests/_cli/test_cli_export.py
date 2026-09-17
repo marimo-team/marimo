@@ -287,6 +287,30 @@ class TestExportHTML:
         assert mount_config["layout"] == {"type": "slides", "data": {}}
 
     @staticmethod
+    def test_cli_export_html_wasm_single_file_dev_version(
+        tmp_path: Path,
+    ) -> None:
+        notebook = tmp_path / "notebook.py"
+        _write_minimal_wasm_notebook(notebook, '    "hello"\n    return\n')
+        output = tmp_path / "notebook.html"
+        with mock.patch("marimo._templates.__version__", "0.24.2.dev123"):
+            result = _run_export(
+                "html-wasm",
+                str(notebook),
+                "--single-file",
+                "--no-sandbox",
+                "-o",
+                str(output),
+            )
+        _assert_success(result)
+        html = output.read_text()
+        assert (
+            "https://cdn.jsdelivr.net/npm/@marimo-team/frontend@0.24.2-dev123/dist/"
+            in html
+        )
+        assert "frontend@0.24.2.dev123" not in html
+
+    @staticmethod
     @pytest.mark.parametrize("resource", ["module", "wheel", "cloudflare"])
     def test_cli_export_html_wasm_single_file_requires_directory(
         tmp_path: Path, resource: str

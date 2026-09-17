@@ -391,6 +391,11 @@ def notebook_page_template(
     return html
 
 
+def get_default_asset_url() -> str:
+    version = str(__version__).replace(".dev", "-dev")
+    return f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist"
+
+
 def static_notebook_template(
     html: str,
     user_config: MarimoConfig,
@@ -408,8 +413,7 @@ def static_notebook_template(
     layout: LayoutConfig | None = None,
 ) -> str:
     if asset_url is None:
-        version = str(__version__).replace(".dev", "-dev")
-        asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist"
+        asset_url = get_default_asset_url()
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")

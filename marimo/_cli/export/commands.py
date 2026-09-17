@@ -79,10 +79,10 @@ from marimo._schemas.export_options import (
     WASMMode,
 )
 from marimo._server.utils import asyncio_run
+from marimo._templates import get_default_asset_url
 from marimo._utils.file_watcher import FileWatcher
 from marimo._utils.marimo_path import MarimoPath
 from marimo._utils.paths import maybe_make_dirs
-from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -1105,11 +1105,7 @@ def html_wasm(
     wasm_options = WASMExportOptions(
         mode=mode,
         show_code=show_code,
-        asset_url=(
-            f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{__version__}/dist"
-            if single_file
-            else None
-        ),
+        asset_url=get_default_asset_url() if single_file else None,
     )
 
     if execute:
