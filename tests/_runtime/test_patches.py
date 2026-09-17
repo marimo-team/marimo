@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import io
+import threading
+import time
 import webbrowser
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
@@ -600,6 +602,54 @@ class TestWebbrowserStartup:
         patch_webbrowser()
 
         assert webbrowser.open is marimo_browser.browser_open_fallback
+
+    @staticmethod
+    def test_active_discovery_does_not_block_or_win(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
+        )
+
+        class FakeBrowser(webbrowser.BaseBrowser):
+            def open(
+                self, url: str, new: int = 0, autoraise: bool = True
+            ) -> bool:
+                del url, new, autoraise
+                return True
+
+        discovery_started = threading.Event()
+        release_discovery = threading.Event()
+
+        def stalled_discovery() -> None:
+            # Mimic CPython mid-probe: the lock is held and _tryorder is
+            # already the transient empty list.
+            with webbrowser._lock:
+                webbrowser._tryorder = []
+                discovery_started.set()
+                release_discovery.wait(timeout=5)
+                webbrowser.register("real", None, FakeBrowser())
+
+        discovery = threading.Thread(target=stalled_discovery)
+        discovery.start()
+        assert discovery_started.wait(timeout=5)
+
+        try:
+            start = time.monotonic()
+            patch_webbrowser()
+            elapsed = time.monotonic() - start
+        finally:
+            release_discovery.set()
+            discovery.join(timeout=5)
+
+        assert elapsed < 1.0
+        for thread in threading.enumerate():
+            if thread.name == "marimo-webbrowser-fallback":
+                thread.join(timeout=5)
+
+        assert webbrowser._tryorder == ["real"]
+        assert "marimo-output" not in webbrowser._browsers
 
     @staticmethod
     def test_patch_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:

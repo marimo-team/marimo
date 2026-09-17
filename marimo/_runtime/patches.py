@@ -6,6 +6,7 @@ import contextlib
 import functools
 import sys
 import textwrap
+import threading
 import types
 from typing import TYPE_CHECKING, Any
 
@@ -70,9 +71,34 @@ def patch_webbrowser() -> None:
         register_standard_browsers
     )
 
-    # Discovery already ran in this process, for example in thread-based
-    # run mode after the server opened the browser. Decide now, no probe.
-    register_fallback_if_no_browser()
+    # Discovery may already have run in this process, for example in
+    # thread-based run mode after the server opened the browser. An empty
+    # _tryorder is ambiguous: CPython sets it to [] before the probes, so
+    # only a lock-guarded read separates "completed, found nothing" from
+    # "another thread is probing right now".
+    lock = getattr(webbrowser, "_lock", None)
+    if lock is None:
+        register_fallback_if_no_browser()
+        return
+
+    if lock.acquire(blocking=False):
+        try:
+            register_fallback_if_no_browser()
+        finally:
+            lock.release()
+        return
+
+    # Discovery is in flight on another thread. Decide after it finishes,
+    # off this thread, so kernel start never waits for the probe.
+    def decide_after_discovery() -> None:
+        with lock:
+            register_fallback_if_no_browser()
+
+    threading.Thread(
+        target=decide_after_discovery,
+        name="marimo-webbrowser-fallback",
+        daemon=True,
+    ).start()
 
 
 def patch_sys_module(module: types.ModuleType) -> None:
