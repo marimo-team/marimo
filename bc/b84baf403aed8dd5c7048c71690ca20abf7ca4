@@ -1,0 +1,21 @@
+docs/guides/exporting/webassembly_html.md
+  s_46ac0af93de73f::t_809c5a9ca0cd07 3-5,27
+marimo/_cli/export/commands.py
+  s_46ac0af93de73f::t_e21ac690ab9c31 900
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bcb84baf403aed8dd5c7048c71690ca20abf7ca4",
+  "prompts": {},
+  "sessions": {
+    "s_46ac0af93de73f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8e-679a-7332-8b0d-fa1156b75f88",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
