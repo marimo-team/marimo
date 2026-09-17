@@ -58,7 +58,6 @@
     "no-underscore-dangle": "off",
     "react/exhaustive-effect-dependencies": "off",
     "react/forbid-component-props": "off",
-    "react/immutability": "off",
     "react/incompatible-library": "off",
     "react/jsx-no-literals": "off",
     "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
