@@ -198,10 +198,11 @@ def _publish_bundle(
     resolved: _Lockfile,
     hashes: dict[Path, str],
 ) -> str:
+    from packaging.requirements import Requirement
     from packaging.utils import canonicalize_name
 
     for name, package in resolved["packages"].items():
-        name = canonicalize_name(name, validate=True)
+        name = canonicalize_name(Requirement(name).name)
         filename = package["file_name"]
         source = staging / "downloads" / filename
         digest = hashes[source]

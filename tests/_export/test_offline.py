@@ -101,6 +101,19 @@ async def test_bundle_is_relocatable_and_preserves_source_config(
 
 
 @pytest.mark.asyncio
+async def test_bundle_rejects_package_names_outside_the_index(
+    tmp_path, sources, resolver
+):
+    from packaging.requirements import InvalidRequirement
+
+    packages = resolver.return_value["packages"]
+    packages["../../escape"] = packages.pop("example")
+    with pytest.raises(InvalidRequirement):
+        await bundle_wasm_runtime("pass", tmp_path, sources=sources)
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.asyncio
 async def test_bad_checksum_preserves_existing_bundle(
     tmp_path, sources, resolver
 ):
