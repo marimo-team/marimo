@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import threading
 from typing import TYPE_CHECKING, Any
 
 from marimo import _loggers
@@ -162,11 +163,19 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
         url = _startup_url(state)
         user_config = state.config_manager.get_config()
         browser = user_config["server"]["browser"]
+
+        def launch() -> None:
+            # Browser discovery can block for a long time on a stalled
+            # desktop (seen in WSL). Keep it off the event loop.
+            threading.Thread(
+                target=open_url_in_browser,
+                args=(browser, url),
+                daemon=True,
+            ).start()
+
         # Wait 20ms for the server to start and then open the browser, but this
         # function must complete
-        asyncio.get_running_loop().call_later(
-            0.02, open_url_in_browser, browser, url
-        )
+        asyncio.get_running_loop().call_later(0.02, launch)
     yield
 
 
