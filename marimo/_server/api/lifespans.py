@@ -164,14 +164,16 @@ async def open_browser(app: Starlette) -> AsyncIterator[None]:
         user_config = state.config_manager.get_config()
         browser = user_config["server"]["browser"]
 
+        def open_and_log() -> None:
+            try:
+                open_url_in_browser(browser, url)
+            except Exception as e:
+                LOGGER.warning("Failed to open the browser: %s", e)
+
         def launch() -> None:
             # Browser discovery can block for a long time on a stalled
             # desktop (seen in WSL). Keep it off the event loop.
-            threading.Thread(
-                target=open_url_in_browser,
-                args=(browser, url),
-                daemon=True,
-            ).start()
+            threading.Thread(target=open_and_log, daemon=True).start()
 
         # Wait 20ms for the server to start and then open the browser, but this
         # function must complete
