@@ -194,6 +194,38 @@ export interface CreateNewCellAction {
 }
 
 /**
+ * Snapshot the tree-derived column index into each cell's saved config.
+ *
+ * Only the first cell in each column stores the column index; all other
+ * cells store null, matching the on-disk layout that `fromIdsAndColumns`
+ * uses to reconstruct columns on load. Called when the column tree mutates
+ * (merge, delete, compact) so that saving from a single-column view does
+ * not erase the column metadata.
+ */
+function snapshotColumnConfigs(
+  cellData: Record<CellId, CellData>,
+  cellIds: MultiColumn<CellId>,
+): Record<CellId, CellData> {
+  let changed = false;
+  const next = { ...cellData };
+
+  cellIds.getColumns().forEach((column, columnIndex) => {
+    column.inOrderIds.forEach((cellId, cellIndex) => {
+      const expectedColumn = cellIndex === 0 ? columnIndex : null;
+      if (next[cellId]?.config?.column !== expectedColumn) {
+        changed = true;
+        next[cellId] = {
+          ...next[cellId],
+          config: { ...next[cellId].config, column: expectedColumn },
+        };
+      }
+    });
+  });
+
+  return changed ? next : cellData;
+}
+
+/**
  * Actions and reducer for the notebook state.
  */
 const {
@@ -659,21 +691,36 @@ const {
   deleteColumn: (state, action: { columnId: CellColumnId }) => {
     // Move all cells in the column to the previous column
     const { columnId } = action;
+    const cellIds = state.cellIds.delete(columnId);
+    if (cellIds === state.cellIds) {
+      return state;
+    }
     return {
       ...state,
-      cellIds: state.cellIds.delete(columnId),
+      cellIds,
+      cellData: snapshotColumnConfigs(state.cellData, cellIds),
     };
   },
   mergeAllColumns: (state) => {
+    const cellIds = state.cellIds.mergeAllColumns();
+    if (cellIds === state.cellIds) {
+      return state;
+    }
     return {
       ...state,
-      cellIds: state.cellIds.mergeAllColumns(),
+      cellData: snapshotColumnConfigs(state.cellData, state.cellIds),
+      cellIds,
     };
   },
   compactColumns: (state) => {
+    const cellIds = state.cellIds.compact();
+    if (cellIds === state.cellIds) {
+      return state;
+    }
     return {
       ...state,
-      cellIds: state.cellIds.compact(),
+      cellIds,
+      cellData: snapshotColumnConfigs(state.cellData, cellIds),
     };
   },
   deleteCell: (state, action: { cellId: CellId }) => {
@@ -1667,14 +1714,15 @@ export function getCellConfigs(state: NotebookState): CellConfig[] {
   const defaultCellConfig: Partial<CellConfig> = { column: null };
 
   // Handle the case where there's only one column
-  // We don't want to set the column config
+  // We don't set a column config, but we preserve any existing column metadata
+  // so that switching to a non-columns view and saving doesn't erase it.
   const hasMultipleColumns = state.cellIds.getColumns().length > 1;
   if (!hasMultipleColumns) {
     return state.cellIds.getColumns().flatMap((column) => {
       return column.inOrderIds.map((cellId) => {
         return {
           ...cells[cellId].config,
-          ...defaultCellConfig,
+          column: cells[cellId].config.column ?? null,
         };
       });
     });
