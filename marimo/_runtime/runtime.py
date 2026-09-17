@@ -1078,9 +1078,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP TABLE IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop table %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop table %s: %s", name, e)
             elif variable.kind == "view" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1092,9 +1090,7 @@ class Kernel:
                     try:
                         duckdb.execute(f"DROP VIEW IF EXISTS {qualified}")
                     except Exception as e:
-                        LOGGER.warning(
-                            "Failed to drop view %s: %s", name, str(e)
-                        )
+                        LOGGER.warning("Failed to drop view %s: %s", name, e)
             elif variable.kind == "catalog" and DependencyManager.duckdb.has():
                 import duckdb
 
@@ -1102,9 +1098,7 @@ class Kernel:
                     identifier = quote_sql_identifier(name)
                     duckdb.execute(f"DETACH DATABASE IF EXISTS {identifier}")
                 except Exception as e:
-                    LOGGER.warning(
-                        "Failed to detach catalog %s: %s", name, str(e)
-                    )
+                    LOGGER.warning("Failed to detach catalog %s: %s", name, e)
             else:
                 if name in self.globals:
                     del self.globals[name]

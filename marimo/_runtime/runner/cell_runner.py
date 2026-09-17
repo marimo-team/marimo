@@ -579,7 +579,7 @@ class Runner:
             as sample code to reproduce, will help us debug.
             %s
             """,
-                str(unexpected_failure),
+                unexpected_failure,
             )
 
         # Mark as interrupted if the cell raised a MarimoInterrupt
@@ -719,7 +719,7 @@ class Runner:
 
                 An exception raised attempting to continue debugger (%s).
                 """,
-                str(debugger_error),
+                debugger_error,
             )
 
     def _get_blamed_cell(

@@ -334,7 +334,7 @@ def _get_completion_info(completion: jedi.api.classes.BaseName) -> str:
             return _get_type_hint(completion)
         return _get_docstring(completion)
     except Exception as e:
-        LOGGER.debug("jedi failed to get completion info: %s", str(e))
+        LOGGER.debug("jedi failed to get completion info: %s", e)
         return ""
 
 
@@ -643,7 +643,7 @@ def _get_completions(
         # jedi's static analysis can crash while inferring some code — for
         # example https://github.com/davidhalter/jedi/issues/1990).
         # Fallback to interpreter when it crashes
-        LOGGER.debug("Completion with jedi Script failed: %s", str(e))
+        LOGGER.debug("Completion with jedi Script failed: %s", e)
     return _get_completions_with_interpreter(document, glbls, glbls_lock)
 
 

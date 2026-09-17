@@ -72,7 +72,7 @@ class FormatterRegistry:
         except BaseException as e:
             # Some exotic metaclasses or broken types may raise when calling mro
             LOGGER.warning(
-                "Failed to read MRO for type %s: %s", top_level_type, str(e)
+                "Failed to read MRO for type %s: %s", top_level_type, e
             )
             return None
 
