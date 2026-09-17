@@ -1,76 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-const plugin = require("tailwindcss/plugin");
-const { fontFamily } = require("tailwindcss/defaultTheme");
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: ["class"],
   content: ["./src/**/*.{ts,tsx,mdx}"],
   theme: {
-    container: {
-      center: true,
-      padding: "2rem",
-      screens: {
-        "2xl": "1400px",
-      },
-    },
     extend: {
-      fontFamily: {
-        prose: ["var(--text-font)", ...fontFamily.sans],
-        code: ["var(--monospace-font)", ...fontFamily.mono],
-        mono: ["var(--monospace-font)", ...fontFamily.mono],
-        heading: ["var(--heading-font)", ...fontFamily.sans],
-      },
-      borderRadius: {
-        lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
-      },
-      keyframes: {
-        "accordion-down": {
-          from: { height: 0 },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: 0 },
-        },
-        "delayed-show": {
-          "0%": { opacity: 0 },
-          "99%": { opacity: 0 },
-          "100%": { opacity: 1 },
-        },
-        "ellipsis-dot": {
-          "0%, 100%": { opacity: "0.3" },
-          "50%": { opacity: "1" },
-        },
-        slide: {
-          "0%": { transform: "translateX(-100%)" },
-          "100%": { transform: "translateX(400%)" },
-        },
-        "progress-indeterminate": {
-          "0%": { transform: "translateX(-100%)" },
-          "100%": { transform: "translateX(400%)" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
-        "delayed-show-200": "delayed-show 200ms ease-out",
-        "delayed-show-400": "delayed-show 400ms ease-out",
-        "ellipsis-dot": "ellipsis-dot 400ms ease-in-out infinite",
-        slide: "slide 1.5s ease-in-out infinite",
-        "progress-indeterminate":
-          "progress-indeterminate 1.5s ease-in-out infinite",
-      },
-      gridTemplateColumns: {
-        "auto-fit": "repeat(auto-fit, minmax(0, 1fr))",
-        "auto-fill": "repeat(auto-fill, minmax(0, 1fr))",
-        "auto-fill-200": "repeat(auto-fill, minmax(200px, 1fr))",
-        "2-fit": "repeat(2, minmax(0, max-content))",
-        "3-fit": "repeat(3, minmax(0, max-content))",
-      },
       typography: {
         DEFAULT: {
           css: {
@@ -174,35 +109,5 @@ module.exports = {
       },
     },
   },
-  plugins: [
-    require("tailwindcss-animate"),
-    require("@tailwindcss/typography"),
-    plugin(({ addUtilities, addVariant }) => {
-      const newUtilities = {
-        ".increase-pointer-area-x": {
-          border: "none",
-
-          "&::before": {
-            content: '""',
-            position: "absolute",
-            top: "0",
-            bottom: "0",
-            left: "-50px",
-            width: "50px",
-          },
-          "&::after": {
-            content: '""',
-            position: "absolute",
-            top: "0",
-            bottom: "0",
-            right: "-50px",
-            width: "50px",
-          },
-        },
-      };
-
-      addVariant("fullscreen", "&:fullscreen");
-      addUtilities(newUtilities);
-    }),
-  ],
+  plugins: [require("@tailwindcss/typography")],
 };
