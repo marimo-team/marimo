@@ -141,9 +141,10 @@ _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
 #   mcp                  a stdio server is a spawned command. An http server
 #                        is an outbound request.
 #   server               `browser` names a command passed to `webbrowser`
-#   ai                   every provider block holds an endpoint, key, proxy,
+#   ai.<table>           every provider block holds an endpoint, key, proxy,
 #                        or TLS override. A `base_url` from this layer merges
-#                        over the operator's `api_key`.
+#                        over the operator's `api_key`. Scalars such as
+#                        `rules` pass.
 #   completion.base_url  the endpoint that receives the user's key. A key from
 #                        this layer spends only the author's credential.
 #
@@ -154,7 +155,6 @@ _UNTRUSTED_PROJECT_LAYER_KEYS: tuple[tuple[str, ...], ...] = (
     *_UNTRUSTED_MARIMO_KEYS,
     ("mcp",),
     ("server",),
-    ("ai",),
     ("completion", "base_url"),
 )
 
@@ -193,13 +193,18 @@ def strip_untrusted_config(
         else _UNTRUSTED_PROJECT_LAYER_KEYS
     )
     sanitized = cast(dict[str, Any], config)
-    for key_path in keys:
-        if _pop_nested_key(sanitized, key_path):
-            LOGGER.warning(
-                "Ignored %s from a configuration file that travels with the "
-                "code. Set it in your user configuration instead.",
-                ".".join(key_path),
-            )
+    dropped = [".".join(k) for k in keys if _pop_nested_key(sanitized, k)]
+    ai = sanitized.get("ai")
+    if not is_user_layer and isinstance(ai, dict):
+        for key in [k for k, v in ai.items() if isinstance(v, dict)]:
+            del ai[key]
+            dropped.append(f"ai.{key}")
+    for name in dropped:
+        LOGGER.warning(
+            "Ignored %s from a configuration file that travels with the "
+            "code. Set it in your user configuration instead.",
+            name,
+        )
     return config
 
 
