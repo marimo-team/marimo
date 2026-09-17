@@ -1,0 +1,19 @@
+docs/guides/publishing/self_host_wasm.md
+  s_2c333f0b4f0f1f::t_f269d670668eb0 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0e7e1975ee394d112f577ab559bc8a2d3437a72b",
+  "prompts": {},
+  "sessions": {
+    "s_2c333f0b4f0f1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8b-c65a-7413-ac32-d43ded98cf77",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
