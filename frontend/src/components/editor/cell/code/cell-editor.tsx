@@ -344,6 +344,9 @@ const CellEditorInternal = ({
 
   const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
+    let editorCode = code;
+    let editorExtensions = extensions;
+
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
       const rtc = realTimeCollaboration(
@@ -355,15 +358,15 @@ const CellEditorInternal = ({
         },
         code,
       );
-      extensions.push(rtc.extension);
-      code = rtc.code;
+      editorExtensions = [...extensions, rtc.extension];
+      editorCode = rtc.code;
     }
 
     // Create a new editor
     const ev = new EditorView({
       state: EditorState.create({
-        doc: code,
-        extensions: extensions,
+        doc: editorCode,
+        extensions: editorExtensions,
       }),
     });
     setEditorView(ev);
@@ -377,6 +380,8 @@ const CellEditorInternal = ({
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
+    let editorExtensions = extensions;
+
     // If rtc is enabled, use collaborative editing
     if (rtcEnabled) {
       const rtc = realTimeCollaboration(cellId, (code) => {
@@ -384,12 +389,12 @@ const CellEditorInternal = ({
         // but this means it won't be marked as stale
         cellActions.updateCellCode({ cellId, code, formattingChange: true });
       });
-      extensions.push(rtc.extension);
+      editorExtensions = [...extensions, rtc.extension];
     }
 
     editorViewRef.current.dispatch({
       effects: [
-        StateEffect.reconfigure.of([extensions]),
+        StateEffect.reconfigure.of([editorExtensions]),
         reconfigureLanguageEffect(editorViewRef.current, {
           completionConfig: userConfig.completion,
           hotkeysProvider: new OverridingHotkeyProvider(
@@ -406,6 +411,9 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
+    let editorCode = code;
+    let editorExtensions = extensions;
+
     if (rtcEnabled) {
       const rtc = realTimeCollaboration(
         cellId,
@@ -416,16 +424,16 @@ const CellEditorInternal = ({
         },
         code,
       );
-      extensions.push(rtc.extension);
-      code = rtc.code;
+      editorExtensions = [...extensions, rtc.extension];
+      editorCode = rtc.code;
     }
 
     const ev = new EditorView({
       state: EditorState.fromJSON(
         serializedEditorState,
         {
-          doc: code,
-          extensions: extensions,
+          doc: editorCode,
+          extensions: editorExtensions,
         },
         { history: historyField },
       ),
