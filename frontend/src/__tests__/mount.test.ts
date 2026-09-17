@@ -8,6 +8,8 @@ import { connectionAtom } from "@/core/network/connection";
 import { store } from "@/core/state/jotai";
 import { isStaticNotebook } from "@/core/static/static-state";
 import { WebSocketState } from "@/core/websocket/types";
+import { pairPreviewAtom } from "@/core/config/pair";
+import { PAIR_PREVIEW } from "./fixtures/pair-preview";
 import { mount, visibleForTesting } from "../mount";
 
 // Mock React DOM
@@ -81,6 +83,22 @@ describe("mount", () => {
       { ...baseOptions, mode: "read", runtimeConfig: [], ...options },
       mockElement,
     );
+
+  it("hydrates the server's Pair preview configuration", () => {
+    const error = mountRead({ pairPreview: PAIR_PREVIEW });
+
+    expect(error).toBeUndefined();
+    expect(store.get(pairPreviewAtom)).toEqual(PAIR_PREVIEW);
+  });
+
+  it("uses legacy Pair behavior when the host omits preview configuration", () => {
+    store.set(pairPreviewAtom, PAIR_PREVIEW);
+
+    const error = mountRead();
+
+    expect(error).toBeUndefined();
+    expect(store.get(pairPreviewAtom)).toBeUndefined();
+  });
 
   describe("connection state initialization", () => {
     it("should set connection to CONNECTING when runtimeConfig has lazy=false", () => {

@@ -2,6 +2,7 @@
 
 import { CheckIcon, CopyIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { useAtomValue } from "jotai";
 import { Button } from "@/components/ui/button";
 import {
   DialogContent,
@@ -16,6 +17,9 @@ import { Events } from "@/utils/events";
 import { Tooltip } from "@/components/ui/tooltip";
 import { asRemoteURL, useRuntimeManager } from "@/core/runtime/config";
 import { API } from "@/core/network/api";
+import { pairPreviewAtom } from "@/core/config/pair";
+import { getSessionId } from "@/core/kernel/session";
+import { useFilename } from "@/core/saving/filename";
 import {
   AGENT_LABELS,
   AGENT_TABS,
@@ -49,11 +53,17 @@ export const PairWithAgentModal: React.FC<{
 }> = ({ onClose }) => {
   const [activeTab, setActiveTab] = useState<AgentTab>("claude");
   const runtimeManager = useRuntimeManager();
+  const preview = useAtomValue(pairPreviewAtom);
+  const filename = useFilename();
+  const commandStep = preview ? 1 : 2;
   const authToken = useAuthToken();
   const hasToken = Boolean(authToken);
   const connection: ConnectionInfo = {
     url: runtimeManager.httpURL.toString(),
-    file: getFileFromURL(window.location.href),
+    file:
+      getFileFromURL(window.location.href) ??
+      (preview ? filename || undefined : undefined),
+    session: preview ? getSessionId() : undefined,
   };
 
   return (
@@ -94,23 +104,34 @@ export const PairWithAgentModal: React.FC<{
               value={tab}
               className="mt-4 flex flex-col gap-4"
             >
-              <Step
-                index={1}
-                title="Install the skill"
-                hint="Run once per machine."
-              >
-                <CommandBlock command={SKILL_INSTALL} />
-              </Step>
-              <Step index={2} title="Run in your terminal">
+              {!preview && (
+                <Step
+                  index={1}
+                  title="Install the skill"
+                  hint="Run once per machine."
+                >
+                  <CommandBlock command={SKILL_INSTALL} />
+                </Step>
+              )}
+              <Step index={commandStep} title="Run in your terminal">
                 <CommandBlock
-                  command={getTerminalCommand(tab, connection, hasToken)}
+                  command={getTerminalCommand(
+                    tab,
+                    connection,
+                    hasToken,
+                    preview,
+                  )}
                 />
               </Step>
               {hasToken && authToken && (
-                <Step index={3} title="Paste when prompted for a token">
+                <Step
+                  index={commandStep + 1}
+                  title="Paste when prompted for a token"
+                >
                   <CommandBlock
                     command={authToken}
                     display={maskToken(authToken)}
+                    copyLabel="Copy token"
                   />
                 </Step>
               )}
@@ -118,15 +139,17 @@ export const PairWithAgentModal: React.FC<{
           ))}
 
           <TabsContent value="prompt" className="mt-4 flex flex-col gap-4">
+            {!preview && (
+              <Step
+                index={1}
+                title="Make sure the marimo-pair skill is available to your agent"
+                hint="Skip if your agent already has it."
+              >
+                <CommandBlock command={SKILL_INSTALL} />
+              </Step>
+            )}
             <Step
-              index={1}
-              title="Make sure the marimo-pair skill is available to your agent"
-              hint="Skip if your agent already has it."
-            >
-              <CommandBlock command={SKILL_INSTALL} />
-            </Step>
-            <Step
-              index={2}
+              index={commandStep}
               title="Copy this prompt into your agent"
               hint={
                 hasToken
@@ -135,10 +158,11 @@ export const PairWithAgentModal: React.FC<{
               }
             >
               <CommandBlock
-                command={getRawPrompt(connection, authToken)}
+                command={getRawPrompt(connection, authToken, preview)}
                 display={getRawPrompt(
                   connection,
                   authToken ? maskToken(authToken) : null,
+                  preview,
                 )}
                 multiline={true}
               />
@@ -177,7 +201,8 @@ const CommandBlock: React.FC<{
   command: string;
   display?: string;
   multiline?: boolean;
-}> = ({ command, display, multiline = false }) => {
+  copyLabel?: string;
+}> = ({ command, display, multiline = false, copyLabel = "Copy command" }) => {
   const [copied, setCopied] = useState(false);
 
   const copy = Events.stopPropagation(async (e) => {
@@ -195,6 +220,7 @@ const CommandBlock: React.FC<{
         </pre>
         <Tooltip content="Copied!" open={copied}>
           <Button
+            aria-label="Copy prompt"
             onClick={copy}
             size="xs"
             variant="ghost"
@@ -213,11 +239,11 @@ const CommandBlock: React.FC<{
 
   return (
     <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 font-mono text-xs">
-      <code className="flex-1 select-all wrap-break-word">
+      <code className="flex-1 whitespace-pre-wrap select-all wrap-break-word">
         {display ?? command}
       </code>
       <Tooltip content="Copied!" open={copied}>
-        <Button onClick={copy} size="xs" variant="ghost">
+        <Button aria-label={copyLabel} onClick={copy} size="xs" variant="ghost">
           {copied ? (
             <CheckIcon size={14} strokeWidth={1.5} />
           ) : (

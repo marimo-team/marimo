@@ -55,7 +55,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
   Pair with a live marimo notebook.
 
   Workflow:
-    If you do not have the server URL or notebook target:
+    If you do not have the server URL or notebook file:
       marimo pair notebook list
     marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
     import marimo._code_mode as cm

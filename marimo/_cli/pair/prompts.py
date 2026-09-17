@@ -16,6 +16,7 @@ class PromptTemplates:
     file: str
     session: str
     token_file: str
+    token: str
 
 
 def load_prompt_templates() -> PromptTemplates:
