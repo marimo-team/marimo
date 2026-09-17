@@ -135,6 +135,29 @@ _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
     ("cache", "verification"),
 )
 
+# Settings that a project `pyproject.toml` or PEP 723 header must not set.
+# All are read on open, before any install or cell run:
+#
+#   mcp                  a stdio server is a spawned command. An http server
+#                        is an outbound request.
+#   server               `browser` names a command passed to `webbrowser`
+#   ai                   every provider block holds an endpoint, key, proxy,
+#                        or TLS override. A `base_url` from this layer merges
+#                        over the operator's `api_key`.
+#   completion.base_url  the endpoint that receives the user's key. A key from
+#                        this layer spends only the author's credential.
+#
+# NB. the workspace `.marimo.toml` layer is excluded on purpose. The settings
+# UI writes to that file, and a save merges against the stripped read.
+# Stripping there deletes saved AI settings on the next unrelated save.
+_UNTRUSTED_PROJECT_LAYER_KEYS: tuple[tuple[str, ...], ...] = (
+    *_UNTRUSTED_MARIMO_KEYS,
+    ("mcp",),
+    ("server",),
+    ("ai",),
+    ("completion", "base_url"),
+)
+
 # `cache.store` is not a trust anchor on its own: the verifying loaders check
 # the bytes it returns before unpickling, and the unsigned `PickleLoader`
 # refuses a store it can identify as untrusted. That identification works by
@@ -156,14 +179,18 @@ def strip_untrusted_config(
 
     Mutates and returns `config`. A cloned repo's `pyproject.toml`, a shared
     notebook's PEP 723 header, and a workspace-discovered `.marimo.toml` are all
-    untrusted origin: cloning a repo or opening a notebook is not consent to
-    that repo's author choosing whose signed cache you unpickle.
+    untrusted origin. marimo reads them on open, before any install or cell
+    run. Cloning a repo or opening a notebook is not consent to its author
+    choosing whose signed cache you unpickle, which commands marimo spawns,
+    or where your AI credentials go.
 
     Set `is_user_layer` for the workspace `.marimo.toml`, which additionally
-    loses `cache.store`.
+    loses `cache.store` but keeps the `ai`, `mcp`, and `server` sections.
     """
     keys = (
-        _UNTRUSTED_USER_LAYER_KEYS if is_user_layer else _UNTRUSTED_MARIMO_KEYS
+        _UNTRUSTED_USER_LAYER_KEYS
+        if is_user_layer
+        else _UNTRUSTED_PROJECT_LAYER_KEYS
     )
     sanitized = cast(dict[str, Any], config)
     for key_path in keys:
