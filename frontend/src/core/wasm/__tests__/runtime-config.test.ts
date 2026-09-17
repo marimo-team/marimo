@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it } from "vitest";
 import { getWasmRuntimeConfig } from "../runtime-config";
 
 afterEach(() => {
@@ -30,4 +30,29 @@ describe("getWasmRuntimeConfig", () => {
       pypiIndexUrl: "https://packages.example.com/{package_name}/json",
     });
   });
+
+  it.each(["pyodideIndexUrl", "pyodideLockfileUrl", "pypiIndexUrl"])(
+    "ignores malformed %s while preserving valid overrides",
+    (key) => {
+      document.head.innerHTML = `
+        <base href="https://example.com/notebook/">
+        <marimo-wasm
+          data-pyodide-index-url="./pyodide/"
+          data-pyodide-lockfile-url="./lockfile/pyodide.json"
+          data-pypi-index-url="./packages/{package_name}.json"
+        ></marimo-wasm>`;
+      const element = document.querySelector<HTMLElement>("marimo-wasm");
+      assert(element);
+      element.dataset[key] = "https://invalid host/";
+
+      expect(getWasmRuntimeConfig()).toEqual({
+        pyodideIndexUrl: "https://example.com/notebook/pyodide/",
+        pyodideLockfileUrl:
+          "https://example.com/notebook/lockfile/pyodide.json",
+        pypiIndexUrl:
+          "https://example.com/notebook/packages/{package_name}.json",
+        [key]: undefined,
+      });
+    },
+  );
 });

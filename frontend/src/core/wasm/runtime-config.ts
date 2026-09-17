@@ -8,8 +8,13 @@ export interface WasmRuntimeConfig {
 
 export function getWasmRuntimeConfig(): WasmRuntimeConfig {
   const element = document.querySelector<HTMLElement>("marimo-wasm");
-  const resolve = (url: string | undefined) =>
-    url ? new URL(url, document.baseURI).href : undefined;
+  const resolve = (url: string | undefined) => {
+    try {
+      return url ? new URL(url, document.baseURI).href : undefined;
+    } catch {
+      return undefined;
+    }
+  };
   return {
     pyodideIndexUrl: resolve(element?.dataset.pyodideIndexUrl),
     pyodideLockfileUrl: resolve(element?.dataset.pyodideLockfileUrl),
