@@ -518,6 +518,9 @@ def wasm_notebook_template(
     mode: Literal["edit", "run"],
     code: str,
     show_code: bool,
+    pyodide_index_url: str | None = None,
+    pyodide_lockfile_url: str | None = None,
+    pypi_index_url: str | None = None,
     layout: LayoutConfig | None = None,
     asset_url: str | None = None,
     session_snapshot: NotebookSessionV1 | None = None,
@@ -561,8 +564,18 @@ def wasm_notebook_template(
         ),
     )
 
+    wasm_attributes = "".join(
+        f' {name}="{_html_escape(value)}"'
+        for name, value in (
+            ("data-pyodide-index-url", pyodide_index_url),
+            ("data-pyodide-lockfile-url", pyodide_lockfile_url),
+            ("data-pypi-index-url", pypi_index_url),
+        )
+        if value is not None
+    )
     body = body.replace(
-        "</head>", '<marimo-wasm hidden=""></marimo-wasm></head>'
+        "</head>",
+        f'<marimo-wasm hidden=""{wasm_attributes}></marimo-wasm></head>',
     )
 
     warning_script = """
