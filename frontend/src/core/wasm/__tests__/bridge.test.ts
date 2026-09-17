@@ -9,12 +9,14 @@ const {
   mockNotebookReadFile,
   mockReadNotebook,
   mockSaveNotebook,
+  mockBootstrap,
   rpcListeners,
 } = vi.hoisted(() => ({
   mockBridge: vi.fn(),
   mockNotebookReadFile: vi.fn(),
   mockReadNotebook: vi.fn(),
   mockSaveNotebook: vi.fn(),
+  mockBootstrap: vi.fn(),
   rpcListeners: {} as Record<string, () => void>,
 }));
 
@@ -40,6 +42,7 @@ vi.stubGlobal("URL", MockURL);
 
 vi.mock("@/core/wasm/rpc", () => ({
   getWorkerRPC: () => ({
+    send: { bootstrap: mockBootstrap },
     proxy: {
       request: {
         bridge: mockBridge,
@@ -122,6 +125,11 @@ describe("PyodideBridge.readCode", () => {
 
     await PyodideBridge.INSTANCE.readCode();
 
+    expect(mockBootstrap).toHaveBeenCalledWith({
+      pyodideIndexUrl: undefined,
+      pyodideLockfileUrl: undefined,
+      pypiIndexUrl: undefined,
+    });
     expect(mockNotebookReadFile).not.toHaveBeenCalled();
   });
 });

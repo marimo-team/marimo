@@ -22,6 +22,7 @@ import { prettyError } from "../../../utils/errors";
 import { invariant } from "../../../utils/invariant";
 import { Logger } from "../../../utils/Logger";
 import type { ParentSchema } from "../rpc";
+import type { WasmRuntimeConfig } from "../runtime-config";
 import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
@@ -47,6 +48,8 @@ declare const self: Window & {
 
 const workerInitSpan = t.startSpan("worker:init");
 
+const runtimeConfig = new Deferred<WasmRuntimeConfig>();
+
 // Initialize pyodide
 async function loadPyodideAndPackages() {
   try {
@@ -58,6 +61,7 @@ async function loadPyodideAndPackages() {
       message: "Loading marimo...",
     });
     self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
+      ...(await runtimeConfig.promise),
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
     });
@@ -353,6 +357,8 @@ const rpc = createRPC<WorkerSchema, ParentSchema>({
   }),
   requestHandler,
 });
+
+rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
 
