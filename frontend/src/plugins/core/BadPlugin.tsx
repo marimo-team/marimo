@@ -39,10 +39,10 @@ export const BadPluginData: React.FC<Props> = ({ error, badData }) => {
             value="item-1"
             className="text-muted-foreground border-muted-foreground-20"
           >
-            <AccordionTrigger className="py-2 text-[0.84375rem]">
+            <AccordionTrigger className="py-2 text-sm-minus">
               View Data:
             </AccordionTrigger>
-            <AccordionContent className="text-[0.84375rem]">
+            <AccordionContent className="text-sm-minus">
               <JsonOutput data={badData} />
             </AccordionContent>
           </AccordionItem>

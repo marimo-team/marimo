@@ -428,3 +428,18 @@
     width: 50px;
   }
 }
+
+/* Font sizes without a line-height companion. Utilities set font-size only
+   and inherit the surrounding line height. */
+@theme inline {
+  --text-3xs: 0.6875rem;
+  --text-2xs: 0.75rem;
+  --text-xs-plus: 0.8rem;
+  --text-sm-minus: 0.84375rem;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-10: 10px;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-11: 11px;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-13: 13px;
+}

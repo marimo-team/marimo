@@ -90,7 +90,7 @@ const CalendarHeaderCell = ({
 }: AriaCalendarHeaderCellProps) => (
   <AriaCalendarHeaderCell
     className={cn(
-      "w-9 rounded-md text-[0.8rem] font-normal text-muted-foreground",
+      "w-9 rounded-md text-xs-plus font-normal text-muted-foreground",
       className,
     )}
     {...props}

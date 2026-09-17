@@ -163,7 +163,7 @@ export const StorageFileViewer: React.FC<Props> = ({
       <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 p-4 text-xs">
         <span className="text-muted-foreground font-medium">Path</span>
         <div className="truncate flex items-center gap-1.5">
-          <span className="font-mono text-[11px]">{entry.path}</span>
+          <span className="font-mono text-11">{entry.path}</span>
           <CopyClipboardIcon value={entry.path} className="h-3 w-3" />
         </div>
 
