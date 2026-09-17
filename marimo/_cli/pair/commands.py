@@ -657,17 +657,6 @@ def prompt(
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
-    # Preserve the file key exactly as supplied. Relative keys are resolved by
-    # the server workspace and may refer to a remote or non-POSIX filesystem.
-    # Shell-quote dynamic values because this command is copy-pasted into a
-    # shell and paths may contain spaces or metacharacters.
-    file_flag = f" --file {shlex.quote(file_path)}" if file_path else ""
-    session_flag = (
-        f" --session {shlex.quote(session_id)}" if session_id else ""
-    )
-    execute_cmd = (
-        f"execute-code.sh --url {shlex.quote(url)}{file_flag}{session_flag}"
-    )
     preview = is_env_true("MARIMO_PAIR_NEXT")
     if not preview:
         selected_agents = {
@@ -723,6 +712,17 @@ def prompt(
             )
         )
         return
+
+    # Preserve the file key exactly as supplied. Relative keys are resolved by
+    # the server workspace and may refer to a remote or non-POSIX filesystem.
+    # Shell-quote dynamic values because this command is copy-pasted into a
+    # shell and paths may contain spaces or metacharacters.
+    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}"
+    # The legacy script accepts only one selector. Match execute's precedence.
+    if session_id:
+        execute_cmd += f" --session {shlex.quote(session_id)}"
+    elif file_path:
+        execute_cmd += f" --file {shlex.quote(file_path)}"
 
     token_hint = ""
     if token_file is not None:

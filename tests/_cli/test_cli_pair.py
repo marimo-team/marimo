@@ -1403,6 +1403,47 @@ Use `execute-code.sh --url 'https://localhost:8000?auth=tok123' --session s_ab12
 Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
 """)
 
+    @pytest.mark.parametrize("flag", [None, "0", "false", ""])
+    @pytest.mark.parametrize("with_token", [False, True])
+    def test_legacy_prompt_with_both_selectors_uses_session(
+        self, tmp_path: Path, flag: str | None, with_token: bool
+    ) -> None:
+        args = [
+            "pair",
+            "prompt",
+            "--url",
+            TEST_URL,
+            "--file",
+            "notebooks/my notebook.py",
+            "--session",
+            "s_ab12cd",
+        ]
+        if with_token:
+            args.append("--with-token")
+        with patch.object(commands, "_token_dir", return_value=tmp_path):
+            result = _runner.invoke(
+                cli_main,
+                args,
+                input="test-token\n" if with_token else None,
+                env={"MARIMO_PAIR_NEXT": flag},
+            )
+
+        assert result.exit_code == 0
+        execution_commands = re.findall(
+            r"`(execute-code\.sh [^`]+)`", result.stdout
+        )
+        assert len(execution_commands) == (2 if with_token else 1)
+        for command in execution_commands:
+            argv = shlex.split(command)
+            assert argv[:5] == [
+                "execute-code.sh",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+            ]
+            assert "--file" not in argv
+
     def test_prompt_shell_quotes_file_paths(self) -> None:
         cases = [
             ("relative/path.py", "--file relative/path.py"),
