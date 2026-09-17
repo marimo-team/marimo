@@ -650,9 +650,9 @@ class Kernel:
         import getpass
 
         getpass.getpass = getpass_override
-        # Webbrowser may not be set (e.g. docker container) or stubbed/broken
-        # (e.g. in pyodide). Set default to just inject an iframe of the
-        # expected page to output.
+        # Route webbrowser.open() to an iframe in the cell output when the
+        # machine has no browser (containers) or a stub module (Pyodide).
+        # The check runs on first use, never at startup.
         patches.patch_webbrowser()
         # micropip only patched in non-pyodide environments.
         if not is_pyodide():

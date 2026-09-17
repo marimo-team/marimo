@@ -2,18 +2,22 @@
 from __future__ import annotations
 
 import io
+import webbrowser
 from contextlib import nullcontext
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
 
+from marimo._runtime import marimo_browser
 from marimo._runtime._wasm._patches import WasmPatchSet
 from marimo._runtime._wasm._polars import patch_polars_for_wasm
 from marimo._runtime.capture import capture_stderr
+from marimo._runtime.patches import patch_webbrowser
 from marimo._runtime.runtime import Kernel
 from marimo._utils.platform import is_pyodide
-from tests._messaging.mocks import MockStream
+from tests._runtime._helpers.session import mocked_kernel_session
+from tests._runtime._helpers.streams import MockStream
 from tests.conftest import ExecReqProvider, mock_pyodide
 
 if TYPE_CHECKING:
@@ -147,65 +151,6 @@ class TestMicropip:
                     ]
                 )
             TestMicropip._assert_micropip_warning_printed(buf.getvalue())
-
-
-async def test_webbrowser_injection(
-    mocked_kernel: Kernel, exec_req: ExecReqProvider
-):
-    await mocked_kernel.k.run(
-        [
-            exec_req.get("""
-          import webbrowser
-          MarimoBrowser = __marimo__._runtime.marimo_browser.build_browser_fallback()
-          webbrowser.register(
-              "marimo-output", None, MarimoBrowser(), preferred=True
-          )
-          """),
-        ]
-    )
-    await mocked_kernel.k.run(
-        [
-            cell := exec_req.get("webbrowser.open('https://marimo.io');"),
-        ]
-    )
-    assert "webbrowser" in mocked_kernel.k.globals
-    outputs: list[str] = []
-    stream = MockStream(mocked_kernel.stream)
-    for msg in stream.operations:
-        if msg["op"] == "cell-op" and msg["output"] is not None:
-            outputs.append(msg["output"]["data"])
-
-    assert "<iframe" in outputs[-1]
-
-
-async def test_webbrowser_easter_egg(
-    mocked_kernel: Kernel, exec_req: ExecReqProvider
-):
-    await mocked_kernel.k.run(
-        [
-            exec_req.get("""
-          import webbrowser
-          MarimoBrowser = __marimo__._runtime.marimo_browser.build_browser_fallback()
-          webbrowser.register(
-              "marimo-output", None, MarimoBrowser(), preferred=True
-          )
-          """),
-        ]
-    )
-    await mocked_kernel.k.run(
-        [
-            cell := exec_req.get("import antigravity;"),
-        ]
-    )
-    assert "antigravity" in mocked_kernel.k.globals
-    outputs: list[str] = []
-    stream = MockStream(mocked_kernel.stream)
-    for msg in stream.operations:
-        if msg["op"] == "cell-op" and msg["output"] is not None:
-            outputs.append(msg["output"]["data"])
-
-    assert "<iframe" not in outputs[-1]
-    assert "<img" in outputs[-1]
 
 
 @pytest.mark.requires("polars")
@@ -510,3 +455,163 @@ class TestPolarsIoWasmPatch:
                 assert exc_info.value.name == "pyarrow"
             finally:
                 unpatch()
+
+
+def _reset_webbrowser(monkeypatch: pytest.MonkeyPatch) -> None:
+    # CPython caches discovery per process. Start every test cold, and
+    # restore the real module functions on teardown.
+    monkeypatch.setattr(webbrowser, "_tryorder", None)
+    monkeypatch.setattr(webbrowser, "_browsers", {})
+    monkeypatch.setattr(webbrowser, "open", webbrowser.open)
+
+
+def _discovery_finds_nothing() -> None:
+    # Same end state as CPython when no browser is runnable.
+    webbrowser._tryorder = []
+
+
+def _cell_outputs(stream: MockStream) -> list[str]:
+    return [
+        msg["output"]["data"]
+        for msg in stream.raw_operations
+        if msg["op"] == "cell-op" and msg["output"] is not None
+    ]
+
+
+class TestWebbrowserStartup:
+    @staticmethod
+    def test_kernel_start_does_not_probe(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        probes: list[int] = []
+
+        def counting_discovery() -> None:
+            probes.append(1)
+            webbrowser._tryorder = []
+
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", counting_discovery
+        )
+
+        with mocked_kernel_session():
+            assert probes == []
+
+    @staticmethod
+    async def test_no_browser_renders_iframe(
+        monkeypatch: pytest.MonkeyPatch, exec_req: ExecReqProvider
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
+        )
+
+        with mocked_kernel_session() as tk:
+            await tk.kernel.run(
+                [
+                    exec_req.get(
+                        # The trailing semicolon suppresses the True return
+                        # value, so the iframe stays the cell output.
+                        "import webbrowser; webbrowser.open('https://marimo.io');"
+                    )
+                ]
+            )
+            outputs = _cell_outputs(tk.stream)
+
+        assert "<iframe" in outputs[-1]
+
+    @staticmethod
+    async def test_no_browser_antigravity_renders_image(
+        monkeypatch: pytest.MonkeyPatch, exec_req: ExecReqProvider
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
+        )
+
+        with mocked_kernel_session() as tk:
+            await tk.kernel.run([exec_req.get("import antigravity")])
+            outputs = _cell_outputs(tk.stream)
+
+        assert "<img" in outputs[-1]
+        assert "<iframe" not in outputs[-1]
+
+    @staticmethod
+    async def test_real_browser_is_used_when_found(
+        monkeypatch: pytest.MonkeyPatch, exec_req: ExecReqProvider
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        opened: list[str] = []
+
+        class FakeBrowser(webbrowser.BaseBrowser):
+            def open(
+                self, url: str, new: int = 0, autoraise: bool = True
+            ) -> bool:
+                del new, autoraise
+                opened.append(url)
+                return True
+
+        def discovery_finds_fake() -> None:
+            # CPython resets the order before it registers what it found.
+            webbrowser._tryorder = []
+            webbrowser.register("fake", None, FakeBrowser())
+
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", discovery_finds_fake
+        )
+
+        with mocked_kernel_session() as tk:
+            await tk.kernel.run(
+                [
+                    exec_req.get(
+                        "import webbrowser; webbrowser.open('https://marimo.io')"
+                    )
+                ]
+            )
+            outputs = _cell_outputs(tk.stream)
+
+        assert opened == ["https://marimo.io"]
+        assert all("<iframe" not in output for output in outputs)
+
+    @staticmethod
+    def test_warm_registry_without_browser_registers_now(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        probes: list[int] = []
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", lambda: probes.append(1)
+        )
+        # Discovery already ran in this process and found nothing.
+        webbrowser._tryorder = []
+
+        patch_webbrowser()
+
+        assert probes == []
+        assert webbrowser._tryorder == ["marimo-output"]
+
+    @staticmethod
+    def test_pyodide_stub_replaces_open(
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.delattr(webbrowser, "register_standard_browsers")
+
+        patch_webbrowser()
+
+        assert webbrowser.open is marimo_browser.browser_open_fallback
+
+    @staticmethod
+    def test_patch_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
+        _reset_webbrowser(monkeypatch)
+        monkeypatch.setattr(
+            webbrowser, "register_standard_browsers", _discovery_finds_nothing
+        )
+
+        patch_webbrowser()
+        first = webbrowser.register_standard_browsers
+        patch_webbrowser()
+
+        assert webbrowser.register_standard_browsers is first
+        webbrowser.get()
+        assert webbrowser._tryorder == ["marimo-output"]

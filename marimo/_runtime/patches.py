@@ -34,22 +34,45 @@ def patch_pdb(debugger: marimo_pdb.MarimoPdb) -> None:
 
 
 def patch_webbrowser() -> None:
+    """Route webbrowser.open() to notebook output when no browser exists.
+
+    The decision is attached to CPython's own lazy discovery hook. Nothing
+    here touches the desktop until a cell calls webbrowser.open(), get(),
+    or register(). Discovery runs a subprocess that can block for a long
+    time on a stalled desktop, so it must never run at kernel start.
+    """
     import webbrowser
 
-    try:
-        _ = webbrowser.get()
-    # pyodide doesn't have a webbrowser.get() method
-    # (nor a webbrowser.Error, so careful)
-    except AttributeError:
+    # Pyodide ships a stub module with no discovery at all.
+    discover = getattr(webbrowser, "register_standard_browsers", None)
+    if discover is None:
         webbrowser.open = marimo_browser.browser_open_fallback
-    except webbrowser.Error:
-        MarimoBrowser = marimo_browser.build_browser_fallback()
-        webbrowser.register(
-            "marimo-output",
-            None,
-            MarimoBrowser(),
-            preferred=True,
-        )
+        return
+
+    if getattr(discover, "_marimo_patched", False):
+        return
+
+    def register_fallback_if_no_browser() -> None:
+        # CPython leaves _tryorder empty when it found nothing runnable.
+        tryorder = getattr(webbrowser, "_tryorder", None)
+        if tryorder is not None and len(tryorder) == 0:
+            MarimoBrowser = marimo_browser.build_browser_fallback()
+            webbrowser.register(
+                "marimo-output", None, MarimoBrowser(), preferred=True
+            )
+
+    def register_standard_browsers() -> None:
+        discover()
+        register_fallback_if_no_browser()
+
+    register_standard_browsers._marimo_patched = True  # type: ignore[attr-defined]
+    webbrowser.register_standard_browsers = (  # type: ignore[attr-defined]
+        register_standard_browsers
+    )
+
+    # Discovery already ran in this process, for example in thread-based
+    # run mode after the server opened the browser. Decide now, no probe.
+    register_fallback_if_no_browser()
 
 
 def patch_sys_module(module: types.ModuleType) -> None:
