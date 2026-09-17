@@ -382,7 +382,6 @@ ignore = [
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
     "RUF069", # Float equality comparison
     "PLW0108", # Unnecessary lambda
-    "RUF065", # Eager conversion in logging calls
     "PLC2801", # Unnecessary dunder call
     "FURB189", # Subclassing built-in collections
     "FURB152", # Replace literal with a math constant

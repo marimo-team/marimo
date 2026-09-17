@@ -77,7 +77,7 @@ def prepare_wire_message(data: KernelMessage, *, is_kiosk: bool) -> str | None:
     try:
         return format_wire_message(op, data)
     except Exception as e:
-        LOGGER.error("Failed to deserialize message: %s", str(e))
+        LOGGER.error("Failed to deserialize message: %s", e)
         LOGGER.error("Message: %s", data)
         return None
 

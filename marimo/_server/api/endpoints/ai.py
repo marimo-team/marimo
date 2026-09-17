@@ -349,7 +349,7 @@ async def ai_inline_completion(
             ),
         )
     except Exception as e:
-        LOGGER.error("Error in AI inline completion: %s", str(e))
+        LOGGER.error("Error in AI inline completion: %s", e)
         raise HTTPException(
             status_code=500,  # Internal Server Error
             detail=f"AI completion failed: {e!s}",
@@ -413,7 +413,7 @@ async def invoke_tool(
         )
 
     except Exception as e:
-        LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, str(e))
+        LOGGER.error("Error invoking AI tool %s: %s", body.tool_name, e)
         # Return error response instead of letting it crash
         return StructResponse(
             InvokeAiToolResponse(

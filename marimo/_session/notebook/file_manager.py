@@ -688,7 +688,7 @@ def read_css_file(css_file: str, filename: str | None) -> str | None:
         LOGGER.warning(
             "Failed to open custom CSS file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 
@@ -719,7 +719,7 @@ def read_html_head_file(
         LOGGER.warning(
             "Failed to open HTML head file %s for reading: %s",
             filepath,
-            str(e),
+            e,
         )
         return None
 

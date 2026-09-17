@@ -132,7 +132,7 @@ class CellNotification(Notification, tag="cell-op"):
             # The context variable hasn't been set yet
             self.run_id = None
         except Exception as e:
-            LOGGER.error("Error getting run id: %s", str(e))
+            LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
 
 
