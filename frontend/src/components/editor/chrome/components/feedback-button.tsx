@@ -74,6 +74,27 @@ const CollapsiblePreview: React.FC<{ content: string }> = ({ content }) => {
   );
 };
 
+function getNotebookSourceUnavailableReason(args: {
+  hasRequestClient: boolean;
+  filename: string | null;
+  codeAvailable: boolean;
+  connectionState: WebSocketState;
+}): string | undefined {
+  if (!args.hasRequestClient) {
+    return "Notebook source is unavailable.";
+  }
+  if (args.filename === null) {
+    return "Save the notebook first.";
+  }
+  if (!args.codeAvailable) {
+    return "Notebook source is hidden in this view.";
+  }
+  if (args.connectionState !== WebSocketState.OPEN) {
+    return "Connect the notebook to include its source.";
+  }
+  return undefined;
+}
+
 export const FeedbackButton: React.FC<PropsWithChildren> = ({ children }) => {
   const { openModal, closeModal } = useImperativeModal();
 
@@ -104,21 +125,13 @@ export const FeedbackModal: React.FC<{
   const codeAvailable = useNotebookCodeAvailable(cells);
   const filename = useAtomValue(filenameAtom);
   const connection = useAtomValue(connectionAtom);
-  const notebookSourceAvailable =
-    filename !== null &&
-    codeAvailable &&
-    connection.state === WebSocketState.OPEN &&
-    requestClient != null;
-
-  const notebookSourceReason = notebookSourceAvailable
-    ? undefined
-    : requestClient == null
-      ? "Notebook source is unavailable."
-      : filename === null
-        ? "Save the notebook first."
-        : !codeAvailable
-          ? "Notebook source is hidden in this view."
-          : "Connect the notebook to include its source.";
+  const notebookSourceReason = getNotebookSourceUnavailableReason({
+    hasRequestClient: requestClient != null,
+    filename,
+    codeAvailable,
+    connectionState: connection.state,
+  });
+  const notebookSourceAvailable = notebookSourceReason === undefined;
 
   const [includeErrors, setIncludeErrors] = useLocalStorage(
     "marimo:issue-report:include-errors",
