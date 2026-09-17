@@ -897,8 +897,8 @@ Example:
 
     marimo export html-wasm notebook.py -o notebook.wasm.html
 
-The exported HTML file will run the notebook using WebAssembly, making it
-completely self-contained and executable in the browser. This lets you
+The exported HTML file runs the notebook using WebAssembly, without a local
+Python or marimo installation. This lets you
 share interactive notebooks on the web without setting up
 infrastructure to run Python code.
 

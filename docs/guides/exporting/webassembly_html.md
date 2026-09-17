@@ -1,6 +1,8 @@
 # WebAssembly HTML
 
-Export your notebook to a self-contained HTML file that runs using [WebAssembly](../wasm.md).
+Export your notebook to HTML that runs in the browser using [WebAssembly](../wasm.md).
+Internet access is required to load Pyodide and Python packages. Single-file
+exports also load marimo's frontend assets from a CDN.
 
 /// tip | Easiest way to share interactive notebooks
 For the simplest way to share interactive notebooks online, including WebAssembly notebooks, use [molab](../molab.md).
@@ -22,7 +24,7 @@ view is not available in WebAssembly HTML exports.
 
 Speaker notes are embedded in the HTML file and readable by anyone who receives it.
 
-The exported HTML file will run your notebook using WebAssembly, making it completely self-contained and executable in the browser. This means users can interact with your notebook without needing Python or marimo installed.
+Users can interact with the exported notebook without needing Python or marimo installed.
 
 Options:
 
