@@ -31,17 +31,26 @@ def read_pyproject_marimo_config(
 
 
 def _pop_nested_key(root: dict[str, Any], key_path: tuple[str, ...]) -> bool:
-    """Delete `root[key_path...]` if present. Returns whether it was deleted."""
-    current = root
-    for key in key_path[:-1]:
-        nxt = current.get(key)
-        if not isinstance(nxt, dict):
-            return False
-        current = nxt
-    if key_path[-1] in current:
-        del current[key_path[-1]]
-        return True
-    return False
+    """Delete `root[key_path...]` if present. Returns whether anything was deleted.
+
+    A `"*"` segment matches every table-valued child at that depth.
+    """
+    key, rest = key_path[0], key_path[1:]
+    keys = (
+        [k for k, value in root.items() if isinstance(value, dict)]
+        if key == "*"
+        else [key]
+    )
+    deleted = False
+    for key in keys:
+        if key not in root:
+            continue
+        if not rest:
+            del root[key]
+            deleted = True
+        elif isinstance(root[key], dict):
+            deleted = _pop_nested_key(root[key], rest) or deleted
+    return deleted
 
 
 def sanitize_pyproject_dict(
@@ -141,7 +150,7 @@ _UNTRUSTED_MARIMO_KEYS: tuple[tuple[str, ...], ...] = (
 #   mcp                  a stdio server is a spawned command. An http server
 #                        is an outbound request.
 #   server               `browser` names a command passed to `webbrowser`
-#   ai.<table>           every provider block holds an endpoint, key, proxy,
+#   ai.*                 every provider block holds an endpoint, key, proxy,
 #                        or TLS override. A `base_url` from this layer merges
 #                        over the operator's `api_key`. Scalars such as
 #                        `rules` pass.
@@ -156,6 +165,7 @@ _UNTRUSTED_PROJECT_LAYER_KEYS: tuple[tuple[str, ...], ...] = (
     ("mcp",),
     ("server",),
     ("completion", "base_url"),
+    ("ai", "*"),
 )
 
 # `cache.store` is not a trust anchor on its own: the verifying loaders check
@@ -193,18 +203,13 @@ def strip_untrusted_config(
         else _UNTRUSTED_PROJECT_LAYER_KEYS
     )
     sanitized = cast(dict[str, Any], config)
-    dropped = [".".join(k) for k in keys if _pop_nested_key(sanitized, k)]
-    ai = sanitized.get("ai")
-    if not is_user_layer and isinstance(ai, dict):
-        for key in [k for k, v in ai.items() if isinstance(v, dict)]:
-            del ai[key]
-            dropped.append(f"ai.{key}")
-    for name in dropped:
-        LOGGER.warning(
-            "Ignored %s from a configuration file that travels with the "
-            "code. Set it in your user configuration instead.",
-            name,
-        )
+    for key_path in keys:
+        if _pop_nested_key(sanitized, key_path):
+            LOGGER.warning(
+                "Ignored %s from a configuration file that travels with the "
+                "code. Set it in your user configuration instead.",
+                ".".join(key_path),
+            )
     return config
 
 
