@@ -1,0 +1,50 @@
+marimo/_schemas/export_options.py
+  s_2c333f0b4f0f1f::t_8a2c6bf5033692 4,44-50,56
+marimo/_templates.py
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 521-523,567-575,577-578
+frontend/src/core/wasm/worker/worker.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 25,51-52,361
+  s_2c333f0b4f0f1f::t_017c5984f6814f 64
+frontend/src/core/wasm/__tests__/bootstrap.test.ts
+  ai_agent 1-63
+frontend/src/core/wasm/worker/types.ts
+  s_2c333f0b4f0f1f::t_017c5984f6814f 47-52
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 3
+frontend/src/core/wasm/__tests__/bridge.test.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 12,19,45
+  ai_agent 128-132
+frontend/src/core/wasm/runtime-config.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 1-15,21-22
+  ai_agent 16-20
+frontend/src/core/wasm/__tests__/runtime-config.test.ts
+  ai_agent 1-33
+frontend/src/core/wasm/worker/save-worker.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 12,16,30-31,108
+  s_2c333f0b4f0f1f::t_017c5984f6814f 43
+marimo/_export/exporter.py
+  s_2c333f0b4f0f1f::t_8a2c6bf5033692 541-543
+frontend/src/core/wasm/rpc.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 9,15
+frontend/src/core/wasm/bridge.ts
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 44,99,101
+  ai_agent 85-86,100,109-110,125
+frontend/src/core/wasm/worker/bootstrap.ts
+  s_2c333f0b4f0f1f::t_017c5984f6814f 44-46,57-59,69-71,84-86
+  s_2c333f0b4f0f1f::t_c96a966a8e4cae 96-103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8acabc9999e546e13e946d683cfe0ce316375b03",
+  "prompts": {},
+  "sessions": {
+    "s_2c333f0b4f0f1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8b-c65a-7413-ac32-d43ded98cf77",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
