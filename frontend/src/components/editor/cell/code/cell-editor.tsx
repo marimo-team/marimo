@@ -358,23 +358,25 @@ const CellEditorInternal = ({
   ]);
 
   const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
+  const createEditorConfig = (initialCode?: string) => {
+    if (!rtcEnabled) {
+      return composeRtcEditorConfig(code, extensions, undefined);
+    }
+
+    const rtc = realTimeCollaboration(
+      cellId,
+      (code) => {
+        // It's not really a formatting change,
+        // but this means it won't be marked as stale
+        cellActions.updateCellCode({ cellId, code, formattingChange: true });
+      },
+      initialCode,
+    );
+    return composeRtcEditorConfig(code, extensions, rtc);
+  };
+
   const handleInitializeEditor = useEvent(() => {
-    const rtc = rtcEnabled
-      ? realTimeCollaboration(
-          cellId,
-          (code) => {
-            // It's not really a formatting change,
-            // but this means it won't be marked as stale
-            cellActions.updateCellCode({
-              cellId,
-              code,
-              formattingChange: true,
-            });
-          },
-          code,
-        )
-      : undefined;
-    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
+    const editorConfig = createEditorConfig(code);
 
     // Create a new editor
     const ev = new EditorView({
@@ -394,14 +396,7 @@ const CellEditorInternal = ({
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
-    const rtc = rtcEnabled
-      ? realTimeCollaboration(cellId, (code) => {
-          // It's not really a formatting change,
-          // but this means it won't be marked as stale
-          cellActions.updateCellCode({ cellId, code, formattingChange: true });
-        })
-      : undefined;
-    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
+    const editorConfig = createEditorConfig();
 
     editorViewRef.current.dispatch({
       effects: [
@@ -422,22 +417,7 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    const rtc = rtcEnabled
-      ? realTimeCollaboration(
-          cellId,
-          (code) => {
-            // It's not really a formatting change,
-            // but this means it won't be marked as stale
-            cellActions.updateCellCode({
-              cellId,
-              code,
-              formattingChange: true,
-            });
-          },
-          code,
-        )
-      : undefined;
-    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
+    const editorConfig = createEditorConfig(code);
 
     const ev = new EditorView({
       state: EditorState.fromJSON(
