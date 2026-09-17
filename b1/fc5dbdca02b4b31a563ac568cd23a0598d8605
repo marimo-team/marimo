@@ -1,0 +1,39 @@
+marimo/_templates.py
+  s_46ac0af93de73f::t_64f405e6a77541 708-710
+  s_46ac0af93de73f::t_e7e48dd35e0860 703-707,711-727
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 728
+tests/_server/templates/snapshots/export2.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+tests/_server/templates/snapshots/export3.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+tests/_server/templates/snapshots/export5.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+tests/_server/templates/test_templates.py
+  s_46ac0af93de73f::t_b3503dc3da499e 1318-1320
+  s_46ac0af93de73f::t_fde35d10c87afa 1321-1326
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 1331
+  s_46ac0af93de73f::t_5e84027629a6d5 1311-1317
+  s_46ac0af93de73f::t_7462a6ce377b32 1327-1330
+tests/_server/templates/snapshots/export1.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+tests/_server/templates/snapshots/export4.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+tests/_server/templates/snapshots/export6.txt
+  s_46ac0af93de73f::t_04d5ac1caa8cdf 11-16,64-68
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b1fc5dbdca02b4b31a563ac568cd23a0598d8605",
+  "prompts": {},
+  "sessions": {
+    "s_46ac0af93de73f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8e-679a-7332-8b0d-fa1156b75f88",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
