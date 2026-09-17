@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { historyField } from "@codemirror/commands";
-import { EditorState, StateEffect } from "@codemirror/state";
+import { EditorState, type Extension, StateEffect } from "@codemirror/state";
 import { EditorView, ViewPlugin } from "@codemirror/view";
 import { useIntersectionObserver } from "@uidotdev/usehooks";
 import { useAtom, useAtomValue } from "jotai";
@@ -93,6 +93,21 @@ export interface CellEditorProps
    * defaults to `#App`.
    */
   tooltipParentSelector?: string;
+}
+
+export function composeRtcEditorConfig(
+  code: string,
+  extensions: Extension[],
+  rtc: ReturnType<typeof realTimeCollaboration> | undefined,
+): { code: string; extensions: Extension[] } {
+  if (!rtc) {
+    return { code, extensions };
+  }
+
+  return {
+    code: rtc.code,
+    extensions: [...extensions, rtc.extension],
+  };
 }
 
 const CellEditorInternal = ({
@@ -344,29 +359,28 @@ const CellEditorInternal = ({
 
   const rtcEnabled = isRtcEnabled() && canUseRtc(cellId);
   const handleInitializeEditor = useEvent(() => {
-    let editorCode = code;
-    let editorExtensions = extensions;
-
-    // If rtc is enabled, use collaborative editing
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(
-        cellId,
-        (code) => {
-          // It's not really a formatting change,
-          // but this means it won't be marked as stale
-          cellActions.updateCellCode({ cellId, code, formattingChange: true });
-        },
-        code,
-      );
-      editorExtensions = [...extensions, rtc.extension];
-      editorCode = rtc.code;
-    }
+    const rtc = rtcEnabled
+      ? realTimeCollaboration(
+          cellId,
+          (code) => {
+            // It's not really a formatting change,
+            // but this means it won't be marked as stale
+            cellActions.updateCellCode({
+              cellId,
+              code,
+              formattingChange: true,
+            });
+          },
+          code,
+        )
+      : undefined;
+    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
 
     // Create a new editor
     const ev = new EditorView({
       state: EditorState.create({
-        doc: editorCode,
-        extensions: editorExtensions,
+        doc: editorConfig.code,
+        extensions: editorConfig.extensions,
       }),
     });
     setEditorView(ev);
@@ -380,21 +394,18 @@ const CellEditorInternal = ({
 
   const handleReconfigureEditor = useEvent(() => {
     invariant(editorViewRef.current !== null, "Editor view is not initialized");
-    let editorExtensions = extensions;
-
-    // If rtc is enabled, use collaborative editing
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(cellId, (code) => {
-        // It's not really a formatting change,
-        // but this means it won't be marked as stale
-        cellActions.updateCellCode({ cellId, code, formattingChange: true });
-      });
-      editorExtensions = [...extensions, rtc.extension];
-    }
+    const rtc = rtcEnabled
+      ? realTimeCollaboration(cellId, (code) => {
+          // It's not really a formatting change,
+          // but this means it won't be marked as stale
+          cellActions.updateCellCode({ cellId, code, formattingChange: true });
+        })
+      : undefined;
+    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
 
     editorViewRef.current.dispatch({
       effects: [
-        StateEffect.reconfigure.of([editorExtensions]),
+        StateEffect.reconfigure.of([editorConfig.extensions]),
         reconfigureLanguageEffect(editorViewRef.current, {
           completionConfig: userConfig.completion,
           hotkeysProvider: new OverridingHotkeyProvider(
@@ -411,29 +422,29 @@ const CellEditorInternal = ({
 
   const handleDeserializeEditor = useEvent(() => {
     invariant(serializedEditorState, "Editor view is not initialized");
-    let editorCode = code;
-    let editorExtensions = extensions;
-
-    if (rtcEnabled) {
-      const rtc = realTimeCollaboration(
-        cellId,
-        (code) => {
-          // It's not really a formatting change,
-          // but this means it won't be marked as stale
-          cellActions.updateCellCode({ cellId, code, formattingChange: true });
-        },
-        code,
-      );
-      editorExtensions = [...extensions, rtc.extension];
-      editorCode = rtc.code;
-    }
+    const rtc = rtcEnabled
+      ? realTimeCollaboration(
+          cellId,
+          (code) => {
+            // It's not really a formatting change,
+            // but this means it won't be marked as stale
+            cellActions.updateCellCode({
+              cellId,
+              code,
+              formattingChange: true,
+            });
+          },
+          code,
+        )
+      : undefined;
+    const editorConfig = composeRtcEditorConfig(code, extensions, rtc);
 
     const ev = new EditorView({
       state: EditorState.fromJSON(
         serializedEditorState,
         {
-          doc: editorCode,
-          extensions: editorExtensions,
+          doc: editorConfig.code,
+          extensions: editorConfig.extensions,
         },
         { history: historyField },
       ),
