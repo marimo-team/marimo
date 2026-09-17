@@ -257,3 +257,43 @@
   --shadow-md-solid-shade:
     4px 4px 0px 0px var(--base-shadow), 0 0px 2px 0px hsl(0deg 0% 60% / 50%);
 }
+
+/* Semantic colors. `inline` makes utilities reference the source variable
+   directly, so overrides on `body.dark` and island containers take effect. */
+@theme inline {
+  --color-border: var(--border);
+  --color-shade: var(--base-shadow);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-link: var(--link);
+  --color-link-visited: var(--link-visited);
+  --color-stale: var(--stale);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-border: var(--destructive-border);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-success: var(--success);
+  --color-success-hover: var(--success-hover);
+  --color-success-border: var(--success-border);
+  --color-success-foreground: var(--success-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-action-border: var(--action-border);
+  --color-action-foreground: var(--action-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+}
