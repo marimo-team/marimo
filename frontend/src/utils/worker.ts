@@ -15,6 +15,7 @@ export function createModuleWorker(url: URL, options: WorkerOptions): Worker {
     return new Worker(source, { ...options, type: "module" });
   } finally {
     if (source.startsWith("blob:")) {
+      // Worker() captures the Blob before returning, even while imports load.
       URL.revokeObjectURL(source);
     }
   }
