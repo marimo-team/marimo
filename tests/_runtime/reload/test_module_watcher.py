@@ -7,6 +7,7 @@ import sys
 import textwrap
 import types
 from queue import Queue
+from typing import Any
 
 import pytest
 from reload_test_utils import random_modname, update_file
@@ -949,7 +950,7 @@ class TestCheckModules:
 
         # _check_modules should detect it's stale
         modules = {"test_check_mod": mod}
-        stale = _check_modules(modules, reloader, sys.modules)
+        stale, _ = _check_modules(modules, reloader, sys.modules)
 
         assert "test_check_mod" in stale
 
@@ -958,7 +959,7 @@ class TestCheckModules:
         reloader = ModuleReloader()
         modules = {"os": sys.modules["os"]}
 
-        stale = _check_modules(modules, reloader, sys.modules)
+        stale, _ = _check_modules(modules, reloader, sys.modules)
         assert len(stale) == 0
 
     def test_check_modules_empty_input(self):
@@ -966,7 +967,7 @@ class TestCheckModules:
         reloader = ModuleReloader()
         modules = {}
 
-        stale = _check_modules(modules, reloader, sys.modules)
+        stale, _ = _check_modules(modules, reloader, sys.modules)
         assert len(stale) == 0
 
 
@@ -1200,3 +1201,144 @@ class TestAutoreloadManagerLifecycle:
         watcher.run_is_processed.clear()
         await k.run([exec_req.get("x = 1")])
         assert watcher.run_is_processed.is_set()
+
+
+async def test_watcher_does_not_restale_cells_rerun_after_reload(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A rerun that reloads a module must not be flagged stale afterwards.
+
+    The watcher detects a modification, then crawls module dependencies
+    before marking cells stale. If the file changes again inside that gap
+    (format-on-save, a second save), the kernel may reload and rerun the
+    importing cells first; the watcher's late marking then flags cells that
+    are already fresh.
+    """
+    import threading
+
+    import marimo._runtime.reload.module_watcher as mw
+
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("def foo():\n    return 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run(
+        [
+            er_1 := exec_req.get(f"from {py_modname} import foo"),
+            er_2 := exec_req.get("x = foo()"),
+        ]
+    )
+    assert k.globals["x"] == 1
+
+    # First edit: let the watcher mark the cells stale as usual.
+    update_file(py_file, "def foo():\n    return 2\n")
+    for _ in range(25):
+        await asyncio.sleep(INTERVAL)
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+    assert k.graph.cells[er_1.cell_id].stale
+
+    # Hold the watcher inside its dependency crawl so the kernel can reload
+    # and rerun before the watcher marks.
+    crawl_started = threading.Event()
+    release_crawl = threading.Event()
+    real_depends_on = mw._depends_on
+
+    def held_depends_on(**kwargs: Any) -> bool:
+        # Only park on the iteration that detected a modification.
+        if kwargs["target_modules"]:
+            crawl_started.set()
+            release_crawl.wait(timeout=10)
+        return real_depends_on(**kwargs)
+
+    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
+
+    # Second edit: the watcher detects it and parks in the crawl.
+    update_file(py_file, "def foo():\n    return 3\n")
+    for _ in range(25):
+        await asyncio.sleep(INTERVAL)
+        if crawl_started.is_set():
+            break
+    assert crawl_started.is_set()
+
+    await k.run_stale_cells()
+    assert k.globals["x"] == 3
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+
+    release_crawl.set()
+    for _ in range(5):
+        await asyncio.sleep(INTERVAL)
+
+    assert not k.graph.cells[er_1.cell_id].stale
+    assert not k.graph.cells[er_2.cell_id].stale
+    # The late marking must not prune the import block's metadata either;
+    # otherwise its next run would needlessly rerun every descendant.
+    assert k.graph.cells[er_1.cell_id].import_workspace.imported_defs == {
+        "foo"
+    }
+
+
+async def test_watcher_marks_cell_whose_context_ran_without_rerun(
+    tmp_path: pathlib.Path,
+    py_modname: str,
+    execution_kernel: Kernel,
+    exec_req: ExecReqProvider,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """UI callbacks, RPCs and the debugger enter a cell's execution context
+    without rerunning its top-level code. That must not count as a rerun,
+    or the watcher would skip marking the cell stale."""
+    import threading
+
+    import marimo._runtime.reload.module_watcher as mw
+
+    k = execution_kernel
+    sys.path.append(str(tmp_path))
+    py_file = tmp_path / pathlib.Path(py_modname + ".py")
+    py_file.write_text("def foo():\n    return 1\n")
+
+    config = copy.deepcopy(DEFAULT_CONFIG)
+    config["runtime"]["auto_reload"] = "lazy"
+    k.set_user_config(UpdateUserConfigCommand(config=config))
+    await k.run([er_1 := exec_req.get(f"from {py_modname} import foo")])
+
+    crawl_started = threading.Event()
+    release_crawl = threading.Event()
+    real_depends_on = mw._depends_on
+
+    def held_depends_on(**kwargs: Any) -> bool:
+        if kwargs["target_modules"]:
+            crawl_started.set()
+            release_crawl.wait(timeout=10)
+        return real_depends_on(**kwargs)
+
+    monkeypatch.setattr(mw, "_depends_on", held_depends_on)
+
+    update_file(py_file, "def foo():\n    return 2\n")
+    for _ in range(25):
+        await asyncio.sleep(INTERVAL)
+        if crawl_started.is_set():
+            break
+    assert crawl_started.is_set()
+
+    # Non-cell work in the cell's context: reloads, but the cell's code
+    # did not rerun.
+    with k._install_execution_context(er_1.cell_id):
+        pass
+    assert not k.graph.cells[er_1.cell_id].stale
+
+    release_crawl.set()
+    for _ in range(25):
+        await asyncio.sleep(INTERVAL)
+        if k.graph.cells[er_1.cell_id].stale:
+            break
+    assert k.graph.cells[er_1.cell_id].stale
