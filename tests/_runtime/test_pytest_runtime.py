@@ -444,19 +444,31 @@ def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
 
 
 def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
-    """A module first imported during a test run must survive to the next run.
+    """Installed modules first imported during a run survive to the next run.
 
-    `run_pytest` restores `sys.modules` after each run. Anything a test imported
-    lazily (e.g. `torch.manual_seed` -> `torch._dynamo` -> `TORCH_LIBRARY`
-    registration) is evicted, so the next run re-executes the module body.
-    Registrations that live outside the Python module (C++ dispatcher state)
-    persist, and the re-import raises "Only a single TORCH_LIBRARY can be used
-    to register the namespace".
+    `run_pytest` restores `sys.modules` after each run so project-local
+    imports (conftest, helpers) reload with edits. Installed packages must be
+    kept: evicting one that a test imported lazily (e.g. `torch.manual_seed`
+    -> `torch._dynamo` -> `TORCH_LIBRARY` registration) re-executes its body
+    next run, while state outside the Python module (C++ dispatcher) persists,
+    raising "Only a single TORCH_LIBRARY can be used to register the
+    namespace".
     """
     import marimo
     from marimo._runtime.pytest import run_pytest
+    from marimo._runtime.reload import autoreload
 
-    pkg = tmp_path / "fake_torch"
+    # Stand in for an installed package: extend the stdlib/site-packages
+    # roots so `fake_torch` classifies as non-user code.
+    roots = autoreload._non_user_module_roots()
+    installed = os.path.normcase(os.path.realpath(tmp_path / "installed"))
+    monkeypatch.setattr(
+        autoreload,
+        "_non_user_module_roots",
+        lambda: roots + (installed + os.sep,),
+    )
+    (tmp_path / "installed").mkdir()
+    pkg = tmp_path / "installed" / "fake_torch"
     pkg.mkdir()
     (pkg / "__init__.py").write_text(
         "from . import _C\n\n"
@@ -475,6 +487,9 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
     (pkg / "_dynamo.py").write_text(
         "from . import _C\n\n_C.dispatch_library('_inductor_test')\n"
     )
+    # Project-local helper, imported lazily by the test.
+    (tmp_path / "local_helper.py").write_text("VALUE = 1\n")
+    monkeypatch.syspath_prepend(str(tmp_path / "installed"))
     monkeypatch.syspath_prepend(str(tmp_path))
 
     app = marimo.App()
@@ -488,7 +503,10 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
     @app.cell
     def _(fake_torch):
         def test_seed():
+            import local_helper  # type: ignore[import-not-found]
+
             fake_torch.seed()
+            assert local_helper.VALUE == 1
 
         return
 
@@ -505,14 +523,23 @@ def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
             run_pytest(defs={"test_seed"}, lcls=lcls, notebook_path=notebook)
             for _ in range(2)
         ]
+        dynamo_kept = "fake_torch._dynamo" in sys.modules
+        helper_kept = "local_helper" in sys.modules
     finally:
         if previous:
             os.environ["PYTEST_CURRENT_TEST"] = previous
-        for name in [n for n in sys.modules if n.startswith("fake_torch")]:
+        for name in [
+            n
+            for n in sys.modules
+            if n.startswith("fake_torch") or n == "local_helper"
+        ]:
             del sys.modules[name]
 
     for run, result in enumerate(results, start=1):
         assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
             f"run {run}: {result.output}"
         )
-    assert "fake_torch._dynamo" in sys.modules
+    # Installed modules survive the run; project-local ones are evicted so
+    # edits are picked up on the next run.
+    assert dynamo_kept
+    assert not helper_kept
