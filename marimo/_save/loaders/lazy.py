@@ -507,6 +507,11 @@ class LazyStore(Store):
     def local_dirs(self) -> list[Path]:
         return self._inner.local_dirs()
 
+    def clearable_root(self) -> Path | None:
+        # This wrapper adds bookkeeping, not storage, so it can be cleared by
+        # enumeration exactly when the store it delegates to can.
+        return self._inner.clearable_root()
+
 
 class WasmLazyStore(LazyStore):
     """WASM store: writes to a shared in-session `DictStore`; reads fall

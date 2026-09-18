@@ -53,6 +53,16 @@ class TestFileStore:
         result = store.clear("nonexistent")
         assert result is False
 
+    def test_clear_removes_a_key_stored_in_parts(self, tmp_path) -> None:
+        """A value written under a key prefix is cleared with that key."""
+        store = FileStore(tmp_path / "test_store")
+        store.put("entry/return.pickle", b"test data")
+        store.put("entry/x.pickle", b"more data")
+
+        assert store.clear("entry") is True
+        assert not (tmp_path / "test_store" / "entry").exists()
+        assert store.clear("entry") is False
+
     def test_default_path_is_lazy(self) -> None:
         """Default save_path is not resolved at construction time."""
         store = FileStore()
