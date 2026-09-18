@@ -97,7 +97,7 @@ def test_0d_array() -> None:
     reason="pandas and numpy are required",
 )
 def test_dataframe_with_integer_columns() -> None:
-    """Regression: pd.DataFrame(np.random.randn(3, 3)) has integer column names.
+    """Regression: a DataFrame from an array has integer column names.
 
     narwhals interprets df[0] as row selection, not column selection, causing
     AttributeError: 'DataFrame' object has no attribute 'dtype'.
@@ -105,7 +105,7 @@ def test_dataframe_with_integer_columns() -> None:
     import numpy as np
     import pandas as pd
 
-    df = pd.DataFrame(np.random.randn(3, 3))
+    df = pd.DataFrame(np.random.default_rng(0).standard_normal((3, 3)))
     # Must not raise
     result = deterministic_dumps(df, hash_type="sha256")
     assert isinstance(result, bytes)

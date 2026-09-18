@@ -85,7 +85,8 @@ async def test_audio_numpy_mono(k: Kernel, exec_req: ExecReqProvider) -> None:
                 """
                 import marimo as mo
                 import numpy as np
-                data = np.random.rand(1000) * 2 - 1  # Random values between -1 and 1
+                rng = np.random.default_rng(0)
+                data = rng.random(1000) * 2 - 1  # Random values between -1 and 1
                 audio = mo.audio(data, rate=44100)
                 """
             ),
@@ -106,7 +107,8 @@ async def test_audio_numpy_normalize(
                 """
                 import marimo as mo
                 import numpy as np
-                data = np.random.rand(1000) * 10  # Values > 1
+                rng = np.random.default_rng(0)
+                data = rng.random(1000) * 10  # Values > 1
                 audio = mo.audio(data, rate=44100, normalize=True)
                 """
             ),
@@ -121,18 +123,20 @@ async def test_audio_numpy_normalize(
 async def test_audio_numpy_constructor() -> None:
     import numpy as np
 
+    rng = np.random.default_rng(0)
+
     # Rate
-    data = np.random.rand(1000) * 2 - 1  # Random values between -1 and 1
+    data = rng.random(1000) * 2 - 1  # Random values between -1 and 1
     res = audio(data, rate=44100, normalize=False)
     assert res.text.startswith("<audio src='data:audio/")
 
     # Don't normalize out of range
-    data = np.random.rand(1000) * 10  # Values > 1
+    data = rng.random(1000) * 10  # Values > 1
     with pytest.raises(ValueError):
         res = audio(data, rate=44100, normalize=False)
 
     # Normalize in range
-    data = np.random.rand(1000) * 10  # Values > 1
+    data = rng.random(1000) * 10  # Values > 1
     res = audio(data, rate=44100, normalize=True)
 
     # No rate
