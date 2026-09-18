@@ -29,6 +29,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar
 from marimo import _loggers
 from marimo._ast.cell import CellImpl
 from marimo._messaging.tracebacks import write_traceback
+from marimo._types.ids import CellId_t
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -209,8 +210,14 @@ class ModuleReloader:
         self.modules_mtimes: dict[str, float] = {}
         # set of modules names known to be stale but haven't been reloaded
         self.stale_modules: set[str] = set()
-        # for thread-safety
-        self.lock = threading.Lock()
+        # Bumped on every reload. Cells record the generation they ran
+        # under so the watcher can tell a cell rerun after a reload apart
+        # from one that still holds the old code.
+        self.reload_generation = 0
+        self._cell_generations: dict[CellId_t, int] = {}
+        # for thread-safety; reentrant so callers can compose `check` with
+        # a read of `reload_generation` atomically.
+        self.lock = threading.RLock()
         self._module_dependency_finder = ModuleDependencyFinder()
         # modname -> cached `__file__` for modules classified as non-user.
         # Populated by every `check()` call (memoizing `is_user_module`);
@@ -256,6 +263,16 @@ class ModuleReloader:
         except OSError:
             return None
         return ModuleMTime(py_filename, pymtime)
+
+    def record_cell_run(self, cell_id: CellId_t) -> None:
+        """Note that `cell_id` is running against the current generation."""
+        with self.lock:
+            self._cell_generations[cell_id] = self.reload_generation
+
+    def cell_ran_since(self, cell_id: CellId_t, generation: int) -> bool:
+        """Whether `cell_id` last ran after a reload newer than `generation`."""
+        with self.lock:
+            return self._cell_generations.get(cell_id, 0) > generation
 
     def cell_uses_stale_modules(self, cell: CellImpl) -> bool:
         with self.lock:
@@ -348,6 +365,8 @@ class ModuleReloader:
 
             # Pre-filter stale modules to only those present in modules dict
             relevant_stale_modules = self.stale_modules & modules.keys()
+            if relevant_stale_modules:
+                self.reload_generation += 1
             for modname in relevant_stale_modules:
                 # Reload after the check loop: if there are any
                 # previously discovered stale modules, reload those as well

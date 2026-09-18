@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from marimo._ast.cell import CellImpl
     from marimo._runtime.runner.hook_context import OnFinishHookContext
     from marimo._runtime.runtime import Kernel
+    from marimo._types.ids import CellId_t
 
 AutoReloadMode = Literal["off", "lazy", "autorun"]
 
@@ -79,7 +80,7 @@ class AutoreloadManager:
             self._kernel.graph.set_stale({cell.cell_id}, prune_imports=True)
 
     @contextlib.contextmanager
-    def cell_scope(self) -> Iterator[None]:
+    def cell_scope(self, cell_id: CellId_t) -> Iterator[None]:
         """Reload modified modules on entry; record mtimes for newly-imported modules on exit."""
         if self._reloader is None:
             yield
@@ -90,6 +91,8 @@ class AutoreloadManager:
         self._reloader.check(
             modules=sys.modules, reload=True, skip_non_user_modules=True
         )
+        # The cell now runs against the freshly reloaded modules.
+        self._reloader.record_cell_run(cell_id)
         try:
             yield
         finally:

@@ -850,7 +850,7 @@ class Kernel:
                 stderr=self.stderr,
                 stdin=self.stdin,
             ),
-            self.autoreload_manager.cell_scope(),
+            self.autoreload_manager.cell_scope(cell_id),
         ):
             try:
                 yield exec_ctx

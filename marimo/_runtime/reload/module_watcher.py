@@ -123,9 +123,17 @@ def _check_modules(
     modules: dict[str, types.ModuleType],
     reloader: ModuleReloader,
     sys_modules: dict[str, types.ModuleType],
-) -> dict[str, types.ModuleType]:
-    """Returns the set of modules used by the graph that have been modified"""
-    modified_modules = reloader.check(modules=sys_modules, reload=False)
+) -> tuple[dict[str, types.ModuleType], int]:
+    """Returns the modules used by the graph that have been modified, and
+    the reload generation at the moment of detection.
+
+    The dependency crawl below can take seconds. The kernel may reload and
+    rerun cells in that window; the generation lets the caller skip cells
+    that already ran against the new code.
+    """
+    with reloader.lock:
+        modified_modules = reloader.check(modules=sys_modules, reload=False)
+        generation = reloader.reload_generation
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
     excludes = _get_excluded_modules(sys_modules)
@@ -146,7 +154,7 @@ def _check_modules(
             reloader=reloader,
         )
     }
-    return stale_modules
+    return stale_modules, generation
 
 
 MODULE_WATCHER_SLEEP_INTERVAL = 1.0
@@ -185,7 +193,7 @@ def watch_modules(
                         modules[modname] = sys_modules[modname]
                         modname_to_cell_id[modname] = cell_id
 
-        stale_modules = _check_modules(
+        stale_modules, generation = _check_modules(
             modules=modules,
             reloader=reloader,
             sys_modules=sys_modules,
@@ -217,6 +225,9 @@ def watch_modules(
                     relatives=dataflow.get_import_block_relatives(graph),
                 )
                 for cid in stale_cell_ids:
+                    # Reran after a newer reload: already holds the new code.
+                    if reloader.cell_ran_since(cid, generation):
+                        continue
                     graph.cells[cid].set_stale(stale=True, stream=stream)
             LOGGER.debug("Released graph lock and updated stale statuses.")
 
