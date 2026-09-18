@@ -26,7 +26,9 @@ from marimo._cli.pair.client import (
     registry_urls,
     resolve_session,
 )
+from marimo._cli.pair.prompts import render_prompt
 from marimo._server.ai.skills import utils as skills_utils
+from marimo._utils.env import is_env_true
 
 SKILL_NAME = "marimo-pair"
 SKILL_FILE = "SKILL.md"
@@ -203,17 +205,23 @@ class _DocsCommand(ColoredCommand):
     help="""Pair with a live marimo notebook.
 
     \b
+    Authentication:
+      If a token-file path is supplied, add --token-file <PATH> to every
+      execute and notebook list command. Pass the path, not the file contents.
+      Otherwise, these commands use MARIMO_TOKEN when set.
+
+    \b
     Workflow:
-      If you do not have the server URL and session id:
+      If you do not have the server URL or notebook file:
         marimo pair notebook list
-      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+      marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
           ctx.packages.add("pandas")
           cid = ctx.create_cell("import pandas as pd")
           ctx.run_cell(cid)
       PY
-      marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+      marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
       import marimo._code_mode as cm
       async with cm.get_context() as ctx:
           cell = ctx.cells["<CELL_ID>"]
@@ -221,19 +229,31 @@ class _DocsCommand(ColoredCommand):
       PY
 
     \b
+    Target selection:
+      If the notebook file is known, use --file <FILE> without --session.
+      This resolves the notebook's current session after a page reload.
+      If no file is known, use the supplied --session <SESSION>.
+      If --file matches multiple sessions, use the supplied session for the intended notebook.
+      If the intended session is unclear, run marimo pair notebook list again.
+      Session IDs change when the page reloads. If execute reports a stale
+      session, run marimo pair notebook list again.
+      If both options are supplied, --session takes precedence over --file.
+      Do not switch sessions after authentication or connection errors,
+      or when execution is unconfirmed.
+
+    \b
     Rules:
-      Cells are the unit of work. The scratchpad is temporary; only cm edits persist.
+      Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
       Cells do not run on creation. Call run_cell after create_cell or edit_cell.
       Use async with. Do not await ctx methods.
       Install packages with ctx.packages.add, not uv add or pip. Installs change
       the project; confirm when the user did not ask.
       If an empty cell exists, edit_cell it instead of creating one.
       delete_cell drops the cell's variables. Ask before deleting.
-      Session IDs change when the page reloads. If execute reports a stale
-      session, run notebook list again.
 
     \b
-    Code-mode API (this marimo version):
+    Code-mode API:
+      Prefer marimo._code_mode to inspect, create, edit, run, and delete notebook cells.
       ctx.cells                 # each has .id .code .status .errors .console_outputs
       ctx.create_cell(code)     # returns the new cell id
       ctx.edit_cell(cid, code)
@@ -241,7 +261,7 @@ class _DocsCommand(ColoredCommand):
       ctx.delete_cell(cid)
       ctx.packages.add("pandas>=2")  # queued, installs on exit
       If a cm call fails, run help(cm):
-        marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
+        marimo pair execute --url <URL> --file <FILE> -c 'import marimo._code_mode as cm; help(cm)'
     """,
 )
 def pair() -> None:
@@ -583,6 +603,13 @@ def docs(topic: str | None) -> None:
     help="Notebook path or file key from the page URL.",
 )
 @click.option(
+    "--session",
+    "session_id",
+    default=None,
+    type=str,
+    help="Current session ID to include in the prompt.",
+)
+@click.option(
     "--claude",
     is_flag=True,
     default=False,
@@ -604,11 +631,12 @@ def docs(topic: str | None) -> None:
     "--with-token",
     is_flag=True,
     default=False,
-    help="Prompt for an auth token and store it in a temp file.",
+    help="Prompt for an auth token and store it in a temp file. Leave empty if MARIMO_TOKEN is set.",
 )
 def prompt(
     url: str,
     file_path: str | None,
+    session_id: str | None,
     claude: bool,
     codex: bool,
     opencode: bool,
@@ -629,50 +657,75 @@ def prompt(
         # With an auth token
         claude "$(uvx marimo@latest pair prompt --url 'https://localhost:8000' --claude --with-token)"
     """
+    preview = is_env_true("MARIMO_PAIR_NEXT")
+    if not preview:
+        selected_agents = {
+            "claude": claude,
+            "codex": codex,
+            "opencode": opencode,
+        }
+        for key, agent in pair_agents().items():
+            if not selected_agents[key]:
+                continue
+            if not agent.has_skill():
+                click.echo(
+                    f"The marimo-pair skill for {agent.name} could not be found.\n\n"
+                    "Please install it with:\n\n"
+                    "  npx skills add marimo-team/marimo-pair\n\n"
+                    "or\n\n"
+                    "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
+                    "More instructions at "
+                    "https://github.com/marimo-team/marimo-pair",
+                    err=True,
+                )
+
+    token_file: Path | None = None
+    if with_token:
+        token = click.prompt(
+            "Auth token (leave empty if MARIMO_TOKEN is set)",
+            default="",
+            show_default=False,
+            hide_input=True,
+            err=True,
+        )
+        if token:
+            token_dir = _token_dir()
+            url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
+            token_file = token_dir / f"{url_hash}-token.txt"
+            token_dir.mkdir(parents=True, exist_ok=True)
+            # Open the token file for writing, creating it with restrictive
+            # permissions if needed and truncating it if it already exists.
+            flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+            fd = os.open(token_file, flags, 0o600)
+            try:
+                os.write(fd, token.encode())
+            finally:
+                os.close(fd)
+
+    if preview:
+        click.echo(
+            render_prompt(
+                url=url,
+                file_path=file_path,
+                session_id=session_id,
+                token_file=token_file,
+            )
+        )
+        return
+
     # Preserve the file key exactly as supplied. Relative keys are resolved by
     # the server workspace and may refer to a remote or non-POSIX filesystem.
     # Shell-quote dynamic values because this command is copy-pasted into a
     # shell and paths may contain spaces or metacharacters.
-    file_flag = f" --file {shlex.quote(file_path)}" if file_path else ""
-    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}{file_flag}"
-    # Validate that the selected agents have the required skills
-    selected_agents = {
-        "claude": claude,
-        "codex": codex,
-        "opencode": opencode,
-    }
-    for key, agent in pair_agents().items():
-        if not selected_agents[key]:
-            continue
-        if not agent.has_skill():
-            click.echo(
-                f"The marimo-pair skill for {agent.name} could not be found.\n\n"
-                "Please install it with:\n\n"
-                "  npx skills add marimo-team/marimo-pair\n\n"
-                "or\n\n"
-                "  uvx deno -A npm:skills add marimo-team/marimo-pair\n\n"
-                "More instructions at "
-                "https://github.com/marimo-team/marimo-pair",
-                err=True,
-            )
+    execute_cmd = f"execute-code.sh --url {shlex.quote(url)}"
+    # The legacy script accepts only one selector. Match execute's precedence.
+    if session_id:
+        execute_cmd += f" --session {shlex.quote(session_id)}"
+    elif file_path:
+        execute_cmd += f" --file {shlex.quote(file_path)}"
 
-    # Prompt for token and write it to a temp file if --with-token is set
     token_hint = ""
-    if with_token:
-        token_dir = _token_dir()
-        url_hash = hashlib.sha256(url.encode()).hexdigest()[:6]
-        token_file = token_dir / f"{url_hash}-token.txt"
-        token = click.prompt("Auth token", hide_input=True, err=True)
-        token_dir.mkdir(parents=True, exist_ok=True)
-        # Open the token file for writing, creating it with restrictive
-        # permissions if needed and truncating it if it already exists.
-        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
-        fd = os.open(token_file, flags, 0o600)
-        try:
-            os.write(fd, token.encode())
-        finally:
-            os.close(fd)
-
+    if token_file is not None:
         token_hint = (
             f"\n\nAn auth token is stored at {token_file}. "
             f"Pass it via `{execute_cmd} "

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
+import shlex
 import sys
 from pathlib import Path
 from typing import Any
@@ -36,6 +38,11 @@ _runner = CliRunner()
 TEST_URL = "https://localhost:8000?auth=tok123"
 
 
+@pytest.fixture(autouse=True)
+def _isolate_pair_preview(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("MARIMO_PAIR_NEXT", raising=False)
+
+
 class TestPairGroup:
     def test_pair_help(self) -> None:
         result = _runner.invoke(cli_main, ["pair", "--help"])
@@ -47,35 +54,51 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
 
   Pair with a live marimo notebook.
 
+  Authentication:
+    If a token-file path is supplied, add --token-file <PATH> to every
+    execute and notebook list command. Pass the path, not the file contents.
+    Otherwise, these commands use MARIMO_TOKEN when set.
+
   Workflow:
-    If you do not have the server URL and session id:
+    If you do not have the server URL or notebook file:
       marimo pair notebook list
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         ctx.packages.add("pandas")
         cid = ctx.create_cell("import pandas as pd")
         ctx.run_cell(cid)
     PY
-    marimo pair execute --url <URL> --session <SESSION> --code-file - <<'PY'
+    marimo pair execute --url <URL> --file <FILE> --code-file - <<'PY'
     import marimo._code_mode as cm
     async with cm.get_context() as ctx:
         cell = ctx.cells["<CELL_ID>"]
         print(cell.status, cell.errors, [o.data for o in cell.console_outputs])
     PY
 
+  Target selection:
+    If the notebook file is known, use --file <FILE> without --session.
+    This resolves the notebook's current session after a page reload.
+    If no file is known, use the supplied --session <SESSION>.
+    If --file matches multiple sessions, use the supplied session for the intended notebook.
+    If the intended session is unclear, run marimo pair notebook list again.
+    Session IDs change when the page reloads. If execute reports a stale
+    session, run marimo pair notebook list again.
+    If both options are supplied, --session takes precedence over --file.
+    Do not switch sessions after authentication or connection errors,
+    or when execution is unconfirmed.
+
   Rules:
-    Cells are the unit of work. The scratchpad is temporary; only cm edits persist.
+    Cells are the unit of work. The scratchpad is temporary; only code mode edits persist.
     Cells do not run on creation. Call run_cell after create_cell or edit_cell.
     Use async with. Do not await ctx methods.
     Install packages with ctx.packages.add, not uv add or pip. Installs change
     the project; confirm when the user did not ask.
     If an empty cell exists, edit_cell it instead of creating one.
     delete_cell drops the cell's variables. Ask before deleting.
-    Session IDs change when the page reloads. If execute reports a stale
-    session, run notebook list again.
 
-  Code-mode API (this marimo version):
+  Code-mode API:
+    Prefer marimo._code_mode to inspect, create, edit, run, and delete notebook cells.
     ctx.cells                 # each has .id .code .status .errors .console_outputs
     ctx.create_cell(code)     # returns the new cell id
     ctx.edit_cell(cid, code)
@@ -83,7 +106,7 @@ Usage: main pair [OPTIONS] COMMAND [ARGS]...
     ctx.delete_cell(cid)
     ctx.packages.add("pandas>=2")  # queued, installs on exit
     If a cm call fails, run help(cm):
-      marimo pair execute --url <URL> --session <SESSION> -c 'import marimo._code_mode as cm; help(cm)'
+      marimo pair execute --url <URL> --file <FILE> -c 'import marimo._code_mode as cm; help(cm)'
 
 Options:
   -h, --help  Show this message and exit.
@@ -103,7 +126,7 @@ Commands:
         assert "--codex" in result.output
         assert "--opencode" in result.output
         assert "--file" in result.output
-        assert "--session" not in result.output
+        assert "--session" in result.output
 
 
 class TestPairExecute:
@@ -1321,14 +1344,23 @@ class TestPairPrompt:
         result = _runner.invoke(cli_main, ["pair", "prompt"])
         assert result.exit_code != 0
 
-    def test_prompt_outputs_url(self) -> None:
+    @pytest.mark.parametrize("flag", [None, "0", "false", ""])
+    def test_prompt_outputs_url(self, flag: str | None) -> None:
         result = _runner.invoke(
-            cli_main, ["pair", "prompt", "--url", TEST_URL]
+            cli_main,
+            ["pair", "prompt", "--url", TEST_URL],
+            env={"MARIMO_PAIR_NEXT": flag},
         )
         assert result.exit_code == 0
-        assert TEST_URL in result.output
-        assert "execute-code.sh" in result.output
-        assert "marimo-pair" in result.output
+        assert result.output == snapshot("""\
+Use the /marimo-pair skill to pair-program on a running marimo notebook.
+
+Connect to the notebook at: https://localhost:8000?auth=tok123
+
+Use `execute-code.sh --url 'https://localhost:8000?auth=tok123'` from the marimo-pair skill to execute code in the notebook.
+
+Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+""")
 
     def test_prompt_with_file(self) -> None:
         result = _runner.invoke(
@@ -1355,13 +1387,62 @@ class TestPairPrompt:
         assert "--file" not in result.output
         assert "--session" not in result.output
 
-    def test_prompt_rejects_removed_session_option(self) -> None:
+    def test_prompt_with_session(self) -> None:
         result = _runner.invoke(
             cli_main,
             ["pair", "prompt", "--url", TEST_URL, "--session", "s_ab12cd"],
         )
-        assert result.exit_code != 0
-        assert "--session" in result.output
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Use the /marimo-pair skill to pair-program on a running marimo notebook.
+
+Connect to the notebook at: https://localhost:8000?auth=tok123
+
+Use `execute-code.sh --url 'https://localhost:8000?auth=tok123' --session s_ab12cd` from the marimo-pair skill to execute code in the notebook.
+
+Once you are connected, send a fun toast (mo.status.toast(...)) to the user inside marimo letting them know you're ready to pair.
+""")
+
+    @pytest.mark.parametrize("flag", [None, "0", "false", ""])
+    @pytest.mark.parametrize("with_token", [False, True])
+    def test_legacy_prompt_with_both_selectors_uses_session(
+        self, tmp_path: Path, flag: str | None, with_token: bool
+    ) -> None:
+        args = [
+            "pair",
+            "prompt",
+            "--url",
+            TEST_URL,
+            "--file",
+            "notebooks/my notebook.py",
+            "--session",
+            "s_ab12cd",
+        ]
+        if with_token:
+            args.append("--with-token")
+        with patch.object(commands, "_token_dir", return_value=tmp_path):
+            result = _runner.invoke(
+                cli_main,
+                args,
+                input="test-token\n" if with_token else None,
+                env={"MARIMO_PAIR_NEXT": flag},
+            )
+
+        assert result.exit_code == 0
+        execution_commands = re.findall(
+            r"`(execute-code\.sh [^`]+)`", result.stdout
+        )
+        assert len(execution_commands) == (2 if with_token else 1)
+        for command in execution_commands:
+            argv = shlex.split(command)
+            assert argv[:5] == [
+                "execute-code.sh",
+                "--url",
+                TEST_URL,
+                "--session",
+                "s_ab12cd",
+            ]
+            assert "--file" not in argv
 
     def test_prompt_shell_quotes_file_paths(self) -> None:
         cases = [
@@ -1455,7 +1536,172 @@ class TestPairPrompt:
         assert "could not be found" not in result.output
 
 
+class TestPairPromptPreview:
+    def test_with_token_uses_private_file(self, tmp_path: Path) -> None:
+        token_dir = tmp_path / "tokens ' {command}"
+        with patch.object(commands, "_token_dir", return_value=token_dir):
+            result = _runner.invoke(
+                cli_main,
+                [
+                    "pair",
+                    "prompt",
+                    "--url",
+                    "http://localhost:2718",
+                    "--session",
+                    "s_ab12cd",
+                    "--with-token",
+                ],
+                env={"MARIMO_PAIR_NEXT": "1"},
+                input="my-secret-token\n",
+            )
+
+        assert result.exit_code == 0
+        assert (
+            "Auth token (leave empty if MARIMO_TOKEN is set):" in result.stderr
+        )
+        assert "my-secret-token" not in result.output
+        token_file = next(token_dir.iterdir())
+        assert token_file.read_text() == "my-secret-token"
+        if sys.platform != "win32":
+            assert token_file.stat().st_mode & 0o777 == 0o600
+
+        token_command = re.search(r"`(--token-file .+)`", result.stdout)
+        assert token_command is not None
+        assert shlex.split(token_command.group(1)) == [
+            "--token-file",
+            str(token_file),
+        ]
+        assert result.stdout.replace(
+            shlex.quote(str(token_file)), "<TOKEN_FILE>"
+        ) == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+Session: s_ab12cd
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+
+For authenticated Pair commands, pass `--token-file <TOKEN_FILE>`.
+""")
+
+    @pytest.mark.parametrize("agent", ["--claude", "--codex", "--opencode"])
+    def test_prompt_needs_no_skill(
+        self,
+        agent: str,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        result = _runner.invoke(
+            cli_main,
+            ["pair", "prompt", "--url", "http://localhost:2718", agent],
+            env={"MARIMO_PAIR_NEXT": "1"},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
+
+    def test_prompt_preserves_connection_details(self) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                "http://localhost:2718/{session}",
+                "--file",
+                "{command}/it's notebook.py",
+                "--session",
+                "{file}",
+            ],
+            env={"MARIMO_PAIR_NEXT": "1"},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718/{session}
+File: {command}/it's notebook.py
+Session: {file}
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
+
+    @pytest.mark.parametrize("flag", ["1", "true", " TRUE "])
+    def test_prompt_uses_cli(self, flag: str) -> None:
+        result = _runner.invoke(
+            cli_main,
+            [
+                "pair",
+                "prompt",
+                "--url",
+                "http://localhost:2718",
+                "--file",
+                "notebook.py",
+            ],
+            env={"MARIMO_PAIR_NEXT": flag},
+        )
+
+        assert result.exit_code == 0
+        assert result.output == snapshot("""\
+Pair with me on this running marimo notebook.
+
+URL: http://localhost:2718
+File: notebook.py
+
+Run `uv run marimo pair --help` first.
+Use `uv run marimo` for all marimo commands.
+
+Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).
+""")
+
+
 class TestPairPromptWithToken:
+    @pytest.mark.parametrize("preview", ["0", "1"])
+    @pytest.mark.parametrize("existing_file", [False, True])
+    def test_empty_token_skips_file(
+        self, tmp_path: Path, preview: str, existing_file: bool
+    ) -> None:
+        token_dir = tmp_path / "tokens"
+        url_hash = hashlib.sha256(TEST_URL.encode()).hexdigest()[:6]
+        token_file = token_dir / f"{url_hash}-token.txt"
+        if existing_file:
+            token_dir.mkdir()
+            token_file.write_text("previous-token", encoding="utf-8")
+        env = {"MARIMO_PAIR_NEXT": preview, "MARIMO_TOKEN": "env-secret"}
+        args = ["pair", "prompt", "--url", TEST_URL]
+        with patch.object(commands, "_token_dir", return_value=token_dir):
+            result = _runner.invoke(
+                cli_main, [*args, "--with-token"], input="\n", env=env
+            )
+            without_token = _runner.invoke(cli_main, args, env=env)
+
+        assert result.exit_code == 0
+        assert result.stdout == without_token.stdout
+        assert "env-secret" not in result.output
+        if existing_file:
+            assert token_file.read_text(encoding="utf-8") == "previous-token"
+        else:
+            assert not token_dir.exists()
+
     def test_with_token_writes_file_and_outputs_prompt(
         self, tmp_path: Path
     ) -> None:
