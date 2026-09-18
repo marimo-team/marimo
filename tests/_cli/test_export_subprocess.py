@@ -145,10 +145,14 @@ child = "import os,time; from pathlib import Path; Path({str(ready)!r}).write_te
 backends.launch_fallback = lambda *a, **kw: environment.ProcessPlan((sys.executable, '-c', child), dict(os.environ), True)
 run_python_subprocess(sandbox=SandboxTarget(None), script='', payload={{}}, action='export')
 """
-    # Open without waiting for a writer; select bounds the readiness wait.
-    with os.fdopen(
-        os.open(ready, os.O_RDONLY | os.O_NONBLOCK), "rb", buffering=0
-    ) as ready_pipe:
+    # Open the reader without blocking, then keep a writer open so select
+    # waits for the child's PID instead of reporting EOF.
+    with (
+        os.fdopen(
+            os.open(ready, os.O_RDONLY | os.O_NONBLOCK), "rb", buffering=0
+        ) as ready_pipe,
+        ready.open("wb", buffering=0),
+    ):
         parent = subprocess.Popen([sys.executable, "-c", code])
         child_pid = None
         try:
