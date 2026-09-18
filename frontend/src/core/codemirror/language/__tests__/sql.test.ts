@@ -624,6 +624,33 @@ _df = mo.sql(
       expect(outCode).toContain(`engine=${engine}`);
     });
 
+    it.each([true, false])(
+      "preserves the query and output=%s when switching DuckDB and Polars",
+      (showOutput) => {
+        const query = "SELECT * FROM orders WHERE amount > {minimum}";
+        const pythonCode = `result = mo.sql(f\"\"\"${query}\"\"\"${showOutput ? "" : ", output=False"})`;
+        const [innerCode, , metadata] = adapter.transformIn(pythonCode);
+
+        const [polarsCode] = adapter.transformOut(innerCode, {
+          ...metadata,
+          engine: POLARS_ENGINE,
+        });
+        expect(polarsCode).toContain('engine="polars"');
+        const [polarsQuery, , polarsMetadata] = adapter.transformIn(polarsCode);
+        expect(polarsQuery).toBe(innerCode);
+        expect(polarsMetadata).toEqual({ ...metadata, engine: POLARS_ENGINE });
+
+        const [duckdbCode] = adapter.transformOut(polarsQuery, {
+          ...polarsMetadata,
+          engine: DUCKDB_ENGINE,
+        });
+        expect(duckdbCode).not.toContain("engine=");
+        const [duckdbQuery, , duckdbMetadata] = adapter.transformIn(duckdbCode);
+        expect(duckdbQuery).toBe(innerCode);
+        expect(duckdbMetadata).toEqual(metadata);
+      },
+    );
+
     it("should maintain engine when transforming empty string", () => {
       const engine = "postgres_engine" as ConnectionName;
       setLatestEngineSelected(engine);

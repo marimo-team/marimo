@@ -1412,6 +1412,29 @@ def test_polars_sql_fallback_refs(
     assert v.refs == expected_refs | {"mo"}
 
 
+@pytest.mark.parametrize("has_sqlglot", [False, True])
+@pytest.mark.parametrize("quote", ["", '"', "`"])
+@pytest.mark.parametrize("cte_name", ["orders", "Orders"])
+def test_polars_sql_cte_names_are_case_sensitive(
+    monkeypatch: pytest.MonkeyPatch,
+    has_sqlglot: bool,
+    quote: str,
+    cte_name: str,
+) -> None:
+    """Keep differently cased frame dependencies with and without SQLGlot."""
+    if has_sqlglot and not HAS_SQLGLOT:
+        pytest.skip("Requires sqlglot")
+    monkeypatch.setattr(DependencyManager.sqlglot, "has", lambda: has_sqlglot)
+    query = (
+        f"WITH {quote}{cte_name}{quote} AS (SELECT 1 AS amount) "
+        f"SELECT * FROM {quote}orders{quote}"
+    )
+    v = visitor.ScopedVisitor()
+    v.visit(ast.parse(f"result = mo.sql({query!r}, engine='polars')"))
+
+    assert v.refs == ({"mo"} if cte_name == "orders" else {"mo", "orders"})
+
+
 @pytest.mark.skipif(not HAS_SQLGLOT, reason="Requires sqlglot")
 def test_polars_sql_refs_with_keyword_query() -> None:
     code = "result = mo.sql(query='SELECT * FROM orders', engine='polars')"

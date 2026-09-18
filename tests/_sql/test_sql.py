@@ -459,10 +459,17 @@ def test_query_includes_limit() -> None:
 
 
 @patch("marimo._sql.sql.replace")
-@pytest.mark.requires("polars", "duckdb")
-def test_applies_limit(mock_replace: MagicMock) -> None:
+@pytest.mark.requires("polars", "duckdb", "pandas", "sqlglot")
+@pytest.mark.parametrize("sql_output", ["auto", "polars", "pandas"])
+def test_applies_limit(
+    mock_replace: MagicMock,
+    fake_sql_output: dict[str, str],
+    sql_output: SqlOutputType,
+) -> None:
+    """Preserve DuckDB row counts and pagination for eager output formats."""
     import duckdb
 
+    fake_sql_output["value"] = sql_output
     with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "300"}):
         duckdb.sql("CREATE OR REPLACE TABLE t AS SELECT * FROM range(1000)")
         mock_replace.assert_not_called()
@@ -473,6 +480,7 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
         assert len(sql("SELECT * FROM t")) == 300
         mock_replace.assert_called_once()
         table = mock_replace.call_args[0][0]
+        assert table._lazy is False
         assert table._component_args["total-rows"] == "too_many"
         assert table._component_args["pagination"] is True
         assert len(table._data) == 300
@@ -510,6 +518,34 @@ def test_applies_limit(mock_replace: MagicMock) -> None:
     assert table._component_args["pagination"] is True
     assert len(table._data) == 25_000
     assert table._searched_manager.get_num_rows() == 25_000
+
+
+@pytest.mark.requires("polars", "duckdb", "pyarrow", "sqlglot")
+@pytest.mark.parametrize("sql_output", ["native", "lazy-polars"])
+@patch("marimo._sql.sql.replace")
+def test_applies_limit_to_lazy_duckdb_results(
+    mock_replace: MagicMock,
+    fake_sql_output: dict[str, str],
+    sql_output: SqlOutputType,
+) -> None:
+    """Keep native DuckDB and lazy Polars results in the lazy renderer."""
+    import duckdb
+    import polars as pl
+
+    fake_sql_output["value"] = sql_output
+    with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "2"}):
+        result = sql("SELECT * FROM range(3)")
+
+    mock_replace.assert_called_once()
+    rendered_table = mock_replace.call_args.args[0]
+    assert rendered_table._lazy is True
+    assert rendered_table._component_args["preload"] is True
+    if sql_output == "native":
+        assert isinstance(result, duckdb.DuckDBPyRelation)
+        assert result.fetchall() == [(0,), (1,)]
+    else:
+        assert isinstance(result, pl.LazyFrame)
+        assert result.collect().to_dict(as_series=False) == {"range": [0, 1]}
 
 
 @pytest.mark.requires("pandas", "sqlglot")

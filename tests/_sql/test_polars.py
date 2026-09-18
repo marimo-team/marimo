@@ -13,6 +13,28 @@ from marimo._sql.sql import sql
 
 @pytest.mark.requires("polars", "sqlglot")
 class TestPolarsEngine:
+    """Test Polars SQL execution, reference discovery, and output formats."""
+
+    @pytest.mark.parametrize("quote", ["", '"', "`"])
+    @pytest.mark.parametrize(
+        ("cte_name", "expected_amount"), [("orders", 1), ("Orders", 99)]
+    )
+    def test_cte_names_match_polars_case_sensitive_resolution(
+        self, quote: str, cte_name: str, expected_amount: int
+    ) -> None:
+        """Register frames that are not shadowed by an exactly matching CTE."""
+        import polars as pl
+
+        engine = PolarsEngine({"orders": pl.DataFrame({"amount": [99]})})
+        result = engine.execute(
+            f"WITH {quote}{cte_name}{quote} AS (SELECT 1 AS amount) "
+            f"SELECT * FROM {quote}orders{quote}"
+        )
+
+        assert result.collect().to_dict(as_series=False) == {
+            "amount": [expected_amount]
+        }
+
     def test_dataframe_and_lazyframe_inputs(self) -> None:
         import polars as pl
 
@@ -199,10 +221,18 @@ class TestPolarsEngine:
             result.collect()
 
     def test_default_result_limit_stays_lazy(self) -> None:
+        """Apply the default limit without executing the Polars query."""
         import polars as pl
 
         orders = pl.LazyFrame({"amount": range(10)})
-        with patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "3"}):
+        with (
+            patch.dict(os.environ, {"MARIMO_SQL_DEFAULT_LIMIT": "3"}),
+            patch.object(
+                pl.LazyFrame,
+                "collect",
+                side_effect=AssertionError("lazy result was materialized"),
+            ),
+        ):
             result = sql("SELECT * FROM orders", engine="polars", output=False)
 
         assert isinstance(result, pl.LazyFrame)

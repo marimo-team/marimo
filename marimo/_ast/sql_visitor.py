@@ -557,7 +557,11 @@ def _fallback_parentheses(
 def _fallback_cte_scopes(
     tokens: list[_FallbackSQLToken], pairs: dict[int, int]
 ) -> list[tuple[str, int, int]]:
-    """Return CTE names and the token ranges in which they are visible."""
+    """Return CTE names and their visibility ranges.
+
+    Polars resolves both quoted and unquoted relation names case-sensitively.
+    Preserve their spelling so a differently cased CTE cannot hide a frame.
+    """
     scopes: list[tuple[str, int, int]] = []
     enclosing: list[int] = []
     for index, token in enumerate(tokens):
