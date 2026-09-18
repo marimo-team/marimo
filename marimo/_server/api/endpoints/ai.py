@@ -165,6 +165,7 @@ async def ai_completion(
     provider = get_completion_provider(
         get_provider_config(model, config),
         model=model,
+        session_id=body.id or f"{session_id}:completion",
     )
 
     # These models require the optional Pydantic AI dependency checked above.
@@ -247,6 +248,7 @@ async def ai_chat(
     provider = get_completion_provider(
         get_provider_config(model, config),
         model=model,
+        session_id=body.id or f"{session_id}:chat",
     )
     additional_tools = body.tools or []
 
@@ -333,7 +335,11 @@ async def ai_inline_completion(
     if provider_config.tools:
         provider_config.tools.clear()
 
-    provider = get_completion_provider(provider_config, model=model)
+    provider = get_completion_provider(
+        provider_config,
+        model=model,
+        session_id=f"{session_id}:inline_completion",
+    )
     try:
         content = await provider.completion(
             messages=[create_simple_prompt(prompt)],

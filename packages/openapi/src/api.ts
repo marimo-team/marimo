@@ -3863,6 +3863,8 @@ export interface components {
       code: string;
       /** @default null */
       context?: null | components["schemas"]["AiCompletionContext"];
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /**
        * @default python
@@ -4262,6 +4264,8 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
