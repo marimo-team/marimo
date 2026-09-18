@@ -159,6 +159,8 @@ class WASMFileExportRequest:
     options: WASMExportOptions
     execution: NotebookExecutionOptions | None = None
     cache_export_dir: Path | None = None
+    offline_export_dir: Path | None = None
+    local_wheel_paths: tuple[Path, ...] = ()
     code_transform: Callable[[str], str] | None = None
     stdout: TextWriter | None = None
 

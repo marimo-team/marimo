@@ -6,11 +6,13 @@ import {
   type RPCSchema,
 } from "rpc-anywhere";
 import { Logger } from "@/utils/Logger";
+import type { WasmRuntimeConfig } from "./runtime-config";
 import { TRANSPORT_ID } from "./worker/constants";
 
 export type ParentSchema = RPCSchema<{
   messages: {
     consumerReady: {};
+    bootstrap: WasmRuntimeConfig;
   };
 }>;
 
