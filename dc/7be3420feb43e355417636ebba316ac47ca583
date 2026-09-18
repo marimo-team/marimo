@@ -1,0 +1,19 @@
+docs/guides/apps.md
+  s_4ee4d8c572f98b::t_8a657e041b80e3 17-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dc7be3420feb43e355417636ebba316ac47ca583",
+  "prompts": {},
+  "sessions": {
+    "s_4ee4d8c572f98b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b313-09b7-7090-b549-8b9388602566",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
