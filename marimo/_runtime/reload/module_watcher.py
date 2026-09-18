@@ -208,6 +208,9 @@ def watch_modules(
                 for modname in stale_modules:
                     # prune definitions that are derived from stale modules
                     cell_id = modname_to_cell_id[modname]
+                    # Reran after a newer reload: its imports are current.
+                    if reloader.cell_ran_since(cell_id, generation):
+                        continue
                     cell = graph.cells[cell_id]
                     defs_to_prune = [
                         import_data.definition
