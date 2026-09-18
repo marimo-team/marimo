@@ -339,6 +339,7 @@ async def ai_inline_completion(
             messages=[create_simple_prompt(prompt)],
             system_prompt=system_prompt,
             max_tokens=INLINE_COMPLETION_MAX_TOKENS,
+            thinking=False,
             additional_tools=[],
             enable_capabilities=False,
             span_info=SpanInfo(
