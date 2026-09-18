@@ -47,6 +47,11 @@ class CellConfig(msgspec.Struct):
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
 
+    # If True, the cell's output and console output are shown in full in the
+    # editor; otherwise they are clamped to a fixed height, with an option to
+    # expand them.
+    expand_output: bool = False
+
     @classmethod
     def from_dict(
         cls, kwargs: dict[str, Any], warn: bool = True

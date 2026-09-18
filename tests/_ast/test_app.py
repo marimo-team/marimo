@@ -543,11 +543,17 @@ class TestApp:
             assert __x__ == 0
             return
 
+        @app.cell(expand_output=True)
+        def _() -> None:
+            return
+
         cell_manager = app._cell_manager
         configs = tuple(cell_manager.configs())
         assert configs[0].disabled
         assert configs[0].column is not None
         assert configs[1].hide_code
+        assert not configs[1].expand_output
+        assert configs[2].expand_output
 
     @staticmethod
     def test_conditional_definition() -> None:

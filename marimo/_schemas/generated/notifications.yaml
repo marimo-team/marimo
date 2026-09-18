@@ -122,6 +122,9 @@ components:
         disabled:
           default: false
           type: boolean
+        expand_output:
+          default: false
+          type: boolean
         hide_code:
           default: false
           type: boolean

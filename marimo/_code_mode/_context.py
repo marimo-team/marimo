@@ -1241,6 +1241,7 @@ class AsyncCodeModeContext:
                 if disabled is not None
                 else existing.disabled,
                 column=column if column is not None else existing.column,
+                expand_output=existing.expand_output,
             )
 
         self._ops.append(
@@ -1934,6 +1935,7 @@ def _plan_to_document_ops(
                         column=resolved_cfg.column,
                         disabled=resolved_cfg.disabled,
                         hide_code=resolved_cfg.hide_code,
+                        expand_output=resolved_cfg.expand_output,
                     )
                 )
 

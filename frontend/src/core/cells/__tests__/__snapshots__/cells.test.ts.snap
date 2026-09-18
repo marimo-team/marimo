@@ -6,6 +6,7 @@ exports[`cell reducer > can initialize stdin 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -35,6 +36,7 @@ exports[`cell reducer > can initialize stdin 2`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -64,6 +66,7 @@ exports[`cell reducer > can initialize stdin 3`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -93,6 +96,7 @@ exports[`cell reducer > can initialize stdin 4`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -122,6 +126,7 @@ exports[`cell reducer > can initialize stdin 5`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -158,6 +163,7 @@ exports[`cell reducer > can initialize stdin 6`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -194,6 +200,7 @@ exports[`cell reducer > can initialize stdin 7`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -236,6 +243,7 @@ exports[`cell reducer > can initialize stdin 8`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -279,6 +287,7 @@ exports[`cell reducer > can initialize stdin 9`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -328,6 +337,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -357,6 +367,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -393,6 +404,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -429,6 +441,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -458,6 +471,7 @@ exports[`cell reducer > can receive console when the cell is idle and will clear
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -494,6 +508,7 @@ exports[`cell reducer > can run a stale cell 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -523,6 +538,7 @@ exports[`cell reducer > can run a stale cell 2`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -552,6 +568,7 @@ exports[`cell reducer > can run a stopped cell 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -581,6 +598,7 @@ exports[`cell reducer > can run a stopped cell 2`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -610,6 +628,7 @@ exports[`cell reducer > can run a stopped cell 3`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -650,6 +669,7 @@ exports[`cell reducer > can run a stopped cell 4`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -690,6 +710,7 @@ exports[`cell reducer > can run a stopped cell 5`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -719,6 +740,7 @@ exports[`cell reducer > can run cell and receive cell messages 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -748,6 +770,7 @@ exports[`cell reducer > can run cell and receive cell messages 2`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -777,6 +800,7 @@ exports[`cell reducer > can run cell and receive cell messages 3`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -806,6 +830,7 @@ exports[`cell reducer > can run cell and receive cell messages 4`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -835,6 +860,7 @@ exports[`cell reducer > can run cell and receive cell messages 5`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -864,6 +890,7 @@ exports[`cell reducer > can run cell and receive cell messages 6`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -900,6 +927,7 @@ exports[`cell reducer > can run cell and receive cell messages 7`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -942,6 +970,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -983,6 +1012,7 @@ exports[`cell reducer > can run cell and receive cell messages 9`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1025,6 +1055,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1067,6 +1098,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1116,6 +1148,7 @@ import numpy",
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [
@@ -1162,6 +1195,7 @@ exports[`cell reducer > errors reset status to idle 1`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1191,6 +1225,7 @@ exports[`cell reducer > errors reset status to idle 2`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1220,6 +1255,7 @@ exports[`cell reducer > errors reset status to idle 3`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],
@@ -1249,6 +1285,7 @@ exports[`cell reducer > errors reset status to idle 4`] = `
   "config": {
     "column": null,
     "disabled": false,
+    "expand_output": false,
     "hide_code": false,
   },
   "consoleOutputs": [],

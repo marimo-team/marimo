@@ -3990,6 +3990,8 @@ export interface components {
       /** @default false */
       disabled?: boolean;
       /** @default false */
+      expand_output?: boolean;
+      /** @default false */
       hide_code?: boolean;
     };
     /** Format: cell-id */
@@ -6921,6 +6923,8 @@ export interface components {
       cellId: components["schemas"]["CellId"];
       column: number | null;
       disabled: boolean;
+      /** @default false */
+      expandOutput?: boolean;
       hideCode: boolean;
       /** @enum {unknown} */
       type: "set-config";

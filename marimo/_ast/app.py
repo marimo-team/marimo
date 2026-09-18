@@ -186,6 +186,7 @@ class _SetupContext:
                         column=existing_cfg.column,
                         disabled=existing_cfg.disabled,
                         hide_code=hide_code,
+                        expand_output=existing_cfg.expand_output,
                     ),
                 ),
                 source="cell-manager",
@@ -364,6 +365,7 @@ class App:
         column: int | None = None,
         disabled: bool = False,
         hide_code: bool = False,
+        expand_output: bool = False,
         **kwargs: Any,
     ) -> Cell | Callable[[Fn[P, R]], Cell]:
         """A decorator to add a cell to the app.
@@ -390,6 +392,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
+            expand_output: Whether to show the cell's output and console
+                output in full; when False, tall output is clamped to a fixed
+                height in the editor.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs
@@ -397,7 +402,12 @@ class App:
         return cast(
             Cell | Callable[[Fn[P, R]], Cell],
             self._cell_manager.cell_decorator(
-                func, column, disabled, hide_code, app=InternalApp(self)
+                func,
+                column,
+                disabled,
+                hide_code,
+                expand_output=expand_output,
+                app=InternalApp(self),
             ),
         )
 

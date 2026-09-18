@@ -1233,6 +1233,7 @@ describe("cell reducer", () => {
       disabled: false,
       hide_code: false,
       column: null,
+      expand_output: false,
     });
 
     actions.updateCellConfig({
