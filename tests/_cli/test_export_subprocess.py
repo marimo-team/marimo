@@ -272,11 +272,16 @@ async def main():
     with _export_termination_signals():
         await run_command([sys.executable, '-c', 'import time; time.sleep(30)'])
 
+loop = asyncio.new_event_loop()
 try:
-    asyncio.run(main())
+    # Do not use asyncio.run here. On Python 3.11+, Runner installs its own
+    # SIGINT handler, which deliberately bypasses the default-handler branch
+    # that protects Python 3.10 from an interrupt during Popen.
+    loop.run_until_complete(main())
 except KeyboardInterrupt:
     sys.exit(1)
 finally:
+    loop.close()
     print(json.dumps([process.poll() is None for process in processes]))
     for process in processes:
         if process.poll() is None:
