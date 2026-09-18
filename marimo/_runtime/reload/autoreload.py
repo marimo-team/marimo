@@ -269,6 +269,11 @@ class ModuleReloader:
         with self.lock:
             self._cell_generations[cell_id] = self.reload_generation
 
+    def forget_cell(self, cell_id: CellId_t) -> None:
+        """Drop the run record of a cell that left the graph."""
+        with self.lock:
+            self._cell_generations.pop(cell_id, None)
+
     def cell_ran_since(self, cell_id: CellId_t, generation: int) -> bool:
         """Whether `cell_id` last ran after a reload newer than `generation`."""
         with self.lock:
@@ -365,8 +370,7 @@ class ModuleReloader:
 
             # Pre-filter stale modules to only those present in modules dict
             relevant_stale_modules = self.stale_modules & modules.keys()
-            if relevant_stale_modules:
-                self.reload_generation += 1
+            generation_bumped = False
             for modname in relevant_stale_modules:
                 # Reload after the check loop: if there are any
                 # previously discovered stale modules, reload those as well
@@ -377,6 +381,10 @@ class ModuleReloader:
                     continue
                 py_filename, pymtime = module_mtime.name, module_mtime.mtime
 
+                # Bump once per check, and only when a reload starts.
+                if not generation_bumped:
+                    self.reload_generation += 1
+                    generation_bumped = True
                 LOGGER.debug(f"Reloading '{modname}'.")
                 try:
                     superreload(m, self.old_objects)

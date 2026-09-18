@@ -1176,6 +1176,7 @@ class Kernel:
         In contrast to deleting a cell, which fully scrubs the cell
         from the kernel and graph.
         """
+        self.autoreload_manager.forget_cell(cell_id)
         if cell_id not in self.errors:
             self._invalidate_cell_state(cell_id, deletion=True)
             return self.graph.delete_cell(cell_id)

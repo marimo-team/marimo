@@ -79,6 +79,11 @@ class AutoreloadManager:
         if reloader.cell_uses_stale_modules(cell):
             self._kernel.graph.set_stale({cell.cell_id}, prune_imports=True)
 
+    def forget_cell(self, cell_id: CellId_t) -> None:
+        """Drop per-cell reload bookkeeping for a cell leaving the graph."""
+        if self._reloader is not None:
+            self._reloader.forget_cell(cell_id)
+
     @contextlib.contextmanager
     def cell_scope(self, cell_id: CellId_t | None) -> Iterator[None]:
         """Reload modified modules on entry; record mtimes for newly-imported modules on exit.
@@ -94,12 +99,16 @@ class AutoreloadManager:
         snapshot = set(sys.modules)
         # Entry: skip stdlib/site-packages so cells don't pay for stat-ing
         # them. This is the perf-critical call.
-        self._reloader.check(
-            modules=sys.modules, reload=True, skip_non_user_modules=True
-        )
-        if cell_id is not None:
-            # The cell now runs against the freshly reloaded modules.
-            self._reloader.record_cell_run(cell_id)
+        # Reload and record under one lock hold: the watcher must never
+        # observe the reload without the record, or it would mark this
+        # cell stale while it is running against the new code.
+        with self._reloader.lock:
+            self._reloader.check(
+                modules=sys.modules, reload=True, skip_non_user_modules=True
+            )
+            if cell_id is not None:
+                # The cell now runs against the freshly reloaded modules.
+                self._reloader.record_cell_run(cell_id)
         try:
             yield
         finally:
