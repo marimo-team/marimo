@@ -244,6 +244,7 @@ class DependencyManager:
     narwhals = Dependency("narwhals")
     ruff = Dependency("ruff")
     black = Dependency("black")
+    qasync = Dependency("qasync")
     geopandas = Dependency("geopandas")
     shapely = Dependency("shapely")
     pint = Dependency("pint")

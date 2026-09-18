@@ -123,6 +123,7 @@ class VenvConfig(TypedDict, total=False):
 WidthType = Literal["normal", "compact", "medium", "full", "columns"]
 Theme = Literal["light", "dark", "system"]
 ExportType = Literal["html", "markdown", "ipynb"]
+GuiEventLoopType = Literal["qt"]
 SqlOutputType = Literal["polars", "lazy-polars", "pandas", "native", "auto"]
 StoreKey = Literal["file", "redis", "rest", "tiered"]
 
@@ -175,6 +176,13 @@ class RuntimeConfig(TypedDict):
     - `show_tracebacks`: if `True`, show detailed error tracebacks in run mode.
         When enabled, exceptions will display a clickable toast that opens a modal with the full traceback.
         The default is `False`.
+    - `gui_event_loop`: integrate a GUI toolkit's event loop with the kernel,
+        so that windows opened by GUI libraries (Qt, and libraries built on it
+        such as napari or MNE-Python) stay responsive while the kernel is idle.
+        Currently only `"qt"` is supported; it requires `qasync` and a Qt
+        binding (e.g. PySide6) to be installed in the kernel's environment.
+        Only supported when editing a notebook, not when running as an
+        application. The default is `None`.
     """
 
     auto_instantiate: bool
@@ -191,6 +199,7 @@ class RuntimeConfig(TypedDict):
     default_auto_download: NotRequired[list[ExportType]]
     default_csv_encoding: NotRequired[str]
     show_tracebacks: NotRequired[bool]
+    gui_event_loop: NotRequired[GuiEventLoopType | None]
 
 
 @mddoc
