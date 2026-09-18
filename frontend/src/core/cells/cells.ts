@@ -125,7 +125,12 @@ export interface NotebookState {
 }
 
 function withScratchCell(notebookState: NotebookState): NotebookState {
-  const config = { column: 0, hide_code: false, disabled: false };
+  const config = {
+    column: 0,
+    hide_code: false,
+    disabled: false,
+    expand_output: false,
+  };
   return {
     ...notebookState,
     cellData: {

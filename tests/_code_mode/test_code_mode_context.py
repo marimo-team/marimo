@@ -97,6 +97,7 @@ class TestAddCell:
                             "column": None,
                             "disabled": False,
                             "hide_code": True,
+                            "expand_output": False,
                         },
                         "before": None,
                         "after": None,
@@ -323,6 +324,7 @@ class TestUpdateCell:
                         "column": None,
                         "disabled": False,
                         "hideCode": True,
+                        "expandOutput": False,
                     },
                     {"type": "reorder-cells", "cellIds": ("0",)},
                 ]

@@ -59,6 +59,7 @@ describe("notebookStateFromSession", () => {
       column: config?.column ?? null,
       disabled: config?.disabled ?? null,
       hide_code: config?.hide_code ?? null,
+      expand_output: config?.expand_output ?? null,
     },
   });
 
@@ -298,6 +299,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -309,6 +311,7 @@ describe("notebookStateFromSession", () => {
           hide_code: true,
           disabled: true,
           column: 1,
+          expand_output: true,
         }),
       ]);
       const result = notebookStateFromSession(null, notebook);
@@ -319,6 +322,7 @@ describe("notebookStateFromSession", () => {
         hide_code: true,
         disabled: true,
         column: 1,
+        expand_output: true,
       });
     });
 
@@ -350,6 +354,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -386,6 +391,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
@@ -426,6 +432,7 @@ describe("notebookStateFromSession", () => {
           hide_code: false,
           disabled: false,
           column: null,
+          expand_output: false,
         },
         serializedEditorState: null,
       });
