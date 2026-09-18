@@ -441,3 +441,78 @@ def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
         assert loop.is_closed()
     finally:
         loop.close()
+
+
+def test_rerun_keeps_lazily_imported_modules(tmp_path, monkeypatch) -> None:
+    """A module first imported during a test run must survive to the next run.
+
+    `run_pytest` restores `sys.modules` after each run. Anything a test imported
+    lazily (e.g. `torch.manual_seed` -> `torch._dynamo` -> `TORCH_LIBRARY`
+    registration) is evicted, so the next run re-executes the module body.
+    Registrations that live outside the Python module (C++ dispatcher state)
+    persist, and the re-import raises "Only a single TORCH_LIBRARY can be used
+    to register the namespace".
+    """
+    import marimo
+    from marimo._runtime.pytest import run_pytest
+
+    pkg = tmp_path / "fake_torch"
+    pkg.mkdir()
+    (pkg / "__init__.py").write_text(
+        "from . import _C\n\n"
+        "def seed():\n"
+        "    # Lazy submodule import, as in torch._compile\n"
+        "    import fake_torch._dynamo  # noqa: F401\n"
+    )
+    # Registry state outliving the Python module, like the C++ dispatcher.
+    (pkg / "_C.py").write_text(
+        "REGISTERED: set[str] = set()\n\n"
+        "def dispatch_library(ns):\n"
+        "    if ns in REGISTERED:\n"
+        "        raise RuntimeError(f'Only a single TORCH_LIBRARY for {ns}')\n"
+        "    REGISTERED.add(ns)\n"
+    )
+    (pkg / "_dynamo.py").write_text(
+        "from . import _C\n\n_C.dispatch_library('_inductor_test')\n"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    app = marimo.App()
+
+    @app.cell
+    def _():
+        import fake_torch  # type: ignore[import-not-found]
+
+        return (fake_torch,)
+
+    @app.cell
+    def _(fake_torch):
+        def test_seed():
+            fake_torch.seed()
+
+        return
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text("import marimo\napp = marimo.App()\n")
+
+    previous = os.environ.get("PYTEST_CURRENT_TEST", "")
+    os.environ.pop("PYTEST_CURRENT_TEST", None)
+    asyncio.run(asyncio.sleep(0.1))
+    try:
+        _, lcls = app.run()
+        lcls = dict(lcls)
+        results = [
+            run_pytest(defs={"test_seed"}, lcls=lcls, notebook_path=notebook)
+            for _ in range(2)
+        ]
+    finally:
+        if previous:
+            os.environ["PYTEST_CURRENT_TEST"] = previous
+        for name in [n for n in sys.modules if n.startswith("fake_torch")]:
+            del sys.modules[name]
+
+    for run, result in enumerate(results, start=1):
+        assert (result.passed, result.failed, result.errors) == (1, 0, 0), (
+            f"run {run}: {result.output}"
+        )
+    assert "fake_torch._dynamo" in sys.modules
