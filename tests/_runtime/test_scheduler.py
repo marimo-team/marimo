@@ -6,6 +6,10 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
+from marimo._ast.compiler import compile_cell
+from marimo._runtime.dataflow import DirectedGraph
+from marimo._runtime.runner.cell_runner import Runner
+from marimo._runtime.runner.hooks import NotebookCellHooks
 from marimo._runtime.runner.scheduler import SequentialScheduler
 from marimo._types.ids import CellId_t
 
@@ -20,6 +24,45 @@ def _empty_graph() -> MagicMock:
     return g
 
 
+def _runner() -> Runner:
+    graph = DirectedGraph()
+    for name in "abc":
+        cell_id = CellId_t(name)
+        graph.register_cell(cell_id, compile_cell(f"{name} = 1", cell_id))
+    return Runner(
+        roots=set(graph.cells),
+        graph=graph,
+        glbls={},
+        debugger=None,
+        hooks=NotebookCellHooks(),
+    )
+
+
+def test_interrupted_blocks_pending() -> None:
+    runner = _runner()
+    assert runner.pending() is True
+    runner.interrupted = True
+    assert runner.pending() is False
+
+
+def test_batch_yields_singletons() -> None:
+    sched = SequentialScheduler([], graph=_empty_graph())
+    cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
+    batches = [list(b) for b in sched.batch(cells)]
+    assert batches == [["a"], ["b"], ["c"]]
+
+
+def test_interrupt_preserves_pending_cells() -> None:
+    runner = _runner()
+    sched = runner._scheduler
+    cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
+    iterator = sched.batch(cells)
+    assert list(next(iterator)) == ["a"]
+    runner.interrupted = True
+    assert not runner.pending()
+    assert list(sched.cells_to_run) == ["b", "c"]
+
+
 def test_pending_and_pop_cell_fifo() -> None:
     cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
     sched = SequentialScheduler(cells, graph=_empty_graph())
@@ -28,14 +71,6 @@ def test_pending_and_pop_cell_fifo() -> None:
     assert sched.pop_cell() == "a"
     assert sched.pop_cell() == "b"
     assert sched.pop_cell() == "c"
-    assert sched.pending() is False
-
-
-def test_interrupted_blocks_pending() -> None:
-    sched = SequentialScheduler([CellId_t("a")], graph=_empty_graph())
-
-    assert sched.pending() is True
-    sched.interrupted = True
     assert sched.pending() is False
 
 
@@ -134,23 +169,3 @@ def test_requeue_for_rerun_uncancels_stranded_descendants(
     sched.requeue_for_rerun({r})
     assert sched.cancelled(r) is False
     assert sched.cancelled(d) is False
-
-
-def test_batch_yields_singletons() -> None:
-    sched = SequentialScheduler([], graph=_empty_graph())
-    cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
-    # batch() yields iterables, not indexable lists — callers iterate with
-    # ``for cell_id in batch:`` rather than ``batch[0]``.
-    batches = [list(b) for b in sched.batch(cells)]
-    assert batches == [["a"], ["b"], ["c"]]
-
-
-def test_batch_respects_interrupt() -> None:
-    sched = SequentialScheduler([], graph=_empty_graph())
-    cells = [CellId_t("a"), CellId_t("b"), CellId_t("c")]
-    iterator = sched.batch(cells)
-    assert list(next(iterator)) == ["a"]
-    sched.interrupted = True
-    # Generator stops once interrupted is set.
-    remaining = list(iterator)
-    assert remaining == []

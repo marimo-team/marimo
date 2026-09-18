@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import logging
+import signal
 from typing import TYPE_CHECKING
+
+import pytest
 
 from marimo import _loggers
 from marimo._runtime.commands import InvokeFunctionCommand
@@ -12,11 +16,10 @@ from marimo._runtime.functions import (
     FunctionNamespace,
     FunctionRegistry,
 )
-from marimo._types.ids import RequestId
+from marimo._runtime.handlers import construct_interrupt_handler
+from marimo._types.ids import CellId_t, RequestId
 
 if TYPE_CHECKING:
-    import pytest
-
     from marimo._runtime.runtime import Kernel
 
 
@@ -124,6 +127,47 @@ async def test_function_call_request_found_after_register(k: Kernel) -> None:
 
     _, _, found = await k.function_call_request(_invoke(namespace, "echo"))
     assert found is True
+
+
+@pytest.mark.parametrize("is_async", [False, True])
+async def test_function_interrupt_and_next_call(
+    k: Kernel, is_async: bool
+) -> None:
+    handler = construct_interrupt_handler()
+
+    def sync_function(_args: Args) -> int:
+        handler(signal.SIGINT, None)
+        pytest.fail("Interrupted function continued")
+
+    async def async_function(_args: Args) -> int:
+        asyncio.get_running_loop().call_soon(handler, signal.SIGINT, None)
+        await asyncio.sleep(60)
+        pytest.fail("Interrupted function continued")
+
+    with k._install_execution_context(CellId_t("0")):
+        function = Function(
+            name="interrupt",
+            arg_cls=Args,
+            function=async_function if is_async else sync_function,
+        )
+        echo = Function(name="echo", arg_cls=Args, function=lambda x: x.value)
+    registry = get_context().function_registry
+    registry.register("test", function)
+    registry.register("test", echo)
+
+    status, response, found = await k.function_call_request(
+        _invoke("test", "interrupt")
+    )
+    assert (status.code, status.title, response, found) == (
+        "error",
+        "Interrupted",
+        None,
+        True,
+    )
+    status, response, found = await k.function_call_request(
+        _invoke("test", "echo")
+    )
+    assert (status.code, response, found) == ("ok", 1, True)
 
 
 async def test_function_call_request_not_found_logs(
