@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import abc
 import asyncio
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING
 
 from marimo import _loggers
@@ -15,11 +16,18 @@ from marimo._messaging.notification import (
     BannerNotification,
     NotificationMessage,
     ReconnectedNotification,
+    StartupProgressNotification,
 )
-from marimo._messaging.serde import serialize_kernel_message
+from marimo._messaging.serde import (
+    deserialize_kernel_notification_name,
+    serialize_kernel_message,
+)
 from marimo._server.api.endpoints.ws.ws_kernel_ready import (
     build_kernel_ready,
     is_rtc_available,
+)
+from marimo._server.api.endpoints.ws.ws_message_loop import (
+    prepare_wire_message,
 )
 from marimo._server.api.endpoints.ws.ws_session_connector import (
     SessionConnector,
@@ -29,10 +37,10 @@ from marimo._server.codes import WebSocketCloseReason, WebSocketCodes
 from marimo._session.consumer import SessionConsumer
 from marimo._session.model import ConnectionState, SessionMode
 from marimo._types.ids import ConsumerId
+from marimo._utils.asyncio_utils import cancel_and_wait
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-    from typing import Any
+    from collections.abc import AsyncGenerator, AsyncIterator
 
     from starlette.requests import HTTPConnection
 
@@ -77,11 +85,16 @@ class SessionHandler(SessionConsumer, abc.ABC):
         self.params = params
         self.mode = mode
         self.doc_manager = doc_manager
-        self.status: ConnectionState
+        self.status = ConnectionState.CONNECTING
+        self._session: Session | None = None
         self.cancel_close_handle: asyncio.TimerHandle | None = None
         # Messages from the kernel are put in this queue
         # to be sent to the frontend
         self.message_queue: asyncio.Queue[KernelMessage] = asyncio.Queue()
+        # Startup precedes session attachment and its viewer filtering.
+        self._startup_queue: asyncio.Queue[KernelMessage | None] | None = (
+            asyncio.Queue()
+        )
         self._consumer_id = ConsumerId(params.session_id)
 
     @property
@@ -107,7 +120,21 @@ class SessionHandler(SessionConsumer, abc.ABC):
 
     # Shared session lifecycle
 
-    def _connect_session(
+    @asynccontextmanager
+    async def _connection_lifetime(
+        self, connection: HTTPConnection
+    ) -> AsyncIterator[asyncio.Task[tuple[Session, ConnectionType]]]:
+        """Own attachment through startup, progress delivery, and streaming."""
+        startup = asyncio.create_task(self._connect_session(connection))
+        try:
+            yield startup
+        finally:
+            try:
+                await cancel_and_wait(startup)
+            finally:
+                self._on_disconnect()
+
+    async def _connect_session(
         self, connection: HTTPConnection
     ) -> tuple[Session, ConnectionType]:
         """Connect this handler to a session (new, resume, reconnect, ...).
@@ -117,12 +144,53 @@ class SessionHandler(SessionConsumer, abc.ABC):
             WebSocketDisconnect: If the connection is rejected; carries the
                 close code and reason.
         """
-        return SessionConnector(
-            manager=self.manager,
-            handler=self,
-            params=self.params,
-            connection=connection,
-        ).connect()
+        startup = asyncio.create_task(
+            SessionConnector(
+                manager=self.manager,
+                handler=self,
+                params=self.params,
+                connection=connection,
+            ).connect()
+        )
+        disconnected = asyncio.create_task(self._wait_for_disconnect())
+        try:
+            done, _ = await asyncio.wait(
+                (startup, disconnected), return_when=asyncio.FIRST_COMPLETED
+            )
+            if disconnected in done:
+                await disconnected
+                await cancel_and_wait(startup)
+                raise asyncio.CancelledError
+            return await startup
+        finally:
+            await cancel_and_wait(disconnected)
+            await cancel_and_wait(startup)
+
+    @abc.abstractmethod
+    async def _wait_for_disconnect(self) -> None:
+        """Notice a closed transport even while a session is starting."""
+
+    async def _startup_messages(
+        self, startup: asyncio.Task[tuple[Session, ConnectionType]]
+    ) -> AsyncGenerator[str, None]:
+        """Send progress before session messages, including before failure."""
+        queue = self._startup_queue
+        assert queue is not None
+
+        def finished(
+            _task: asyncio.Task[tuple[Session, ConnectionType]],
+        ) -> None:
+            queue.put_nowait(None)
+
+        startup.add_done_callback(finished)
+        try:
+            while (data := await queue.get()) is not None:
+                text = prepare_wire_message(data, is_kiosk=self.params.kiosk)
+                if text is not None:
+                    yield text
+        finally:
+            startup.remove_done_callback(finished)
+            self._startup_queue = None
 
     def _is_viewer(
         self, session: Session, connection_type: ConnectionType
@@ -134,7 +202,14 @@ class SessionHandler(SessionConsumer, abc.ABC):
         )
 
     def notify(self, notification: KernelMessage) -> None:
-        self.message_queue.put_nowait(notification)
+        if (
+            self._startup_queue is not None
+            and deserialize_kernel_notification_name(notification)
+            == StartupProgressNotification.name
+        ):
+            self._startup_queue.put_nowait(notification)
+        else:
+            self.message_queue.put_nowait(notification)
 
     def _serialize_and_notify(self, notification: NotificationMessage) -> None:
         self.notify(serialize_kernel_message(notification))
@@ -281,24 +356,19 @@ class SessionHandler(SessionConsumer, abc.ABC):
             LOGGER.debug("Replaying notification %s", notif)
             self._serialize_and_notify(notif)
 
-    def _on_disconnect(
-        self,
-        e: Exception,
-        cleanup_fn: Callable[[], Any],
-    ) -> None:
+    def _on_disconnect(self) -> None:
+        session = self._session
+        if session is None:
+            return
         LOGGER.debug(
-            "Connection closed for session %s with exception %s, type %s",
+            "Connection closed for session %s",
             self.params.session_id,
-            str(e),
-            type(e),
         )
 
         # Change the status
         self.status = ConnectionState.CLOSED
         # Disconnect the consumer
-        session = self.manager.get_session(self.params.session_id)
-        if session:
-            session.disconnect_consumer(self)
+        session.disconnect_consumer(self)
 
         # When the connection is closed, we wait session.ttl_seconds before
         # closing the session. This prevents the session from being closed
@@ -330,27 +400,18 @@ class SessionHandler(SessionConsumer, abc.ABC):
                         "Closing session %s (TTL EXPIRED)",
                         self.params.session_id,
                     )
-                    # wait until TTL is expired before calling the cleanup
-                    # function
-                    cleanup_fn()
                     self.manager.close_session(self.params.session_id)
 
-            if session is not None:
-                cancellation_handle = asyncio.get_running_loop().call_later(
-                    session.ttl_seconds, _close
-                )
-                self.cancel_close_handle = cancellation_handle
-            else:
-                _close()
-        else:
-            cleanup_fn()
+            self.cancel_close_handle = asyncio.get_running_loop().call_later(
+                session.ttl_seconds, _close
+            )
 
     def on_attach(self, session: Session, event_bus: SessionEventBus) -> None:
-        del session
         del event_bus
-        return
+        self._session = session
 
     def on_detach(self) -> None:
+        self._session = None
         # If the transport is open, send a close message
         is_connected = (
             self.status == ConnectionState.OPEN

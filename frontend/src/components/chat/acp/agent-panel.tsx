@@ -902,18 +902,6 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
-      logger.debug("Submitting prompt to agent", {
-        sessionId: activeSessionId,
-      });
-      setIsLoading(true);
-      setPromptValue("");
-      clearFiles();
-
-      // Update session title with first message if it's still the default
-      if (selectedTab?.title.startsWith("New ")) {
-        setSessionState((prev) => updateSessionTitle(prev, prompt));
-      }
-
       let absoluteFilename: string;
       try {
         absoluteFilename = getAbsoluteFilename();
@@ -926,50 +914,63 @@ const AgentPanel: React.FC = () => {
         return;
       }
 
-      const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+      logger.debug("Submitting prompt to agent", {
+        sessionId: activeSessionId,
+      });
+      setIsLoading(true);
+      setPromptValue("");
+      clearFiles();
 
-      // Parse context from the prompt
-      const { contextBlocks, attachmentBlocks } =
-        await parseContextFromPrompt(prompt);
-      promptBlocks.push(...contextBlocks, ...attachmentBlocks);
-
-      // Add manually uploaded files as resource links
-      if (files && files.length > 0) {
-        const fileResourceLinks = await convertFilesToResourceLinks(files);
-        promptBlocks.push(...fileResourceLinks);
-      }
-
-      const hasGivenRules = notifications.some(
-        (notification) =>
-          notification.type === "session_notification" &&
-          notification.data.update.sessionUpdate === "user_message_chunk",
-      );
-      if (!hasGivenRules) {
-        promptBlocks.push(
-          {
-            type: "resource_link",
-            uri: absoluteFilename,
-            mimeType: "text/x-python",
-            name: absoluteFilename,
-          },
-          {
-            type: "resource",
-            resource: {
-              uri: "marimo_rules.md",
-              mimeType: "text/plain",
-              text: getAgentPrompt(absoluteFilename),
-            },
-          },
-        );
+      // Update session title with first message if it's still the default
+      if (selectedTab?.title.startsWith("New ")) {
+        setSessionState((prev) => updateSessionTitle(prev, prompt));
       }
 
       try {
+        const promptBlocks: ContentBlock[] = [{ type: "text", text: prompt }];
+
+        // Parse context from the prompt
+        const { contextBlocks, attachmentBlocks } =
+          await parseContextFromPrompt(prompt);
+        promptBlocks.push(...contextBlocks, ...attachmentBlocks);
+
+        // Add manually uploaded files as resource links
+        if (files && files.length > 0) {
+          const fileResourceLinks = await convertFilesToResourceLinks(files);
+          promptBlocks.push(...fileResourceLinks);
+        }
+
+        const hasGivenRules = notifications.some(
+          (notification) =>
+            notification.type === "session_notification" &&
+            notification.data.update.sessionUpdate === "user_message_chunk",
+        );
+        if (!hasGivenRules) {
+          promptBlocks.push(
+            {
+              type: "resource_link",
+              uri: absoluteFilename,
+              mimeType: "text/x-python",
+              name: absoluteFilename,
+            },
+            {
+              type: "resource",
+              resource: {
+                uri: "marimo_rules.md",
+                mimeType: "text/plain",
+                text: getAgentPrompt(absoluteFilename),
+              },
+            },
+          );
+        }
+
         await agent.prompt({
           sessionId: activeSessionId,
           prompt: promptBlocks,
         });
       } catch (error) {
         logger.error("Failed to send prompt", { error });
+        setError(error instanceof Error ? error : String(error));
       } finally {
         setIsLoading(false);
       }

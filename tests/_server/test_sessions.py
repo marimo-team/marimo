@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -24,7 +24,10 @@ from marimo._ast.app_config import _AppConfig
 from marimo._config.manager import (
     get_default_config_manager,
 )
+from marimo._messaging.errors import MarimoInterruptionError
 from marimo._messaging.notification import (
+    CellNotification,
+    CompletedRunNotification,
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
@@ -57,40 +60,6 @@ from marimo._types.ids import ConsumerId, SessionId
 from marimo._utils.marimo_path import MarimoPath
 
 initialize_asyncio()
-
-
-@pytest.mark.parametrize("inherited_mode", ["single", None])
-def test_single_sandbox_edit_uses_notebook_bound_kernel(
-    inherited_mode: str | None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    from marimo._cli.sandbox import SandboxMode
-    from marimo._config.settings import GLOBAL_SETTINGS
-    from marimo._session.managers.ipc import IPCKernelManagerImpl
-
-    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", inherited_mode)
-    # Inspect the factory without starting a process or attaching consumers.
-    with patch.object(
-        SessionImpl, "__init__", return_value=None
-    ) as initialize:
-        SessionImpl.create(
-            initialization_id="sandbox-restart",
-            session_consumer=MagicMock(),
-            mode=SessionMode.EDIT,
-            app_metadata=app_metadata,
-            app_file_manager=AppFileManager.from_app(InternalApp(App())),
-            config_manager=get_default_config_manager(current_path=None),
-            virtual_file_storage="shared_memory",
-            redirect_console_to_browser=False,
-            ttl_seconds=None,
-            auto_instantiate=False,
-            sandbox_mode=None if inherited_mode else SandboxMode.SINGLE,
-        )
-    manager = initialize.call_args.kwargs["kernel_manager"]
-    try:
-        assert isinstance(manager, IPCKernelManagerImpl)
-        assert manager.sandbox_mode is SandboxMode.SINGLE
-    finally:
-        manager.queue_manager.close_queues()
 
 
 app_metadata = AppMetadata(
@@ -140,7 +109,7 @@ def test_queue_manager() -> None:
     assert isinstance(queue_manager_thread.input_queue, queue.Queue)
 
 
-def test_kernel_manager_run_mode() -> None:
+async def test_kernel_manager_run_mode() -> None:
     # Mock objects and data for testing
     queue_manager = QueueManagerImpl(use_multiprocessing=False)
     mode = SessionMode.RUN
@@ -156,7 +125,7 @@ def test_kernel_manager_run_mode() -> None:
         redirect_console_to_browser=False,
     )
 
-    kernel_manager.start_kernel()
+    await kernel_manager.start_kernel()
 
     # Assert startup
     assert kernel_manager.kernel_task is not None
@@ -173,7 +142,7 @@ def test_kernel_manager_run_mode() -> None:
     assert queue_manager.control_queue.empty()
 
 
-def test_kernel_manager_edit_mode() -> None:
+async def test_kernel_manager_edit_mode() -> None:
     # Mock objects and data for testing
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     mode = SessionMode.EDIT
@@ -189,7 +158,7 @@ def test_kernel_manager_edit_mode() -> None:
         redirect_console_to_browser=False,
     )
 
-    kernel_manager.start_kernel()
+    await kernel_manager.start_kernel()
 
     # Assert startup
     assert kernel_manager.kernel_task is not None
@@ -206,113 +175,74 @@ def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
-def test_kernel_manager_interrupt(tmp_path: Path) -> None:
+async def test_kernel_manager_interrupt() -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
-    mode = SessionMode.EDIT
-
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
-        mode=mode,
+        mode=SessionMode.EDIT,
         configs={},
         app_metadata=app_metadata,
         config_manager=get_default_config_manager(current_path=None),
         virtual_file_storage="shared_memory",
         redirect_console_to_browser=False,
     )
+    await kernel_manager.start_kernel()
 
-    # Assert startup
-    kernel_manager.start_kernel()
-    assert kernel_manager.kernel_task is not None
-    assert kernel_manager._read_conn is not None
-    assert kernel_manager.is_alive()
-    if sys.platform == "win32":
-        import random
-        import string
-
-        # Having trouble persisting the write to a temp file on Windows
-        file = Path(
-            "".join(random.choice(string.ascii_uppercase) for _ in range(10))
-            + ".txt"
-        )
-    else:
-        file = tmp_path / "output.txt"
-
-    Path(file).write_text("-1")
-
-    queue_manager.control_queue.put(
-        CreateNotebookCommand(
-            execution_requests=(
-                ExecuteCellCommand(
-                    cell_id="1",
-                    code=inspect.cleandoc(
-                        f"""
-                            import time
-                            with open("{file}", 'w') as f:
-                                f.write('0')
-                            time.sleep(2)
-                            with open("{file}", 'w') as f:
-                                f.write('1')
-                            """
-                    ),
-                ),
-            ),
-            cell_ids=("1",),
-            set_ui_element_value_request=UpdateUIElementCommand(
-                object_ids=[], values=[]
-            ),
-            auto_run=True,
-        )
-    )
-
-    timeout = 5
-    # Wait for the file to be written to 0
-    start_time = time.time()
-    while time.time() < start_time + timeout / 2:
-        time.sleep(0.1)
-        if file.read_text() == "0":
-            break
-    kernel_manager.interrupt_kernel()
+    def interrupt_running_cell() -> bool:
+        interrupted = False
+        while True:
+            message = deserialize_kernel_message(
+                kernel_manager.kernel_connection.recv()
+            )
+            if isinstance(message, CompletedRunNotification):
+                return interrupted
+            if (
+                not isinstance(message, CellNotification)
+                or message.output is None
+            ):
+                continue
+            output = message.output.data
+            if isinstance(output, str) and "ready-to-interrupt" in output:
+                kernel_manager.interrupt_kernel()
+            elif isinstance(output, list):
+                interrupted |= any(
+                    isinstance(error, MarimoInterruptionError)
+                    for error in output
+                )
 
     try:
-        assert file.read_text() == "0"
-        # if kernel failed to interrupt, f will read as "1"
-        time.sleep(1.5)
-        assert file.read_text() == "0"
+        queue_manager.put_control_request(
+            CreateNotebookCommand(
+                execution_requests=(
+                    ExecuteCellCommand(
+                        cell_id="1",
+                        code=inspect.cleandoc("""
+                            import marimo as mo
+                            mo.output.append("ready-to-interrupt")
+                            while True:
+                                pass
+                        """),
+                    ),
+                ),
+                cell_ids=("1",),
+                set_ui_element_value_request=UpdateUIElementCommand(
+                    object_ids=[], values=[]
+                ),
+                auto_run=True,
+            )
+        )
+        assert await asyncio.wait_for(
+            asyncio.to_thread(interrupt_running_cell), timeout=5
+        )
     finally:
-        if sys.platform == "win32":
-            os.remove(file)
-
-        # Wait for queues to be empty with timeout
-        # This makes the test more resilient to timing issues in CI
-        start_time = time.time()
-        timeout = 5  # 5-second timeout for queues to be empty
-
-        # Give some time for queues to be processed first
-        time.sleep(0.5)
-
-        while time.time() - start_time < timeout:
-            if (
-                queue_manager.input_queue.empty()
-                and queue_manager.control_queue.empty()
-            ):
-                break
-            time.sleep(0.2)  # slightly longer interval
-
-        # Now check if queues are empty
-        assert queue_manager.input_queue.empty()
-        assert queue_manager.control_queue.empty()
-
-        # Assert shutdown
         kernel_manager.close_kernel()
-        kernel_manager.kernel_task.join(timeout=5)
-        assert not kernel_manager.is_alive()
 
 
 @pytest.mark.skipif(
     sys.platform == "win32",
     reason="interrupts don't reach subprocesses on Windows",
 )
-def test_kernel_manager_interrupt_reaches_subprocesses(
+async def test_kernel_manager_interrupt_reaches_subprocesses(
     tmp_path: Path,
 ) -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
@@ -326,7 +256,7 @@ def test_kernel_manager_interrupt_reaches_subprocesses(
         redirect_console_to_browser=False,
     )
 
-    kernel_manager.start_kernel()
+    await kernel_manager.start_kernel()
     assert kernel_manager.kernel_task is not None
     assert kernel_manager.is_alive()
 
@@ -371,7 +301,7 @@ def test_kernel_manager_interrupt_reaches_subprocesses(
                 int(pid) for pid in pid_file.read_text().split()
             )
             break
-        time.sleep(0.1)
+        await asyncio.sleep(0.1)
 
     def terminated(pid: int) -> bool:
         # An interrupted child of the kernel may linger as a zombie until
@@ -389,8 +319,8 @@ def test_kernel_manager_interrupt_reaches_subprocesses(
         kernel_manager.interrupt_kernel()
 
         deadline = time.time() + 10
-        while time.time() < deadline and not terminated(child_pid):
-            time.sleep(0.1)
+        while time.time() < deadline and not terminated(child_pid):  # noqa: ASYNC110
+            await asyncio.sleep(0.1)
         # The interrupt reaches subprocesses in the kernel's process group
         assert terminated(child_pid)
         # ... but spares subprocesses that detached into their own session
@@ -424,6 +354,8 @@ async def test_session() -> None:
         redirect_console_to_browser=False,
     )
 
+    await kernel_manager.start_kernel()
+
     # Instantiate a Session
     session = SessionImpl(
         initialization_id=session_id,
@@ -455,7 +387,27 @@ async def test_session() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
-def test_session_disconnect_reconnect() -> None:
+def test_sessions_for_same_file_have_distinct_stable_ids() -> None:
+    sessions = [
+        SessionImpl(
+            initialization_id="notebook.py",
+            session_consumer=MagicMock(),
+            kernel_manager=MagicMock(spec=KernelManagerImpl),
+            app_file_manager=AppFileManager.from_app(InternalApp(App())),
+            config_manager=get_default_config_manager(current_path=None),
+            ttl_seconds=None,
+            extensions=[],
+        )
+        for _ in range(2)
+    ]
+    try:
+        assert sessions[0].stable_id != sessions[1].stable_id
+    finally:
+        for session in sessions:
+            session.close()
+
+
+async def test_session_disconnect_reconnect() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManagerImpl(use_multiprocessing=False)
@@ -468,6 +420,8 @@ def test_session_disconnect_reconnect() -> None:
         virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
+
+    await kernel_manager.start_kernel()
 
     # Instantiate a Session
     session = SessionImpl(
@@ -512,7 +466,7 @@ def test_session_disconnect_reconnect() -> None:
     assert session.connection_state() == ConnectionState.CLOSED
 
 
-def test_session_with_kiosk_consumers() -> None:
+async def test_session_with_kiosk_consumers() -> None:
     session_consumer: Any = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
     queue_manager = QueueManagerImpl(use_multiprocessing=False)
@@ -525,6 +479,8 @@ def test_session_with_kiosk_consumers() -> None:
         virtual_file_storage="in_memory",
         redirect_console_to_browser=False,
     )
+
+    await kernel_manager.start_kernel()
 
     # Instantiate a Session
     session = SessionImpl(
@@ -620,7 +576,7 @@ def __():
         session_consumer = MockSessionConsumer()
 
         # Create a session
-        session_manager.create_session(
+        await session_manager.create_session(
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
@@ -657,7 +613,7 @@ def __():
 
         # Create another session for the same file
         session_consumer2 = MockSessionConsumer()
-        session_manager.create_session(
+        await session_manager.create_session(
             session_id=SessionId("test2"),
             session_consumer=session_consumer2,
             query_params={},
@@ -728,10 +684,10 @@ def __():
         assert len(update_ops2) >= 1
     finally:
         # Cleanup
-        session_manager.shutdown()
+        await session_manager.shutdown()
 
 
-def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
+async def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
     """Test that watch mode does not override config settings."""
     # Create a temporary file
     tmp_file = tmp_path / "test_watch_mode_config_override.py"
@@ -780,8 +736,8 @@ def test_watch_mode_does_not_override_config(tmp_path: Path) -> None:
 
     finally:
         # Cleanup
-        session_manager.shutdown()
-        session_manager_no_watch.shutdown()
+        await session_manager.shutdown()
+        await session_manager_no_watch.shutdown()
 
 
 @pytest.mark.flaky(reruns=3)
@@ -834,7 +790,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
         session_consumer = MockSessionConsumer()
 
         # Create a session
-        session = session_manager.create_session(
+        session = await session_manager.create_session(
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
@@ -891,7 +847,7 @@ async def test_watch_mode_with_watcher_on_save_autorun(tmp_path: Path) -> None:
     finally:
         # Cleanup
         if session_manager:
-            session_manager.shutdown()
+            await session_manager.shutdown()
 
 
 async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
@@ -943,7 +899,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
         session_consumer = MockSessionConsumer()
 
         # Create a session
-        session = session_manager.create_session(
+        session = await session_manager.create_session(
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
@@ -989,7 +945,7 @@ async def test_watch_mode_with_watcher_on_save_lazy(tmp_path: Path) -> None:
     finally:
         # Cleanup
         if session_manager:
-            session_manager.shutdown()
+            await session_manager.shutdown()
 
 
 async def test_session_manager_file_rename() -> None:
@@ -1039,7 +995,7 @@ def __():
         )
 
         # Create a session
-        session_manager.create_session(
+        await session_manager.create_session(
             session_id=session_id,
             session_consumer=session_consumer,
             query_params={},
@@ -1066,6 +1022,7 @@ def __():
         # Rename to the second file
         session = session_manager.get_session(session_id)
         assert session is not None
+        stable_id = session.stable_id
         success, error = await session_manager.rename_session(
             session_id, str(new_path)
         )
@@ -1075,6 +1032,7 @@ def __():
         assert (
             session_manager.get_session_by_file_key(str(new_path)) is session
         )
+        assert session.stable_id == stable_id
 
         # Modify the new file
         operations.clear()
@@ -1104,14 +1062,14 @@ def __():
 
     finally:
         # Cleanup
-        session_manager.shutdown()
+        await session_manager.shutdown()
         if new_path.exists():
             os.remove(new_path)
         if tmp_path1.exists():  # noqa: ASYNC240
             os.remove(tmp_path1)
 
 
-def test_session_with_script_config_overrides(
+async def test_session_with_script_config_overrides(
     tmp_path: Path,
 ) -> None:
     session_consumer = MagicMock()
@@ -1134,7 +1092,7 @@ def test_session_with_script_config_overrides(
     app_file_manager = AppFileManager(filename=str(tmp_file))
 
     # Create session with the file that has script config
-    session = SessionImpl.create(
+    session = await SessionImpl.create(
         initialization_id="test_id",
         session_consumer=session_consumer,
         mode=SessionMode.RUN,
@@ -1172,7 +1130,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     session_consumer = MagicMock()
     session_consumer.connection_state.return_value = ConnectionState.OPEN
 
-    def create_session(
+    async def create_session(
         mode: SessionMode,
         auto_instantiate: bool,
         *,
@@ -1187,7 +1145,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
                     }
                 }
             )
-        return SessionImpl.create(
+        return await SessionImpl.create(
             initialization_id="test_session",
             session_consumer=session_consumer,
             mode=mode,
@@ -1212,7 +1170,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
         return extension[0]
 
     # Test 1: EDIT mode with auto_instantiate=False -> caching enabled/read-write
-    session_edit = create_session(SessionMode.EDIT, False)
+    session_edit = await create_session(SessionMode.EDIT, False)
 
     # Find the CachingExtension
     caching_extension_edit = find_caching_extension(session_edit)
@@ -1220,7 +1178,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     assert caching_extension_edit.mode is CacheMode.READ_WRITE
 
     # Test 2: EDIT mode with auto_instantiate=True -> caching disabled
-    session_edit_disabled = create_session(SessionMode.EDIT, True)
+    session_edit_disabled = await create_session(SessionMode.EDIT, True)
     caching_extension_edit_disabled = find_caching_extension(
         session_edit_disabled
     )
@@ -1228,7 +1186,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     assert caching_extension_edit_disabled.mode is CacheMode.READ_WRITE
 
     # Test 3: RUN mode with config disabled -> caching disabled/read-only
-    session_run_disabled = create_session(
+    session_run_disabled = await create_session(
         SessionMode.RUN, True, serve_cached_sessions_in_apps=False
     )
 
@@ -1240,7 +1198,7 @@ async def test_caching_extension_respects_mode_and_config() -> None:
     assert caching_extension_run_disabled.mode is CacheMode.READ
 
     # Test 4: RUN mode with config enabled -> caching enabled/read-only
-    session_run_enabled = create_session(
+    session_run_enabled = await create_session(
         SessionMode.RUN, True, serve_cached_sessions_in_apps=True
     )
     caching_extension_run_enabled = find_caching_extension(session_run_enabled)

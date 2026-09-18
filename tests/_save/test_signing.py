@@ -167,7 +167,7 @@ class TestSignVerify:
         """Truncated/corrupted base64 in the signature string raises CacheSignatureError."""
         _, verifier = _make_verifier()
         with pytest.raises(
-            CacheSignatureError, match="not readable|corrupted"
+            CacheSignatureError, match=r"not readable|corrupted"
         ):
             verifier.verify(b"data", "not!!valid==base64@@")
 

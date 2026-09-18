@@ -310,9 +310,134 @@ def test_pytest_result_summary_includes_xfail() -> None:
     assert "XPassed: 1" in result.summary
 
 
+def test_offline_notebook_location(tmp_path: Path) -> None:
+    import subprocess
+
+    notebook_dir = tmp_path / "notebooks"
+    notebook_dir.mkdir()
+    notebook = notebook_dir / "test_location.py"
+    notebook.write_text(
+        """
+import marimo
+app = marimo.App()
+
+with app.setup:
+    import pytest
+
+@app.cell
+def imports():
+    import marimo as mo
+    from pathlib import Path
+    return mo, Path
+
+@app.cell
+def location(mo):
+    directory = mo.notebook_dir()
+    return (directory,)
+
+@app.cell
+def test_cell_location(Path, directory, mo):
+    assert directory == Path(__file__).parent
+    assert mo.notebook_location() == directory
+    assert directory.name == "notebooks"
+
+@app.cell
+def _(Path, directory, mo):
+    @pytest.fixture
+    def location_fixture():
+        assert mo.notebook_dir() == Path(__file__).parent
+        return mo.notebook_location()
+
+    def test_location(location_fixture):
+        assert mo.notebook_dir() == directory == location_fixture
+        assert directory.name == "notebooks"
+
+    @pytest.mark.parametrize("change_cwd", [False, True])
+    def test_location_after_chdir(change_cwd, monkeypatch, tmp_path):
+        if change_cwd:
+            monkeypatch.chdir(tmp_path)
+        assert mo.notebook_dir() == Path(__file__).parent
+        assert mo.app_meta().mode == "test"
+
+    @pytest.mark.xfail(raises=ValueError, strict=True)
+    def test_failure():
+        assert mo.notebook_dir() == Path(__file__).parent
+        raise ValueError("expected failure")
+
+    @pytest.mark.asyncio
+    async def test_async_location():
+        import asyncio
+        await asyncio.sleep(0)
+        assert mo.notebook_location() == Path(__file__).parent
+        assert directory.name == "notebooks"
+
+    class TestLocation:
+        def test_location(self):
+            assert mo.notebook_dir() == Path(__file__).parent
+            assert directory.name == "notebooks"
+
+def test_context_restored():
+    from pathlib import Path
+    from marimo._runtime.context import runtime_context_installed
+    assert not runtime_context_installed()
+    assert marimo.notebook_dir() == Path.cwd()
+    assert marimo.app_meta().mode == "test"
+"""
+    )
+    env = {k: v for k, v in os.environ.items() if k != "PYTEST_CURRENT_TEST"}
+    proc = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(notebook),
+            "-q",
+            "-p",
+            "no:inline_snapshot",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=tmp_path,
+        env=env,
+    )
+    out = proc.stdout + proc.stderr
+    assert proc.returncode == 0, out
+    assert "7 passed, 1 xfailed" in out
+
+
 def test_pytest_result_summary_omits_zero_xfail() -> None:
     from marimo._runtime.pytest import MarimoPytestResult
 
     result = MarimoPytestResult(passed=5, failed=0, errors=0, skipped=0)
     assert "XFailed" not in result.summary
     assert "XPassed" not in result.summary
+
+
+@pytest.mark.parametrize("failure", [None, "cell", "test"])
+def test_sync_hook_closes_event_loop(monkeypatch, failure: str | None) -> None:
+    from marimo._ast.pytest import _make_hook
+
+    loop = asyncio.new_event_loop()
+    monkeypatch.setattr(asyncio, "new_event_loop", lambda: loop)
+
+    def test_function():
+        if failure == "test":
+            raise ValueError("test failed")
+        return "test result"
+
+    async def run_cell():
+        await asyncio.sleep(0)
+        if failure == "cell":
+            raise ValueError("cell failed")
+        return None, {"test_function": test_function}
+
+    hook = _make_hook("test_function", run_cell, __file__)
+    try:
+        if failure:
+            with pytest.raises(ValueError, match=f"{failure} failed"):
+                hook()
+        else:
+            assert hook() == "test result"
+        assert loop.is_closed()
+    finally:
+        loop.close()

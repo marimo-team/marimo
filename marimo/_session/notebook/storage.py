@@ -214,7 +214,7 @@ class FilesystemStorage(StorageInterface):
             LOGGER.warning(
                 "Failed to open related file %s for reading: %s",
                 filepath,
-                str(e),
+                e,
             )
             return None
 

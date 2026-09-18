@@ -9,21 +9,15 @@ const AccordionTrigger = AccordionPrimitive.Trigger;
 
 import type { JSX } from "react";
 import { ZodError } from "zod";
-import { EmotionCacheProvider } from "@/components/editor/output/EmotionCacheProvider";
 import { JsonOutput } from "@/components/editor/output/JsonOutput";
 import { Alert, AlertTitle } from "../../components/ui/alert";
 
 interface Props {
   error: ZodError | Error;
-  shadowRoot: ShadowRoot | null;
   badData: Record<string, unknown>;
 }
 
-export const BadPluginData: React.FC<Props> = ({
-  error,
-  badData,
-  shadowRoot,
-}) => {
+export const BadPluginData: React.FC<Props> = ({ error, badData }) => {
   if (error instanceof ZodError) {
     return (
       <Alert variant="destructive">
@@ -49,9 +43,7 @@ export const BadPluginData: React.FC<Props> = ({
               View Data:
             </AccordionTrigger>
             <AccordionContent className="text-[0.84375rem]">
-              <EmotionCacheProvider container={shadowRoot}>
-                <JsonOutput data={badData} />
-              </EmotionCacheProvider>
+              <JsonOutput data={badData} />
             </AccordionContent>
           </AccordionItem>
         </Accordion>
@@ -65,9 +57,6 @@ export const BadPluginData: React.FC<Props> = ({
 export function renderError(
   error: ZodError | Error,
   badData: Record<string, unknown>,
-  shadowRoot: ShadowRoot | null,
 ): JSX.Element {
-  return (
-    <BadPluginData error={error} badData={badData} shadowRoot={shadowRoot} />
-  );
+  return <BadPluginData error={error} badData={badData} />;
 }

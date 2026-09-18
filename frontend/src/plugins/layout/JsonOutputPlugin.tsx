@@ -2,7 +2,6 @@
 
 import type { JSX } from "react";
 import { z } from "zod";
-import { EmotionCacheProvider } from "../../components/editor/output/EmotionCacheProvider";
 import { JsonOutput } from "../../components/editor/output/JsonOutput";
 import type {
   IStatelessPlugin,
@@ -30,18 +29,16 @@ export class JsonOutputPlugin implements IStatelessPlugin<Data> {
     valueTypes: z.enum(["json", "python"]).default("python"),
   });
 
-  render({ data, host }: IStatelessPluginProps<Data>): JSX.Element {
+  render({ data }: IStatelessPluginProps<Data>): JSX.Element {
     // `false` defaults to no text label
     const name = data.name === undefined ? false : data.name || "";
     return (
-      <EmotionCacheProvider container={host.shadowRoot}>
-        <JsonOutput
-          data={data.jsonData}
-          format="auto"
-          valueTypes={data.valueTypes}
-          name={name}
-        />
-      </EmotionCacheProvider>
+      <JsonOutput
+        data={data.jsonData}
+        format="auto"
+        valueTypes={data.valueTypes}
+        name={name}
+      />
     );
   }
 }

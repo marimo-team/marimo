@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Literal
 from unittest.mock import Mock, patch
@@ -838,8 +839,9 @@ def test_search_reads_metadata_only_for_selected_matches(
     if disappears:
         entries[-1].stat.side_effect = FileNotFoundError
 
-    with patch("marimo._server.files.os_file_system.os.scandir") as scandir:
-        scandir.return_value.__enter__.return_value = iter(entries)
+    # Keep concurrent directory watchers on the real os.scandir.
+    with patch("marimo._server.files.os_file_system.os", wraps=os) as mock_os:
+        mock_os.scandir.return_value = nullcontext(iter(entries))
         results = fs.search("report", path=str(test_dir), limit=1)
 
     assert [result.name for result in results] == (

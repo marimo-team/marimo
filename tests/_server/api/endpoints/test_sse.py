@@ -3,14 +3,18 @@ from __future__ import annotations
 
 import asyncio
 import json
+import sys
 import threading
 from functools import partial
 from typing import TYPE_CHECKING, Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from marimo._messaging.notification import AlertNotification
+from marimo._messaging.notification import (
+    AlertNotification,
+    StartupProgressNotification,
+)
 from marimo._messaging.serde import serialize_kernel_message
 from marimo._server.api.endpoints.ws.sse_handler import SSESessionHandler
 from marimo._server.api.endpoints.ws.ws_connection_validator import (
@@ -30,6 +34,8 @@ from tests._server.api.endpoints.ws_helpers import (
 from tests._server.mocks import get_session_manager
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from starlette.applications import Starlette
     from starlette.testclient import TestClient
     from typing_extensions import Self
@@ -290,6 +296,80 @@ async def test_sse_kernel_startup_error(client: TestClient) -> None:
             )
 
 
+@pytest.mark.parametrize("outcome", ["ready", "error", "disconnect"])
+async def test_sandbox_progress_during_preparation(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    outcome: str,
+) -> None:
+    from marimo._session.managers import ipc
+
+    release = asyncio.Event()
+    cleaned_up = asyncio.Event()
+
+    async def check_environment(_python: str) -> bool:
+        try:
+            await release.wait()
+            return True
+        finally:
+            cleaned_up.set()
+
+    # A configured interpreter that disappears before launch lets the test
+    # observe both phases and a real launch failure without spawning a kernel.
+    monkeypatch.setattr(
+        ipc,
+        "get_configured_venv_python",
+        lambda *_args, **_kwargs: (
+            sys.executable
+            if outcome == "ready"
+            else str(tmp_path / "missing-python")
+        ),
+    )
+    monkeypatch.setattr(ipc, "has_marimo_installed", check_environment)
+    manager = get_session_manager(client)
+    manager.sandbox = True
+
+    async with _connect(client) as connection:
+        event = await connection.next_event()
+        assert json.loads(event["data"]) == {
+            "op": "startup-progress",
+            "data": {
+                "op": "startup-progress",
+                "phase": "preparing-environment",
+            },
+        }
+        assert not manager.sessions
+        if outcome == "disconnect":
+            connection.disconnect()
+            await asyncio.wait_for(cleaned_up.wait(), timeout=5)
+        else:
+            release.set()
+            event = await connection.next_event()
+            assert json.loads(event["data"]) == {
+                "op": "startup-progress",
+                "data": {
+                    "op": "startup-progress",
+                    "phase": "starting-kernel",
+                },
+            }
+            event = await connection.next_event()
+            message = json.loads(event["data"])
+            if outcome == "ready":
+                assert_kernel_ready_response(message)
+            else:
+                assert message["op"] == "kernel-startup-error"
+                assert (
+                    "Failed to start kernel subprocess"
+                    in message["data"]["error"]
+                )
+                await _expect_close(
+                    connection, 1011, "MARIMO_KERNEL_STARTUP_ERROR"
+                )
+    if outcome != "ready":
+        assert not manager.sessions
+
+
 async def test_sse_kiosk_without_session(client: TestClient) -> None:
     async with _connect(client, f"{SSE_QUERY}&kiosk=true") as connection:
         await _expect_close(connection, 1000, "MARIMO_NO_SESSION")
@@ -364,8 +444,18 @@ def _make_handler(
     # Bypass SessionConnector; unit tests drive the handler directly
     session = MagicMock()
     session.room.main_consumer = handler
-    handler._connect_session = MagicMock(  # type: ignore[method-assign]
-        return_value=(session, ConnectionType.NEW)
+    session.ttl_seconds = 120
+    session.disconnect_consumer.side_effect = lambda consumer: (
+        consumer.on_detach()
+    )
+    handler.manager.get_session.return_value = session
+
+    async def connect(_request: Any) -> tuple[Any, ConnectionType]:
+        handler.on_attach(session, MagicMock())
+        return session, ConnectionType.NEW
+
+    handler._connect_session = AsyncMock(  # type: ignore[method-assign]
+        side_effect=connect
     )
     return handler
 
@@ -414,6 +504,27 @@ async def test_stream_does_not_connect_until_iterated() -> None:
 
     await stream.aclose()
     handler._connect_session.assert_not_called()
+
+
+async def test_disconnect_during_startup_progress_detaches_session() -> None:
+    request = MagicMock()
+    request._receive = _never_receive()
+    handler = _make_handler(request)
+    session = handler.manager.get_session.return_value
+    handler.notify(
+        serialize_kernel_message(
+            StartupProgressNotification(phase="starting-kernel")
+        )
+    )
+
+    stream = handler.stream()
+    assert "startup-progress" in await anext(stream)
+    await asyncio.sleep(0)  # Complete attachment while the yield is suspended.
+    await stream.aclose()
+
+    session.disconnect_consumer.assert_called_once_with(handler)
+    assert handler.connection_state() == ConnectionState.CLOSED
+    assert not handler._is_transport_connected()
 
 
 async def test_stream_flushes_pending_messages_before_close() -> None:

@@ -13,7 +13,7 @@ dependencies = [
     # For maintainable cli
     "click>=8.0,<9; sys_platform != 'emscripten'",
     # code completion (upper bound applied temporarily for resolution)
-    "jedi>=0.18.0,<0.20.0",
+    "jedi>=0.18.0,<0.21.0",
     # compile markdown to html
     "markdown>=3.6,<4",
     # add features to markdown
@@ -143,7 +143,7 @@ dev = [
     # Stubs for optional dataframe backends
     "pyarrow-stubs",
     # For linting
-    "ruff>=0.15.18",
+    "ruff>=0.16.6",
     # For AI
     "pydantic-ai-slim[openai]>=1.107.0,<3.0.0",
 ]
@@ -272,7 +272,7 @@ typecheck = [
 
 docs = [
     "marimo_docs",
-    "ruff>=0.15.18",
+    "ruff>=0.16.6",
     "mkdocs>=1.6.1",
     # `mkdocs serve` silently loses live reload on click 8.3.x: MkDocs declares
     # --no-livereload/--livereload as a feature switch group, and click 8.3
@@ -375,7 +375,6 @@ ignore = [
     "UP007", # Use `X | Y` for type annotations
     "DTZ012", # `date.fromtimestamp()` called without `tzinfo`
     "DTZ901", # `datetime.min` / `datetime.max` used
-    "S112", # `try`-`except`-`continue`
     "PLW1509", # `subprocess` `preexec_fn` argument
     "DTZ002", # `datetime.today()` called without tz
     "D421", # Property docstring should not start with a verb (preview rule)
@@ -383,13 +382,10 @@ ignore = [
     # Restored to Ruff's default rule set in 0.16.6; enable incrementally
     "RUF069", # Float equality comparison
     "PLW0108", # Unnecessary lambda
-    "RUF043", # Ambiguous pattern in `pytest.raises`
-    "RUF065", # Eager conversion in logging calls
     "PLC2801", # Unnecessary dunder call
     "FURB189", # Subclassing built-in collections
     "FURB152", # Replace literal with a math constant
     "FURB110", # Replace ternary with an `or` expression
-    "RUF036", # `None` is not last in a union
     "FURB113", # Repeated `append` calls
     "NPY002", # Legacy NumPy random API
     "RUF100", # Unused `noqa` directive
@@ -418,8 +414,6 @@ extend-select = [
     "ANN202", # missing-return-type-private-function
     "ANN205", # missing-return-type-static-method
     "ANN206", # missing-return-type-class-method
-    # isort
-    "I001",
     # Enable entire ruff rule section
     "ASYNC", # subset of flake8-async rules
     "TCH",   # Rules around TYPE_CHECKING blocks
@@ -436,21 +430,10 @@ extend-select = [
     "D3",
     # "D400", # First line should end with a period
     # "D401", # First line of docstring should be in imperative mood
-    "D402",
-    "D403",
-    "D412",
-    "D419",
     "PGH004", # Use specific rule codes when using noqa
-    "PGH005", # Invalid unittest.mock.Mock methods/attributes/properties
     "RUF006", # Store a reference to the return value of asyncio.create_task
     # "S101", # Checks use `assert` outside the test cases, test cases should be added into the exclusions
-    "B004",   # Checks for use of hasattr(x, "__call__") and replaces it with callable(x)
-    "B006",   # Checks for uses of mutable objects as function argument defaults.
-    "B017",   # Checks for pytest.raises context managers that catch Exception or BaseException.
-    "B019",   # Use of functools.lru_cache or functools.cache on methods can lead to memory leaks
-    "TRY002", # Prohibit use of `raise Exception`, use specific exceptions instead.
     "T201",   # No print statements
-    "D3",  # pydocstyle Quotes Issues
     "D4",  # pydocstyle Docstring Content Issues
     "D207",  # Docstring is under-indented
     "D208",  # Docstring is over-indented

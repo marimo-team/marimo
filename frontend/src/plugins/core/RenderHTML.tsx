@@ -262,9 +262,29 @@ const wrapTooltipTargets: TransformFn = (
     if (tagName.startsWith("marimo-")) {
       return undefined;
     }
-    const tooltipContent = domNode.attribs["data-tooltip"];
+    const tooltipContent = domNode.attribs["data-tooltip"].replace(
+      /^[\r\n]+|[\r\n]+$/g,
+      "",
+    );
     return (
-      <Tooltip content={tooltipContent}>{reactNode as JSX.Element}</Tooltip>
+      <Tooltip
+        content={
+          tooltipContent.includes("\n") ? (
+            <span className="whitespace-pre-wrap">
+              {tooltipContent.split(/\r?\n/).map((line, i) => (
+                <React.Fragment key={i}>
+                  {i > 0 && <br />}
+                  {line}
+                </React.Fragment>
+              ))}
+            </span>
+          ) : (
+            tooltipContent
+          )
+        }
+      >
+        {reactNode as JSX.Element}
+      </Tooltip>
     );
   }
 };

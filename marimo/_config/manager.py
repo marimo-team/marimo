@@ -523,7 +523,7 @@ class UserConfigManager(MarimoConfigReader):
         except OSError as e:
             path = None
             LOGGER.warning(
-                "Encountered error when searching for config: %s", str(e)
+                "Encountered error when searching for config: %s", e
             )
 
         if path is not None:

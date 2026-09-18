@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 
 from markdown import Extension, Markdown, preprocessors  # type: ignore
+from markdown.blockprocessors import HRProcessor  # type: ignore
 
 
 class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
@@ -24,6 +25,9 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
 
     # Opening or closing $$ on its own line
     DOLLAR_DOLLAR_PATTERN = re.compile(r"^\s*\$\$\s*$")
+
+    # Python-Markdown accepts "1." markers, but not "1)".
+    LIST_MARKER_PATTERN = re.compile(r"^\s*([0-9]+\.|[-*+])\s+")
 
     # Matches inline RST math role: :math:`...`
     INLINE_MATH_ROLE_PATTERN = re.compile(r"(?<!`):math:`([^`\n]+)`")
@@ -100,6 +104,8 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
         return "".join(converted_segments)
 
     def _normalize_display_math_spacing(self, lines: list[str]) -> list[str]:
+        lines = self._reindent_list_continuations(lines)
+
         result: list[str] = []
         i = 0
         in_multiline = False
@@ -136,6 +142,87 @@ class DisplayMathPreprocessor(preprocessors.Preprocessor):  # type: ignore[misc]
             i += 1
 
         return result
+
+    def _reindent_list_continuations(self, lines: list[str]) -> list[str]:
+        """Keep list continuations inside the item after adding blank lines.
+
+        Python-Markdown requires loose list content to use `tab_length`
+        indentation, even when the list marker is narrower.
+        """
+        result = list(lines)
+        n = len(result)
+        i = 0
+        while i < n:
+            line = result[i]
+            if not line.strip() or self._count_indent(line) == 0:
+                i += 1
+                continue
+
+            start = i
+            in_dollar_block = False
+            while i < n:
+                current = result[i]
+                if not current.strip():
+                    # Keep blank lines inside a math block in the same run.
+                    if not in_dollar_block:
+                        break
+                elif self._count_indent(current) == 0:
+                    break
+                elif self.DOLLAR_DOLLAR_PATTERN.match(current):
+                    in_dollar_block = not in_dollar_block
+                i += 1
+            end = i
+
+            preceding = result[start - 1] if start > 0 else ""
+            if self.LIST_MARKER_PATTERN.match(
+                preceding
+            ) and not HRProcessor.SEARCH_RE.fullmatch(preceding):
+                self._pad_math_segments(result, start, end, self.md.tab_length)
+
+        return result
+
+    def _pad_math_segments(
+        self, result: list[str], start: int, end: int, tab_length: int
+    ) -> None:
+        """Pad each block separately so deeper math keeps its indentation."""
+        j = start
+        while j < end:
+            seg_start = j
+            if self.SINGLE_LINE_PATTERN.match(result[j]):
+                j += 1
+            elif self.DOLLAR_DOLLAR_PATTERN.match(result[j]):
+                j += 1
+                while j < end and not self.DOLLAR_DOLLAR_PATTERN.match(
+                    result[j]
+                ):
+                    j += 1
+                if j < end:
+                    j += 1  # include the closing "$$" line
+            else:
+                while j < end and not (
+                    self.SINGLE_LINE_PATTERN.match(result[j])
+                    or self.DOLLAR_DOLLAR_PATTERN.match(result[j])
+                ):
+                    j += 1
+                if seg_start == start:
+                    # Leading prose stays in the list marker's paragraph.
+                    continue
+
+            segment = result[seg_start:j]
+            min_indent = min(
+                (
+                    self._count_indent(line_)
+                    for line_ in segment
+                    if line_.strip()
+                ),
+                default=0,
+            )
+            if 0 < min_indent < tab_length:
+                padding = " " * (tab_length - min_indent)
+                result[seg_start:j] = [
+                    padding + line_ if line_.strip() else line_
+                    for line_ in segment
+                ]
 
     def _split_by_inline_code(self, text: str) -> list[tuple[str, bool]]:
         """Split text into inline-code and non-code segments.

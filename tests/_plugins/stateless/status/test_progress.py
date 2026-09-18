@@ -214,7 +214,7 @@ def test_progress_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine the length of a collection. A `total` must be provided.",
+        match=r"Cannot determine the length of a collection\. A `total` must be provided\.",
     ):
         progress_bar(sync_generator())
 
@@ -229,7 +229,7 @@ def test_progress_async_no_total_error():
 
     with pytest.raises(
         TypeError,
-        match="Cannot determine the length of a collection. A `total` must be provided.",
+        match=r"Cannot determine the length of a collection\. A `total` must be provided\.",
     ):
         progress_bar(async_generator())
 
@@ -242,7 +242,7 @@ def test_progress_for_loop_error():
 
     with pytest.raises(
         RuntimeError,
-        match="Cannot iterate over an async collection with `for`. Use `async for` instead.",
+        match=r"Cannot iterate over an async collection with `for`\. Use `async for` instead\.",
     ):
         for _ in progress_bar(async_generator(), total=1):
             pass
@@ -253,7 +253,7 @@ async def test_progress_async_for_loop_error():
 
     with pytest.raises(
         RuntimeError,
-        match="Cannot iterate over a sync collection with `async for`. Use `for` instead.",
+        match=r"Cannot iterate over a sync collection with `async for`\. Use `for` instead\.",
     ):
         async for _ in progress_bar([1, 2, 3]):
             pass

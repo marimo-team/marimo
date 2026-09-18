@@ -3097,6 +3097,47 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/packages/manifest": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["UpdateManifestRequest"];
+        };
+      };
+      responses: {
+        /** @description Save notebook metadata without changing its cells */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/packages/remove": {
     parameters: {
       query?: never;
@@ -3126,6 +3167,88 @@ export interface paths {
           };
           content: {
             "application/json": components["schemas"]["PackageOperationResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sandbox": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Sandbox manifest, available before kernel startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SandboxResponse"];
+          };
+        };
+      };
+    };
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/packages/sync": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post: {
+      parameters: {
+        query?: never;
+        header: {
+          "Marimo-Session-Id": string;
+        };
+        path?: never;
+        cookie?: never;
+      };
+      requestBody: {
+        content: {
+          "application/json": components["schemas"]["SandboxRequest"];
+        };
+      };
+      responses: {
+        /** @description Apply the saved manifest, or reconnect to retry startup */
+        200: {
+          headers: {
+            [name: string]: unknown;
+          };
+          content: {
+            "application/json": components["schemas"]["SyncSandboxResponse"];
           };
         };
       };
@@ -3740,6 +3863,8 @@ export interface components {
       code: string;
       /** @default null */
       context?: null | components["schemas"]["AiCompletionContext"];
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /**
        * @default python
@@ -4141,6 +4266,8 @@ export interface components {
      *     See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.
      */
     ChatRequest: {
+      /** @default null */
+      id?: string | null;
       includeOtherCode: string;
       /** @default null */
       model?: string | null;
@@ -5638,6 +5765,7 @@ export interface components {
         | components["schemas"]["MissingPackageAlertNotification"]
         | components["schemas"]["InstallingPackageAlertNotification"]
         | components["schemas"]["StartupLogsNotification"]
+        | components["schemas"]["StartupProgressNotification"]
         | components["schemas"]["KernelStartupErrorNotification"]
         | components["schemas"]["VariablesNotification"]
         | components["schemas"]["VariableValuesNotification"]
@@ -6752,6 +6880,17 @@ export interface components {
       /** @enum {unknown} */
       kind: "sandbox";
     };
+    /** SandboxRequest */
+    SandboxRequest: {
+      /** @default null */
+      fileKey?: string | null;
+    };
+    /** SandboxResponse */
+    SandboxResponse: {
+      backend: ("pixi" | "uv") | null;
+      filename: string | null;
+      manifest: string | null;
+    };
     /** SaveAppConfigurationRequest */
     SaveAppConfigurationRequest: {
       config: Record<string, any>;
@@ -7061,6 +7200,16 @@ export interface components {
       /** @enum {unknown} */
       status: "append" | "done" | "start";
     };
+    /**
+     * StartupProgressNotification
+     * @description Progress reported before a session's kernel is ready.
+     */
+    StartupProgressNotification: {
+      /** @enum {unknown} */
+      op: "startup-progress";
+      /** @enum {unknown} */
+      phase: "preparing-environment" | "starting-kernel";
+    };
     /** StdinRequest */
     StdinRequest: {
       text: string;
@@ -7297,6 +7446,16 @@ export interface components {
       /** @enum {unknown} */
       type: "sync-graph";
     };
+    /** SyncSandboxResponse */
+    SyncSandboxResponse: {
+      /** @default null */
+      error?: string | null;
+      /** @default false */
+      reconnect?: boolean;
+      /** @default false */
+      restartRequired?: boolean;
+      success: boolean;
+    };
     /**
      * ToolDefinition
      * @description Tool definition compatible with ai-sdk-ui format.
@@ -7430,6 +7589,13 @@ export interface components {
           unknown,
         ];
       };
+    };
+    /** UpdateManifestRequest */
+    UpdateManifestRequest: {
+      contents: string;
+      /** @default null */
+      fileKey?: string | null;
+      previous: string;
     };
     /**
      * UpdateUIElementCommand

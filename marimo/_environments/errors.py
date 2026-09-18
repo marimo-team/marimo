@@ -22,8 +22,9 @@ class MissingScriptMetadataError(EnvironmentManagerError):
 
 
 class SandboxRestartRequired(EnvironmentManagerError):
-    """The manifest synchronized, but not into the live kernel's prefix.
+    """Applying the manifest requires relaunching the kernel.
 
-    This is not a solver failure. Callers must not report the requested
+    The active interpreter is incompatible, or synchronization selected a
+    different prefix. Callers must not report the requested
     packages as importable until the kernel launches the new environment.
     """

@@ -1,6 +1,13 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
@@ -10,6 +17,9 @@ import type {
   DependencyTreeNode,
   DependencyTreeResponse,
 } from "@/core/network/types";
+import { withPackageInvalidation } from "@/core/packages/package-data";
+import { useInstallPackages } from "@/core/packages/useInstallPackage";
+import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { store } from "@/core/state/jotai";
 import PackagesPanel from "../packages-panel";
 
@@ -51,16 +61,22 @@ function renderPanel(
   context: DependencyTreeResponse["context"],
   tree: DependencyTreeNode = emptyTree,
 ) {
-  const getPackageList = vi.fn().mockResolvedValue({ packages: [] });
   store.set(
-    requestClientAtom,
-    MockRequestClient.create({
-      getPackageList,
-      getDependencyTree: vi.fn().mockResolvedValue({ tree, context }),
-    }),
+    sandboxAtom,
+    context.kind === "sandbox"
+      ? { backend: context.backend, manifest: "", filename: "notebook.py" }
+      : null,
   );
+  store.set(sandboxSyncAtom, { pending: false, error: null });
+  const getPackageList = vi.fn().mockResolvedValue({ packages: [] });
+  const client = MockRequestClient.create({
+    getPackageList,
+    getDependencyTree: vi.fn().mockResolvedValue({ tree, context }),
+  });
+  store.set(requestClientAtom, client);
 
   return {
+    client,
     getPackageList,
     ...render(
       <Provider store={store}>
@@ -141,3 +157,94 @@ describe("PackagesPanel", () => {
     expect(getPackageList).toHaveBeenCalledOnce();
   });
 });
+
+it("refreshes an open panel when a package is installed elsewhere, after installation succeeds", async () => {
+  const { promise, resolve } = Promise.withResolvers<{ success: boolean }>();
+  const client = MockRequestClient.create({
+    addPackage: vi.fn(() => promise),
+    getDependencyTree: vi
+      .fn()
+      .mockResolvedValueOnce({
+        tree: emptyTree,
+        context: { kind: "sandbox", backend: "uv" },
+      })
+      .mockResolvedValue({
+        tree: populatedTree,
+        context: { kind: "sandbox", backend: "uv" },
+      }),
+  });
+  store.set(sandboxAtom, {
+    backend: "uv",
+    manifest: "",
+    filename: "notebook.py",
+  });
+  store.set(sandboxSyncAtom, { pending: false, error: null });
+  store.set(requestClientAtom, withPackageInvalidation(client));
+  function InstallElsewhere() {
+    const { handleInstallPackages } = useInstallPackages();
+    return (
+      <button onClick={() => handleInstallPackages(["polars"])}>
+        Install from another panel
+      </button>
+    );
+  }
+  render(
+    <Provider store={store}>
+      <TooltipProvider>
+        <PackagesPanel />
+        <InstallElsewhere />
+      </TooltipProvider>
+    </Provider>,
+  );
+  await screen.findByPlaceholderText("Add packages to uv sandbox...");
+  fireEvent.click(
+    screen.getByRole("button", { name: "Install from another panel" }),
+  );
+  expect(client.getDependencyTree).toHaveBeenCalledTimes(1);
+  await act(async () => resolve({ success: true }));
+  await waitFor(() =>
+    expect(client.getDependencyTree).toHaveBeenCalledTimes(2),
+  );
+  expect(await screen.findByText("polars")).toBeInTheDocument();
+});
+
+it.each(["uv", "pixi", "list"] as const)(
+  "allows upgrading marimo but not removing it in the %s view",
+  async (view) => {
+    const tree = {
+      ...populatedTree,
+      dependencies: [
+        ...populatedTree.dependencies,
+        { name: "marimo", version: "0.24.0", tags: [], dependencies: [] },
+      ],
+    };
+    const { client, getPackageList } = renderPanel(
+      view === "list"
+        ? { kind: "package-manager", name: "pip" }
+        : { kind: "sandbox", backend: view },
+      tree,
+    );
+    getPackageList.mockResolvedValue({ packages: tree.dependencies });
+    vi.mocked(client.addPackage).mockResolvedValue({ success: true });
+    if (view === "list") {
+      fireEvent.click(await screen.findByRole("button", { name: "List" }));
+    }
+    const role = view === "list" ? "row" : "treeitem";
+    const marimo = within(await screen.findByRole(role, { name: /marimo/ }));
+    expect(marimo.getByText(/0\.24\.0/)).toBeInTheDocument();
+    expect(
+      marimo.queryByRole("button", { name: "Remove" }),
+    ).not.toBeInTheDocument();
+    const polars = within(screen.getByRole(role, { name: /polars/ }));
+    expect(polars.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    fireEvent.click(marimo.getByRole("button", { name: "Upgrade" }));
+    await waitFor(() =>
+      expect(client.addPackage).toHaveBeenCalledWith({
+        package: "marimo",
+        upgrade: true,
+        group: undefined,
+      }),
+    );
+    expect(client.removePackage).not.toHaveBeenCalled();
+  },
+);

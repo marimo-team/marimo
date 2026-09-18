@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import datetime
 import json
+import sys
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -245,6 +246,34 @@ def test_to_marimo_arrow(df: IntoDataFrame):
     assert "format" in result
     print(type(df))
     assert result["format"] == {"type": "arrow"}
+
+
+@pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")
+@pytest.mark.parametrize(
+    "df",
+    create_dataframes(
+        {"A": [1, 2, 3], "B": ["a", "b", "c"]}, include=SUPPORTS_ARROW_IPC
+    ),
+)
+def test_to_marimo_arrow_without_pyarrow(df: IntoDataFrame):
+    import pandas as pd
+
+    with (
+        patch.object(DependencyManager.pyarrow, "has", return_value=False),
+        patch.dict(sys.modules, {"pyarrow": None}),
+        patch(
+            "marimo._plugins.ui._impl.charts.altair_transformer.LOGGER.warning",
+            side_effect=OSError("[WinError 1] Incorrect function"),
+        ) as warning,
+    ):
+        result = _to_marimo_arrow(df)
+
+    if isinstance(df, pd.DataFrame):
+        assert result == _to_marimo_csv(df)
+    else:
+        # Polars can serialize Arrow IPC without pyarrow.
+        assert result["format"] == {"type": "arrow"}
+    warning.assert_not_called()
 
 
 @pytest.mark.skipif(not HAS_DEPS, reason="optional dependencies not installed")

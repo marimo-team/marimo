@@ -37,7 +37,8 @@ from tests._runtime._helpers.streams import (
 _MockStream = MockStream
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    import threading
+    from collections.abc import Callable, Generator
     from types import ModuleType, TracebackType
 
     from typing_extensions import Self
@@ -275,6 +276,41 @@ def patch_random_seed(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # Patch the random seed to be deterministic for testing
     monkeypatch.setattr(UIElement, "_random_seed", random.Random(42))
+
+
+@pytest.fixture
+def cleanup_watchers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
+    from marimo._runtime.threads import Thread
+    from marimo._runtime.watch import _directory, _file, _path
+
+    watchers: list[tuple[Thread, threading.Event]] = []
+
+    def track_thread(
+        *,
+        target: Callable[..., None],
+        args: tuple[Path, _path.PathState, threading.Event],
+        daemon: bool,
+    ) -> Thread:
+        thread = Thread(target=target, args=args, daemon=daemon)
+        watchers.append((thread, args[2]))
+        return thread
+
+    monkeypatch.setattr(_path, "Thread", track_thread)
+    # Restore intervals changed by notebook cells after each test.
+    monkeypatch.setattr(_file, "_TEST_SLEEP_INTERVAL", None)
+    monkeypatch.setattr(_directory, "_TEST_SLEEP_INTERVAL", None)
+    try:
+        yield
+    finally:
+        # The watcher target holds its PathState alive, so __del__ cannot
+        # stop the thread when the test kernel clears its globals.
+        for _, should_exit in watchers:
+            should_exit.set()
+        for thread, _ in watchers:
+            thread.join(timeout=5)
+            assert not thread.is_alive()
 
 
 @dataclasses.dataclass

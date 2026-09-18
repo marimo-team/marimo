@@ -6,11 +6,13 @@ import html
 import json
 import os
 import re
+from dataclasses import asdict
 from pathlib import Path
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any, Literal, cast
 
 from marimo._ast.app_config import _AppConfig
+from marimo._cli.pair.prompts import PAIR_COMMAND, load_prompt_templates
 from marimo._config.config import MarimoConfig, PartialMarimoConfig
 from marimo._convert.common.filename import parse_title
 from marimo._convert.converters import MarimoConvert
@@ -21,6 +23,7 @@ from marimo._schemas.session import NotebookSessionV1
 from marimo._server.tokens import SkewProtectionToken
 from marimo._session.model import SessionMode
 from marimo._session.notebook import read_css_file, read_html_head_file
+from marimo._utils.env import is_env_true
 from marimo._utils.versions import is_editable
 from marimo._version import __version__
 
@@ -136,6 +139,15 @@ def _get_mount_config(
         "runtime_config": runtime_config,
     }
 
+    pair_preview = ""
+    if is_env_true("MARIMO_PAIR_NEXT"):
+        pair_preview = ',\n            "pairPreview": ' + json_script(
+            {
+                "command": PAIR_COMMAND,
+                "templates": asdict(load_prompt_templates()),
+            }
+        )
+
     return """{{
             "filename": {filename},
             "cwd": {cwd},
@@ -150,9 +162,12 @@ def _get_mount_config(
             "view": {view},
             "notebook": {notebook},
             "session": {session},
-            "runtimeConfig": {runtime_config}
+            "runtimeConfig": {runtime_config}{pair_preview}
         }}
-""".format(**{k: json_script(v) for k, v in options.items()}).strip()
+""".format(
+        **{k: json_script(v) for k, v in options.items()},
+        pair_preview=pair_preview,
+    ).strip()
 
 
 def home_page_template(

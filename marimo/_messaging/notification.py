@@ -37,6 +37,7 @@ from marimo._messaging.notebook.changes import Transaction
 from marimo._plugins.core.web_component import JSONType
 from marimo._runtime.layout.layout import LayoutConfig
 from marimo._secrets.models import SecretKeysWithProvider
+from marimo._session.model import StartupPhase
 from marimo._sql.parse import SqlCatalogCheckResult, SqlParseResult
 from marimo._types.ids import (
     CellId_t,
@@ -112,7 +113,7 @@ class CellNotification(Notification, tag="cell-op"):
     # Tri-state partial update: UNSET (omitted on the wire) leaves the cell's
     # serialization hint unchanged; None explicitly clears it (cell is no
     # longer a top-level definition); a string sets it.
-    serialization: str | None | msgspec.UnsetType = msgspec.UNSET
+    serialization: str | msgspec.UnsetType | None = msgspec.UNSET
     timestamp: float = msgspec.field(default_factory=lambda: time.time())
 
     def __post_init__(self) -> None:
@@ -131,7 +132,7 @@ class CellNotification(Notification, tag="cell-op"):
             # The context variable hasn't been set yet
             self.run_id = None
         except Exception as e:
-            LOGGER.error("Error getting run id: %s", str(e))
+            LOGGER.error("Error getting run id: %s", e)
             self.run_id = None
 
 
@@ -563,6 +564,13 @@ class BannerNotification(Notification, tag="banner"):
     description: str
     variant: Literal["danger"] | None = None
     action: Literal["restart"] | None = None
+
+
+class StartupProgressNotification(Notification, tag="startup-progress"):
+    """Progress reported before a session's kernel is ready."""
+
+    name: ClassVar[str] = "startup-progress"
+    phase: StartupPhase
 
 
 class KernelStartupErrorNotification(Notification, tag="kernel-startup-error"):
@@ -1018,6 +1026,7 @@ NotificationMessage = (
     | MissingPackageAlertNotification
     | InstallingPackageAlertNotification
     | StartupLogsNotification
+    | StartupProgressNotification
     | KernelStartupErrorNotification
     # Variables
     | VariablesNotification

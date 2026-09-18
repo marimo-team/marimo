@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { describe, expect, it } from "vitest";
-import { determineMaxDisplayLength, getCopyValue } from "../JsonOutput";
+import { getCopyValue } from "../json-output/formatting";
 
 describe("getCopyValue", () => {
   it("should handle strings without MIME prefixes", () => {
@@ -178,7 +178,6 @@ describe("getCopyValue", () => {
   });
 
   it("should handle empty set", () => {
-    // Empty set literal in Python is `set()`, not `{}` (which is a dict).
     expect(getCopyValue("text/plain+set:[]")).toMatchInlineSnapshot(`"set()"`);
   });
 
@@ -212,7 +211,7 @@ describe("getCopyValue", () => {
   it("should handle tuples", () => {
     const value = "text/plain+tuple:[1,2,3]";
     const result = getCopyValue(value);
-    expect(result).toMatchInlineSnapshot(`"(1,2,3)"`);
+    expect(result).toMatchInlineSnapshot(`"(1, 2, 3)"`);
   });
 
   it("should handle tuples in mixed types", () => {
@@ -226,7 +225,7 @@ describe("getCopyValue", () => {
       `
       "{
         "key1": 42,
-        "key2": (1,2,3),
+        "key2": (1, 2, 3),
         "key3": True
       }"
     `,
@@ -240,8 +239,8 @@ describe("getCopyValue", () => {
     expect(result).toMatchInlineSnapshot(`"18446744073709551616"`);
 
     const nestedBigInt = {
-      key1: bigint, // this will be just a string
-      key2: `text/plain+bigint:${bigint}`, // this will convert to number
+      key1: bigint,
+      key2: `text/plain+bigint:${bigint}`,
       key3: true,
     };
     const nestedResult = getCopyValue(nestedBigInt);
@@ -260,7 +259,7 @@ describe("getCopyValue", () => {
     expect(bigintRawResult).toMatchInlineSnapshot(`"18446744073709551616"`);
 
     const nestedBigIntRaw = {
-      key1: bigintRaw, // raw number
+      key1: bigintRaw,
       key2: `text/plain+bigint:${bigintRaw}`,
       key3: true,
     };
@@ -277,64 +276,8 @@ describe("getCopyValue", () => {
   });
 });
 
-describe("determineMaxDisplayLength", () => {
-  const sample2DArray = [
-    [1, 2, 3],
-    [4, 5, 6],
-    [7, 8, 9],
-    [10, 11, 12],
-    [13, 14, 15],
-    [16, 17, 18],
-    [19, 20, 21],
-    [22, 23, 24],
-    [25, 26, 27],
-    [28, 29, 30],
-  ];
-
-  it("should return undefined for 1 level arrays", () => {
-    const value = [1, 2, 3];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBeUndefined();
-  });
-
-  it("should return undefined for 2 level arrays with less than 20 items", () => {
-    const value = sample2DArray;
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBeUndefined();
-  });
-
-  it("should return 10 for 2 level arrays with more than 20 items", () => {
-    const longArray = Array.from({ length: 21 }, (_, i) => i);
-    const value = [...sample2DArray, longArray];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(10);
-  });
-
-  it("should return 5 for 2 level arrays with more than 50 items", () => {
-    const longArray = Array.from({ length: 51 }, (_, i) => i);
-    const value = [...sample2DArray, longArray];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(5);
-  });
-
-  it("should return 5 for 3 level arrays with more than 20 items", () => {
-    const longArray = Array.from({ length: 21 }, (_, i) => i);
-    const value = [[...sample2DArray], [...sample2DArray, longArray]];
-    const result = determineMaxDisplayLength(value);
-    expect(result).toBe(5);
-  });
-});
-
 describe("getCopyValue with encoded non-string keys", () => {
-  // Keys are encoded by _key_formatter in
-  // marimo/_output/formatters/structures.py. Frontend must round-trip them
-  // to Python literals in the copy output.
-
   it("decodes int keys unquoted", () => {
-    // JS reorders integer-like string keys to the front of object iteration
-    // (spec-mandated), so `"2"` appears before `"text/plain+int:2"` here.
-    // This is pre-existing and unrelated to the encoding — both entries
-    // survive, which is the regression this guards.
     const value = { "text/plain+int:2": "no", "2": "oh" };
     expect(getCopyValue(value)).toMatchInlineSnapshot(`
       "{
@@ -375,7 +318,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("emits 1-element tuple keys with a trailing comma (Python syntax)", () => {
-    // `(1)` is just `1` in Python — a 1-tuple needs `(1,)`.
     const value = {
       "text/plain+tuple:[1]": "one",
       "text/plain+tuple:[]": "empty",
@@ -389,7 +331,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("emits empty frozenset keys as `frozenset()` not `frozenset({})`", () => {
-    // `frozenset({})` reads like it's constructing from an empty dict.
     const value = {
       "text/plain+frozenset:[]": "empty",
       "text/plain+frozenset:[1]": "single",
@@ -418,12 +359,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("parses tuple/frozenset payloads containing bare NaN/Infinity", () => {
-    // Python's json.dumps emits bare `NaN`/`Infinity` inside the embedded
-    // tuple/frozenset payload strings (JSON spec violation, but ECMA-262-
-    // friendly via the fallback in jsonParseWithSpecialChar). The outer
-    // JSON stays strict because those tokens live inside a JSON string
-    // key/value. Regression for tuple-key payloads that previously broke
-    // the frontend's `JSON.parse` and threw.
     const value = {
       "text/plain+tuple:[NaN]": "tn",
       "text/plain+tuple:[Infinity, -Infinity]": "ti",
@@ -439,10 +374,6 @@ describe("getCopyValue with encoded non-string keys", () => {
   });
 
   it("falls back to the raw payload for malformed tuple/frozenset", () => {
-    // `jsonParseWithSpecialChar` returns `{}` on parse failure rather
-    // than throwing; without an `Array.isArray` guard, the formatters
-    // would crash on `.length`/`.map`. Pass the raw payload through so
-    // a malformed wire form doesn't break the whole render.
     const value = {
       "text/plain+tuple:not a json list": "t",
       k: "text/plain+frozenset:also broken",
@@ -511,5 +442,112 @@ describe("getCopyValue with application/ mimetypes", () => {
     expect(result).toContain('"appMime": "data"');
     expect(result).toContain('"plainText": "hello"');
     expect(result).toContain('"number": 42');
+  });
+});
+
+describe("Python copy fidelity", () => {
+  it.each([
+    "<marimo-replace>True</marimo-replace>",
+    "\u0000show_more\u000042|$",
+    'quotes " backslash \\ newline\n',
+  ])("preserves literal text %j", (value) => {
+    expect(getCopyValue(value)).toBe(JSON.stringify(value));
+  });
+
+  it("preserves keys which used to collide after decoding", () => {
+    const data = JSON.parse(
+      '{"__proto__":1,"<marimo-replace>2</marimo-replace>":2,"text/plain+int:2":3}',
+    );
+    expect(getCopyValue(data)).toBe(
+      '{\n  "__proto__": 1,\n  "<marimo-replace>2</marimo-replace>": 2,\n  2: 3\n}',
+    );
+  });
+
+  it.each([
+    ["text/plain+tuple:[42]", "(42,)"],
+    ["text/plain+tuple:[]", "()"],
+    [
+      'text/plain+tuple:["quote\\\"","back\\\\slash",true,null]',
+      '("quote\\\"", "back\\\\slash", True, None)',
+    ],
+    [
+      'text/plain+set:[true,null,"text/plain:literal"]',
+      '{True, None, "text/plain:literal"}',
+    ],
+    ['text/plain+tuple:["text/plain+int:2"]', '("text/plain+int:2",)'],
+    ["text/plain+float:nan", "float('nan')"],
+    ["text/plain+float:inf", "float('inf')"],
+    ["text/plain+float:-inf", "-float('inf')"],
+    ["text/plain+float:1.0", "1.0"],
+  ])("copies %s as valid Python", (data, expected) => {
+    expect(getCopyValue(data)).toBe(expected);
+  });
+
+  it("distinguishes shared references from cycles", () => {
+    const shared = { x: true };
+    expect(getCopyValue([shared, shared])).toBe(
+      '[\n  {\n    "x": True\n  },\n  {\n    "x": True\n  }\n]',
+    );
+    const cyclic: unknown[] = [];
+    cyclic.push(cyclic);
+    expect(() => getCopyValue(cyclic)).toThrow("Cannot copy circular data");
+  });
+
+  it("copies sparse arrays and non-finite numbers as Python literals", () => {
+    const values = [0, Number.NaN, Infinity, -Infinity];
+    Reflect.deleteProperty(values, "0");
+    expect(getCopyValue(values)).toBe(
+      "[\n  None,\n  float('nan'),\n  float('inf'),\n  -float('inf')\n]",
+    );
+  });
+});
+
+describe("Python copy negative cases", () => {
+  it.each([
+    "text/plain+unknown:payload",
+    "text/plain+tuple",
+    "not-text/plain:payload",
+    "https://example.com:a:b",
+  ])("does not decode unrecognized leaf %j", (value) => {
+    expect(getCopyValue(value)).toBe(JSON.stringify(value));
+    expect(getCopyValue({ [value]: "literal" })).toBe(
+      `{\n  ${JSON.stringify(value)}: "literal"\n}`,
+    );
+  });
+
+  it.each(["tuple", "set", "frozenset"])(
+    "does not invent a %s from malformed or non-array JSON",
+    (kind) => {
+      for (const payload of ["[broken", "null", "42", '{"x":1}']) {
+        expect(getCopyValue(`text/plain+${kind}:${payload}`)).toBe(payload);
+      }
+    },
+  );
+
+  it("decodes escaped keys and text exactly once", () => {
+    const data = {
+      "text/plain+str:text/plain+str:text/plain+int:2":
+        "text/plain:text/plain+tuple:[42]",
+    };
+    expect(getCopyValue(data)).toBe(
+      '{\n  "text/plain+str:text/plain+int:2": "text/plain+tuple:[42]"\n}',
+    );
+  });
+
+  it("does not decode dictionary keys inside raw tuple payloads", () => {
+    expect(
+      getCopyValue(
+        'text/plain+tuple:[{"text/plain+int:2":"text/plain:literal"}]',
+      ),
+    ).toBe('({"text/plain+int:2": "text/plain:literal"},)');
+  });
+
+  it("rejects indirect cycles without poisoning later copies", () => {
+    const data: Record<string, unknown> = { child: [] };
+    data.child = [data];
+    expect(() => getCopyValue(data)).toThrow("Cannot copy circular data");
+    expect(getCopyValue({ child: [true] })).toBe(
+      '{\n  "child": [\n    True\n  ]\n}',
+    );
   });
 });

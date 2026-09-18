@@ -56,15 +56,11 @@
     // === Newly enabled in oxlint 1.79 ===
     // Adopt these incrementally
     "no-underscore-dangle": "off",
-    "jsx-a11y/no-noninteractive-element-interactions": "off",
     "react/exhaustive-effect-dependencies": "off",
     "react/forbid-component-props": "off",
-    "react/immutability": "off",
     "react/incompatible-library": "off",
     "react/jsx-no-literals": "off",
-    "react/no-deriving-state-in-effects": "off",
     "react/no-unstable-nested-components": ["error", { "allowAsProps": true }],
-    "react/preserve-manual-memoization": "off",
     "react/prefer-function-component": "off",
     "react/refs": "off",
     "react/rule-suppression": "off",
@@ -76,8 +72,6 @@
       "error",
       { "additionalTestBlockFunctions": ["beforeEach"] }
     ],
-    "vitest/prefer-snapshot-hint": "off",
-
     // === Core rules ===
     "no-var": "error",
     "no-console": "error",
