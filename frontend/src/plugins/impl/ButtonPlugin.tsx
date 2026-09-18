@@ -35,6 +35,27 @@ export class ButtonPlugin implements IPlugin<number, Data> {
     const {
       data: { disabled, kind, label, fullWidth, tooltip, keyboardShortcut },
     } = props;
+    const renderedLabel = renderHTML({ html: label });
+    // A disabled <button> carries `pointer-events: none` (via buttonVariants),
+    // which is inherited by its whole subtree. If the label contains a
+    // `data-tooltip` element (e.g.
+    // `mo.ui.button(label="<div data-tooltip='...'>", disabled=True)`), that
+    // element becomes a Radix Tooltip trigger nested inside the button and
+    // would never receive the pointer events (onPointerMove/onPointerLeave)
+    // Radix opens the tooltip on — so the tooltip explaining *why* the button
+    // is disabled can never open (#2515).
+    //
+    // Re-enable pointer events on just the label subtree. `display: contents`
+    // makes the wrapper layout-neutral (it adds no box), and re-enabling
+    // pointer events on a descendant does not resurface the disabled button:
+    // the native `disabled` attribute still suppresses the button's own
+    // activation/click, so the control stays disabled. We only do this when
+    // disabled; an enabled button is untouched (auto is already the default).
+    const labelContent = disabled ? (
+      <span className="contents pointer-events-auto">{renderedLabel}</span>
+    ) : (
+      renderedLabel
+    );
     // value counts number of times button was clicked
     const button = (
       <Button
@@ -56,7 +77,7 @@ export class ButtonPlugin implements IPlugin<number, Data> {
         }}
         type="submit"
       >
-        {renderHTML({ html: label })}
+        {labelContent}
       </Button>
     );
 
