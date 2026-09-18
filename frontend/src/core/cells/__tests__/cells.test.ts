@@ -797,7 +797,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Update code
     actions.updateCellCode({
@@ -809,7 +809,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited");
 
     // Prepare for run
     actions.prepareForRun({
@@ -819,7 +819,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -837,7 +837,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell.lastRunStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -855,7 +855,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running message received");
 
     // Console messages shouldn't transition status
     actions.handleCellMessage({
@@ -877,7 +877,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(20);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console message received");
 
     // Receive output messages
     actions.handleCellMessage({
@@ -904,7 +904,7 @@ describe("cell reducer", () => {
     expect(cell.runElapsedTimeMs).toBe(13_000);
     expect(cell.runStartTimestamp).toBe(null);
     expect(cell.lastRunStartTimestamp).toBe(20);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("output received");
 
     // EDITING BACK AND FORTH
     /////////////////
@@ -917,7 +917,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited again");
 
     // Update code should be unedited
     actions.updateCellCode({
@@ -927,7 +927,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code reverted");
 
     // Update code should be edited again
     actions.updateCellCode({
@@ -939,7 +939,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code changed after revert");
 
     // ERROR RESPONSE
     /////////////////
@@ -994,7 +994,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("error response received");
 
     // INTERRUPT RESPONSE
     /////////////////
@@ -1046,7 +1046,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(11_000);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("interruption response received");
   });
 
   it("errors reset status to idle", () => {
@@ -1055,7 +1055,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Update code
     actions.updateCellCode({
@@ -1067,7 +1067,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("idle");
     expect(cell.lastCodeRun).toBe(null);
     expect(cell.edited).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("code edited");
 
     // Prepare for run
     actions.prepareForRun({
@@ -1077,7 +1077,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("queued");
     expect(cell.lastCodeRun).toBe("import marimo as mo");
     expect(cell.edited).toBe(false);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // ERROR RESPONSE
     //
@@ -1109,7 +1109,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("error response received");
   });
 
   it("can run a stale cell", () => {
@@ -1152,7 +1152,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive stale message
     actions.handleCellMessage({
@@ -1169,7 +1169,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stale inputs received");
   });
 
   it("can format code and update cell", () => {
@@ -1281,7 +1281,7 @@ describe("cell reducer", () => {
     expect(cell.edited).toBe(false);
     expect(cell.runElapsedTimeMs).toBe(null);
     expect(cell.runStartTimestamp).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive idle message
     actions.handleCellMessage({
@@ -1293,7 +1293,7 @@ describe("cell reducer", () => {
       timestamp: new Date(20).getTime() as Seconds,
     });
     cell = cells[0];
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("idle message received");
 
     // Receive stop output
     actions.handleCellMessage({
@@ -1322,7 +1322,7 @@ describe("cell reducer", () => {
       "This cell wasn't run because an ancestor was stopped with `mo.stop`: ",
     );
     expect(cell.stopped).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("ancestor stopped");
 
     // Receive queued message
     actions.handleCellMessage({
@@ -1336,7 +1336,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.stopped).toBe(true);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued after stop");
 
     // Receive running message
     actions.handleCellMessage({
@@ -1351,7 +1351,7 @@ describe("cell reducer", () => {
     expect(cell.status).toBe("running");
     expect(cell.stopped).toBe(false);
     expect(cell.output).toBe(null);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running after stop");
   });
 
   it("can initialize stdin", () => {
@@ -1378,7 +1378,7 @@ describe("cell reducer", () => {
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Prepare for run
     actions.prepareForRun({
@@ -1387,7 +1387,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -1400,7 +1400,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("queued");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -1413,7 +1413,7 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("running message received");
 
     // Add console
     actions.handleCellMessage({
@@ -1426,12 +1426,12 @@ describe("cell reducer", () => {
     });
     cell = cells[0];
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdout received");
 
     cell = cells[0];
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdout verified");
 
     // Ask via stdin
     actions.handleCellMessage({
@@ -1446,7 +1446,7 @@ describe("cell reducer", () => {
     expect(cell.consoleOutputs[0]).toMatchObject(STDOUT);
     expect(cell.consoleOutputs[1]).toMatchObject(STD_IN_1);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdin requested");
 
     // Response to stdin
     actions.setStdinResponse({
@@ -1460,7 +1460,7 @@ describe("cell reducer", () => {
       response: "Marimo!",
     });
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("stdin answered");
 
     // Ask via stdin, again
     actions.handleCellMessage({
@@ -1478,7 +1478,7 @@ describe("cell reducer", () => {
       STD_IN_2,
     ]);
     expect(cell.status).toBe("running");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("second stdin requested");
 
     // Interrupt, so we respond with ""
     actions.handleCellMessage({
@@ -1562,7 +1562,7 @@ describe("cell reducer", () => {
     let cell = cells[0];
     expect(cell.status).toBe("idle");
     expect(cell.consoleOutputs).toEqual([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("initial state");
 
     // Add console
     actions.handleCellMessage({
@@ -1581,7 +1581,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("prepared for run");
 
     // Receive queued messages
     actions.handleCellMessage({
@@ -1595,7 +1595,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("queued");
     expect(cell.consoleOutputs).toMatchObject([OLD_STDOUT]); // Old stays there until it starts running
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("queued message received");
 
     // Receive running messages
     actions.handleCellMessage({
@@ -1609,7 +1609,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.status).toBe("running");
     expect(cell.consoleOutputs).toMatchObject([]);
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console cleared while running");
 
     // Add console
     actions.handleCellMessage({
@@ -1623,7 +1623,7 @@ describe("cell reducer", () => {
     cell = cells[0];
     expect(cell.consoleOutputs).toMatchObject([STDOUT]);
     expect(cell.status).toBe("idle");
-    expect(cell).toMatchSnapshot(); // snapshot everything as a catch all
+    expect(cell).toMatchSnapshot("console received while idle");
   });
 
   it("can send a cell to the top", () => {
