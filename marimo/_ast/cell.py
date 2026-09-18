@@ -47,9 +47,9 @@ class CellConfig(msgspec.Struct):
     # If True, the cell is hidden from the editor.
     hide_code: bool = False
 
-    # If True, the cell's output and console output are shown in full in the
-    # editor; otherwise they are clamped to a fixed height, with an option to
-    # expand them.
+    # If True, the cell's output is shown in full in the editor; otherwise the
+    # output is clamped to a fixed height, with an option to expand it. Does
+    # not apply to console output, which is clamped independently.
     expand_output: bool = False
 
     @classmethod

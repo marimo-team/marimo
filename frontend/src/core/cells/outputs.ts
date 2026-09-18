@@ -13,14 +13,15 @@ import type { CellId } from "./ids";
 
 // This does not need to be overcomplicated. We can just store the expanded
 // state in a global map instead of Jotai since state is not shared between cells.
-// Outputs only fall back to this map where their `expand_output` config cannot
-// be edited; see `useExpandedOutput`.
+// The output area only falls back to its map where the `expand_output` config
+// cannot be edited; see `useExpandedOutput`.
 const expandedOutputs: Record<CellId, boolean> = {};
+const expandedConsoleOutputs: Record<CellId, boolean> = {};
 
 /**
  * Whether a cell's output is shown in full, instead of clamped to a fixed
- * height. A cell's output area and console output area share this one flag, so
- * expanding either expands both.
+ * height. Covers the cell's output area only; console output is clamped
+ * independently, via `useExpandedConsoleOutput`.
  *
  * In edit mode this is backed by the cell's `expand_output` config, so the
  * choice is saved to the notebook file and restored when it is reopened.
@@ -70,6 +71,22 @@ export function useExpandedOutput(cellId: CellId) {
   });
 
   return [isExpanded, setIsExpanded] as const;
+}
+
+/**
+ * Whether a cell's console output is shown in full. Deliberately not backed by
+ * `expand_output`: that config covers the cell's output area only, so console
+ * output stays a per-session, in-memory toggle.
+ */
+export function useExpandedConsoleOutput(cellId: CellId) {
+  const [state, setState] = useState(expandedConsoleOutputs[cellId] ?? false);
+
+  // Sync state to external storage
+  useEffect(() => {
+    expandedConsoleOutputs[cellId] = state;
+  }, [cellId, state]);
+
+  return [state, setState] as const;
 }
 
 export function isOutputEmpty(

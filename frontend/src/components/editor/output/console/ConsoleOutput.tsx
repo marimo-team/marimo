@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { CellId } from "@/core/cells/ids";
 import { isInternalCellName } from "@/core/cells/names";
-import { useExpandedOutput } from "@/core/cells/outputs";
+import { useExpandedConsoleOutput } from "@/core/cells/outputs";
 import type { WithResponse } from "@/core/cells/types";
 import type { OutputMessage } from "@/core/kernel/messages";
 import {
@@ -103,7 +103,7 @@ export const ConsoleOutput = (props: Props) => {
 const ConsoleOutputInternal = (props: Props): React.ReactNode => {
   const ref = React.useRef<HTMLDivElement>(null);
   const { wrapText, setWrapText } = useWrapText();
-  const [isExpanded, setIsExpanded] = useExpandedOutput(props.cellId);
+  const [isExpanded, setIsExpanded] = useExpandedConsoleOutput(props.cellId);
   const [stdinValue, setStdinValue] = React.useState("");
   const inputHistory = useInputHistory({
     value: stdinValue,

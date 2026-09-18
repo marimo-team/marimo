@@ -392,9 +392,9 @@ class App:
             column: The column number to place this cell in.
             disabled: Whether to disable the cell.
             hide_code: Whether to hide the cell's code.
-            expand_output: Whether to show the cell's output and console
-                output in full; when False, tall output is clamped to a fixed
-                height in the editor.
+            expand_output: Whether to show the cell's output in full; when
+                False, a tall output is clamped to a fixed height in the
+                editor. Does not affect console output.
             **kwargs: For forward-compatibility with future arguments.
         """
         del kwargs

@@ -7,7 +7,7 @@ import { MockNotebook } from "@/__mocks__/notebook";
 import { notebookAtom } from "@/core/cells/cells";
 import { CellId } from "@/core/cells/ids";
 import { type AppMode, viewStateAtom } from "@/core/mode";
-import { useExpandedOutput } from "../outputs";
+import { useExpandedConsoleOutput, useExpandedOutput } from "../outputs";
 
 const saveCellConfig = vi.fn().mockResolvedValue(null);
 
@@ -95,9 +95,9 @@ describe("useExpandedOutput", () => {
     expect(result.current[0]).toBe(true);
   });
 
-  // The cell output area and the console output area share one flag, so
-  // expanding or clamping either does the same to both.
-  it("shares one flag between the output and console output areas", () => {
+  // `expand_output` covers the cell's output area only. Console output is
+  // clamped independently and stays an in-memory, per-session toggle.
+  it("does not touch the config when console output is expanded", () => {
     const cellId = CellId.create();
     const store = createStore();
     store.set(
@@ -107,25 +107,16 @@ describe("useExpandedOutput", () => {
     store.set(viewStateAtom, { mode: "edit", cellAnchor: null });
 
     const { result } = renderHook(
-      () => ({
-        output: useExpandedOutput(cellId),
-        console: useExpandedOutput(cellId),
-      }),
+      () => useExpandedConsoleOutput(cellId),
       {
         wrapper: ({ children }) => <Provider store={store}>{children}</Provider>,
       },
     );
 
-    expect(result.current.console[0]).toBe(false);
-    act(() => result.current.output[1](true));
-    expect(result.current.console[0]).toBe(true);
+    act(() => result.current[1](true));
 
-    // Clamping from the console side clears the flag for both.
-    act(() => result.current.console[1](false));
-    expect(result.current.output[0]).toBe(false);
+    expect(result.current[0]).toBe(true);
     expect(configOf(store, cellId).expand_output).toBe(false);
-    expect(saveCellConfig).toHaveBeenLastCalledWith({
-      configs: { [cellId]: { expand_output: false } },
-    });
+    expect(saveCellConfig).not.toHaveBeenCalled();
   });
 });
