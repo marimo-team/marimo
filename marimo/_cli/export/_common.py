@@ -71,11 +71,19 @@ def _export_termination_signals() -> Iterator[None]:
 
     try:
         if threading.current_thread() is threading.main_thread():
-            for name in ("SIGTERM", "SIGHUP"):
+            for name in ("SIGINT", "SIGTERM", "SIGHUP"):
                 signum = getattr(signal, name, None)
+                # Python 3.10 raises KeyboardInterrupt synchronously; defer it
+                # past Popen just like termination. Python 3.11+ asyncio.run
+                # already installs a cancelling handler, which we preserve.
+                default_handler = (
+                    signal.default_int_handler
+                    if name == "SIGINT"
+                    else signal.SIG_DFL
+                )
                 if (
                     signum is not None
-                    and signal.getsignal(signum) == signal.SIG_DFL
+                    and signal.getsignal(signum) == default_handler
                 ):
                     previous[signum] = signal.signal(signum, terminate)
         yield
@@ -84,6 +92,8 @@ def _export_termination_signals() -> Iterator[None]:
         for signum, handler in previous.items():
             signal.signal(signum, handler)
         # The command may finish before queued cancellation is delivered.
+        if termination_signal == signal.SIGINT:
+            raise KeyboardInterrupt from None
         if termination_signal is not None:
             raise SystemExit(128 + termination_signal) from None
 

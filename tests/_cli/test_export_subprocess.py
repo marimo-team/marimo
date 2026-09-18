@@ -250,7 +250,7 @@ async def test_repeated_export_termination_finishes_cleanup(
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
-@pytest.mark.parametrize("signal_name", ["SIGTERM", "SIGHUP"])
+@pytest.mark.parametrize("signal_name", ["SIGINT", "SIGTERM", "SIGHUP"])
 def test_export_termination_during_process_creation(signal_name: str) -> None:
     code = """
 import asyncio, json, signal, subprocess, sys
@@ -272,9 +272,16 @@ async def main():
     with _export_termination_signals():
         await run_command([sys.executable, '-c', 'import time; time.sleep(30)'])
 
+loop = asyncio.new_event_loop()
 try:
-    asyncio.run(main())
+    # Do not use asyncio.run here. On Python 3.11+, Runner installs its own
+    # SIGINT handler, which deliberately bypasses the default-handler branch
+    # that protects Python 3.10 from an interrupt during Popen.
+    loop.run_until_complete(main())
+except KeyboardInterrupt:
+    sys.exit(1)
 finally:
+    loop.close()
     print(json.dumps([process.poll() is None for process in processes]))
     for process in processes:
         if process.poll() is None:
@@ -287,9 +294,9 @@ finally:
         text=True,
         timeout=10,
     )
-    assert completed.returncode == 128 + getattr(signal, signal_name), (
-        completed.stderr
-    )
+    assert completed.returncode == (
+        1 if signal_name == "SIGINT" else 128 + getattr(signal, signal_name)
+    ), completed.stderr
     assert json.loads(completed.stdout) == [False]
 
 
