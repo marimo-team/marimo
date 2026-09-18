@@ -27,6 +27,7 @@ from marimo._messaging.errors import (
 )
 from marimo._messaging.notification import (
     CellNotification,
+    UIElementMessageNotification,
     VariablesNotification,
 )
 from marimo._messaging.serde import deserialize_kernel_message
@@ -218,6 +219,65 @@ class TestExecution:
 
         assert k.globals["x"] == 6
         assert not k.graph.cells["2"].stale
+
+    async def test_interrupted_ui_update_finishes_bookkeeping(
+        self,
+        mocked_kernel: MockedKernel,
+    ) -> None:
+        k = mocked_kernel.k
+        await k.run(
+            [
+                ExecuteCellCommand(
+                    cell_id="0",
+                    code=textwrap.dedent("""
+                import marimo as mo
+                import signal as _signal
+                from marimo._runtime.handlers import construct_interrupt_handler as _handler
+                get_value, set_value = mo.state(0)
+                def _on_change(value):
+                    set_value(value)
+                    _handler()(_signal.SIGINT, None)
+                first = mo.ui.run_button()
+                second = mo.ui.slider(0, 10, value=1, on_change=_on_change)
+                third = mo.ui.slider(0, 10, value=1)
+            """),
+                ),
+                child := ExecuteCellCommand(
+                    cell_id="1",
+                    code="result = (second.value, third.value, get_value())",
+                ),
+            ]
+        )
+        first, second, third = (
+            k.globals[name] for name in ("first", "second", "third")
+        )
+        await k.set_ui_element_value(
+            UpdateUIElementCommand.from_ids_and_values(
+                [
+                    (first._id, True),
+                    (second._id, 5),
+                    (third._id, 7),
+                ]
+            ),
+            notify_frontend=False,
+        )
+        assert (first.value, second.value, third.value) == (False, 5, 1)
+        # The update to `third` was never applied; the frontend is told
+        # the value the kernel actually holds.
+        resyncs = [
+            op
+            for op in mocked_kernel.stream.parsed_operations
+            if isinstance(op, UIElementMessageNotification)
+            and op.ui_element == third._id
+        ]
+        assert [op.message for op in resyncs] == [
+            {"type": "marimo-ui-value-update", "value": 1}
+        ]
+        assert k.globals["result"] == (1, 1, 0)
+        assert k.graph.cells[child.cell_id].stale
+        assert not k.state_updates
+        await k.run([child])
+        assert k.globals["result"] == (5, 1, 5)
 
     async def test_set_ui_element_value_lensed(
         self, any_kernel: Kernel, exec_req: ExecReqProvider

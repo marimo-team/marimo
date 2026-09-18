@@ -571,6 +571,7 @@ async def test_interrupt_during_finalization_still_broadcasts_idle(
     with_execution_context: bool,
     interrupted_cleanup: str,
 ) -> None:
+    """Ctrl-C during finalization sets the flag and nothing else."""
     k = mocked_kernel.k
     await k.run([er := exec_req.get("123")])
     mocked_kernel.stream.messages.clear()
@@ -582,8 +583,9 @@ async def test_interrupt_during_finalization_still_broadcasts_idle(
     def maybe_interrupt(cleanup: str) -> None:
         nonlocal interruptions
         if cleanup == interrupted_cleanup and interruptions < 2:
-            interruptions += 1
-            raise KeyboardInterrupt
+            for _ in range(2):
+                runner._interrupts.request()
+                interruptions += 1
 
     def flush_console() -> None:
         maybe_interrupt("flush")
@@ -669,10 +671,9 @@ async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
     exec_req: ExecReqProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """SIGINT delivered while `run_all` is in the prescan (or between
-    cells) raises `MarimoInterrupt` (== `KeyboardInterrupt`). `run_all`
-    must catch it so on_finish_hooks still fire and the
-    `KeyboardInterrupt` doesn't unwind past the kernel control loop.
+    """A hook that raises `KeyboardInterrupt` itself during the prescan
+    must not unwind past `run_all`: on_finish_hooks still fire and the
+    queue is still visible to them.
     """
     k = execution_kernel
     await k.run([er := exec_req.get("123")])
@@ -691,9 +692,8 @@ async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
         hooks=_Hooks(),
     )
 
-    # Simulate the sync-path SIGINT handler: cancel the queue and raise.
     def _raise_via_prescan(_cell_id: Any) -> Any:
-        runner._scheduler.cancel_all()
+        runner._interrupts.request()
         raise KeyboardInterrupt
 
     monkeypatch.setattr(
@@ -713,3 +713,137 @@ async def test_run_all_swallows_sigint_raise_and_fires_on_finish(
         "on_finish_hooks must see the cells that were still queued "
         "when SIGINT fired"
     )
+
+
+async def test_sigint_before_cell_starts_marks_it_interrupted(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    """Ctrl-C after a cell is popped but before its body runs must not
+    run the body, and must leave the cell idle and marked interrupted
+    rather than stuck in "running"."""
+    import signal
+
+    from marimo._runtime.handlers import construct_interrupt_handler
+
+    k = mocked_kernel.k
+    a = exec_req.get("a = 1")
+    b = exec_req.get("b = a + 1")
+    c = exec_req.get("c = b + 1")
+    await k.run([a, b, c])
+    del k.globals["b"]
+    mocked_kernel.stream.messages.clear()
+    handler = construct_interrupt_handler()
+
+    def interrupt_before_b(cell: CellImpl, _ctx: Any) -> None:
+        if cell.cell_id == b.cell_id:
+            handler(signal.SIGINT, None)
+
+    hooks = create_default_hooks()
+    hooks.add_pre_execution(interrupt_before_b)
+    runner = Runner(
+        roots={a.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=hooks,
+        execution_context=k._install_execution_context,
+    )
+    await runner.run_all()
+
+    assert runner.interrupted
+    assert "b" not in k.globals
+    cell_b = k.graph.cells[b.cell_id]
+    assert (cell_b.runtime_state, cell_b.run_result_status) == (
+        "idle",
+        "interrupted",
+    )
+    assert [
+        op.status
+        for op in mocked_kernel.stream.cell_notifications
+        if op.cell_id == b.cell_id and op.status is not None
+    ] == ["queued", "running", "idle"]
+    assert k.graph.cells[c.cell_id].runtime_state == "idle"
+
+
+async def test_sigint_between_post_hooks_runs_every_hook(
+    mocked_kernel: MockedKernel, exec_req: ExecReqProvider
+) -> None:
+    """Ctrl-C between two post-execution hooks stops the queue but must
+    not skip any hook; only Ctrl-C inside a hook cuts that hook short."""
+    import signal
+
+    from marimo._runtime.handlers import construct_interrupt_handler
+
+    k = mocked_kernel.k
+    await k.run([er := exec_req.get("x = 1")])
+    handler = construct_interrupt_handler()
+    calls: list[str] = []
+
+    def record(name: str) -> Any:
+        def hook(_cell: CellImpl, _ctx: Any, _result: RunResult) -> None:
+            calls.append(name)
+
+        return hook
+
+    class _Hooks(NotebookCellHooks):
+        @property
+        def post_execution_hooks(self) -> Any:
+            def hooks() -> Any:
+                yield record("first")
+                handler(signal.SIGINT, None)
+                yield record("second")
+                yield record("third")
+
+            return hooks()
+
+    runner = Runner(
+        roots={er.cell_id},
+        graph=k.graph,
+        glbls=k.globals,
+        debugger=k.debugger,
+        hooks=_Hooks(),
+        execution_context=k._install_execution_context,
+    )
+    await runner.run_all()
+
+    assert calls == ["first", "second", "third"]
+    assert runner.interrupted
+
+
+async def test_sigint_in_nested_callback_stops_outer_run(
+    k: Kernel, exec_req: ExecReqProvider
+) -> None:
+    """Ctrl-C inside a UI callback that was invoked from a running cell
+    interrupts the callback and stops the outer queue after that cell."""
+    first = exec_req.get(
+        """
+import marimo as mo
+import signal as _signal
+from marimo._runtime.handlers import construct_interrupt_handler as _handler
+def _on_change(_value):
+    _handler()(_signal.SIGINT, None)
+slider = mo.ui.slider(0, 10, value=1, on_change=_on_change)
+marker = 1
+"""
+    )
+    outer = exec_req.get(
+        """
+from marimo._runtime.context import get_context as _get_context
+from marimo._runtime.commands import UpdateUIElementCommand as _Update
+_ = marker
+_ctx = _get_context()
+await _ctx._kernel.set_ui_element_value(
+    _Update.from_ids_and_values([(_ctx.globals["slider"]._id, 5)]),
+    notify_frontend=False,
+)
+done = True
+"""
+    )
+    after = exec_req.get("after = done")
+    await k.run([first, outer, after])
+
+    assert k.globals["slider"].value == 5
+    assert k.globals["done"] is True
+    assert "after" not in k.globals
+    assert k.graph.cells[outer.cell_id].run_result_status == "success"
+    assert k.graph.cells[after.cell_id].runtime_state == "idle"

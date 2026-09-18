@@ -28,6 +28,7 @@ from marimo._messaging.errors import MarimoInterruptionError
 from marimo._messaging.notification import (
     CellNotification,
     CompletedRunNotification,
+    InterruptedNotification,
     NotebookDocumentTransactionNotification,
     NotificationMessage,
 )
@@ -175,7 +176,8 @@ async def test_kernel_manager_edit_mode() -> None:
     queue_manager.control_queue.join_thread()  # type: ignore
 
 
-async def test_kernel_manager_interrupt() -> None:
+@pytest.mark.parametrize("execution", ["sync", "async", "output"])
+async def test_kernel_manager_interrupt(execution: str) -> None:
     queue_manager = QueueManagerImpl(use_multiprocessing=True)
     kernel_manager = KernelManagerImpl(
         queue_manager=queue_manager,
@@ -190,11 +192,17 @@ async def test_kernel_manager_interrupt() -> None:
 
     def interrupt_running_cell() -> bool:
         interrupted = False
+        completed = False
+        notified = False
         while True:
             message = deserialize_kernel_message(
                 kernel_manager.kernel_connection.recv()
             )
             if isinstance(message, CompletedRunNotification):
+                completed = True
+            elif isinstance(message, InterruptedNotification):
+                notified = True
+            if completed and notified:
                 return interrupted
             if (
                 not isinstance(message, CellNotification)
@@ -210,18 +218,43 @@ async def test_kernel_manager_interrupt() -> None:
                     for error in output
                 )
 
+    code = inspect.cleandoc("""
+        import marimo as mo
+        mo.output.append("ready-to-interrupt")
+        while True:
+            pass
+    """)
+    if execution == "async":
+        code = inspect.cleandoc("""
+            import asyncio
+            import marimo as mo
+            mo.output.append("ready-to-interrupt")
+            await asyncio.sleep(60)
+        """)
+    elif execution == "output":
+        # Pause after sending output, while the stream's lock is still held.
+        code = inspect.cleandoc("""
+            import marimo as mo
+            from marimo._runtime.context import get_context
+            from unittest.mock import patch
+
+            _pipe = get_context().stream.pipe
+            _send = _pipe.send
+            def _send_and_wait(message):
+                _send(message)
+                while True:
+                    pass
+
+            with patch.object(_pipe, "send", _send_and_wait):
+                mo.output.append("ready-to-interrupt")
+        """)
     try:
         queue_manager.put_control_request(
             CreateNotebookCommand(
                 execution_requests=(
                     ExecuteCellCommand(
                         cell_id="1",
-                        code=inspect.cleandoc("""
-                            import marimo as mo
-                            mo.output.append("ready-to-interrupt")
-                            while True:
-                                pass
-                        """),
+                        code=code,
                     ),
                 ),
                 cell_ids=("1",),

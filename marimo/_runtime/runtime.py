@@ -127,6 +127,7 @@ from marimo._runtime.context.kernel_context import (
 from marimo._runtime.context.utils import get_mode
 from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.input_override import getpass_override
+from marimo._runtime.interrupts import InterruptScope
 from marimo._runtime.kernel_request_handlers import KernelRequestHandlers
 from marimo._runtime.packages.module_registry import ModuleRegistry
 from marimo._runtime.params import CLIArgs, QueryParams
@@ -174,7 +175,7 @@ from marimo._utils.signals import restore_signals
 from marimo._utils.typed_connection import TypedConnection
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator, Sequence
+    from collections.abc import Callable, Iterable, Iterator, Sequence
     from types import ModuleType
 
     from marimo._plugins.ui._core.ui_element import UIElement
@@ -827,17 +828,10 @@ class Kernel:
     def _install_execution_context(
         self, cell_id: CellId_t, setting_element_value: bool = False
     ) -> Iterator[ExecutionContext]:
-        """NB: When installed, KeyboardInterrupts may be raised, which MUST be caught.
-
-        try:
-            with self._install_execution_context():
-                # Keyboard interrupts may be raised!
-                ...
-        except KeyboardInterrupt:
-            ...
-        """
+        """Install cell identity and streams, independently of interruption."""
         ctx = get_context()
         assert isinstance(ctx, KernelRuntimeContext)
+        previous = ctx.execution_context
         ctx.execution_context = (
             exec_ctx := ExecutionContext(cell_id, setting_element_value)
         )
@@ -855,7 +849,7 @@ class Kernel:
             try:
                 yield exec_ctx
             finally:
-                ctx.execution_context = None
+                ctx.execution_context = previous
 
     def _register_cell(
         self,
@@ -1795,7 +1789,12 @@ class Kernel:
         ):
             return
 
-        with self._install_execution_context(cell_id):
+        with (
+            InterruptScope() as interrupts,
+            self._install_execution_context(cell_id),
+            contextlib.suppress(MarimoInterrupt),
+            interrupts.guard(),
+        ):
             self.debugger.post_mortem_by_cell_id(cell_id)
 
     @kernel_tracer.start_as_current_span("rename_file")
@@ -1928,6 +1927,26 @@ class Kernel:
     def set_user_config(self, request: UpdateUserConfigCommand) -> None:
         self._update_runtime_from_user_config(request.config)
 
+    def _resync_ui_elements(self, object_ids: Iterable[UIElementId]) -> None:
+        """Send the frontend the kernel's value for elements it changed
+        but the kernel never applied."""
+        registry = get_context().ui_element_registry
+        for object_id in object_ids:
+            try:
+                component = registry.get_object(object_id)
+            except KeyError:
+                continue
+            broadcast_notification(
+                UIElementMessageNotification(
+                    ui_element=object_id,
+                    message={
+                        "type": "marimo-ui-value-update",
+                        "value": component._value_frontend,
+                    },
+                ),
+                self.stream,
+            )
+
     @kernel_tracer.start_as_current_span("set_ui_element_value")
     async def set_ui_element_value(
         self,
@@ -2006,7 +2025,9 @@ class Kernel:
             resolved_requests[resolved_id] = resolved_value
         del request
 
-        for object_id, value in resolved_requests.items():
+        interrupted = False
+        pending_updates = list(resolved_requests.items())
+        for index, (object_id, value) in enumerate(pending_updates):
             try:
                 component = ui_element_registry.get_object(object_id)
                 LOGGER.debug(
@@ -2020,12 +2041,17 @@ class Kernel:
                 LOGGER.debug("Could not find UIElement with id %s", object_id)
                 continue
 
-            with self._install_execution_context(
-                ui_element_registry.get_cell(object_id),
-                setting_element_value=True,
+            with (
+                InterruptScope() as interrupts,
+                self._install_execution_context(
+                    ui_element_registry.get_cell(object_id),
+                    setting_element_value=True,
+                ),
+                contextlib.suppress(MarimoInterrupt),
             ):
                 try:
-                    component._update(value)
+                    with interrupts.guard():
+                        component._update(value)
                 except MarimoConvertValueException:
                     # Internal marimo error
                     sys.stderr.write(
@@ -2065,6 +2091,7 @@ class Kernel:
                             self.stream,
                         )
 
+            interrupted = interrupts.interrupted
             bound_names = {
                 name
                 for name in ctx.ui_element_registry.bound_names(object_id)
@@ -2106,7 +2133,25 @@ class Kernel:
                     self.stream,
                 )
 
-        if self.reactive_execution_mode == "autorun":
+            if interrupted:
+                # Later updates in this batch never reach the kernel; tell
+                # the frontend which values it should show instead.
+                self._resync_ui_elements(
+                    object_id for object_id, _ in pending_updates[index + 1 :]
+                )
+                break
+
+        if interrupted:
+            # Values may already have changed before an on_change interrupt.
+            # Preserve their dependencies without starting more user work.
+            with self._state_lock:
+                for state, setter in self.state_updates.items():
+                    referring_cells |= self._find_cells_for_state(
+                        state, setter
+                    )
+                self.state_updates.clear()
+            self.graph.set_stale(referring_cells)
+        elif self.reactive_execution_mode == "autorun":
             await self._run_cells(referring_cells)
         else:
             # Any cells referring to a UI element cannot be import cells,
@@ -2224,6 +2269,7 @@ class Kernel:
             found = True
             LOGGER.debug("Executing RPC %s", request)
             with (
+                InterruptScope() as interrupts,
                 self._install_execution_context(cell_id=function.cell_id),
                 ctx.provide_ui_ids(str(uuid4())),
             ):
@@ -2240,15 +2286,11 @@ class Kernel:
                 # TODO(akshayka): Do UI elements created in function calls
                 # get cleared from the FE registry? This could be a leak.
                 try:
-                    response = cast(JSONType, function(request.args))
+                    with interrupts.guard():
+                        response = cast(JSONType, function(request.args))
                     if asyncio.iscoroutine(response):
-                        response = await response
-                        return HumanReadableStatus(code="ok"), response, found
-                    return (
-                        HumanReadableStatus(code="ok"),
-                        response,
-                        found,
-                    )
+                        response = await interrupts.run(response)
+                    return HumanReadableStatus(code="ok"), response, found
                 except MarimoInterrupt:
                     error_title = "Interrupted"
                     error_message = f"Function call ({request.function_name}) was interrupted by the user"

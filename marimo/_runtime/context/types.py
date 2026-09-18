@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from marimo._runtime.cell_lifecycle_registry import CellLifecycleRegistry
     from marimo._runtime.commands import HTTPRequest
     from marimo._runtime.functions import FunctionRegistry
+    from marimo._runtime.interrupts import InterruptScope
     from marimo._runtime.params import CLIArgs, QueryParams
     from marimo._runtime.state import State, StateRegistry
     from marimo._runtime.virtual_file import VirtualFileRegistry
@@ -101,6 +102,7 @@ class RuntimeContext(abc.ABC):
     parent: RuntimeContext | None
     filename: str | None
     app_config: _AppConfig
+    interrupt_scope: InterruptScope | None = field(default=None, init=False)
 
     @property
     @abc.abstractmethod
