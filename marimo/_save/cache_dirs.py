@@ -7,9 +7,11 @@ Pure and kernel-free so the CLI can import it without starting a runtime.
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+from uuid import uuid4
 
 from marimo import _loggers
 from marimo._utils.paths import (
@@ -25,7 +27,14 @@ LOGGER = _loggers.marimo_logger()
 
 CACHE_DIR_NAME = "cache"
 
-# Statuses that still describe a marimo notebook; "empty" and "invalid" do not.
+# An entry is written to a sibling and renamed into place, so a reader never
+# meets a half-written value. A process killed between the two steps leaves
+# the sibling behind, bytes on disk that hold no cached value.
+PARTIAL_WRITE_INFIX = ".tmp"
+_PARTIAL_WRITE_TAG = re.compile(r"[0-9a-f]{8}")
+
+# Statuses that still describe a marimo notebook, unlike "empty" and
+# "invalid".
 _NOTEBOOK_STATUSES = frozenset({"valid", "has_warnings", "has_errors"})
 
 
@@ -128,6 +137,17 @@ def cache_dir_stats(cache_dir: Path) -> CacheDirStats:
     return stats
 
 
+def partial_write_name(name: str) -> str:
+    """Return the sibling name to write `name` to before renaming it in."""
+    return f"{name}{PARTIAL_WRITE_INFIX}{uuid4().hex[:8]}"
+
+
+def is_partial_write(name: str) -> bool:
+    """Whether `name` is a sibling that an interrupted write left behind."""
+    head, _, tag = name.rpartition(PARTIAL_WRITE_INFIX)
+    return bool(head) and _PARTIAL_WRITE_TAG.fullmatch(tag) is not None
+
+
 def entry_bytes(entry: Path) -> int:
     """Return the bytes a cache entry occupies.
 
@@ -153,12 +173,14 @@ def _block_stats(block: Path) -> CacheDirStats:
     hashes = {
         _entry_hash(child.name)
         for child in children
-        if not _is_directory(child)
+        if not _is_directory(child) and not is_partial_write(child.name)
     }
     total_bytes = 0
     entries = 0
     for child in children:
         total_bytes += entry_bytes(child)
+        if is_partial_write(child.name):
+            continue
         if not (_is_directory(child) and child.name in hashes):
             entries += 1
     return CacheDirStats(total_bytes=total_bytes, entries=entries)

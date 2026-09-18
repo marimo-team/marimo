@@ -7,6 +7,7 @@ from pathlib import Path
 
 from marimo import _loggers
 from marimo._runtime.runtime import notebook_dir
+from marimo._save.cache_dirs import partial_write_name
 from marimo._save.stores.store import Store
 from marimo._utils.paths import MARIMO_DIR_NAME, notebook_output_dir
 
@@ -97,7 +98,14 @@ class FileStore(Store):
         path = self.save_path / key
         path.parent.mkdir(parents=True, exist_ok=True)
         self._initialized = True
-        path.write_bytes(value)
+        # A sibling keeps the rename on one filesystem, where it is atomic.
+        tmp = path.with_name(partial_write_name(path.name))
+        try:
+            tmp.write_bytes(value)
+            os.replace(tmp, path)
+        except BaseException:
+            tmp.unlink(missing_ok=True)
+            raise
         return True
 
     def hit(self, key: str) -> bool:

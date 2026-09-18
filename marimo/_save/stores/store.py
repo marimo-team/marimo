@@ -16,7 +16,14 @@ class Store(ABC):
 
     @abstractmethod
     def put(self, key: str, value: bytes) -> bool:
-        """Put a cache into the store"""
+        """Put a cache into the store.
+
+        A key holds either its previous value or the whole new one. A reader
+        racing a writer, or arriving after one died, never sees a truncated
+        value. Cache writes depend on it. A lazy entry's completeness marker
+        is written last, and the marker means nothing if a partial write can
+        be read as a complete one.
+        """
 
     @abstractmethod
     def hit(self, key: str) -> bool:
@@ -36,6 +43,16 @@ class Store(ABC):
         store with no resolved location yet.
         """
         return None
+
+    def local_dirs(self) -> list[Path]:
+        """Every local directory this store keeps a copy of an entry in.
+
+        One `put` can write to several directories, so a caller that writes
+        something *about* an entry, such as a manifest describing where it
+        is stored, needs all of them, not just the first.
+        """
+        directory = self.local_dir()
+        return [] if directory is None else [directory]
 
     def get_batch(
         self, keys: Iterable[str]
