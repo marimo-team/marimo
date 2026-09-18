@@ -10,8 +10,11 @@ import pytest
 
 from marimo import _loggers
 from marimo._save.cache_dirs import (
+    CacheDirStats,
     NotANotebookError,
+    cache_dir_stats,
     directory_cache_dir,
+    entry_bytes,
     notebook_cache_dir,
     resolve_cache_dirs,
 )
@@ -275,3 +278,146 @@ def test_resolve_rejects_unsupported_file_type(tmp_path: Path) -> None:
 def test_resolve_missing_path(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         resolve_cache_dirs(tmp_path / "absent.py")
+
+
+def populate_cache_dir(cache_dir: Path) -> None:
+    """Write a cache directory in the shape the loaders leave behind."""
+    block = cache_dir / "train"
+    block.mkdir(parents=True)
+    (block / "C_ab12.pickle").write_bytes(b"x" * 10)
+    (block / "E_9f00.pickle").write_bytes(b"y" * 20)
+    # A lazily loaded value is split over a directory of blobs, named after
+    # the hash its entry file also names.
+    blob = block / "ab12"
+    blob.mkdir()
+    (blob / "return.npy").write_bytes(b"z" * 30)
+    (blob / "meta.json").write_bytes(b"w" * 40)
+    (cache_dir / ".nb-export.json").write_bytes(b"m" * 5)
+
+
+def test_cache_dir_stats_counts_an_entry_and_its_blobs_once(
+    tmp_path: Path,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+
+    assert cache_dir_stats(cache_dir) == CacheDirStats(
+        total_bytes=105, entries=2
+    )
+
+
+def test_cache_dir_stats_counts_an_orphaned_blob_directory(
+    tmp_path: Path,
+) -> None:
+    # Nothing names the hash, so the blobs are all that is left of the value.
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    (cache_dir / "train" / "C_ab12.pickle").unlink()
+
+    assert cache_dir_stats(cache_dir) == CacheDirStats(
+        total_bytes=95, entries=2
+    )
+
+
+def test_cache_dir_stats_counts_several_blocks(tmp_path: Path) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    other = cache_dir / "evaluate"
+    other.mkdir()
+    (other / "C_77e0.pickle").write_bytes(b"x" * 7)
+
+    assert cache_dir_stats(cache_dir) == CacheDirStats(
+        total_bytes=112, entries=3
+    )
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="chmod does not restrict reads on Windows"
+)
+def test_cache_dir_stats_skips_an_unreadable_block(
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+    unreadable = cache_dir / "locked"
+    unreadable.mkdir()
+    (unreadable / "C_77e0.pickle").write_bytes(b"x" * 7)
+    unreadable.chmod(0o000)
+    if os.access(unreadable, os.R_OK):  # running as root
+        unreadable.chmod(0o755)
+        pytest.skip("chmod does not restrict reads for this user")
+    monkeypatch.setattr(_loggers.marimo_logger(), "propagate", True)
+
+    try:
+        with caplog.at_level(logging.WARNING):
+            stats = cache_dir_stats(cache_dir)
+    finally:
+        unreadable.chmod(0o755)
+
+    assert stats == CacheDirStats(total_bytes=105, entries=2)
+    assert str(unreadable) in caplog.text
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
+def test_cache_dir_stats_counts_a_symlink_as_itself(tmp_path: Path) -> None:
+    # Deleting the cache would not free what the link points at.
+    outside = tmp_path / "checkpoint.bin"
+    outside.write_bytes(b"x" * 4096)
+    cache_dir = make_cache_dir(tmp_path)
+    block = cache_dir / "train"
+    block.mkdir()
+    link = block / "C_ab12.pickle"
+    link.symlink_to(outside)
+
+    stats = cache_dir_stats(cache_dir)
+
+    assert stats.entries == 1
+    assert stats.total_bytes == link.lstat().st_size
+    assert stats.total_bytes < 4096
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32", reason="symlinks need a privileged user"
+)
+def test_cache_dir_stats_does_not_walk_a_linked_block(tmp_path: Path) -> None:
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    (outside / "C_ab12.pickle").write_bytes(b"x" * 4096)
+    cache_dir = make_cache_dir(tmp_path)
+    (cache_dir / "train").symlink_to(outside, target_is_directory=True)
+
+    stats = cache_dir_stats(cache_dir)
+
+    assert stats.entries == 0
+    assert stats.total_bytes < 4096
+
+
+def test_cache_dir_stats_of_an_empty_directory(tmp_path: Path) -> None:
+    assert cache_dir_stats(make_cache_dir(tmp_path)) == CacheDirStats()
+
+
+def test_cache_dir_stats_of_a_directory_that_does_not_exist(
+    tmp_path: Path,
+) -> None:
+    assert cache_dir_stats(tmp_path / "absent") == CacheDirStats()
+
+
+def test_cache_dir_stats_add() -> None:
+    left = CacheDirStats(total_bytes=10, entries=1)
+    right = CacheDirStats(total_bytes=5, entries=2)
+
+    assert left + right == CacheDirStats(total_bytes=15, entries=3)
+
+
+def test_entry_bytes(tmp_path: Path) -> None:
+    cache_dir = make_cache_dir(tmp_path)
+    populate_cache_dir(cache_dir)
+
+    assert entry_bytes(cache_dir / "train") == 100
+    assert entry_bytes(cache_dir / "train" / "ab12") == 70
+    assert entry_bytes(cache_dir / "train" / "C_ab12.pickle") == 10
+    assert entry_bytes(cache_dir / "never-written") == 0

@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
+    from pathlib import Path
 
 
 class Store(ABC):
@@ -25,6 +26,16 @@ class Store(ABC):
         """Check if the cache is in the store"""
         del key
         return False
+
+    def local_dir(self) -> Path | None:
+        """Return the local directory holding this store's entries.
+
+        Lets a caller report the disk a cache occupies without knowing which
+        store it writes through. Defaults to `None`, which reads as "keeps
+        nothing on this filesystem" and covers remote stores as well as a
+        store with no resolved location yet.
+        """
+        return None
 
     def get_batch(
         self, keys: Iterable[str]
