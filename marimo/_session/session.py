@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import secrets
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
@@ -62,7 +63,7 @@ from marimo._session.types import (
     QueueManager,
     Session,
 )
-from marimo._types.ids import ConsumerId
+from marimo._types.ids import ConsumerId, StableSessionId
 from marimo._utils.repr import format_repr
 
 if TYPE_CHECKING:
@@ -76,8 +77,15 @@ if TYPE_CHECKING:
 LOGGER = _loggers.marimo_logger()
 
 _DEFAULT_TTL_SECONDS = 120
+_SESSION_ID_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz"
 
 __all__ = ["Session", "SessionImpl"]
+
+
+def _new_stable_session_id() -> StableSessionId:
+    """Match Hub's session IDs: sess- plus 80 random bits in Crockford Base32."""
+    body = "".join(secrets.choice(_SESSION_ID_ALPHABET) for _ in range(16))
+    return StableSessionId(f"sess-{body}")
 
 
 class SessionImpl(Session):
@@ -239,10 +247,9 @@ class SessionImpl(Session):
         extensions: list[SessionExtension],
     ) -> None:
         """Initialize kernel and client connection to it."""
-        # This is some unique ID that we can use to identify the session
-        # in edit mode. We don't use the session_id because this can change if
-        # the session is resumed
+        # The notebook's creation key is used to find resumable sessions.
         self.initialization_id = initialization_id
+        self._stable_id = _new_stable_session_id()
         self.app_file_manager = app_file_manager
         self.room = Room()
         self._kernel_manager = kernel_manager
@@ -266,6 +273,11 @@ class SessionImpl(Session):
         # Connect the main consumer after attaching extensions,
         # to avoid calling on_attach on the main consumer twice.
         self.connect_consumer(session_consumer, main=True)
+
+    @property
+    def stable_id(self) -> StableSessionId:
+        """Internal identity that survives reconnects and notebook renames."""
+        return self._stable_id
 
     @property
     def document(self) -> NotebookDocument:
