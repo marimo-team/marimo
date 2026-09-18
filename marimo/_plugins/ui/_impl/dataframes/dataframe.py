@@ -33,6 +33,7 @@ from marimo._plugins.ui._impl.table import (
     SortArgs,
     TableSearchError,
 )
+from marimo._plugins.ui._impl.tables.delimited import InvalidExportLocaleError
 from marimo._plugins.ui._impl.tables.format import FormatMapping
 from marimo._plugins.ui._impl.tables.table_manager import (
     FieldTypes,
@@ -367,20 +368,24 @@ class dataframe(UIElement[dict[str, Any], DataFrameType]):
 
         bound_filename = get_bound_name(self._id)
 
-        url, filename = download_as(
-            manager,
-            args.format,
-            options=DownloadOptions(
-                delimited=DelimitedOptions(
-                    encoding=self._download_csv_encoding,
-                    separator=self._download_csv_separator,
+        try:
+            url, filename = download_as(
+                manager,
+                args.format,
+                options=DownloadOptions(
+                    delimited=DelimitedOptions(
+                        encoding=self._download_csv_encoding,
+                        separator=self._download_csv_separator,
+                    ),
+                    json=JsonOptions(
+                        ensure_ascii=self._download_json_ensure_ascii
+                    ),
+                    locale=args.locale,
                 ),
-                json=JsonOptions(
-                    ensure_ascii=self._download_json_ensure_ascii
-                ),
-            ),
-            filename=bound_filename,
-        )
+                filename=bound_filename,
+            )
+        except InvalidExportLocaleError as error:
+            return DownloadAsResponse(error=str(error))
         return DownloadAsResponse(url=url, filename=filename)
 
     def _apply_filters_query_sort(

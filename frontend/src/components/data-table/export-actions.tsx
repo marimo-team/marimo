@@ -9,6 +9,7 @@ import {
   TableIcon,
 } from "lucide-react";
 import React from "react";
+import { useLocale } from "react-aria";
 import { downloadSizeLimitAtom } from "./download-policy/atoms";
 import { logNever } from "@/utils/assertNever";
 import { cn } from "@/utils/cn";
@@ -32,6 +33,8 @@ import {
 } from "../ui/dropdown-menu";
 import { Tooltip } from "../ui/tooltip";
 import { toast } from "../ui/use-toast";
+import { resolveExportLocale } from "./export-locale";
+import type { DownloadAsArgs } from "./schemas";
 
 const FILE_TYPES = {
   CSV: {
@@ -91,13 +94,22 @@ const COPY_SOURCE_FORMAT: Record<CopyFormat, DownloadFormat> = {
   markdown: "json",
 };
 
+export function sourceFormatForCopy(format: CopyFormat): DownloadFormat {
+  return COPY_SOURCE_FORMAT[format];
+}
+
+export function buildDownloadAsRequest(
+  format: DownloadFormat,
+  localeTag: string,
+): Parameters<DownloadAsArgs>[0] {
+  if (format === "csv" || format === "tsv") {
+    return { format, locale: resolveExportLocale(localeTag) };
+  }
+  return { format };
+}
+
 export interface ExportActionProps {
-  downloadAs: (req: { format: DownloadFormat }) => Promise<{
-    url: string;
-    filename: string;
-    error?: string | null;
-    missing_packages?: string[] | null;
-  }>;
+  downloadAs: DownloadAsArgs;
   // JSON-serialized size of the currently-rendered data. Used together with
   // downloadSizeLimitAtom to disable the Export button when a host (e.g.,
   // marimo-lsp inside VS Code) declares a download size cap. Null/undefined
@@ -113,6 +125,7 @@ const labelForCopyFormat = (format: CopyFormat): string =>
 
 export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   const [downloadMenuOpen, setDownloadMenuOpen] = React.useState(false);
+  const { locale } = useLocale();
   const policy = useAtomValue(downloadSizeLimitAtom);
   const overLimit = !!(
     policy &&
@@ -151,7 +164,8 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
   } | null> => {
     let response: Awaited<ReturnType<typeof props.downloadAs>>;
     try {
-      response = await props.downloadAs({ format });
+      const request = buildDownloadAsRequest(format, locale);
+      response = await props.downloadAs(request);
     } catch (error) {
       toast({
         title: "Failed to download",
@@ -174,6 +188,15 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
             onInstall={onRetry}
           />
         ),
+      });
+      return null;
+    }
+
+    if (response.error) {
+      toast({
+        title: "Export failed",
+        description: response.error,
+        variant: "danger",
       });
       return null;
     }
@@ -224,7 +247,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
     await withLoadingToast(
       `Preparing ${labelForCopyFormat(format)} for clipboard...`,
       async () => {
-        const sourceFormat = COPY_SOURCE_FORMAT[format];
+        const sourceFormat = sourceFormatForCopy(format);
         const result = await resolveDownloadUrl(sourceFormat, () => {
           void handleClipboardCopy(format);
         });
@@ -284,6 +307,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         {downloadOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
+            aria-label={`Download ${option.label}: ${option.description}`}
             onSelect={() => {
               void handleDownload(option.format);
             }}
@@ -304,6 +328,7 @@ export const ExportMenu: React.FC<ExportActionProps> = (props) => {
         {copyOptions.map((option) => (
           <DropdownMenuItem
             key={option.label}
+            aria-label={`Copy ${option.label} to clipboard: ${option.description}`}
             onSelect={async () => {
               try {
                 await handleClipboardCopy(option.format);
