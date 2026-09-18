@@ -97,7 +97,7 @@ class NotebookCellHooks:
     1. preparation_hooks: Run once before the runner starts
     2. pre_execution_hooks: Run before each cell executes
     3. post_execution_hooks: Run after each cell executes
-    4. finalization_hooks: Always run after post-execution, retrying interrupts
+    4. finalization_hooks: Always run after post-execution
     5. on_finish_hooks: Run once after all cells complete
     """
 
@@ -135,7 +135,7 @@ class NotebookCellHooks:
         self._add(HookPhase.POST_EXECUTION, hook, priority)
 
     def add_finalization(self, hook: PostExecutionHook) -> None:
-        """Register cleanup that is safe to repeat after an interrupt."""
+        """Register cleanup that always runs and that Ctrl-C cannot interrupt."""
         self._add(HookPhase.FINALIZATION, hook, Priority.FINAL)
 
     def add_on_finish(

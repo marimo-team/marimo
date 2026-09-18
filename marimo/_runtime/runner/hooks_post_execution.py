@@ -565,7 +565,7 @@ POST_EXECUTION_HOOKS: list[PostExecutionHook] = [
 ]
 
 
-# These hooks may be retried after an interrupt, so they must be safe to repeat.
+# These always run, and Ctrl-C cannot raise inside them.
 FINALIZATION_HOOKS: list[PostExecutionHook] = [
     # Flush buffered console output so that stderr/stdout arrives at the
     # frontend before the cell transitions to idle.

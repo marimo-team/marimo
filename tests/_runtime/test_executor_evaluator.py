@@ -13,11 +13,11 @@ double raise, and KeyboardInterrupt propagation through teardown.
 from __future__ import annotations
 
 import asyncio
-from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
 
+from marimo._runtime.control_flow import MarimoInterrupt
 from marimo._runtime.exceptions import MarimoRuntimeException
 from marimo._runtime.executor import (
     DefaultExecutor,
@@ -25,11 +25,9 @@ from marimo._runtime.executor import (
     ExecutionLifecycle,
     Skip,
 )
+from marimo._runtime.interrupts import InterruptScope
 from marimo._runtime.runner.cell_runner import Runner
 from marimo._runtime.runner.result import RunResult
-
-if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
 
 
 class _Recorder:
@@ -563,81 +561,20 @@ async def test_executor_async_cancellation_propagates_unwrapped() -> None:
         await task
 
 
-async def test_start_task_cancel_all_propagates() -> None:
-    """`cancel_all` schedules cancellation via `call_soon_threadsafe` so a
-    loop blocked in `select()` wakes immediately; a plain `Future.cancel`
-    leaves the loop sleeping until the task's next scheduled wakeup."""
-    from marimo._runtime.runner.scheduler import SequentialScheduler
-
-    sched = SequentialScheduler(
-        cells_to_run=[],
-        graph=None,  # type: ignore[arg-type]
-    )
-
-    async def slow() -> RunResult:
-        await asyncio.sleep(60)
-        return RunResult(output=None, exception=None)
-
-    async with sched.start_task("c0", slow()) as task:  # type: ignore[arg-type]
-        await asyncio.sleep(0)
-        assert sched.has_active_tasks()
-        sched.cancel_all()
-        with pytest.raises(asyncio.CancelledError):
-            await task
-
-    assert sched.interrupted is True
-
-
-async def test_start_task_cancels_when_interrupted_pre_entry() -> None:
-    """`start_task` must refuse to admit a new task once `cancel_all` has
-    fired — otherwise a SIGINT racing in just before the task is
-    registered could leave the freshly-created task running detached."""
-    from marimo._runtime.runner.scheduler import SequentialScheduler
-
-    sched = SequentialScheduler(
-        cells_to_run=[],
-        graph=None,  # type: ignore[arg-type]
-    )
-    sched.cancel_all()  # flips _interrupted
-
-    async def body() -> RunResult:
-        await asyncio.sleep(60)
-        return RunResult(output=None, exception=None)
-
-    coro = body()
-    with pytest.raises(asyncio.CancelledError):
-        async with sched.start_task("c0", coro):  # type: ignore[arg-type]
-            pass
-    # `coro` was closed before becoming a task; nothing to leak.
-    assert not sched.has_active_tasks()
-
-
-async def test_runner_evaluate_interruptible_routes_async_cells_to_scheduler() -> (
+async def test_runner_evaluate_interruptible_routes_async_cells_to_scope() -> (
     None
 ):
-    """`Runner.evaluate_interruptible` must funnel coroutine cells
-    through `scheduler.start_task` so the SIGINT-handler's `cancel_all`
-    can preempt them."""
-
-    class _StubScheduler:
+    class _StubScope:
         def __init__(self) -> None:
-            self.started: list[tuple[str, Any]] = []
+            self.started: list[Any] = []
 
-        @asynccontextmanager
-        async def start_task(
-            self, cell_id: str, coro: Any
-        ) -> AsyncIterator[asyncio.Task[Any]]:
-            self.started.append((cell_id, coro))
-            task = asyncio.ensure_future(coro)
-            try:
-                yield task
-            finally:
-                if not task.done():
-                    task.cancel()
+        async def run(self, coro: Any) -> RunResult:
+            self.started.append(coro)
+            return await asyncio.create_task(coro)
 
     class _AsyncCell:
         cell_id = "c0"
-        body = _async_body("x = 1")
+        body = _async_body("import asyncio\nawait asyncio.sleep(0)")
         last_expr = compile("None", "<test>", "eval")
 
         def is_coroutine(self) -> bool:
@@ -646,42 +583,28 @@ async def test_runner_evaluate_interruptible_routes_async_cells_to_scheduler() -
     class _RunnerStub:
         def __init__(self) -> None:
             self.glbls: dict[str, Any] = {}
-            self._scheduler = _StubScheduler()
+            self._interrupts = _StubScope()
             self._evaluator = Evaluator(
                 executor=DefaultExecutor(), lifecycles=[]
             )
 
-        evaluate_interruptible = (
-            Runner.evaluate_interruptible  # type: ignore[attr-defined]
-        )
+        evaluate_interruptible = Runner.evaluate_interruptible  # type: ignore[attr-defined]
 
     runner = _RunnerStub()
     result = await runner.evaluate_interruptible(_AsyncCell())  # type: ignore[arg-type]
     assert result.exception is None
-    assert runner._scheduler.started, (
-        "async cell must be routed through scheduler.start_task"
-    )
+    assert runner._interrupts.started
 
 
-async def test_runner_evaluate_interruptible_surfaces_cancelled_as_run_result() -> (
+async def test_runner_evaluate_interruptible_refuses_async_cell_after_request() -> (
     None
 ):
-    """When `start_task` refuses to admit a coroutine cell because
-    `cancel_all` already fired, the resulting `CancelledError` must come
-    back as `RunResult(exception=CancelledError)`. The broad-except path
-    in `Runner.run` would otherwise log an internal error and emit an
-    empty success-like result, masking the interrupt."""
-    from marimo._runtime.runner.scheduler import SequentialScheduler
-
-    sched = SequentialScheduler(
-        cells_to_run=[],
-        graph=None,  # type: ignore[arg-type]
-    )
-    sched.cancel_all()  # pre-admit refusal path
+    interrupts = InterruptScope()
+    interrupts.request()
 
     class _AsyncCell:
         cell_id = "c0"
-        body = _async_body("x = 1")
+        body = _async_body("import asyncio\nawait asyncio.sleep(0)")
         last_expr = compile("None", "<test>", "eval")
 
         def is_coroutine(self) -> bool:
@@ -690,44 +613,13 @@ async def test_runner_evaluate_interruptible_surfaces_cancelled_as_run_result() 
     class _RunnerStub:
         def __init__(self) -> None:
             self.glbls: dict[str, Any] = {}
-            self._scheduler = sched
+            self._interrupts = interrupts
             self._evaluator = Evaluator(
                 executor=DefaultExecutor(), lifecycles=[]
             )
 
-        evaluate_interruptible = (
-            Runner.evaluate_interruptible  # type: ignore[attr-defined]
-        )
+        evaluate_interruptible = Runner.evaluate_interruptible  # type: ignore[attr-defined]
 
     runner = _RunnerStub()
     result = await runner.evaluate_interruptible(_AsyncCell())  # type: ignore[arg-type]
-    assert isinstance(result.exception, asyncio.CancelledError)
-
-
-async def test_scheduler_async_context_publishes_on_kernel_context() -> None:
-    """`async with scheduler` sets `_active_scheduler` on entry and
-    clears it on exit so the SIGINT handler can find the scheduler."""
-    from unittest.mock import MagicMock
-
-    from marimo._runtime.context.kernel_context import (
-        KernelRuntimeContext,
-    )
-    from marimo._runtime.context.types import _THREAD_LOCAL_CONTEXT
-    from marimo._runtime.runner.scheduler import SequentialScheduler
-
-    sched = SequentialScheduler(
-        cells_to_run=[],
-        graph=None,  # type: ignore[arg-type]
-    )
-
-    # `spec=KernelRuntimeContext` makes `isinstance` accept the mock.
-    ctx = MagicMock(spec=KernelRuntimeContext)
-    ctx._active_scheduler = None
-    prior = _THREAD_LOCAL_CONTEXT.runtime_context
-    _THREAD_LOCAL_CONTEXT.runtime_context = ctx
-    try:
-        async with sched:
-            assert ctx._active_scheduler is sched
-        assert ctx._active_scheduler is None
-    finally:
-        _THREAD_LOCAL_CONTEXT.runtime_context = prior
+    assert isinstance(result.exception, MarimoInterrupt)
