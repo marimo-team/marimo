@@ -135,9 +135,11 @@ def test_disconnect_and_reconnect(client: TestClient) -> None:
 
 
 def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
+    manager = get_session_manager(client)
     with client.websocket_connect(WS_URL) as websocket:
         data = websocket.receive_json()
         assert_kernel_ready_response(data)
+        stable_id = manager.sessions[SessionId("123")].stable_id
         websocket.close()
     # Connect by the same session id
     with client.websocket_connect(WS_URL) as websocket:
@@ -145,12 +147,14 @@ def test_disconnect_then_reconnect_then_refresh(client: TestClient) -> None:
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert data["op"] == "alert"
-    # New session with new ID (simulates refresh)
+        assert manager.sessions[SessionId("123")].stable_id == stable_id
+    # New connection with a new browser ID (simulates refresh)
     with client.websocket_connect(OTHER_WS_URL) as websocket:
         data = websocket.receive_json()
         assert data == {"op": "reconnected", "data": {"op": "reconnected"}}
         data = websocket.receive_json()
         assert_kernel_ready_response(data, create_response({"resumed": True}))
+        assert manager.sessions[SessionId("456")].stable_id == stable_id
 
 
 def test_allows_multiple_connections_with_other_sessions(
