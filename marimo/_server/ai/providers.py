@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
 
-from marimo import __version__, _loggers
+from marimo import _loggers
 from marimo._ai._convert import extract_text
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
@@ -45,6 +45,7 @@ from marimo._server.models.completion import UIMessage as ServerUIMessage
 from marimo._utils.assert_never import log_never
 from marimo._utils.http import HTTPStatus
 from marimo._utils.typing import override
+from marimo._version import __version__
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Sequence

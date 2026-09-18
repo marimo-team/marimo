@@ -1476,7 +1476,7 @@ async def test_opencode_go_conversation_headers(
     import httpx
     from pydantic_ai.providers.openai import OpenAIProvider as PydanticOpenAI
 
-    from marimo import __version__
+    from marimo._version import __version__
 
     headers: list[dict[str, list[str]]] = []
     extra_headers = {"x-custom": "preserved"}
