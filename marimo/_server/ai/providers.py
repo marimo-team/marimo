@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import functools
+import hashlib
 import inspect
 import os
 from abc import ABC, abstractmethod
@@ -1236,7 +1237,10 @@ def get_completion_provider(
             "x-opencode-client": "marimo",
         }
         if session_id:
-            headers["x-opencode-session"] = session_id
+            # Keep client-supplied IDs bounded and safe for HTTP headers.
+            headers["x-opencode-session"] = hashlib.sha256(
+                session_id.encode("utf-8")
+            ).hexdigest()
         # Preserve default casing: the SDK merges its own headers by key.
         header_names = {name.lower(): name for name in headers}
         for name, value in (config.extra_headers or {}).items():

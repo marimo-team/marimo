@@ -1,6 +1,7 @@
 """Tests for the LLM providers in marimo._server.ai.providers."""
 
 import asyncio
+import hashlib
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -1478,6 +1479,14 @@ async def test_opencode_go_conversation_headers(
 
     from marimo._version import __version__
 
+    session_ids = (
+        "chat-1",
+        "chat-1",
+        "chat-2",
+        "bad\r\nInjected: value",
+        "a" * 20_000,
+        "conversation-你好",
+    )
     headers: list[dict[str, list[str]]] = []
     extra_headers = {"x-custom": "preserved"}
     if override_headers:
@@ -1520,7 +1529,7 @@ async def test_opencode_go_conversation_headers(
     async with httpx.AsyncClient(
         transport=httpx.MockTransport(respond)
     ) as client:
-        for session_id in ("chat-1", "chat-1", "chat-2"):
+        for session_id in session_ids:
             provider = get_completion_provider(
                 config, "opencode-go/deepseek-v4-flash", session_id=session_id
             )
@@ -1545,11 +1554,13 @@ async def test_opencode_go_conversation_headers(
                 "custom-client" if override_headers else "marimo"
             ],
             "x-opencode-session": [
-                "custom-session" if override_headers else session_id
+                "custom-session"
+                if override_headers
+                else hashlib.sha256(session_id.encode("utf-8")).hexdigest()
             ],
             "x-custom": ["preserved"],
         }
-        for session_id in ("chat-1", "chat-1", "chat-2")
+        for session_id in session_ids
     ]
     assert config.extra_headers == extra_headers
 
