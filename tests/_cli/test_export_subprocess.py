@@ -14,7 +14,10 @@ from unittest.mock import patch
 import click
 import pytest
 
-from marimo._cli.export._common import run_python_subprocess
+from marimo._cli.export._common import (
+    _export_termination_signals,
+    run_python_subprocess,
+)
 from marimo._environments.environment import Environment, ProcessPlan
 from marimo._environments.pixi import PixiMissingScriptMetadataError
 from marimo._environments.sandbox import Backend
@@ -177,6 +180,117 @@ async def test_export_failure_identifies_launcher_without_payload_or_credentials
     assert "failed" in message
     assert "secret" not in message
     assert "private notebook" not in message
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
+@pytest.mark.parametrize("signal_name", ["SIGTERM", "SIGHUP"])
+async def test_export_termination_at_completion(signal_name: str) -> None:
+    signum = getattr(signal, signal_name)
+    previous = signal.getsignal(signum)
+    with pytest.raises(SystemExit) as error:
+        with _export_termination_signals():
+            signal.raise_signal(signum)
+
+    assert error.value.code == 128 + signum
+    assert signal.getsignal(signum) == previous
+    # Let the queued callback run after the scope closes. It must not cancel
+    # subsequent work in the task that owned the export.
+    await asyncio.sleep(0)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
+@pytest.mark.timeout(10)
+async def test_repeated_export_termination_finishes_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._environments import process as command_process
+
+    stop = command_process.stop_subprocess
+    processes: list[subprocess.Popen[Any]] = []
+    repeated_signals_handled = False
+
+    async def interrupted_cleanup(
+        process: subprocess.Popen[Any],
+        *,
+        start_new_session: bool,
+        drain: asyncio.Future[Any] | None = None,
+    ) -> None:
+        nonlocal repeated_signals_handled
+        processes.append(process)
+        try:
+            signal.raise_signal(signal.SIGHUP)
+            await asyncio.sleep(0)
+            signal.raise_signal(signal.SIGTERM)
+            await asyncio.sleep(0)
+            repeated_signals_handled = True
+        finally:
+            await stop(
+                process, start_new_session=start_new_session, drain=drain
+            )
+
+    monkeypatch.setattr(
+        command_process, "stop_subprocess", interrupted_cleanup
+    )
+    with pytest.raises(SystemExit) as error:
+        with _export_termination_signals():
+            await command_process.run_command(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys,time; print('ready', file=sys.stderr, flush=True); time.sleep(30)",
+                ],
+                on_stderr=lambda _line: signal.raise_signal(signal.SIGTERM),
+            )
+
+    assert error.value.code == 128 + signal.SIGTERM
+    assert repeated_signals_handled
+    assert len(processes) == 1
+    assert processes[0].poll() is not None
+    await asyncio.sleep(0)
+
+
+@pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
+@pytest.mark.parametrize("signal_name", ["SIGTERM", "SIGHUP"])
+def test_export_termination_during_process_creation(signal_name: str) -> None:
+    code = """
+import asyncio, json, signal, subprocess, sys
+from marimo._cli.export._common import _export_termination_signals
+from marimo._environments.process import run_command
+
+processes = []
+execute_child = subprocess.Popen._execute_child
+
+def interrupted_spawn(self, *args, **kwargs):
+    execute_child(self, *args, **kwargs)
+    processes.append(self)
+    # Deliver termination after spawning, before Popen returns to its owner.
+    signal.raise_signal(getattr(signal, sys.argv[1]))
+
+subprocess.Popen._execute_child = interrupted_spawn
+
+async def main():
+    with _export_termination_signals():
+        await run_command([sys.executable, '-c', 'import time; time.sleep(30)'])
+
+try:
+    asyncio.run(main())
+finally:
+    print(json.dumps([process.poll() is None for process in processes]))
+    for process in processes:
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", code, signal_name],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert completed.returncode == 128 + getattr(signal, signal_name), (
+        completed.stderr
+    )
+    assert json.loads(completed.stdout) == [False]
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")

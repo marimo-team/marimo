@@ -66,15 +66,18 @@ async def run_command(
             process.wait()
             return "".join(lines)
 
-        output = asyncio.gather(
-            loop.run_in_executor(None, process.stdout.read),
-            loop.run_in_executor(None, read_stderr),
-        )
+        readers: list[asyncio.Future[str]] = []
+        output: asyncio.Future[list[str]] | None = None
         try:
+            readers.append(loop.run_in_executor(None, process.stdout.read))
+            readers.append(loop.run_in_executor(None, read_stderr))
+            output = asyncio.gather(*readers)
             stdout, stderr = await asyncio.wait_for(
                 asyncio.shield(output), timeout=timeout
             )
         except BaseException:
+            if output is None:
+                output = asyncio.gather(*readers)
             await stop_subprocess(
                 process, start_new_session=True, drain=output
             )

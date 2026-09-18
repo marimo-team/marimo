@@ -8,12 +8,16 @@ import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
 from marimo._environments.process import run_command
+from marimo._utils.subprocess import stop_subprocess
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from concurrent.futures import Executor
     from pathlib import Path
 
 
@@ -46,6 +50,44 @@ sys.exit(3)
     assert result.stderr == "y" * 131072 + "\nfinished 🎲\n"
     assert "".join(lines) == result.stderr
     assert result.returncode == 3
+
+
+@pytest.mark.timeout(10)
+@pytest.mark.parametrize("failed_reader", [0, 1], ids=["stdout", "stderr"])
+async def test_pipe_reader_setup_failure_stops_command(
+    failed_reader: int,
+) -> None:
+    loop = asyncio.get_running_loop()
+    submit = loop.run_in_executor
+    readers: list[asyncio.Future[object]] = []
+
+    def fail_reader(
+        executor: Executor | None, function: Callable[[], object]
+    ) -> asyncio.Future[object]:
+        # Cleanup uses a separate executor, which must still accept work.
+        if executor is not None:
+            return submit(executor, function)
+        if len(readers) == failed_reader:
+            raise RuntimeError("Cannot start pipe reader")
+        reader = submit(executor, function)
+        readers.append(reader)
+        return reader
+
+    with (
+        patch.object(loop, "run_in_executor", side_effect=fail_reader),
+        patch(
+            "marimo._environments.process.stop_subprocess",
+            wraps=stop_subprocess,
+        ) as cleanup,
+    ):
+        with pytest.raises(RuntimeError, match="Cannot start pipe reader"):
+            await run_command(
+                [sys.executable, "-c", "import time; time.sleep(30)"]
+            )
+        cleanup.assert_awaited_once()
+        process = cleanup.call_args.args[0]
+        assert process.poll() is not None
+        assert all(reader.done() for reader in readers)
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX process groups")
