@@ -72,8 +72,6 @@
       "error",
       { "additionalTestBlockFunctions": ["beforeEach"] }
     ],
-    "vitest/prefer-snapshot-hint": "off",
-
     // === Core rules ===
     "no-var": "error",
     "no-console": "error",
