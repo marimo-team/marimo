@@ -5,7 +5,7 @@ import functools
 import inspect
 import os
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import (
     TYPE_CHECKING,
     Generic,
@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlparse
 
 from starlette.exceptions import HTTPException
 
-from marimo import _loggers
+from marimo import __version__, _loggers
 from marimo._ai._convert import extract_text
 from marimo._ai._pydantic_ai_utils import (
     convert_to_pydantic_messages,
@@ -1225,9 +1225,22 @@ class BedrockProvider(PydanticProvider["PydanticBedrock"]):
 
 
 def get_completion_provider(
-    config: AnyProviderConfig, model: str
+    config: AnyProviderConfig, model: str, *, session_id: str | None = None
 ) -> PydanticProvider[Provider]:
     model_id = AiModelId.from_model(model)
+
+    if model_id.provider == "opencode-go":
+        headers = {
+            "User-Agent": f"marimo/{__version__}",
+            "x-opencode-client": "marimo",
+        }
+        if session_id:
+            headers["x-opencode-session"] = session_id
+        # Preserve default casing: the SDK merges its own headers by key.
+        header_names = {name.lower(): name for name in headers}
+        for name, value in (config.extra_headers or {}).items():
+            headers[header_names.get(name.lower(), name)] = value
+        config = replace(config, extra_headers=headers)
 
     if model_id.provider == "anthropic":
         return AnthropicProvider(

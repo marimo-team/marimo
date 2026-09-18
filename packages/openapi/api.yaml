@@ -90,6 +90,11 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
           default: null
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         language:
@@ -664,6 +669,11 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         model:
