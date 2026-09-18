@@ -32,6 +32,7 @@
 @import "tailwindcss";
 
 @config "../../tailwind.config.cjs";
+@plugin "tailwindcss-animate";
 
 @layer base {
   :root {
@@ -256,4 +257,206 @@
   /* oxfmt-ignore: definition needs to be oneline or breaks variants */
   --shadow-md-solid-shade:
     4px 4px 0px 0px var(--base-shadow), 0 0px 2px 0px hsl(0deg 0% 60% / 50%);
+}
+
+/* Semantic colors. `inline` makes utilities reference the source variable
+   directly, so overrides on `body.dark` and island containers take effect. */
+@theme inline {
+  --color-border: var(--border);
+  --color-shade: var(--base-shadow);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-link: var(--link);
+  --color-link-visited: var(--link-visited);
+  --color-stale: var(--stale);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-hover: var(--destructive-hover);
+  --color-destructive-border: var(--destructive-border);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-success: var(--success);
+  --color-success-hover: var(--success-hover);
+  --color-success-border: var(--success-border);
+  --color-success-foreground: var(--success-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-action: var(--action);
+  --color-action-hover: var(--action-hover);
+  --color-action-border: var(--action-border);
+  --color-action-foreground: var(--action-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+}
+
+@theme inline {
+  /* oxfmt-ignore: one line so the compiled font stack has no line breaks */
+  --font-prose: var(--text-font), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* oxfmt-ignore: one line so the compiled font stack has no line breaks */
+  --font-heading: var(--heading-font), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* oxfmt-ignore: one line so the compiled font stack has no line breaks */
+  --font-code: var(--monospace-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* oxfmt-ignore: one line so the compiled font stack has no line breaks */
+  --font-mono: var(--monospace-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  /* Preflight styles code, kbd, samp and pre with this value. Inline keeps the
+     font variable resolvable on the element, so embedders can override it
+     below the root. */
+  /* oxfmt-ignore: one line so the compiled font stack has no line breaks */
+  --default-mono-font-family: var(--monospace-font), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+@theme inline {
+  --grid-template-columns-auto-fit: repeat(auto-fit, minmax(0, 1fr));
+  --grid-template-columns-auto-fill: repeat(auto-fill, minmax(0, 1fr));
+  /* stylelint-disable-next-line unit-allowed-list */
+  --grid-template-columns-auto-fill-200: repeat(auto-fill, minmax(200px, 1fr));
+  --grid-template-columns-2-fit: repeat(2, minmax(0, max-content));
+  --grid-template-columns-3-fit: repeat(3, minmax(0, max-content));
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-delayed-show-200: delayed-show 200ms ease-out;
+  --animate-delayed-show-400: delayed-show 400ms ease-out;
+  --animate-ellipsis-dot: ellipsis-dot 400ms ease-in-out infinite;
+  --animate-slide: slide 1.5s ease-in-out infinite;
+  --animate-progress-indeterminate: progress-indeterminate 1.5s ease-in-out infinite;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+
+  @keyframes delayed-show {
+    0% {
+      opacity: 0;
+    }
+
+    99% {
+      opacity: 0;
+    }
+
+    100% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes ellipsis-dot {
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+
+    50% {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slide {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(400%);
+    }
+  }
+
+  @keyframes progress-indeterminate {
+    0% {
+      transform: translateX(-100%);
+    }
+
+    100% {
+      transform: translateX(400%);
+    }
+  }
+}
+
+@custom-variant fullscreen (&:fullscreen);
+
+/* Full width with side padding, capped only on very wide screens. */
+@utility container {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 2rem;
+
+  /* Cancel the responsive max-widths that the built-in utility adds. */
+  @media (width >= 40rem) {
+    max-width: none;
+  }
+
+  /* stylelint-disable-next-line unit-allowed-list */
+  @media (width >= 1400px) {
+    max-width: 1400px;
+  }
+}
+
+@utility increase-pointer-area-x {
+  border: none;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -50px;
+    width: 50px;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: -50px;
+    width: 50px;
+  }
+}
+
+/* Font sizes without a line-height companion. Utilities set font-size only
+   and inherit the surrounding line height. */
+@theme inline {
+  --text-3xs: 0.6875rem;
+  --text-2xs: 0.75rem;
+  --text-xs-plus: 0.8rem;
+  --text-sm-minus: 0.84375rem;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-10: 10px;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-11: 11px;
+  /* stylelint-disable-next-line unit-allowed-list */
+  --text-13: 13px;
 }
