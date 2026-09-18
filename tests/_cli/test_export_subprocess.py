@@ -132,10 +132,11 @@ def test_export_interrupt_reaps_the_child(new_session: bool) -> None:
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX termination signals")
 def test_export_sigterm_reaps_isolated_child(tmp_path) -> None:
+    import select
     import signal
-    import time
 
     ready = tmp_path / "ready"
+    os.mkfifo(ready)
     code = f"""
 import os, sys
 from marimo._cli.export._common import SandboxTarget, run_python_subprocess
@@ -144,23 +145,25 @@ child = "import os,time; from pathlib import Path; Path({str(ready)!r}).write_te
 backends.launch_fallback = lambda *a, **kw: environment.ProcessPlan((sys.executable, '-c', child), dict(os.environ), True)
 run_python_subprocess(sandbox=SandboxTarget(None), script='', payload={{}}, action='export')
 """
-    parent = subprocess.Popen([sys.executable, "-c", code])
-    child_pid = None
-    try:
-        deadline = time.monotonic() + 10
-        while not ready.exists() and time.monotonic() < deadline:
-            assert parent.poll() is None
-            time.sleep(0.02)
-        child_pid = int(ready.read_text())
-        parent.send_signal(signal.SIGTERM)
-        assert parent.wait(timeout=10) == 128 + signal.SIGTERM
-        with pytest.raises(ProcessLookupError):
-            os.kill(child_pid, 0)
-    finally:
-        parent.kill()
-        parent.wait(timeout=5)
-        if child_pid is not None:
-            try:
-                os.kill(child_pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+    # Open without waiting for a writer; select bounds the readiness wait.
+    with os.fdopen(
+        os.open(ready, os.O_RDONLY | os.O_NONBLOCK), "rb", buffering=0
+    ) as ready_pipe:
+        parent = subprocess.Popen([sys.executable, "-c", code])
+        child_pid = None
+        try:
+            readable, _, _ = select.select([ready_pipe], [], [], 10)
+            assert readable, "Child did not signal readiness"
+            child_pid = int(ready_pipe.read(64))
+            parent.send_signal(signal.SIGTERM)
+            assert parent.wait(timeout=10) == 128 + signal.SIGTERM
+            with pytest.raises(ProcessLookupError):
+                os.kill(child_pid, 0)
+        finally:
+            parent.kill()
+            parent.wait(timeout=5)
+            if child_pid is not None:
+                try:
+                    os.kill(child_pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
