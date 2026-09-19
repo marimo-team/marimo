@@ -1,0 +1,21 @@
+.github/renovate.json5
+  s_ae861d254a784a::t_2d34ed88eb8f9e 26-30
+tests/snapshots/optional-dependencies-recommended.txt
+  s_ae861d254a784a::t_2d34ed88eb8f9e 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fc460317ae06102be6051c45cb33f4f57f8c5abe",
+  "prompts": {},
+  "sessions": {
+    "s_ae861d254a784a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b3e5-c23e-7f42-8f45-6e2ce2a4c34f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
