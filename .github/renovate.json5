@@ -23,6 +23,11 @@
       "matchPackageNames": ["node"],
       "enabled": false
     },
+    // Temporarily allow marimo-lens releases without the global age gate
+    {
+      "matchPackageNames": ["marimo-lens"],
+      "minimumReleaseAge": "0 days"
+    },
     // Only upgrade ruff, mkdocs, pytest
     {
       "groupName": "ruff, mkdocs, pytest",
