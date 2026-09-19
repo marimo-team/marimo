@@ -40,6 +40,7 @@ function makeProps(
     files?: MockFile[];
     list_directory?: ReturnType<typeof vi.fn>;
     host?: HTMLElement;
+    restrictNavigation?: boolean;
   } = {},
 ): IPluginProps<Value, Record<string, unknown>> {
   const files = overrides.files ?? FILES;
@@ -51,7 +52,7 @@ function makeProps(
       selectionMode: overrides.selectionMode ?? "all",
       multiple: overrides.multiple ?? true,
       label: null,
-      restrictNavigation: false,
+      restrictNavigation: overrides.restrictNavigation ?? false,
     },
     value: overrides.value ?? [],
     setValue: overrides.setValue ?? vi.fn(),
@@ -306,6 +307,57 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     const parentRow = screen.getAllByRole("row")[0];
     fireEvent.keyDown(parentRow, { key: " " });
     expect(setValue).not.toHaveBeenCalled();
+  });
+});
+
+describe("FileBrowserPlugin restrictNavigation folder display", () => {
+  it("hides the folder path dropdown when restrictNavigation is true", async () => {
+    renderBrowser({ restrictNavigation: true });
+    await screen.findByText("docs");
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText("/home/user")).not.toBeInTheDocument();
+    // In-tree parent navigation is unchanged.
+    expect(screen.getByText("..")).toBeInTheDocument();
+  });
+
+  it("keeps the folder dropdown hidden after entering a subfolder", async () => {
+    const list_directory = vi
+      .fn()
+      .mockResolvedValueOnce({
+        files: FILES,
+        total_count: FILES.length,
+        is_truncated: false,
+      })
+      .mockResolvedValue({
+        files: [
+          {
+            id: "99",
+            path: "/home/user/docs/inner.txt",
+            name: "inner.txt",
+            is_directory: false,
+          },
+        ],
+        total_count: 1,
+        is_truncated: false,
+      });
+
+    renderBrowser({ restrictNavigation: true, list_directory });
+    await screen.findByText("docs");
+    fireEvent.click(screen.getByText("docs"));
+    await screen.findByText("inner.txt");
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(screen.queryByText("/home/user")).not.toBeInTheDocument();
+    expect(screen.queryByText("/home/user/docs")).not.toBeInTheDocument();
+  });
+
+  it("shows the folder path dropdown when navigation is unrestricted", async () => {
+    renderBrowser({ restrictNavigation: false });
+    await screen.findByText("docs");
+    const pathSelect = screen.getByRole("combobox");
+    expect(pathSelect).toBeInTheDocument();
+    expect(pathSelect).toHaveTextContent("/home/user");
   });
 });
 
