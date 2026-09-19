@@ -1953,4 +1953,126 @@ describe("useCellEditorNavigationProps", () => {
       });
     });
   });
+
+  describe("command-mode shortcut remapping", () => {
+    const makeEditorView = () =>
+      ({
+        current: {
+          state: {
+            selection: { main: { from: 5, to: 5, empty: true } },
+            field: vi.fn().mockReturnValue(false),
+          },
+          dispatch: vi.fn(),
+        },
+      }) as unknown as React.RefObject<EditorView>;
+
+    const remapCommandMode = (key: string) => {
+      store.set(configOverridesAtom, {
+        keymap: { overrides: { "command.enterCommandMode": key } },
+      });
+    };
+
+    it("Escape still closes the autocomplete popup when command mode is remapped", () => {
+      remapCommandMode("q");
+      mockSimplifySelection.mockReturnValue(false);
+      mockCompletionStatus.mockReturnValue("active");
+
+      const mockEditorView = makeEditorView();
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      // Escape dismisses editor UI...
+      expect(mockCloseCompletion).toHaveBeenCalledWith(mockEditorView.current);
+      // ...but must NOT exit to command mode (that is now bound to "q").
+      expect(focusCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("Escape still closes the autocomplete popup when command mode is disabled", () => {
+      remapCommandMode("");
+      mockSimplifySelection.mockReturnValue(false);
+      mockCompletionStatus.mockReturnValue("active");
+
+      const mockEditorView = makeEditorView();
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "Escape" });
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCloseCompletion).toHaveBeenCalledWith(mockEditorView.current);
+      expect(focusCell).not.toHaveBeenCalled();
+    });
+
+    it("remapped key collapses a selection without being typed into the editor", () => {
+      remapCommandMode("q");
+      // A selection is present, so the first press collapses it.
+      mockSimplifySelection.mockReturnValue(true);
+
+      const mockEditorView = makeEditorView();
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "q" });
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockSimplifySelection).toHaveBeenCalledWith(
+        mockEditorView.current,
+      );
+      // Cleanup first (no exit yet), and the key must not reach the editor as text.
+      expect(focusCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("remapped key closes an open popup without being typed into the editor", () => {
+      remapCommandMode("q");
+      mockSimplifySelection.mockReturnValue(false);
+      mockCompletionStatus.mockReturnValue("active");
+
+      const mockEditorView = makeEditorView();
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "q" });
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(mockCloseCompletion).toHaveBeenCalledWith(mockEditorView.current);
+      expect(focusCell).not.toHaveBeenCalled();
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+
+    it("remapped key exits to command mode when there is nothing to dismiss", () => {
+      remapCommandMode("q");
+      mockSimplifySelection.mockReturnValue(false);
+      mockCompletionStatus.mockReturnValue(null);
+
+      const mockEditorView = makeEditorView();
+      const { result } = renderWithProvider(() =>
+        useCellEditorNavigationProps(mockCellId, mockEditorView),
+      );
+
+      const mockEvent = Mocks.keyboardEvent({ key: "q" });
+      act(() => {
+        result.current.onKeyDown?.(mockEvent);
+      });
+
+      expect(focusCell).toHaveBeenCalledWith(mockCellId);
+      expect(mockEvent.preventDefault).toHaveBeenCalled();
+    });
+  });
 });
