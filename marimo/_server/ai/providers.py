@@ -407,6 +407,7 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
         additional_tools: list[ToolDefinition],
         span_info: SpanInfo,
         enable_capabilities: bool = True,
+        thinking: ThinkingLevel | None = None,
     ) -> str:
         """Return a string response from the given messages."""
 
@@ -428,6 +429,9 @@ class PydanticProvider(ABC, Generic[ProviderT_co]):
             result = await agent.run(
                 user_prompt=None,
                 message_history=VercelAIAdapter.load_messages(messages),
+                model_settings={"thinking": thinking}
+                if thinking is not None
+                else None,
             )
 
         return str(result.output)
