@@ -20,7 +20,10 @@ import { useAsyncData } from "@/hooks/useAsyncData";
 import { useInternalStateWithSync } from "@/hooks/useInternalStateWithSync";
 import { cn } from "@/utils/cn";
 import { type FilePath, PathBuilder, Paths } from "@/utils/paths";
-import { getProtocolAndParentDirectories } from "@/utils/pathUtils";
+import {
+  formatPathRelativeToRoot,
+  getProtocolAndParentDirectories,
+} from "@/utils/pathUtils";
 import { PluralWords } from "@/utils/pluralize";
 import { createPlugin } from "../core/builder";
 import { renderHTML } from "../core/RenderHTML";
@@ -473,6 +476,15 @@ export const FileBrowser = ({
     restrictNavigation,
   });
 
+  const formatDirLabel = (dir: string) =>
+    restrictNavigation
+      ? formatPathRelativeToRoot({
+          path: dir,
+          root: initialPath,
+          delimiter,
+        })
+      : dir;
+
   const selectionKindLabel =
     selectionMode === "all"
       ? PluralWords.of("file", "folder")
@@ -505,22 +517,47 @@ export const FileBrowser = ({
     return labelText;
   };
 
+  // With restrict_navigation, absolute paths are not useful and can be
+  // confusing/private. Show paths relative to initialPath. When there is only
+  // one reachable directory (the root of the restricted tree), a dropdown has
+  // nothing to navigate to — render a static label instead (keeps the control
+  // when subfolders make in-tree parent navigation useful).
+  const renderPathControl = () => {
+    const currentLabel = formatDirLabel(path);
+
+    if (restrictNavigation && parentDirectories.length <= 1) {
+      return (
+        <div
+          className="mt-2 w-full rounded-md border px-3 py-2 text-sm text-muted-foreground"
+          aria-label="Current folder"
+        >
+          {currentLabel}
+        </div>
+      );
+    }
+
+    return (
+      <NativeSelect
+        className="mt-2 w-full"
+        placeholder={currentLabel}
+        value={path}
+        onChange={(e) => setNewPath(e.target.value)}
+        aria-label="Current folder"
+      >
+        {parentDirectories.map((dir) => (
+          <option value={dir} key={dir}>
+            {formatDirLabel(dir)}
+          </option>
+        ))}
+      </NativeSelect>
+    );
+  };
+
   return (
     <div>
       {error && <Banner kind="danger">{error.message}</Banner>}
       {renderHeader()}
-      <NativeSelect
-        className="mt-2 w-full"
-        placeholder={path}
-        value={path}
-        onChange={(e) => setNewPath(e.target.value)}
-      >
-        {parentDirectories.map((dir) => (
-          <option value={dir} key={dir}>
-            {dir}
-          </option>
-        ))}
-      </NativeSelect>
+      {renderPathControl()}
 
       {data && typeof data.total_count === "number" && (
         <div className="text-xs text-muted-foreground mt-1 px-1">

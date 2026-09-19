@@ -40,18 +40,20 @@ function makeProps(
     files?: MockFile[];
     list_directory?: ReturnType<typeof vi.fn>;
     host?: HTMLElement;
+    restrictNavigation?: boolean;
+    initialPath?: string;
   } = {},
 ): IPluginProps<Value, Record<string, unknown>> {
   const files = overrides.files ?? FILES;
   const list_directory = overrides.list_directory ?? mockListDirectory(files);
   return {
     data: {
-      initialPath: "/home/user",
+      initialPath: overrides.initialPath ?? "/home/user",
       filetypes: [],
       selectionMode: overrides.selectionMode ?? "all",
       multiple: overrides.multiple ?? true,
       label: null,
-      restrictNavigation: false,
+      restrictNavigation: overrides.restrictNavigation ?? false,
     },
     value: overrides.value ?? [],
     setValue: overrides.setValue ?? vi.fn(),
@@ -306,6 +308,62 @@ describe("FileBrowserPlugin keyboard accessibility", () => {
     const parentRow = screen.getAllByRole("row")[0];
     fireEvent.keyDown(parentRow, { key: " " });
     expect(setValue).not.toHaveBeenCalled();
+  });
+});
+
+describe("FileBrowserPlugin restrictNavigation path display", () => {
+  it("shows a relative static label at the restricted root (no path dropdown)", async () => {
+    renderBrowser({ restrictNavigation: true });
+    await screen.findByText("docs");
+
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    // Root of the restricted tree is shown as "." instead of the absolute path
+    expect(screen.getByLabelText("Current folder")).toHaveTextContent(".");
+    expect(screen.queryByText("/home/user")).not.toBeInTheDocument();
+  });
+
+  it("uses a relative path dropdown after navigating into a subfolder", async () => {
+    const list_directory = vi
+      .fn()
+      .mockResolvedValueOnce({
+        files: FILES,
+        total_count: FILES.length,
+        is_truncated: false,
+      })
+      .mockResolvedValue({
+        files: [
+          {
+            id: "99",
+            path: "/home/user/docs/inner.txt",
+            name: "inner.txt",
+            is_directory: false,
+          },
+        ],
+        total_count: 1,
+        is_truncated: false,
+      });
+
+    renderBrowser({ restrictNavigation: true, list_directory });
+    await screen.findByText("docs");
+    fireEvent.click(screen.getByText("docs"));
+    await screen.findByText("inner.txt");
+
+    const pathSelect = screen.getByRole("combobox", { name: "Current folder" });
+    expect(pathSelect).toBeInTheDocument();
+    // Absolute host path is not shown; relative labels are.
+    expect(pathSelect).not.toHaveTextContent("/home/user");
+    const options = Array.from(pathSelect.querySelectorAll("option")).map(
+      (o) => o.textContent,
+    );
+    expect(options).toContain(".");
+    expect(options).toContain("docs");
+  });
+
+  it("keeps absolute path labels when navigation is unrestricted", async () => {
+    renderBrowser({ restrictNavigation: false });
+    await screen.findByText("docs");
+    const pathSelect = screen.getByRole("combobox");
+    expect(pathSelect).toHaveTextContent("/home/user");
   });
 });
 
