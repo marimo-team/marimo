@@ -406,6 +406,11 @@ def notebook_page_template(
     return html
 
 
+def get_default_asset_url() -> str:
+    version = str(__version__).replace(".dev", "-dev")
+    return f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist"
+
+
 def static_notebook_template(
     html: str,
     user_config: MarimoConfig,
@@ -423,8 +428,7 @@ def static_notebook_template(
     layout: LayoutConfig | None = None,
 ) -> str:
     if asset_url is None:
-        version = str(__version__).replace(".dev", "-dev")
-        asset_url = f"https://cdn.jsdelivr.net/npm/@marimo-team/frontend@{version}/dist"
+        asset_url = get_default_asset_url()
 
     html = html.replace("{{ base_url }}", "")
     filename = os.path.basename(filepath or "")
@@ -539,12 +543,7 @@ def wasm_notebook_template(
     notebook_snapshot: NotebookV1 | None = None,
 ) -> str:
     """Template for WASM notebooks."""
-    import re
-
-    body = html
-
-    if asset_url is not None:
-        body = re.sub(r'="./assets/', f'="{asset_url}/assets/', body)
+    body = _replace_asset_urls(html, asset_url)
 
     body = body.replace("{{ base_url }}", "")
     body = body.replace(
@@ -587,7 +586,8 @@ def wasm_notebook_template(
         }
     </script>
     """
-    body = body.replace("</head>", f"{warning_script}</head>")
+    if asset_url is None:
+        body = body.replace("</head>", f"{warning_script}</head>")
 
     # Hide save button in WASM mode
     wasm_styles = """
@@ -719,9 +719,31 @@ def _replace_asset_urls(html: str, asset_url: str | None) -> str:
     if "{version}" in asset_url:
         asset_url = asset_url.replace("{version}", __version__)
 
-    return (
-        html.replace("href='./", f"crossorigin='anonymous' href='{asset_url}/")
-        .replace("src='./", f"crossorigin='anonymous' src='{asset_url}/")
-        .replace('href="./', f'crossorigin="anonymous" href="{asset_url}/')
-        .replace('src="./', f'crossorigin="anonymous" src="{asset_url}/')
+    def replace_tag(match: re.Match[str]) -> str:
+        tag = match.group()
+        relative_url = re.search(r"\s(?:href|src)=([\"'])\./", tag)
+        if relative_url is None:
+            return tag
+        # Ignore attribute values when checking for an existing attribute.
+        attributes = re.sub(r"([\"']).*?\1", "", tag, flags=re.DOTALL)
+        if not re.search(
+            r"\scrossorigin(?=\s|=|/?>)", attributes, re.IGNORECASE
+        ):
+            quote = relative_url[1]
+            start = relative_url.start()
+            tag = (
+                tag[:start]
+                + f" crossorigin={quote}anonymous{quote}"
+                + tag[start:]
+            )
+        return re.sub(
+            r"(\s(?:href|src)=[\"'])\./",
+            lambda url: f"{url[1]}{asset_url}/",
+            tag,
+        )
+
+    return re.sub(
+        r"""<[a-zA-Z](?:[^>"']|"[^"]*"|'[^']*')*>""",
+        replace_tag,
+        html,
     )
