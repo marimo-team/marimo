@@ -1,0 +1,24 @@
+tests/_runtime/test_lens_autoload.py
+  s_3e952129a75161::t_24753660caba6d 1-9,12-16,18-21,30-32,36-41,49
+  s_3e952129a75161::t_5680918d34f999 22-29
+  s_3e952129a75161::t_5a80497c97dbbc 33-35,42-48
+marimo/__init__.py
+  s_3e952129a75161::t_24753660caba6d 18-23,178-193
+  s_3e952129a75161::t_5680918d34f999 157-159
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fd9e75d22bb66e6f56fc19abbf203d1b5fbf3657",
+  "prompts": {},
+  "sessions": {
+    "s_3e952129a75161": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08d3d-d1be-7411-bc47-80ab634c1883",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
