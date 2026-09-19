@@ -1,0 +1,27 @@
+tests/_cli/test_cli_export.py
+  s_2c333f0b4f0f1f::t_0065783a8fc390 290-335,337-355,430
+marimo/_export/requests.py
+  s_2c333f0b4f0f1f::t_0065783a8fc390 162-163
+marimo/_export/file.py
+  s_2c333f0b4f0f1f::t_0065783a8fc390 66,206-232,254,262,551,559
+docs/guides/publishing/self_host_wasm.md
+  s_2c333f0b4f0f1f::t_0065783a8fc390 11-14,17,21-49
+marimo/_cli/export/commands.py
+  s_2c333f0b4f0f1f::t_0065783a8fc390 94-97,980-984,1002,1028,1050-1065,1111-1113,1118-1119,1131-1132,1157,1164-1165,1191,1198-1199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f484a3b8d24c7b2546b83f25e21330b421670f65",
+  "prompts": {},
+  "sessions": {
+    "s_2c333f0b4f0f1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0ab8b-c65a-7413-ac32-d43ded98cf77",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
