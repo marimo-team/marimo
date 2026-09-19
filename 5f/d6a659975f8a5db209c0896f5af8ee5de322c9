@@ -1,0 +1,20 @@
+frontend/src/components/editor/renderers/cells-renderer.tsx
+  s_c289a243400fff::t_82a27116893c6d 25,70-71
+  s_c289a243400fff::t_dcaea90db9e1d6 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5fd6a659975f8a5db209c0896f5af8ee5de322c9",
+  "prompts": {},
+  "sessions": {
+    "s_c289a243400fff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0499a-fb29-7f31-9133-233c03ffd070",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}

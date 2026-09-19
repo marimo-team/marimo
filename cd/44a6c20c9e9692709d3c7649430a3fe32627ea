@@ -1,0 +1,111 @@
+marimo/_templates.py
+  s_c289a243400fff::t_60488a128dd640 126-130,149
+  s_c289a243400fff::t_07fc381b8712f0 153
+  s_c289a243400fff::t_65d9015564c13e 28
+  s_c289a243400fff::t_7837ff9ac9947b 108,435,521,560
+  s_c289a243400fff::t_b5f7041c838ff5 408
+tests/_server/templates/snapshots/export3.txt
+  s_c289a243400fff::t_3d46f382c0a5a9 110
+  s_c289a243400fff::t_9d1dc4da0bae57 106
+marimo/_server/api/endpoints/export.py
+  s_c289a243400fff::t_723a6471940911 56,243-244,246
+  s_c289a243400fff::t_82337096d3c2f0 245
+  s_c289a243400fff::t_e12a98c474f7b5 260
+marimo/_server/templates/api.py
+  s_c289a243400fff::t_ca668873837f86 166,183,213,230
+  s_c289a243400fff::t_5805ebfd41c560 17
+tests/_server/templates/snapshots/export5.txt
+  s_c289a243400fff::t_9d1dc4da0bae57 118
+  s_c289a243400fff::t_3d46f382c0a5a9 122
+tests/_export/test_exporter.py
+  s_c289a243400fff::t_336cce5eb46084 154-157
+  s_c289a243400fff::t_b0e2280e2f0fb5 489
+  s_c289a243400fff::t_fd42596b90cefc 510
+  s_c289a243400fff::t_4744ee33d76a8f 153,164-166,449,451,475,477,479,483-484
+  s_c289a243400fff::t_57aebffd806b73 70
+  s_c289a243400fff::t_5b0314c13415ab 147-152,158-163,445-448,450,452-474,476,478,480-482,485-488,491-496,498-509,512-516
+tests/_runtime/layout/test_layout.py
+  s_c289a243400fff::t_0ceb453960e79a 90
+  s_c289a243400fff::t_cfcbcdd8fef2c1 84-85
+  s_c289a243400fff::t_8f0987248719b8 97
+  s_c289a243400fff::t_affdd46feb1423 82-83,86-89,92-95
+marimo/_cli/development/commands.py
+  s_c289a243400fff::t_ca668873837f86 836,843
+marimo/_export/file.py
+  s_c289a243400fff::t_a4d3d20fc431f8 383
+  s_c289a243400fff::t_26f067293c4c0d 58-62,87-105,219,349,473
+  s_c289a243400fff::t_0a9a494a1b962e 236,534
+tests/_server/templates/snapshots/export6.txt
+  s_c289a243400fff::t_9d1dc4da0bae57 107
+  s_c289a243400fff::t_3d46f382c0a5a9 111
+tests/_server/templates/snapshots/export2.txt
+  s_c289a243400fff::t_3d46f382c0a5a9 110
+  s_c289a243400fff::t_9d1dc4da0bae57 106
+marimo/_pyodide/pyodide_session.py
+  s_c289a243400fff::t_723a6471940911 47,422-423,425
+  s_c289a243400fff::t_82337096d3c2f0 424
+  s_c289a243400fff::t_e12a98c474f7b5 421,426
+packages/openapi/api.yaml
+  s_c289a243400fff::t_22aa193a36149c 1920-1923
+tests/_pyodide/test_pyodide_session.py
+  s_c289a243400fff::t_11d7d0702bd660 1078-1081
+  s_c289a243400fff::t_9e50cb3a570178 57,1090-1093
+tests/_server/templates/utils.py
+  s_c289a243400fff::t_57aebffd806b73 3,6-9,14-15
+  s_c289a243400fff::t_1e33de98cc6921 16-17
+  s_c289a243400fff::t_a60d695ac28d73 13
+  s_c289a243400fff::t_5da60c6bac2f0b 10-12
+marimo/_runtime/layout/layout.py
+  s_c289a243400fff::t_0ceb453960e79a 114
+  s_c289a243400fff::t_17649fbb40f041 33-57,102,111-113,115-117
+  s_c289a243400fff::t_26f067293c4c0d 4,27-30
+tests/_server/api/endpoints/test_export.py
+  s_c289a243400fff::t_5c5e331ae79f6a 468
+  s_c289a243400fff::t_4028749b850699 460
+  s_c289a243400fff::t_8957610580cd6e 452,454,482
+  s_c289a243400fff::t_f2e64cc99c61c5 462-467,469-471
+  s_c289a243400fff::t_9ae0c30f0204ef 25
+  s_c289a243400fff::t_e5919960ace5e4 46,461,483-487
+  s_c289a243400fff::t_8c4bdee391f7a9 447-451,453,455-459
+marimo/_export/requests.py
+  s_c289a243400fff::t_65d9015564c13e 16
+  s_c289a243400fff::t_c279a256dcf743 81,99
+tests/_server/templates/snapshots/export1.txt
+  s_c289a243400fff::t_3d46f382c0a5a9 110
+  s_c289a243400fff::t_9d1dc4da0bae57 106
+packages/openapi/src/api.ts
+  s_c289a243400fff::t_4378084ccb0eb0 4649-4657,4868
+  s_c289a243400fff::t_22aa193a36149c 4854-4861
+tests/_cli/test_cli_export.py
+  s_c289a243400fff::t_5da60c6bac2f0b 31-34,159-162,166,231-240,243,259
+  s_c289a243400fff::t_c73d97487c4c0d 230,258
+  s_c289a243400fff::t_a60d695ac28d73 257
+marimo/_schemas/export.py
+  s_c289a243400fff::t_723a6471940911 39,52-54,56-57,59
+  s_c289a243400fff::t_e12a98c474f7b5 10
+  s_c289a243400fff::t_5805ebfd41c560 4,23-24
+  s_c289a243400fff::t_82337096d3c2f0 55,58
+  s_c289a243400fff::t_3a38d92e5d6eed 28-34
+tests/_server/templates/test_templates_api.py
+  s_c289a243400fff::t_57aebffd806b73 17
+  s_c289a243400fff::t_e29649278cf7bb 120-122,125-128
+tests/_server/templates/snapshots/export4.txt
+  s_c289a243400fff::t_9d1dc4da0bae57 106
+  s_c289a243400fff::t_3d46f382c0a5a9 110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cd44a6c20c9e9692709d3c7649430a3fe32627ea",
+  "prompts": {},
+  "sessions": {
+    "s_c289a243400fff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0499a-fb29-7f31-9133-233c03ffd070",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
