@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   countFractionDigits,
+  fractionDigitsForSlider,
   maxFractionDigitsForSteps,
   prettyEngineeringNumber,
   prettyNumber,
@@ -57,6 +58,21 @@ describe("prettyScientificNumber", () => {
       "1.23456789101112",
     );
   });
+
+  it("supports caller-provided display precision", () => {
+    expect(
+      prettyScientificNumber(1.2340000000000002, {
+        maximumFractionDigits: 3,
+        locale,
+      }),
+    ).toBe("1.234");
+    expect(
+      prettyScientificNumber(1.234, {
+        maximumFractionDigits: 3,
+        locale,
+      }),
+    ).toBe("1.234");
+  });
 });
 
 describe("prettyEngineeringNumber", () => {
@@ -104,5 +120,20 @@ describe("maxFractionDigitsForSteps", () => {
     expect(maxFractionDigitsForSteps([0.1, 0.2, 0.3, 0.4], 0.1)).toBe(1);
     expect(maxFractionDigitsForSteps([1, 2, 3.5, 4], 0.5)).toBe(1);
     expect(maxFractionDigitsForSteps([1, 2, 3, 4], 1)).toBe(0);
+  });
+});
+
+describe("fractionDigitsForSlider", () => {
+  it("preserves precision for regular slider steps", () => {
+    expect(fractionDigitsForSlider(0.001)).toBe(3);
+    expect(fractionDigitsForSlider(0.01)).toBe(2);
+    expect(fractionDigitsForSlider(undefined)).toBe(2);
+  });
+
+  it("infers precision from custom step values", () => {
+    expect(fractionDigitsForSlider(undefined, [1, 1.234, 2])).toBe(3);
+    expect(
+      fractionDigitsForSlider(undefined, [0.1, 0.2, 0.30000000000000004]),
+    ).toBe(1);
   });
 });
