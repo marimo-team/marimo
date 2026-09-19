@@ -1,6 +1,6 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { render } from "@testing-library/react";
+import { render, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCellErrors } from "@/core/cells/cells";
 import { DynamicFavicon } from "../dynamic-favicon";
@@ -14,6 +14,10 @@ describe("DynamicFavicon", () => {
   let favicon: HTMLLinkElement;
 
   beforeEach(() => {
+    document
+      .querySelectorAll("link[rel~='icon']")
+      .forEach((element) => element.remove());
+
     // Mock favicon element
     favicon = document.createElement("link");
     favicon.rel = "icon";
@@ -28,7 +32,9 @@ describe("DynamicFavicon", () => {
   });
 
   afterEach(() => {
-    favicon.remove();
+    document
+      .querySelectorAll("link[rel~='icon']")
+      .forEach((element) => element.remove());
     vi.clearAllMocks();
     vi.useRealTimers();
   });
@@ -111,6 +117,34 @@ describe("DynamicFavicon", () => {
 
     const newFavicon = document.querySelector("link[rel~='icon']");
     expect(newFavicon).not.toBeNull();
+  });
+
+  it("recreates a removed favicon when the window regains focus", async () => {
+    render(<DynamicFavicon isRunning={false} />);
+    favicon.remove();
+
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() => {
+      const currentFavicon =
+        document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+      expect(currentFavicon?.href.endsWith("favicon.ico")).toBe(true);
+    });
+  });
+
+  it("resets the current favicon after the link is replaced", async () => {
+    render(<DynamicFavicon isRunning={false} />);
+    const replacement = document.createElement("link");
+    replacement.rel = "icon";
+    replacement.href = "./replacement.ico";
+    favicon.replaceWith(replacement);
+
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() => {
+      expect(replacement.href.endsWith("favicon.ico")).toBe(true);
+      expect(document.querySelector("link[rel~='icon']")).toBe(replacement);
+    });
   });
 
   describe("notifications", () => {

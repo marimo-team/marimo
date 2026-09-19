@@ -850,14 +850,13 @@ def test_remove_package_with_dev_dependency(
 def test_get_package_manager_uses_ipc_venv_python() -> None:
     """Test that _get_package_manager uses venv Python from IPC kernel."""
     from marimo._server.api.endpoints.packages import _get_package_manager
+    from marimo._session.managers.ipc import IPCKernelManagerImpl
+    from marimo._session.session import SessionImpl
 
-    # Mock the session with an IPC kernel manager having venv_python set
-    mock_kernel_manager = MagicMock()
+    mock_kernel_manager = MagicMock(spec=IPCKernelManagerImpl)
     mock_kernel_manager.venv_python = "/custom/venv/python"
 
-    mock_kernel_manager.script_environment = None
-
-    mock_session = MagicMock()
+    mock_session = MagicMock(spec=SessionImpl)
     mock_session._kernel_manager = mock_kernel_manager
     mock_session.notebook_sandbox = None
 
@@ -876,19 +875,6 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
         patch(
             "marimo._server.api.endpoints.packages.create_package_manager"
         ) as mock_create_pm,
-        patch(
-            "marimo._server.api.endpoints.packages.isinstance",
-            side_effect=lambda obj, cls: (
-                cls.__name__ == "SessionImpl"
-                if hasattr(cls, "__name__") and cls.__name__ == "SessionImpl"
-                else (
-                    cls.__name__ == "IPCKernelManagerImpl"
-                    if hasattr(cls, "__name__")
-                    and cls.__name__ == "IPCKernelManagerImpl"
-                    else isinstance(obj, cls)
-                )
-            ),
-        ),
     ):
         _get_package_manager(mock_request)
 
@@ -896,49 +882,6 @@ def test_get_package_manager_uses_ipc_venv_python() -> None:
     mock_create_pm.assert_called_once_with(
         "pip",
         python_exe="/custom/venv/python",
-        script_path=None,
-        sandbox_environment=None,
-    )
-
-
-def test_get_package_manager_with_script_environment() -> None:
-    """A kernel synchronized into a script environment routes package
-    changes through it."""
-    from marimo._server.api.endpoints.packages import _get_package_manager
-
-    mock_kernel_manager = MagicMock()
-    mock_kernel_manager.venv_python = "/env/bin/python"
-    mock_kernel_manager.script_environment = object()
-
-    mock_session = MagicMock()
-    mock_session._kernel_manager = mock_kernel_manager
-    mock_session.notebook_sandbox = None
-    mock_session.app_file_manager.filename = "/nb/notebook.py"
-
-    mock_app_state = MagicMock()
-    mock_app_state.get_current_session.return_value = mock_session
-    mock_app_state.app_config_manager.package_manager = "uv"
-
-    with (
-        patch(
-            "marimo._server.api.endpoints.packages.AppState",
-            return_value=mock_app_state,
-        ),
-        patch(
-            "marimo._server.api.endpoints.packages.create_package_manager"
-        ) as mock_create_pm,
-        patch(
-            "marimo._server.api.endpoints.packages.isinstance",
-            side_effect=lambda _obj, cls: cls.__name__ != "NotebookSandbox",
-        ),
-    ):
-        _get_package_manager(MagicMock())
-
-    mock_create_pm.assert_called_once_with(
-        "uv",
-        python_exe="/env/bin/python",
-        script_path="/nb/notebook.py",
-        sandbox_environment=mock_kernel_manager.script_environment,
     )
 
 
@@ -971,9 +914,7 @@ def test_get_package_manager_without_ipc_session() -> None:
         _get_package_manager(mock_request)
 
     # Verify create_package_manager was called with python_exe=None
-    mock_create_pm.assert_called_once_with(
-        "uv", python_exe=None, script_path=None, sandbox_environment=None
-    )
+    mock_create_pm.assert_called_once_with("uv", python_exe=None)
 
 
 def test_get_package_manager_no_session() -> None:
@@ -1002,35 +943,122 @@ def test_get_package_manager_no_session() -> None:
     mock_create_pm.assert_called_once_with("pip")
 
 
-@pytest.mark.parametrize("mode", ["single", None])
-def test_package_manager_binding_for_inprocess_kernel(
-    monkeypatch: pytest.MonkeyPatch, mode: str | None
+@pytest.mark.parametrize("backend", ["uv", "pixi"])
+def test_repair_manifest_without_a_kernel(
+    client: TestClient, tmp_path, monkeypatch: pytest.MonkeyPatch, backend: str
 ) -> None:
-    from marimo._config.settings import GLOBAL_SETTINGS
-    from marimo._server.api.endpoints.packages import _get_package_manager
-    from marimo._session.session import SessionImpl
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
 
-    monkeypatch.setattr(GLOBAL_SETTINGS, "SANDBOX_MODE", mode)
-    session = MagicMock(spec=SessionImpl)
-    session.notebook_sandbox = None
-    session._kernel_manager = MagicMock(spec=[])
-    session.app_file_manager = MagicMock(filename="/nb/notebook.py")
-    state = MagicMock()
-    state.get_current_session.return_value = session
-    state.app_config_manager.package_manager = "uv"
-    with (
-        patch(
-            "marimo._server.api.endpoints.packages.AppState",
-            return_value=state,
-        ),
-        patch(
-            "marimo._server.api.endpoints.packages.create_package_manager"
-        ) as create,
-    ):
-        _get_package_manager(MagicMock())
-    create.assert_called_once_with(
-        "uv",
-        python_exe=None,
-        script_path="/nb/notebook.py" if mode == "single" else None,
-        sandbox_environment=None,
+    path = tmp_path / "notebook.py"
+    path.write_text(
+        '# /// script\n# dependencies = ["numpy==0.0.0"]\n# ///\n'
+        "import marimo\napp = marimo.App()\n"
     )
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages.current_backend",
+        lambda: backend,
+    )
+    request = {"fileKey": str(path)}
+    response = client.post(
+        "/api/packages/sandbox", headers=HEADERS, json=request
+    )
+    assert response.status_code == 200
+    assert response.json() == {
+        "backend": backend,
+        "filename": str(path),
+        "manifest": 'dependencies = ["numpy==0.0.0"]\n',
+    }
+    update = {
+        **request,
+        "previous": response.json()["manifest"],
+        "contents": '[tool.custom]\nmessage = "whole manifest"\n',
+    }
+    response = client.post(
+        "/api/packages/manifest", headers=HEADERS, json=update
+    )
+    assert response.status_code == 200
+    assert response.json()["manifest"] == update["contents"]
+    assert path.read_text().endswith("import marimo\napp = marimo.App()\n")
+    response = client.post(
+        "/api/packages/manifest", headers=HEADERS, json=update
+    )
+    assert response.status_code == 409
+    response = client.post("/api/packages/sync", headers=HEADERS, json=request)
+    assert response.json() == {
+        "success": True,
+        "error": None,
+        "restartRequired": False,
+        "reconnect": True,
+    }
+
+
+def test_manifest_access_uses_workspace_permissions(
+    client: TestClient, tmp_path
+) -> None:
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
+
+    allowed = tmp_path / "allowed.py"
+    denied = tmp_path / "denied.py"
+    allowed.write_text("import marimo\napp = marimo.App()\n")
+    denied.write_text("private = True\n")
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(allowed)))
+    response = client.post(
+        "/api/packages/manifest",
+        headers=HEADERS,
+        json={
+            "fileKey": str(denied),
+            "contents": "value = 1",
+            "previous": "",
+        },
+    )
+    assert response.status_code == 404
+    assert denied.read_text() == "private = True\n"
+
+
+@pytest.mark.parametrize(
+    ("endpoint", "operation"),
+    [("sandbox", "read_manifest"), ("manifest", "write_manifest")],
+)
+def test_manifest_file_errors_are_reported(
+    client: TestClient,
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
+    operation: str,
+) -> None:
+    from marimo._server.workspace import SingleFileWorkspace
+    from marimo._utils.marimo_path import MarimoPath
+
+    path = tmp_path / "notebook.py"
+    path.write_text("import marimo\napp = marimo.App()\n")
+    manager = client.app.state.session_manager
+    manager.sandbox = True
+    manager.workspace = SingleFileWorkspace.from_path(MarimoPath(str(path)))
+    monkeypatch.setattr(
+        "marimo._server.api.endpoints.packages.current_backend", lambda: "uv"
+    )
+
+    def denied(*_args: Any, **_kwargs: Any) -> None:
+        raise PermissionError("Permission denied for notebook manifest")
+
+    monkeypatch.setattr(
+        f"marimo._environments.script_metadata.{operation}", denied
+    )
+    response = client.post(
+        f"/api/packages/{endpoint}",
+        headers=HEADERS,
+        json={
+            "fileKey": str(path),
+            "contents": "dependencies = []",
+            "previous": "",
+        },
+    )
+    assert response.status_code == 400
+    assert "Permission denied for notebook manifest" in response.text

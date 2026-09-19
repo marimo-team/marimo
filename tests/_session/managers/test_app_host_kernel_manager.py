@@ -98,32 +98,7 @@ class TestAppHostLike:
 
 @pytest.mark.requires("zmq")
 class TestAppHostKernelManagerStartAndClose:
-    def test_start_kernel_sets_kernel_task(self) -> None:
-        app_host = Mock()
-        app_host.create_kernel.return_value = KernelCreatedResponse(
-            session_id="s1", success=True
-        )
-
-        config_manager = Mock()
-        config_manager.get_config.return_value = {}
-
-        mgr = AppHostKernelManager(
-            app_host=app_host,
-            session_id="s1",
-            queue_manager=Mock(),
-            mode=SessionMode.RUN,
-            configs={},
-            app_metadata=Mock(),
-            config_manager=config_manager,
-            redirect_console_to_browser=True,
-        )
-
-        mgr.start_kernel()
-
-        app_host.create_kernel.assert_called_once()
-        assert isinstance(mgr.kernel_task, _AppHostLike)
-
-    def test_start_kernel_failure_raises(self) -> None:
+    async def test_start_kernel_failure_raises(self) -> None:
         app_host = Mock()
         app_host.create_kernel.return_value = KernelCreatedResponse(
             session_id="s1", success=False, error="boom"
@@ -144,7 +119,7 @@ class TestAppHostKernelManagerStartAndClose:
         )
 
         with pytest.raises(RuntimeError, match="boom"):
-            mgr.start_kernel()
+            await mgr.start_kernel()
 
         assert mgr.kernel_task is None
 

@@ -158,7 +158,8 @@ def _enrich_branded_types(
 
         try:
             hints = typing.get_type_hints(struct_cls)
-        except Exception:
+        # Some models contain references that cannot be resolved here.
+        except Exception:  # noqa: S112
             continue
 
         field_to_schema_key: dict[str, str] = {}
@@ -390,6 +391,10 @@ def _generate_server_api_schema() -> dict[str, Any]:
         packages.PackageOperationResponse,
         packages.RemovePackageRequest,
         packages.DependencyTreeResponse,
+        packages.SandboxRequest,
+        packages.SandboxResponse,
+        packages.UpdateManifestRequest,
+        packages.SyncSandboxResponse,
         lsp.LspHealthResponse,
         lsp.LspRestartRequest,
         lsp.LspRestartResponse,

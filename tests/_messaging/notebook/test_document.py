@@ -326,7 +326,7 @@ class TestMoveCell:
 
     def test_no_anchor_raises(self) -> None:
         doc = _doc("a", "b")
-        with pytest.raises(ValueError, match="before.*after"):
+        with pytest.raises(ValueError, match=r"before.*after"):
             doc.apply(_tx(MoveCell(cell_id=CellId_t("a"))))
 
     def test_missing_cell_raises(self) -> None:
@@ -580,7 +580,7 @@ class TestSetConfig:
 class TestValidation:
     def test_delete_and_set_code_same_cell(self) -> None:
         doc = _doc("a")
-        with pytest.raises(ValueError, match="delete.*update"):
+        with pytest.raises(ValueError, match=r"delete.*update"):
             doc.apply(
                 _tx(
                     SetCode(cell_id=CellId_t("a"), code="x"),
@@ -590,7 +590,7 @@ class TestValidation:
 
     def test_set_code_and_delete_same_cell(self) -> None:
         doc = _doc("a")
-        with pytest.raises(ValueError, match="update.*delete"):
+        with pytest.raises(ValueError, match=r"update.*delete"):
             doc.apply(
                 _tx(
                     DeleteCell(cell_id=CellId_t("a")),
@@ -600,7 +600,7 @@ class TestValidation:
 
     def test_delete_and_move_same_cell(self) -> None:
         doc = _doc("a", "b")
-        with pytest.raises(ValueError, match="delete.*move"):
+        with pytest.raises(ValueError, match=r"delete.*move"):
             doc.apply(
                 _tx(
                     MoveCell(cell_id=CellId_t("a"), after=CellId_t("b")),

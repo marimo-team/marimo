@@ -40,7 +40,19 @@ READ_TIMEOUT = 0.05
 IDLE_SLEEP = 0.01
 
 
-def _resize_pty(fd: int, rows: int, cols: int) -> None:
+def _get_initial_terminal_size(websocket: WebSocket) -> tuple[int, int]:
+    try:
+        rows = int(websocket.query_params.get("rows", "24"))
+        cols = int(websocket.query_params.get("cols", "80"))
+        # The PTY window size uses unsigned shorts.
+        if 0 < rows <= 65535 and 0 < cols <= 65535:
+            return rows, cols
+    except ValueError:
+        pass
+    return 24, 80
+
+
+def _resize_pty(fd: int, rows: int, cols: int, *, log: bool = True) -> None:
     """Resize the PTY to the specified dimensions."""
     try:
         # Use TIOCSWINSZ ioctl to set window size
@@ -50,9 +62,11 @@ def _resize_pty(fd: int, rows: int, cols: int) -> None:
         # Format: struct winsize { unsigned short ws_row, ws_col, ws_xpixel, ws_ypixel }
         winsize = struct.pack("HHHH", rows, cols, 0, 0)
         fcntl.ioctl(fd, termios.TIOCSWINSZ, winsize)
-        LOGGER.debug(f"PTY resized to {cols}x{rows}")
+        if log:
+            LOGGER.debug(f"PTY resized to {cols}x{rows}")
     except Exception as e:
-        LOGGER.warning(f"Failed to resize PTY: {e}")
+        if log:
+            LOGGER.warning(f"Failed to resize PTY: {e}")
 
 
 def _send_sigwinch(pid: int) -> None:
@@ -300,7 +314,7 @@ async def _write_to_pty(
         while True:
             try:
                 data = await websocket.receive_text()
-                LOGGER.debug("Received: %s", repr(data))
+                LOGGER.debug("Received: %r", data)
 
                 # Check if this is a resize message
                 if await _maybe_handle_resize(
@@ -390,6 +404,8 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
     try:
         import pty
 
+        rows, cols = _get_initial_terminal_size(websocket)
+
         # TODO(akshayka): Someone should clean this up to make it safe on
         # macOS.
         #
@@ -399,6 +415,9 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         # See https://docs.python.org/3/library/pty.html
         child_pid, fd = pty.fork()
         if child_pid == 0:
+            # Resize stdin (the PTY slave) before exec so shell startup cannot
+            # race the browser's first resize. Child logs would enter the PTY.
+            _resize_pty(0, rows, cols, log=False)
             # Child process - set up the shell environment
             shell, env = _create_shell_environment()
             cwd = env.get("PWD", os.getcwd())

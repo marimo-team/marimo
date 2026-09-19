@@ -20,15 +20,13 @@
   @apply text-link;
 }
 
-.output {
-  position: relative;
-}
-
 .output > * {
   max-width: 100%;
 }
 
 .output {
+  position: relative;
+
   /* Unset max-width on .markdown. Instead, we will apply
   to individual elements so it does not affect UI elements in markdown. */
   .markdown {
@@ -65,30 +63,65 @@
 .marimo-json-output {
   padding-top: 2px;
   padding-bottom: 2px;
-  /* content-visibility is set by material UI;
-   * when set on an element that has overflow auto, causes abrupt jumps when
-   * scrolling in Chrome */
-  content-visibility: unset;
-  /* Coarse hack to stop children from overflowing; doesn't seem to affect
-   * margin collapse. */
   overflow: auto;
+  overscroll-behavior: contain;
   @apply text-xs;
 
-  .data-key-pair:not(:last-child) {
+  .w-rjv-wrap > :not(:last-child) {
     margin-top: 0.2rem;
     margin-bottom: 0.2rem;
   }
 
+  .w-rjv-wrap {
+    padding-left: 0.9rem !important;
+    margin-left: 0.3rem !important;
+  }
+
+  .w-rjv-line > span:first-child,
+  .w-rjv-colon,
+  .w-rjv-inner > span,
+  &.w-rjv-inner > span {
+    opacity: 0.8;
+    letter-spacing: 0.03125rem;
+    line-height: 1.5;
+  }
+
+  .w-rjv-inner > div:last-child:not(.w-rjv-wrap),
+  &.w-rjv-inner > div:last-child:not(.w-rjv-wrap) {
+    line-height: 1.5;
+    padding-left: 0 !important;
+  }
+
+  .w-rjv-line > button:only-child {
+    line-height: 1.5;
+  }
+
+  .w-rjv-arrow {
+    transition: transform 0.3s !important;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .w-rjv-arrow {
+      transition: none !important;
+    }
+  }
+
+  .w-rjv-object-size {
+    padding-left: 4px !important;
+  }
+
   .copy-button {
-    @apply invisible;
+    opacity: 0;
   }
 
-  .data-key-pair:hover > .copy-button {
-    @apply visible;
-  }
-
-  .data-key-pair:hover > .data-key > .copy-button {
-    @apply visible;
+  .copy-button:focus-visible,
+  .w-rjv-line:hover > .copy-button,
+  .w-rjv-inner:hover > span > .copy-button,
+  /* Root element has both .marimo-json-output and .w-rjv-inner on the same node */
+    &.w-rjv-inner:hover
+    > span
+    > .copy-button {
+    opacity: 1;
   }
 }
 

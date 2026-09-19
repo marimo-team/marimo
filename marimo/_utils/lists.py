@@ -14,7 +14,7 @@ def first(iterable: Iterable[T] | T) -> T:
         return iterable
 
 
-def as_list(value: T | None | list[T]) -> list[T]:
+def as_list(value: T | list[T] | None) -> list[T]:
     if value is None:
         return []
     return value if isinstance(value, list) else [value]  # type: ignore[no-any-return]

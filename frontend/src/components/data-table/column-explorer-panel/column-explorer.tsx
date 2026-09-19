@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeOffIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLocale } from "react-aria";
 import {
   AddDataframeChart,
@@ -98,11 +98,7 @@ export function ColumnExplorerPanel<TData>({
     hiddenColumns: hiddenColumnCount,
   } = getColumnCountForDisplay(table, totalColumns);
   const { visible: visibleColumnCount } = getUserColumnVisibilityCounts(table);
-  const columnVisibility = table.getState().columnVisibility;
-  const showOnlyColumnState = useMemo(
-    () => getShowOnlyColumnState(table),
-    [table, columnVisibility],
-  );
+  const showOnlyColumnState = getShowOnlyColumnState(table);
 
   const { rowsAndColumns, hiddenSuffix } = prettifyRowColumnCount({
     numRows: totalRows,

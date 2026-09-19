@@ -24,6 +24,7 @@ from marimo._environments.uv import (
     require_uv_bin,
     script_command_env,
     uv,
+    uv_async,
     uv_stream,
 )
 
@@ -104,6 +105,7 @@ def launch(
     *,
     overlay: RuntimeOverlay,
     base_env: Mapping[str, str] | None = None,
+    launcher: Sequence[str] | None = None,
 ) -> ProcessPlan:
     """Plans running `python <args...>` inside the environment.
 
@@ -121,7 +123,7 @@ def launch(
     env = environment.process_env(base_env)
     return ProcessPlan(
         argv=(
-            require_uv_bin(),
+            *(launcher if launcher is not None else (require_uv_bin(),)),
             "run",
             # The script environment is VIRTUAL_ENV in `env`; --active
             # makes uv layer on top of it instead of ignoring it.
@@ -130,46 +132,6 @@ def launch(
             "--python",
             environment.python,
             *_with_args(overlay.requirements),
-            "--",
-            "python",
-            *args,
-        ),
-        env=env,
-        start_new_session=True,
-    )
-
-
-def launch_isolated(
-    args: Sequence[str],
-    *,
-    requirements: Sequence[str],
-    python: str,
-    base_env: Mapping[str, str] | None = None,
-) -> ProcessPlan:
-    """Plans `python <args...>` in an ephemeral environment.
-
-    For resolves no existing environment can serve: an overridden
-    interpreter under external constraints (html-wasm pins the Pyodide
-    interpreter and resolution). Nothing is layered here, so unlike
-    `launch` the requirements are the whole environment -- the notebook's
-    dependencies as well as marimo's. uv resolves them into a cached
-    environment and runs the process in an ephemeral copy, so packages
-    installed during the session die with it and nothing persists per
-    invocation.
-    """
-    env = dict(os.environ if base_env is None else base_env)
-    env.pop("VIRTUAL_ENV", None)
-    env.pop("UV_PROJECT_ENVIRONMENT", None)
-    return ProcessPlan(
-        argv=(
-            require_uv_bin(),
-            "run",
-            "--isolated",
-            "--no-project",
-            "--compile-bytecode",
-            "--python",
-            python,
-            *_with_args(requirements),
             "--",
             "python",
             *args,
@@ -211,6 +173,43 @@ def sync(
     Raises `UvCommandError` on failure and never mutates `script`.
     """
     ensure_supported_uv()
+    args, env = _sync_command(script, python_override, active_environment)
+    if on_output is not None:
+        completed = uv_stream(
+            args,
+            on_output,
+            env=env,
+            cwd=cwd,
+            on_command=on_command,
+        )
+    else:
+        completed = uv(args, env=env, cwd=cwd, on_command=on_command)
+    return _parse_report(completed.stdout)
+
+
+async def sync_async(
+    script: str,
+    *,
+    cwd: str | None = None,
+    python_override: str | None = None,
+    active_environment: Environment | None = None,
+    on_output: Callable[[str], None] | None = None,
+    on_command: Callable[[Sequence[str]], None] | None = None,
+) -> Environment:
+    """Synchronize without blocking; cancellation stops uv before returning."""
+    await ensure_supported_uv_async()
+    args, env = _sync_command(script, python_override, active_environment)
+    completed = await uv_async(
+        args, env=env, cwd=cwd, on_output=on_output, on_command=on_command
+    )
+    return _parse_report(completed.stdout)
+
+
+def _sync_command(
+    script: str,
+    python_override: str | None,
+    active_environment: Environment | None,
+) -> tuple[list[str], dict[str, str]]:
     args = [
         "sync",
         "--script",
@@ -227,22 +226,22 @@ def sync(
         # Never inherit VIRTUAL_ENV: it may name the runtime overlay.
         env["VIRTUAL_ENV"] = active_environment.root
         args.append("--active")
-    if on_output is not None:
-        completed = uv_stream(
-            args,
-            on_output,
-            env=env,
-            cwd=cwd,
-            on_command=on_command,
-        )
-    else:
-        completed = uv(args, env=env, cwd=cwd, on_command=on_command)
-    return _parse_report(completed.stdout)
+    return args, env
 
 
 def ensure_supported_uv() -> None:
     """Raise `UvUnsupportedVersionError` for a uv below the minimum."""
     version = _uv_version()
+    _check_version(version)
+
+
+async def ensure_supported_uv_async() -> None:
+    completed = await uv_async(["--version"])
+    version = completed.stdout.strip().removeprefix("uv ").split(" ")[0]
+    _check_version(version)
+
+
+def _check_version(version: str) -> None:
     parsed = _parse_version(version)
     if parsed is None:
         # An unparsable version is likely newer than anything we know;

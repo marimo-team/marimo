@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import sys
 from textwrap import dedent
 from typing import TYPE_CHECKING
@@ -96,7 +97,7 @@ async def test_start_lsp_server(session_manager: SessionManager) -> None:
 async def test_create_session_new(
     session_manager: SessionManager, mock_session_consumer: SessionConsumer
 ) -> None:
-    session = session_manager.create_session(
+    session = await session_manager.create_session(
         session_id,
         mock_session_consumer,
         query_params={},
@@ -114,7 +115,7 @@ async def test_create_session_absolute_url(
     mock_session_consumer: SessionConsumer,
     temp_marimo_file: str,
 ) -> None:
-    session = session_manager.create_session(
+    session = await session_manager.create_session(
         session_id,
         mock_session_consumer,
         query_params={},
@@ -225,13 +226,13 @@ def test_close_all_sessions(
     assert mock_session.close.call_count == 2
 
 
-def test_shutdown(
+async def test_shutdown(
     session_manager: SessionManager, mock_session: Session
 ) -> None:
     add_session(session_manager, SessionId("session1"), mock_session)
     add_session(session_manager, SessionId("session2"), mock_session)
 
-    session_manager.shutdown()
+    await session_manager.shutdown()
     session_manager.lsp_server.stop.assert_called_once()
     assert len(session_manager.sessions) == 0
     assert mock_session.close.call_count == 2
@@ -254,7 +255,7 @@ async def test_create_session_with_script_config_overrides(
         )
     )
 
-    session = session_manager.create_session(
+    session = await session_manager.create_session(
         session_id,
         mock_session_consumer,
         query_params={},
@@ -461,7 +462,7 @@ async def test_recents_touch_called_on_session_create(
     session_manager.recents.touch = mock_touch  # type: ignore
 
     # Create a session
-    session = session_manager.create_session(
+    session = await session_manager.create_session(
         SessionId("recents_test_session"),
         mock_session_consumer,
         query_params={},
@@ -479,3 +480,165 @@ async def test_recents_touch_called_on_session_create(
     assert str(tmp_file) in touched_files[0]
 
     session.close()
+
+
+async def test_concurrent_startup_survives_disconnected_waiter(
+    session_manager: SessionManager,
+    mock_session: Session,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._session.session import SessionImpl
+
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    launches = 0
+    mock_session.app_file_manager = AppFileManager(filename=None)
+
+    async def create(**_kwargs: object) -> Session:
+        nonlocal launches
+        launches += 1
+        entered.set()
+        await release.wait()
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+
+    async def connect() -> Session:
+        return await session_manager.create_session(
+            session_id, mock_session_consumer, {}, NEW_FILE, False
+        )
+
+    first = asyncio.create_task(connect())
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        assert not session_manager.sessions
+        second_entered = asyncio.Event()
+
+        async def reconnect() -> Session:
+            second_entered.set()
+            return await connect()
+
+        second = asyncio.create_task(reconnect())
+        await asyncio.wait_for(second_entered.wait(), 5)
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        release.set()
+        assert await asyncio.wait_for(second, 5) is mock_session
+        assert launches == 1
+    finally:
+        await session_manager.shutdown()
+
+
+async def test_shutdown_waits_for_pending_startup_cleanup(
+    session_manager: SessionManager,
+    mock_session_consumer: SessionConsumer,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from marimo._session.managers.ipc import KernelStartupError
+    from marimo._session.session import SessionImpl
+
+    entered = asyncio.Event()
+    cleaning_up = asyncio.Event()
+    release = asyncio.Event()
+
+    async def create(**_kwargs: object) -> Session:
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaning_up.set()
+            await release.wait()
+        raise AssertionError("unreachable")
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+    startup = asyncio.create_task(
+        session_manager.create_session(
+            session_id, mock_session_consumer, {}, NEW_FILE, False
+        )
+    )
+    await asyncio.wait_for(entered.wait(), 5)
+    shutdown = asyncio.create_task(session_manager.shutdown())
+    try:
+        await asyncio.wait_for(cleaning_up.wait(), 5)
+        assert not shutdown.done()
+        assert not session_manager.sessions
+        with pytest.raises(KernelStartupError, match="shut down"):
+            await session_manager.create_session(
+                session_id, mock_session_consumer, {}, NEW_FILE, False
+            )
+    finally:
+        release.set()
+        await asyncio.wait_for(shutdown, 5)
+        with pytest.raises(asyncio.CancelledError):
+            await startup
+    assert not session_manager.sessions
+
+
+async def test_connections_share_starting_notebook(
+    session_manager: SessionManager,
+    mock_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from starlette.requests import HTTPConnection
+
+    from marimo._server.api.endpoints.ws.ws_connection_validator import (
+        ConnectionParams,
+    )
+    from marimo._server.api.endpoints.ws.ws_session_connector import (
+        ConnectionType,
+        SessionConnector,
+    )
+    from marimo._session.session import SessionImpl
+
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    mock_session.initialization_id = NEW_FILE
+    mock_session.room = MagicMock()
+    mock_session.room.get_consumer.return_value = None
+    mock_session.app_file_manager = AppFileManager(filename=None)
+    launches = 0
+
+    async def create(**_kwargs: object) -> Session:
+        nonlocal launches
+        launches += 1
+        entered.set()
+        await release.wait()
+        return mock_session
+
+    monkeypatch.setattr(SessionImpl, "create", create)
+
+    def connector(sid: str) -> SessionConnector:
+        return SessionConnector(
+            manager=session_manager,
+            handler=MagicMock(),
+            params=ConnectionParams(
+                session_id=SessionId(sid),
+                file_key=NEW_FILE,
+                kiosk=False,
+                auto_instantiate=False,
+                rtc_enabled=True,
+            ),
+            connection=HTTPConnection({"type": "http", "query_string": b""}),
+        )
+
+    first = asyncio.create_task(connector("first").connect())
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        second = asyncio.create_task(connector("second").connect())
+        # Scheduling the second connection before releasing preparation
+        # exercises its decision against an initially empty repository.
+        release.set()
+        assert await asyncio.wait_for(first, 5) == (
+            mock_session,
+            ConnectionType.NEW,
+        )
+        assert await asyncio.wait_for(second, 5) == (
+            mock_session,
+            ConnectionType.RTC_EXISTING,
+        )
+        assert launches == 1
+    finally:
+        release.set()
+        await session_manager.shutdown()

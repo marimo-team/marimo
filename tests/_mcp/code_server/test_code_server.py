@@ -69,7 +69,7 @@ def test_code_mcp_server_requires_supported_mcp_version(monkeypatch):
 
     with pytest.raises(
         MarimoCLIMissingDependencyError,
-        match="MCP SDK 1.9.0 is not supported",
+        match=r"MCP SDK 1\.9\.0 is not supported",
     ):
         setup_code_mcp_server(Starlette())
 

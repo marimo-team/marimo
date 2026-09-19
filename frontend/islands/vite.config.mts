@@ -79,7 +79,7 @@ export default defineConfig({
   customLogger: createViteLogger(),
   resolve: {
     tsconfigPaths: true,
-    dedupe: ["react", "react-dom", "@emotion/react", "@emotion/cache"],
+    dedupe: ["react", "react-dom"],
     alias: [
       // Islands run read-only and never render the slide code editor, so
       // swap `SlideCellView` for a no-op stub. This keeps CodeMirror, the

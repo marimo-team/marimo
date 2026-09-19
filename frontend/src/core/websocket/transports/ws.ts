@@ -42,7 +42,7 @@ export class WsTransport implements IConnectionTransport {
     this.inner.close();
   }
 
-  send(data: string | ArrayBuffer | Blob | ArrayBufferView): void {
+  send(data: string | ArrayBuffer | Blob | ArrayBufferView<ArrayBuffer>): void {
     this.inner.send(data);
   }
 

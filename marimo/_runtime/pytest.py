@@ -15,6 +15,7 @@ from marimo._cli.print import bold, green
 from marimo._dependencies.dependencies import DependencyManager
 from marimo._runtime.capture import capture_stdout
 from marimo._runtime.context import safe_get_context
+from marimo._runtime.reload.autoreload import is_user_module
 from marimo._runtime.runtime import notebook_location
 
 MARIMO_TEST_BLOCK_REGEX = re.compile(rf"{MARIMO_TEST_STUB_NAME}_\d+[(?::)\.]+")
@@ -382,9 +383,16 @@ def run_pytest(
             )
     finally:
         del os.environ["MARIMO_PYTEST_WASM"]
-        # Note, in pytester, there are also exceptions for zope and readline.
-        # However, those deps should already be in module_snapshot, since
-        # dependencies are required before the given cell runs.
+        # Evict only project-local modules pytest imported during the run
+        # (conftest, helpers) so edits are picked up next run. Installed
+        # packages are kept: they do not change between runs, and
+        # re-executing them repeats one-shot import side effects such as
+        # native operator registration.
+        module_snapshot.update(
+            (name, module)
+            for name, module in sys.modules.items()
+            if name not in module_snapshot and not is_user_module(module)
+        )
         sys.modules.clear()
         sys.modules.update(module_snapshot)
         sys.path[:] = path_snapshot

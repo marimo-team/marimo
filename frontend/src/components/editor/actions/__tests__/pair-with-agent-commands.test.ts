@@ -10,10 +10,12 @@ import {
   maskToken,
 } from "../pair-with-agent-commands";
 import { shellQuote } from "@/utils/shell";
+import { PAIR_PREVIEW } from "@/__tests__/fixtures/pair-preview";
 
 const CONNECTION: ConnectionInfo = {
   url: "http://localhost:8000",
   file: "notebooks/example.py",
+  session: "s_ab12cd",
 };
 
 const CONNECTION_WITHOUT_FILE: ConnectionInfo = {
@@ -104,6 +106,61 @@ describe("getMarimoCommand", () => {
 });
 
 describe("getTerminalCommand", () => {
+  it("uses the preview launcher in production and quotes session-only targets", () => {
+    vi.stubEnv("DEV", false);
+    try {
+      expect(
+        getTerminalCommand(
+          "claude",
+          { url: "http://host:8000?a=1&b=2", session: "s_' {file}" },
+          false,
+          { ...PAIR_PREVIEW, command: "uvx marimo@latest" },
+        ),
+      ).toBe(
+        String.raw`claude "$(MARIMO_PAIR_NEXT=1 uvx marimo@latest pair prompt \
+  --url 'http://host:8000?a=1&b=2' \
+  --session 's_'"'"' {file}')"`,
+      );
+      expect(
+        getTerminalCommand(
+          "codex",
+          CONNECTION_WITHOUT_FILE,
+          false,
+          PAIR_PREVIEW,
+        ),
+      ).toBe(
+        String.raw`codex "$(MARIMO_PAIR_NEXT=1 uv run marimo pair prompt \
+  --url http://localhost:8000)"`,
+      );
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each([
+    ["claude", "claude"],
+    ["codex", "codex"],
+    ["opencode", "opencode --prompt"],
+  ] as const)(
+    "enables the preview inside the %s prompt command",
+    (agent, cli) => {
+      expect(
+        getTerminalCommand(
+          agent,
+          { ...CONNECTION, session: "s_ab12cd" },
+          true,
+          PAIR_PREVIEW,
+        ),
+      ).toBe(
+        String.raw`${cli} "$(MARIMO_PAIR_NEXT=1 uv run marimo pair prompt \
+  --url http://localhost:8000 \
+  --file notebooks/example.py \
+  --session s_ab12cd \
+  --with-token)"`,
+      );
+    },
+  );
+
   it("includes the url and file for each agent", () => {
     expect(getTerminalCommand("claude", CONNECTION, false)).toBe(
       `claude "$(uv run marimo pair prompt --url http://localhost:8000 --file notebooks/example.py --claude)"`,
@@ -169,6 +226,64 @@ describe("getTerminalCommand", () => {
 });
 
 describe("getRawPrompt", () => {
+  it("uses supplied templates without reinterpreting inserted values", () => {
+    expect(
+      getRawPrompt(
+        {
+          url: "http://host/{file}",
+          file: "{session}/it's.py",
+          session: "{command}",
+        },
+        "tok'en {file} $&",
+        {
+          ...PAIR_PREVIEW,
+          command: "custom marimo",
+          templates: {
+            ...PAIR_PREVIEW.templates,
+            prompt: "{command}\n{url}\n{file}{session}{authentication}",
+          },
+        },
+      ),
+    ).toBe(
+      "custom marimo\nhttp://host/{file}\nFile: {session}/it's.py\nSession: {command}\n" +
+        `\n\nFor authenticated Pair commands, set \`export MARIMO_TOKEN='tok'"'"'en {file} $&'\` in the shell that runs marimo.`,
+    );
+  });
+
+  it.each([
+    [CONNECTION_WITHOUT_FILE, ""],
+    [
+      { ...CONNECTION_WITHOUT_FILE, session: "s_ab12cd" },
+      "Session: s_ab12cd\n",
+    ],
+    [
+      { ...CONNECTION_WITHOUT_FILE, file: "notebook.py" },
+      "File: notebook.py\n",
+    ],
+  ])("omits absent preview fields for %j", (connection, fields) => {
+    expect(getRawPrompt(connection, null, PAIR_PREVIEW)).toBe(
+      "Pair with me on this running marimo notebook.\n\n" +
+        `URL: http://localhost:8000\n${fields}\n` +
+        "Run `uv run marimo pair --help` first.\n" +
+        "Use `uv run marimo` for all marimo commands.\n\n" +
+        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+    );
+  });
+
+  it("renders the shared preview template with optional session context", () => {
+    expect(
+      getRawPrompt({ ...CONNECTION, session: "s_ab12cd" }, null, PAIR_PREVIEW),
+    ).toBe(
+      "Pair with me on this running marimo notebook.\n\n" +
+        "URL: http://localhost:8000\n" +
+        "File: notebooks/example.py\n" +
+        "Session: s_ab12cd\n\n" +
+        "Run `uv run marimo pair --help` first.\n" +
+        "Use `uv run marimo` for all marimo commands.\n\n" +
+        "Once connected, send a fun toast using `mo.status.toast(...)` (`import marimo as mo`).",
+    );
+  });
+
   it("references the file-scoped execute-code command", () => {
     const prompt = getRawPrompt(CONNECTION, null);
     expect(prompt).toContain(

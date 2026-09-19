@@ -746,6 +746,33 @@ def test_project_config_manager_resolve_custom_css_home_path(
     ]
 
 
+def test_project_config_manager_skips_unresolvable_css_home_directory(
+    tmp_path: Path,
+) -> None:
+    pyproject_path = tmp_path / "pyproject.toml"
+    pyproject_path.write_text(
+        textwrap.dedent("""
+        [tool.marimo.display]
+        custom_css = ["~/theme.css", "styles.css"]
+        theme = "dark"
+        """)
+    )
+    manager = ProjectConfigManager(str(pyproject_path))
+    with patch(
+        "pathlib.Path.expanduser",
+        side_effect=[
+            RuntimeError("Could not determine home directory."),
+            tmp_path / "styles.css",
+        ],
+    ):
+        config = manager.get_config(hide_secrets=False)
+
+    assert config["display"] == {
+        "custom_css": [str(tmp_path / "styles.css")],
+        "theme": "dark",
+    }
+
+
 def test_project_config_manager_resolve_invalid_custom_css(
     tmp_path: Path,
 ) -> None:

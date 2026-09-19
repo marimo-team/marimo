@@ -112,6 +112,19 @@ def _normalized_path(f: str) -> str:
     return os.path.normcase(os.path.realpath(f))
 
 
+def is_user_module(module: types.ModuleType) -> bool:
+    """True for modules whose source lives outside stdlib/site-packages.
+
+    Editable installs (e.g. `pip install -e .`) point `__file__` at the
+    source tree, so they are correctly classified as user code. Modules
+    without a `__file__` (builtins, frozen, namespace packages) are not.
+    """
+    f = safe_getattr(module, "__file__", None)
+    if not f:
+        return False
+    return not _normalized_path(f).startswith(_non_user_module_roots())
+
+
 def modules_imported_by_cell(
     cell: CellImpl, sys_modules: dict[str, types.ModuleType]
 ) -> set[str]:
@@ -200,7 +213,7 @@ class ModuleReloader:
         self.lock = threading.Lock()
         self._module_dependency_finder = ModuleDependencyFinder()
         # modname -> cached `__file__` for modules classified as non-user.
-        # Populated by every `check()` call (memoizing `_is_user_module`);
+        # Populated by every `check()` call (memoizing `is_user_module`);
         # consumed only when `skip_non_user_modules=True`. Stored value is
         # used to invalidate the entry if `sys.modules[modname]` is later
         # rebound to a module with a different `__file__` (e.g. a user
@@ -209,17 +222,6 @@ class ModuleReloader:
 
         # Timestamp existing modules
         self.check(modules=sys.modules, reload=False)
-
-    def _is_user_module(self, module: types.ModuleType) -> bool:
-        """True for modules whose source lives outside stdlib/site-packages.
-
-        Editable installs (e.g. `pip install -e .`) point `__file__` at the
-        source tree, so they are correctly classified as user code.
-        """
-        f = safe_getattr(module, "__file__", None)
-        if not f:
-            return False
-        return not _normalized_path(f).startswith(_non_user_module_roots())
 
     def filename_and_mtime(
         self, module: types.ModuleType
@@ -316,7 +318,7 @@ class ModuleReloader:
                         is_non_user = False
                 else:
                     is_non_user = False
-                if not is_non_user and not self._is_user_module(m):
+                if not is_non_user and not is_user_module(m):
                     self._skip[modname] = current_file
                     is_non_user = True
                 if is_non_user and skip_non_user_modules:

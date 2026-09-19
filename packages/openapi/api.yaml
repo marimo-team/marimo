@@ -90,6 +90,11 @@ components:
           - type: 'null'
           - $ref: '#/components/schemas/AiCompletionContext'
           default: null
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         language:
@@ -664,6 +669,11 @@ components:
 
         See pydantic_ai.ui.vercel_ai.request_types.UIMessage or Vercel AI SDK documentation.'
       properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
         includeOtherCode:
           type: string
         model:
@@ -3171,6 +3181,7 @@ components:
           - $ref: '#/components/schemas/MissingPackageAlertNotification'
           - $ref: '#/components/schemas/InstallingPackageAlertNotification'
           - $ref: '#/components/schemas/StartupLogsNotification'
+          - $ref: '#/components/schemas/StartupProgressNotification'
           - $ref: '#/components/schemas/KernelStartupErrorNotification'
           - $ref: '#/components/schemas/VariablesNotification'
           - $ref: '#/components/schemas/VariableValuesNotification'
@@ -3233,6 +3244,7 @@ components:
               sql-table-list-preview: '#/components/schemas/SQLTableListPreviewNotification'
               sql-table-preview: '#/components/schemas/SQLTablePreviewNotification'
               startup-logs: '#/components/schemas/StartupLogsNotification'
+              startup-progress: '#/components/schemas/StartupProgressNotification'
               storage-download-ready: '#/components/schemas/StorageDownloadReadyNotification'
               storage-entries: '#/components/schemas/StorageEntriesNotification'
               storage-namespaces: '#/components/schemas/StorageNamespacesNotification'
@@ -4976,6 +4988,38 @@ components:
       - backend
       title: SandboxPackageContext
       type: object
+    SandboxRequest:
+      properties:
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+      required: []
+      title: SandboxRequest
+      type: object
+    SandboxResponse:
+      properties:
+        backend:
+          anyOf:
+          - enum:
+            - pixi
+            - uv
+          - type: 'null'
+        filename:
+          anyOf:
+          - type: string
+          - type: 'null'
+        manifest:
+          anyOf:
+          - type: string
+          - type: 'null'
+      required:
+      - backend
+      - manifest
+      - filename
+      title: SandboxResponse
+      type: object
     SaveAppConfigurationRequest:
       properties:
         config:
@@ -5474,6 +5518,21 @@ components:
       - status
       title: StartupLogsNotification
       type: object
+    StartupProgressNotification:
+      description: Progress reported before a session's kernel is ready.
+      properties:
+        op:
+          enum:
+          - startup-progress
+        phase:
+          enum:
+          - preparing-environment
+          - starting-kernel
+      required:
+      - op
+      - phase
+      title: StartupProgressNotification
+      type: object
     StdinRequest:
       properties:
         text:
@@ -5840,6 +5899,25 @@ components:
       - deleteIds
       title: SyncGraphCommand
       type: object
+    SyncSandboxResponse:
+      properties:
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        reconnect:
+          default: false
+          type: boolean
+        restartRequired:
+          default: false
+          type: boolean
+        success:
+          type: boolean
+      required:
+      - success
+      title: SyncSandboxResponse
+      type: object
     ToolDefinition:
       description: Tool definition compatible with ai-sdk-ui format.
       properties:
@@ -6038,6 +6116,22 @@ components:
       required:
       - cellIdsToOutput
       title: UpdateCellOutputsRequest
+      type: object
+    UpdateManifestRequest:
+      properties:
+        contents:
+          type: string
+        fileKey:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+        previous:
+          type: string
+      required:
+      - contents
+      - previous
+      title: UpdateManifestRequest
       type: object
     UpdateUIElementCommand:
       description: "Update UI element values.\n\n    Triggered when users interact\
@@ -7769,6 +7863,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ListPackagesResponse'
           description: List installed packages
+  /api/packages/manifest:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateManifestRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Save notebook metadata without changing its cells
   /api/packages/remove:
     post:
       requestBody:
@@ -7783,6 +7898,48 @@ paths:
               schema:
                 $ref: '#/components/schemas/PackageOperationResponse'
           description: Uninstall package
+  /api/packages/sandbox:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SandboxResponse'
+          description: Sandbox manifest, available before kernel startup
+  /api/packages/sync:
+    post:
+      parameters:
+      - in: header
+        name: Marimo-Session-Id
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SandboxRequest'
+        required: true
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SyncSandboxResponse'
+          description: Apply the saved manifest, or reconnect to retry startup
   /api/packages/tree:
     get:
       responses:

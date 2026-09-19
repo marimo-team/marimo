@@ -6,31 +6,36 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { GlideDataEditor } from "../glide-data-editor";
 
-const capturedDataEditor = vi.hoisted(() => ({
-  ref: undefined as React.RefObject<HTMLElement> | undefined,
-  onCellEdited: undefined as
-    | ((cell: [number, number], value: { data: unknown }) => void)
-    | undefined,
-  onRowAppended: undefined as (() => void) | undefined,
-}));
+interface MockDataEditorProps {
+  portalElementRef?: React.RefObject<HTMLElement>;
+  onCellEdited?: (cell: [number, number], value: { data: unknown }) => void;
+  onRowAppended?: () => void;
+}
+
+const captureDataEditorProps = vi.hoisted(() =>
+  vi.fn<(props: MockDataEditorProps) => void>(),
+);
+
+const capturedDataEditor = {
+  get ref() {
+    return captureDataEditorProps.mock.lastCall?.[0].portalElementRef;
+  },
+  get onCellEdited() {
+    return captureDataEditorProps.mock.lastCall?.[0].onCellEdited;
+  },
+  get onRowAppended() {
+    return captureDataEditorProps.mock.lastCall?.[0].onRowAppended;
+  },
+};
 
 vi.mock("@glideapps/glide-data-grid", async () => {
   const React = await import("react");
   return {
     default: React.forwardRef(function MockDataEditor(
-      props: {
-        portalElementRef?: React.RefObject<HTMLElement>;
-        onCellEdited?: (
-          cell: [number, number],
-          value: { data: unknown },
-        ) => void;
-        onRowAppended?: () => void;
-      },
+      props: MockDataEditorProps,
       _ref: React.Ref<HTMLDivElement>,
     ) {
-      capturedDataEditor.ref = props.portalElementRef;
-      capturedDataEditor.onCellEdited = props.onCellEdited;
-      capturedDataEditor.onRowAppended = props.onRowAppended;
+      captureDataEditorProps(props);
       return <div data-testid="mock-data-editor" />;
     }),
     CompactSelection: {

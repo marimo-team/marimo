@@ -1,31 +1,26 @@
 # Copyright 2026 Marimo. All rights reserved.
 from __future__ import annotations
 
+import asyncio
 import contextlib
 import json
 import signal
-import subprocess
 import threading
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
 
+from marimo._environments.process import run_command
 from marimo._server.files.directory_scanner import DirectoryScanner
 from marimo._server.workspace import flatten_files
 from marimo._utils.http import HTTPException, HTTPStatus
 from marimo._utils.marimo_path import MarimoPath
-from marimo._utils.subprocess import kill_subprocess
 
 if TYPE_CHECKING:
     from collections.abc import Iterable, Iterator
 
-    from marimo._environments.environment import Environment
-
-
-def is_multi_target(paths: list[Path]) -> bool:
-    return len(paths) > 1 or any(path.is_dir() for path in paths)
+    from marimo._environments.sandbox import Backend
 
 
 def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
@@ -52,102 +47,91 @@ def collect_notebooks(paths: Iterable[Path]) -> list[MarimoPath]:
     return [notebooks[k] for k in sorted(notebooks)]
 
 
-@dataclass(frozen=True)
-class SandboxTarget:
-    """Where a sandboxed export runs.
-
-    `environment` is the notebook's script environment, or None for a
-    notebook without a metadata block, which runs ephemerally.
-    """
-
-    environment: Environment | None
-
-
-class SandboxVenvPool:
-    """Caches synchronized script environments by notebook path."""
-
-    def __init__(self) -> None:
-        self._targets: dict[str, SandboxTarget] = {}
-
-    def get_target(self, notebook_path: str) -> SandboxTarget:
-        from marimo._environments.backends import sync_notebook
-        from marimo._environments.uv import UvMissingScriptMetadataError
-
-        key = str(Path(notebook_path).resolve())
-        existing = self._targets.get(key)
-        if existing is not None:
-            return existing
-
-        try:
-            target = SandboxTarget(
-                environment=sync_notebook(key, backend="uv")
-            )
-        except UvMissingScriptMetadataError:
-            target = SandboxTarget(environment=None)
-        self._targets[key] = target
-        return target
-
-    def close(self) -> None:
-        # uv owns the environments; there is nothing to remove.
-        self._targets.clear()
-
-
 @contextlib.contextmanager
 def _export_termination_signals() -> Iterator[None]:
     """Let termination unwind the runner so its isolated child is reaped."""
     previous = {}
+    loop = asyncio.get_running_loop()
+    task = asyncio.current_task()
+    termination_signal: int | None = None
+    active = True
+
+    def cancel_export() -> None:
+        if active and task is not None:
+            task.cancel()
 
     def terminate(signum: int, _frame: object) -> None:
-        raise SystemExit(128 + signum)
+        nonlocal termination_signal
+        if termination_signal is not None:
+            return
+        termination_signal = signum
+        # Deliver cancellation at an await, after Popen has returned ownership
+        # of the child. Raising here can interrupt its constructor and leak it.
+        loop.call_soon_threadsafe(cancel_export)
 
     try:
         if threading.current_thread() is threading.main_thread():
-            for name in ("SIGTERM", "SIGHUP"):
+            for name in ("SIGINT", "SIGTERM", "SIGHUP"):
                 signum = getattr(signal, name, None)
+                # Python 3.10 raises KeyboardInterrupt synchronously; defer it
+                # past Popen just like termination. Python 3.11+ asyncio.run
+                # already installs a cancelling handler, which we preserve.
+                default_handler = (
+                    signal.default_int_handler
+                    if name == "SIGINT"
+                    else signal.SIG_DFL
+                )
                 if (
                     signum is not None
-                    and signal.getsignal(signum) == signal.SIG_DFL
+                    and signal.getsignal(signum) == default_handler
                 ):
                     previous[signum] = signal.signal(signum, terminate)
         yield
     finally:
+        active = False
         for signum, handler in previous.items():
             signal.signal(signum, handler)
+        # The command may finish before queued cancellation is delivered.
+        if termination_signal == signal.SIGINT:
+            raise KeyboardInterrupt from None
+        if termination_signal is not None:
+            raise SystemExit(128 + termination_signal) from None
 
 
-def run_python_subprocess(
+async def run_python_subprocess(
     *,
-    sandbox: SandboxTarget,
+    notebook_path: str,
+    backend: Backend,
     script: str,
     payload: dict[str, Any],
     action: str,
 ) -> str:
-    from marimo._environments.backends import launch_fallback
-    from marimo._environments.environment import launch
+    from marimo._environments.backends import (
+        launch,
+        launch_fallback,
+        sync_notebook_async,
+    )
+    from marimo._environments.errors import MissingScriptMetadataError
     from marimo._environments.overlay import runtime_overlay
 
     args = ["-c", script, json.dumps(payload)]
-    if sandbox.environment is not None:
-        plan = launch(sandbox.environment, args, overlay=runtime_overlay())
-    else:
-        plan = launch_fallback(args)
-    with (
-        _export_termination_signals(),
-        subprocess.Popen(
-            list(plan.argv),
-            env=plan.env,
-            start_new_session=plan.start_new_session,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        ) as process,
-    ):
+    with _export_termination_signals():
         try:
-            stdout, stderr = process.communicate()
-        except BaseException:
-            kill_subprocess(process, start_new_session=plan.start_new_session)
-            raise
-    if process.returncode != 0:
+            environment = await sync_notebook_async(
+                str(Path(notebook_path).resolve()),  # noqa: ASYNC240
+                backend=backend,
+            )
+        except MissingScriptMetadataError:
+            plan = launch_fallback(args)
+        else:
+            plan = launch(
+                environment, args, backend=backend, overlay=runtime_overlay()
+            )
+        completed = await run_command(
+            plan.argv,
+            env=plan.env,
+        )
+    if completed.returncode != 0:
         # Identify the real launcher without exposing requirement URLs,
         # credentials, notebook code, or the serialized request payload.
         launcher = Path(plan.argv[0]).name
@@ -155,6 +139,6 @@ def run_python_subprocess(
         raise click.ClickException(
             f"Failed to {action} in sandbox.\n\n"
             f"Command:\n\n  {command}\n\n"
-            f"Stderr:\n\n{stderr.strip()}"
+            f"Stderr:\n\n{completed.stderr.strip()}"
         )
-    return stdout
+    return completed.stdout
