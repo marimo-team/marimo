@@ -10,7 +10,7 @@ import { WasmFileSystem } from "./fs";
 import { getMarimoWheel } from "./getMarimoWheel";
 import { t } from "./tracer";
 import type { SerializedBridge, WasmController } from "./types";
-import { shouldLoadDuckDBPackages } from "../utils";
+import { prependSQLPackageImports } from "../utils";
 
 const MAKE_SNAPSHOT = false;
 type SessionResources = [
@@ -222,7 +222,11 @@ export class DefaultWasmController implements WasmController {
       if (sessionGeneration !== this.sessionGeneration) {
         return;
       }
-      return this.loadNotebookDeps(code, foundPackages);
+      return this.loadNotebookDeps(
+        code,
+        foundPackages,
+        userConfig.runtime.default_sql_output,
+      );
     });
     this.packageLoadQueue = dependenciesReady.catch(() => undefined);
     void dependenciesReady
@@ -262,22 +266,16 @@ export class DefaultWasmController implements WasmController {
     }
   }
 
-  private async loadNotebookDeps(code: string, foundPackages: Set<string>) {
+  private async loadNotebookDeps(
+    code: string,
+    foundPackages: Set<string>,
+    sqlOutput: UserConfig["runtime"]["default_sql_output"],
+  ) {
     const pyodide = this.requirePyodide;
-
-    if (shouldLoadDuckDBPackages(code, foundPackages)) {
-      // We need pandas and duckdb for mo.sql and for remote duckdb sources
-      code = `import pandas\n${code}`;
-      code = `import duckdb\n${code}`;
-      code = `import sqlglot\n${code}`;
-
-      // Polars + SQL requires pyarrow, and installing
-      // after notebook load does not work. As a heuristic,
-      // if it appears that the notebook uses polars, add pyarrow.
-      if (code.includes("polars")) {
-        code = `import pyarrow\n${code}`;
-      }
-    }
+    code = prependSQLPackageImports(code, {
+      foundPackages,
+      sqlOutput,
+    });
 
     // Add:
     // 1. additional dependencies of marimo that are lazily loaded.
