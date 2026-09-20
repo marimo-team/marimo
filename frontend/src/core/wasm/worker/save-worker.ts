@@ -9,9 +9,11 @@ import {
 } from "rpc-anywhere";
 import type { SaveNotebookRequest } from "@/core/network/types";
 import { decodeUtf8 } from "@/utils/strings";
+import { Deferred } from "../../../utils/Deferred";
 import { prettyError } from "../../../utils/errors";
 import { Logger } from "../../../utils/Logger";
 import type { ParentSchema } from "../rpc";
+import type { WasmRuntimeConfig } from "../runtime-config";
 import { TRANSPORT_ID } from "./constants";
 import { WasmFileSystem } from "./fs";
 import { getController } from "./getController";
@@ -25,6 +27,8 @@ declare const self: Window & {
   pyodide: PyodideInterface;
 };
 
+const runtimeConfig = new Deferred<WasmRuntimeConfig>();
+
 // Initialize
 async function loadPyodideAndPackages() {
   try {
@@ -36,6 +40,7 @@ async function loadPyodideAndPackages() {
     const controller = await getController(marimoVersion);
     self.controller = controller;
     self.pyodide = await controller.bootstrap({
+      ...(await runtimeConfig.promise),
       version: marimoVersion,
       pyodideVersion: pyodideVersion,
     });
@@ -99,6 +104,8 @@ const rpc = createRPC<SaveWorkerSchema, ParentSchema>({
   }),
   requestHandler,
 });
+
+rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
 

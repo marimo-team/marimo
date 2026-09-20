@@ -42,6 +42,7 @@ import { BasicTransport } from "../websocket/transports/basic";
 import type { IConnectionTransport } from "../websocket/transports/transport";
 import { PyodideRouter } from "./router";
 import { getWorkerRPC } from "./rpc";
+import { getWasmRuntimeConfig } from "./runtime-config";
 import { createShareableLink } from "./share";
 import { wasmInitStateAtom } from "./state";
 import { fallbackFileStore, notebookFileStore } from "./store";
@@ -84,6 +85,8 @@ export class PyodideBridge implements RunRequests, EditRequests {
       };
     }
 
+    const runtimeConfig = getWasmRuntimeConfig();
+
     // Create save worker
     const saveWorker = createModuleWorker(
       new URL(saveWorkerUrl, import.meta.url),
@@ -93,13 +96,17 @@ export class PyodideBridge implements RunRequests, EditRequests {
       },
     );
 
-    return getWorkerRPC<SaveWorkerSchema>(saveWorker).proxy.request;
+    const rpc = getWorkerRPC<SaveWorkerSchema>(saveWorker);
+    rpc.send.bootstrap(runtimeConfig);
+    return rpc.proxy.request;
   }
 
   private constructor() {
     if (!isWasm()) {
       return;
     }
+
+    const runtimeConfig = getWasmRuntimeConfig();
 
     // Create a worker
     const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
@@ -109,6 +116,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Create the RPC
     this.rpc = getWorkerRPC<WorkerSchema>(worker);
+    this.rpc.send.bootstrap(runtimeConfig);
 
     // Listeners
     this.rpc.addMessageListener("ready", () => {
