@@ -124,6 +124,48 @@ def test_markdown_frontmatter() -> None:
     assert app.cell_manager.cell_data_at(ids[1]).config.hide_code is False
 
 
+def test_markdown_non_string_frontmatter() -> None:
+    """Frontmatter values that aren't strings must survive a round trip."""
+    from marimo._convert.markdown.to_ir import extract_frontmatter
+
+    script = dedent(
+        remove_empty_lines(
+            """
+    ---
+    title: "My Title"
+    description: "My Description"
+    authors:
+    - "Alice"
+    - "Bob"
+    auto_download:
+    - "html"
+    - "markdown"
+    draft: false
+    weight: 7
+    ---
+
+    ```python {.marimo}
+    print("Hello, World!")
+    ```
+    """
+        )
+    )
+
+    notebook_ir = convert_from_md_to_marimo_ir(script, filepath="nb.md")
+    # Non-string values cannot be held by the intermediate XML tree, so they
+    # have to come through as frontmatter rather than being dropped.
+    assert notebook_ir.header is not None
+    assert "auto_download:" in notebook_ir.header.value
+
+    markdown = convert_from_ir_to_markdown(notebook_ir, filename="nb.md")
+    meta, _ = extract_frontmatter(markdown)
+    assert meta["description"] == "My Description"
+    assert meta["authors"] == ["Alice", "Bob"]
+    assert meta["auto_download"] == ["html", "markdown"]
+    assert meta["draft"] is False
+    assert meta["weight"] == 7
+
+
 def test_mystmd_marimo_directives() -> None:
     script = dedent(
         remove_empty_lines(
