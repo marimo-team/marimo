@@ -48,6 +48,7 @@ import { fallbackFileStore, notebookFileStore } from "./store";
 import { isWasm } from "./utils";
 import saveWorkerUrl from "./worker/save-worker.ts?worker&url";
 import workerUrl from "./worker/worker.ts?worker&url";
+import { CUSTOM_CONTROLLER_SUFFIX } from "./worker/constants";
 import type { SaveWorkerSchema } from "./worker/save-worker";
 import type { WorkerSchema } from "./worker/worker";
 
@@ -735,5 +736,5 @@ export function getWasmWorkerName(): string {
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__ === true;
-  return `marimo${hasCustomController ? "::controller" : ""}`;
+  return `marimo${hasCustomController ? CUSTOM_CONTROLLER_SUFFIX : ""}`;
 }
