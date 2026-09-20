@@ -381,7 +381,7 @@ base_url = "https://opencode.ai/zen/go/v1/"  # Optional, this is the default
 
 You can also set the `OPENCODE_API_KEY` environment variable instead of `api_key`. See available models at the [OpenCode Go documentation](https://opencode.ai/docs/go/). Make sure to prepend `opencode-go/` to the model slug.
 
-marimo automatically sends client identification headers and a stable `x-opencode-session` header for OpenCode Go.
+marimo automatically sends `User-Agent: marimo/<version>`, `x-opencode-client: marimo`, and a stable `x-opencode-session` header for OpenCode Go.
 marimo derives the session header from the conversation ID, with a notebook-session fallback.
 You can override these headers using `extra_headers` in `[ai.opencode_go]`.
 
