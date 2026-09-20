@@ -1,0 +1,32 @@
+frontend/src/core/wasm/__tests__/bridge.test.ts
+  s_74ae5a2da34bde::t_246211849c79f2 129,227-228,235,242
+frontend/src/core/wasm/worker/worker.ts
+  s_74ae5a2da34bde::t_246211849c79f2 56-58,64
+frontend/src/core/wasm/bridge.ts
+  s_74ae5a2da34bde::t_f5304a9bf1aa6a 93,112
+  s_74ae5a2da34bde::t_9d952ebbbc993b 738
+  s_74ae5a2da34bde::t_246211849c79f2 728-730
+frontend/src/core/wasm/__tests__/runtime-config.test.ts
+  s_74ae5a2da34bde::t_d84d70a0f641e4 3
+  s_74ae5a2da34bde::t_246211849c79f2 6-9,17,33,55
+frontend/src/core/wasm/runtime-config.ts
+  s_74ae5a2da34bde::t_246211849c79f2 3-4,6,22
+frontend/src/core/wasm/worker/save-worker.ts
+  s_74ae5a2da34bde::t_246211849c79f2 36-37,40,43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3da9c64d99d4aa5ae61834968a6dc63d5c3142cf",
+  "prompts": {},
+  "sessions": {
+    "s_74ae5a2da34bde": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bded-8afa-7220-91d3-f4ae0904cd97",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Péter Ferenc Gyarmati <dev.petergy@gmail.com>"
+    }
+  }
+}
