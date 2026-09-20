@@ -300,7 +300,9 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
             return "\n".join(
                 [
                     "# magic command not supported in marimo; please file an issue to add support",
-                    f"# {command + ' ' + source}",
+                    # An argument-less magic leaves a trailing space, which is
+                    # trailing whitespace in the converted notebook.
+                    f"# {(command + ' ' + source).rstrip()}",
                 ]
             )
 
@@ -338,7 +340,8 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         import os
         os.makedirs('path/to/directory', exist_ok=True)
         """
-        del command
+        if not source:
+            return magic_remove(source, command)
         return f"import os\nos.makedirs({source!r}, exist_ok=True)"
 
     def magic_cd(source: str, command: str) -> str:
@@ -352,7 +355,8 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         import os
         os.chdir('path/to/directory')
         """
-        del command
+        if not source:
+            return magic_remove(source, command)
         return f"import os\nos.chdir({source!r})"
 
     def magic_html(source: str, command: str) -> str:
@@ -407,7 +411,8 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         os.environ['VAR_NAME'] = 'VALUE'
         """
 
-        del command
+        if "=" not in source:
+            return magic_remove(source, command)
         _key, value = source.split("=", 1)
         return f"import os\nos.environ[{_key!r}] = {value!r}"
 
@@ -449,7 +454,9 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
 
         # Multi-line magic
         if stripped.startswith("%%"):
-            magic, rest = stripped.split("\n", 1)
+            # A cell magic can be written with no body, in which case there is
+            # no newline to split on; partition keeps the empty body readable.
+            magic, _, rest = stripped.partition("\n")
             magic_cmd = magic.strip().split(" ")[0].lstrip("%")
             if magic_cmd in magics:
                 return magics[magic_cmd](rest, magic)

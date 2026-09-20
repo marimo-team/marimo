@@ -213,6 +213,40 @@ def test_transform_magic_commands():
     ]
 
 
+UNSUPPORTED = "# magic command not supported in marimo; please file an issue to add support"
+
+
+def test_transform_magic_commands_bodyless_cell_magic() -> None:
+    # A cell magic can be the whole cell, with no body to split off.
+    result = transform_magic_commands(["%%time"])
+    assert result == [f"{UNSUPPORTED}\n# %%time"]
+
+
+def test_transform_magic_commands_bodyless_keeps_other_cells() -> None:
+    # One argument-less magic must not cost the rest of the notebook its
+    # transformations.
+    sources = [
+        "%matplotlib inline",
+        "%%time",
+        "%cd /path/to/dir",
+    ]
+    result = transform_magic_commands(sources)
+    assert result == [
+        "# '%matplotlib inline' command supported automatically in marimo",
+        f"{UNSUPPORTED}\n# %%time",
+        "import os\nos.chdir('/path/to/dir')",
+    ]
+
+
+def test_transform_magic_commands_argumentless_line_magic() -> None:
+    result = transform_magic_commands(["%cd", "%mkdir", "%env"])
+    assert result == [
+        f"{UNSUPPORTED}\n# %cd",
+        f"{UNSUPPORTED}\n# %mkdir",
+        f"{UNSUPPORTED}\n# %env",
+    ]
+
+
 def test_transform_magic_command_with_code():
     sources = dd(
         [
