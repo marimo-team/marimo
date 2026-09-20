@@ -1379,14 +1379,24 @@ const {
             const startIndex = i;
             let endIndex = range[1];
 
-            // Check if the parent's end point is inside any already-collapsed child range
-            const parentEndInChild = rangeIndexes.find(
-              (child) => child.start <= endIndex && child.end === endIndex,
-            );
-
-            if (parentEndInChild) {
-              // Adjust the new endIndex to the child's start
-              endIndex = parentEndInChild.start;
+            // Check if the parent's end point is inside any already-collapsed
+            // child range, and if so pull it back to the start of the
+            // outermost such child: that start cell is the last cell in the
+            // parent's range that is still top-level once the children have
+            // collapsed. A single adjustment is not enough — when several
+            // nested ranges share the same end point (e.g. an h1 whose last
+            // h2's last h3 all run to the same cell), the end point must step
+            // out of each range in turn, so iterate until it no longer lands
+            // on a child range's end.
+            const childRangesEndingAt = (index: CellIndex) =>
+              rangeIndexes.filter(
+                (child) => child.start < index && child.end === index,
+              );
+            let childRanges = childRangesEndingAt(endIndex);
+            while (childRanges.length > 0) {
+              // Adjust the new endIndex to the outermost child's start
+              endIndex = Math.min(...childRanges.map((child) => child.start));
+              childRanges = childRangesEndingAt(endIndex);
             }
 
             // Store this range for future child checks
