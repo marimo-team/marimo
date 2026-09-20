@@ -46,7 +46,6 @@ export interface WasmController {
    */
   bootstrap(
     opts: WasmRuntimeConfig & {
-      version: string;
       pyodideVersion: string;
     },
   ): Promise<PyodideInterface>;

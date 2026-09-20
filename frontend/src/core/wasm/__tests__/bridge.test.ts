@@ -126,6 +126,7 @@ describe("PyodideBridge.readCode", () => {
     await PyodideBridge.INSTANCE.readCode();
 
     expect(mockBootstrap).toHaveBeenCalledWith({
+      version: "0.0.0-test",
       pyodideIndexUrl: undefined,
       pyodideLockfileUrl: undefined,
       pypiIndexUrl: undefined,
@@ -223,21 +224,21 @@ describe("getWasmWorkerName", () => {
       .__MARIMO_HAS_WASM_CONTROLLER__;
   });
 
-  it("returns the version without suffix by default", () => {
-    expect(getWasmWorkerName()).toBe("0.0.0-test");
+  it("returns the default worker name without suffix", () => {
+    expect(getWasmWorkerName()).toBe("marimo");
   });
 
   it("appends ::controller when the host opts in", () => {
     (
       window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean }
     ).__MARIMO_HAS_WASM_CONTROLLER__ = true;
-    expect(getWasmWorkerName()).toBe("0.0.0-test::controller");
+    expect(getWasmWorkerName()).toBe("marimo::controller");
   });
 
   it("does not append the suffix for non-true values", () => {
     (
       window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: unknown }
     ).__MARIMO_HAS_WASM_CONTROLLER__ = "true";
-    expect(getWasmWorkerName()).toBe("0.0.0-test");
+    expect(getWasmWorkerName()).toBe("marimo");
   });
 });

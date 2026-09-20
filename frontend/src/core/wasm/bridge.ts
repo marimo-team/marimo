@@ -12,7 +12,6 @@ import { generateUUID } from "@/utils/uuid";
 import { createModuleWorker } from "@/utils/worker";
 import { notebookIsRunningAtom } from "../cells/cells";
 import type { CommandMessage } from "../kernel/messages";
-import { getMarimoVersion } from "../meta/globals";
 import { getInitialAppMode } from "../mode";
 import { API } from "../network/api";
 import type {
@@ -91,7 +90,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
     const saveWorker = createModuleWorker(
       new URL(saveWorkerUrl, import.meta.url),
       {
-        // Pass the version (and optional capability suffix) to the worker
+        // Pass the optional custom-controller capability to the worker.
         name: getWasmWorkerName(),
       },
     );
@@ -110,7 +109,7 @@ export class PyodideBridge implements RunRequests, EditRequests {
 
     // Create a worker
     const worker = createModuleWorker(new URL(workerUrl, import.meta.url), {
-      // Pass the version (and optional capability suffix) to the worker
+      // Pass the optional custom-controller capability to the worker.
       name: getWasmWorkerName(),
     });
 
@@ -726,10 +725,9 @@ export function createPyodideConnection(): IConnectionTransport {
   });
 }
 
-// Compose the worker name. The version prefix is read by getMarimoVersion()
-// in the worker; the optional "::controller" suffix tells getController.ts
-// that the host page provides a custom /wasm/controller.js and that the
-// dynamic import should be attempted. Hosts opt in by setting
+// Compose the worker name. The optional "::controller" suffix tells
+// getController.ts that the host page provides a custom /wasm/controller.js
+// and that the dynamic import should be attempted. Hosts opt in by setting
 // `window.__MARIMO_HAS_WASM_CONTROLLER__ = true` before
 // PyodideBridge/worker initialization.
 export function getWasmWorkerName(): string {
@@ -737,5 +735,5 @@ export function getWasmWorkerName(): string {
     typeof window !== "undefined" &&
     (window as unknown as { __MARIMO_HAS_WASM_CONTROLLER__?: boolean })
       .__MARIMO_HAS_WASM_CONTROLLER__ === true;
-  return getMarimoVersion() + (hasCustomController ? "::controller" : "");
+  return `marimo${hasCustomController ? "::controller" : ""}`;
 }

@@ -53,16 +53,15 @@ const runtimeConfig = new Deferred<WasmRuntimeConfig>();
 // Initialize pyodide
 async function loadPyodideAndPackages() {
   try {
-    const marimoVersion = getMarimoVersion();
-    const pyodideVersion = getPyodideVersion(marimoVersion);
-    const controller = await t.wrapAsync(getController)(marimoVersion);
+    const config = await runtimeConfig.promise;
+    const pyodideVersion = getPyodideVersion(config.version);
+    const controller = await t.wrapAsync(getController)(config.version);
     self.controller = controller;
     rpc.send.initializingMessage({
       message: "Loading marimo...",
     });
     self.pyodide = await t.wrapAsync(controller.bootstrap.bind(controller))({
-      ...(await runtimeConfig.promise),
-      version: marimoVersion,
+      ...config,
       pyodideVersion: pyodideVersion,
     });
   } catch (error) {
@@ -379,10 +378,5 @@ const namesThatRequireSync = new Set<keyof RawBridge>([
   "move_file_or_directory",
   "update_file",
 ]);
-
-function getMarimoVersion() {
-  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
-  return self.name.split("::")[0];
-}
 
 const pyodideReadyPromise = t.wrapAsync(loadPyodideAndPackages)();
