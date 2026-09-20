@@ -11,7 +11,7 @@ By default, apps are laid out as a concatenation of their outputs, with
 code hidden. You can customize the layout using marimo's built-in drag-and-drop
 grid editor; you can also choose to include code in the app view.
 
-!!! tip "Completely custom views with Marimo Studio"
+!!! tip "Create bespoke views with Marimo Studio"
 
     [Marimo Studio](https://marimo-team.github.io/marimo-studio/) lets you build
     custom apps, reports, and presentations with HTML, React, Svelte, or the frontend framework of your choice backed
