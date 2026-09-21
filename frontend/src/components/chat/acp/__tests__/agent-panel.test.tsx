@@ -90,14 +90,16 @@ vi.mock("../context-utils", async (importOriginal) => ({
 }));
 vi.mock("@/components/ui/use-toast", () => ({ toast: vi.fn() }));
 
-function renderPanel() {
-  return render(
+async function renderPanel() {
+  const view = render(
     <Provider store={store}>
       <TooltipProvider>
         <AgentPanel />
       </TooltipProvider>
     </Provider>,
   );
+  await screen.findByRole("textbox", { name: "Prompt" });
+  return view;
 }
 
 function submitPrompt(prompt = "Explain this notebook") {
@@ -138,7 +140,7 @@ describe("AgentPanel prompt submission", () => {
 
   it("preserves the draft, attachment and title when the notebook is unnamed", async () => {
     store.set(filenameAtom, null);
-    renderPanel();
+    await renderPanel();
     const title = store.get(selectedTabAtom)?.title;
     fireEvent.change(screen.getByLabelText("Attachment"), {
       target: {
@@ -181,7 +183,7 @@ describe("AgentPanel prompt submission", () => {
     "shows a rejected prompt and allows another submission after dismissal (%s)",
     async (error) => {
       agent.prompt.mockRejectedValueOnce(error);
-      renderPanel();
+      await renderPanel();
       submitPrompt();
 
       expect(await screen.findByText(/Agent unavailable/)).toBeInTheDocument();
@@ -205,7 +207,7 @@ describe("AgentPanel prompt submission", () => {
         data: { message: "Sign in to the agent" },
       }),
     );
-    renderPanel();
+    await renderPanel();
     submitPrompt();
 
     expect(await screen.findByText("Sign in to the agent")).toBeInTheDocument();
@@ -221,7 +223,7 @@ describe("AgentPanel prompt submission", () => {
     vi.mocked(parseContextFromPrompt).mockRejectedValueOnce(
       new Error("Context unavailable"),
     );
-    renderPanel();
+    await renderPanel();
     submitPrompt();
 
     expect(await screen.findByText("Context unavailable")).toBeInTheDocument();
@@ -234,7 +236,7 @@ describe("AgentPanel prompt submission", () => {
 
   it("reports failures from a queued prompt through the same handler", async () => {
     agent.prompt.mockRejectedValueOnce(new Error("Queued prompt failed"));
-    renderPanel();
+    await renderPanel();
     act(() =>
       store.set(pendingAiPromptAtom, {
         prompt: "Help with this cell",
@@ -255,7 +257,7 @@ describe("AgentPanel prompt submission", () => {
   it("clears busy state when a cancelled prompt settles", async () => {
     const response = Promise.withResolvers<{ stopReason: string }>();
     agent.prompt.mockReturnValueOnce(response.promise);
-    renderPanel();
+    await renderPanel();
     submitPrompt();
     await waitFor(() => expect(agent.prompt).toHaveBeenCalledOnce());
     expect(screen.getByText("Agent is working...")).toBeInTheDocument();
