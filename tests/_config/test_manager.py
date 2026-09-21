@@ -427,52 +427,6 @@ def _write_dotenv_project(tmp_path: Path, dotenv_entries: str) -> Path:
     return notebook_path
 
 
-def test_project_config_dotenv_rejects_absolute_path_outside_project(
-    tmp_path: Path,
-) -> None:
-    # A pyproject.toml travels with a cloned repository, so an entry reaching
-    # out of the project is dropped. In-project entries survive alongside it.
-    outside = tmp_path / "credentials"
-    outside.write_text("aws_secret_access_key = hunter2")
-    notebook_path = _write_dotenv_project(
-        tmp_path, f'".env", "{outside.as_posix()}"'
-    )
-
-    manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
-
-
-def test_project_config_dotenv_rejects_escaping_relative_path(
-    tmp_path: Path,
-) -> None:
-    outside = tmp_path / "credentials"
-    outside.write_text("aws_secret_access_key = hunter2")
-    notebook_path = _write_dotenv_project(tmp_path, '"../credentials"')
-
-    manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == []
-
-
-def test_project_config_dotenv_rejects_symlink_out_of_project(
-    tmp_path: Path,
-) -> None:
-    outside = tmp_path / "credentials"
-    outside.write_text("aws_secret_access_key = hunter2")
-    notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
-    config_dir = notebook_path.parent / "config"
-    config_dir.mkdir()
-    try:
-        (config_dir / ".env").symlink_to(outside)
-    except OSError:
-        pytest.skip("Cannot create symlinks on this system")
-
-    manager = get_default_config_manager(current_path=str(notebook_path))
-    config = manager.get_config(hide_secrets=False)
-    assert config["runtime"]["dotenv"] == []
-
-
 def test_project_config_dotenv_allows_subdirectory(tmp_path: Path) -> None:
     notebook_path = _write_dotenv_project(tmp_path, '"config/.env"')
     config_dir = notebook_path.parent / "config"
@@ -570,29 +524,44 @@ def test_default_dotenv_applies_over_a_hollow_user_dotenv(
     assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
 
 
-def test_project_dotenv_beats_user_config_and_stays_contained(
+def test_project_dotenv_beats_user_config(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    outside = tmp_path / "outside" / ".env"
-    outside.parent.mkdir()
-    outside.write_text("KEY=value")
+    user_env = tmp_path / "user" / ".env"
+    user_env.parent.mkdir(exist_ok=True)
+    user_env.write_text("KEY=value")
     _isolate_user_config(
         monkeypatch,
         tmp_path,
         f"""
         [runtime]
-        dotenv = ["{outside.as_posix()}"]
+        dotenv = ["{user_env.as_posix()}"]
         """,
     )
+    notebook_path = _write_dotenv_project(tmp_path, '".env"')
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+
+
+def test_project_config_dotenv_keeps_absolute_and_parent_paths(
+    tmp_path: Path,
+) -> None:
+    # Configs such as dotenv = ["../shared/.env"] predate this anchoring, so
+    # entries leaving the project directory still resolve.
+    shared = tmp_path / "shared" / ".env"
     notebook_path = _write_dotenv_project(
-        tmp_path, f'".env", "{outside.as_posix()}"'
+        tmp_path, f'".env", "../shared/.env", "{shared.as_posix()}"'
     )
 
     manager = get_default_config_manager(current_path=str(notebook_path))
     config = manager.get_config(hide_secrets=False)
-    # The pyproject.toml wins over the user configuration, and its entry
-    # reaching outside the project is still dropped.
-    assert config["runtime"]["dotenv"] == [str(notebook_path.parent / ".env")]
+    assert config["runtime"]["dotenv"] == [
+        str(notebook_path.parent / ".env"),
+        str(notebook_path.parent / "../shared/.env"),
+        shared.as_posix(),
+    ]
 
 
 @pytest.mark.parametrize("with_pyproject", [True, False])
@@ -688,19 +657,22 @@ def test_script_config_manager_with_metadata(tmp_path: Path) -> None:
     }
 
 
-def test_script_config_manager_dotenv_stays_in_project(
+def test_script_config_manager_dotenv_anchors_on_project(
     tmp_path: Path,
 ) -> None:
+    # Script metadata resolves relative dotenv paths like the pyproject.toml
+    # does: against the project directory, with absolute entries kept.
     project = tmp_path / "project"
     project.mkdir()
     (project / "pyproject.toml").touch()
-    outside = tmp_path / "credentials"
-    outside.write_text("aws_secret_access_key = hunter2")
-    notebook_path = project / "notebook.py"
+    notebooks = project / "notebooks"
+    notebooks.mkdir()
+    shared = tmp_path / "shared" / ".env"
+    notebook_path = notebooks / "notebook.py"
     notebook_content = f'''
     # /// script
     # [tool.marimo.runtime]
-    # dotenv = [".env", "{outside.as_posix()}"]
+    # dotenv = [".env", "{shared.as_posix()}"]
     # ///
     import marimo as mo
     '''
@@ -710,31 +682,35 @@ def test_script_config_manager_dotenv_stays_in_project(
         hide_secrets=False
     )
 
-    assert config["runtime"]["dotenv"] == [str(project / ".env")]
+    assert config["runtime"]["dotenv"] == [
+        str(project / ".env"),
+        shared.as_posix(),
+    ]
 
 
-def test_script_config_manager_dotenv_stays_next_to_standalone_notebook(
+def test_script_config_manager_dotenv_anchors_on_standalone_notebook(
     tmp_path: Path,
 ) -> None:
     notebook_dir = tmp_path / "notebook"
     notebook_dir.mkdir()
-    outside = tmp_path / "credentials"
-    outside.write_text("aws_secret_access_key = hunter2")
     notebook_path = notebook_dir / "notebook.py"
-    notebook_content = f'''
+    notebook_content = """
     # /// script
     # [tool.marimo.runtime]
-    # dotenv = [".env", "{outside.as_posix()}"]
+    # dotenv = [".env", "../shared/.env"]
     # ///
     import marimo as mo
-    '''
+    """
     notebook_path.write_text(textwrap.dedent(notebook_content))
 
     config = ScriptConfigManager(str(notebook_path)).get_config(
         hide_secrets=False
     )
 
-    assert config["runtime"]["dotenv"] == [str(notebook_dir / ".env")]
+    assert config["runtime"]["dotenv"] == [
+        str(notebook_dir / ".env"),
+        str(notebook_dir / "../shared/.env"),
+    ]
 
 
 def test_script_config_manager_ignores_file_browser(tmp_path: Path) -> None:

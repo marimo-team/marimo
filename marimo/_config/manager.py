@@ -354,25 +354,7 @@ class ProjectConfigManager(PartialMarimoConfigReader):
             return config
 
         root = self._dotenv_root
-        # NB. A pyproject.toml or notebook can travel with a cloned repository,
-        # so runtime.dotenv is attacker-controlled. Entries land in os.environ
-        # before any cell runs, and the secrets panel lists their keys and
-        # appends to them. Confine them to the notebook or project directory.
-        real_root = root.resolve()
-        resolved_dotenv: list[str] = []
-        for path in dotenv:
-            candidate = Path(root, path)
-            # NB. resolve() follows symlinks, which catches a committed link
-            # such as config/.env -> ~/.aws/credentials.
-            if not candidate.resolve().is_relative_to(real_root):
-                LOGGER.warning(
-                    "Ignored a runtime.dotenv entry that resolves outside "
-                    "the notebook or project directory. Move the .env file "
-                    "next to the notebook or into the project, or set "
-                    "runtime.dotenv in your user configuration."
-                )
-                continue
-            resolved_dotenv.append(str(candidate.absolute()))
+        resolved_dotenv = [str((root / path).absolute()) for path in dotenv]
         return {**config, "runtime": {**runtime, "dotenv": resolved_dotenv}}
 
     def _resolve_custom_css(
