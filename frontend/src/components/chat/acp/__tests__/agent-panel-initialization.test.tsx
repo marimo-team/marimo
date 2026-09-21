@@ -2,7 +2,7 @@
 
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { Provider } from "jotai";
-import type { useAcpClient } from "use-acp";
+import { JsonRpcError, type useAcpClient } from "use-acp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -62,7 +62,7 @@ const initialized: InitializeResponse = {
   protocolVersion: 1,
   agentCapabilities: {},
 };
-const needsAuth: InitializeResponse = {
+const advertisedAuth: InitializeResponse = {
   ...initialized,
   authMethods: [{ id: "login", name: "Log in" }],
 };
@@ -181,55 +181,71 @@ describe("AgentPanel initialization", () => {
     },
   );
 
-  it("waits for the existing authentication flow before creating a session", async () => {
+  it("uses existing CLI credentials even when the agent advertises login methods", async () => {
     const { agent, initialization } = createAgent();
-    const authentication = Promise.withResolvers<void>();
-    agent.authenticate.mockReturnValue(authentication.promise);
+    agent.authenticate.mockRejectedValue(new Error("Method not implemented."));
     client.agent = agent;
     renderPanel();
 
-    await act(async () => initialization.resolve(needsAuth));
-    expect(agent.authenticate).toHaveBeenCalledExactlyOnceWith({
-      methodId: "login",
-    });
-    expectNoSessionRequests(agent);
-    await act(async () => authentication.resolve());
+    await act(async () => initialization.resolve(advertisedAuth));
+    expect(agent.authenticate).not.toHaveBeenCalled();
     expect(agent.newSession).toHaveBeenCalledOnce();
   });
 
-  it.each(["initialize", "authenticate"] as const)(
-    "surfaces %s failures and offers a connection retry",
-    async (method) => {
-      const { agent, initialization } = createAgent();
-      client.agent = agent;
-      const failure = new Error("Handshake failed");
-      if (method === "authenticate") {
-        agent.authenticate.mockRejectedValue(failure);
-      }
-      const { refresh } = renderPanel();
+  it("surfaces initialization failures and offers a connection retry", async () => {
+    const { agent, initialization } = createAgent();
+    client.agent = agent;
+    const { refresh } = renderPanel();
 
-      await act(async () => {
-        if (method === "initialize") {
-          initialization.reject(failure);
-        } else {
-          initialization.resolve(needsAuth);
-        }
-      });
-      expect(await screen.findByText("Handshake failed")).toBeInTheDocument();
-      expectNoSessionRequests(agent);
-      fireEvent.click(screen.getByRole("button", { name: "Retry connection" }));
-      expect(disconnect).toHaveBeenCalledOnce();
-      expect(connect).toHaveBeenCalledTimes(2);
+    await act(async () => initialization.reject(new Error("Handshake failed")));
+    expect(await screen.findByText("Handshake failed")).toBeInTheDocument();
+    expectNoSessionRequests(agent);
+    fireEvent.click(screen.getByRole("button", { name: "Retry connection" }));
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(connect).toHaveBeenCalledTimes(2);
 
-      const retried = createAgent();
-      client.agent = retried.agent;
-      refresh();
-      expect(screen.queryByText("Handshake failed")).not.toBeInTheDocument();
-      expectNoSessionRequests(retried.agent);
-      await act(async () => retried.initialization.resolve(initialized));
-      expect(retried.agent.newSession).toHaveBeenCalledOnce();
-    },
-  );
+    const retried = createAgent();
+    client.agent = retried.agent;
+    refresh();
+    expect(screen.queryByText("Handshake failed")).not.toBeInTheDocument();
+    expectNoSessionRequests(retried.agent);
+    await act(async () => retried.initialization.resolve(initialized));
+    expect(retried.agent.newSession).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces missing CLI credentials and lets the user retry after login", async () => {
+    const { agent, initialization } = createAgent();
+    const authError = new JsonRpcError({
+      code: -32_000,
+      message: "Authentication required",
+      data: { message: "Run claude /login in the terminal" },
+    });
+    agent.newSession
+      .mockRejectedValueOnce(authError)
+      .mockRejectedValueOnce(authError);
+    client.agent = agent;
+    renderPanel();
+
+    await act(async () => initialization.resolve(advertisedAuth));
+    expect(
+      await screen.findByText("Run claude /login in the terminal"),
+    ).toBeInTheDocument();
+    expect(agent.authenticate).not.toHaveBeenCalled();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Restart session" }));
+    });
+    expect(agent.newSession).toHaveBeenCalledTimes(2);
+    expect(
+      screen.getByText("Run claude /login in the terminal"),
+    ).toBeInTheDocument();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Restart session" }));
+    });
+    expect(agent.newSession).toHaveBeenCalledTimes(3);
+    expect(
+      screen.queryByText("Run claude /login in the terminal"),
+    ).not.toBeInTheDocument();
+  });
 
   it("does not authenticate or start a session for an agent switched away during initialization", async () => {
     const old = createAgent();
@@ -243,7 +259,7 @@ describe("AgentPanel initialization", () => {
       );
     });
 
-    await act(async () => old.initialization.resolve(needsAuth));
+    await act(async () => old.initialization.resolve(advertisedAuth));
     expect(old.agent.authenticate).not.toHaveBeenCalled();
     expectNoSessionRequests(old.agent);
     expectNoSessionRequests(next.agent);
@@ -284,7 +300,7 @@ describe("AgentPanel initialization", () => {
     client.connectionState = { status: "connected" };
     refresh();
     expect(agent.initialize).toHaveBeenCalledTimes(2);
-    await act(async () => initialization.resolve(needsAuth));
+    await act(async () => initialization.resolve(advertisedAuth));
     expect(agent.authenticate).not.toHaveBeenCalled();
     expectNoSessionRequests(agent);
     await act(async () => reinitialization.resolve(initialized));
@@ -316,31 +332,14 @@ describe("AgentPanel initialization", () => {
     expect(agent.newSession).toHaveBeenCalledOnce();
   });
 
-  it("does not let late authentication replace the new agent's readiness", async () => {
-    const old = createAgent();
-    const next = createAgent();
-    const authentication = Promise.withResolvers<void>();
-    old.agent.authenticate.mockReturnValue(authentication.promise);
-    client.agent = old.agent;
-    renderPanel();
-    await act(async () => old.initialization.resolve(needsAuth));
-    expect(old.agent.authenticate).toHaveBeenCalledOnce();
-
-    act(() => {
-      client.agent = next.agent;
-      store.set(agentSessionStateAtom, (state) =>
-        addSession(state, { agentId: "codex" }),
-      );
-    });
-    await act(async () => next.initialization.resolve(initialized));
-    await act(async () => authentication.resolve());
-    expectNoSessionRequests(old.agent);
-    expect(next.agent.newSession).toHaveBeenCalledOnce();
-    expect(screen.getByRole("button", { name: "Restart" })).toBeInTheDocument();
-  });
-
   it("keeps a queued prompt pending until initialization and session loading finish", async () => {
     const { agent, initialization } = createAgent();
+    const loading = Promise.withResolvers<undefined>();
+    agent.loadSession.mockImplementation(async ({ sessionId }) => {
+      await loading.promise;
+      client.activeSessionId = sessionId as ExternalAgentSessionId;
+      return {};
+    });
     client.agent = agent;
     client.activeSessionId = "saved-session" as ExternalAgentSessionId;
     store.set(agentSessionStateAtom, (state) =>
@@ -359,6 +358,12 @@ describe("AgentPanel initialization", () => {
 
     await act(async () => initialization.resolve(initialized));
     expect(agent.loadSession).toHaveBeenCalledOnce();
+    expect(agent.prompt).not.toHaveBeenCalled();
+    expect(store.get(pendingAiPromptAtom)).toEqual({
+      prompt: "Help",
+      submit: true,
+    });
+    await act(async () => loading.resolve(undefined));
     expect(agent.prompt).toHaveBeenCalledOnce();
     expect(agent.loadSession.mock.invocationCallOrder[0]).toBeLessThan(
       agent.prompt.mock.invocationCallOrder[0],
@@ -371,7 +376,7 @@ describe("AgentPanel initialization", () => {
     client.agent = agent;
     const { unmount } = renderPanel();
     unmount();
-    await act(async () => initialization.resolve(needsAuth));
+    await act(async () => initialization.resolve(advertisedAuth));
     expect(agent.authenticate).not.toHaveBeenCalled();
     expectNoSessionRequests(agent);
   });
