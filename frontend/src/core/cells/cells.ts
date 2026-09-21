@@ -1365,10 +1365,7 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: {
-          start: CellIndex;
-          end: CellIndex;
-        }[] = [];
+        const visibleEndByOriginalEnd = new Map<CellIndex, CellIndex>();
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first
@@ -1377,30 +1374,13 @@ const {
           const range = findCollapseRange(i, outlines);
           if (range) {
             const startIndex = i;
-            let endIndex = range[1];
+            const originalEnd = range[1];
+            const endIndex =
+              visibleEndByOriginalEnd.get(originalEnd) ?? originalEnd;
 
-            // Check if the parent's end point is inside any already-collapsed
-            // child range, and if so pull it back to the start of the
-            // outermost such child: that start cell is the last cell in the
-            // parent's range that is still top-level once the children have
-            // collapsed. A single adjustment is not enough — when several
-            // nested ranges share the same end point (e.g. an h1 whose last
-            // h2's last h3 all run to the same cell), the end point must step
-            // out of each range in turn, so iterate until it no longer lands
-            // on a child range's end.
-            const childRangesEndingAt = (index: CellIndex) =>
-              rangeIndexes.filter(
-                (child) => child.start < index && child.end === index,
-              );
-            let childRanges = childRangesEndingAt(endIndex);
-            while (childRanges.length > 0) {
-              // Adjust the new endIndex to the outermost child's start
-              endIndex = Math.min(...childRanges.map((child) => child.start));
-              childRanges = childRangesEndingAt(endIndex);
-            }
-
-            // Store this range for future child checks
-            rangeIndexes.push({ start: startIndex, end: endIndex });
+            // After this section collapses, its heading represents this
+            // endpoint for any enclosing section that shares it.
+            visibleEndByOriginalEnd.set(originalEnd, startIndex);
 
             // Add the range to the list of ranges
             const cellId = column.atOrThrow(startIndex);
