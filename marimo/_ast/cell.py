@@ -92,6 +92,16 @@ CellConfigKeys = frozenset(
     {field.name for field in msgspec.structs.fields(CellConfig)}
 )
 
+# Config keys whose values are plain booleans; useful for formats that
+# serialize cell config as strings (e.g. markdown tag attributes).
+CellConfigBooleanKeys = frozenset(
+    {
+        field.name
+        for field in msgspec.structs.fields(CellConfig)
+        if field.type is bool
+    }
+)
+
 
 # States in a cell's runtime state machine
 #

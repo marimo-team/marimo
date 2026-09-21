@@ -1298,10 +1298,11 @@ def bind_cell_metadata(
             CodeCell(
                 source=source,
                 name=name,
-                config=CellConfig(
-                    hide_code=hide_code,
-                    column=marimo_config.get("column"),
-                    disabled=marimo_config.get("disabled", False),
+                # Restore every config key the exporter wrote (column,
+                # disabled, expand_output, ...); hide_code is resolved above
+                # since tags and Jupyter hints can also set it.
+                config=CellConfig.from_dict(
+                    {**marimo_config, "hide_code": hide_code}
                 ),
             )
         )
