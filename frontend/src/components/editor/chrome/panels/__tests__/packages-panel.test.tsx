@@ -12,6 +12,7 @@ import { Provider } from "jotai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MockRequestClient } from "@/__mocks__/requests";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { connectionAtom } from "@/core/network/connection";
 import { requestClientAtom } from "@/core/network/requests";
 import type {
   DependencyTreeNode,
@@ -21,6 +22,7 @@ import { withPackageInvalidation } from "@/core/packages/package-data";
 import { useInstallPackages } from "@/core/packages/useInstallPackage";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
 import { store } from "@/core/state/jotai";
+import { WebSocketState } from "@/core/websocket/types";
 import PackagesPanel from "../packages-panel";
 
 const { openSettings } = vi.hoisted(() => ({
@@ -206,6 +208,38 @@ it("refreshes an open panel when a package is installed elsewhere, after install
     expect(client.getDependencyTree).toHaveBeenCalledTimes(2),
   );
   expect(await screen.findByText("polars")).toBeInTheDocument();
+});
+
+it("keeps packages and the install draft visible while blocking mutations during sync", async () => {
+  store.set(connectionAtom, { state: WebSocketState.OPEN });
+  renderPanel({ kind: "sandbox", backend: "pixi" }, populatedTree);
+  await screen.findByRole("treeitem", { name: /polars/ });
+  const input = screen.getByPlaceholderText("Add packages to pixi sandbox...");
+  fireEvent.change(input, { target: { value: "altair" } });
+  act(() => store.set(sandboxSyncAtom, { pending: true, error: null }));
+  const row = screen.getByRole("treeitem", { name: /polars/ });
+  expect(
+    screen.getByPlaceholderText("Add packages to pixi sandbox..."),
+  ).toBeDisabled();
+  expect(within(row).getByRole("button", { name: "Remove" })).toBeDisabled();
+  expect(
+    screen.queryByRole("list", { name: "Notebook startup stages" }),
+  ).not.toBeInTheDocument();
+  act(() =>
+    store.set(sandboxSyncAtom, {
+      pending: false,
+      error: "Could not resolve dependencies",
+    }),
+  );
+  expect(screen.getByRole("treeitem", { name: /polars/ })).toBeInTheDocument();
+  expect(screen.getByLabelText("Error details")).toHaveTextContent(
+    "Could not resolve dependencies",
+  );
+  const restoredInput = screen.getByPlaceholderText(
+    "Add packages to pixi sandbox...",
+  );
+  expect(restoredInput).toHaveValue("altair");
+  expect(restoredInput).toBeEnabled();
 });
 
 it.each(["uv", "pixi", "list"] as const)(

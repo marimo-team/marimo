@@ -2,10 +2,24 @@
 import { atom } from "jotai";
 import { kernelStartupErrorAtom } from "@/core/errors/state";
 import { sandboxAtom, sandboxSyncAtom } from "@/core/packages/sandbox-state";
-import { WebSocketClosedReason, WebSocketState } from "@/core/websocket/types";
+import {
+  type ConnectionPhase,
+  WebSocketClosedReason,
+  WebSocketState,
+} from "@/core/websocket/types";
 import { connectionAtom } from "./connection";
 
-export const connectionNoticeAtom = atom((get) => {
+export interface ConnectionNotice {
+  kind: "startup" | "sync" | "connection";
+  phase?: ConnectionPhase;
+  sandbox: boolean;
+  title: string;
+  description: string;
+  pending: boolean;
+  error: string | null;
+}
+
+export const connectionNoticeAtom = atom<ConnectionNotice | null>((get) => {
   const connection = get(connectionAtom);
   const backend = get(sandboxAtom)?.backend;
   const sandbox = Boolean(backend);
@@ -16,6 +30,7 @@ export const connectionNoticeAtom = atom((get) => {
     connection.state === WebSocketState.OPEN
   ) {
     return {
+      kind: "sync",
       sandbox,
       title: sync.pending ? "Syncing sandbox…" : "Sandbox sync failed",
       description: sync.pending
@@ -28,14 +43,12 @@ export const connectionNoticeAtom = atom((get) => {
   if (connection.state === WebSocketState.CONNECTING) {
     const messages = {
       "preparing-environment": {
-        title: backend
-          ? `Preparing ${backend} sandbox…`
-          : "Preparing environment…",
+        title: "Preparing environment…",
         description:
           "Getting this notebook’s Python environment ready. The first start can take a few minutes.",
       },
       "starting-kernel": {
-        title: "Starting notebook…",
+        title: "Starting kernel…",
         description:
           "The environment is prepared. Waiting for the Python kernel to connect to this notebook.",
       },
@@ -46,6 +59,8 @@ export const connectionNoticeAtom = atom((get) => {
       },
     };
     return {
+      kind: connection.phase === "reconnecting" ? "connection" : "startup",
+      phase: connection.phase,
       sandbox,
       ...(connection.phase
         ? messages[connection.phase]
@@ -63,6 +78,8 @@ export const connectionNoticeAtom = atom((get) => {
     const environmentFailed =
       startupFailed && connection.phase === "preparing-environment";
     return {
+      kind: startupFailed ? "startup" : "connection",
+      phase: connection.phase,
       sandbox,
       title: environmentFailed
         ? "Sandbox setup failed"

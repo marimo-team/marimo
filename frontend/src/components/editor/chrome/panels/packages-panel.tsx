@@ -7,7 +7,7 @@ import {
   HelpCircleIcon,
 } from "lucide-react";
 import React from "react";
-import { connectionNoticeAtom } from "@/core/network/connection-notice";
+import { useConnectionNotice } from "@/core/network/useConnectionNotice";
 import { useOpenSettingsToTab } from "@/components/app-config/state";
 import { Spinner } from "@/components/icons/spinner";
 import { SearchInput } from "@/components/ui/input";
@@ -36,7 +36,11 @@ import { ErrorBanner } from "@/plugins/impl/common/error-banner";
 import { cn } from "@/utils/cn";
 import { copyToClipboard } from "@/utils/copy";
 import { Events } from "@/utils/events";
-import { SandboxFooter, SandboxStartupPanel } from "./sandbox-panel";
+import {
+  SandboxFooter,
+  SandboxStartupPanel,
+  SandboxSyncStatus,
+} from "./sandbox-panel";
 import { PanelEmptyState } from "./empty-state";
 import { PACKAGES_INPUT_ID, packagesToInstallAtom } from "./packages-utils";
 
@@ -71,15 +75,17 @@ const PackageActionButton: React.FC<{
 const PackagesPanel: React.FC = () => {
   const sandbox = useAtomValue(sandboxAtom);
   const connected = useAtomValue(isConnectedAtom);
-  const notice = useAtomValue(connectionNoticeAtom);
-  const operation = useAtomValue(sandboxSyncAtom);
+  const notice = useConnectionNotice(0);
   if (sandbox?.backend) {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        {notice && (!operation.pending || !connected) ? (
-          <SandboxStartupPanel />
+        {notice && (!connected || notice.kind === "startup") ? (
+          <SandboxStartupPanel notice={notice} />
         ) : (
-          <PackageContents />
+          <>
+            {notice?.kind === "sync" && <SandboxSyncStatus notice={notice} />}
+            <PackageContents />
+          </>
         )}
         <SandboxFooter />
       </div>
@@ -110,7 +116,12 @@ const PackageContents: React.FC = () => {
 
   // Only show on the first load
   if (isPending) {
-    return <Spinner size="medium" centered={true} />;
+    return (
+      <output className="flex flex-1 items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Spinner className="size-4" />
+        Loading installed packages…
+      </output>
+    );
   }
 
   if (error) {
@@ -179,15 +190,26 @@ const PackageContents: React.FC = () => {
           </div>
         </div>
       )}
-      {viewMode === "list" ? (
-        <PackagesList packages={dependencies.list} />
-      ) : (
-        <DependencyTree
-          tree={dependencies.tree}
-          error={error}
-          sandboxBackend={sandboxBackend}
-        />
-      )}
+      <fieldset
+        disabled={syncing}
+        className="flex flex-col flex-1 min-h-0"
+        aria-busy={syncing}
+      >
+        {syncing && (
+          <p className="px-3 py-2 text-xs text-muted-foreground">
+            Showing packages from the last sync.
+          </p>
+        )}
+        {viewMode === "list" ? (
+          <PackagesList packages={dependencies.list} />
+        ) : (
+          <DependencyTree
+            tree={dependencies.tree}
+            error={error}
+            sandboxBackend={sandboxBackend}
+          />
+        )}
+      </fieldset>
     </div>
   );
 };

@@ -1,13 +1,7 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 import { useAtomValue } from "jotai";
-import {
-  AlertCircleIcon,
-  ChevronUpIcon,
-  FileCodeIcon,
-  RefreshCwIcon,
-} from "lucide-react";
+import { ChevronUpIcon, FileCodeIcon, RefreshCwIcon } from "lucide-react";
 import { connectionNoticeAtom } from "@/core/network/connection-notice";
-import { Spinner } from "@/components/icons/spinner";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -17,12 +11,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip } from "@/components/ui/tooltip";
 import { isConnectedAtom } from "@/core/network/connection";
+import type { DisplayConnectionNotice } from "@/core/network/useConnectionNotice";
 import {
   sandboxActionsAtom,
   sandboxAtom,
   sandboxSyncAtom,
 } from "@/core/packages/sandbox-state";
 import { cn } from "@/utils/cn";
+import {
+  ConnectionStatusIcon,
+  StartupProgress,
+} from "../../alerts/startup-progress";
 
 export function SandboxErrorOutput({ error }: { error: string }) {
   return (
@@ -36,59 +35,80 @@ export function SandboxErrorOutput({ error }: { error: string }) {
   );
 }
 
-export function SandboxStartupPanel() {
-  const notice = useAtomValue(connectionNoticeAtom);
+function SandboxRecovery({ notice }: { notice: DisplayConnectionNotice }) {
   const sandbox = useAtomValue(sandboxAtom);
   const actions = useAtomValue(sandboxActionsAtom);
-  if (!notice) {
+  if (notice.pending || notice.ready) {
     return null;
   }
   return (
-    <div className="flex-1 min-h-0 overflow-auto p-4 text-sm">
-      <div
-        className={cn(
-          "flex items-center gap-2",
-          notice.pending
-            ? "text-muted-foreground"
-            : "font-medium text-(--red-11)",
-        )}
-      >
-        {notice.pending ? (
-          <Spinner className="size-4 shrink-0" aria-hidden={true} />
-        ) : (
-          <AlertCircleIcon className="size-4 shrink-0" aria-hidden={true} />
-        )}
-        <h2>{notice.title}</h2>
+    <>
+      <p className="mt-2 text-foreground">{notice.description}</p>
+      {notice.error && <SandboxErrorOutput error={notice.error} />}
+      <div className="flex items-center gap-2 mt-3">
+        <Button
+          variant="outline"
+          size="xs"
+          disabled={!actions || sandbox?.manifest == null}
+          onClick={() => actions?.editManifest()}
+        >
+          Edit manifest…
+        </Button>
+        <Button
+          variant="text"
+          size="xs"
+          disabled={!actions}
+          onClick={() => actions?.sync()}
+        >
+          Retry sync
+        </Button>
       </div>
-      {!notice.pending && (
-        <>
-          <p className="mt-2 text-foreground">{notice.description}</p>
-          {notice.error && <SandboxErrorOutput error={notice.error} />}
-          <div className="flex items-center gap-2 mt-3">
-            <Button
-              variant="outline"
-              size="xs"
-              disabled={!actions || sandbox?.manifest == null}
-              onClick={() => actions?.editManifest()}
-            >
-              Edit manifest…
-            </Button>
-            <Button
-              variant="text"
-              size="xs"
-              disabled={!actions}
-              onClick={() => actions?.sync()}
-            >
-              Retry sync
-            </Button>
-          </div>
-          {sandbox?.manifest == null && (
-            <p className="mt-3 text-xs text-muted-foreground">
-              A manifest will be available once this new notebook starts.
-            </p>
-          )}
-        </>
+      {sandbox?.manifest == null && (
+        <p className="mt-3 text-xs text-muted-foreground">
+          A manifest will be available once this new notebook starts.
+        </p>
       )}
+    </>
+  );
+}
+
+export function SandboxStartupPanel({
+  notice,
+}: {
+  notice: DisplayConnectionNotice;
+}) {
+  const showSteps =
+    notice.kind === "startup" &&
+    (notice.ready ||
+      notice.phase === "preparing-environment" ||
+      notice.phase === "starting-kernel");
+  return (
+    <div className="flex-1 min-h-0 overflow-auto p-6 text-sm">
+      {showSteps ? (
+        <StartupProgress notice={notice} surface="sidebar" />
+      ) : (
+        <div className="flex items-center gap-2" role="status">
+          <ConnectionStatusIcon notice={notice} />
+          <h2>{notice.title}</h2>
+        </div>
+      )}
+      <SandboxRecovery notice={notice} />
+    </div>
+  );
+}
+
+export function SandboxSyncStatus({
+  notice,
+}: {
+  notice: DisplayConnectionNotice;
+}) {
+  return (
+    <div className="border-b px-3 py-3 text-sm shrink-0 max-h-[50%] overflow-auto">
+      <output className="flex items-center gap-2 text-xs">
+        <ConnectionStatusIcon notice={notice} />
+        <span>{notice.title}</span>
+      </output>
+      <SandboxRecovery notice={notice} />
     </div>
   );
 }
@@ -113,7 +133,7 @@ export function SandboxFooter() {
           <DropdownMenuTrigger asChild={true}>
             <button
               type="button"
-              className="flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs text-muted-foreground hover:bg-accent data-[state=open]:bg-accent"
+              className="flex items-center gap-2 w-full h-8 px-2 rounded text-xs text-muted-foreground hover:bg-accent data-[state=open]:bg-accent"
               aria-label={`${sandbox.backend} sandbox actions`}
             >
               <span
@@ -130,15 +150,19 @@ export function SandboxFooter() {
                         : "bg-muted-foreground",
                 )}
               />
-              <span>{sandbox.backend} sandbox</span>
-              <span className="ml-auto">
+              <span className="shrink-0">{sandbox.backend} sandbox</span>
+              <span className="ml-auto truncate">
                 {pending
                   ? operation.pending
                     ? "Syncing…"
-                    : notice?.title
-                  : ""}
+                    : "Starting…"
+                  : notice
+                    ? "Needs attention"
+                    : connected
+                      ? "Ready"
+                      : ""}
               </span>
-              <ChevronUpIcon className="size-3" />
+              <ChevronUpIcon className="size-3 shrink-0" />
             </button>
           </DropdownMenuTrigger>
         </Tooltip>

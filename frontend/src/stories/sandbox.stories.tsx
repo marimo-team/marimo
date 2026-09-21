@@ -3,10 +3,7 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { createStore, Provider, useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { ConnectionNotice } from "@/components/editor/alerts/connection-notice";
-import {
-  SandboxFooter,
-  SandboxStartupPanel,
-} from "@/components/editor/chrome/panels/sandbox-panel";
+import PackagesPanel from "@/components/editor/chrome/panels/packages-panel";
 import { SandboxController } from "@/components/editor/chrome/panels/sandbox-controller";
 import { chromeAtom } from "@/components/editor/chrome/state";
 import { Cell } from "@/components/editor/notebook-cell";
@@ -18,6 +15,7 @@ import {
 } from "@/core/cells/cells";
 import { userConfigAtom } from "@/core/config/config";
 import {
+  type AppConfig,
   AppConfigSchema,
   defaultUserConfig,
 } from "@/core/config/config-schema";
@@ -60,6 +58,56 @@ interface Props {
   backend: "uv" | "pixi";
   saveResult: "success" | "failure" | "stale";
   theme: "light" | "dark";
+  interactive: boolean;
+}
+
+function SandboxPreview({
+  props,
+  appConfig,
+  reconnect,
+}: {
+  props: Props;
+  appConfig: AppConfig;
+  reconnect: () => Promise<void>;
+}) {
+  const chrome = useAtomValue(chromeAtom);
+  const notebook = useAtomValue(notebookAtom);
+  const userConfig = useAtomValue(userConfigAtom);
+  const showPackages = props.surface === "packages" || chrome.isSidebarOpen;
+  return (
+    <div
+      className="flex bg-background text-foreground border rounded min-h-[460px]"
+      style={{ width: props.surface === "notebook" ? 1000 : 300 }}
+      data-testid="sandbox-story"
+    >
+      {showPackages && props.surface !== "manifest" && (
+        <aside className="flex flex-col w-[300px] shrink-0 border-r h-[520px]">
+          <div className="px-4 py-3 border-b text-sm">Packages</div>
+          <PackagesPanel />
+        </aside>
+      )}
+      {props.surface === "notebook" && (
+        <div className="flex-1 min-w-0 pt-12">
+          <ConnectionNotice appConfig={appConfig} onRetry={reconnect} />
+          {notebook.cellIds.inOrderIds.map((cellId) => (
+            <VerticalLayoutWrapper key={cellId} appConfig={appConfig}>
+              <Cell
+                cellId={cellId}
+                theme={props.theme}
+                mode="edit"
+                showPlaceholder={false}
+                canDelete={true}
+                isCollapsed={false}
+                collapseCount={0}
+                canMoveX={false}
+                userConfig={userConfig}
+              />
+            </VerticalLayoutWrapper>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function OpenManifest() {
@@ -143,6 +191,18 @@ function SandboxStory(props: Props) {
         manifest: currentManifest,
         filename: "bike_trips.py",
       }),
+      getDependencyTree: async () => ({
+        context: { kind: "sandbox", backend: props.backend },
+        tree: {
+          name: "<root>",
+          version: null,
+          tags: [],
+          dependencies: [
+            { name: "marimo", version: "0.24.2", tags: [], dependencies: [] },
+            { name: "polars", version: "1.34.0", tags: [], dependencies: [] },
+          ],
+        },
+      }),
       updateManifest: async ({ contents }) => {
         if (props.saveResult === "stale") {
           throw new HTTPError(
@@ -184,46 +244,35 @@ function SandboxStory(props: Props) {
   const reconnect = async () => {
     store.set(connectionAtom, { state: WebSocketState.OPEN });
   };
+  useEffect(() => {
+    if (!props.interactive) {
+      return;
+    }
+    const timers = [
+      setTimeout(
+        () =>
+          store.set(connectionAtom, {
+            state: WebSocketState.CONNECTING,
+            phase: "starting-kernel",
+          }),
+        3500,
+      ),
+      setTimeout(
+        () => store.set(connectionAtom, { state: WebSocketState.OPEN }),
+        5500,
+      ),
+    ];
+    return () => timers.forEach(clearTimeout);
+  }, [props.interactive, store]);
   return (
     <Provider store={store}>
       <SandboxController onReconnect={reconnect} />
       {props.surface === "manifest" && <OpenManifest />}
-      <div
-        data-testid="sandbox-story"
-        className="bg-background text-foreground"
-        style={{
-          width: props.surface === "notebook" ? 820 : 400,
-        }}
-      >
-        {props.surface === "notebook" && (
-          <>
-            <ConnectionNotice appConfig={appConfig} onRetry={reconnect} />
-            {store.get(notebookAtom).cellIds.inOrderIds.map((cellId) => (
-              <VerticalLayoutWrapper key={cellId} appConfig={appConfig}>
-                <Cell
-                  cellId={cellId}
-                  theme={props.theme}
-                  mode="edit"
-                  showPlaceholder={false}
-                  canDelete={true}
-                  isCollapsed={false}
-                  collapseCount={0}
-                  canMoveX={false}
-                  userConfig={store.get(userConfigAtom)}
-                />
-              </VerticalLayoutWrapper>
-            ))}
-          </>
-        )}
-        {props.surface === "packages" &&
-          (props.phase === "failed" ||
-          props.phase === "sync-failed" ||
-          props.phase === "preparing" ? (
-            <SandboxStartupPanel />
-          ) : (
-            <SandboxFooter />
-          ))}
-      </div>
+      <SandboxPreview
+        props={props}
+        appConfig={appConfig}
+        reconnect={reconnect}
+      />
     </Provider>
   );
 }
@@ -239,6 +288,7 @@ const meta = {
     backend: "uv",
     saveResult: "success",
     theme: "light",
+    interactive: false,
   },
   render: (args, context) => (
     <SandboxStory
@@ -261,6 +311,14 @@ export const EmptyNotebookPreparing: Story = {
 export const StartingKernel: Story = {
   name: "Startup notice / starting kernel",
   args: { phase: "starting" },
+};
+export const StartupTransition: Story = {
+  name: "Startup / completion transition",
+  args: { interactive: true, backend: "pixi" },
+};
+export const EmptyStartupTransition: Story = {
+  name: "Empty notebook / completion transition",
+  args: { interactive: true, existingCells: false, backend: "pixi" },
 };
 export const ExistingNotebookFailed: Story = {
   name: "Startup notice / failed",

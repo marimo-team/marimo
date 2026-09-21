@@ -325,7 +325,7 @@ describe("connection notice", () => {
       ),
     );
     send({ op: "startup-progress", phase: "starting-kernel" });
-    expect(screen.getByRole("status")).toHaveTextContent("Starting notebook");
+    expect(screen.getByRole("status")).toHaveTextContent("Starting kernel");
     expect(screen.getByText("Elapsed 35s")).toBeInTheDocument();
     send({ op: "reconnected" });
     expect(
