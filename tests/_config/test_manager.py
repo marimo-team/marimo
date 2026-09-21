@@ -411,6 +411,16 @@ def test_default_dotenv_is_masked_with_the_other_secrets(
     ]
 
 
+def test_project_config_empty_dotenv_opts_out(tmp_path: Path) -> None:
+    # A user-level [] is dropped as a masked leftover, but a pyproject.toml is
+    # never written back masked, so its [] is a deliberate "load nothing".
+    notebook_path = _write_dotenv_project(tmp_path, "")
+    (notebook_path.parent / ".env").write_text("KEY=value")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == []
+
+
 def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     # When a pyproject.toml exists, it stays the anchor even if the notebook
     # lives in a subdirectory.
