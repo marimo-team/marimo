@@ -5,6 +5,7 @@ import os
 import threading
 from concurrent.futures import ThreadPoolExecutor, wait
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import pytest
 
@@ -12,6 +13,7 @@ from marimo._session.notebook import (
     AppFileManager,
     load_notebook,
     new_notebook,
+    read_css_file,
 )
 
 if TYPE_CHECKING:
@@ -90,6 +92,25 @@ def test_new_notebook_returns_unbacked_manager() -> None:
 def test_new_notebook_advances_document_version() -> None:
     fm = new_notebook()
     assert fm.app.cell_manager.document.version > 0
+
+
+def test_read_css_file_expands_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    css = "body { color: red; }"
+    (tmp_path / "theme.css").write_text(css, encoding="utf-8")
+
+    assert read_css_file("~/theme.css", filename=None) == css
+
+
+def test_read_css_file_skips_unresolvable_home_directory() -> None:
+    with patch(
+        "pathlib.Path.expanduser",
+        side_effect=RuntimeError("Could not determine home directory."),
+    ):
+        assert read_css_file("~/theme.css", filename=None) is None
 
 
 @pytest.mark.parametrize("suffix", [".py", ".md"])

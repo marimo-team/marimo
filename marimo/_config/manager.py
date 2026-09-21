@@ -302,10 +302,18 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         if not isinstance(custom_css, list):
             return config
 
-        resolved_custom_css = [
-            str((self.pyproject_path.parent / path).absolute())
-            for path in custom_css
-        ]
+        resolved_custom_css: list[str] = []
+        for path in custom_css:
+            try:
+                expanded_path = Path(path).expanduser()
+            except RuntimeError as e:
+                LOGGER.warning(
+                    "Failed to resolve custom CSS file %s: %s", path, e
+                )
+                continue
+            resolved_custom_css.append(
+                str((self.pyproject_path.parent / expanded_path).absolute())
+            )
         return {
             **config,
             "display": {**display, "custom_css": resolved_custom_css},
