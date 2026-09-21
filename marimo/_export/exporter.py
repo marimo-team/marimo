@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
@@ -28,7 +27,6 @@ from marimo._convert.common.filename import (
 )
 from marimo._convert.converters import MarimoConvert
 from marimo._convert.ipynb.from_ir import (
-    NBCONVERT_REMOVE_INPUT_TAG,
     convert_from_ir_to_ipynb,
 )
 from marimo._convert.markdown.flavor import (
@@ -36,6 +34,12 @@ from marimo._convert.markdown.flavor import (
     normalize_markdown_flavor,
 )
 from marimo._convert.script import convert_from_ir_to_script
+from marimo._export._limits import MAX_VIRTUAL_FILE_INLINE_BYTES
+from marimo._export._nbconvert import (
+    _nbconvert_tag_remove_config,
+    _render_webpdf,
+    inline_pdf_assets,
+)
 from marimo._export._status import emit_pdf_export_status
 from marimo._export.dependencies import require_export_dependencies
 from marimo._export.requests import (
@@ -69,8 +73,6 @@ from marimo._version import __version__
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from traitlets.config import Config
-
 LOGGER = _loggers.marimo_logger()
 
 # Root directory for static assets
@@ -78,94 +80,6 @@ ROOT = (marimo_package_path() / "_static").resolve()
 
 VIRTUAL_FILE_ALLOWED_ATTRIBUTES = {"src"}
 VIRTUAL_FILE_ALLOWED_TAGS = {"img", "audio", "video"}
-# Maximum file size to inline as a data URI in exported HTML (10 MB).
-# Files exceeding this limit are replaced with a text/plain placeholder
-# so users see a clear message instead of a broken link.
-MAX_VIRTUAL_FILE_INLINE_BYTES = 10 * 1024 * 1024
-
-
-def _nbconvert_tag_remove_config() -> Config:
-    """Build a traitlets config that strips inputs from cells tagged with
-    `NBCONVERT_REMOVE_INPUT_TAG`. Used to honor `hide_code=True` in nbconvert
-    exports."""
-    from traitlets.config import Config
-
-    config = Config()
-    config.TagRemovePreprocessor.enabled = True
-    config.TagRemovePreprocessor.remove_input_tags = (
-        NBCONVERT_REMOVE_INPUT_TAG,
-    )
-    return config
-
-
-# JupyterLab's stylesheet (shipped with nbconvert) styles the code input area
-# with `overflow: hidden` and leaves the `<pre>` at the default `white-space:
-# pre`. In JupyterLab that is fine because the editor scrolls; in a PDF there is
-# no scrolling, so long lines are clipped and the text is lost entirely.
-# Outputs already wrap (`.jp-OutputArea-output pre` sets `word-break`), so this
-# only targets the input area.
-#
-# `!important` is required because this is inlined ahead of the JupyterLab
-# rules; the slides PDF path overrides nbconvert styling the same way.
-WEBPDF_CODE_WRAP_CSS = """\
-/* marimo: wrap long code lines instead of clipping them (#9421) */
-.jp-InputArea-editor {
-  overflow: visible !important;
-}
-.jp-InputArea-editor .highlight pre {
-  white-space: pre-wrap !important;
-  overflow-wrap: anywhere !important;
-}
-"""
-
-
-def _inline_code_wrap_css(nb: Any, resources: Any) -> tuple[Any, Any]:
-    """Inline `WEBPDF_CODE_WRAP_CSS`, as an nbconvert preprocessor.
-
-    Preprocessors run after nbconvert populates `resources`, so appending here
-    is what gets the stylesheet into the rendered HTML.
-    """
-    inlining = resources.setdefault("inlining", {})
-    inlining.setdefault("css", []).append(WEBPDF_CODE_WRAP_CSS)
-    return nb, resources
-
-
-def _render_webpdf_with_nbconvert(notebook: Any, include_inputs: bool) -> Any:
-    if sys.platform == "win32":
-        # marimo installs the Selector policy during import. The spawned render
-        # process restores Proactor before Playwright creates its subprocess loop.
-        asyncio.set_event_loop_policy(None)
-
-    from nbconvert import WebPDFExporter  # type: ignore[import-not-found]
-
-    web_exporter = WebPDFExporter(  # type: ignore[no-untyped-call]
-        config=_nbconvert_tag_remove_config(),
-    )
-    web_exporter.exclude_input = not include_inputs
-    web_exporter.allow_chromium_download = True
-    web_exporter.register_preprocessor(  # type: ignore[no-untyped-call]
-        _inline_code_wrap_css, enabled=True
-    )
-    pdf_data, _resources = web_exporter.from_notebook_node(notebook)  # type: ignore[no-untyped-call]
-    return pdf_data
-
-
-def _render_webpdf(notebook: Any, include_inputs: bool) -> Any:
-    if sys.platform != "win32":
-        return _render_webpdf_with_nbconvert(notebook, include_inputs)
-
-    from concurrent.futures import ProcessPoolExecutor
-    from multiprocessing import get_context
-
-    with ProcessPoolExecutor(
-        max_workers=1,
-        mp_context=get_context("spawn"),
-    ) as pool:
-        return pool.submit(
-            _render_webpdf_with_nbconvert,
-            notebook,
-            include_inputs,
-        ).result()
 
 
 def export_script(request: ScriptExportRequest) -> ExportResult:
@@ -295,10 +209,10 @@ class Exporter:
     def _iter_html_data_strings(
         session_snapshot: NotebookSessionV1,
     ) -> Iterator[tuple[dict[str, Any], str, str]]:
-        """Yield (output_data_dict, mime_type, data) for each `text/html`
-        string output.
+        """Yield (output_data_dict, mime_type, data) for rendered HTML outputs.
 
-        Only `text/html` outputs are returned: non-HTML mime entries (e.g.
+        `mo.md` emits rendered HTML with a `text/markdown` MIME type.
+        Only these HTML-bearing outputs are returned: non-HTML mime entries (e.g.
         `text/plain`, `application/json`) must not be HTML-parsed, since
         their content is opaque to the attribute-replacement logic.
         """
@@ -307,7 +221,7 @@ class Exporter:
                 if output["type"] != "data":
                     continue
                 for mime_type, data in output["data"].items():
-                    if mime_type != "text/html":
+                    if mime_type not in {"text/html", "text/markdown"}:
                         continue
                     if isinstance(data, str):
                         yield output["data"], mime_type, data
@@ -652,7 +566,9 @@ class Exporter:
             phase="render",
             message="rendering PDF via WebPDF...",
         )
-        pdf_data = _render_webpdf(notebook, request.options.include_inputs)
+        pdf_data = _render_webpdf(
+            notebook, request.options.include_inputs, request.app.filename
+        )
 
         if not isinstance(pdf_data, bytes):
             LOGGER.error("PDF data is not bytes: %s", pdf_data)
@@ -706,7 +622,7 @@ class Exporter:
             message="rendering slides PDF...",
         )
         return await self._export_slides_as_pdf(
-            notebook, request.options.include_inputs
+            notebook, request.options.include_inputs, request.app.filename
         )
 
     @staticmethod
@@ -732,6 +648,7 @@ class Exporter:
     async def _export_slides_as_pdf(
         notebook: Any,
         include_inputs: bool,
+        filename: str | None = None,
     ) -> bytes | None:
         """Render slides notebook to PDF using Playwright async API."""
         import os
@@ -753,6 +670,8 @@ class Exporter:
         )
         slides_exporter.exclude_input = not include_inputs
         html_data, _resources = slides_exporter.from_notebook_node(notebook)
+
+        html_data = inline_pdf_assets(html_data, filename)
 
         # Write HTML to a temp file for Playwright to load
         with tempfile.NamedTemporaryFile(

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import re
+from html import escape
 from html.parser import HTMLParser
 from typing import TYPE_CHECKING, cast
 
@@ -25,24 +26,11 @@ class _HTMLAttributeReplacer(HTMLParser):
     This parser traverses HTML strings and applies a custom replacement function
     to specified attributes in allowed tags.
 
-    Example:
-    ```python
-    def upper_replacer(value: str) -> Optional[str]:
-        return value.upper()
-
-
-    replacer = HTMLAttributeReplacer(
-        allowed_tags={"img"},
-        allowed_attributes={"src"},
-        replacer_fn=upper_replacer,
-    )
-    replacer.feed('<img src="test.png">')
-    replacer.get_output()
-    ```
     """
 
     def __init__(
         self,
+        html: str,
         allowed_tags: set[str],
         allowed_attributes: set[str],
         replacer_fn: Callable[[str], str | None],
@@ -50,98 +38,58 @@ class _HTMLAttributeReplacer(HTMLParser):
         """Initialize the HTML attribute replacer.
 
         Args:
+            html: The complete HTML source to preserve around replacements.
             allowed_tags: Set of HTML tag names to process (e.g., {"img", "a"})
             allowed_attributes: Set of attribute names to process (e.g., {"src", "href"})
             replacer_fn: Function that takes an attribute value and returns
                         a replacement value, or None to keep the original
         """
-        super().__init__()
+        super().__init__(convert_charrefs=False)
         self.allowed_tags = {tag.lower() for tag in allowed_tags}
         self.allowed_attributes = {attr.lower() for attr in allowed_attributes}
         self.replacer_fn = replacer_fn
+        self._html = html
+        self._line_offsets = [0, *(m.end() for m in re.finditer("\n", html))]
+        self._last_offset = 0
         self._output: list[str] = []
 
     def handle_starttag(
         self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
-        """Handle opening tags, replacing attributes if applicable."""
-        if tag.lower() in self.allowed_tags:
-            # Process attributes for allowed tags
-            new_attrs: list[tuple[str, str | None]] = []
-            for attr_name, attr_value in attrs:
-                if attr_name.lower() in self.allowed_attributes and attr_value:
-                    # Apply the replacer function
-                    replacement = self.replacer_fn(attr_value)
-                    new_attrs.append(
-                        (
-                            attr_name,
-                            replacement
-                            if replacement is not None
-                            else attr_value,
-                        )
-                    )
-                else:
-                    new_attrs.append((attr_name, attr_value))
-            attrs = new_attrs
+        if tag not in self.allowed_tags:
+            return
+        new_attrs = []
+        for name, value in attrs:
+            replacement = (
+                self.replacer_fn(value)
+                if name in self.allowed_attributes and value
+                else None
+            )
+            new_attrs.append(
+                (name, replacement if replacement is not None else value)
+            )
+        if new_attrs == attrs:
+            return
 
-        # Reconstruct the tag
-        attrs_str = self._format_attrs(attrs)
-        self._output.append(f"<{tag}{attrs_str}>")
-
-    def handle_endtag(self, tag: str) -> None:
-        """Handle closing tags."""
-        self._output.append(f"</{tag}>")
-
-    def handle_data(self, data: str) -> None:
-        """Handle text content between tags."""
-        self._output.append(data)
+        # Splice only changed tags; rebuilding the rest would corrupt SVG,
+        # escaped code, and other content that HTMLParser normalizes or drops.
+        line, column = self.getpos()
+        start = self._line_offsets[line - 1] + column
+        original_tag = self.get_starttag_text()
+        assert original_tag is not None
+        ending = " />" if original_tag.endswith("/>") else ">"
+        self._output.extend(
+            (
+                self._html[self._last_offset : start],
+                f"<{tag}{self._format_attrs(new_attrs)}{ending}",
+            )
+        )
+        self._last_offset = start + len(original_tag)
 
     def handle_startendtag(
         self, tag: str, attrs: list[tuple[str, str | None]]
     ) -> None:
-        """Handle self-closing tags (e.g., <img />)."""
-        if tag.lower() in self.allowed_tags:
-            # Process attributes for allowed tags
-            new_attrs: list[tuple[str, str | None]] = []
-            for attr_name, attr_value in attrs:
-                if attr_name.lower() in self.allowed_attributes and attr_value:
-                    # Apply the replacer function
-                    replacement = self.replacer_fn(attr_value)
-                    new_attrs.append(
-                        (
-                            attr_name,
-                            replacement
-                            if replacement is not None
-                            else attr_value,
-                        )
-                    )
-                else:
-                    new_attrs.append((attr_name, attr_value))
-            attrs = new_attrs
-
-        # Reconstruct the self-closing tag
-        attrs_str = self._format_attrs(attrs)
-        self._output.append(f"<{tag}{attrs_str} />")
-
-    def handle_comment(self, data: str) -> None:
-        """Preserve HTML comments."""
-        self._output.append(f"<!--{data}-->")
-
-    def handle_decl(self, decl: str) -> None:
-        """Preserve declarations like DOCTYPE."""
-        self._output.append(f"<!{decl}>")
-
-    def handle_pi(self, data: str) -> None:
-        """Preserve processing instructions."""
-        self._output.append(f"<?{data}>")
-
-    def handle_charref(self, name: str) -> None:
-        """Preserve character references like &#123;."""
-        self._output.append(f"&#{name};")
-
-    def handle_entityref(self, name: str) -> None:
-        """Preserve entity references like &nbsp;."""
-        self._output.append(f"&{name};")
+        self.handle_starttag(tag, attrs)
 
     def _format_attrs(self, attrs: list[tuple[str, str | None]]) -> str:
         """Format attributes for output."""
@@ -154,13 +102,13 @@ class _HTMLAttributeReplacer(HTMLParser):
                 formatted.append(name)
             else:
                 # Escape quotes in the value
-                escaped_value = value.replace('"', "&quot;")
+                escaped_value = escape(value, quote=True)
                 formatted.append(f'{name}="{escaped_value}"')
         return " " + " ".join(formatted)
 
     def get_output(self) -> str:
         """Get the processed HTML output."""
-        return "".join(self._output)
+        return "".join(self._output) + self._html[self._last_offset :]
 
 
 def replace_html_attributes(
@@ -200,6 +148,7 @@ def replace_html_attributes(
     ```
     """
     parser = _HTMLAttributeReplacer(
+        html=html,
         allowed_tags=allowed_tags,
         allowed_attributes=allowed_attributes,
         replacer_fn=replacer_fn,

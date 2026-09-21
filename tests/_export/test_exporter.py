@@ -1414,14 +1414,14 @@ def test_export_html_inlines_public_folder_images(
     file_manager = AppFileManager.from_app(InternalApp(app))
     cell_ids = list(file_manager.app.cell_manager.cell_ids())
 
-    # Simulate the HTML output that mo.md produces at runtime: the raw
+    # mo.md emits rendered HTML under text/markdown: the raw
     # `public/image.png` path is preserved (no inlining at runtime).
     session_view.cell_notifications[cell_ids[0]] = CellNotification(
         cell_id=cell_ids[0],
         status="idle",
         output=CellOutput(
             channel=CellChannel.OUTPUT,
-            mimetype="text/html",
+            mimetype="text/markdown",
             data=(
                 '<span class="markdown">'
                 '<img alt="alt" src="public/image.png">'
@@ -1938,10 +1938,9 @@ class TestPDFExport:
         Regression test for marimo-team/marimo#9421.
         """
         import nbformat
-        from nbconvert import WebPDFExporter
 
-        from marimo._export.exporter import (
-            _render_webpdf_with_nbconvert,
+        from marimo._export._nbconvert import (
+            _render_webpdf_html,
         )
 
         notebook = nbformat.v4.new_notebook()
@@ -1952,31 +1951,9 @@ class TestPDFExport:
             )
         ]
 
-        # `run_playwright` receives the fully rendered HTML, so stubbing it
-        # captures what Chromium would have been handed without needing a
-        # browser. Going through `_render_webpdf_with_nbconvert` means the
-        # test fails if the production code stops registering the
-        # preprocessor.
-        rendered: list[str] = []
-
-        def fake_run_playwright(self: Any, html: str) -> bytes:
-            del self
-            rendered.append(html)
-            return b"mock_pdf_data"
-
-        with patch.object(
-            WebPDFExporter, "run_playwright", fake_run_playwright
-        ):
-            pdf_data = _render_webpdf_with_nbconvert(
-                notebook, include_inputs=True
-            )
-
-        assert pdf_data == b"mock_pdf_data"
-        assert len(rendered) == 1
-        # Assert on the distinctive selector and properties rather than the
-        # whole CSS constant, so the test is not brittle to nbconvert
-        # whitespace/comment handling when inlining the stylesheet.
-        html = rendered[0]
+        html = _render_webpdf_html(
+            notebook, include_inputs=True, filename=None
+        )
         assert ".jp-InputArea-editor .highlight pre" in html
         assert "white-space: pre-wrap !important" in html
         assert "overflow-wrap: anywhere !important" in html
@@ -2086,6 +2063,7 @@ class TestPDFExport:
         session_view: SessionView,
     ) -> None:
         """Test PDF export in webpdf mode (mocked)."""
+        from bs4 import BeautifulSoup
 
         app = App()
 
@@ -2097,9 +2075,8 @@ class TestPDFExport:
         exporter = Exporter()
 
         mock_exporter_instance = MagicMock()
-        mock_exporter_instance.from_notebook_node.return_value = (
-            b"mock_webpdf_data",
-            {},
+        mock_exporter_instance.run_playwright.return_value = (
+            b"mock_webpdf_data"
         )
 
         with (
@@ -2118,9 +2095,14 @@ class TestPDFExport:
             )
 
             assert result == b"mock_webpdf_data"
-            mock_webpdf_exporter.assert_called_once()
-            assert mock_exporter_instance.exclude_input is False
-            assert mock_exporter_instance.allow_chromium_download is True
+            mock_webpdf_exporter.assert_called_once_with(
+                allow_chromium_download=True
+            )
+            html = BeautifulSoup(
+                mock_exporter_instance.run_playwright.call_args.args[0],
+                "html.parser",
+            )
+            assert html.select_one(".jp-InputArea") is not None
 
     @pytest.mark.skipif(
         sys.platform != "win32" or not DependencyManager.nbformat.has(),
@@ -2131,13 +2113,13 @@ class TestPDFExport:
     ) -> None:
         import nbformat
 
-        from marimo._export.exporter import _render_webpdf
+        from marimo._export._nbconvert import _render_webpdf
 
         (tmp_path / "nbconvert.py").write_text(
             textwrap.dedent(
                 """
-                class WebPDFExporter:
-                    def __init__(self, config):
+                class HTMLExporter:
+                    def __init__(self, config, template_name):
                         self.config = config
                         self.preprocessors = []
 
@@ -2145,7 +2127,14 @@ class TestPDFExport:
                         self.preprocessors.append((preprocessor, enabled))
 
                     def from_notebook_node(self, notebook):
-                        return b"mock_webpdf_data", {}
+                        return "<html></html>", {}
+
+                class WebPDFExporter:
+                    def __init__(self, allow_chromium_download):
+                        pass
+
+                    def run_playwright(self, html):
+                        return b"mock_webpdf_data"
                 """
             ),
             encoding="utf-8",
@@ -2169,8 +2158,8 @@ class TestPDFExport:
         reason="requires Windows and nbconvert",
     )
     def test_webpdf_worker_can_spawn_subprocess_on_windows(self) -> None:
-        from marimo._export.exporter import (
-            _render_webpdf_with_nbconvert,
+        from marimo._export._nbconvert import (
+            _print_webpdf,
         )
 
         async def spawn_process() -> None:
@@ -2181,14 +2170,12 @@ class TestPDFExport:
 
         mock_exporter_instance = MagicMock()
 
-        def render(
-            *_args: Any, **_kwargs: Any
-        ) -> tuple[bytes, dict[Any, Any]]:
+        def render(*_args: Any, **_kwargs: Any) -> bytes:
             with ThreadPoolExecutor(max_workers=1) as pool:
                 pool.submit(asyncio.run, spawn_process()).result()
-            return b"mock_webpdf_data", {}
+            return b"mock_webpdf_data"
 
-        mock_exporter_instance.from_notebook_node.side_effect = render
+        mock_exporter_instance.run_playwright.side_effect = render
         original_policy = asyncio.get_event_loop_policy()
         selector_policy = asyncio.WindowsSelectorEventLoopPolicy()
         asyncio.set_event_loop_policy(selector_policy)
@@ -2198,9 +2185,7 @@ class TestPDFExport:
                 "nbconvert.WebPDFExporter", create=True
             ) as mock_webpdf_exporter:
                 mock_webpdf_exporter.return_value = mock_exporter_instance
-                result = _render_webpdf_with_nbconvert(
-                    MagicMock(), include_inputs=True
-                )
+                result = _print_webpdf("<html></html>")
 
             assert result == b"mock_webpdf_data"
         finally:
@@ -2216,6 +2201,7 @@ class TestPDFExport:
         session_view: SessionView,
     ) -> None:
         """Test WebPDF export suppressing code inputs."""
+        from bs4 import BeautifulSoup
 
         app = App()
 
@@ -2227,9 +2213,8 @@ class TestPDFExport:
         exporter = Exporter()
 
         mock_exporter_instance = MagicMock()
-        mock_exporter_instance.from_notebook_node.return_value = (
-            b"mock_webpdf_data_no_inputs",
-            {},
+        mock_exporter_instance.run_playwright.return_value = (
+            b"mock_webpdf_data_no_inputs"
         )
 
         with (
@@ -2249,9 +2234,14 @@ class TestPDFExport:
             )
 
             assert result == b"mock_webpdf_data_no_inputs"
-            mock_webpdf_exporter.assert_called_once()
-            assert mock_exporter_instance.exclude_input is True
-            assert mock_exporter_instance.allow_chromium_download is True
+            mock_webpdf_exporter.assert_called_once_with(
+                allow_chromium_download=True
+            )
+            html = BeautifulSoup(
+                mock_exporter_instance.run_playwright.call_args.args[0],
+                "html.parser",
+            )
+            assert html.select_one(".jp-InputArea") is None
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2324,9 +2314,8 @@ class TestPDFExport:
 
         # Mock WebPDFExporter to succeed
         mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
-            b"fallback_webpdf_data",
-            {},
+        mock_webpdf_exporter_instance.run_playwright.return_value = (
+            b"fallback_webpdf_data"
         )
 
         with (
@@ -2354,13 +2343,10 @@ class TestPDFExport:
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
             assert mock_pdf_exporter_instance.exclude_input is True
             # WebPDFExporter was used as fallback
-            mock_webpdf_exporter.assert_called_once()
-            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
-            assert mock_webpdf_exporter_instance.exclude_input is True
-            # Verify allow_chromium_download is set on fallback
-            assert (
-                mock_webpdf_exporter_instance.allow_chromium_download is True
+            mock_webpdf_exporter.assert_called_once_with(
+                allow_chromium_download=True
             )
+            mock_webpdf_exporter_instance.run_playwright.assert_called_once()
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2391,9 +2377,8 @@ class TestPDFExport:
         )
 
         mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
-            b"fallback_webpdf_data",
-            {},
+        mock_webpdf_exporter_instance.run_playwright.return_value = (
+            b"fallback_webpdf_data"
         )
 
         with (
@@ -2416,8 +2401,10 @@ class TestPDFExport:
             assert result == b"fallback_webpdf_data"
             mock_pdf_exporter.assert_called_once()
             mock_pdf_exporter_instance.from_notebook_node.assert_called_once()
-            mock_webpdf_exporter.assert_called_once()
-            mock_webpdf_exporter_instance.from_notebook_node.assert_called_once()
+            mock_webpdf_exporter.assert_called_once_with(
+                allow_chromium_download=True
+            )
+            mock_webpdf_exporter_instance.run_playwright.assert_called_once()
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2445,9 +2432,8 @@ class TestPDFExport:
         )
 
         mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
-            b"fallback_webpdf_data",
-            {},
+        mock_webpdf_exporter_instance.run_playwright.return_value = (
+            b"fallback_webpdf_data"
         )
 
         with (
@@ -2469,7 +2455,9 @@ class TestPDFExport:
 
             assert result == b"fallback_webpdf_data"
             mock_pdf_exporter.assert_called_once()
-            mock_webpdf_exporter.assert_called_once()
+            mock_webpdf_exporter.assert_called_once_with(
+                allow_chromium_download=True
+            )
 
     @pytest.mark.skipif(
         not DependencyManager.nbformat.has()
@@ -2496,9 +2484,8 @@ class TestPDFExport:
         )
 
         mock_webpdf_exporter_instance = MagicMock()
-        mock_webpdf_exporter_instance.from_notebook_node.return_value = (
-            b"fallback_webpdf_data",
-            {},
+        mock_webpdf_exporter_instance.run_playwright.return_value = (
+            b"fallback_webpdf_data"
         )
 
         with (
