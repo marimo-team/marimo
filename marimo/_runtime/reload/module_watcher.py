@@ -132,7 +132,7 @@ def _check_modules(
     that already ran against the new code.
     """
     with reloader.lock:
-        modified_modules = reloader.check(modules=sys_modules, reload=False)
+        modified_modules = reloader.check_for_watcher(modules=sys_modules)
         generation = reloader.reload_generation
     # TODO(akshayka): could also exclude modules part of the standard library;
     # haven't found a reliable way to do this, however.
