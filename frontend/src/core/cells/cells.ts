@@ -1365,10 +1365,7 @@ const {
 
         // Find the start/end of the collapsed ranges
         const nodes = [...column.nodes];
-        const rangeIndexes: {
-          start: CellIndex;
-          end: CellIndex;
-        }[] = [];
+        const visibleEndByOriginalEnd = new Map<CellIndex, CellIndex>();
         const reversedCollapseRanges = [];
 
         // Iterate in reverse order (bottom-up) to process children first
@@ -1377,20 +1374,13 @@ const {
           const range = findCollapseRange(i, outlines);
           if (range) {
             const startIndex = i;
-            let endIndex = range[1];
+            const originalEnd = range[1];
+            const endIndex =
+              visibleEndByOriginalEnd.get(originalEnd) ?? originalEnd;
 
-            // Check if the parent's end point is inside any already-collapsed child range
-            const parentEndInChild = rangeIndexes.find(
-              (child) => child.start <= endIndex && child.end === endIndex,
-            );
-
-            if (parentEndInChild) {
-              // Adjust the new endIndex to the child's start
-              endIndex = parentEndInChild.start;
-            }
-
-            // Store this range for future child checks
-            rangeIndexes.push({ start: startIndex, end: endIndex });
+            // After this section collapses, its heading represents this
+            // endpoint for any enclosing section that shares it.
+            visibleEndByOriginalEnd.set(originalEnd, startIndex);
 
             // Add the range to the list of ranges
             const cellId = column.atOrThrow(startIndex);
