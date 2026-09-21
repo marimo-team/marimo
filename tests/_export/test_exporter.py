@@ -2771,3 +2771,71 @@ def test_export_assets_preserves_write_permission(
     assert (dest / "assets").stat().st_mode & stat.S_IWUSR, (
         "export_assets made the assets subdirectory read-only"
     )
+
+
+async def test_export_wasm_unexecuted_pins_header_to_pyodide_lock(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default (unexecuted) export rewrites bundled pins to the lock.
+
+    Specifiers on packages Pyodide does not ship are preserved.
+    """
+    lockfile = tmp_path / "pyodide-lock.json"
+    lockfile.write_text(
+        json.dumps(
+            {
+                "packages": {
+                    "numpy": {
+                        "name": "numpy",
+                        "version": "2.4.3",
+                        "package_type": "package",
+                    }
+                }
+            }
+        )
+    )
+    monkeypatch.setenv("MARIMO_PYODIDE_LOCK_FILE", str(lockfile))
+    monkeypatch.delenv("MARIMO_HTML_WASM_SANDBOX_BOOTSTRAPPED", raising=False)
+
+    notebook = tmp_path / "notebook.py"
+    notebook.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # dependencies = [
+            #     "numpy==1.26.0",
+            #     "emoji",
+            #     "nltools==0.6.0.dev2",
+            # ]
+            # ///
+
+            import marimo
+
+            __generated_with = "0.0.0"
+            app = marimo.App()
+
+
+            @app.cell
+            def _():
+                import emoji
+                return
+
+
+            if __name__ == "__main__":
+                app.run()
+            """
+        ).lstrip()
+    )
+
+    result = await export_wasm(
+        WASMFileExportRequest(
+            path=MarimoPath(notebook),
+            options=WASMExportOptions(mode="run", show_code=True),
+        )
+    )
+
+    assert result.did_error is False
+    assert "numpy==2.4.3" in result.text
+    assert "numpy==1.26.0" not in result.text
+    assert "nltools==0.6.0.dev2" in result.text
+    assert 'lock_kind = \\"observed\\"' in result.text
