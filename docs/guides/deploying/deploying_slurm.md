@@ -128,7 +128,7 @@ python notebook.py
 ## Inlining configuration in notebook files
 
 You can inline SBATCH directives in your notebook file. If used alongside marimo's support for
-[inlining package dependencies](../package_management/inlining_dependencies.md) ("sandboxing"),
+[inlining package dependencies](../package_management/sandboxes.md) ("sandboxing"),
 this lets you create fully self-contained notebooks.
 
 /// tab | Interactive development

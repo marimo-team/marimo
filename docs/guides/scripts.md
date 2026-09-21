@@ -1,4 +1,4 @@
-# Run as a script
+# Run notebooks as scripts
 
 You can run marimo notebooks as scripts at the command line, just like
 any other Python script. For example,
@@ -7,20 +7,77 @@ any other Python script. For example,
 python my_marimo_notebook.py
 ```
 
+The `python` command uses your current environment, which must contain marimo and the
+notebook's dependencies. Activate it first if you manage it yourself.
+
+uv and Pixi can prepare the environment and run the script using its
+[declared dependencies](#running-with-declared-dependencies).
+
 Running a notebook as a script is useful when your notebook has side-effects,
 like writing to disk. Print statements and other console outputs will show
 up in your terminal.
 
-marimo notebooks can also [double as importable
-modules](https://docs.marimo.io/guides/reusing_functions/), providing libraries
-of functions and classes that you can reuse in other programs:
+You can also [import functions and classes](reusing_functions.md) from notebooks
+into other Python programs.
 
-```python
-from my_notebook import my_function
-```
 
-Read our guide on [reusable functions](reusing_functions.md) for details.
+## Running with declared dependencies
 
+Use your package manager to run a notebook with its declared requirements.
+
+### Running with inline dependencies
+
+A [sandboxed notebook](package_management/sandboxes.md) declares
+its requirements as inline script metadata (PEP 723). uv and Pixi can read that
+metadata, prepare an environment, and run the notebook without opening the editor:
+
+=== "uv"
+
+    ```bash
+    uv run notebook.py
+    ```
+
+=== "Pixi"
+
+    ```bash
+    pixi run --script notebook.py
+    ```
+
+Use Pixi for notebooks that require Conda dependencies declared under
+`tool.pixi`. Running a notebook with `python` directly does not install its
+inline requirements.
+
+### Running in a project
+
+For a notebook that uses [project dependencies](package_management/projects.md),
+run it from the project directory:
+
+=== "uv"
+
+    ```bash
+    uv run notebook.py
+    ```
+
+    If the notebook contains inline script metadata, uv uses that metadata
+    instead of the project's dependencies.
+
+=== "Pixi"
+
+    ```bash
+    pixi run python notebook.py
+    ```
+
+    `pixi run python` uses the workspace environment. Use `pixi run --script notebook.py`
+    instead to prepare an environment from the notebook's inline requirements.
+
+=== "Poetry"
+
+    ```bash
+    poetry run python notebook.py
+    ```
+
+See [package management](package_management/index.md) for choosing between
+project dependencies and a notebook sandbox.
 
 !!! tip "Check before running"
 
@@ -90,7 +147,7 @@ functions](reusing_functions.md) from notebooks in other jobs as well.
 
 ### GitHub Action
 
-Run notebooks on a schedule with [GitHub Actions](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule). This example assumes [inline dependencies](package_management/inlining_dependencies.md):
+Run notebooks on a schedule with [GitHub Actions](https://docs.github.com/en/actions/reference/events-that-trigger-workflows#schedule). This example assumes [inline dependencies](package_management/sandboxes.md):
 
 ```yaml
 name: Run marimo notebook daily

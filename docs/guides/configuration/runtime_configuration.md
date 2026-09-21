@@ -124,7 +124,7 @@ pythonpath = ["project/src"]
     consider configuring [uv workspaces](https://docs.astral.sh/uv/concepts/projects/workspaces/).
 
     See our guide on [notebooks in existing
-    projects](../package_management/notebooks_in_projects.md) for more details.
+    projects](../package_management/projects.md) for more details.
 
 ## Environment variables
 

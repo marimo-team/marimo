@@ -49,9 +49,9 @@ consistent, eliminating hidden state and making your notebook reproducible.
 marimo achieves this by intelligently analyzing your code and understanding the
 relationships between cells, and automatically re-running cells as needed.
 
-In addition, marimo notebooks can serialize package requirements inline;
-marimo runs these "sandboxed" notebooks in temporary virtual environments,
-making them [reproducible down to the packages](guides/editor_features/package_management.md).
+In addition, marimo notebooks can [carry their package requirements](guides/package_management/sandboxes.md)
+inside the notebook file. marimo runs these notebooks in separate environments,
+and script lockfiles can record resolved dependency versions for sharing.
 
 **Maintainability.**
 marimo notebooks are stored as pure Python programs (`.py` files). This lets you
