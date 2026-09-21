@@ -211,10 +211,21 @@ class MarimoConfigManager(MarimoConfigReader):
         The new override is appended after the existing partials but before the
         security partials, which the constructor keeps last so they always win.
         """
+        return self.with_partial(MarimoConfigReaderWithOverrides(overrides))
+
+    def with_partial(
+        self, partial: PartialMarimoConfigReader
+    ) -> MarimoConfigManager:
+        """Get a new config manager with the given partial reader layered on
+
+        Unlike `with_overrides`, the reader keeps answering `hide_secrets`
+        itself, so a masked read does not become the value an unmasked read
+        returns.
+        """
         return MarimoConfigManager(
             self.user_config_mgr,
             *self.partials,
-            MarimoConfigReaderWithOverrides(overrides),
+            partial,
             *self.security_partials,
         )
 

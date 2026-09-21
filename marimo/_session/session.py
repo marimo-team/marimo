@@ -116,10 +116,12 @@ class SessionImpl(Session):
         """
         Create a new session.
         """
-        # Inherit config from the session manager
-        # and override with any script-level config
-        config_manager = config_manager.with_overrides(
-            ScriptConfigManager(app_file_manager.path).get_config()
+        # Inherit config from the session manager and override with any
+        # script-level config. The reader is layered on as-is: snapshotting
+        # its masked get_config() would turn runtime.dotenv into [] and that
+        # empty list would then win the merge the kernel reads unmasked.
+        config_manager = config_manager.with_partial(
+            ScriptConfigManager(app_file_manager.path)
         )
 
         configs = app_file_manager.app.cell_manager.config_map()
