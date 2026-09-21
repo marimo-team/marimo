@@ -129,7 +129,7 @@ async def test_webpdf_inlines_images_relative_to_notebook(
 
     with (
         patch("marimo._export.exporter.require_export_dependencies"),
-        patch("marimo._export._nbconvert.sys.platform", "linux"),
+        patch("marimo._export._nbconvert.sys", platform="linux"),
         patch.object(
             WebPDFExporter, "run_playwright", return_value=b"pdf"
         ) as print_pdf,
@@ -194,7 +194,7 @@ def test_webpdf_resolves_virtual_images_before_spawning(
         ]
     )
     with (
-        patch("marimo._export._nbconvert.sys.platform", "win32"),
+        patch("marimo._export._nbconvert.sys", platform="win32"),
         patch("concurrent.futures.ProcessPoolExecutor") as pool,
     ):
         worker = pool.return_value.__enter__.return_value
