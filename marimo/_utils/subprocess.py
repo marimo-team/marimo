@@ -5,7 +5,7 @@ import asyncio
 import os
 import signal
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from typing import (
@@ -35,6 +35,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -65,6 +66,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -95,6 +97,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -125,6 +128,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -155,6 +159,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -185,6 +190,7 @@ def safe_popen(
     stdin: _FILE = ...,
     stdout: _FILE = ...,
     stderr: _FILE = ...,
+    preexec_fn: Callable[[], Any] | None = ...,
     close_fds: bool = ...,
     shell: bool = ...,
     cwd: str | bytes | None = ...,
@@ -214,6 +220,7 @@ def safe_popen(
     stdin: _FILE = None,
     stdout: _FILE = None,
     stderr: _FILE = None,
+    preexec_fn: Callable[[], Any] | None = None,
     close_fds: bool = True,
     shell: bool = False,
     cwd: str | bytes | None = None,
@@ -248,6 +255,9 @@ def safe_popen(
             stdin=stdin,
             stdout=stdout,
             stderr=stderr,
+            # Mirror Popen's signature for compatibility; current callers
+            # retain the safe default of None.
+            preexec_fn=preexec_fn,  # noqa: PLW1509
             close_fds=close_fds,
             shell=shell,
             cwd=cwd,
