@@ -396,6 +396,21 @@ def test_project_config_dotenv_without_pyproject_directory(
     assert config["runtime"]["dotenv"] == [str(tmp_path / ".env")]
 
 
+def test_default_dotenv_is_masked_with_the_other_secrets(
+    tmp_path: Path,
+) -> None:
+    # The computed default is a runtime.dotenv entry like any other, so a
+    # masked read must hide it too.
+    notebook_path = tmp_path / "notebook.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    assert manager.get_config()["runtime"]["dotenv"] == []
+    assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == [
+        str(tmp_path / ".env")
+    ]
+
+
 def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     # When a pyproject.toml exists, it stays the anchor even if the notebook
     # lives in a subdirectory.
