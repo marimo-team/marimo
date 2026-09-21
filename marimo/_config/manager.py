@@ -503,6 +503,20 @@ class ScriptConfigManager(PartialMarimoConfigReader):
     def __init__(self, filename: str | None) -> None:
         self.filename = filename
 
+    def get_defaults(
+        self, *, hide_secrets: bool = True
+    ) -> PartialMarimoConfig:
+        """Get the `.env` next to the notebook, loaded when no layer set `dotenv`"""
+        # NB. In a directory workspace the project manager anchors on the
+        # directory marimo edit opened, not on the notebook a session runs.
+        # Script config already outranks project config, so the notebook's
+        # default outranks the workspace's the same way.
+        if self.filename is None:
+            return {}
+        return ProjectConfigManager(self.filename).get_defaults(
+            hide_secrets=hide_secrets
+        )
+
     # It is safe to cache this config, as we only read from the script
     # and never update it. If the user updates the script,
     # it is ok to expect updates to be reflected after a server restart.

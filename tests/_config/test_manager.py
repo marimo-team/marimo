@@ -484,6 +484,59 @@ def test_explicit_dotenv_resolves_in_the_home_directory(
     assert config["runtime"]["dotenv"] == [str(home / ".env")]
 
 
+def test_directory_workspace_dotenv_anchors_on_the_notebook(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `marimo edit repo/` reads project config from repo/, but each session
+    # layers the notebook's script config on top. The notebook-level default
+    # follows the same precedence, so repo/sub/app.py gets repo/sub/.env.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    sub = repo / "sub"
+    sub.mkdir(parents=True)
+    (repo / ".env").write_text("KEY=repo")
+    (sub / ".env").write_text("KEY=sub")
+    notebook_path = sub / "app.py"
+    notebook_path.write_text("import marimo as mo")
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(sub / ".env")]
+    assert "runtime" not in session.get_config_overrides(hide_secrets=False)
+
+
+def test_directory_workspace_dotenv_keeps_the_pyproject_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    sub = repo / "sub"
+    sub.mkdir(parents=True)
+    (repo / "pyproject.toml").write_text("")
+    notebook_path = sub / "app.py"
+    notebook_path.write_text("import marimo as mo")
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(str(notebook_path)))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(repo / ".env")]
+
+
+def test_directory_workspace_dotenv_falls_back_to_the_workspace_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A new, unsaved notebook has no path to anchor on.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    workspace = get_default_config_manager(current_path=str(repo))
+    session = workspace.with_partial(ScriptConfigManager(None))
+    config = session.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(repo / ".env")]
+
+
 def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     # When a pyproject.toml exists, it stays the anchor even if the notebook
     # lives in a subdirectory.
