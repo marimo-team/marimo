@@ -219,10 +219,10 @@ describe("PathBuilder", () => {
       },
     );
 
-    it.each(EDGE_CASE_FILENAMES.filter((filename) => filename.includes(".")))(
+    it.each(EDGE_CASE_FILENAMES)(
       "should extract the extension from edge-case filenames: %s",
       (filename) => {
-        expect(Paths.extension(filename)).toBe(filename.split(".").pop());
+        expect(Paths.extension(filename)).toBe("py");
       },
     );
   });

@@ -652,7 +652,7 @@ describe("navigate", () => {
 
       const result = findNext();
       // Should still work by starting from index 0
-      expect(result).toBeDefined();
+      expect(result).toMatchObject({ from: 0, to: 5 });
     });
 
     it("should handle malformed regex in replace pattern", () => {

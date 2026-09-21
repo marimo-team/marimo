@@ -1330,6 +1330,7 @@ describe("pan/zoom modifier key (issue #3812)", () => {
         (select): select is { on: string; translate?: string } =>
           typeof select.on === "string" && select.on.includes("event."),
       );
+    expect(eventSelections).not.toHaveLength(0);
     for (const select of eventSelections) {
       // The selection gating and pan/zoom must agree on the modifier, otherwise
       // one gesture triggers both.

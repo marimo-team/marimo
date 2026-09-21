@@ -217,7 +217,7 @@ interface BackwardsCompatCase {
    * properties need to be listed — extra properties are ignored.
    */
   expected: {
-    deck?: unknown;
+    deck: unknown;
     cellIds: string[];
     cellEntries?: Array<[string, unknown]>;
   };
