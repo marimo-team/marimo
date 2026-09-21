@@ -552,12 +552,7 @@ describe("useEnrichCellOutputs", () => {
     // Verify the exact return type structure
     expect(output).toHaveProperty(cid);
     const cellOutput = output[cid];
-    expect(cellOutput).toBeDefined();
-    expect(Array.isArray(cellOutput)).toBe(true);
-    if (cellOutput) {
-      expect(cellOutput[0]).toBe("image/png");
-      expect(cellOutput[1]).toBe(mockDataUrl);
-    }
+    expect(cellOutput).toEqual(["image/png", mockDataUrl]);
   });
 });
 

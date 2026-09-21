@@ -986,22 +986,15 @@ describe("makeSelectable", () => {
     expect(paramNames).toContain("legend_selection_Origin");
 
     // Nested specs should NOT have params (they should be hoisted)
-    if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat) {
-        if ("vconcat" in subSpec) {
-          invariant("vconcat" in subSpec, "subSpec should have vconcat");
-          for (const innerSpec of subSpec.vconcat) {
-            expect("params" in innerSpec).toBe(false);
-            // But should have opacity encoding
-            if ("mark" in innerSpec) {
-              expect(innerSpec.encoding?.opacity).toBeDefined();
-            }
-          }
-        } else if ("mark" in subSpec) {
-          expect(subSpec.params).toBeUndefined();
-          // But should have opacity encoding
-          expect(subSpec.encoding?.opacity).toBeDefined();
-        }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    for (const subSpec of newSpec.hconcat) {
+      const innerSpecs = "vconcat" in subSpec ? subSpec.vconcat : [subSpec];
+      for (const innerSpec of innerSpecs) {
+        expect(
+          "params" in innerSpec ? innerSpec.params : undefined,
+        ).toBeUndefined();
+        invariant("mark" in innerSpec, "expected a marked nested spec");
+        expect(innerSpec.encoding?.opacity).toBeDefined();
       }
     }
     expect(newSpec).toMatchSnapshot();
@@ -1045,10 +1038,9 @@ describe("makeSelectable", () => {
     expect(topLevelParamNames).toContain("select_interval");
 
     // Nested specs should not have params
-    if ("hconcat" in newSpec) {
-      for (const subSpec of newSpec.hconcat) {
-        expect("params" in subSpec).toBe(false);
-      }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    for (const subSpec of newSpec.hconcat) {
+      expect("params" in subSpec).toBe(false);
     }
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
@@ -1085,12 +1077,11 @@ describe("makeSelectable", () => {
 
     // But chart selection params should NOT be hoisted (different types)
     // Bar gets point+interval with x encoding, area gets point with color encoding
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1120,13 +1111,12 @@ describe("makeSelectable", () => {
 
     // Chart selection params should NOT be hoisted (different encodings)
     // Point chart uses x,y encodings, arc chart uses color encoding
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      // Both subspecs should have their own params
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    // Both subspecs should have their own params
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1161,13 +1151,12 @@ describe("makeSelectable", () => {
 
     // But chart-specific params may or may not be hoisted depending on if they match
     // The point chart has x,y encodings, bar has x encoding - these differ
-    if ("hconcat" in newSpec) {
-      const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
-        "params" in subSpec ? subSpec.params : [],
-      );
-      // Each subspec should have its own chart selection params
-      expect(subspecParams.length).toBeGreaterThan(0);
-    }
+    invariant("hconcat" in newSpec, "expected a horizontal concat spec");
+    const subspecParams = newSpec.hconcat.flatMap((subSpec) =>
+      "params" in subSpec ? subSpec.params : [],
+    );
+    // Each subspec should have its own chart selection params
+    expect(subspecParams.length).toBeGreaterThan(0);
     expect(newSpec).toMatchSnapshot();
     expect(parse(newSpec)).toBeDefined();
   });
@@ -1331,16 +1320,20 @@ describe("pan/zoom modifier key (issue #3812)", () => {
     const newSpec = makeSelectable(spec, {});
     const mod = getPanZoomModifier();
 
-    for (const param of newSpec.params ?? []) {
-      if (!("select" in param) || typeof param.select !== "object") {
-        continue;
-      }
-      const select = param.select as { on?: string; translate?: string };
+    const eventSelections = (newSpec.params ?? [])
+      .flatMap((param) =>
+        "select" in param && typeof param.select === "object"
+          ? [param.select as { on?: string; translate?: string }]
+          : [],
+      )
+      .filter(
+        (select): select is { on: string; translate?: string } =>
+          typeof select.on === "string" && select.on.includes("event."),
+      );
+    for (const select of eventSelections) {
       // The selection gating and pan/zoom must agree on the modifier, otherwise
       // one gesture triggers both.
-      if (typeof select.on === "string" && select.on.includes("event.")) {
-        expect(select.on).toContain(`event.${mod}`);
-      }
+      expect(select.on).toContain(`event.${mod}`);
     }
   });
 });

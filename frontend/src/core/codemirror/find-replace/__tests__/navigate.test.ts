@@ -500,17 +500,15 @@ describe("navigate", () => {
       const view1Positions = result.position.get(view1);
       const view2Positions = result.position.get(view2);
 
-      if (view1Positions) {
-        expect(view1Positions.size).toBeGreaterThan(0);
-        // Check that position keys are in "from:to" format
-        for (const key of view1Positions.keys()) {
-          expect(key).toMatch(/^\d+:\d+$/);
-        }
+      invariant(view1Positions, "Expected positions for the first view");
+      expect(view1Positions.size).toBeGreaterThan(0);
+      // Check that position keys are in "from:to" format
+      for (const key of view1Positions.keys()) {
+        expect(key).toMatch(/^\d+:\d+$/);
       }
 
-      if (view2Positions) {
-        expect(view2Positions.size).toBeGreaterThan(0);
-      }
+      invariant(view2Positions, "Expected positions for the second view");
+      expect(view2Positions.size).toBeGreaterThan(0);
     });
 
     it("should handle regex patterns", () => {
@@ -654,13 +652,7 @@ describe("navigate", () => {
 
       const result = findNext();
       // Should still work by starting from index 0
-      if (result) {
-        expect(result).toBeTruthy();
-        invariant(result, "findNext should return a result");
-      } else {
-        // It's ok if no match is found since "hello" might not be in the mock views
-        expect(result).toBe(false);
-      }
+      expect(result).toBeDefined();
     });
 
     it("should handle malformed regex in replace pattern", () => {
