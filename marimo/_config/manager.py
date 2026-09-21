@@ -268,17 +268,19 @@ class ProjectConfigManager(PartialMarimoConfigReader):
         self, *, hide_secrets: bool = True
     ) -> PartialMarimoConfig:
         """Get the `.env` next to the project, loaded when no layer set `dotenv`"""
+        root = self._dotenv_root
+        if self.pyproject_path is None and _is_home_directory(root):
+            # NB. Without a pyproject.toml the anchor is wherever the notebook
+            # or `marimo edit` sits. For ~ that would load ~/.env and list its
+            # keys in the secrets panel, so the default is skipped there.
+            return {}
         # NB. Emitted as a default, not from get_config(): get_config() is an
         # override layer over the user configuration, so a path nobody wrote
         # would outrank the user's own runtime.dotenv and would show up as a
         # project override in the settings editor.
         defaults = cast(
             PartialMarimoConfig,
-            {
-                "runtime": {
-                    "dotenv": [str((self._dotenv_root / ".env").absolute())]
-                }
-            },
+            {"runtime": {"dotenv": [str((root / ".env").absolute())]}},
         )
         if hide_secrets:
             return mask_secrets_partial(defaults)
@@ -640,6 +642,13 @@ class MarimoConfigReaderWithOverrides(PartialMarimoConfigReader):
         if hide_secrets:
             return mask_secrets_partial(self.override_config)
         return self.override_config
+
+
+def _is_home_directory(path: Path) -> bool:
+    home = os.path.expanduser("~")
+    if home == "~":
+        return False
+    return os.path.realpath(path) == os.path.realpath(home)
 
 
 def _drop_hollow_dotenv(config: PartialMarimoConfig) -> PartialMarimoConfig:

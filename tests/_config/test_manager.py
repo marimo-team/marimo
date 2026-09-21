@@ -421,6 +421,69 @@ def test_project_config_empty_dotenv_opts_out(tmp_path: Path) -> None:
     assert manager.get_config(hide_secrets=False)["runtime"]["dotenv"] == []
 
 
+def test_default_dotenv_skips_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # `marimo edit ~/nb.py`, or `marimo edit` run from ~, would otherwise load
+    # ~/.env and list its keys in the secrets panel.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / ".env").write_text("KEY=value")
+    monkeypatch.setenv("HOME", str(home))
+    notebook_path = home / "nb.py"
+    notebook_path.write_text("import marimo as mo")
+
+    for start_path in (notebook_path, home):
+        manager = get_default_config_manager(current_path=str(start_path))
+        config = manager.get_config(hide_secrets=False)
+        assert "dotenv" not in config["runtime"]
+
+
+def test_default_dotenv_applies_to_a_pyproject_in_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # A pyproject.toml in ~ is a deliberate project root, so the pre-existing
+    # default stays.
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    (home / "pyproject.toml").write_text("")
+    monkeypatch.setenv("HOME", str(home))
+    notebook_path = home / "nb.py"
+    notebook_path.write_text("import marimo as mo")
+
+    manager = get_default_config_manager(current_path=str(notebook_path))
+    config = manager.get_config(hide_secrets=False)
+    assert config["runtime"]["dotenv"] == [str(home / ".env")]
+
+
+def test_explicit_dotenv_resolves_in_the_home_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate_user_config(monkeypatch, tmp_path, "")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    notebook_path = home / "nb.py"
+    notebook_path.write_text(
+        textwrap.dedent(
+            """
+            # /// script
+            # [tool.marimo.runtime]
+            # dotenv = [".env"]
+            # ///
+            import marimo as mo
+            """
+        )
+    )
+
+    config = ScriptConfigManager(str(notebook_path)).get_config(
+        hide_secrets=False
+    )
+    assert config["runtime"]["dotenv"] == [str(home / ".env")]
+
+
 def test_project_config_dotenv_prefers_pyproject_root(tmp_path: Path) -> None:
     # When a pyproject.toml exists, it stays the anchor even if the notebook
     # lives in a subdirectory.
