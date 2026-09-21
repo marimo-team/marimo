@@ -407,9 +407,18 @@ def transform_magic_commands(sources: list[str]) -> list[str]:
         os.environ['VAR_NAME'] = 'VALUE'
         """
 
-        del command
-        _key, value = source.split("=", 1)
-        return f"import os\nos.environ[{_key!r}] = {value!r}"
+        if "=" not in source:
+            return magic_remove(source, command)
+        key, value = source.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+        if (
+            len(value) >= 2
+            and value[0] == value[-1]
+            and value[0] in ("'", '"')
+        ):
+            value = value[1:-1]
+        return f"import os\nos.environ[{key!r}] = {value!r}"
 
     def comment_out_code(source: str) -> str:
         if source.strip():
