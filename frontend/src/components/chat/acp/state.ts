@@ -257,7 +257,7 @@ interface AgentConfig {
 const AGENT_CONFIG: Record<ExternalAgentId, AgentConfig> = {
   claude: {
     port: 3017,
-    command: "npx @zed-industries/claude-code-acp",
+    command: "npx @agentclientprotocol/claude-agent-acp",
     sessionSupport: "single",
   },
   gemini: {
