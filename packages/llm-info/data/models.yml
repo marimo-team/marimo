@@ -400,6 +400,26 @@ google:
     cost: {input: 5, output: 25}
 
 bedrock:
+  - name: GPT-6 Astra
+    model: openai.gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image, pdf]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 11, output: 55}
+
+  - name: GPT-6 Astra (US)
+    model: us.openai.gpt-6-astra
+    description: ""
+    roles: [chat, edit]
+    capabilities: [thinking, tool_calling]
+    input_types: [text, image]
+    output_types: [text]
+    release_date: 2026-09-04
+    cost: {input: 11, output: 55}
+
   - name: GPT-6 Astra (Global)
     model: global.openai.gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
@@ -611,6 +631,26 @@ bedrock:
     cost: {input: 3, output: 15}
 
 azure:
+  - name: GPT Image 2.5 Flare
+    model: gpt-image-2.5-flare
+    description: ""
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [image]
+    release_date: 2026-09-08
+    cost: {input: 5, output: 30}
+
+  - name: GPT Image 2.5 Sunburst
+    model: gpt-image-2.5-sunburst
+    description: ""
+    roles: [chat, edit]
+    capabilities: []
+    input_types: [text, image]
+    output_types: [image]
+    release_date: 2026-09-08
+    cost: {input: 5, output: 30}
+
   - name: GPT-6 Astra
     model: gpt-6-astra
     description: "OpenAI model for advanced analysis, software engineering, deep research, scientific work, and document creation"
