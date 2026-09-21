@@ -255,7 +255,9 @@ def safe_popen(
             stdin=stdin,
             stdout=stdout,
             stderr=stderr,
-            preexec_fn=preexec_fn,
+            # Mirror Popen's signature for compatibility; current callers
+            # retain the safe default of None.
+            preexec_fn=preexec_fn,  # noqa: PLW1509
             close_fds=close_fds,
             shell=shell,
             cwd=cwd,
