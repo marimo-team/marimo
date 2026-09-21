@@ -33,15 +33,14 @@ const runtimeConfig = new Deferred<WasmRuntimeConfig>();
 async function loadPyodideAndPackages() {
   try {
     // Import pyodide
-    const marimoVersion = getMarimoVersion();
-    const pyodideVersion = getPyodideVersion(marimoVersion);
+    const config = await runtimeConfig.promise;
+    const pyodideVersion = getPyodideVersion(config.version);
 
     // Bootstrap the controller
-    const controller = await getController(marimoVersion);
+    const controller = await getController(config.version);
     self.controller = controller;
     self.pyodide = await controller.bootstrap({
-      ...(await runtimeConfig.promise),
-      version: marimoVersion,
+      ...config,
       pyodideVersion: pyodideVersion,
     });
 
@@ -108,8 +107,3 @@ const rpc = createRPC<SaveWorkerSchema, ParentSchema>({
 rpc.addMessageListener("bootstrap", (config) => runtimeConfig.resolve(config));
 
 rpc.send("ready", {});
-
-function getMarimoVersion() {
-  // Worker name is "<version>" or "<version>::<capability>" — see bridge.ts.
-  return self.name.split("::")[0];
-}

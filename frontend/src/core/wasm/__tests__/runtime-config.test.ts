@@ -1,7 +1,11 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
-import { afterEach, assert, describe, expect, it } from "vitest";
+import { afterEach, assert, describe, expect, it, vi } from "vitest";
 import { getWasmRuntimeConfig } from "../runtime-config";
+
+vi.mock("@/core/meta/globals", () => ({
+  getMarimoVersion: () => "0.0.0-test",
+}));
 
 afterEach(() => {
   document.head.innerHTML = "";
@@ -10,6 +14,7 @@ afterEach(() => {
 describe("getWasmRuntimeConfig", () => {
   it("uses runtime defaults when no URLs are configured", () => {
     expect(getWasmRuntimeConfig()).toEqual({
+      version: "0.0.0-test",
       pyodideIndexUrl: undefined,
       pyodideLockfileUrl: undefined,
       pypiIndexUrl: undefined,
@@ -25,6 +30,7 @@ describe("getWasmRuntimeConfig", () => {
         data-pypi-index-url="https://packages.example.com/{package_name}/json"
       ></marimo-wasm>`;
     expect(getWasmRuntimeConfig()).toEqual({
+      version: "0.0.0-test",
       pyodideIndexUrl: "https://example.com/blog/runtime/",
       pyodideLockfileUrl: "https://example.com/locks/pyodide.json?v=1&x=2",
       pypiIndexUrl: "https://packages.example.com/{package_name}/json",
@@ -46,6 +52,7 @@ describe("getWasmRuntimeConfig", () => {
       element.dataset[key] = "https://invalid host/";
 
       expect(getWasmRuntimeConfig()).toEqual({
+        version: "0.0.0-test",
         pyodideIndexUrl: "https://example.com/notebook/pyodide/",
         pyodideLockfileUrl:
           "https://example.com/notebook/lockfile/pyodide.json",

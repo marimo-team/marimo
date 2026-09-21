@@ -1,6 +1,9 @@
 /* Copyright 2026 Marimo. All rights reserved. */
 
+import { getMarimoVersion } from "@/core/meta/globals";
+
 export interface WasmRuntimeConfig {
+  version: string;
   pyodideIndexUrl?: string;
   pyodideLockfileUrl?: string;
   pypiIndexUrl?: string;
@@ -16,6 +19,7 @@ export function getWasmRuntimeConfig(): WasmRuntimeConfig {
     }
   };
   return {
+    version: getMarimoVersion(),
     pyodideIndexUrl: resolve(element?.dataset.pyodideIndexUrl),
     pyodideLockfileUrl: resolve(element?.dataset.pyodideLockfileUrl),
     // URL serialization escapes the placeholder understood by micropip.
