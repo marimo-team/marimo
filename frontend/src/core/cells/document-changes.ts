@@ -569,9 +569,7 @@ export function fromDocumentChanges(
               column: change.column,
               disabled: change.disabled,
               hide_code: change.hideCode,
-              ...(change.expandOutput != null && {
-                expand_output: change.expandOutput,
-              }),
+              expand_output: change.expandOutput,
             },
           },
         });
