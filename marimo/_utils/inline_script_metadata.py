@@ -309,29 +309,46 @@ def with_pinned_dependencies(
 def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
     """Pin a notebook's PEP 723 deps for embedding in a WASM HTML export.
 
-    For each top-level dep also shipped in the Pyodide lockfile, pin to the
-    *lockfile* version — that's what micropip will install in the browser,
-    so embedding any other pin would be a lie that breaks the export. If
-    the lockfile fetch fails, degrade to pinning the locally installed
-    version (best-effort; the WASM runtime falls back to its bundled
-    lockfile). Also warns about top-level dependencies that aren't shipped
-    in pyodide-lock — those may fail to install via micropip. The lock
-    kind is "resolved" when we ran inside the html-wasm sandbox, otherwise
-    "observed".
+    Every top-level dependency that Pyodide also ships is pinned to the
+    *lockfile* version. That build is what micropip installs in the browser
+    whatever the header asks for, and a header that asks for a different
+    version makes micropip reject the whole install. Dependencies Pyodide
+    does not ship keep their specifier as written; micropip resolves those
+    from PyPI. Pins come from the header alone, so the exporting machine's
+    environment does not matter. If the lockfile fetch fails, degrade to
+    pinning the locally installed version (best-effort; the WASM runtime
+    falls back to its bundled lockfile). Also warns about top-level
+    dependencies that aren't shipped in pyodide-lock -- those may fail to
+    install via micropip. The lock kind is "resolved" when we ran inside
+    the html-wasm sandbox, otherwise "observed".
     """
-    from importlib.metadata import distributions
-
     from marimo._pyodide.pyodide_constraints import (
         fetch_pyodide_package_versions,
         normalize_package_name,
     )
 
-    installed: dict[str, str] = {}
-    for dist in distributions():
-        name = dist.metadata["Name"]
-        version = dist.version
-        if name and version:
-            installed[normalize_package_name(name)] = version
+    # Top-level deps that apply in the browser, keyed by canonical name.
+    # Deps whose markers exclude Emscripten are never installed there, so
+    # they are left exactly as written.
+    header_names: dict[str, str] = {}
+    try:
+        from marimo._runtime.packages.utils import (
+            filter_requirements_for_emscripten,
+        )
+
+        pyproject = PyProjectReader.from_filename(path.absolute_name)
+        for dep in filter_requirements_for_emscripten(pyproject.dependencies):
+            match = _DEP_NAME_RE.match(dep.strip())
+            if match is None:
+                continue
+            bare_name = match.group("name").split("[", 1)[0]
+            canonical = normalize_package_name(bare_name)
+            # marimo itself is installed by the runtime, not from the
+            # header; its version there has nothing to do with the lock.
+            if canonical != "marimo":
+                header_names[canonical] = bare_name
+    except Exception as e:
+        LOGGER.debug("Could not read PEP 723 dependencies: %s", e)
 
     pyodide_versions: dict[str, str] = {}
     try:
@@ -339,52 +356,43 @@ def pin_pep723_dependencies_for_wasm(code: str, path: MarimoPath) -> str:
             normalize_package_name(n): v
             for n, v in fetch_pyodide_package_versions().items()
         }
-        # Pin to lockfile versions for names the browser can actually
-        # install. Restricting to installed names keeps the pin set small
-        # and noise-free (an irrelevant pin for an unused dep is harmless
-        # but unnecessary churn).
         pins = {
             name: pyodide_versions[name]
-            for name in installed
+            for name in header_names
             if name in pyodide_versions
         }
     except Exception:
         # Fetch failures degrade to pinning whatever is installed; the
         # WASM micropip will still try its bundled lockfile first.
-        pins = installed
-    pyodide_names = set(pyodide_versions)
+        from importlib.metadata import distributions
+
+        installed: dict[str, str] = {}
+        for dist in distributions():
+            name = dist.metadata["Name"]
+            version = dist.version
+            if name and version:
+                installed[normalize_package_name(name)] = version
+        pins = {
+            name: installed[name] for name in header_names if name in installed
+        }
 
     # Warn about top-level deps not bundled in pyodide. micropip *may*
     # still install pure-python ones from PyPI in the browser; native
     # ones (jax, torch, numpy alternatives) will fail. We don't know
     # which from here, so emit a single advisory.
-    if pyodide_names:
-        try:
-            from marimo._runtime.packages.utils import (
-                filter_requirements_for_emscripten,
+    if pyodide_versions:
+        unbundled = sorted(
+            bare_name
+            for canonical, bare_name in header_names.items()
+            if canonical not in pyodide_versions
+        )
+        if unbundled:
+            echo(
+                "warn: these dependencies are not bundled in the "
+                "Pyodide lockfile and may fail to install in the "
+                "browser: " + ", ".join(unbundled),
+                err=True,
             )
-
-            pyproject = PyProjectReader.from_filename(path.absolute_name)
-            top_level: list[str] = []
-            for dep in filter_requirements_for_emscripten(
-                pyproject.dependencies
-            ):
-                match = re.match(r"^([A-Za-z0-9][A-Za-z0-9._-]*)", dep.strip())
-                if match is None:
-                    continue
-                canonical = normalize_package_name(match.group(1))
-                if canonical == "marimo" or canonical in pyodide_names:
-                    continue
-                top_level.append(match.group(1))
-            if top_level:
-                echo(
-                    "warn: these dependencies are not bundled in the "
-                    "Pyodide lockfile and may fail to install in the "
-                    "browser: " + ", ".join(sorted(set(top_level))),
-                    err=True,
-                )
-        except Exception as e:
-            LOGGER.debug("Skipped wasm compat warn: %s", e)
 
     lock_kind = (
         "resolved"

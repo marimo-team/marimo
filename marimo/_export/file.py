@@ -250,7 +250,11 @@ async def export_wasm(
         )
         resolved = config.get_config()
 
-        code = app.to_py()
+        # Pin Pyodide-bundled deps to the lockfile version, as the executed
+        # export does: micropip installs those builds regardless of the
+        # header's specifier, and rejects the whole install when the two
+        # disagree.
+        code = pin_pep723_dependencies_for_wasm(app.to_py(), request.path)
         code, options = await _prepare_wasm_export(code, request)
 
         result = Exporter().export_as_wasm(
